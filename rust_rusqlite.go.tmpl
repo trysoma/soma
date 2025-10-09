@@ -1,0 +1,237 @@
+{{- /*
+https://docs.sqlc.dev/en/stable/reference/query-annotations.html
+https://github.com/sqlc-dev/sqlc/blob/main/protos/plugin/codegen.proto
+*/ -}}
+
+{{- $CacheStatementsGlobal := "cache_statements" | GetPluginOption }}
+{{- $Overrides := "overrides" | GetPluginOption }}
+
+
+{{- define "RustType" -}}
+{{- $rustType := .Type.Name -}}
+{{- $TypeName := .Type.Name | ToLower -}}
+{{- $columnPath := "" }}
+{{- if and (.Table) (.Table.Name) }}
+  {{- $columnPath = printf "%s.%s" .Table.Name .OriginalName }}
+{{- else }}
+  {{- $columnPath = .OriginalName }}
+{{- end }}
+
+
+{{- $Overrides := "overrides" | GetPluginOption }}
+{{- $customType := "" }}
+
+{{- $dbTypeLower := .Type.Name | ToLower }}
+{{- if $Overrides }}
+  {{- range $Overrides }}
+    {{- if  (eq .column $columnPath) }}
+      {{- $customType = .rust_type }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- if ne $customType "" }}{{ $customType }}
+{{- else if eq $TypeName "integer"}}i64
+{{- else if or (eq $TypeName "text") (Contains $TypeName "varchar")}}String
+{{- else if eq $TypeName "blob"}}Vec<u8>
+{{- else if or (eq $TypeName "real") (eq $TypeName "float") (eq $TypeName "double")}}f64
+{{- else if or (eq $TypeName "boolean") (eq $TypeName "bool")}}bool
+{{- else if eq $TypeName "timestamp"}}shared::primitives::WrappedChronoDateTime
+{{- else if eq $TypeName "datetime"}}shared::primitives::WrappedChronoDateTime
+{{- else if eq $TypeName "json"}}shared::primitives::WrappedJsonValue
+{{- else if eq $TypeName "bigint"}}i64
+{{- else if (Contains $TypeName "f32_blob")}}
+{{- $parts := Split $TypeName "(" }}
+{{- $right := index $parts 1 }}     
+{{- $num := index (Split $right ")") 0 }}  
+shared::primitives::WrappedVector<{{ $num }}>
+{{- else }}{{ $rustType }}
+{{- end -}}
+{{- end }}
+
+#[allow(unused)]
+{{- if GetPluginOption "use_serde" }}
+use serde::{Serialize, Deserialize};
+{{- end }}
+
+{{- range .Queries }}
+
+{{- range .Comments }}
+// {{ . }}
+{{- end }}
+
+{{- $rowType := printf "Row_%s" .Name }}
+
+
+{{- if .Params }}
+  pub struct {{ .Name | ToLower }}_params<'a> {
+      {{- range .Params }}
+      pub {{ .Column.Name }}: &'a {{ if not .Column.NotNull }}Option<{{ end }}
+          {{ template "RustType" .Column }}
+      {{ if not .Column.NotNull }}>{{ end }},
+      {{- end }}
+  }
+{{- end }}
+
+{{- if or (eq .Cmd ":many") (eq .Cmd ":one") }}
+  {{- if GetPluginOption "use_serde" }}
+    #[derive(Serialize, Deserialize, Debug)]
+  {{- else }}
+    #[derive(Debug)]
+  {{- end }}
+
+  #[allow(non_camel_case_types)]
+  pub struct {{ $rowType }} {
+      {{- range .Columns }}
+      pub {{ .Name }}:
+          {{- if not .NotNull }}Option<{{ end -}}
+          {{ template "RustType" . }}
+          {{- if not .NotNull }}> {{ end }},
+      {{- end }}
+  }
+{{- end }}
+
+
+
+{{- $CacheStatements := $CacheStatementsGlobal }}
+{{- if (Contains (ToLower .Filename) "cache") }}
+  {{- $CacheStatements = true }}
+{{- end }}
+{{- if (Contains (ToLower .Filename) "nocache") }}
+  {{- $CacheStatements = false }}
+{{- end }}
+
+
+
+{{- if eq .Cmd ":many" }}
+  {{- $returnType := printf "Vec<%s>" $rowType }}
+  pub async fn {{ .Name }}(
+      conn: &shared::libsql::Connection
+      {{- if .Params }}
+      ,params: {{ .Name }}_params<'_>
+      {{- end }}
+  ) -> Result<{{ $returnType }}, libsql::Error> {
+      let mut stmt = conn.prepare(r#"{{ .Text }}"#).await?;
+      let mut rows = stmt.query(libsql::params![{{- range .Params }}params.{{ .Column.Name }}.clone(),{{ end }}]).await?;
+      let mut mapped = vec![];
+
+      while let Some(row) = rows.next().await? {
+          mapped.push(
+          {{- /* this is duplicated due to lack of function support in sqlc template functions */ -}}
+          {{ $rowType }} {
+              {{- range $index, $column := .Columns }}
+              {{- $type := $column.Type.Name | ToLower }}
+              {{ $column.Name }}: row.get({{ $index }})?,
+              {{- end }}
+          }
+          {{- /* END this is duplicated due to lack of function support in sqlc template functions */ -}}
+
+          );
+      }
+
+      Ok(mapped)
+  }
+{{- end }}
+
+{{- if eq .Cmd ":one" }}
+  {{- $returnType := printf "Option<%s>" $rowType }}
+  pub async fn {{ .Name }}(
+      conn: &shared::libsql::Connection
+      {{- if .Params }}
+      ,params: {{ .Name }}_params<'_>
+      {{- end }}
+  ) -> Result<{{ $returnType }}, libsql::Error> {
+      let mut stmt = {{ if $CacheStatements }}conn.prepare{{ else }}conn.prepare{{ end }}(r#"{{ .Text }}"#).await?;
+      let res = stmt.query_row(
+          libsql::params![{{- range .Params }}params.{{ .Column.Name }}.clone(),{{ end }}],
+      ).await;
+
+      match res {
+          Ok(row) => Ok(Some(
+              {{- /* this is duplicated due to lack of function support in sqlc template functions */ -}}
+              {{ $rowType }} {
+                  {{- range $index, $column := .Columns }}
+                  {{- $type := $column.Type.Name | ToLower }}
+                  {{ $column.Name }}: row.get({{ $index }})?,
+                  {{- end }}
+              }
+              {{- /* END this is duplicated due to lack of function support in sqlc template functions */ -}}
+          )),
+          Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
+          Err(e) => Err(e),
+      }
+  }
+{{- end }}
+
+{{- if eq .Cmd ":exec" }}
+
+  {{- $bulkInsert := false }}
+  {{- if and (.Comments) (gt (len .Comments) 0) }}
+    {{- if (Contains (index .Comments 0) ":bulk_insert") }}
+      {{- $bulkInsert = true }}
+    {{- end }}
+  {{- end }}
+
+
+  {{- if $bulkInsert }}
+  pub async fn {{ .Name }}(
+    conn: &mut shared::libsql::Connection,
+    params: Vec<{{ .Name }}_params<'_>>,
+) -> Result<(), libsql::Error> {
+    let transaction = conn.transaction().await?;
+
+    for param in params {
+        transaction.execute(r#"{{ .Text }}"#, libsql::params![
+            {{- range .Params }}
+            {{- if not .Column.NotNull }}
+              match param.{{ .Column.Name }}.clone() {
+                Some(value) => {
+                  <{{ template "RustType" .Column }} as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            {{- else }}
+              <{{ template "RustType" .Column }} as TryInto<libsql::Value>>::try_into(param.{{ .Column.Name }}.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            {{- end}}
+            ,
+            {{- end }}
+        ]).await?;
+    }
+
+    transaction.commit().await?;
+    Ok(())
+}
+  {{- else }}
+
+  pub async fn {{ .Name }}(
+    conn: &shared::libsql::Connection
+    {{- if .Params }}
+    ,params: {{ .Name }}_params<'_>
+    {{- end }}
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"{{ .Text }}"#, libsql::params![
+            {{- range .Params }}
+            {{- if not .Column.NotNull }}
+              match params.{{ .Column.Name }}.clone() {
+                Some(value) => {
+                  <{{ template "RustType" .Column }} as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            {{- else }}
+              <{{ template "RustType" .Column }} as TryInto<libsql::Value>>::try_into(params.{{ .Column.Name }}.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            {{- end}}
+            ,
+          {{- end }}
+    ]).await
+}
+
+  {{- end }}
+
+{{- end }}
+
+{{- end }}

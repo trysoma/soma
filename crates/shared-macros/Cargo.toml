@@ -1,0 +1,11 @@
+[lib]
+proc-macro = true
+
+[package]
+name = "shared-macros"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+quote.workspace = true
+syn.workspace = true

@@ -1,0 +1,58 @@
+[package]
+name = "frontend"
+version = "0.0.1"
+edition = "2024"
+
+[[bin]]
+name = "frontend"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.100"
+a2a-rs.workspace = true
+axum = "0.8.6"
+axum-server = "0.7.2"
+# axum-server = "0.7.2"
+clap = { version = "4.5.44", features = ["derive"] }
+dotenv = "0.15.0"
+envconfig = "0.11.0"
+http = "1.3.1"
+libsql = { git = "https://github.com/trysoma/tursodatabase-libsql", rev = "25266445e3d3b76ed781d5a7acb82f1ece29c09e", features = [
+  "sync",
+  "replication",
+] }
+libsql_migration = { git = "https://github.com/trysoma/prashant1k99-libsql_migration", rev = "148108c50c07ad66b468cb3ad84d3ca1c5e5f0e9" }
+rustls = "0.23.32"
+serde = "1.0.228"
+serde_json = "1.0.145"
+tempfile = "3.23.0"
+thiserror = "2.0.17"
+tokio = "1.47.1"
+tokio-graceful-shutdown = "0.16.0"
+tokio-rustls = { version = "0.26.2", features = ["ring"] }
+tokio-stream = "0.1.17"
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "0.3.20", features = [
+  "env-filter",
+  "fmt",
+  "parking_lot",
+  "json",
+] }
+url = "2.5.7"
+utoipa = "5.4.0"
+utoipa-axum = "0.2.0"
+vite-rs = "0.2.1"
+vite-rs-axum-0-8 = "0.2.1"
+serde_yaml = "0.9.34"
+tower-http = { version = "0.6.1", features = ["cors"] }
+tower = "0.5.2"
+uuid = { version = "1.18.1", features = ["v4"] }
+reqwest = { version = "0.12.23", features = ["json"] }
+chrono = "0.4.42"
+restate-admin-rest-model = { git = "https://github.com/restatedev/restate", package = "restate-admin-rest-model", features = ["schema"]}
+restate-types = { git = "https://github.com/restatedev/restate", package = "restate-types", features = ["schemars"]}
+restate-serde-util = { git = "https://github.com/restatedev/restate", package = "restate-serde-util", features = ["schema"]}
+humantime = "2.3.0"
+schemars = "1.0.4"
+base64 = "0.22.1"
+shared.workspace = true
