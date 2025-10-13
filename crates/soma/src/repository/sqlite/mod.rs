@@ -5,8 +5,9 @@ include!("raw.generated.rs");
 
 use crate::repository::{
     CreateTask, CreateTaskTimelineItem, Task, TaskRepositoryLike, TaskTimelineItem,
-    UpdateTaskStatus,
+    UpdateTaskStatus, CreateMessage, Message,
 };
+use crate::logic::{MessageRole, TaskWithDetails};
 use shared::{
     error::CommonError,
     primitives::{
@@ -29,12 +30,13 @@ impl Repository {
 }
 
 impl TaskRepositoryLike for Repository {
-    async fn create_task(&self, params: &CreateTask<'_>) -> Result<(), CommonError> {
+    async fn create_task(&self, params: &CreateTask) -> Result<(), CommonError> {
         let sqlc_params = insert_task_params {
-            id: params.id,
-            context_id: params.context_id,
-            status: params.status,
-            metadata: params.metadata,
+            id: &params.id,
+            context_id: &params.context_id,
+            status: &params.status,
+            status_timestamp: &params.status_timestamp,
+            metadata: &params.metadata,
             created_at: &params.created_at,
             updated_at: &params.updated_at,
         };
@@ -49,10 +51,12 @@ impl TaskRepositoryLike for Repository {
         Ok(())
     }
 
-    async fn update_task_status(&self, params: &UpdateTaskStatus<'_>) -> Result<(), CommonError> {
+    async fn update_task_status(&self, params: &UpdateTaskStatus) -> Result<(), CommonError> {
         let sqlc_params = update_task_status_params {
-            id: params.id,
-            status: params.status,
+            id: &params.id,
+            status: &params.status,
+            status_message_id: &params.status_message_id,
+            status_timestamp: &params.status_timestamp,
             updated_at: &params.updated_at,
         };
 
@@ -68,7 +72,7 @@ impl TaskRepositoryLike for Repository {
 
     async fn insert_task_timeline_item(
         &self,
-        params: &CreateTaskTimelineItem<'_>,
+        params: &CreateTaskTimelineItem,
     ) -> Result<(), CommonError> {
         let sqlc_params = insert_task_timeline_item_params {
             id: &params.id.to_string(),
@@ -97,7 +101,7 @@ impl TaskRepositoryLike for Repository {
             let decoded_parts =
                 decode_pagination_token(token).map_err(|e| CommonError::Repository {
                     msg: format!("Invalid pagination token: {}", e),
-                    source: Some(e),
+                    source: Some(e.into()),
                 })?;
             if decoded_parts.is_empty() {
                 None
@@ -108,7 +112,7 @@ impl TaskRepositoryLike for Repository {
                     )
                     .map_err(|e| CommonError::Repository {
                         msg: format!("Invalid datetime in pagination token: {}", e),
-                        source: Some(e),
+                        source: Some(e.into()),
                     })?,
                 )
             }
@@ -129,7 +133,8 @@ impl TaskRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Vec<Task> = rows.into_iter().map(Task::from).collect();
+        let items: Result<Vec<Task>, CommonError> = rows.into_iter().map(|row| Task::try_from(row)).collect();
+        let items = items?;
 
         Ok(PaginatedResponse::from_items_with_extra(
             items,
@@ -148,7 +153,7 @@ impl TaskRepositoryLike for Repository {
             let decoded_parts =
                 decode_pagination_token(token).map_err(|e| CommonError::Repository {
                     msg: format!("Invalid pagination token: {}", e),
-                    source: Some(e),
+                    source: Some(e.into()),
                 })?;
             if decoded_parts.is_empty() {
                 None
@@ -159,7 +164,7 @@ impl TaskRepositoryLike for Repository {
                     )
                     .map_err(|e| CommonError::Repository {
                         msg: format!("Invalid datetime in pagination token: {}", e),
-                        source: Some(e),
+                        source: Some(e.into()),
                     })?,
                 )
             }
@@ -181,7 +186,8 @@ impl TaskRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Vec<TaskTimelineItem> = rows.into_iter().map(TaskTimelineItem::from).collect();
+        let items: Result<Vec<TaskTimelineItem>, CommonError> = rows.into_iter().map(|row| TaskTimelineItem::try_from(row)).collect();
+        let items = items?;
 
         Ok(PaginatedResponse::from_items_with_extra(
             items,
@@ -190,7 +196,7 @@ impl TaskRepositoryLike for Repository {
         ))
     }
 
-    async fn get_task_by_id(&self, id: &WrappedUuidV4) -> Result<Option<Task>, CommonError> {
+    async fn get_task_by_id(&self, id: &WrappedUuidV4) -> Result<Option<TaskWithDetails>, CommonError> {
         let sqlc_params = get_task_by_id_params { id };
 
         let row_opt = get_task_by_id(&self.conn, sqlc_params)
@@ -201,7 +207,84 @@ impl TaskRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        Ok(row_opt.map(Task::from))
+        match row_opt {
+            Some(row) => Ok(Some(TaskWithDetails::try_from(row)?)),
+            None => Ok(None),
+        }
+    }
+
+    async fn insert_message(&self, params: &CreateMessage) -> Result<(), CommonError> {
+        let sqlc_params = insert_message_params {
+            id: &params.id,
+            task_id: &params.task_id,
+            reference_task_ids: &params.reference_task_ids,
+            role: &params.role,
+            metadata: &params.metadata,
+            parts: &params.parts,
+            created_at: &params.created_at,
+        };
+
+        insert_message(&self.conn, sqlc_params)
+            .await
+            .context("Failed to insert message")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn get_messages_by_task_id(
+        &self,
+        task_id: &WrappedUuidV4,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<Message>, CommonError> {
+        // Decode the base64 token to get the datetime cursor
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {}", e),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    shared::primitives::WrappedChronoDateTime::try_from(
+                        decoded_parts[0].as_str(),
+                    )
+                    .map_err(|e| CommonError::Repository {
+                        msg: format!("Invalid datetime in pagination token: {}", e),
+                        source: Some(e.into()),
+                    })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let sqlc_params = get_messages_by_task_id_params {
+            task_id,
+            cursor: &cursor_datetime,
+            page_size: &pagination.page_size,
+        };
+
+        let rows = get_messages_by_task_id(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get messages by task id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Result<Vec<Message>, CommonError> = rows.into_iter().map(|row| Message::try_from(row)).collect();
+        let items = items?;
+
+        Ok(PaginatedResponse::from_items_with_extra(
+            items,
+            pagination,
+            |message| vec![message.created_at.get_inner().to_rfc3339()],
+        ))
     }
 }
 
@@ -224,8 +307,9 @@ impl SqlMigrationLoader for Repository {
 mod tests {
     use super::*;
     use crate::repository::{
-        CreateTask, CreateTaskTimelineItem, TaskEventUpdateType, TaskRepositoryLike, TaskStatus, UpdateTaskStatus
+        CreateTask, CreateTaskTimelineItem, TaskRepositoryLike, CreateMessage
     };
+    use crate::logic::{TaskStatus, TaskEventUpdateType, Metadata, MessagePart, TextPart, MessageRole, Message, TaskTimelineItemPayload, TaskStatusUpdateTaskTimelineItem, MessageTaskTimelineItem};
     use shared::primitives::{PaginationRequest, SqlMigrationLoader, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4};
     use shared::test_utils::repository::setup_in_memory_database;
 
@@ -240,30 +324,31 @@ mod tests {
         let task_id = WrappedUuidV4::new();
         let context_id = WrappedUuidV4::new();
         let status = TaskStatus::Submitted;
-        let metadata = WrappedJsonValue::new(serde_json::json!({"key": "value"}));
+        let metadata = Metadata::new();
         let created_at = WrappedChronoDateTime::now();
         let updated_at = WrappedChronoDateTime::now();
 
         // Create task
         let create_params = CreateTask {
-            id: &task_id,
-            context_id: &context_id,
-            status: &status,
-            metadata: &metadata,
-            created_at: &created_at,
-            updated_at: &updated_at,
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: updated_at.clone(),
         };
         repo.create_task(&create_params).await.unwrap();
 
         // Get task by ID
-        let task = repo.get_task_by_id(&task_id).await.unwrap();
-        assert!(task.is_some());
-        let task = task.unwrap();
-        assert_eq!(task.id, task_id);
-        assert_eq!(task.context_id, context_id);
-        assert_eq!(task.status, TaskStatus::Submitted);
-        assert_eq!(task.created_at, created_at);
-        assert_eq!(task.updated_at, updated_at);
+        let task_with_details = repo.get_task_by_id(&task_id).await.unwrap();
+        assert!(task_with_details.is_some());
+        let task_with_details = task_with_details.unwrap();
+        assert_eq!(task_with_details.task.id, task_id);
+        assert_eq!(task_with_details.task.context_id, context_id);
+        assert_eq!(task_with_details.task.status, TaskStatus::Submitted);
+        assert_eq!(task_with_details.task.created_at, created_at);
+        assert_eq!(task_with_details.task.updated_at, updated_at);
     }
 
     #[tokio::test]
@@ -277,18 +362,19 @@ mod tests {
         let task_id = WrappedUuidV4::new();
         let context_id = WrappedUuidV4::new();
         let status = TaskStatus::Submitted;
-        let metadata = WrappedJsonValue::new(serde_json::json!({"key": "value"}));
+        let metadata = Metadata::new();
         let created_at = WrappedChronoDateTime::now();
         let updated_at = WrappedChronoDateTime::now();
 
         // Create task with Submitted status
         let create_params = CreateTask {
-            id: &task_id,
-            context_id: &context_id,
-            status: &status,
-            metadata: &metadata,
-            created_at: &created_at,
-            updated_at: &updated_at,
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: updated_at.clone(),
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -296,31 +382,35 @@ mod tests {
         let new_status = TaskStatus::Working;
         let new_updated_at = WrappedChronoDateTime::now();
         let update_params = UpdateTaskStatus {
-            id: &task_id,
-            status: &new_status,
-            updated_at: &new_updated_at,
+            id: task_id.clone(),
+            status: new_status.clone(),
+            status_message_id: None,
+            status_timestamp: new_updated_at.clone(),
+            updated_at: new_updated_at.clone(),
         };
         repo.update_task_status(&update_params).await.unwrap();
 
         // Verify update
-        let task = repo.get_task_by_id(&task_id).await.unwrap().unwrap();
-        assert_eq!(task.status, TaskStatus::Working);
-        assert_eq!(task.updated_at, new_updated_at);
+        let task_with_details = repo.get_task_by_id(&task_id).await.unwrap().unwrap();
+        assert_eq!(task_with_details.task.status, TaskStatus::Working);
+        assert_eq!(task_with_details.task.updated_at, new_updated_at);
 
         // Update to Completed status
         let complete_status = TaskStatus::Completed;
         let complete_updated_at = WrappedChronoDateTime::now();
         let complete_params = UpdateTaskStatus {
-            id: &task_id,
-            status: &complete_status,
-            updated_at: &complete_updated_at,
+            id: task_id.clone(),
+            status: complete_status.clone(),
+            status_message_id: None,
+            status_timestamp: complete_updated_at.clone(),
+            updated_at: complete_updated_at.clone(),
         };
         repo.update_task_status(&complete_params).await.unwrap();
 
         // Verify completed status
-        let task = repo.get_task_by_id(&task_id).await.unwrap().unwrap();
-        assert_eq!(task.status, TaskStatus::Completed);
-        assert_eq!(task.updated_at, complete_updated_at);
+        let task_with_details = repo.get_task_by_id(&task_id).await.unwrap().unwrap();
+        assert_eq!(task_with_details.task.status, TaskStatus::Completed);
+        assert_eq!(task_with_details.task.updated_at, complete_updated_at);
     }
 
     #[tokio::test]
@@ -334,33 +424,50 @@ mod tests {
         let task_id = WrappedUuidV4::new();
         let context_id = WrappedUuidV4::new();
         let status = TaskStatus::Working;
-        let metadata = WrappedJsonValue::new(serde_json::json!({"key": "value"}));
+        let metadata = Metadata::new();
         let created_at = WrappedChronoDateTime::now();
         let updated_at = WrappedChronoDateTime::now();
 
         // Create task
         let create_params = CreateTask {
-            id: &task_id,
-            context_id: &context_id,
-            status: &status,
-            metadata: &metadata,
-            created_at: &created_at,
-            updated_at: &updated_at,
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: updated_at.clone(),
         };
         repo.create_task(&create_params).await.unwrap();
 
-        // Insert timeline item
+        // Insert timeline item with a Message payload
         let timeline_id = WrappedUuidV4::new();
         let event_type = TaskEventUpdateType::Message;
-        let event_payload = WrappedJsonValue::new(serde_json::json!({"message": "Task started"}));
+
+        // Create a proper Message for the timeline
+        let message = Message {
+            id: WrappedUuidV4::new(),
+            task_id: task_id.clone(),
+            reference_task_ids: Vec::new(),
+            role: MessageRole::Agent,
+            metadata: Metadata::new(),
+            parts: vec![MessagePart::TextPart(TextPart {
+                text: "Task started".to_string(),
+                metadata: Metadata::new(),
+            })],
+            created_at: WrappedChronoDateTime::now(),
+        };
+
+        let payload = TaskTimelineItemPayload::Message(MessageTaskTimelineItem { message });
+        let event_payload = WrappedJsonValue::new(serde_json::to_value(&payload).unwrap());
         let timeline_created_at = WrappedChronoDateTime::now();
 
         let timeline_params = CreateTaskTimelineItem {
-            id: &timeline_id,
-            task_id: &task_id,
-            event_update_type: &event_type,
-            event_payload: &event_payload,
-            created_at: &timeline_created_at,
+            id: timeline_id.clone(),
+            task_id: task_id.clone(),
+            event_update_type: event_type.clone(),
+            event_payload: event_payload.clone(),
+            created_at: timeline_created_at.clone(),
         };
         repo.insert_task_timeline_item(&timeline_params)
             .await
@@ -380,7 +487,6 @@ mod tests {
         let item = &response.items[0];
         assert_eq!(item.id, timeline_id);
         assert_eq!(item.task_id, task_id);
-        assert_eq!(item.event_update_type, TaskEventUpdateType::Message);
         assert_eq!(item.created_at, timeline_created_at);
     }
 
@@ -407,17 +513,18 @@ mod tests {
                 1 => TaskStatus::Working,
                 _ => TaskStatus::Completed,
             };
-            let metadata = WrappedJsonValue::new(serde_json::json!({"index": i}));
+            let metadata = Metadata::new();
             let created_at = WrappedChronoDateTime::now();
             let updated_at = WrappedChronoDateTime::now();
 
             let create_params = CreateTask {
-                id: &task_id,
-                context_id: &context_id,
-                status: &status,
-                metadata: &metadata,
-                created_at: &created_at,
-                updated_at: &updated_at,
+                id: task_id.clone(),
+                context_id: context_id.clone(),
+                status: status.clone(),
+                status_timestamp: created_at.clone(),
+                metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+                created_at: created_at.clone(),
+                updated_at: updated_at.clone(),
             };
             repo.create_task(&create_params).await.unwrap();
         }
@@ -462,18 +569,19 @@ mod tests {
         let task_id = WrappedUuidV4::new();
         let context_id = WrappedUuidV4::new();
         let status = TaskStatus::Working;
-        let metadata = WrappedJsonValue::new(serde_json::json!({"key": "value"}));
+        let metadata = Metadata::new();
         let created_at = WrappedChronoDateTime::now();
         let updated_at = WrappedChronoDateTime::now();
 
         // Create task
         let create_params = CreateTask {
-            id: &task_id,
-            context_id: &context_id,
-            status: &status,
-            metadata: &metadata,
-            created_at: &created_at,
-            updated_at: &updated_at,
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: updated_at.clone(),
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -483,21 +591,38 @@ mod tests {
         for i in 0..5 {
             sleep(Duration::from_millis(10)); // Ensure different timestamps
             let timeline_id = WrappedUuidV4::new();
-            let event_type = if i % 2 == 0 {
-                TaskEventUpdateType::Message
+            let (event_type, event_payload) = if i % 2 == 0 {
+                // Create Message payload
+                let message = Message {
+                    id: WrappedUuidV4::new(),
+                    task_id: task_id.clone(),
+                    reference_task_ids: Vec::new(),
+                    role: MessageRole::Agent,
+                    metadata: Metadata::new(),
+                    parts: vec![MessagePart::TextPart(TextPart {
+                        text: format!("Event {}", i),
+                        metadata: Metadata::new(),
+                    })],
+                    created_at: WrappedChronoDateTime::now(),
+                };
+                let payload = TaskTimelineItemPayload::Message(MessageTaskTimelineItem { message });
+                (TaskEventUpdateType::Message, WrappedJsonValue::new(serde_json::to_value(&payload).unwrap()))
             } else {
-                TaskEventUpdateType::TaskStatusUpdate
+                // Create TaskStatusUpdate payload
+                let payload = TaskTimelineItemPayload::TaskStatusUpdate(TaskStatusUpdateTaskTimelineItem {
+                    status: TaskStatus::Working,
+                    status_message_id: None,
+                });
+                (TaskEventUpdateType::TaskStatusUpdate, WrappedJsonValue::new(serde_json::to_value(&payload).unwrap()))
             };
-            let event_payload =
-                WrappedJsonValue::new(serde_json::json!({"message": format!("Event {}", i)}));
             let timeline_created_at = WrappedChronoDateTime::now();
 
             let timeline_params = CreateTaskTimelineItem {
-                id: &timeline_id,
-                task_id: &task_id,
-                event_update_type: &event_type,
-                event_payload: &event_payload,
-                created_at: &timeline_created_at,
+                id: timeline_id.clone(),
+                task_id: task_id.clone(),
+                event_update_type: event_type.clone(),
+                event_payload: event_payload.clone(),
+                created_at: timeline_created_at.clone(),
             };
             repo.insert_task_timeline_item(&timeline_params)
                 .await
@@ -569,7 +694,7 @@ mod tests {
 
         let task_id = WrappedUuidV4::new();
         let context_id = WrappedUuidV4::new();
-        let metadata = WrappedJsonValue::new(serde_json::json!({}));
+        let metadata = Metadata::new();
         let created_at = WrappedChronoDateTime::now();
 
         // Test all status transitions
@@ -583,12 +708,13 @@ mod tests {
 
         // Create initial task
         let create_params = CreateTask {
-            id: &task_id,
-            context_id: &context_id,
-            status: &statuses[0],
-            metadata: &metadata,
-            created_at: &created_at,
-            updated_at: &created_at,
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: statuses[0].clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: created_at.clone(),
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -596,14 +722,674 @@ mod tests {
         for status in &statuses[1..] {
             let updated_at = WrappedChronoDateTime::now();
             let update_params = UpdateTaskStatus {
-                id: &task_id,
-                status,
-                updated_at: &updated_at,
+                id: task_id.clone(),
+                status: status.clone(),
+                status_message_id: None,
+                status_timestamp: updated_at.clone(),
+                updated_at: updated_at.clone(),
             };
             repo.update_task_status(&update_params).await.unwrap();
 
-            let task = repo.get_task_by_id(&task_id).await.unwrap().unwrap();
-            assert_eq!(&task.status, status);
+            let task_with_details = repo.get_task_by_id(&task_id).await.unwrap().unwrap();
+            assert_eq!(&task_with_details.task.status, status);
         }
+    }
+
+    #[tokio::test]
+    async fn test_insert_and_get_message() {
+        let (_db, conn) =
+            setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create a task first
+        let task_id = WrappedUuidV4::new();
+        let context_id = WrappedUuidV4::new();
+        let status = TaskStatus::Working;
+        let task_metadata = Metadata::new();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        let task_params = CreateTask {
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&task_metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: updated_at.clone(),
+        };
+        repo.create_task(&task_params).await.unwrap();
+
+        // Create a message
+        let message_id = WrappedUuidV4::new();
+        let reference_task_ids = Vec::<WrappedUuidV4>::new();
+        let role = MessageRole::User;
+        let metadata = Metadata::new();
+        let parts = vec![MessagePart::TextPart(TextPart {
+            text: "Hello".to_string(),
+            metadata: Metadata::new()
+        })];
+        let message_created_at = WrappedChronoDateTime::now();
+
+        let message_params = CreateMessage {
+            id: message_id.clone(),
+            task_id: task_id.clone(),
+            reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+            role: role.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
+            created_at: message_created_at.clone(),
+        };
+        repo.insert_message(&message_params).await.unwrap();
+
+        // Get messages by task_id
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let response = repo.get_messages_by_task_id(&task_id, &pagination).await.unwrap();
+
+        assert_eq!(response.items.len(), 1);
+        let message = &response.items[0];
+        assert_eq!(message.id, message_id);
+        assert_eq!(message.task_id, task_id);
+        assert_eq!(message.role, MessageRole::User);
+        assert_eq!(message.created_at, message_created_at);
+    }
+
+    #[tokio::test]
+    async fn test_get_messages_pagination() {
+        let (_db, conn) =
+            setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create a task first
+        let task_id = WrappedUuidV4::new();
+        let context_id = WrappedUuidV4::new();
+        let status = TaskStatus::Working;
+        let task_metadata = Metadata::new();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        let task_params = CreateTask {
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&task_metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: updated_at.clone(),
+        };
+        repo.create_task(&task_params).await.unwrap();
+
+        // Create 5 messages with different timestamps
+        use std::thread::sleep;
+        use std::time::Duration;
+        for i in 0..5 {
+            sleep(Duration::from_millis(10)); // Ensure different timestamps
+            let message_id = WrappedUuidV4::new();
+            let reference_task_ids = Vec::<WrappedUuidV4>::new();
+            let role = if i % 2 == 0 { MessageRole::User } else { MessageRole::Agent };
+            let metadata = Metadata::new();
+            let parts = vec![MessagePart::TextPart(TextPart {
+                text: format!("Message {}", i),
+                metadata: Metadata::new()
+            })];
+            let message_created_at = WrappedChronoDateTime::now();
+
+            let message_params = CreateMessage {
+                id: message_id.clone(),
+                task_id: task_id.clone(),
+                reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+                role: role.clone(),
+                metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+                parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
+                created_at: message_created_at.clone(),
+            };
+            repo.insert_message(&message_params).await.unwrap();
+        }
+
+        // Test pagination - get all messages
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let response = repo.get_messages_by_task_id(&task_id, &pagination).await.unwrap();
+
+        assert_eq!(response.items.len(), 5);
+        assert!(response.next_page_token.is_none());
+
+        // All messages should belong to the correct task
+        for message in &response.items {
+            assert_eq!(message.task_id, task_id);
+        }
+
+        // Test pagination with smaller page size
+        let pagination = PaginationRequest {
+            page_size: 3,
+            next_page_token: None,
+        };
+        let response = repo.get_messages_by_task_id(&task_id, &pagination).await.unwrap();
+        assert_eq!(response.items.len(), 3);
+        assert!(response.next_page_token.is_some());
+
+        // Get next page
+        let pagination = PaginationRequest {
+            page_size: 3,
+            next_page_token: response.next_page_token,
+        };
+        let response = repo.get_messages_by_task_id(&task_id, &pagination).await.unwrap();
+        assert!(response.items.len() >= 2 && response.items.len() <= 3);
+    }
+
+    #[tokio::test]
+    async fn test_messages_multiple_tasks() {
+        let (_db, conn) =
+            setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create two tasks
+        let task_id_1 = WrappedUuidV4::new();
+        let task_id_2 = WrappedUuidV4::new();
+        let context_id = WrappedUuidV4::new();
+        let status = TaskStatus::Working;
+        let task_metadata = Metadata::new();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        for task_id in [&task_id_1, &task_id_2] {
+            let task_params = CreateTask {
+                id: task_id.clone(),
+                context_id: context_id.clone(),
+                status: status.clone(),
+                status_timestamp: created_at.clone(),
+                metadata: WrappedJsonValue::new(serde_json::to_value(&task_metadata).unwrap()),
+                created_at: created_at.clone(),
+                updated_at: updated_at.clone(),
+            };
+            repo.create_task(&task_params).await.unwrap();
+        }
+
+        // Create 3 messages for task 1 and 2 messages for task 2
+        for i in 0..3 {
+            let message_id = WrappedUuidV4::new();
+            let reference_task_ids = Vec::<WrappedUuidV4>::new();
+            let role = MessageRole::User;
+            let metadata = Metadata::new();
+            let parts = vec![MessagePart::TextPart(TextPart {
+                text: format!("Task 1 Message {}", i),
+                metadata: Metadata::new()
+            })];
+            let message_created_at = WrappedChronoDateTime::now();
+
+            let message_params = CreateMessage {
+                id: message_id.clone(),
+                task_id: task_id_1.clone(),
+                reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+                role: role.clone(),
+                metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+                parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
+                created_at: message_created_at.clone(),
+            };
+            repo.insert_message(&message_params).await.unwrap();
+        }
+
+        for i in 0..2 {
+            let message_id = WrappedUuidV4::new();
+            let reference_task_ids = Vec::<WrappedUuidV4>::new();
+            let role = MessageRole::Agent;
+            let metadata = Metadata::new();
+            let parts = vec![MessagePart::TextPart(TextPart {
+                text: format!("Task 2 Message {}", i),
+                metadata: Metadata::new()
+            })];
+            let message_created_at = WrappedChronoDateTime::now();
+
+            let message_params = CreateMessage {
+                id: message_id.clone(),
+                task_id: task_id_2.clone(),
+                reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+                role: role.clone(),
+                metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+                parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
+                created_at: message_created_at.clone(),
+            };
+            repo.insert_message(&message_params).await.unwrap();
+        }
+
+        // Get messages for task 1
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let response = repo.get_messages_by_task_id(&task_id_1, &pagination).await.unwrap();
+        assert_eq!(response.items.len(), 3);
+        for message in &response.items {
+            assert_eq!(message.task_id, task_id_1);
+            assert_eq!(message.role, MessageRole::User);
+        }
+
+        // Get messages for task 2
+        let response = repo.get_messages_by_task_id(&task_id_2, &pagination).await.unwrap();
+        assert_eq!(response.items.len(), 2);
+        for message in &response.items {
+            assert_eq!(message.task_id, task_id_2);
+            assert_eq!(message.role, MessageRole::Agent);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_message_with_reference_task_ids() {
+        let (_db, conn) =
+            setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create tasks
+        let task_id = WrappedUuidV4::new();
+        let ref_task_id_1 = WrappedUuidV4::new();
+        let ref_task_id_2 = WrappedUuidV4::new();
+        let context_id = WrappedUuidV4::new();
+        let status = TaskStatus::Working;
+        let task_metadata = Metadata::new();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        let task_params = CreateTask {
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&task_metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: updated_at.clone(),
+        };
+        repo.create_task(&task_params).await.unwrap();
+
+        // Create a message with reference task IDs
+        let message_id = WrappedUuidV4::new();
+        let reference_task_ids = vec![ref_task_id_1.clone(), ref_task_id_2.clone()];
+        let role = MessageRole::User;
+        let metadata = Metadata::new();
+        let parts = vec![MessagePart::TextPart(TextPart {
+            text: "Message referencing other tasks".to_string(),
+            metadata: Metadata::new()
+        })];
+        let message_created_at = WrappedChronoDateTime::now();
+
+        let message_params = CreateMessage {
+            id: message_id.clone(),
+            task_id: task_id.clone(),
+            reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+            role: role.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
+            created_at: message_created_at.clone(),
+        };
+        repo.insert_message(&message_params).await.unwrap();
+
+        // Retrieve and verify
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let response = repo.get_messages_by_task_id(&task_id, &pagination).await.unwrap();
+
+        assert_eq!(response.items.len(), 1);
+        let message = &response.items[0];
+        assert_eq!(message.id, message_id);
+
+        // Verify reference_task_ids is stored correctly
+        assert_eq!(message.reference_task_ids.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_get_task_by_id_with_no_messages() {
+        let (_db, conn) =
+            setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create task without any messages
+        let task_id = WrappedUuidV4::new();
+        let context_id = WrappedUuidV4::new();
+        let status = TaskStatus::Submitted;
+        let metadata = Metadata::new();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        let create_params = CreateTask {
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: updated_at.clone(),
+        };
+        repo.create_task(&create_params).await.unwrap();
+
+        // Get task by ID
+        let task_with_details = repo.get_task_by_id(&task_id).await.unwrap();
+        assert!(task_with_details.is_some());
+
+        let task_with_details = task_with_details.unwrap();
+        assert_eq!(task_with_details.task.id, task_id);
+        assert!(task_with_details.status_message.is_none());
+        assert_eq!(task_with_details.messages.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_task_by_id_with_messages() {
+        let (_db, conn) =
+            setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create task
+        let task_id = WrappedUuidV4::new();
+        let context_id = WrappedUuidV4::new();
+        let status = TaskStatus::Working;
+        let metadata = Metadata::new();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        let create_params = CreateTask {
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: updated_at.clone(),
+        };
+        repo.create_task(&create_params).await.unwrap();
+
+        // Create a message
+        let message_id = WrappedUuidV4::new();
+        let reference_task_ids = Vec::<WrappedUuidV4>::new();
+        let role = MessageRole::User;
+        let parts = vec![MessagePart::TextPart(TextPart {
+            text: "Test message".to_string(),
+            metadata: Metadata::new()
+        })];
+
+        let message_params = CreateMessage {
+            id: message_id.clone(),
+            task_id: task_id.clone(),
+            reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+            role: role.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
+            created_at: WrappedChronoDateTime::now(),
+        };
+        repo.insert_message(&message_params).await.unwrap();
+
+        // Get task by ID
+        let task_with_details = repo.get_task_by_id(&task_id).await.unwrap().unwrap();
+        assert_eq!(task_with_details.task.id, task_id);
+        assert!(task_with_details.status_message.is_none());
+        assert_eq!(task_with_details.messages.len(), 1);
+        assert_eq!(task_with_details.messages[0].id, message_id);
+    }
+
+    #[tokio::test]
+    async fn test_get_task_by_id_with_status_message() {
+        let (_db, conn) =
+            setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create task
+        let task_id = WrappedUuidV4::new();
+        let context_id = WrappedUuidV4::new();
+        let status = TaskStatus::Completed;
+        let metadata = Metadata::new();
+        let created_at = WrappedChronoDateTime::now();
+
+        let create_params = CreateTask {
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: created_at.clone(),
+        };
+        repo.create_task(&create_params).await.unwrap();
+
+        // Create a status message
+        let status_message_id = WrappedUuidV4::new();
+        let reference_task_ids = Vec::<WrappedUuidV4>::new();
+        let role = MessageRole::Agent;
+        let parts = vec![MessagePart::TextPart(TextPart {
+            text: "Task completed successfully".to_string(),
+            metadata: Metadata::new()
+        })];
+
+        let message_params = CreateMessage {
+            id: status_message_id.clone(),
+            task_id: task_id.clone(),
+            reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+            role: role.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
+            created_at: WrappedChronoDateTime::now(),
+        };
+        repo.insert_message(&message_params).await.unwrap();
+
+        // Update task status to reference the message
+        let now = WrappedChronoDateTime::now();
+        let update_params = UpdateTaskStatus {
+            id: task_id.clone(),
+            status: status.clone(),
+            status_message_id: Some(status_message_id.clone()),
+            status_timestamp: now.clone(),
+            updated_at: now.clone(),
+        };
+        repo.update_task_status(&update_params).await.unwrap();
+
+        // Get task by ID
+        let task_with_details = repo.get_task_by_id(&task_id).await.unwrap().unwrap();
+        assert_eq!(task_with_details.task.id, task_id);
+        assert!(task_with_details.status_message.is_some());
+        assert_eq!(task_with_details.status_message.unwrap().id, status_message_id);
+        assert_eq!(task_with_details.messages.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_task_timeline_items_empty() {
+        let (_db, conn) =
+            setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create task without any timeline items
+        let task_id = WrappedUuidV4::new();
+        let context_id = WrappedUuidV4::new();
+        let status = TaskStatus::Submitted;
+        let metadata = Metadata::new();
+        let created_at = WrappedChronoDateTime::now();
+
+        let create_params = CreateTask {
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: created_at.clone(),
+        };
+        repo.create_task(&create_params).await.unwrap();
+
+        // Get timeline items
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let response = repo.get_task_timeline_items(&task_id, &pagination).await.unwrap();
+
+        assert_eq!(response.items.len(), 0);
+        assert!(response.next_page_token.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_messages_by_task_id_empty() {
+        let (_db, conn) =
+            setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create task without any messages
+        let task_id = WrappedUuidV4::new();
+        let context_id = WrappedUuidV4::new();
+        let status = TaskStatus::Submitted;
+        let metadata = Metadata::new();
+        let created_at = WrappedChronoDateTime::now();
+
+        let create_params = CreateTask {
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: created_at.clone(),
+        };
+        repo.create_task(&create_params).await.unwrap();
+
+        // Get messages
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let response = repo.get_messages_by_task_id(&task_id, &pagination).await.unwrap();
+
+        assert_eq!(response.items.len(), 0);
+        assert!(response.next_page_token.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_tasks_empty() {
+        let (_db, conn) =
+            setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+        let repo = Repository::new(conn);
+
+        // Get tasks from empty database
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let response = repo.get_tasks(&pagination).await.unwrap();
+
+        assert_eq!(response.items.len(), 0);
+        assert!(response.next_page_token.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_timeline_with_both_messages_and_status_updates() {
+        let (_db, conn) =
+            setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create task
+        let task_id = WrappedUuidV4::new();
+        let context_id = WrappedUuidV4::new();
+        let status = TaskStatus::Submitted;
+        let metadata = Metadata::new();
+        let created_at = WrappedChronoDateTime::now();
+
+        let create_params = CreateTask {
+            id: task_id.clone(),
+            context_id: context_id.clone(),
+            status: status.clone(),
+            status_timestamp: created_at.clone(),
+            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+            created_at: created_at.clone(),
+            updated_at: created_at.clone(),
+        };
+        repo.create_task(&create_params).await.unwrap();
+
+        use std::thread::sleep;
+        use std::time::Duration;
+
+        // Insert a message timeline item
+        sleep(Duration::from_millis(10));
+        let message = Message {
+            id: WrappedUuidV4::new(),
+            task_id: task_id.clone(),
+            reference_task_ids: Vec::new(),
+            role: MessageRole::User,
+            metadata: Metadata::new(),
+            parts: vec![MessagePart::TextPart(TextPart {
+                text: "User message".to_string(),
+                metadata: Metadata::new(),
+            })],
+            created_at: WrappedChronoDateTime::now(),
+        };
+
+        let message_payload = TaskTimelineItemPayload::Message(MessageTaskTimelineItem { message });
+        let timeline_params = CreateTaskTimelineItem {
+            id: WrappedUuidV4::new(),
+            task_id: task_id.clone(),
+            event_update_type: TaskEventUpdateType::Message,
+            event_payload: WrappedJsonValue::new(serde_json::to_value(&message_payload).unwrap()),
+            created_at: WrappedChronoDateTime::now(),
+        };
+        repo.insert_task_timeline_item(&timeline_params).await.unwrap();
+
+        // Insert a status update timeline item
+        sleep(Duration::from_millis(10));
+        let status_update_payload = TaskTimelineItemPayload::TaskStatusUpdate(TaskStatusUpdateTaskTimelineItem {
+            status: TaskStatus::Working,
+            status_message_id: None,
+        });
+        let timeline_params2 = CreateTaskTimelineItem {
+            id: WrappedUuidV4::new(),
+            task_id: task_id.clone(),
+            event_update_type: TaskEventUpdateType::TaskStatusUpdate,
+            event_payload: WrappedJsonValue::new(serde_json::to_value(&status_update_payload).unwrap()),
+            created_at: WrappedChronoDateTime::now(),
+        };
+        repo.insert_task_timeline_item(&timeline_params2).await.unwrap();
+
+        // Get timeline items
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let response = repo.get_task_timeline_items(&task_id, &pagination).await.unwrap();
+
+        assert_eq!(response.items.len(), 2);
+
+        // Verify we have both types
+        let mut has_message = false;
+        let mut has_status_update = false;
+
+        for item in &response.items {
+            match &item.event_payload {
+                TaskTimelineItemPayload::Message(_) => has_message = true,
+                TaskTimelineItemPayload::TaskStatusUpdate(_) => has_status_update = true,
+            }
+        }
+
+        assert!(has_message);
+        assert!(has_status_update);
     }
 }

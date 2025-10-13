@@ -68,10 +68,11 @@ impl proto::a2a_service_server::A2aService for GrpcService {
         request: tonic::Request<proto::SendMessageRequest>,
     ) -> Result<tonic::Response<Self::SendStreamingMessageStream>, tonic::Status> {
         let request_context = require_request_context!(request);
-        let handler = self.service.request_handler(request_context).clone();
         let params = request.into_inner().into();
 
-        let stream = spawn_stream_to_grpc!(handler.on_message_send_stream(params).unwrap(), 32);
+        let result_stream = self.service.request_handler(request_context)
+            .on_message_send_stream(params).await.unwrap();
+        let stream = spawn_stream_to_grpc!(result_stream, 32);
         let mapped_stream: SendStreamingMessageStream = convert_stream_to_grpc(stream);
 
         Ok(tonic::Response::new(mapped_stream))

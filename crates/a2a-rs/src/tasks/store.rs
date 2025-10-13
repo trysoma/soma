@@ -1,24 +1,24 @@
-use std::future::Future;
-use std::pin::Pin;
+use async_trait::async_trait;
 
 use crate::{
     errors::A2aServerError,
     types::{Task, TaskId},
 };
 
+#[async_trait]
 pub trait TaskStore: Send + Sync {
-    fn save<'a>(
-        &'a self,
-        task: &'a Task,
-    ) -> Pin<Box<dyn Future<Output = Result<(), A2aServerError>> + Send + Sync + 'a>>;
+    async fn save(
+        &self,
+        task: &Task,
+    ) -> Result<(), A2aServerError>;
 
-    fn get<'a>(
-        &'a self,
-        id: &'a TaskId,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<Task>, A2aServerError>> + Send + Sync + 'a>>;
+    async fn get(
+        &self,
+        id: &TaskId,
+    ) -> Result<Option<Task>, A2aServerError>;
 
-    fn delete<'a>(
-        &'a self,
-        id: &'a TaskId,
-    ) -> Pin<Box<dyn Future<Output = Result<(), A2aServerError>> + Send + Sync + 'a>>;
+    async fn delete(
+        &self,
+        id: &TaskId,
+    ) -> Result<(), A2aServerError>;
 }

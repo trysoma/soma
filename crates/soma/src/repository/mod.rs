@@ -1,5 +1,6 @@
 mod sqlite;
 
+use serde_json::json;
 use shared::{
     error::CommonError,
     primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4},
@@ -10,164 +11,119 @@ use utoipa::ToSchema;
 
 pub use sqlite::Repository;
 
-// Domain models for Task
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct Task {
-    pub id: WrappedUuidV4,
-    pub context_id: WrappedUuidV4,
-    pub status: TaskStatus,
-    pub metadata: WrappedJsonValue,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
+use crate::logic::{Message, MessagePart, MessageRole, Task, TaskEventUpdateType, TaskStatus, TaskTimelineItem, TaskTimelineItemPayload, TaskWithDetails};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum TaskStatus {
-    Submitted,
-    Working,
-    InputRequired,
-    Completed,
-    Canceled,
-    Failed,
-    Rejected,
-    AuthRequired,
-    Unknown,
-}
-
-impl TaskStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            TaskStatus::Submitted => "submitted",
-            TaskStatus::Working => "working",
-            TaskStatus::InputRequired => "input-required",
-            TaskStatus::Completed => "completed",
-            TaskStatus::Canceled => "canceled",
-            TaskStatus::Failed => "failed",
-            TaskStatus::Rejected => "rejected",
-            TaskStatus::AuthRequired => "auth-required",
-            TaskStatus::Unknown => "unknown",
-        }
-    }
-}
-
-impl From<String> for TaskStatus {
-    fn from(s: String) -> Self {
-        match s.as_str() {
-            "submitted" => TaskStatus::Submitted,
-            "working" => TaskStatus::Working,
-            "input-required" => TaskStatus::InputRequired,
-            "completed" => TaskStatus::Completed,
-            "canceled" => TaskStatus::Canceled,
-            "failed" => TaskStatus::Failed,
-            "rejected" => TaskStatus::Rejected,
-            "auth-required" => TaskStatus::AuthRequired,
-            _ => TaskStatus::Unknown,
-        }
-    }
-}
-
-impl From<&str> for TaskStatus {
-    fn from(s: &str) -> Self {
-        TaskStatus::from(s.to_string())
-    }
-}
-
-impl TryInto<libsql::Value> for TaskStatus {
-    type Error = libsql::Error;
-    fn try_into(self) -> Result<libsql::Value, libsql::Error> {
-        Ok(libsql::Value::Text(self.as_str().to_string()))
-    }
-}
-
-impl FromValue for TaskStatus {
-    fn from_sql(val: libsql::Value) -> libsql::Result<Self> {
-        match val {
-            libsql::Value::Text(s) => Ok(TaskStatus::from(s)),
-            _ => Err(libsql::Error::InvalidColumnType),
-        }
-    }
-}
-
-// Domain models for TaskTimeline
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct TaskTimelineItem {
-    pub id: WrappedUuidV4,
-    pub task_id: WrappedUuidV4,
-    pub event_update_type: TaskEventUpdateType,
-    pub event_payload: WrappedJsonValue,
-    pub created_at: WrappedChronoDateTime,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum TaskEventUpdateType {
-    TaskStatusUpdate,
-    Message,
-}
-
-impl TaskEventUpdateType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            TaskEventUpdateType::TaskStatusUpdate => "task-status-update",
-            TaskEventUpdateType::Message => "message",
-        }
-    }
-}
-
-impl From<String> for TaskEventUpdateType {
-    fn from(s: String) -> Self {
-        match s.as_str() {
-            "task-status-update" => TaskEventUpdateType::TaskStatusUpdate,
-            "message" => TaskEventUpdateType::Message,
-            _ => TaskEventUpdateType::Message,
-        }
-    }
-}
-
-impl From<&str> for TaskEventUpdateType {
-    fn from(s: &str) -> Self {
-        TaskEventUpdateType::from(s.to_string())
-    }
-}
 
 // Repository parameter structs
 #[derive(Debug)]
-pub struct CreateTask<'a> {
-    pub id: &'a WrappedUuidV4,
-    pub context_id: &'a WrappedUuidV4,
-    pub status: &'a TaskStatus,
-    pub metadata: &'a WrappedJsonValue,
-    pub created_at: &'a WrappedChronoDateTime,
-    pub updated_at: &'a WrappedChronoDateTime,
+pub struct CreateTask{
+    pub id:  WrappedUuidV4,
+    pub context_id:  WrappedUuidV4,
+    pub status:  TaskStatus,
+    pub status_timestamp: WrappedChronoDateTime,
+    pub metadata:  WrappedJsonValue,
+    pub created_at:  WrappedChronoDateTime,
+    pub updated_at:  WrappedChronoDateTime,
+}
+
+impl TryFrom<Task> for CreateTask {
+    type Error = CommonError;
+    fn try_from(task: Task) -> Result<Self, Self::Error> {
+        let metadata: WrappedJsonValue = WrappedJsonValue::new(serde_json::to_value(task.metadata)?);
+        Ok(CreateTask {
+            id: task.id,
+            context_id: task.context_id,
+            status: task.status,
+            status_timestamp: task.status_timestamp,
+            metadata: metadata,
+            created_at: task.created_at,
+            updated_at: task.updated_at,
+        })
+    }
 }
 
 #[derive(Debug)]
-pub struct UpdateTaskStatus<'a> {
-    pub id: &'a WrappedUuidV4,
-    pub status: &'a TaskStatus,
-    pub updated_at: &'a WrappedChronoDateTime,
+pub struct UpdateTaskStatus{
+    pub id:  WrappedUuidV4,
+    pub status:  TaskStatus,
+    pub status_message_id: Option<WrappedUuidV4>,
+    pub status_timestamp: WrappedChronoDateTime,
+    pub updated_at:  WrappedChronoDateTime,
+}
+
+
+#[derive(Debug)]
+pub struct CreateTaskTimelineItem {
+    pub id: WrappedUuidV4,
+    pub task_id: WrappedUuidV4,
+    pub event_update_type: TaskEventUpdateType,
+    pub event_payload:  WrappedJsonValue,
+    pub created_at:  WrappedChronoDateTime,
+}
+
+impl TryFrom<TaskTimelineItem> for CreateTaskTimelineItem {
+    type Error = CommonError;
+    fn try_from(task_timeline_item: TaskTimelineItem) -> Result<Self, Self::Error> {
+        let event_update_type = match &task_timeline_item.event_payload {
+            TaskTimelineItemPayload::TaskStatusUpdate(_) => TaskEventUpdateType::TaskStatusUpdate,
+            TaskTimelineItemPayload::Message(_) => TaskEventUpdateType::Message,
+        };
+        // Serialize the entire event_payload enum to preserve the type discriminator
+        let event_payload = WrappedJsonValue::new(serde_json::to_value(&task_timeline_item.event_payload)?);
+        Ok(CreateTaskTimelineItem {
+            id: task_timeline_item.id,
+            task_id: task_timeline_item.task_id,
+            event_update_type: event_update_type,
+            event_payload: event_payload,
+            created_at: task_timeline_item.created_at,
+        })
+    }
 }
 
 #[derive(Debug)]
-pub struct CreateTaskTimelineItem<'a> {
-    pub id: &'a WrappedUuidV4,
-    pub task_id: &'a WrappedUuidV4,
-    pub event_update_type: &'a TaskEventUpdateType,
-    pub event_payload: &'a WrappedJsonValue,
-    pub created_at: &'a WrappedChronoDateTime,
+pub struct CreateMessage {
+    pub id: WrappedUuidV4,
+    pub task_id: WrappedUuidV4,
+    pub reference_task_ids: WrappedJsonValue,
+    pub role: MessageRole,
+    pub metadata: WrappedJsonValue,
+    pub parts: WrappedJsonValue,
+    pub created_at: WrappedChronoDateTime,
+}
+
+impl TryFrom<Message> for CreateMessage {
+    type Error = CommonError;
+    fn try_from(message: Message) -> Result<Self, Self::Error> {
+        Ok(CreateMessage {
+            id: message.id,
+            task_id: message.task_id,
+            reference_task_ids: WrappedJsonValue::new(
+                serde_json::to_value(message.reference_task_ids.into_iter().map(|id| id.to_string()).collect::<Vec<String>>())?
+            ),
+            role: message.role,
+            metadata: WrappedJsonValue::new(serde_json::to_value(message.metadata)?),
+            parts: WrappedJsonValue::new(serde_json::to_value(message.parts.into_iter().map(|part| part.into()).collect::<Vec<MessagePart>>())?),
+            created_at: message.created_at,
+        })
+    }
 }
 
 // Repository trait
 pub trait TaskRepositoryLike {
-    async fn create_task(&self, params: &CreateTask<'_>) -> Result<(), CommonError>;
-    async fn update_task_status(&self, params: &UpdateTaskStatus<'_>) -> Result<(), CommonError>;
-    async fn insert_task_timeline_item(&self, params: &CreateTaskTimelineItem<'_>) -> Result<(), CommonError>;
+    async fn create_task(&self, params: &CreateTask) -> Result<(), CommonError>;
+    async fn update_task_status(&self, params: &UpdateTaskStatus) -> Result<(), CommonError>;
+    async fn insert_task_timeline_item(&self, params: &CreateTaskTimelineItem) -> Result<(), CommonError>;
     async fn get_tasks(&self, pagination: &PaginationRequest) -> Result<PaginatedResponse<Task>, CommonError>;
     async fn get_task_timeline_items(
         &self,
         task_id: &WrappedUuidV4,
         pagination: &PaginationRequest,
     ) -> Result<PaginatedResponse<TaskTimelineItem>, CommonError>;
-    async fn get_task_by_id(&self, id: &WrappedUuidV4) -> Result<Option<Task>, CommonError>;
+    async fn get_task_by_id(&self, id: &WrappedUuidV4) -> Result<Option<TaskWithDetails>, CommonError>;
+    async fn insert_message(&self, params: &CreateMessage) -> Result<(), CommonError>;
+    async fn get_messages_by_task_id(
+        &self,
+        task_id: &WrappedUuidV4,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<Message>, CommonError>;
 }

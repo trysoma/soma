@@ -5,6 +5,7 @@ use a2a_rs::tasks::base_push_notification_sender::BasePushNotificationSenderBuil
 use a2a_rs::tasks::in_memory_push_notification_config_store::InMemoryPushNotificationConfigStoreBuilder;
 use a2a_rs::types::TextPart;
 use a2a_rs::{
+    adapters::jsonrpc::axum::create_router as create_a2a_router,
     agent_execution::{agent_executor::AgentExecutor, context::RequestContext},
     events::event_queue::{Event, EventQueue},
     request_handlers::{
@@ -16,7 +17,6 @@ use a2a_rs::{
         AgentCapabilities, AgentCard, AgentSkill, Message, MessageRole, Part, Task, TaskState,
         TaskStatus,
     },
-    adapters::jsonrpc::axum::create_router as create_a2a_router
 };
 use axum::{
     Router,
@@ -25,22 +25,34 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use serde_json::Map;
-use tokio::sync::RwLock;
+use reqwest::Client;
+use serde_json::{Map, json};
+use shared::adapters::openapi::JsonResponse;
+use shared::error::CommonError;
+use shared::primitives::WrappedUuidV4;
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::{convert::Infallible, path::PathBuf, pin::Pin, sync::Arc};
+use tokio::sync::{Mutex, RwLock};
 use tracing::info;
 use url::Url;
 use utoipa::openapi::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
-use reqwest::Client;
+use utoipa_axum::routes;
+
+use crate::a2a::RepositoryTaskStore;
+use crate::logic::{self, ConnectionManager, CreateMessageRequest, WithTaskId};
+use crate::repository::Repository;
+use crate::utils::restate;
+use crate::utils::restate::invoke::{construct_cancel_awakeable_id, construct_initial_object_id, construct_invocation_object_id, RestateIngressClient};
+use crate::utils::soma_agent_config::SomaConfig;
 
 pub const PATH_PREFIX: &str = "/api";
 pub const SERVICE_ROUTE_KEY: &str = "agent";
 pub const API_VERSION_1: &str = "v1";
 
 pub fn create_router() -> OpenApiRouter<Arc<AgentService>> {
-    let openapi_router = OpenApiRouter::new();
+    let openapi_router = OpenApiRouter::new().routes(routes!(route_config));
 
     let a2a_router: OpenApiRouter<Arc<AgentService>> = create_a2a_router();
     let openapi_router = openapi_router.nest(
@@ -51,24 +63,50 @@ pub fn create_router() -> OpenApiRouter<Arc<AgentService>> {
     return openapi_router;
 }
 
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/config", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    responses(
+        (status = 200, description = "Agent config", body = SomaConfig),
+    ),
+    operation_id = "get-agent-config",
+)]
+async fn route_config(
+    State(ctx): State<Arc<AgentService>>,
+) -> JsonResponse<SomaConfig, CommonError> {
+    let config = ctx.config.clone();
+    JsonResponse::from(Ok(config.clone()))
+}
+
 pub(crate) struct AgentService {
     src_dir: PathBuf,
+    config: SomaConfig,
     host: Url,
     request_handler: Arc<dyn RequestHandler + Send + Sync>,
+    runtime_port: u16,
 }
 
 impl AgentService {
-    pub fn new(src_dir: PathBuf, host: Url) -> Self {
+    pub fn new(
+        src_dir: PathBuf,
+        config: SomaConfig,
+        host: Url,
+        connection_manager: ConnectionManager,
+        repository: Repository,
+        runtime_port: u16,
+        restate_ingress_client: RestateIngressClient,
+    ) -> Self {
         // Create the agent executor
-        let agent_executor = Arc::new(ProxiedAgent);
+        let agent_executor = Arc::new(ProxiedAgent {
+            connection_manager,
+            runtime_port,
+            soma_config: config.clone(),
+            repository: repository.clone(),
+            restate_ingress_client,
+        });
 
         // Create a task store
-        let task_store = Arc::new(
-            InMemoryTaskStoreBuilder::default()
-                .tasks(Arc::new(RwLock::new(HashMap::new())))
-                .build()
-                .unwrap(),
-        );
+        let task_store = Arc::new(RepositoryTaskStore::new(repository));
         let config_store = Arc::new(
             InMemoryPushNotificationConfigStoreBuilder::default()
                 .push_notification_infos(Arc::new(RwLock::new(HashMap::new())))
@@ -97,8 +135,10 @@ impl AgentService {
 
         Self {
             src_dir,
+            config,
             host,
             request_handler,
+            runtime_port,
         }
     }
 }
@@ -133,7 +173,13 @@ impl A2aServiceLike for AgentService {
     }
 }
 
-struct ProxiedAgent;
+struct ProxiedAgent {
+    connection_manager: ConnectionManager,
+    runtime_port: u16,
+    soma_config: SomaConfig,
+    repository: Repository,
+    restate_ingress_client: RestateIngressClient,
+}
 
 impl AgentExecutor for ProxiedAgent {
     fn execute<'a>(
@@ -142,74 +188,175 @@ impl AgentExecutor for ProxiedAgent {
         event_queue: EventQueue,
     ) -> Pin<
         Box<
-            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>
+            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send>>>
                 + Send
-                + Sync
                 + 'a,
         >,
     > {
         Box::pin(async move {
-            info!("HelloWorldAgent executing with context: {:?}", context);
+            let task = match context.current_task() {
+                Some(task) => task.clone(),
+                None => {
+                    let task = a2a_rs::types::Task {
+                        id: context
+                            .task_id()
+                            .expect("task_id must be present")
+                            .to_string(),
+                        context_id: context
+                            .context_id()
+                            .expect("context_id must be present")
+                            .to_string(),
+                        status: a2a_rs::types::TaskStatus {
+                            state: a2a_rs::types::TaskState::Submitted,
+                            message: None,
+                            timestamp: Some(chrono::Utc::now().to_rfc3339()),
+                        },
+                        artifacts: vec![],
+                        history: vec![],
+                        kind: "task".to_string(),
+                        metadata: Default::default(),
+                    };
+                    task
+                }
+            };
 
-            // Extract the message from the context
-            let user_message = context.message().cloned();
+            let task_id = match context.task_id() {
+                Some(task_id) => task_id,
+                None => {
+                    let err = CommonError::Unknown(anyhow::anyhow!("Task ID is required"));
+                    return Err(Box::new(err) as Box<dyn std::error::Error + Send>);
+                }
+            };
+            let task_id = match WrappedUuidV4::from_str(task_id) {
+                Ok(task_id) => task_id,
+                Err(e) => {
+                    let err = CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to parse task ID: {:?}",
+                        e
+                    ));
+                    return Err(Box::new(err) as Box<dyn std::error::Error + Send>);
+                }
+            };
 
-            // Create a response message
-            let text_part = Part::TextPart(TextPart {
-                kind: "text".into(),
-                metadata: Map::new(),
-                text: "Hello, World! I received your message.".to_string(),
+            // Register the connection BEFORE invoking the handler
+            // so that any messages sent during handler execution can be received
+            let (connection_id, mut receiver) = match self
+                .connection_manager
+                .add_connection(task_id.clone())
+            {
+                Ok((connection_id, receiver)) => (connection_id, receiver),
+                Err(e) => {
+                    let err =
+                        CommonError::Unknown(anyhow::anyhow!("Failed to add connection: {:?}", e));
+                    return Err(Box::new(err) as Box<dyn std::error::Error + Send>);
+                }
+            };
+            // self.restate_ingress_client.resolve_awakeable(&task.id, &json!({ "task": task, "timelineItem": message.timeline_item })).await?;
+            // let client = Client::new();
+            
+            // let service_url = format!("http://localhost:{}", self.runtime_port);
+            // let service_url = "http://localhost:8080";
+            // restate::invoke::invoke_virtual_object_handler(
+            //     &client,
+            //     &service_url,
+            //     &self.soma_config.project,
+            //     &task.id,
+            //     "onNewMessage",
+            //     body,
+            // )
+            // .await?;
+            let connection_manager = self.connection_manager.clone();
+            let task_id_clone = task_id.clone();
+            let connection_id_clone = connection_id.clone();
+            let event_queue_clone = event_queue.clone();
+            tokio::spawn(async move {
+                while let Some(event) = receiver.recv().await {
+                    info!("Received event: {:?}", event);
+    
+                    // Send event back to a2a response stream
+                    match event_queue_clone.enqueue_event(event.clone()).await {
+                        Ok(_) => (),
+                        Err(e) => {
+                            info!(
+                                "Failed to enqueue event: {:?}, channel most likely closed",
+                                e
+                            );
+                            break;
+                        }
+                    }
+                }
+                info!("Removing connection");
+                connection_manager
+                    .remove_connection(task_id_clone, connection_id_clone)
+                    .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)
+                    .unwrap();
             });
-            let response_message = Message {
-                message_id: uuid::Uuid::new_v4().to_string(),
-                context_id: context.context_id().map(|s| s.to_string()),
-                task_id: context.task_id().map(|s| s.to_string()),
-                role: MessageRole::Agent,
-                parts: vec![text_part],
-                metadata: Default::default(),
-                extensions: vec![],
-                kind: "message".to_string(),
-                reference_task_ids: vec![],
+
+
+            let message = match context.message() {
+                Some(message) => message,
+                None => unreachable!("message must be present"),
             };
 
-            // Build history with user message and agent response
-            let mut history = vec![];
-            if let Some(user_msg) = user_message {
-                history.push(user_msg);
-            }
-            history.push(response_message.clone());
-
-            // Create a task using the task ID from the context
-            let task = Task {
-                id: context.task_id().expect("task_id must be present").to_string(),
-                context_id: context
-                    .context_id()
-                    .expect("context_id must be present")
-                    .to_string(),
-                status: TaskStatus {
-                    state: TaskState::InputRequired,
-                    message: None,
-                    timestamp: Some(chrono::Utc::now().to_rfc3339()),
-                },
-                artifacts: vec![],
-                history,
-                metadata: Default::default(),
-                kind: "task".to_string(),
-            };
-
-            // Send the task event
             event_queue
-                .enqueue_event(Event::Task(task))
+                .enqueue_event(Event::Task(task.clone()))
                 .await
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
 
-            // Send the message event
-            event_queue
-                .enqueue_event(Event::Message(response_message))
-                .await
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+            info!("Create a new invocation of the runtime agent");
 
-            info!("HelloWorldAgent execution completed");
+            info!("Invoking runtime agent with task: {:?}", task);
+
+            // assume the latest timelineitem is the one for processing
+            // let message = logic::create_message(
+            //     &self.repository,
+            //     &self.connection_manager,
+            //     WithTaskId {
+            //         task_id: task_id.clone(),
+            //         inner: CreateMessageRequest {
+            //             reference_task_ids: vec![],
+            //             role: match message.role {
+            //                 a2a_rs::types::MessageRole::User => logic::MessageRole::User,
+            //                 a2a_rs::types::MessageRole::Agent => logic::MessageRole::Agent,
+            //             },
+            //             metadata: logic::Metadata::new(),
+            //             // parts: vec![],
+            //             parts: message
+            //                 .parts
+            //                 .iter()
+            //                 .map(|part| match part {
+            //                     a2a_rs::types::Part::TextPart(text_part) => {
+            //                         logic::MessagePart::TextPart(logic::TextPart {
+            //                             text: text_part.text.clone(),
+            //                             metadata: logic::Metadata::new(),
+            //                         })
+            //                     },
+            //                     _ => unreachable!("unsupported part type"),
+
+            //                 })
+            //                 .collect(),
+            //         },
+            //     },
+            // )
+            // .await
+            // .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
+
+            // suspend previous execution
+
+            
+            // self.restate_ingress_client.resolve_awakeable(&construct_cancel_awakeable_id(&task.id), &json!({ })).await?;
+            // let body: serde_json::Value = json!({ "task": task, "timelineItem": message.timeline_item });
+            let body: serde_json::Value = json!({ "task": task});
+            info!("Invoking virtual object handler with body: {:?}", body);
+            self.restate_ingress_client.invoke_virtual_object_handler(
+                &self.soma_config.project,
+                &construct_initial_object_id(&task.id),
+                "onNewMessage",
+                body,
+            )
+            .await?;
+
+            
             Ok(())
         })
     }
@@ -220,9 +367,8 @@ impl AgentExecutor for ProxiedAgent {
         event_queue: EventQueue,
     ) -> Pin<
         Box<
-            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>
+            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send>>>
                 + Send
-                + Sync
                 + 'a,
         >,
     > {
@@ -231,7 +377,10 @@ impl AgentExecutor for ProxiedAgent {
 
             // Create a cancelled task
             let task = Task {
-                id: _context.task_id().expect("task_id must be present").to_string(),
+                id: _context
+                    .task_id()
+                    .expect("task_id must be present")
+                    .to_string(),
                 context_id: _context
                     .context_id()
                     .expect("context_id must be present")
@@ -250,7 +399,7 @@ impl AgentExecutor for ProxiedAgent {
             event_queue
                 .enqueue_event(Event::Task(task))
                 .await
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
             Ok(())
         })
     }

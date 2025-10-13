@@ -2,6 +2,121 @@
 
 #[allow(unused)]
 use serde::{Serialize, Deserialize};
+  pub struct insert_message_params<'a> {
+      pub id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+      pub task_id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+      pub reference_task_ids: &'a 
+          shared::primitives::WrappedJsonValue
+      ,
+      pub role: &'a 
+          crate::logic::MessageRole
+      ,
+      pub metadata: &'a 
+          shared::primitives::WrappedJsonValue
+      ,
+      pub parts: &'a 
+          shared::primitives::WrappedJsonValue
+      ,
+      pub created_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+  }
+
+  pub async fn insert_message(
+    conn: &shared::libsql::Connection
+    ,params: insert_message_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"INSERT INTO message (
+    id,
+    task_id,
+    reference_task_ids,
+    role,
+    metadata,
+    parts,
+    created_at
+) VALUES (
+    ?1,
+    ?2,
+    ?3,
+    ?4,
+    ?5,
+    ?6,
+    ?7
+)"#, libsql::params![
+              <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.task_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.reference_task_ids.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <crate::logic::MessageRole as TryInto<libsql::Value>>::try_into(params.role.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.metadata.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.parts.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct get_messages_by_task_id_params<'a> {
+      pub task_id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+      pub cursor: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub page_size: &'a 
+          i64
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_messages_by_task_id {
+      pub id:shared::primitives::WrappedUuidV4,
+      pub task_id:shared::primitives::WrappedUuidV4,
+      pub reference_task_ids:shared::primitives::WrappedJsonValue,
+      pub role:crate::logic::MessageRole,
+      pub metadata:shared::primitives::WrappedJsonValue,
+      pub parts:shared::primitives::WrappedJsonValue,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn get_messages_by_task_id(
+      conn: &shared::libsql::Connection
+      ,params: get_messages_by_task_id_params<'_>
+  ) -> Result<Vec<Row_get_messages_by_task_id>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT id, task_id, reference_task_ids, role, metadata, parts, created_at FROM message WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
+ORDER BY created_at DESC
+LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
+      let mut rows = stmt.query(libsql::params![params.task_id.clone(),params.cursor.clone(),params.page_size.clone(),]).await?;
+      let mut mapped = vec![];
+
+      while let Some(row) = rows.next().await? {
+          mapped.push(Row_get_messages_by_task_id {
+              id: row.get(0)?,
+              task_id: row.get(1)?,
+              reference_task_ids: row.get(2)?,
+              role: row.get(3)?,
+              metadata: row.get(4)?,
+              parts: row.get(5)?,
+              created_at: row.get(6)?,
+          });
+      }
+
+      Ok(mapped)
+  }
   pub struct insert_task_params<'a> {
       pub id: &'a 
           shared::primitives::WrappedUuidV4
@@ -11,6 +126,9 @@ use serde::{Serialize, Deserialize};
       ,
       pub status: &'a 
           crate::repository::TaskStatus
+      ,
+      pub status_timestamp: &'a 
+          shared::primitives::WrappedChronoDateTime
       ,
       pub metadata: &'a 
           shared::primitives::WrappedJsonValue
@@ -31,6 +149,7 @@ use serde::{Serialize, Deserialize};
     id,
     context_id,
     status,
+    status_timestamp,
     metadata,
     created_at,
     updated_at
@@ -40,7 +159,8 @@ use serde::{Serialize, Deserialize};
     ?3,
     ?4,
     ?5,
-    ?6
+    ?6,
+    ?7
 )"#, libsql::params![
               <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
@@ -49,6 +169,9 @@ use serde::{Serialize, Deserialize};
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <crate::repository::TaskStatus as TryInto<libsql::Value>>::try_into(params.status.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.status_timestamp.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.metadata.clone())
@@ -66,6 +189,12 @@ use serde::{Serialize, Deserialize};
       pub status: &'a 
           crate::repository::TaskStatus
       ,
+      pub status_message_id: &'a Option<
+          shared::primitives::WrappedUuidV4
+      >,
+      pub status_timestamp: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
       pub updated_at: &'a 
           shared::primitives::WrappedChronoDateTime
       ,
@@ -78,8 +207,19 @@ use serde::{Serialize, Deserialize};
     conn: &shared::libsql::Connection
     ,params: update_task_status_params<'_>
 ) -> Result<u64, libsql::Error> {
-    conn.execute(r#"UPDATE task SET status = ?1, updated_at = ?2 WHERE id = ?3"#, libsql::params![
+    conn.execute(r#"UPDATE task SET status = ?1, status_message_id = ?2, status_timestamp = ?3, updated_at = ?4 WHERE id = ?5"#, libsql::params![
               <crate::repository::TaskStatus as TryInto<libsql::Value>>::try_into(params.status.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              match params.status_message_id.clone() {
+                Some(value) => {
+                  <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.status_timestamp.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
@@ -157,6 +297,8 @@ use serde::{Serialize, Deserialize};
       pub id:shared::primitives::WrappedUuidV4,
       pub context_id:shared::primitives::WrappedUuidV4,
       pub status:crate::repository::TaskStatus,
+      pub status_message_id:Option<shared::primitives::WrappedUuidV4> ,
+      pub status_timestamp:shared::primitives::WrappedChronoDateTime,
       pub metadata:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
@@ -165,7 +307,7 @@ use serde::{Serialize, Deserialize};
       conn: &shared::libsql::Connection
       ,params: get_tasks_params<'_>
   ) -> Result<Vec<Row_get_tasks>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, context_id, status, metadata, created_at, updated_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
+      let mut stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
@@ -176,9 +318,11 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
               id: row.get(0)?,
               context_id: row.get(1)?,
               status: row.get(2)?,
-              metadata: row.get(3)?,
-              created_at: row.get(4)?,
-              updated_at: row.get(5)?,
+              status_message_id: row.get(3)?,
+              status_timestamp: row.get(4)?,
+              metadata: row.get(5)?,
+              created_at: row.get(6)?,
+              updated_at: row.get(7)?,
           });
       }
 
@@ -239,15 +383,67 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       pub id:shared::primitives::WrappedUuidV4,
       pub context_id:shared::primitives::WrappedUuidV4,
       pub status:crate::repository::TaskStatus,
+      pub status_message_id:Option<shared::primitives::WrappedUuidV4> ,
+      pub status_timestamp:shared::primitives::WrappedChronoDateTime,
       pub metadata:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
+      pub status_message:String,
+      pub messages:String,
   }
   pub async fn get_task_by_id(
       conn: &shared::libsql::Connection
       ,params: get_task_by_id_params<'_>
   ) -> Result<Option<Row_get_task_by_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, context_id, status, metadata, created_at, updated_at FROM task WHERE id = ?1"#).await?;
+      let mut stmt = conn.prepare(r#"SELECT
+    t.id,
+    t.context_id,
+    t.status,
+    t.status_message_id,
+    t.status_timestamp,
+    t.metadata,
+    t.created_at,
+    t.updated_at,
+    CAST(
+        CASE
+            WHEN sm.id IS NULL THEN JSON('[]')
+            ELSE JSON_ARRAY(
+                JSON_OBJECT(
+                    'id', sm.id,
+                    'task_id', sm.task_id,
+                    'reference_task_ids', JSON(sm.reference_task_ids),
+                    'role', sm.role,
+                    'metadata', JSON(sm.metadata),
+                    'parts', JSON(sm.parts),
+                    'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', sm.created_at)
+                )
+            )
+        END AS TEXT
+    ) AS status_message,
+    (
+        SELECT CAST(
+            CASE
+                WHEN COUNT(m2.id) = 0 THEN JSON('[]')
+                ELSE JSON_GROUP_ARRAY(
+                    JSON_OBJECT(
+                        'id', m2.id,
+                        'task_id', m2.task_id,
+                        'reference_task_ids', JSON(m2.reference_task_ids),
+                        'role', m2.role,
+                        'metadata', JSON(m2.metadata),
+                        'parts', JSON(m2.parts),
+                        'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', m2.created_at)
+                    )
+                )
+            END AS TEXT
+        )
+        FROM message m2
+        WHERE m2.task_id = t.id
+        ORDER BY m2.created_at DESC
+    ) AS messages
+FROM task t
+LEFT JOIN message sm ON t.status_message_id = sm.id
+WHERE t.id = ?1"#).await?;
       let res = stmt.query_row(
           libsql::params![params.id.clone(),],
       ).await;
@@ -257,9 +453,13 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
                   id: row.get(0)?,
                   context_id: row.get(1)?,
                   status: row.get(2)?,
-                  metadata: row.get(3)?,
-                  created_at: row.get(4)?,
-                  updated_at: row.get(5)?,
+                  status_message_id: row.get(3)?,
+                  status_timestamp: row.get(4)?,
+                  metadata: row.get(5)?,
+                  created_at: row.get(6)?,
+                  updated_at: row.get(7)?,
+                  status_message: row.get(8)?,
+                  messages: row.get(9)?,
               })),
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),

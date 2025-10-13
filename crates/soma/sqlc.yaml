@@ -30,6 +30,12 @@ sql:
             - db_type: text
               column: task.status
               rust_type: "crate::repository::TaskStatus"
+            - db_type: datetime
+              column: task.status_timestamp
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: task.status_message_id
+              rust_type: "shared::primitives::WrappedUuidV4"
             - db_type: json
               column: task.metadata
               rust_type: "shared::primitives::WrappedJsonValue"
@@ -50,3 +56,26 @@ sql:
             - db_type: datetime
               column: build_job.event_payload
               rust_type: "shared::primitives::WrappedJsonValue"
+
+            # message table
+            - db_type: text
+              column: message.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: message.task_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: message.reference_task_ids
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: message.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: message.parts
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: message.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: message.role
+              rust_type: "crate::logic::MessageRole"

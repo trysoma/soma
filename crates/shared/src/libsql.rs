@@ -331,9 +331,11 @@ pub fn construct_db_connection_string(
     }
 }
 
-pub fn inject_auth_token_to_db_url(url: &Url, auth_token: &str) -> Result<Url, CommonError> {
+pub fn inject_auth_token_to_db_url(url: &Url, auth_token: &Option<String>) -> Result<Url, CommonError> {
     let mut conn_url = url.clone();
-    conn_url.query_pairs_mut().append_pair("auth", auth_token);
+    if let Some(auth_token) = auth_token {
+        conn_url.query_pairs_mut().append_pair("auth", auth_token);
+    }
     Ok(conn_url)
 }
 

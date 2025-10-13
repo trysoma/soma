@@ -1,4 +1,5 @@
 use derive_builder::Builder;
+use tonic::async_trait;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -20,25 +21,23 @@ pub struct InMemoryTaskStore {
     tasks: Arc<RwLock<HashMap<String, Task>>>,
 }
 
+#[async_trait]
 impl TaskStore for InMemoryTaskStore {
-    fn save<'a>(
-        &'a self,
-        task: &'a Task,
-    ) -> Pin<Box<dyn Future<Output = Result<(), A2aServerError>> + Send + Sync + 'a>> {
-        Box::pin(async move {
+    async fn save(
+        &self,
+        task: &Task,
+    ) -> Result<(), A2aServerError> {
             let id = task.id.clone();
             self.tasks.write().await.insert(id.clone(), task.clone());
             debug!("Task {} saved successfully.", &id);
             Ok(())
-        })
     }
 
-    fn get<'a>(
-        &'a self,
-        id: &'a TaskId,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<Task>, A2aServerError>> + Send + Sync + 'a>>
+    async fn get(
+        &self,
+        id: &TaskId,
+    ) -> Result<Option<Task>, A2aServerError>
     {
-        Box::pin(async move {
             debug!("Attempting to get task with id: {}", &id);
             let tasks = self.tasks.read().await;
             let task = tasks.get(&id.clone()).cloned();
@@ -49,14 +48,12 @@ impl TaskStore for InMemoryTaskStore {
             };
 
             Ok(task)
-        })
     }
 
-    fn delete<'a>(
-        &'a self,
-        id: &'a TaskId,
-    ) -> Pin<Box<dyn Future<Output = Result<(), A2aServerError>> + Send + Sync + 'a>> {
-        Box::pin(async move {
+    async fn delete(
+        &self,
+        id: &TaskId,
+    ) -> Result<(), A2aServerError> {
             debug!("Attempting to delete task with id: {}", &id);
             let mut tasks = self.tasks.write().await;
             let res = tasks.remove(&id.clone());
@@ -67,6 +64,5 @@ impl TaskStore for InMemoryTaskStore {
             }
 
             Ok(())
-        })
     }
 }

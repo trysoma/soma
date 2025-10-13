@@ -1,7 +1,6 @@
 use derive_builder::Builder;
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
+use async_trait::async_trait;
 use tracing::{debug, error, warn};
 
 use crate::{
@@ -20,33 +19,29 @@ pub struct BasePushNotificationSender {
     config_store: Arc<dyn PushNotificationConfigStore + Send + Sync>,
 }
 
+#[async_trait]
 impl PushNotificationSender for BasePushNotificationSender {
-    fn send_notification<'a>(
-        &'a self,
-        task: &'a Task,
-    ) -> Pin<Box<dyn Future<Output = Result<(), A2aServerError>> + Send + Sync + 'a>> {
-        Box::pin(async move {
-            let push_configs = self.config_store.get_info(&task.id).await?;
-            if push_configs.is_empty() {
-                return Ok(());
-            }
+    async fn send_notification(&self, task: &Task) -> Result<(), A2aServerError> {
+        let push_configs = self.config_store.get_info(&task.id).await?;
+        if push_configs.is_empty() {
+            return Ok(());
+        }
 
-            let mut futures = Vec::new();
-            for push_info in push_configs {
-                futures.push(self.dispatch_notification(task, push_info));
-            }
+        let mut futures = Vec::new();
+        for push_info in push_configs {
+            futures.push(self.dispatch_notification(task, push_info));
+        }
 
-            let results = futures::future::join_all(futures).await;
+        let results = futures::future::join_all(futures).await;
 
-            if !results.iter().all(|r| *r) {
-                warn!(
-                    "Some push notifications failed to send for task_id={}",
-                    &task.id
-                );
-            }
+        if !results.iter().all(|r| *r) {
+            warn!(
+                "Some push notifications failed to send for task_id={}",
+                &task.id
+            );
+        }
 
-            Ok(())
-        })
+        Ok(())
     }
 }
 

@@ -5,79 +5,35 @@ edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-aws-sdk-acm.workspace = true
-aws-sdk-acmpca.workspace = true
 axum.workspace = true
+axum-server.workspace = true
+base64.workspace = true
+chrono.workspace = true
 dotenv.workspace = true
-envconfig.workspace = true
+futures-util.workspace = true
+globset = "0.4.16"
 http.workspace = true
 libsql.workspace = true
-mail-send.workspace = true
+libsql_migration.workspace = true
+notify = "8.2.0"
+paste.workspace = true
 reqwest.workspace = true
+rmcp.workspace = true
+rustls.workspace = true
+schemars.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 tempfile.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 tokio-rustls.workspace = true
+tower.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+url.workspace = true
 utoipa.workspace = true
 uuid.workspace = true
-chrono.workspace = true
-futures.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
-tonic.workspace = true
-base64.workspace = true
-clerk-rs.workspace = true
-hickory-resolver.workspace = true
-jsonwebtoken.workspace = true
-libsql_migration.workspace = true
-paste.workspace = true
-rand.workspace = true
-rcgen.workspace = true
-shared-macros.workspace = true
-svix.workspace = true
-tokio-graceful-shutdown.workspace = true
-url.workspace = true
-x509-parser.workspace = true
-rustls.workspace = true
-rustls-pemfile.workspace = true
-aws-sdk-ssm.workspace = true
-dashmap.workspace = true
-pingora.workspace = true
-pkcs8 = { version = "0.10.2", features = ["pem", "std", "pkcs5", "encryption", "sha1-insecure"] }
-der = "0.7.10"
-pkcs5 = { version = "0.7.1", features = ["pbes2"] }
-arc-swap = "1.7.1"
-enum_dispatch = "0.3.13"
-aws-sdk-secretsmanager = "1.88.0"
-sha256 = "1.6.0"
-time = "0.3.43"
-hyper.workspace = true
-tower.workspace = true
-axum-server.workspace = true
-futures-util = "0.3.31"
-tower-http = { version = "0.6", features = ["add-extension"] }
-tonic-rustls = "0.2.0"
-hyper-util.workspace = true
-minijinja = "2.12.0"
-rig-core = { git = "https://github.com/0xPlaygrounds/rig" }
-schemars.workspace = true
-rmcp.workspace = true
-mockall = { workspace = true }
-tokio-stream.workspace = true
-async-trait.workspace = true
-rayon.workspace = true
-prost.workspace = true
-opentelemetry.workspace = true
-opentelemetry_sdk.workspace = true
-# opentelemetry-otlp = { path = "../../../forks/open-telemetry-opentelemetry-rust/opentelemetry-otlp", features = ["grpc-tonic", "trace"] }
-opentelemetry-otlp ={ version= "0.31.0", features = ["grpc-tonic", "trace"]}
-tracing-opentelemetry = "0.32.0"
-opentelemetry-semantic-conventions = "0.31.0"
-tracing-core = "0.1.34"
-opentelemetry-stdout = "0.31.0"
-opentelemetry-appender-tracing = "0.31.1"
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
 [dev-dependencies]
 chrono.workspace = true

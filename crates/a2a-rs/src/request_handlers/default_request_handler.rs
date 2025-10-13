@@ -3,6 +3,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use futures::{Stream, StreamExt};
 use tokio::sync::Mutex;
 use tokio::task::{AbortHandle, JoinHandle};
@@ -316,163 +317,138 @@ impl DefaultRequestHandler {
     }
 }
 
+#[async_trait]
 impl RequestHandler for DefaultRequestHandler {
     /// Default handler for 'tasks/get'.
-    fn on_get_task<'a>(
-        &'a self,
-        params: TaskQueryParams,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<Task>, A2aServerError>> + Send + Sync + 'a>>
-    {
-        Box::pin(async move {
-            let task = self.task_store.get(&params.id).await?;
-            if task.is_none() {
-                return Err(A2aServerError::TaskNotFoundError(
-                    ErrorBuilder::default().build().unwrap(),
-                ));
-            }
-            Ok(task)
-        })
+    async fn on_get_task(&self, params: TaskQueryParams) -> Result<Option<Task>, A2aServerError> {
+        let task = self.task_store.get(&params.id).await?;
+        if task.is_none() {
+            return Err(A2aServerError::TaskNotFoundError(
+                ErrorBuilder::default().build().unwrap(),
+            ));
+        }
+        Ok(task)
     }
 
     /// Default handler for 'tasks/cancel'.
-    fn on_cancel_task<'a>(
-        &'a self,
-        params: TaskIdParams,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<Task>, A2aServerError>> + Send + Sync + 'a>>
-    {
-        Box::pin(async move {
-            let task = self.task_store.get(&params.id).await?;
-            let task = task.ok_or_else(|| {
-                A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap())
-            })?;
+    async fn on_cancel_task(&self, params: TaskIdParams) -> Result<Option<Task>, A2aServerError> {
+        let task = self.task_store.get(&params.id).await?;
+        let task = task.ok_or_else(|| {
+            A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap())
+        })?;
 
-            let task_manager = TaskManager::new(
-                self.task_store.clone(),
-                Some(task.id.clone()),
-                Some(task.context_id.clone()),
-                None,
-            );
+        let task_manager = TaskManager::new(
+            self.task_store.clone(),
+            Some(task.id.clone()),
+            Some(task.context_id.clone()),
+            None,
+        );
 
-            let result_aggregator = Arc::new(ResultAggregator::new(task_manager));
+        let result_aggregator = Arc::new(ResultAggregator::new(task_manager));
 
-            let queue = self
-                .queue_manager
-                .tap(&task.id)
-                .await
-                .unwrap_or_else(|| EventQueue::new(1000));
+        let queue = self
+            .queue_manager
+            .tap(&task.id)
+            .await
+            .unwrap_or_else(|| EventQueue::new(1000));
 
-            self.agent_executor
-                .cancel(
-                    RequestContext::new(
-                        None,
-                        Some(task.id.clone()),
-                        Some(task.context_id.clone()),
-                        Some(task.clone()),
-                        None,
-                    )?,
-                    queue.clone(),
-                )
-                .await
-                .map_err(|e| {
-                    A2aServerError::InternalError(
-                        ErrorBuilder::default()
-                            .message(format!("Failed to cancel task: {e}"))
-                            .build()
-                            .unwrap(),
-                    )
-                })?;
-
-            // Cancel the ongoing task, if one exists
-            if let Some(abort_handle) = self.running_agents.lock().await.get(&task.id) {
-                abort_handle.abort();
-            }
-
-            let consumer = EventConsumer::new(queue);
-            match result_aggregator.consume_all(consumer).await? {
-                AggregatedResult::Task(task) => Ok(Some(task)),
-                _ => Err(A2aServerError::InternalError(
+        self.agent_executor
+            .cancel(
+                RequestContext::new(
+                    None,
+                    Some(task.id.clone()),
+                    Some(task.context_id.clone()),
+                    Some(task.clone()),
+                    None,
+                )?,
+                queue.clone(),
+            )
+            .await
+            .map_err(|e| {
+                A2aServerError::InternalError(
                     ErrorBuilder::default()
-                        .message("Agent did not return valid response for cancel".to_string())
+                        .message(format!("Failed to cancel task: {e}"))
                         .build()
                         .unwrap(),
-                )),
-            }
-        })
+                )
+            })?;
+
+        // Cancel the ongoing task, if one exists
+        if let Some(abort_handle) = self.running_agents.lock().await.get(&task.id) {
+            abort_handle.abort();
+        }
+
+        let consumer = EventConsumer::new(queue);
+        match result_aggregator.consume_all(consumer).await? {
+            AggregatedResult::Task(task) => Ok(Some(task)),
+            _ => Err(A2aServerError::InternalError(
+                ErrorBuilder::default()
+                    .message("Agent did not return valid response for cancel".to_string())
+                    .build()
+                    .unwrap(),
+            )),
+        }
     }
 
     /// Default handler for 'message/send' interface (non-streaming).
-    fn on_message_send<'a>(
-        &'a self,
-        params: MessageSendParams,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<SendMessageSuccessResponseResult, A2aServerError>>
-                + Send
-                + Sync
-                + 'a,
-        >,
-    > {
-        Box::pin(async move {
-            let (_task_manager, task_id, queue, result_aggregator, producer_task) =
-                self.setup_message_execution(params).await?;
+    async fn on_message_send(&self, params: MessageSendParams) -> Result<SendMessageSuccessResponseResult, A2aServerError> {
+        let (_task_manager, task_id, queue, result_aggregator, producer_task) =
+            self.setup_message_execution(params).await?;
 
-            let consumer = EventConsumer::new(queue);
+        let consumer = EventConsumer::new(queue);
 
-            let (result, interrupted) = result_aggregator
-                .consume_and_break_on_interrupt(consumer)
-                .await?;
+        let (result, interrupted) = result_aggregator
+            .consume_and_break_on_interrupt(consumer)
+            .await?;
 
-            let result = result.ok_or_else(|| {
-                A2aServerError::InternalError(
-                    ErrorBuilder::default()
-                        .message("No result from agent execution".to_string())
-                        .build()
-                        .unwrap(),
-                )
-            })?;
+        let result = result.ok_or_else(|| {
+            A2aServerError::InternalError(
+                ErrorBuilder::default()
+                    .message("No result from agent execution".to_string())
+                    .build()
+                    .unwrap(),
+            )
+        })?;
 
-            if let AggregatedResult::Task(task) = &result {
-                self.validate_task_id_match(&task_id, &task.id)?;
+        if let AggregatedResult::Task(task) = &result {
+            self.validate_task_id_match(&task_id, &task.id)?;
+        }
+
+        self.send_push_notification_if_needed(&task_id, &result_aggregator)
+            .await?;
+
+        // Clean up
+        if interrupted {
+            // Track this disconnected cleanup task
+            let self_clone = self.clone();
+            let task_id_clone = task_id.clone();
+            tokio::spawn(async move {
+                self_clone
+                    .cleanup_producer(producer_task, &task_id_clone)
+                    .await;
+            });
+        } else {
+            self.cleanup_producer(producer_task, &task_id).await;
+        }
+
+        // Convert to SendMessageSuccessResponseResult
+        match result {
+            AggregatedResult::Task(task) => Ok(SendMessageSuccessResponseResult::Task(task)),
+            AggregatedResult::Message(message) => {
+                Ok(SendMessageSuccessResponseResult::Message(message))
             }
-
-            self.send_push_notification_if_needed(&task_id, &result_aggregator)
-                .await?;
-
-            // Clean up
-            if interrupted {
-                // Track this disconnected cleanup task
-                let self_clone = self.clone();
-                let task_id_clone = task_id.clone();
-                tokio::spawn(async move {
-                    self_clone
-                        .cleanup_producer(producer_task, &task_id_clone)
-                        .await;
-                });
-            } else {
-                self.cleanup_producer(producer_task, &task_id).await;
-            }
-
-            // Convert to SendMessageSuccessResponseResult
-            match result {
-                AggregatedResult::Task(task) => Ok(SendMessageSuccessResponseResult::Task(task)),
-                AggregatedResult::Message(message) => {
-                    Ok(SendMessageSuccessResponseResult::Message(message))
-                }
-            }
-        })
+        }
     }
 
     /// Default handler for 'message/stream' (streaming).
-    fn on_message_send_stream<'a>(
-        &'a self,
+    async fn on_message_send_stream(
+        &self,
         params: MessageSendParams,
     ) -> Result<
         Pin<
             Box<
                 dyn Stream<Item = Result<SendStreamingMessageSuccessResponseResult, A2aServerError>>
-                    + Send
-                    + Sync
-                    + 'a,
+                    + Send,
             >,
         >,
         A2aServerError,
@@ -541,89 +517,68 @@ impl RequestHandler for DefaultRequestHandler {
     }
 
     /// Default handler for 'tasks/pushNotificationConfig/set'.
-    fn on_set_task_push_notification_config<'a>(
-        &'a self,
-        params: TaskPushNotificationConfig,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<TaskPushNotificationConfig, A2aServerError>>
-                + Send
-                + Sync
-                + 'a,
-        >,
-    > {
-        Box::pin(async move {
-            let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
-                A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
-            })?;
+    async fn on_set_task_push_notification_config(&self, params: TaskPushNotificationConfig) -> Result<TaskPushNotificationConfig, A2aServerError> {
+        let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
+            A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
+        })?;
 
-            let _task = self.task_store.get(&params.task_id).await?.ok_or_else(|| {
-                A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap())
-            })?;
+        let _task = self.task_store.get(&params.task_id).await?.ok_or_else(|| {
+            A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap())
+        })?;
 
-            push_config_store
-                .set_info(&params.task_id, &params.push_notification_config)
-                .await?;
+        push_config_store
+            .set_info(&params.task_id, &params.push_notification_config)
+            .await?;
 
-            Ok(params)
-        })
+        Ok(params)
     }
 
     /// Default handler for 'tasks/pushNotificationConfig/get'.
-    fn on_get_task_push_notification_config<'a>(
-        &'a self,
-        params: GetTaskPushNotificationConfigParams,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<TaskPushNotificationConfig, A2aServerError>>
-                + Send
-                + Sync
-                + 'a,
-        >,
-    > {
-        Box::pin(async move {
-            let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
-                A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
-            })?;
+    async fn on_get_task_push_notification_config(&self, params: GetTaskPushNotificationConfigParams) -> Result<TaskPushNotificationConfig, A2aServerError> {
+        let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
+            A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
+        })?;
 
-            let _task = self.task_store.get(&params.id).await?.ok_or_else(|| {
-                A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap())
-            })?;
+        let _task = self.task_store.get(&params.id).await?.ok_or_else(|| {
+            A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap())
+        })?;
 
-            let configs = push_config_store.get_info(&params.id).await?;
-            let config = configs.into_iter().next().ok_or_else(|| {
-                A2aServerError::InternalError(
-                    ErrorBuilder::default()
-                        .message("Push notification config not found".to_string())
-                        .build()
-                        .unwrap(),
-                )
-            })?;
+        let configs = push_config_store.get_info(&params.id).await?;
+        let config = configs.into_iter().next().ok_or_else(|| {
+            A2aServerError::InternalError(
+                ErrorBuilder::default()
+                    .message("Push notification config not found".to_string())
+                    .build()
+                    .unwrap(),
+            )
+        })?;
 
-            Ok(TaskPushNotificationConfig {
-                task_id: params.id,
-                push_notification_config: config,
-            })
+        Ok(TaskPushNotificationConfig {
+            task_id: params.id,
+            push_notification_config: config,
         })
     }
 
     /// Default handler for 'tasks/resubscribe'.
-    fn on_resubscribe_to_task<'a>(
-        &'a self,
+    fn on_resubscribe_to_task(
+        &self,
         params: TaskIdParams,
     ) -> Result<
         Pin<
             Box<
                 dyn Stream<Item = Result<SendStreamingMessageSuccessResponseResult, A2aServerError>>
-                    + Send
-                    + Sync
-                    + 'a,
+                    + Send,
             >,
         >,
         A2aServerError,
     > {
+        // Clone what we need before creating the stream
+        let task_store = self.task_store.clone();
+        let queue_manager = self.queue_manager.clone();
+        let result_aggregators = self.result_aggregators.clone();
+
         let stream = async_stream::try_stream! {
-            let task = self.task_store.get(&params.id).await?
+            let task = task_store.get(&params.id).await?
                 .ok_or_else(|| A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap()))?;
 
             if is_terminal_state(&task.status.state) {
@@ -635,14 +590,14 @@ impl RequestHandler for DefaultRequestHandler {
 
             // Check if there's already a result aggregator for this task
             let result_aggregator = {
-                let aggregators = self.result_aggregators.lock().await;
+                let aggregators = result_aggregators.lock().await;
                 if let Some(existing) = aggregators.get(&task.id) {
                     existing.clone()
                 } else {
                     // If not, create a new one
                     drop(aggregators); // Release the lock before creating new aggregator
                     let task_manager = TaskManager::new(
-                        self.task_store.clone(),
+                        task_store.clone(),
                         Some(task.id.clone()),
                         Some(task.context_id.clone()),
                         None,
@@ -651,7 +606,7 @@ impl RequestHandler for DefaultRequestHandler {
                 }
             };
 
-            let queue = self.queue_manager.tap(&task.id).await
+            let queue = queue_manager.tap(&task.id).await
                 .ok_or_else(|| A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap()))?;
 
             let consumer = EventConsumer::new(queue);
@@ -679,68 +634,49 @@ impl RequestHandler for DefaultRequestHandler {
                                 SendStreamingMessageSuccessResponseResult,
                                 A2aServerError,
                             >,
-                        > + Send
-                        + Sync
-                        + 'a,
+                        > + Send,
                 >,
             >)
     }
 
     /// Default handler for 'tasks/pushNotificationConfig/list'.
-    fn on_list_task_push_notification_config<'a>(
-        &'a self,
-        params: ListTaskPushNotificationConfigParams,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<Vec<TaskPushNotificationConfig>, A2aServerError>>
-                + Send
-                + Sync
-                + 'a,
-        >,
-    > {
-        Box::pin(async move {
-            let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
-                A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
-            })?;
+    async fn on_list_task_push_notification_config(&self, params: ListTaskPushNotificationConfigParams) -> Result<Vec<TaskPushNotificationConfig>, A2aServerError> {
+        let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
+            A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
+        })?;
 
-            let _task = self.task_store.get(&params.id).await?.ok_or_else(|| {
-                A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap())
-            })?;
+        let _task = self.task_store.get(&params.id).await?.ok_or_else(|| {
+            A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap())
+        })?;
 
-            let configs = push_config_store.get_info(&params.id).await?;
+        let configs = push_config_store.get_info(&params.id).await?;
 
-            let task_push_notification_configs = configs
-                .into_iter()
-                .map(|config| TaskPushNotificationConfig {
-                    task_id: params.id.clone(),
-                    push_notification_config: config,
-                })
-                .collect();
+        let task_push_notification_configs = configs
+            .into_iter()
+            .map(|config| TaskPushNotificationConfig {
+                task_id: params.id.clone(),
+                push_notification_config: config,
+            })
+            .collect();
 
-            Ok(task_push_notification_configs)
-        })
+        Ok(task_push_notification_configs)
     }
 
     /// Default handler for 'tasks/pushNotificationConfig/delete'.
-    fn on_delete_task_push_notification_config<'a>(
-        &'a self,
-        params: DeleteTaskPushNotificationConfigParams,
-    ) -> Pin<Box<dyn Future<Output = Result<(), A2aServerError>> + Send + Sync + 'a>> {
-        Box::pin(async move {
-            let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
-                A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
-            })?;
+    async fn on_delete_task_push_notification_config(&self, params: DeleteTaskPushNotificationConfigParams) -> Result<(), A2aServerError> {
+        let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
+            A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
+        })?;
 
-            let _task = self.task_store.get(&params.id).await?.ok_or_else(|| {
-                A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap())
-            })?;
+        let _task = self.task_store.get(&params.id).await?.ok_or_else(|| {
+            A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap())
+        })?;
 
-            push_config_store
-                .delete_info(&params.id, Some(&params.push_notification_config_id))
-                .await?;
+        push_config_store
+            .delete_info(&params.id, Some(&params.push_notification_config_id))
+            .await?;
 
-            Ok(())
-        })
+        Ok(())
     }
 }
 

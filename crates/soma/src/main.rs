@@ -7,10 +7,13 @@ use tracing::{error, info};
 use crate::{commands::StartParams};
 use shared::{error::{CommonError, DynError}};
 
+mod a2a;
 mod commands;
+mod mcp;
 mod repository;
 mod router;
 mod vite;
+mod logic;
 mod utils;
 
 pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");

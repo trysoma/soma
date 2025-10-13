@@ -105,6 +105,7 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
 
     match body.method.as_str() {
         "tasks/get" => {
+            info!("Received tasks/get request");
             let params = serde_json::from_value(serde_json::Value::Object(body.params)).unwrap();
             respond!(
                 ctx.request_handler(request_context)
@@ -114,6 +115,7 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
             )
         }
         "tasks/cancel" => {
+            info!("Received tasks/cancel request");
             let params = serde_json::from_value(serde_json::Value::Object(body.params)).unwrap();
             respond!(
                 ctx.request_handler(request_context)
@@ -123,6 +125,7 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
             )
         }
         "message/send" => {
+            info!("Received message/send request");
             let params = serde_json::from_value(serde_json::Value::Object(body.params)).unwrap();
             respond!(
                 ctx.request_handler(request_context)
@@ -131,6 +134,7 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
             )
         }
         "tasks/pushNotificationConfig/get" => {
+            info!("Received tasks/pushNotificationConfig/get request");
             let params = serde_json::from_value(serde_json::Value::Object(body.params)).unwrap();
             respond!(
                 ctx.request_handler(request_context)
@@ -139,6 +143,7 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
             )
         }
         "tasks/pushNotificationConfig/list" => {
+            info!("Received tasks/pushNotificationConfig/list request");
             let params = serde_json::from_value(serde_json::Value::Object(body.params)).unwrap();
             respond!(
                 ctx.request_handler(request_context)
@@ -147,6 +152,7 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
             )
         }
         "tasks/pushNotificationConfig/delete" => {
+            info!("Received tasks/pushNotificationConfig/delete request");
             let params = serde_json::from_value(serde_json::Value::Object(body.params)).unwrap();
             respond!(
                 ctx.request_handler(request_context)
@@ -155,6 +161,7 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
             )
         }
         "message/stream" => {
+            info!("Received message/stream request");
             let params = serde_json::from_value(serde_json::Value::Object(body.params)).unwrap();
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
             let id_for_task = id.clone();
@@ -163,7 +170,7 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
                 let handler = ctx
                     .request_handler(request_context);
                 let stream_res = handler
-                    .on_message_send_stream(params);
+                    .on_message_send_stream(params).await;
 
                 match stream_res {
                     Ok(mut stream) => {
@@ -203,6 +210,7 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
                 .into_response()
         }
         "tasks/resubscribe" => {
+            info!("Received tasks/resubscribe request");
             let params = serde_json::from_value(serde_json::Value::Object(body.params)).unwrap();
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
             let id_for_task = id.clone();
@@ -211,7 +219,7 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
                 let handler = ctx
                     .request_handler(request_context);
                 let stream_res = handler
-                    .on_message_send_stream(params);
+                    .on_message_send_stream(params).await;
 
                 match stream_res {
                     Ok(mut stream) => {
@@ -243,6 +251,9 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
                 )
                 .into_response()
         }
-        _ => (http::StatusCode::NOT_FOUND).into_response(),
+        _ => {
+            info!("Received unknown request");
+            (http::StatusCode::NOT_FOUND).into_response()
+        }
     }
 }

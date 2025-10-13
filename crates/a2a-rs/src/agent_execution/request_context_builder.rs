@@ -1,5 +1,4 @@
-use std::future::Future;
-use std::pin::Pin;
+use async_trait::async_trait;
 
 use crate::{
     agent_execution::context::RequestContext,
@@ -7,19 +6,13 @@ use crate::{
 };
 
 /// Builds request context to be supplied to agent executor.
+#[async_trait]
 pub trait RequestContextBuilder: Send + Sync {
-    fn build<'a>(
-        &'a self,
+    async fn build(
+        &self,
         params: Option<MessageSendParams>,
         task_id: Option<String>,
         context_id: Option<String>,
         task: Option<Task>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<RequestContext, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + Sync
-                + 'a,
-        >,
-    >;
+    ) -> Result<RequestContext, Box<dyn std::error::Error + Send + Sync>>;
 }

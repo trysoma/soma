@@ -113,7 +113,8 @@ async fn tanstack_spa_handler(State(vite): State<ViteServe>, req: Request<Body>)
     path = format!("{}/{}/{}/runtime_config", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     responses(
         (status = 200, description = "Runtime config", body = RuntimeConfig),
-    )
+    ),
+    operation_id = "get-frontend-env",
 )]
 async fn route_runtime_config(
     State(ctx): State<Arc<FrontendService>>,
@@ -134,4 +135,11 @@ async fn runtime_config() -> Result<RuntimeConfig, CommonError> {
 }
 
 pub struct FrontendService {
+}
+
+impl FrontendService {
+    pub fn new() -> Self {
+        Self {
+        }
+    }
 }

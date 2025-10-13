@@ -52,16 +52,215 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agent/v1/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get-agent-config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/frontend/v1/runtime_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get-frontend-env"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mcp/v1/task/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listen-to-mcp-sse"];
+        put?: never;
+        post: operations["trigger-mcp-message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/task/v1": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list-tasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/task/v1/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update-task-status"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/task/v1/{task_id}/message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["send-message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/task/v1/{task_id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["task-history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         AgentCard: Record<string, never>;
+        CreateMessageRequest: {
+            metadata: components["schemas"]["Metadata"];
+            parts: components["schemas"]["MessagePart"][];
+            reference_task_ids: components["schemas"]["WrappedUuidV4"][];
+            role: components["schemas"]["MessageRole"];
+        };
         Error: {
             data?: unknown;
             message: string;
         };
         JsonrpcRequest: Record<string, never>;
+        Message: {
+            created_at: components["schemas"]["WrappedChronoDateTime"];
+            id: components["schemas"]["WrappedUuidV4"];
+            metadata: components["schemas"]["Metadata"];
+            parts: components["schemas"]["MessagePart"][];
+            reference_task_ids: components["schemas"]["WrappedUuidV4"][];
+            role: components["schemas"]["MessageRole"];
+            task_id: components["schemas"]["WrappedUuidV4"];
+        };
+        MessagePart: components["schemas"]["TextPart"] & {
+            /** @enum {string} */
+            type: "text-part";
+        };
+        /** @enum {string} */
+        MessageRole: "user" | "agent";
+        MessageTaskTimelineItem: {
+            message: components["schemas"]["Message"];
+        };
+        Metadata: {
+            [key: string]: unknown;
+        };
+        RuntimeConfig: Record<string, never>;
+        SomaConfig: {
+            agent: string;
+            description: string;
+            name: string;
+            project: string;
+            version: string;
+        };
+        Task: {
+            context_id: components["schemas"]["WrappedUuidV4"];
+            created_at: components["schemas"]["WrappedChronoDateTime"];
+            id: components["schemas"]["WrappedUuidV4"];
+            metadata: components["schemas"]["Metadata"];
+            status: components["schemas"]["TaskStatus"];
+            status_message_id?: null | components["schemas"]["WrappedUuidV4"];
+            status_timestamp: components["schemas"]["WrappedChronoDateTime"];
+            updated_at: components["schemas"]["WrappedChronoDateTime"];
+        };
+        TaskPaginatedResponse: {
+            items: components["schemas"]["Task"][];
+            next_page_token: string;
+        };
+        /** @enum {string} */
+        TaskStatus: "submitted" | "working" | "input-required" | "completed" | "canceled" | "failed" | "rejected" | "auth-required" | "unknown";
+        TaskStatusUpdateTaskTimelineItem: {
+            status: components["schemas"]["TaskStatus"];
+            status_message_id?: null | components["schemas"]["WrappedUuidV4"];
+        };
+        TaskTimelineItem: {
+            created_at: components["schemas"]["WrappedChronoDateTime"];
+            event_payload: components["schemas"]["TaskTimelineItemPayload"];
+            id: components["schemas"]["WrappedUuidV4"];
+            task_id: components["schemas"]["WrappedUuidV4"];
+        };
+        TaskTimelineItemPaginatedResponse: {
+            items: components["schemas"]["TaskTimelineItem"][];
+            next_page_token: string;
+        };
+        TaskTimelineItemPayload: (components["schemas"]["TaskStatusUpdateTaskTimelineItem"] & {
+            /** @enum {string} */
+            type: "task-status-update";
+        }) | (components["schemas"]["MessageTaskTimelineItem"] & {
+            /** @enum {string} */
+            type: "message";
+        });
+        TextPart: {
+            metadata: components["schemas"]["Metadata"];
+            text: string;
+        };
+        /** @default null */
+        TupleUnit: unknown;
+        UpdateTaskStatusRequest: {
+            message?: null | components["schemas"]["CreateMessageRequest"];
+            status: components["schemas"]["TaskStatus"];
+        };
+        /** Format: date-time */
+        WrappedChronoDateTime: string;
+        WrappedClientJsonRpcMessage: Record<string, never>;
+        /** Format: uuid */
+        WrappedUuidV4: string;
     };
     responses: never;
     parameters: never;
@@ -151,6 +350,375 @@ export interface operations {
             };
             /** @description Internal Server Error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "get-agent-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agent config */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SomaConfig"];
+                };
+            };
+        };
+    };
+    "get-frontend-env": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Runtime config */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeConfig"];
+                };
+            };
+        };
+    };
+    "listen-to-mcp-sse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Task ID */
+                task_id: components["schemas"]["WrappedUuidV4"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MCP server running */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "trigger-mcp-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Task ID */
+                task_id: components["schemas"]["WrappedUuidV4"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WrappedClientJsonRpcMessage"];
+            };
+        };
+        responses: {
+            /** @description MCP server running */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "list-tasks": {
+        parameters: {
+            query: {
+                page_size: number;
+                next_page_token?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List tasks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskPaginatedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "update-task-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Task ID */
+                task_id: components["schemas"]["WrappedUuidV4"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTaskStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Update task status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TupleUnit"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "send-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Task ID */
+                task_id: components["schemas"]["WrappedUuidV4"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Create message */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "task-history": {
+        parameters: {
+            query: {
+                page_size: number;
+                next_page_token?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Task ID */
+                task_id: components["schemas"]["WrappedUuidV4"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Get task timeline items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTimelineItemPaginatedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

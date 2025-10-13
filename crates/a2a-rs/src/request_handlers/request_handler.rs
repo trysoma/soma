@@ -17,7 +17,7 @@ use crate::{
 /// This interface defines the methods that an A2A server implementation must
 /// provide to handle incoming JSON-RPC requests.
 #[async_trait]
-pub trait RequestHandler: Send + Sync {
+pub trait RequestHandler {
     /// Handles the 'tasks/get' method.
     ///
     /// Retrieves the state and history of a specific task.
@@ -30,10 +30,7 @@ pub trait RequestHandler: Send + Sync {
     /// # Returns
     ///
     /// The `Task` object if found, otherwise `None`.
-    fn on_get_task<'a>(
-        &'a self,
-        params: TaskQueryParams,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<Task>, A2aServerError>> + Send + Sync + 'a>>;
+    async fn on_get_task(&self, params: TaskQueryParams) -> Result<Option<Task>, A2aServerError>;
     /// Handles the 'tasks/cancel' method.
     ///
     /// Requests the agent to cancel an ongoing task.
@@ -46,10 +43,7 @@ pub trait RequestHandler: Send + Sync {
     /// # Returns
     ///
     /// The `Task` object with its status updated to canceled, or `None` if the task was not found.
-    fn on_cancel_task<'a>(
-        &'a self,
-        params: TaskIdParams,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<Task>, A2aServerError>> + Send + Sync + 'a>>;
+    async fn on_cancel_task(&self, params: TaskIdParams) -> Result<Option<Task>, A2aServerError>;
     /// Handles the 'message/send' method (non-streaming).
     ///
     /// Sends a message to the agent to create, continue, or restart a task,
@@ -63,17 +57,7 @@ pub trait RequestHandler: Send + Sync {
     /// # Returns
     ///
     /// The final `Task` object or a final `Message` object.
-    fn on_message_send<'a>(
-        &'a self,
-        params: MessageSendParams,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<SendMessageSuccessResponseResult, A2aServerError>>
-                + Send
-                + Sync
-                + 'a,
-        >,
-    >;
+    async fn on_message_send(&self, params: MessageSendParams) -> Result<SendMessageSuccessResponseResult, A2aServerError>;
     /// Handles the 'message/stream' method (streaming).
     ///
     /// Sends a message to the agent and yields stream events as they are
@@ -91,16 +75,14 @@ pub trait RequestHandler: Send + Sync {
     /// # Errors
     ///
     /// Returns `A2aServerError::UnsupportedOperationError` by default if not implemented.
-    fn on_message_send_stream<'a>(
-        &'a self,
+    async fn on_message_send_stream(
+        &self,
         _params: MessageSendParams,
     ) -> Result<
         Pin<
             Box<
                 dyn Stream<Item = Result<SendStreamingMessageSuccessResponseResult, A2aServerError>>
-                    + Send
-                    + Sync
-                    + 'a,
+                    + Send,
             >,
         >,
         A2aServerError,
@@ -118,17 +100,7 @@ pub trait RequestHandler: Send + Sync {
     /// # Returns
     ///
     /// The provided `TaskPushNotificationConfig` upon success.
-    fn on_set_task_push_notification_config<'a>(
-        &'a self,
-        params: TaskPushNotificationConfig,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<TaskPushNotificationConfig, A2aServerError>>
-                + Send
-                + Sync
-                + 'a,
-        >,
-    >;
+    async fn on_set_task_push_notification_config(&self, params: TaskPushNotificationConfig) -> Result<TaskPushNotificationConfig, A2aServerError>;
 
     /// Handles the 'tasks/pushNotificationConfig/get' method.
     ///
@@ -142,17 +114,7 @@ pub trait RequestHandler: Send + Sync {
     /// # Returns
     ///
     /// The `TaskPushNotificationConfig` for the task.
-    fn on_get_task_push_notification_config<'a>(
-        &'a self,
-        params: GetTaskPushNotificationConfigParams,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<TaskPushNotificationConfig, A2aServerError>>
-                + Send
-                + Sync
-                + 'a,
-        >,
-    >;
+    async fn on_get_task_push_notification_config(&self, params: GetTaskPushNotificationConfigParams) -> Result<TaskPushNotificationConfig, A2aServerError>;
 
     /// Handles the 'tasks/resubscribe' method.
     ///
@@ -170,16 +132,14 @@ pub trait RequestHandler: Send + Sync {
     /// # Errors
     ///
     /// Returns `A2aServerError::UnsupportedOperationError` by default if not implemented.
-    fn on_resubscribe_to_task<'a>(
-        &'a self,
+    fn on_resubscribe_to_task(
+        &self,
         _params: TaskIdParams,
     ) -> Result<
         Pin<
             Box<
                 dyn Stream<Item = Result<SendStreamingMessageSuccessResponseResult, A2aServerError>>
-                    + Send
-                    + Sync
-                    + 'a,
+                    + Send,
             >,
         >,
         A2aServerError,
@@ -197,17 +157,7 @@ pub trait RequestHandler: Send + Sync {
     /// # Returns
     ///
     /// The `Vec<TaskPushNotificationConfig>` for the task.
-    fn on_list_task_push_notification_config<'a>(
-        &'a self,
-        params: ListTaskPushNotificationConfigParams,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<Vec<TaskPushNotificationConfig>, A2aServerError>>
-                + Send
-                + Sync
-                + 'a,
-        >,
-    >;
+    async fn on_list_task_push_notification_config(&self, params: ListTaskPushNotificationConfigParams) -> Result<Vec<TaskPushNotificationConfig>, A2aServerError>;
 
     /// Handles the 'tasks/pushNotificationConfig/delete' method.
     ///
@@ -217,8 +167,5 @@ pub trait RequestHandler: Send + Sync {
     ///
     /// * `params` - Parameters including the task ID.
     /// * `context` - Context provided by the server.
-    fn on_delete_task_push_notification_config<'a>(
-        &'a self,
-        params: DeleteTaskPushNotificationConfigParams,
-    ) -> Pin<Box<dyn Future<Output = Result<(), A2aServerError>> + Send + Sync + 'a>>;
+    async fn on_delete_task_push_notification_config(&self, params: DeleteTaskPushNotificationConfigParams) -> Result<(), A2aServerError>;
 }

@@ -1,40 +1,24 @@
-use std::future::Future;
-use std::pin::Pin;
+use async_trait::async_trait;
 
 use crate::events::event_queue::EventQueue;
 
 /// Interface for managing the event queue lifecycles per task.
+#[async_trait]
 pub trait QueueManager: Send + Sync {
     /// Adds a new event queue associated with a task ID.
-    fn add<'a>(
-        &'a self,
-        task_id: &'a str,
-        queue: EventQueue,
-    ) -> Pin<Box<dyn Future<Output = Result<(), TaskQueueExists>> + Send + Sync + 'a>>;
+    async fn add(&self, task_id: &str, queue: EventQueue) -> Result<(), TaskQueueExists>;
 
     /// Retrieves the event queue for a task ID.
-    fn get<'a>(
-        &'a self,
-        task_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Option<EventQueue>> + Send + Sync + 'a>>;
+    async fn get(&self, task_id: &str) -> Option<EventQueue>;
 
     /// Creates a child event queue (tap) for an existing task ID.
-    fn tap<'a>(
-        &'a self,
-        task_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Option<EventQueue>> + Send + Sync + 'a>>;
+    async fn tap(&self, task_id: &str) -> Option<EventQueue>;
 
     /// Closes and removes the event queue for a task ID.
-    fn close<'a>(
-        &'a self,
-        task_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<(), NoTaskQueue>> + Send + Sync + 'a>>;
+    async fn close(&self, task_id: &str) -> Result<(), NoTaskQueue>;
 
     /// Creates a queue if one doesn't exist, otherwise taps the existing one.
-    fn create_or_tap<'a>(
-        &'a self,
-        task_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = EventQueue> + Send + Sync + 'a>>;
+    async fn create_or_tap(&self, task_id: &str) -> EventQueue;
 }
 
 /// Exception raised when attempting to add a queue for a task ID that already exists.

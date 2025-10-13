@@ -1,14 +1,19 @@
 use std::collections::HashMap;
 
 use a2a_rs::types::AgentCard;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use url::Url;
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+use utoipa::ToSchema;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SomaConfig {
-    pub name: String,
+    pub project: String,
+    pub agent: String,
     pub description: String,
-    pub version: String,
+    pub name: String,
+    pub version: String
 }
 
 
@@ -33,7 +38,7 @@ pub fn construct_agent_card(config: &SomaConfig, url: &Url) -> a2a_rs::types::Ag
     AgentCard {
         additional_interfaces: vec![],
         capabilities: a2a_rs::types::AgentCapabilities {
-            streaming: None,
+            streaming: Some(true),
             push_notifications: None,
             state_transition_history: None,
             extensions: vec![],

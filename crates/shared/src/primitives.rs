@@ -11,11 +11,11 @@ use utoipa::{
     openapi::{Object, ObjectBuilder, OneOf, Schema, Type},
 };
 
+use crate::error::CommonError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(transparent)]
 pub struct WrappedUuidV4(uuid::Uuid);
-
 
 impl Default for WrappedUuidV4 {
     fn default() -> Self {
@@ -46,7 +46,6 @@ impl FromStr for WrappedUuidV4 {
 //     }
 // }
 
-
 impl fmt::Display for WrappedUuidV4 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -54,10 +53,15 @@ impl fmt::Display for WrappedUuidV4 {
 }
 
 impl TryFrom<String> for WrappedUuidV4 {
-    type Error = anyhow::Error;
+    type Error = CommonError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        Ok(Self(uuid::Uuid::parse_str(&value).unwrap()))
+        Ok(Self(uuid::Uuid::parse_str(&value).map_err(|_e| {
+            CommonError::InvalidRequest {
+                msg: "invalid uuid".to_string(),
+                source: None,
+            }
+        })?))
     }
 }
 
@@ -68,7 +72,8 @@ impl libsql::FromValue for WrappedUuidV4 {
     {
         match val {
             libsql::Value::Text(s) => Ok(WrappedUuidV4::try_from(s).unwrap()),
-            _ => unreachable!("invalid value type"),
+            libsql::Value::Null => Err(libsql::Error::NullValue),
+            _ => Err(libsql::Error::InvalidColumnType),
         }
     }
 }
@@ -77,7 +82,7 @@ impl From<libsql::Value> for WrappedUuidV4 {
     fn from(val: libsql::Value) -> Self {
         match val {
             libsql::Value::Text(s) => WrappedUuidV4::try_from(s).unwrap(),
-            _ => unreachable!("invalid value type"),
+            _ => panic!("Cannot convert {:?} to WrappedUuidV4", val),
         }
     }
 }
@@ -142,26 +147,32 @@ impl libsql::FromValue for WrappedJsonValue {
             libsql::Value::Text(s) => Ok(WrappedJsonValue::new(
                 serde_json::from_str(&s).map_err(|_e| libsql::Error::InvalidColumnType)?,
             )),
-            _ => unreachable!("invalid value type"),
+            libsql::Value::Null => Err(libsql::Error::NullValue),
+            _ => Err(libsql::Error::InvalidColumnType),
         }
     }
 }
 
 impl TryFrom<libsql::Value> for WrappedJsonValue {
-    type Error = anyhow::Error;
+    type Error = CommonError;
 
     fn try_from(val: libsql::Value) -> Result<Self, Self::Error> {
         match val {
-            libsql::Value::Text(s) => Ok(WrappedJsonValue::new(
-                serde_json::from_str(&s)
-                    .map_err(|e| anyhow::anyhow!("invalid json value: {}", e))?,
-            )),
-            _ => Err(anyhow::anyhow!("invalid value type")),
+            libsql::Value::Text(s) => Ok(WrappedJsonValue::new(serde_json::from_str(&s).map_err(
+                |e| CommonError::InvalidRequest {
+                    msg: format!("invalid json value: {}", e),
+                    source: None,
+                },
+            )?)),
+            _ => Err(CommonError::InvalidRequest {
+                msg: "invalid value type".to_string(),
+                source: None,
+            }),
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(transparent)]
 pub struct WrappedChronoDateTime(chrono::DateTime<chrono::Utc>);
 
@@ -180,28 +191,34 @@ impl WrappedChronoDateTime {
 }
 
 impl TryFrom<String> for WrappedChronoDateTime {
-    type Error = anyhow::Error;
+    type Error = CommonError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         // Try SQLite datetime format first, then fall back to RFC3339
         let parsed = chrono::NaiveDateTime::parse_from_str(value.as_str(), "%Y-%m-%d %H:%M:%S%.f")
             .map(|naive| naive.and_utc())
             .or_else(|_| chrono::DateTime::parse_from_rfc3339(value.as_str()).map(|dt| dt.into()))
-            .map_err(|_e| anyhow::anyhow!("invalid datetime value"))?;
+            .map_err(|_e| CommonError::InvalidRequest {
+                msg: "invalid datetime value".to_string(),
+                source: None,
+            })?;
 
         Ok(WrappedChronoDateTime::new(parsed))
     }
 }
 
 impl TryFrom<&str> for WrappedChronoDateTime {
-    type Error = anyhow::Error;
+    type Error = CommonError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         // Try SQLite datetime format first, then fall back to RFC3339
         let parsed = chrono::NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M:%S%.f")
             .map(|naive| naive.and_utc())
             .or_else(|_| chrono::DateTime::parse_from_rfc3339(value).map(|dt| dt.into()))
-            .map_err(|_e| anyhow::anyhow!("invalid datetime value"))?;
+            .map_err(|_e| CommonError::InvalidRequest {
+                msg: "invalid datetime value".to_string(),
+                source: None,
+            })?;
 
         Ok(WrappedChronoDateTime::new(parsed))
     }
@@ -237,7 +254,8 @@ impl libsql::FromValue for WrappedChronoDateTime {
 
                 Ok(WrappedChronoDateTime::new(parsed))
             }
-            _ => unreachable!("invalid value type"),
+            libsql::Value::Null => Err(libsql::Error::NullValue),
+            _ => Err(libsql::Error::InvalidColumnType),
         }
     }
 }
@@ -260,7 +278,6 @@ impl From<WrappedChronoDateTime> for libsql::Value {
         libsql::Value::Text(value.0.format("%Y-%m-%d %H:%M:%S%.f").to_string())
     }
 }
-
 
 // Pagination types
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, IntoParams)]
@@ -288,7 +305,7 @@ impl<T: ToSchema + Serialize> ToSchema for PaginatedResponse<T> {
         )>,
     ) {
         schemas.push((T::name().to_string(), T::schema()));
-        T::schemas(schemas);        
+        T::schemas(schemas);
         schemas.push((format!("{}PaginatedResponse", T::name()), Self::schema()));
     }
 }
@@ -317,9 +334,18 @@ impl<T: ToSchema + Serialize> PartialSchema for PaginatedResponse<T> {
 }
 
 /// Decode a base64-encoded pagination token back to a vector of strings
-pub fn decode_pagination_token(token: &str) -> anyhow::Result<Vec<String>> {
-    let decoded_bytes = base64::engine::general_purpose::STANDARD.decode(token)?;
-    let decoded_str = String::from_utf8(decoded_bytes)?;
+pub fn decode_pagination_token(token: &str) -> Result<Vec<String>, CommonError> {
+    let decoded_bytes = base64::engine::general_purpose::STANDARD
+        .decode(token)
+        .map_err(|_e| CommonError::InvalidRequest {
+            msg: "invalid base64 string".to_string(),
+            source: None,
+        })?;
+    let decoded_str =
+        String::from_utf8(decoded_bytes).map_err(|_e| CommonError::InvalidRequest {
+            msg: "invalid utf8 string".to_string(),
+            source: None,
+        })?;
     Ok(decoded_str.split("__").map(|s| s.to_string()).collect())
 }
 

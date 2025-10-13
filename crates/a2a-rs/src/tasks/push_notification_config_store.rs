@@ -1,32 +1,16 @@
-use std::future::Future;
-use std::pin::Pin;
+use async_trait::async_trait;
 
 use crate::{errors::A2aServerError, types::PushNotificationConfig};
 
 ///Interface for storing and retrieving push notification configurations for tasks."
+#[async_trait]
 pub trait PushNotificationConfigStore: Send + Sync {
     ///Sets or updates the push notification configuration for a task.
-    fn set_info<'a>(
-        &'a self,
-        task_id: &'a String,
-        notification_config: &'a PushNotificationConfig,
-    ) -> Pin<Box<dyn Future<Output = Result<(), A2aServerError>> + Send + Sync + 'a>>;
+    async fn set_info(&self, task_id: &String, notification_config: &PushNotificationConfig) -> Result<(), A2aServerError>;
+
     ///Retrieves the push notification configuration for a task
-    fn get_info<'a>(
-        &'a self,
-        task_id: &'a String,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<Vec<PushNotificationConfig>, A2aServerError>>
-                + Send
-                + Sync
-                + 'a,
-        >,
-    >;
+    async fn get_info(&self, task_id: &String) -> Result<Vec<PushNotificationConfig>, A2aServerError>;
+
     ///Deletes the push notification configuration for a task
-    fn delete_info<'a>(
-        &'a self,
-        task_id: &'a String,
-        config_id: Option<&'a String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), A2aServerError>> + Send + Sync + 'a>>;
+    async fn delete_info(&self, task_id: &String, config_id: Option<&String>) -> Result<(), A2aServerError>;
 }

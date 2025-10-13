@@ -3,9 +3,12 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use http::StatusCode;
+use rmcp::ErrorData;
 use serde::Serialize;
 use thiserror::Error;
 use utoipa::{IntoResponses, PartialSchema, ToSchema};
+
+use crate::adapters::mcp::McpErrorMsg;
 
 
 
@@ -119,6 +122,34 @@ pub enum CommonError {
         #[source]
         source: libsql_migration::errors::LibsqlDirMigratorError,
     },
+    #[error("var error")]
+    VarError {
+        #[serde(skip)]
+        #[from]
+        #[source]
+        source: std::env::VarError,
+    },
+    #[error("glob set error")]
+    GlobSetError {
+        #[serde(skip)]
+        #[from]
+        #[source]
+        source: globset::Error,
+    },
+    #[error("notify error")]
+    NotifyError {
+        #[serde(skip)]
+        #[from]
+        #[source]
+        source: notify::Error,
+    },
+    #[error("reqwest error")]
+    ReqwestError {
+        #[serde(skip)]
+        #[from]
+        #[source]
+        source: reqwest::Error,
+    },
 }
 
 
@@ -126,6 +157,30 @@ pub enum CommonError {
 
 impl<T: Send + Sync + 'static> From<tokio::sync::mpsc::error::SendError<T>> for CommonError {
     fn from(e: tokio::sync::mpsc::error::SendError<T>) -> Self {
+        CommonError::TokioChannelError {
+            source: Box::new(e),
+        }
+    }
+}
+
+impl From<tokio::sync::oneshot::error::RecvError> for CommonError {
+    fn from(e: tokio::sync::oneshot::error::RecvError) -> Self {
+        CommonError::TokioChannelError {
+            source: Box::new(e),
+        }
+    }
+}
+
+impl<T: Send + Sync + 'static + std::fmt::Debug> From<tokio::sync::broadcast::error::SendError<T>> for CommonError {
+    fn from(e: tokio::sync::broadcast::error::SendError<T>) -> Self {
+        CommonError::TokioChannelError {
+            source: Box::new(e),
+        }
+    }
+}
+
+impl From<tokio::sync::broadcast::error::RecvError> for CommonError {
+    fn from(e: tokio::sync::broadcast::error::RecvError) -> Self {
         CommonError::TokioChannelError {
             source: Box::new(e),
         }
@@ -252,6 +307,10 @@ impl IntoResponse for CommonError {
             | CommonError::UrlParseError { .. }
             | CommonError::AxumError { .. }
             | CommonError::LibsqlMigrationError { .. }
+            | CommonError::VarError { .. }
+            | CommonError::GlobSetError { .. }
+            | CommonError::NotifyError { .. }
+            | CommonError::ReqwestError { .. }
             | CommonError::AddrParseError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
@@ -272,6 +331,10 @@ impl IntoResponse for CommonError {
                 CommonError::AxumError { .. } => "InternalServerError",
                 CommonError::AddrParseError { .. } => "InternalServerError",
                 CommonError::LibsqlMigrationError { .. } => "InternalServerError",
+                CommonError::VarError { .. } => "InternalServerError",
+                CommonError::GlobSetError { .. } => "InternalServerError",
+                CommonError::NotifyError { .. } => "InternalServerError",
+                CommonError::ReqwestError { .. } => "InternalServerError",
             }
             .to_string(),
             message: self.to_string(),
@@ -285,4 +348,43 @@ impl IntoResponse for CommonError {
 pub struct ErrorResponse {
     name: String,
     message: String,
+}
+
+
+impl From<CommonError> for ErrorData {
+    fn from(error: CommonError) -> ErrorData {
+        return match error {
+            CommonError::NotFound {
+                msg,
+                lookup_id,
+                source,
+            } => ErrorData::resource_not_found(msg, None),
+            CommonError::InvalidRequest { msg, source } => ErrorData::invalid_request(msg, None),
+            CommonError::Authentication { .. }
+            | CommonError::Authorization { .. }
+            | CommonError::InvalidResponse { .. }
+            | CommonError::Unknown(_)
+            | CommonError::Repository { .. }
+            | CommonError::SqliteError { .. }
+            | CommonError::TokioChannelError { .. }
+            | CommonError::IoError { .. }
+            | CommonError::SerdeSerializationError { .. }
+            | CommonError::AxumError { .. }
+            | CommonError::UrlParseError { .. }
+            | CommonError::AddrParseError { .. }
+            | CommonError::LibsqlMigrationError { .. }
+            | CommonError::VarError { .. }
+            | CommonError::GlobSetError { .. }
+            | CommonError::NotifyError { .. }
+            | CommonError::ReqwestError { .. }
+            => ErrorData::internal_error(error.to_string(), None)
+        };
+    }
+}
+
+
+impl McpErrorMsg for CommonError {
+    fn to_mcp_error(&self) -> String {
+        self.to_string()
+    }
 }
