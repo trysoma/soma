@@ -115,6 +115,7 @@ impl McpService {
                 task_id: ext_data.task_id,
                 inner: params.0.into(),
             },
+            false,
         )
         .await;
         let res = StructuredResponse::new(res);

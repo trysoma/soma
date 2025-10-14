@@ -9,12 +9,15 @@
   font-display: swap;
 }
 
-
 :root {
+  --header-height: 52px;
+  --nav-height: 48px;
+  --sub-nav-height: 38px;
+
   --font-geist-sans: 'Geist Sans', sans-serif;
   --font-geist-mono: 'Geist Mono', monospace;
   --font-balith-serif-slant: 'BalithSerifSlant', serif;
-  
+
 	--background: #ffebcc;
 	--foreground: #27272a;
 	--card: #ffe4bd;
@@ -185,13 +188,12 @@
 }
 
 /* Prevent layout shifts when dropdowns open */
-html {
-	scrollbar-gutter: stable;
+html, body {
+	scrollbar-gutter: unset;
+	overflow-y: hidden;
 }
 
-body {
-	overflow-y: scroll;
-}
+
 
 /* Ensure dropdown content doesn't affect page scrolling */
 [data-radix-popper-content-wrapper] {
@@ -209,5 +211,25 @@ html body[data-scroll-locked],
 body[data-scroll-locked="true"],
 body[data-scroll-locked] {
 	margin-right: 0 !important;
-	
+
+}
+
+.dark {
+  --sidebar: hsl(240 5.9% 10%);
+  --sidebar-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(240 3.7% 15.9%);
+  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-border: hsl(240 3.7% 15.9%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }

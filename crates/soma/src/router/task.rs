@@ -123,6 +123,7 @@ async fn route_create_message(
             task_id,
             inner: request,
         },
+        false,
     )
     .await;
     JsonResponse::from(res)

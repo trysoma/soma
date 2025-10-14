@@ -9,9 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as A2aRouteImport } from './routes/a2a'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChatIndexRouteImport } from './routes/chat/index'
+import { Route as A2aIndexRouteImport } from './routes/a2a/index'
+import { Route as A2aChatIndexRouteImport } from './routes/a2a/chat/index'
 
+const A2aRoute = A2aRouteImport.update({
+  id: '/a2a',
+  path: '/a2a',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -22,35 +30,61 @@ const ChatIndexRoute = ChatIndexRouteImport.update({
   path: '/chat/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const A2aIndexRoute = A2aIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => A2aRoute,
+} as any)
+const A2aChatIndexRoute = A2aChatIndexRouteImport.update({
+  id: '/chat/',
+  path: '/chat/',
+  getParentRoute: () => A2aRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/a2a': typeof A2aRouteWithChildren
+  '/a2a/': typeof A2aIndexRoute
   '/chat': typeof ChatIndexRoute
+  '/a2a/chat': typeof A2aChatIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/a2a': typeof A2aIndexRoute
   '/chat': typeof ChatIndexRoute
+  '/a2a/chat': typeof A2aChatIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/a2a': typeof A2aRouteWithChildren
+  '/a2a/': typeof A2aIndexRoute
   '/chat/': typeof ChatIndexRoute
+  '/a2a/chat/': typeof A2aChatIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat'
+  fullPaths: '/' | '/a2a' | '/a2a/' | '/chat' | '/a2a/chat'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat'
-  id: '__root__' | '/' | '/chat/'
+  to: '/' | '/a2a' | '/chat' | '/a2a/chat'
+  id: '__root__' | '/' | '/a2a' | '/a2a/' | '/chat/' | '/a2a/chat/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  A2aRoute: typeof A2aRouteWithChildren
   ChatIndexRoute: typeof ChatIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/a2a': {
+      id: '/a2a'
+      path: '/a2a'
+      fullPath: '/a2a'
+      preLoaderRoute: typeof A2aRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -65,11 +99,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/a2a/': {
+      id: '/a2a/'
+      path: '/'
+      fullPath: '/a2a/'
+      preLoaderRoute: typeof A2aIndexRouteImport
+      parentRoute: typeof A2aRoute
+    }
+    '/a2a/chat/': {
+      id: '/a2a/chat/'
+      path: '/chat'
+      fullPath: '/a2a/chat'
+      preLoaderRoute: typeof A2aChatIndexRouteImport
+      parentRoute: typeof A2aRoute
+    }
   }
 }
 
+interface A2aRouteChildren {
+  A2aIndexRoute: typeof A2aIndexRoute
+  A2aChatIndexRoute: typeof A2aChatIndexRoute
+}
+
+const A2aRouteChildren: A2aRouteChildren = {
+  A2aIndexRoute: A2aIndexRoute,
+  A2aChatIndexRoute: A2aChatIndexRoute,
+}
+
+const A2aRouteWithChildren = A2aRoute._addFileChildren(A2aRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  A2aRoute: A2aRouteWithChildren,
   ChatIndexRoute: ChatIndexRoute,
 }
 export const routeTree = rootRouteImport

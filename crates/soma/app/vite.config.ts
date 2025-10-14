@@ -18,6 +18,13 @@ export default defineConfig({
   //   globals: true,
   //   environment: 'jsdom',
   // },
+  optimizeDeps: {
+    include: [
+      'react-syntax-highlighter',
+      'react-syntax-highlighter/dist/esm/styles/prism',
+      'react-syntax-highlighter/dist/esm/languages/prism',
+    ],
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),

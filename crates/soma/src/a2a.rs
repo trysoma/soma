@@ -100,38 +100,13 @@ impl TaskStore for RepositoryTaskStore {
             };
 
             // Convert status_message to a2a_rs::types::Message if present
-            let status_message = task_with_details.status_message.map(|msg| {
-                a2a_rs::types::Message {
-                    message_id: msg.id.to_string(),
-                    task_id: Some(msg.task_id.to_string()),
-                    reference_task_ids: msg.reference_task_ids.iter().map(|id| id.to_string()).collect(),
-                    context_id: Some(task_with_details.task.context_id.to_string()),
-                    kind: "message".to_string(),
-                    role: match msg.role {
-                        logic::MessageRole::User => MessageRole::User,
-                        logic::MessageRole::Agent => MessageRole::Agent,
-                    },
-                    parts: msg.parts.iter().map(|part| {
-                        match part {
-                            logic::MessagePart::TextPart(text_part) => {
-                                a2a_rs::types::Part::TextPart(a2a_rs::types::TextPart {
-                                    kind: "text".to_string(),
-                                    text: text_part.text.clone(),
-                                    metadata: text_part.metadata.0.clone(),
-                                })
-                            }
-                        }
-                    }).collect(),
-                    metadata: msg.metadata.0,
-                    extensions: vec![],
-                }
-            });
+            let status_message = task_with_details.status_message.map(|msg| msg.into());
 
             Ok(Some(
                 Task {
                     artifacts: vec![],
                     context_id: task_with_details.task.context_id.to_string(),
-                    history: todo!(),
+                    history: task_with_details.messages.iter().map(|msg| msg.clone().into()).collect(),
                     id: task_with_details.task.id.to_string(),
                     kind: "task".to_string(),
                     metadata: task_with_details.task.metadata.0,

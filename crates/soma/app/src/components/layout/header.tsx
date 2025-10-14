@@ -30,7 +30,7 @@ export function Header() {
 
 	return (
 		<header className="sticky top-0 h-[var(--header-height)] z-50 p-0 bg-background/60 backdrop-blur">
-			<div className="flex justify-between items-center container mx-auto p-2 container mx-auto px-4 sm:px-6 lg:px-8">
+			<div className="flex justify-between items-center container mx-auto p-2 container ">
 				<div className="flex  items-center gap-2">
 					<Link
 						to="/"

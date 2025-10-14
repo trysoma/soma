@@ -221,7 +221,13 @@ impl DefaultRequestHandler {
                 .execute(request_context_for_agent, queue_clone.clone())
                 .await
             {
-                error!("Agent execution failed: {:?}", e);
+                let error_msg = format!("{:?}", e);
+                // Check if this is a connection closed error (happens during server shutdown)
+                if error_msg.contains("connection closed before message completed") {
+                    tracing::warn!("Agent execution connection closed (likely due to shutdown): {}", error_msg);
+                } else {
+                    error!("Agent execution failed: {:?}", e);
+                }
             }
             tracing::info!("Agent execution task completed");
             // Don't close the queue here - let the consumer close it when it receives a final event

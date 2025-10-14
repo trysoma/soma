@@ -507,6 +507,7 @@ pub async fn update_task_status(
                 repository,
                 connection_manager,
                 WithTaskId { task_id: request.task_id.clone(), inner: message },
+                true,
             )
             .await?;
 
@@ -583,6 +584,7 @@ pub async fn create_message(
     repository: &Repository,
     connection_manager: &ConnectionManager,
     request: WithTaskId<CreateMessageRequest>,
+    is_associated_with_status_update: bool,
 ) -> Result<CreateMessageResponse, CommonError> {
     let message = Message {
         id: WrappedUuidV4::new(),
@@ -606,12 +608,15 @@ pub async fn create_message(
     repository
         .insert_task_timeline_item(&timeline_item.clone().try_into()?)
         .await?;
-    connection_manager
+    
+    if !is_associated_with_status_update {
+        connection_manager
         .message_to_connections(
             request.task_id,
             a2a_rs::events::Event::Message(message.clone().into()),
         )
         .await?;
+    }
 
    
     Ok(CreateMessageResponse { message, timeline_item })
@@ -852,7 +857,7 @@ mod tests {
             },
         };
 
-        let result = create_message(&repo, &connection_manager, request).await;
+        let result = create_message(&repo, &connection_manager, request, false).await;
         assert!(result.is_ok());
 
         let message = result.unwrap();
@@ -892,7 +897,7 @@ mod tests {
             },
         };
 
-        let result = create_message(&repo, &connection_manager, request).await;
+        let result = create_message(&repo, &connection_manager, request, false).await;
         assert!(result.is_ok());
 
         let message = result.unwrap();
@@ -940,7 +945,7 @@ mod tests {
                 })],
             },
         };
-        create_message(&repo, &connection_manager, message_request).await.unwrap();
+        create_message(&repo, &connection_manager, message_request, false).await.unwrap();
 
         // Get timeline items
         let request = WithTaskId {
@@ -1021,7 +1026,7 @@ mod tests {
                 })],
             },
         };
-        create_message(&repo, &connection_manager, message_request).await.unwrap();
+        create_message(&repo, &connection_manager, message_request, false).await.unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
@@ -1050,7 +1055,7 @@ mod tests {
                 })],
             },
         };
-        create_message(&repo, &connection_manager, message_request2).await.unwrap();
+        create_message(&repo, &connection_manager, message_request2, false).await.unwrap();
 
         // Get timeline items
         let request = WithTaskId {
@@ -1101,7 +1106,7 @@ mod tests {
                     })],
                 },
             };
-            create_message(&repo, &connection_manager, message_request).await.unwrap();
+            create_message(&repo, &connection_manager, message_request, false).await.unwrap();
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         }
 
