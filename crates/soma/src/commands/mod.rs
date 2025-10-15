@@ -1,23 +1,13 @@
 use std::fs;
-use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::{future::Future, process::Stdio};
+use std::process::Stdio;
 
-use shared::libsql::{
-    establish_db_connection, inject_auth_token_to_db_url, merge_nested_migrations,
-};
-use shared::primitives::SqlMigrationLoader;
 use tokio::process::Command;
-use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle};
-use tracing::{error, info, warn};
+use tokio_graceful_shutdown::SubsystemHandle;
+use tracing::{error, info};
 
-use crate::logic::ConnectionManager;
-use crate::repository::Repository;
 use crate::router;
-use crate::vite::Assets;
-use shared::command::run_child_process;
 use shared::{error::CommonError, node::override_path_env};
-use url::Url;
 
 mod start;
 

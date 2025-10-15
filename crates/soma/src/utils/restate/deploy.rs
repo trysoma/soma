@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::time::Duration;
 use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 use url::Url;
 
 /// Deployment type configuration
@@ -69,8 +69,8 @@ pub async fn register_deployment(config: DeploymentRegistrationConfig) -> Result
     let service_metadata = register_deployment_with_retry(&config).await?;
 
     let deployment_desc = match &config.deployment_type {
-        DeploymentType::Lambda { arn, .. } => format!("Lambda deployment: {}", arn),
-        DeploymentType::Http { uri, .. } => format!("HTTP deployment: {}", uri),
+        DeploymentType::Lambda { arn, .. } => format!("Lambda deployment: {arn}"),
+        DeploymentType::Http { uri, .. } => format!("HTTP deployment: {uri}"),
     };
 
     info!(
@@ -92,7 +92,7 @@ async fn wait_for_healthy_http_service(uri: &str) -> Result<()> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
         .build()
-        .map_err(|e| anyhow!("Failed to create HTTP client: {}", e))?;
+        .map_err(|e| anyhow!("Failed to create HTTP client: {e}"))?;
 
     for attempt in 0..MAX_HEALTH_CHECK_ATTEMPTS {
         // Try to connect to the service endpoint
@@ -135,9 +135,7 @@ async fn wait_for_healthy_http_service(uri: &str) -> Result<()> {
     }
 
     Err(anyhow!(
-        "HTTP service at {} did not become healthy after {} attempts",
-        uri,
-        MAX_HEALTH_CHECK_ATTEMPTS
+        "HTTP service at {uri} did not become healthy after {MAX_HEALTH_CHECK_ATTEMPTS} attempts"
     ))
 }
 
@@ -215,8 +213,8 @@ async fn register_deployment_with_retry(
 
     for attempt in 0..MAX_REGISTRATION_ATTEMPTS {
         let deployment_desc = match &config.deployment_type {
-            DeploymentType::Lambda { arn, .. } => format!("Lambda: {}", arn),
-            DeploymentType::Http { uri, .. } => format!("HTTP: {}", uri),
+            DeploymentType::Lambda { arn, .. } => format!("Lambda: {arn}"),
+            DeploymentType::Http { uri, .. } => format!("HTTP: {uri}"),
         };
 
         info!(
@@ -246,9 +244,7 @@ async fn register_deployment_with_retry(
                     sleep(Duration::from_millis(REGISTRATION_BACKOFF_MS)).await;
                 } else {
                     return Err(anyhow!(
-                        "Failed to register deployment after {} attempts: {:?}",
-                        MAX_REGISTRATION_ATTEMPTS,
-                        e
+                        "Failed to register deployment after {MAX_REGISTRATION_ATTEMPTS} attempts: {e:?}"
                     ));
                 }
             }
@@ -256,8 +252,7 @@ async fn register_deployment_with_retry(
     }
 
     Err(anyhow!(
-        "Failed to register deployment after {} attempts",
-        MAX_REGISTRATION_ATTEMPTS
+        "Failed to register deployment after {MAX_REGISTRATION_ATTEMPTS} attempts"
     ))
 }
 
@@ -274,7 +269,7 @@ async fn try_register_deployment(
         } => {
             // Parse and validate the Lambda ARN
             let lambda_arn = LambdaARN::from_str(arn)
-                .map_err(|e| anyhow!("Invalid Lambda ARN '{}': {:?}", arn, e))?;
+                .map_err(|e| anyhow!("Invalid Lambda ARN '{arn}': {e:?}"))?;
 
             info!("Registering Lambda deployment: {}", arn);
 
@@ -295,7 +290,7 @@ async fn try_register_deployment(
             // Parse and validate the HTTP URI
             let parsed_uri = uri
                 .parse::<Uri>()
-                .map_err(|e| anyhow!("Invalid HTTP URI '{}': {}", uri, e))?;
+                .map_err(|e| anyhow!("Invalid HTTP URI '{uri}': {e}"))?;
 
             info!("Registering HTTP deployment: {}", uri);
 
@@ -307,9 +302,9 @@ async fn try_register_deployment(
                 for (key, value) in additional_headers {
                     let header_name = key
                         .parse::<HeaderName>()
-                        .map_err(|e| anyhow!("Invalid header name '{}': {}", key, e))?;
+                        .map_err(|e| anyhow!("Invalid header name '{key}': {e}"))?;
                     let header_value = HeaderValue::from_str(value)
-                        .map_err(|e| anyhow!("Invalid header value for '{}': {}", key, e))?;
+                        .map_err(|e| anyhow!("Invalid header value for '{key}': {e}"))?;
                     header_map.insert(header_name, header_value);
                 }
                 Some(SerdeableHeaderHashMap::from(header_map))
@@ -333,12 +328,12 @@ async fn try_register_deployment(
     let register_response = client
         .discover_deployment(register_request)
         .await
-        .map_err(|e| anyhow!("Failed to discover deployment: {:?}", e))?;
+        .map_err(|e| anyhow!("Failed to discover deployment: {e:?}"))?;
 
     let deployment_response = register_response
         .into_body()
         .await
-        .map_err(|e| anyhow!("Failed to parse deployment response: {:?}", e))?;
+        .map_err(|e| anyhow!("Failed to parse deployment response: {e:?}"))?;
 
     info!(
         "Deployment registered successfully with {} services",
@@ -378,12 +373,12 @@ async fn try_register_deployment(
         let service_response = client
             .patch_service(service_name, modify_request)
             .await
-            .map_err(|e| anyhow!("Failed to mark service as private: {:?}", e))?;
+            .map_err(|e| anyhow!("Failed to mark service as private: {e:?}"))?;
 
         let service_metadata = service_response
             .into_body()
             .await
-            .map_err(|e| anyhow!("Failed to parse service response: {:?}", e))?;
+            .map_err(|e| anyhow!("Failed to parse service response: {e:?}"))?;
 
         Ok(service_metadata)
     } else {
@@ -393,12 +388,12 @@ async fn try_register_deployment(
         let service_response = client
             .get_service(service_name)
             .await
-            .map_err(|e| anyhow!("Failed to get service metadata: {:?}", e))?;
+            .map_err(|e| anyhow!("Failed to get service metadata: {e:?}"))?;
 
         let service_metadata = service_response
             .into_body()
             .await
-            .map_err(|e| anyhow!("Failed to parse service metadata: {:?}", e))?;
+            .map_err(|e| anyhow!("Failed to parse service metadata: {e:?}"))?;
 
         Ok(service_metadata)
     }

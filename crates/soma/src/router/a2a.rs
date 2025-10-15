@@ -3,7 +3,6 @@ use a2a_rs::events::InMemoryQueueManager;
 use a2a_rs::service::A2aServiceLike;
 use a2a_rs::tasks::base_push_notification_sender::BasePushNotificationSenderBuilder;
 use a2a_rs::tasks::in_memory_push_notification_config_store::InMemoryPushNotificationConfigStoreBuilder;
-use a2a_rs::types::TextPart;
 use a2a_rs::{
     adapters::jsonrpc::axum::create_router as create_a2a_router,
     agent_execution::{agent_executor::AgentExecutor, context::RequestContext},
@@ -11,46 +10,34 @@ use a2a_rs::{
     request_handlers::{
         default_request_handler::DefaultRequestHandler, request_handler::RequestHandler,
     },
-    service::A2aServiceBuilder,
-    tasks::in_memory_task_store::InMemoryTaskStoreBuilder,
     types::{
-        AgentCapabilities, AgentCard, AgentSkill, Message, MessageRole, Part, Task, TaskState,
+        Task, TaskState,
         TaskStatus,
     },
 };
-use axum::extract::Query;
-use axum::{
-    Router,
-    extract::{Request, State},
-    http::HeaderValue,
-    middleware::Next,
-    response::Response,
-};
+use axum::extract::State;
 use reqwest::Client;
-use serde_json::{Map, json};
+use serde_json::json;
 use shared::adapters::openapi::JsonResponse;
 use shared::error::CommonError;
-use shared::primitives::{PaginationRequest, WrappedUuidV4};
+use shared::primitives::WrappedUuidV4;
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::{convert::Infallible, path::PathBuf, pin::Pin, sync::Arc};
-use tokio::sync::{Mutex, RwLock};
+use std::{path::PathBuf, pin::Pin, sync::Arc};
+use tokio::sync::RwLock;
 use tracing::info;
 use url::Url;
-use utoipa::openapi::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use crate::a2a::RepositoryTaskStore;
 use crate::logic::{
-    self, ConnectionManager, CreateMessageRequest, ListTasksResponse, ListUniqueContextsResponse,
-    WithTaskId, list_tasks_by_context_id, list_unique_contexts,
+    self, ConnectionManager, CreateMessageRequest,
+    WithTaskId,
 };
 use crate::repository::Repository;
-use crate::utils::restate;
 use crate::utils::restate::invoke::{
-    RestateIngressClient, construct_cancel_awakeable_id, construct_initial_object_id,
-    construct_invocation_object_id,
+    RestateIngressClient, construct_initial_object_id,
 };
 use crate::utils::soma_agent_config::SomaConfig;
 
@@ -62,12 +49,12 @@ pub fn create_router() -> OpenApiRouter<Arc<Agent2AgentService>> {
     let openapi_router = OpenApiRouter::new().routes(routes!(route_config));
 
     let a2a_router: OpenApiRouter<Arc<Agent2AgentService>> = create_a2a_router();
-    let openapi_router = openapi_router.nest(
-        &format!("{}/{}/{}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-        a2a_router,
-    );
+    
 
-    return openapi_router;
+    openapi_router.nest(
+        &format!("{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}"),
+        a2a_router,
+    )
 }
 
 #[utoipa::path(
@@ -107,7 +94,6 @@ impl Agent2AgentService {
         // Create the agent executor
         let agent_executor = Arc::new(ProxiedAgent {
             connection_manager,
-            runtime_port,
             soma_config: config.clone(),
             repository: repository.clone(),
             restate_ingress_client,
@@ -153,30 +139,28 @@ impl Agent2AgentService {
 }
 
 impl A2aServiceLike for Agent2AgentService {
-    fn agent_card(&self, context: a2a_rs::service::RequestContext) -> a2a_rs::types::AgentCard {
+    fn agent_card(&self, _context: a2a_rs::service::RequestContext) -> a2a_rs::types::AgentCard {
         let soma_str = std::fs::read_to_string(self.src_dir.join("soma.yaml")).unwrap();
         let soma_config =
             crate::utils::soma_agent_config::SomaConfig::from_yaml(&soma_str).unwrap();
         let mut full_url = self.host.clone();
         full_url.set_path(&format!(
-            "{}/{}/{}",
-            PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1
+            "{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}"
         ));
-        let agent_card =
-            crate::utils::soma_agent_config::construct_agent_card(&soma_config, &full_url);
-        agent_card
+        
+        crate::utils::soma_agent_config::construct_agent_card(&soma_config, &full_url)
     }
 
     fn extended_agent_card(
         &self,
-        context: a2a_rs::service::RequestContext,
+        _context: a2a_rs::service::RequestContext,
     ) -> Option<a2a_rs::types::AgentCard> {
         None
     }
 
     fn request_handler(
         &self,
-        context: a2a_rs::service::RequestContext,
+        _context: a2a_rs::service::RequestContext,
     ) -> Arc<dyn a2a_rs::request_handlers::request_handler::RequestHandler + Send + Sync> {
         self.request_handler.clone()
     }
@@ -184,7 +168,6 @@ impl A2aServiceLike for Agent2AgentService {
 
 struct ProxiedAgent {
     connection_manager: ConnectionManager,
-    runtime_port: u16,
     soma_config: SomaConfig,
     repository: Repository,
     restate_ingress_client: RestateIngressClient,
@@ -206,7 +189,8 @@ impl AgentExecutor for ProxiedAgent {
             let task = match context.current_task() {
                 Some(task) => task.clone(),
                 None => {
-                    let task = a2a_rs::types::Task {
+                    
+                    a2a_rs::types::Task {
                         id: context
                             .task_id()
                             .expect("task_id must be present")
@@ -221,8 +205,7 @@ impl AgentExecutor for ProxiedAgent {
                         history: vec![],
                         kind: "task".to_string(),
                         metadata: Default::default(),
-                    };
-                    task
+                    }
                 }
             };
 
@@ -237,7 +220,7 @@ impl AgentExecutor for ProxiedAgent {
                 Ok(task_id) => task_id,
                 Err(e) => {
                     let err =
-                        CommonError::Unknown(anyhow::anyhow!("Failed to parse task ID: {:?}", e));
+                        CommonError::Unknown(anyhow::anyhow!("Failed to parse task ID: {e:?}"));
                     return Err(Box::new(err) as Box<dyn std::error::Error + Send>);
                 }
             };
@@ -251,7 +234,7 @@ impl AgentExecutor for ProxiedAgent {
                 Ok((connection_id, receiver)) => (connection_id, receiver),
                 Err(e) => {
                     let err =
-                        CommonError::Unknown(anyhow::anyhow!("Failed to add connection: {:?}", e));
+                        CommonError::Unknown(anyhow::anyhow!("Failed to add connection: {e:?}"));
                     return Err(Box::new(err) as Box<dyn std::error::Error + Send>);
                 }
             };

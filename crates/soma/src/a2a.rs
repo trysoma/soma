@@ -13,7 +13,7 @@ use a2a_rs::types::Task;
 use a2a_rs::{
     errors::A2aServerError,
     tasks::store::TaskStore,
-    types::{MessageRole, TaskId, TaskState, TaskStatus},
+    types::{TaskId, TaskState, TaskStatus},
 };
 use shared::{
     error::CommonError,
@@ -93,8 +93,8 @@ impl TaskStore for RepositoryTaskStore {
                     metadata: WrappedJsonValue::from(serde_json::Value::Object(
                         task.metadata.clone(),
                     )),
-                    created_at: now.clone(),
-                    updated_at: now.clone(),
+                    created_at: now,
+                    updated_at: now,
                 })
                 .await
                 .map_err(convert_common_error)
@@ -145,7 +145,7 @@ impl TaskStore for RepositoryTaskStore {
         }))
     }
 
-    async fn delete(&self, id: &TaskId) -> Result<(), A2aServerError> {
+    async fn delete(&self, _id: &TaskId) -> Result<(), A2aServerError> {
         // TODO: Implement task deletion
         Err(A2aServerError::InternalError(a2a_rs::errors::Error {
             message: "Task deletion not implemented".to_string(),

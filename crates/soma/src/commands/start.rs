@@ -5,12 +5,12 @@ use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::{future::Future, process::Stdio};
+use std::future::Future;
 
 use clap::Parser;
 use futures::{FutureExt, TryFutureExt, future};
 use globset::{Glob, GlobSet, GlobSetBuilder};
-use notify::{EventKind, RecursiveMode, Watcher};
+use notify::{EventKind, RecursiveMode};
 use notify_debouncer_full::{DebounceEventResult, new_debouncer};
 use rmcp::service::serve_directly_with_ct;
 use shared::libsql::{
@@ -18,9 +18,9 @@ use shared::libsql::{
 };
 use shared::primitives::SqlMigrationLoader;
 use tokio::process::Command;
-use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
+use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info};
 
 use crate::logic::ConnectionManager;
 use crate::repository::Repository;
@@ -32,7 +32,7 @@ use crate::utils::soma_agent_config::SomaConfig;
 use crate::utils::{self, construct_src_dir_absolute, restate};
 use crate::vite::{Assets, wait_for_vite_dev_server_shutdown};
 use shared::command::run_child_process;
-use shared::{error::CommonError, node::override_path_env};
+use shared::error::CommonError;
 use url::Url;
 
 #[derive(Debug, Clone, Parser)]
@@ -85,7 +85,7 @@ fn find_free_port(start: u16, end: u16) -> std::io::Result<u16> {
 
 pub async fn cmd_start(subsys: &SubsystemHandle, params: StartParams) -> Result<(), CommonError> {
     let connection_manager = ConnectionManager::new();
-    let (db, conn, repository) =
+    let (_db, _conn, repository) =
         setup_repository(params.db_conn_string.clone(), params.db_auth_token.clone()).await?;
 
     let (kill_restate_signal_trigger, kill_restate_signal_receiver) = oneshot::channel::<()>();
@@ -242,7 +242,7 @@ async fn start_dev_restartable_processes(
         oneshot::channel::<()>();
     let src_dir_clone = src_dir.clone();
     let runtime_clone = runtime.clone();
-    let runtime_port_clone = runtime_port.clone();
+    let runtime_port_clone = runtime_port;
     let mut file_change_rx = file_change_tx.subscribe();
     subsys.start(SubsystemBuilder::new(
         "runtime",
@@ -277,7 +277,7 @@ async fn start_dev_restartable_processes(
             repository,
             mcp_transport_tx,
             soma_config: soma_config_clone,
-            runtime_port: runtime_port,
+            runtime_port,
             restate_ingress_client,
         },
     )?;
@@ -361,7 +361,7 @@ async fn start_dev_restartable_processes(
     ));
 
     info!("Starting Restate deployment");
-    let runtime_port_clone = runtime_port.clone();
+    let runtime_port_clone = runtime_port;
     let params_clone = params.clone();
     let soma_config_clone = soma_config.clone();
     subsys.start(SubsystemBuilder::new(
@@ -390,7 +390,7 @@ fn get_soma_config(src_dir: PathBuf) -> Result<SomaConfig, CommonError> {
     let soma_config = utils::soma_agent_config::SomaConfig::from_yaml(&fs::read_to_string(
         src_dir.join("soma.yaml"),
     )?)
-    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to get soma config: {:?}", e)))?;
+    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to get soma config: {e:?}")))?;
     Ok(soma_config)
 }
 
@@ -423,7 +423,7 @@ async fn start_restate_deployment(
     info!("Starting Restate deployment registration");
 
     // The HTTP service URI should point to the local Axum server, not the Restate admin
-    let service_uri = format!("http://127.0.0.1:{}", runtime_port);
+    let service_uri = format!("http://127.0.0.1:{runtime_port}");
 
     info!(
         "Registering service at {} with Restate admin at {}",
@@ -611,14 +611,14 @@ fn determine_runtime(params: StartParams) -> Result<Option<Runtime>, CommonError
     }
 
     match matched_runtimes.len() {
-        0 => return Ok(None),
-        1 => return Ok(Some(matched_runtimes[0].clone())),
+        0 => Ok(None),
+        1 => Ok(Some(matched_runtimes[0].clone())),
         _ => {
-            return Err(CommonError::Unknown(anyhow::anyhow!(
+            Err(CommonError::Unknown(anyhow::anyhow!(
                 "Multiple runtimes matched"
-            )));
+            )))
         }
-    };
+    }
 }
 
 #[derive(Debug, Clone)]

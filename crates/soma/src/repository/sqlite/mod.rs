@@ -3,7 +3,7 @@ mod raw_impl;
 
 include!("raw.generated.rs");
 
-use crate::logic::{MessageRole, TaskWithDetails};
+use crate::logic::TaskWithDetails;
 use crate::repository::{
     CreateMessage, CreateTask, CreateTaskTimelineItem, Message, Task, TaskRepositoryLike,
     TaskTimelineItem, UpdateTaskStatus,
@@ -100,7 +100,7 @@ impl TaskRepositoryLike for Repository {
         let cursor_datetime = if let Some(token) = &pagination.next_page_token {
             let decoded_parts =
                 decode_pagination_token(token).map_err(|e| CommonError::Repository {
-                    msg: format!("Invalid pagination token: {}", e),
+                    msg: format!("Invalid pagination token: {e}"),
                     source: Some(e.into()),
                 })?;
             if decoded_parts.is_empty() {
@@ -109,7 +109,7 @@ impl TaskRepositoryLike for Repository {
                 Some(
                     shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
                         .map_err(|e| CommonError::Repository {
-                            msg: format!("Invalid datetime in pagination token: {}", e),
+                            msg: format!("Invalid datetime in pagination token: {e}"),
                             source: Some(e.into()),
                         })?,
                 )
@@ -132,7 +132,7 @@ impl TaskRepositoryLike for Repository {
             })?;
 
         let items: Result<Vec<Task>, CommonError> =
-            rows.into_iter().map(|row| Task::try_from(row)).collect();
+            rows.into_iter().map(Task::try_from).collect();
         let items = items?;
 
         Ok(PaginatedResponse::from_items_with_extra(
@@ -150,7 +150,7 @@ impl TaskRepositoryLike for Repository {
         let cursor_datetime = if let Some(token) = &pagination.next_page_token {
             let decoded_parts =
                 decode_pagination_token(token).map_err(|e| CommonError::Repository {
-                    msg: format!("Invalid pagination token: {}", e),
+                    msg: format!("Invalid pagination token: {e}"),
                     source: Some(e.into()),
                 })?;
             if decoded_parts.is_empty() {
@@ -159,7 +159,7 @@ impl TaskRepositoryLike for Repository {
                 Some(
                     shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
                         .map_err(|e| CommonError::Repository {
-                            msg: format!("Invalid datetime in pagination token: {}", e),
+                            msg: format!("Invalid datetime in pagination token: {e}"),
                             source: Some(e.into()),
                         })?,
                 )
@@ -205,7 +205,7 @@ impl TaskRepositoryLike for Repository {
         let cursor_datetime = if let Some(token) = &pagination.next_page_token {
             let decoded_parts =
                 decode_pagination_token(token).map_err(|e| CommonError::Repository {
-                    msg: format!("Invalid pagination token: {}", e),
+                    msg: format!("Invalid pagination token: {e}"),
                     source: Some(e.into()),
                 })?;
             if decoded_parts.is_empty() {
@@ -214,7 +214,7 @@ impl TaskRepositoryLike for Repository {
                 Some(
                     shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
                         .map_err(|e| CommonError::Repository {
-                            msg: format!("Invalid datetime in pagination token: {}", e),
+                            msg: format!("Invalid datetime in pagination token: {e}"),
                             source: Some(e.into()),
                         })?,
                 )
@@ -238,7 +238,7 @@ impl TaskRepositoryLike for Repository {
             })?;
 
         let items: Result<Vec<Task>, CommonError> =
-            rows.into_iter().map(|row| Task::try_from(row)).collect();
+            rows.into_iter().map(Task::try_from).collect();
         let items = items?;
 
         Ok(PaginatedResponse::from_items_with_extra(
@@ -257,7 +257,7 @@ impl TaskRepositoryLike for Repository {
         let cursor_datetime = if let Some(token) = &pagination.next_page_token {
             let decoded_parts =
                 decode_pagination_token(token).map_err(|e| CommonError::Repository {
-                    msg: format!("Invalid pagination token: {}", e),
+                    msg: format!("Invalid pagination token: {e}"),
                     source: Some(e.into()),
                 })?;
             if decoded_parts.is_empty() {
@@ -266,7 +266,7 @@ impl TaskRepositoryLike for Repository {
                 Some(
                     shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
                         .map_err(|e| CommonError::Repository {
-                            msg: format!("Invalid datetime in pagination token: {}", e),
+                            msg: format!("Invalid datetime in pagination token: {e}"),
                             source: Some(e.into()),
                         })?,
                 )
@@ -291,7 +291,7 @@ impl TaskRepositoryLike for Repository {
 
         let items: Result<Vec<TaskTimelineItem>, CommonError> = rows
             .into_iter()
-            .map(|row| TaskTimelineItem::try_from(row))
+            .map(TaskTimelineItem::try_from)
             .collect();
         let items = items?;
 
@@ -352,7 +352,7 @@ impl TaskRepositoryLike for Repository {
         let cursor_datetime = if let Some(token) = &pagination.next_page_token {
             let decoded_parts =
                 decode_pagination_token(token).map_err(|e| CommonError::Repository {
-                    msg: format!("Invalid pagination token: {}", e),
+                    msg: format!("Invalid pagination token: {e}"),
                     source: Some(e.into()),
                 })?;
             if decoded_parts.is_empty() {
@@ -361,7 +361,7 @@ impl TaskRepositoryLike for Repository {
                 Some(
                     shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
                         .map_err(|e| CommonError::Repository {
-                            msg: format!("Invalid datetime in pagination token: {}", e),
+                            msg: format!("Invalid datetime in pagination token: {e}"),
                             source: Some(e.into()),
                         })?,
                 )
@@ -385,7 +385,7 @@ impl TaskRepositoryLike for Repository {
             })?;
 
         let items: Result<Vec<Message>, CommonError> =
-            rows.into_iter().map(|row| Message::try_from(row)).collect();
+            rows.into_iter().map(Message::try_from).collect();
         let items = items?;
 
         Ok(PaginatedResponse::from_items_with_extra(
@@ -453,10 +453,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: updated_at.clone(),
+            created_at,
+            updated_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -490,10 +490,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: updated_at.clone(),
+            created_at,
+            updated_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -504,8 +504,8 @@ mod tests {
             id: task_id.clone(),
             status: new_status.clone(),
             status_message_id: None,
-            status_timestamp: new_updated_at.clone(),
-            updated_at: new_updated_at.clone(),
+            status_timestamp: new_updated_at,
+            updated_at: new_updated_at,
         };
         repo.update_task_status(&update_params).await.unwrap();
 
@@ -521,8 +521,8 @@ mod tests {
             id: task_id.clone(),
             status: complete_status.clone(),
             status_message_id: None,
-            status_timestamp: complete_updated_at.clone(),
-            updated_at: complete_updated_at.clone(),
+            status_timestamp: complete_updated_at,
+            updated_at: complete_updated_at,
         };
         repo.update_task_status(&complete_params).await.unwrap();
 
@@ -551,10 +551,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: updated_at.clone(),
+            created_at,
+            updated_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -585,7 +585,7 @@ mod tests {
             task_id: task_id.clone(),
             event_update_type: event_type.clone(),
             event_payload: event_payload.clone(),
-            created_at: timeline_created_at.clone(),
+            created_at: timeline_created_at,
         };
         repo.insert_task_timeline_item(&timeline_params)
             .await
@@ -638,10 +638,10 @@ mod tests {
                 id: task_id.clone(),
                 context_id: context_id.clone(),
                 status: status.clone(),
-                status_timestamp: created_at.clone(),
+                status_timestamp: created_at,
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-                created_at: created_at.clone(),
-                updated_at: updated_at.clone(),
+                created_at,
+                updated_at,
             };
             repo.create_task(&create_params).await.unwrap();
         }
@@ -694,10 +694,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: updated_at.clone(),
+            created_at,
+            updated_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -716,7 +716,7 @@ mod tests {
                     role: MessageRole::Agent,
                     metadata: Metadata::new(),
                     parts: vec![MessagePart::TextPart(TextPart {
-                        text: format!("Event {}", i),
+                        text: format!("Event {i}"),
                         metadata: Metadata::new(),
                     })],
                     created_at: WrappedChronoDateTime::now(),
@@ -745,7 +745,7 @@ mod tests {
                 task_id: task_id.clone(),
                 event_update_type: event_type.clone(),
                 event_payload: event_payload.clone(),
-                created_at: timeline_created_at.clone(),
+                created_at: timeline_created_at,
             };
             repo.insert_task_timeline_item(&timeline_params)
                 .await
@@ -819,23 +819,21 @@ mod tests {
         let created_at = WrappedChronoDateTime::now();
 
         // Test all status transitions
-        let statuses = vec![
-            TaskStatus::Submitted,
+        let statuses = [TaskStatus::Submitted,
             TaskStatus::Working,
             TaskStatus::InputRequired,
             TaskStatus::Working,
-            TaskStatus::Completed,
-        ];
+            TaskStatus::Completed];
 
         // Create initial task
         let create_params = CreateTask {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: statuses[0].clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: created_at.clone(),
+            created_at,
+            updated_at: created_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -846,8 +844,8 @@ mod tests {
                 id: task_id.clone(),
                 status: status.clone(),
                 status_message_id: None,
-                status_timestamp: updated_at.clone(),
-                updated_at: updated_at.clone(),
+                status_timestamp: updated_at,
+                updated_at,
             };
             repo.update_task_status(&update_params).await.unwrap();
 
@@ -875,10 +873,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&task_metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: updated_at.clone(),
+            created_at,
+            updated_at,
         };
         repo.create_task(&task_params).await.unwrap();
 
@@ -902,7 +900,7 @@ mod tests {
             role: role.clone(),
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
             parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
-            created_at: message_created_at.clone(),
+            created_at: message_created_at,
         };
         repo.insert_message(&message_params).await.unwrap();
 
@@ -943,10 +941,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&task_metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: updated_at.clone(),
+            created_at,
+            updated_at,
         };
         repo.create_task(&task_params).await.unwrap();
 
@@ -964,7 +962,7 @@ mod tests {
             };
             let metadata = Metadata::new();
             let parts = vec![MessagePart::TextPart(TextPart {
-                text: format!("Message {}", i),
+                text: format!("Message {i}"),
                 metadata: Metadata::new(),
             })];
             let message_created_at = WrappedChronoDateTime::now();
@@ -978,7 +976,7 @@ mod tests {
                 role: role.clone(),
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
                 parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
-                created_at: message_created_at.clone(),
+                created_at: message_created_at,
             };
             repo.insert_message(&message_params).await.unwrap();
         }
@@ -1046,10 +1044,10 @@ mod tests {
                 id: task_id.clone(),
                 context_id: context_id.clone(),
                 status: status.clone(),
-                status_timestamp: created_at.clone(),
+                status_timestamp: created_at,
                 metadata: WrappedJsonValue::new(serde_json::to_value(&task_metadata).unwrap()),
-                created_at: created_at.clone(),
-                updated_at: updated_at.clone(),
+                created_at,
+                updated_at,
             };
             repo.create_task(&task_params).await.unwrap();
         }
@@ -1061,7 +1059,7 @@ mod tests {
             let role = MessageRole::User;
             let metadata = Metadata::new();
             let parts = vec![MessagePart::TextPart(TextPart {
-                text: format!("Task 1 Message {}", i),
+                text: format!("Task 1 Message {i}"),
                 metadata: Metadata::new(),
             })];
             let message_created_at = WrappedChronoDateTime::now();
@@ -1075,7 +1073,7 @@ mod tests {
                 role: role.clone(),
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
                 parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
-                created_at: message_created_at.clone(),
+                created_at: message_created_at,
             };
             repo.insert_message(&message_params).await.unwrap();
         }
@@ -1086,7 +1084,7 @@ mod tests {
             let role = MessageRole::Agent;
             let metadata = Metadata::new();
             let parts = vec![MessagePart::TextPart(TextPart {
-                text: format!("Task 2 Message {}", i),
+                text: format!("Task 2 Message {i}"),
                 metadata: Metadata::new(),
             })];
             let message_created_at = WrappedChronoDateTime::now();
@@ -1100,7 +1098,7 @@ mod tests {
                 role: role.clone(),
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
                 parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
-                created_at: message_created_at.clone(),
+                created_at: message_created_at,
             };
             repo.insert_message(&message_params).await.unwrap();
         }
@@ -1153,10 +1151,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&task_metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: updated_at.clone(),
+            created_at,
+            updated_at,
         };
         repo.create_task(&task_params).await.unwrap();
 
@@ -1180,7 +1178,7 @@ mod tests {
             role: role.clone(),
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
             parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
-            created_at: message_created_at.clone(),
+            created_at: message_created_at,
         };
         repo.insert_message(&message_params).await.unwrap();
 
@@ -1221,10 +1219,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: updated_at.clone(),
+            created_at,
+            updated_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -1257,10 +1255,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: updated_at.clone(),
+            created_at,
+            updated_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -1312,10 +1310,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: created_at.clone(),
+            created_at,
+            updated_at: created_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -1347,8 +1345,8 @@ mod tests {
             id: task_id.clone(),
             status: status.clone(),
             status_message_id: Some(status_message_id.clone()),
-            status_timestamp: now.clone(),
-            updated_at: now.clone(),
+            status_timestamp: now,
+            updated_at: now,
         };
         repo.update_task_status(&update_params).await.unwrap();
 
@@ -1381,10 +1379,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: created_at.clone(),
+            created_at,
+            updated_at: created_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -1420,10 +1418,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: created_at.clone(),
+            created_at,
+            updated_at: created_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -1485,10 +1483,10 @@ mod tests {
                 id: task_id.clone(),
                 context_id: context_id_1.clone(),
                 status: status.clone(),
-                status_timestamp: created_at.clone(),
+                status_timestamp: created_at,
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-                created_at: created_at.clone(),
-                updated_at: created_at.clone(),
+                created_at,
+                updated_at: created_at,
             };
             repo.create_task(&create_params).await.unwrap();
         }
@@ -1504,10 +1502,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id_2.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: created_at.clone(),
+            created_at,
+            updated_at: created_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -1564,10 +1562,10 @@ mod tests {
                 id: task_id.clone(),
                 context_id: context_id_1.clone(),
                 status: status.clone(),
-                status_timestamp: created_at.clone(),
+                status_timestamp: created_at,
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-                created_at: created_at.clone(),
-                updated_at: created_at.clone(),
+                created_at,
+                updated_at: created_at,
             };
             repo.create_task(&create_params).await.unwrap();
         }
@@ -1586,10 +1584,10 @@ mod tests {
                 id: task_id.clone(),
                 context_id: context_id_2.clone(),
                 status: status.clone(),
-                status_timestamp: created_at.clone(),
+                status_timestamp: created_at,
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-                created_at: created_at.clone(),
-                updated_at: created_at.clone(),
+                created_at,
+                updated_at: created_at,
             };
             repo.create_task(&create_params).await.unwrap();
         }
@@ -1663,10 +1661,10 @@ mod tests {
                 id: task_id.clone(),
                 context_id: context_id.clone(),
                 status: status.clone(),
-                status_timestamp: created_at.clone(),
+                status_timestamp: created_at,
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-                created_at: created_at.clone(),
-                updated_at: created_at.clone(),
+                created_at,
+                updated_at: created_at,
             };
             repo.create_task(&create_params).await.unwrap();
         }
@@ -1737,10 +1735,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: created_at.clone(),
+            created_at,
+            updated_at: created_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -1758,7 +1756,7 @@ mod tests {
                 MessageRole::Agent
             };
             let parts = vec![MessagePart::TextPart(TextPart {
-                text: format!("Message {}", i),
+                text: format!("Message {i}"),
                 metadata: Metadata::new(),
             })];
 
@@ -1809,10 +1807,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: created_at.clone(),
+            created_at,
+            updated_at: created_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -1826,7 +1824,7 @@ mod tests {
             let reference_task_ids = Vec::<WrappedUuidV4>::new();
             let role = MessageRole::User;
             let parts = vec![MessagePart::TextPart(TextPart {
-                text: format!("Message {}", i),
+                text: format!("Message {i}"),
                 metadata: Metadata::new(),
             })];
 
@@ -1872,10 +1870,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: created_at.clone(),
+            created_at,
+            updated_at: created_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -1889,7 +1887,7 @@ mod tests {
             let reference_task_ids = Vec::<WrappedUuidV4>::new();
             let role = MessageRole::User;
             let parts = vec![MessagePart::TextPart(TextPart {
-                text: format!("Message {}", i),
+                text: format!("Message {i}"),
                 metadata: Metadata::new(),
             })];
 
@@ -1935,10 +1933,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: created_at.clone(),
+            created_at,
+            updated_at: created_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -1952,7 +1950,7 @@ mod tests {
             let reference_task_ids = Vec::<WrappedUuidV4>::new();
             let role = MessageRole::User;
             let parts = vec![MessagePart::TextPart(TextPart {
-                text: format!("Message {}", i),
+                text: format!("Message {i}"),
                 metadata: Metadata::new(),
             })];
 
@@ -1999,8 +1997,7 @@ mod tests {
             .messages
             .get(99)
             .unwrap()
-            .created_at
-            .clone();
+            .created_at;
 
         // The token should represent a timestamp that can be used for pagination
         assert!(parsed.unwrap().timestamp() > 0);
@@ -2024,10 +2021,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: created_at.clone(),
+            created_at,
+            updated_at: created_at,
         };
         repo.create_task(&create_params).await.unwrap();
 

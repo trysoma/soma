@@ -116,7 +116,7 @@ async fn tanstack_spa_handler(State(vite): State<ViteServe>, req: Request<Body>)
     operation_id = "get-frontend-env",
 )]
 async fn route_runtime_config(
-    State(ctx): State<Arc<FrontendService>>,
+    State(_ctx): State<Arc<FrontendService>>,
 ) -> JsonResponse<RuntimeConfig, CommonError> {
     let runtime_config = runtime_config().await;
     JsonResponse::from(runtime_config)

@@ -1,8 +1,5 @@
 mod sqlite;
 
-use libsql::FromValue;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
 use shared::{
     error::CommonError,
     primitives::{
@@ -10,7 +7,6 @@ use shared::{
         WrappedUuidV4,
     },
 };
-use utoipa::ToSchema;
 
 pub use sqlite::Repository;
 
@@ -41,7 +37,7 @@ impl TryFrom<Task> for CreateTask {
             context_id: task.context_id,
             status: task.status,
             status_timestamp: task.status_timestamp,
-            metadata: metadata,
+            metadata,
             created_at: task.created_at,
             updated_at: task.updated_at,
         })
@@ -79,8 +75,8 @@ impl TryFrom<TaskTimelineItem> for CreateTaskTimelineItem {
         Ok(CreateTaskTimelineItem {
             id: task_timeline_item.id,
             task_id: task_timeline_item.task_id,
-            event_update_type: event_update_type,
-            event_payload: event_payload,
+            event_update_type,
+            event_payload,
             created_at: task_timeline_item.created_at,
         })
     }
@@ -116,7 +112,6 @@ impl TryFrom<Message> for CreateMessage {
                 message
                     .parts
                     .into_iter()
-                    .map(|part| part.into())
                     .collect::<Vec<MessagePart>>(),
             )?),
             created_at: message.created_at,

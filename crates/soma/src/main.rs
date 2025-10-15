@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use clap::{Parser, Subcommand};
 use tokio_graceful_shutdown::{SubsystemHandle, Toplevel, errors::GracefulShutdownError};
-use tracing::{error, info};
+use tracing::error;
 
 use crate::commands::StartParams;
 use shared::error::{CommonError, DynError};

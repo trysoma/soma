@@ -1,7 +1,7 @@
-use std::{collections::HashMap, io, ops::Deref, sync::Arc, time::Duration};
+use std::{io, sync::Arc, time::Duration};
 
 use axum::{
-    Extension, Json, Router,
+    Extension, Json,
     extract::{NestedPath, Path, Query, State},
     response::{
         IntoResponse, Response, Sse,
@@ -16,28 +16,24 @@ use rmcp::{
         CallToolRequestParam, CallToolResult, ClientJsonRpcMessage, ErrorData, ListToolsResult,
         PaginatedRequestParam, ServerCapabilities, ServerInfo,
     },
-    schemars::JsonSchema,
     service::RequestContext,
-    tool, tool_handler, tool_router,
+    tool, tool_router,
     transport::{
-        SseServer,
-        common::server_side_http::{SessionId, session_id},
-        sse_server::{PostEventQuery, SseServerConfig, SseServerTransport},
+        common::server_side_http::session_id,
+        sse_server::{PostEventQuery, SseServerTransport},
     },
 };
 use serde::{Deserialize, Serialize};
 use shared::{
     adapters::mcp::StructuredResponse,
-    error::CommonError,
-    primitives::{PaginationRequest, WrappedUuidV4},
+    primitives::WrappedUuidV4,
 };
-use tracing::info;
 use utoipa::{PartialSchema, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     logic::{
-        ConnectionManager, CreateMessageRequest, WithTaskId, create_message, update_task_status,
+        ConnectionManager, WithTaskId, create_message, update_task_status,
     },
     mcp,
     repository::Repository,
@@ -299,11 +295,10 @@ impl PartialSchema for WrappedClientJsonRpcMessage {
 )]
 async fn mcp_message(
     State(app): State<McpService>,
-    headers: HeaderMap,
     Query(PostEventQuery { session_id }): Query<PostEventQuery>,
     parts: Parts,
     Path(task_id): Path<WrappedUuidV4>,
-    Json(mut message): Json<WrappedClientJsonRpcMessage>,
+    Json(message): Json<WrappedClientJsonRpcMessage>,
 ) -> impl IntoResponse {
     let mut message = message.0;
     tracing::debug!(session_id, ?parts, ?message, "new client message");
@@ -315,7 +310,7 @@ async fn mcp_message(
             .clone()
     };
     message.insert_extension(parts);
-    let mcp_server_ext = McpServiceInstanceExt { task_id: task_id };
+    let mcp_server_ext = McpServiceInstanceExt { task_id };
     message.insert_extension(mcp_server_ext);
 
     if tx.send(message).await.is_err() {

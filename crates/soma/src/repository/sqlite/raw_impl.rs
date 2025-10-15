@@ -1,10 +1,9 @@
 use crate::{
     logic::{MessagePart, Metadata, TaskTimelineItemPayload, TaskWithDetails},
-    repository::{CommonError, Message, Task, TaskEventUpdateType, TaskStatus, TaskTimelineItem},
+    repository::{CommonError, Message, Task, TaskTimelineItem},
 };
 use base64::Engine;
-use shared::primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4};
-use tracing::info;
+use shared::primitives::WrappedUuidV4;
 
 use super::{
     Row_get_messages_by_task_id, Row_get_task_by_id, Row_get_task_timeline_items, Row_get_tasks,
@@ -22,7 +21,7 @@ impl TryFrom<Row_get_tasks> for Task {
             status: row.status,
             status_timestamp: row.status_timestamp,
             status_message_id: row.status_message_id,
-            metadata: metadata,
+            metadata,
             created_at: row.created_at,
             updated_at: row.updated_at,
         })
@@ -39,7 +38,7 @@ impl TryFrom<Row_get_tasks_by_context_id> for Task {
             status: row.status,
             status_timestamp: row.status_timestamp,
             status_message_id: row.status_message_id,
-            metadata: metadata,
+            metadata,
             created_at: row.created_at,
             updated_at: row.updated_at,
         })
@@ -72,7 +71,7 @@ impl TryFrom<Row_get_task_by_id> for TaskWithDetails {
             status: row.status,
             status_timestamp: row.status_timestamp,
             status_message_id: row.status_message_id,
-            metadata: metadata,
+            metadata,
             created_at: row.created_at,
             updated_at: row.updated_at,
         };
@@ -109,7 +108,7 @@ impl TryFrom<Row_get_task_timeline_items> for TaskTimelineItem {
         Ok(TaskTimelineItem {
             id: WrappedUuidV4::try_from(row.id)?,
             task_id: WrappedUuidV4::try_from(row.task_id)?,
-            event_payload: event_payload,
+            event_payload,
             created_at: row.created_at,
         })
     }
@@ -126,10 +125,10 @@ impl TryFrom<Row_get_messages_by_task_id> for Message {
         Ok(Message {
             id: row.id,
             task_id: row.task_id,
-            reference_task_ids: reference_task_ids,
+            reference_task_ids,
             role: row.role,
-            metadata: metadata,
-            parts: parts,
+            metadata,
+            parts,
             created_at: row.created_at,
         })
     }

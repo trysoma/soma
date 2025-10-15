@@ -1,32 +1,19 @@
-use axum::{
-    body::Body,
-    extract::{Json, Path, Query, Request, State},
-    http::StatusCode,
-    response::Response,
-    routing::any,
-};
 use dashmap::DashMap;
 use futures::stream::{self, StreamExt};
-use libsql::{FromValue, params::IntoValue};
+use libsql::FromValue;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use serde_json::Value;
+use std::{str::FromStr, sync::Arc};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::info;
 use utoipa::ToSchema;
-use utoipa_axum::{router::OpenApiRouter, routes};
-use vite_rs_axum_0_8::ViteServe;
 
-use crate::{
-    a2a,
-    repository::{CreateTaskTimelineItem, Repository, TaskRepositoryLike, UpdateTaskStatus},
-};
+use crate::repository::{Repository, TaskRepositoryLike, UpdateTaskStatus};
 use shared::{
-    adapters::openapi::JsonResponse,
     error::CommonError,
     primitives::{
-        PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
+        PaginatedResponse, PaginationRequest, WrappedChronoDateTime,
         WrappedUuidV4,
     },
 };
@@ -59,7 +46,7 @@ impl ConnectionManager {
         let connections = self
             .connections_by_task_id
             .entry(task_id.clone())
-            .or_insert_with(DashMap::new);
+            .or_default();
         connections.insert(
             connection_id.clone(),
             Connection {
@@ -130,6 +117,12 @@ impl ConnectionManager {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema)]
 pub struct Metadata(pub serde_json::Map<String, Value>);
+
+impl Default for Metadata {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Metadata {
     pub fn new() -> Self {
@@ -364,8 +357,7 @@ impl TryFrom<String> for MessageRole {
             "user" => Ok(MessageRole::User),
             "agent" => Ok(MessageRole::Agent),
             _ => Err(CommonError::Unknown(anyhow::anyhow!(
-                "Invalid message role: {}",
-                s
+                "Invalid message role: {s}"
             ))),
         }
     }
@@ -559,13 +551,13 @@ pub async fn update_task_status(
     let now = WrappedChronoDateTime::now();
 
     let message_id = message.clone().map(|message| message.message.id);
-    let res = repository
+    repository
         .update_task_status(&UpdateTaskStatus {
             id: request.task_id.clone(),
             status: request.inner.status.clone(),
             status_message_id: message_id.clone(),
-            status_timestamp: now.clone(),
-            updated_at: now.clone(),
+            status_timestamp: now,
+            updated_at: now,
         })
         .await?;
 
@@ -578,7 +570,7 @@ pub async fn update_task_status(
                 status_message_id: message_id.clone(),
             },
         ),
-        created_at: now.clone(),
+        created_at: now,
     };
     repository
         .insert_task_timeline_item(&timeline_item.try_into()?)
@@ -606,7 +598,7 @@ pub async fn update_task_status(
             }),
         )
         .await?;
-    Ok(res)
+    Ok(())
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema, JsonSchema)]
@@ -730,10 +722,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: updated_at.clone(),
+            created_at,
+            updated_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -741,7 +733,7 @@ mod tests {
             id: task_id,
             context_id,
             status,
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             status_message_id: None,
             metadata,
             created_at,
@@ -1182,7 +1174,7 @@ mod tests {
                     role: MessageRole::User,
                     metadata: Metadata::new(),
                     parts: vec![MessagePart::TextPart(TextPart {
-                        text: format!("Message {}", i),
+                        text: format!("Message {i}"),
                         metadata: Metadata::new(),
                     })],
                 },
@@ -1240,10 +1232,10 @@ mod tests {
                 id: task_id.clone(),
                 context_id: context_id_1.clone(),
                 status: status.clone(),
-                status_timestamp: created_at.clone(),
+                status_timestamp: created_at,
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-                created_at: created_at.clone(),
-                updated_at: created_at.clone(),
+                created_at,
+                updated_at: created_at,
             };
             repo.create_task(&create_params).await.unwrap();
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
@@ -1259,10 +1251,10 @@ mod tests {
             id: task_id.clone(),
             context_id: context_id_2.clone(),
             status: status.clone(),
-            status_timestamp: created_at.clone(),
+            status_timestamp: created_at,
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at: created_at.clone(),
-            updated_at: created_at.clone(),
+            created_at,
+            updated_at: created_at,
         };
         repo.create_task(&create_params).await.unwrap();
 
@@ -1308,10 +1300,10 @@ mod tests {
                 id: task_id.clone(),
                 context_id: context_id_1.clone(),
                 status: status.clone(),
-                status_timestamp: created_at.clone(),
+                status_timestamp: created_at,
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-                created_at: created_at.clone(),
-                updated_at: created_at.clone(),
+                created_at,
+                updated_at: created_at,
             };
             repo.create_task(&create_params).await.unwrap();
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
@@ -1328,10 +1320,10 @@ mod tests {
                 id: task_id.clone(),
                 context_id: context_id_2.clone(),
                 status: status.clone(),
-                status_timestamp: created_at.clone(),
+                status_timestamp: created_at,
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-                created_at: created_at.clone(),
-                updated_at: created_at.clone(),
+                created_at,
+                updated_at: created_at,
             };
             repo.create_task(&create_params).await.unwrap();
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
@@ -1384,10 +1376,10 @@ mod tests {
                 id: task_id.clone(),
                 context_id: context_id.clone(),
                 status: status.clone(),
-                status_timestamp: created_at.clone(),
+                status_timestamp: created_at,
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-                created_at: created_at.clone(),
-                updated_at: created_at.clone(),
+                created_at,
+                updated_at: created_at,
             };
             repo.create_task(&create_params).await.unwrap();
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;

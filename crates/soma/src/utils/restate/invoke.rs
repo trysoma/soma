@@ -57,7 +57,7 @@ impl RestateIngressClient {
         info!("  {}", text);
 
         if !status.is_success() {
-            return Err(anyhow::anyhow!("Failed to resolve awakeable: {}", text));
+            return Err(anyhow::anyhow!("Failed to resolve awakeable: {text}"));
         }
         Ok(())
     }
@@ -75,22 +75,22 @@ impl RestateIngressClient {
         info!("  {}", text);
 
         if !status.is_success() {
-            return Err(anyhow::anyhow!("Failed to reject awakeable: {}", text));
+            return Err(anyhow::anyhow!("Failed to reject awakeable: {text}"));
         }
         Ok(())
     }
 }
 
 pub fn construct_initial_object_id(task_id: &str) -> String {
-    format!("soma:v1:task:{}", task_id)
+    format!("soma:v1:task:{task_id}")
 }
 
 pub fn construct_cancel_awakeable_id(task_id: &str) -> String {
-    format!("soma:v1:task:{}:cancel", task_id)
+    format!("soma:v1:task:{task_id}:cancel")
 }
 
 pub fn construct_invocation_object_id(task_id: &str) -> String {
-    format!("soma:v1:task:{}:invocation", task_id)
+    format!("soma:v1:task:{task_id}:invocation")
 }
 
 // const constructCancelId = (taskId: string) => `soma:v1:cancel:${taskId}`;

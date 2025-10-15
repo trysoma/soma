@@ -1,24 +1,15 @@
-use axum::{
-    body::Body,
-    extract::{Json, Path, Query, Request, State},
-    http::StatusCode,
-    response::Response,
-    routing::any,
-};
-use serde::{Deserialize, Serialize};
+use axum::extract::{Json, Path, Query, State};
 use std::sync::Arc;
-use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     logic::{
         ConnectionManager, CreateMessageRequest, CreateMessageResponse, GetTaskResponse,
-        GetTaskTimelineItemsResponse, ListTasksResponse, ListUniqueContextsResponse,
-        TaskWithDetails, UpdateTaskStatusRequest, UpdateTaskStatusResponse, WithContextId,
+        GetTaskTimelineItemsResponse, ListTasksResponse, ListUniqueContextsResponse, UpdateTaskStatusRequest, UpdateTaskStatusResponse, WithContextId,
         WithTaskId, create_message, get_task, get_task_timeline_items, list_tasks,
         list_tasks_by_context_id, list_unique_contexts, update_task_status,
     },
-    repository::{CreateTaskTimelineItem, Repository, TaskRepositoryLike, UpdateTaskStatus},
+    repository::Repository,
 };
 use shared::{
     adapters::openapi::JsonResponse,
