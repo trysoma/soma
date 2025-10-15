@@ -558,6 +558,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3eeab4423108c5d7c744f4d234de88d18d636100093ae04caf4825134b9c3a32"
 
 [[package]]
+name = "bridge"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "axum 0.8.6",
+ "bridge-macros",
+ "chrono",
+ "enum_dispatch",
+ "libsql",
+ "paste",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "shared",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-graceful-shutdown",
+ "tracing",
+ "utoipa",
+ "utoipa-axum",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
+name = "bridge-macros"
+version = "0.0.0"
+dependencies = [
+ "paste",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+ "workspace-hack",
+]
+
+[[package]]
 name = "bs58"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

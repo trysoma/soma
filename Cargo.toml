@@ -130,6 +130,8 @@ a2a-rs = { path = "./crates/a2a-rs" }
 shared = { path = "./crates/shared" }
 shared-macros = { path = "./crates/shared-macros" }
 soma = { path = "./crates/soma" }
+bridge = { path = "./crates/bridge" }
+bridge-macros = { path = "./crates/bridge-macros" }
 
 
 [profile.release]

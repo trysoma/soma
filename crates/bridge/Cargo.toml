@@ -1,0 +1,25 @@
+[package]
+name = "bridge"
+version = "0.0.1"
+edition = "2024"
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+bridge-macros.workspace = true
+chrono.workspace = true
+enum_dispatch = "0.3.13"
+libsql.workspace = true
+paste.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+shared.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-graceful-shutdown.workspace = true
+tracing.workspace = true
+utoipa.workspace = true
+utoipa-axum.workspace = true
+uuid.workspace = true
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
