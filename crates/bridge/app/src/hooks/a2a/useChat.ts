@@ -1,0 +1,238 @@
+import type { AgentCard, MessageSendParams, SendMessageResponse, Task } from "@a2a-js/sdk";
+import React from "react";
+import { toast } from "sonner";
+import { v4 as uuidv4 } from "uuid";
+
+import { useAgents } from "@/hooks/a2a/useAgents";
+import { useChatContexts, type UseChatContextsReturn } from "@/hooks/a2a/useChatContexts";
+import { useScrolling, type UseScrollingReturn } from "@/hooks/a2a/useScrolling";
+import { useSelected, type UseSelectedReturn } from "@/hooks/a2a/useSelected";
+import { createMessageSendParams, createTempChatContext, terminalStates } from "@/lib/a2a/chat";
+import type { ChatContext } from "@/types/a2a";
+import { A2AClient } from "@a2a-js/sdk/client";
+
+interface UseChatReturn {
+  agent: AgentCard | null;
+  isLoadingAgent: boolean;
+  agentError: Error | null;
+  chatContexts: UseChatContextsReturn;
+  selected: UseSelectedReturn;
+  scrolling: UseScrollingReturn;
+  activeChatContext: ChatContext | undefined;
+  activeTask: Task | undefined;
+  currentMessageText: string;
+  autoFocusChatTextField: boolean;
+  handleSendMessage: (messageText: string) => Promise<void>;
+  handleMessageTextChange: (messageText: string) => void;
+  handleNewChat: () => void;
+  handleContextSelect: (contextId: string) => void;
+  handleTaskSelect: (taskId: string) => void;
+  handleArtifactSelect: (artifactId: string) => void;
+}
+
+export const useChat = (): UseChatReturn => {
+  const [newChatMessageText, setNewChatMessageText] = React.useState<string>("");
+  const [autoFocusChatTextField, setAutoFocusChatTextField] = React.useState<boolean>(false);
+
+  const { agent, isLoading: isLoadingAgent, error: agentError } = useAgents();
+  const chatContexts = useChatContexts();
+  const selected = useSelected();
+  const scrolling = useScrolling();
+
+  // Focus text field on initial mount
+  React.useEffect(() => {
+    setAutoFocusChatTextField(true);
+  }, []);
+
+  // Reset auto-focus after it's been applied
+  React.useEffect(() => {
+    if (autoFocusChatTextField) {
+      const timer = setTimeout(() => {
+        setAutoFocusChatTextField(false);
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [autoFocusChatTextField]);
+
+  // Calculate active context and task based on selection
+  const activeChatContext: ChatContext | undefined = React.useMemo(() => {
+    if (!selected.selectedContextId) {
+      return undefined;
+    }
+
+    return selected.selectedContextId
+      ? chatContexts.chatContexts[selected.selectedContextId]
+      : undefined;
+  }, [selected.selectedContextId, chatContexts.chatContexts]);
+
+  const activeTask: Task | undefined = React.useMemo(() => {
+    if (!activeChatContext) {
+      return undefined;
+    }
+
+    return activeChatContext.tasks.find((task) => !terminalStates.includes(task.status.state));
+  }, [activeChatContext]);
+
+  // Get the current message text (from `activeChatContext` if it exists, otherwise from local state)
+  const currentMessageText = activeChatContext?.messageText || newChatMessageText;
+
+  const handleMessageTextChange = (messageText: string): void => {
+    if (activeChatContext) {
+      chatContexts.setChatContextMessageText(activeChatContext.contextId, messageText);
+    } else {
+      // For new chats, store the text locally until a context is created
+      setNewChatMessageText(messageText);
+    }
+  };
+
+  const handleNewChat = (): void => {
+    selected.setSelectedContextId(undefined);
+    selected.setSelectedTaskId(undefined);
+    selected.setSelectedArtifactId(undefined);
+    scrolling.setScrollToTaskId(undefined);
+    scrolling.setScrollToArtifactId(undefined);
+    setNewChatMessageText("");
+    setAutoFocusChatTextField(true);
+  };
+
+  const handleContextSelect = (contextId: string): void => {
+    selected.setSelectedContextId(contextId);
+    selected.setSelectedArtifactId(undefined);
+    scrolling.setScrollToTaskId(undefined);
+    scrolling.setScrollToArtifactId(undefined);
+
+    // Find the context and select its most recent task
+    const context = chatContexts.chatContexts[contextId];
+    if (context && context.tasks.length > 0) {
+      // Select the most recent task (last in the array)
+      const mostRecentTask = context.tasks[context.tasks.length - 1];
+      selected.setSelectedTaskId(mostRecentTask.id);
+    }
+
+    setNewChatMessageText("");
+    setAutoFocusChatTextField(true);
+  };
+
+  const handleTaskSelect = (taskId: string): void => {
+    selected.setSelectedTaskId(taskId);
+    selected.setSelectedArtifactId(undefined);
+    scrolling.setScrollToTaskId(taskId);
+    scrolling.setScrollToArtifactId(undefined);
+  };
+
+  const handleArtifactSelect = (artifactId: string): void => {
+    selected.setSelectedArtifactId(artifactId);
+    scrolling.setScrollToTaskId(undefined);
+    scrolling.setScrollToArtifactId(artifactId);
+  };
+
+  const handleSendMessage = async (messageText: string): Promise<void> => {
+    if (!agent) {
+      toast.warning("Agent is not available");
+      return;
+    }
+
+    // Setup context
+    const contextId: string = activeChatContext?.contextId || uuidv4();
+    const isNewContext: boolean = !activeChatContext?.contextId;
+
+    if (isNewContext) {
+      const tempContext: ChatContext = createTempChatContext(contextId, agent);
+      chatContexts.addChatContext(tempContext);
+      selected.setSelectedContextId(contextId);
+    }
+
+    try {
+      const messageSendParams: MessageSendParams = createMessageSendParams(
+        messageText,
+        contextId,
+        activeTask?.id
+      );
+
+      // Set loading, message text, and pending message
+      chatContexts.setChatContextLoading(contextId, true);
+      if (isNewContext) {
+        setNewChatMessageText("");
+      } else {
+        chatContexts.setChatContextMessageText(contextId, "");
+      }
+      chatContexts.setChatContextPendingMessage(contextId, messageSendParams.message);
+
+      // Send message
+      // const response: SendMessageResponse = await sendMessageToAgent(
+      //   agent,
+      //   messageSendParams
+      // );
+      const client = await A2AClient.fromCardUrl('/api/agent/v1/.well-known/agent.json');
+      const response = await client.sendMessage(messageSendParams);
+
+      if ("result" in response) {
+        const task = response.result as Task;
+        chatContexts.updateTaskInContext(contextId, task);
+        selected.setSelectedTaskId(task.id);
+        chatContexts.setChatContextPendingMessage(contextId, null);
+        chatContexts.setChatContextLoading(contextId, false);
+      } else {
+        console.error("Error response from A2A agent:", response);
+
+        handleSendMessageError(
+          contextId,
+          isNewContext,
+          messageText,
+          "Something went wrong processing your message. Please try again."
+        );
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+
+      handleSendMessageError(
+        contextId,
+        isNewContext,
+        messageText,
+        "Something went wrong sending your message. Please try again."
+      );
+    }
+  };
+
+  const handleSendMessageError = (
+    contextId: string,
+    isNewContext: boolean,
+    messageText: string,
+    toastMessage: string
+  ): void => {
+    if (isNewContext) {
+      chatContexts.removeChatContext(contextId);
+      selected.setSelectedContextId(undefined);
+      selected.setSelectedTaskId(undefined);
+      selected.setSelectedArtifactId(undefined);
+      setNewChatMessageText(messageText);
+      setAutoFocusChatTextField(true);
+    } else {
+      chatContexts.setChatContextLoading(contextId, false);
+      chatContexts.setChatContextMessageText(contextId, messageText);
+      chatContexts.setChatContextPendingMessage(contextId, null);
+    }
+
+    toast.error(toastMessage);
+  };
+
+  return {
+    agent,
+    isLoadingAgent,
+    agentError,
+    chatContexts,
+    selected,
+    scrolling,
+    activeChatContext,
+    activeTask,
+    currentMessageText,
+    autoFocusChatTextField,
+    handleSendMessage,
+    handleMessageTextChange,
+    handleNewChat,
+    handleContextSelect,
+    handleTaskSelect,
+    handleArtifactSelect,
+  };
+};

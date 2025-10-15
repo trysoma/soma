@@ -14,7 +14,7 @@
     "version": "0.2.0"
   },
   "paths": {
-    "/api/agent/v1": {
+    "/api/a2a/v1": {
       "post": {
         "operationId": "json_rpc",
         "requestBody": {
@@ -44,7 +44,7 @@
         }
       }
     },
-    "/api/agent/v1/.well-known/agent.json": {
+    "/api/a2a/v1/.well-known/agent.json": {
       "get": {
         "operationId": "agent_card",
         "responses": {
@@ -71,7 +71,7 @@
         }
       }
     },
-    "/api/agent/v1/agent/authenticatedExtendedCard": {
+    "/api/a2a/v1/agent/authenticatedExtendedCard": {
       "get": {
         "operationId": "extended_agent_card",
         "responses": {
@@ -98,7 +98,7 @@
         }
       }
     },
-    "/api/agent/v1/config": {
+    "/api/a2a/v1/config": {
       "get": {
         "operationId": "get-agent-config",
         "responses": {
@@ -276,7 +276,268 @@
         }
       }
     },
+    "/api/task/v1/context": {
+      "get": {
+        "operationId": "list-contexts",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List contexts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextInfoPaginatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/task/v1/context/{context_id}/task": {
+      "get": {
+        "operationId": "list-tasks-by-context-id",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "name": "context_id",
+            "in": "path",
+            "description": "Context ID",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WrappedUuidV4"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List tasks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPaginatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/task/v1/{task_id}": {
+      "get": {
+        "operationId": "get-task-by-id",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "description": "Task ID",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WrappedUuidV4"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get task by id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskWithDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
       "put": {
         "operationId": "update-task-status",
         "parameters": [
@@ -394,7 +655,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Message"
+                  "$ref": "#/components/schemas/CreateMessageResponse"
                 }
               }
             }
@@ -555,6 +816,39 @@
       "AgentCard": {
         "type": "object"
       },
+      "ContextInfo": {
+        "type": "object",
+        "required": [
+          "context_id",
+          "created_at"
+        ],
+        "properties": {
+          "context_id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
+      "ContextInfoPaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "next_page_token"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContextInfo"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
       "CreateMessageRequest": {
         "type": "object",
         "required": [
@@ -581,6 +875,21 @@
           },
           "role": {
             "$ref": "#/components/schemas/MessageRole"
+          }
+        }
+      },
+      "CreateMessageResponse": {
+        "type": "object",
+        "required": [
+          "message",
+          "timeline_item"
+        ],
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/Message"
+          },
+          "timeline_item": {
+            "$ref": "#/components/schemas/TaskTimelineItem"
           }
         }
       },
@@ -904,6 +1213,40 @@
             ]
           }
         ]
+      },
+      "TaskWithDetails": {
+        "type": "object",
+        "required": [
+          "task",
+          "messages"
+        ],
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            }
+          },
+          "messages_next_page_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status_message": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Message"
+              }
+            ]
+          },
+          "task": {
+            "$ref": "#/components/schemas/Task"
+          }
+        }
       },
       "TextPart": {
         "type": "object",

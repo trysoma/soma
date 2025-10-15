@@ -29,11 +29,6 @@ impl RequestContext {
         related_tasks: Option<Vec<Task>>,
     ) -> Result<Self, A2aServerError> {
         let related_tasks = related_tasks.unwrap_or_default();
-        info!("RequestContext new: {:?}", request);
-        info!("RequestContext task_id: {:?}", task_id);
-        info!("RequestContext context_id: {:?}", context_id);
-        info!("RequestContext task: {:?}", task);
-        info!("RequestContext related_tasks: {:?}", related_tasks);
         let mut context = Self {
             params: request,
             task_id,

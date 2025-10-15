@@ -18,7 +18,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio_stream::StreamExt as TokioStreamExt;
-use tracing::info;
+use tracing::{error, info};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 pub fn create_router<S: A2aServiceLike + Send + Sync + 'static>() -> OpenApiRouter<Arc<S>> {
@@ -211,7 +211,13 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
         }
         "tasks/resubscribe" => {
             info!("Received tasks/resubscribe request");
-            let params = serde_json::from_value(serde_json::Value::Object(body.params)).unwrap();
+            let params: crate::types::TaskIdParams = match serde_json::from_value(serde_json::Value::Object(body.params)) {
+                Ok(p) => p,
+                Err(e) => {
+                    error!("Failed to deserialize tasks/resubscribe params: {}", e);
+                    return (http::StatusCode::BAD_REQUEST, e.to_string()).into_response();
+                }
+            };
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
             let id_for_task = id.clone();
 
@@ -219,7 +225,7 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
                 let handler = ctx
                     .request_handler(request_context);
                 let stream_res = handler
-                    .on_message_send_stream(params).await;
+                    .on_resubscribe_to_task(params);
 
                 match stream_res {
                     Ok(mut stream) => {
