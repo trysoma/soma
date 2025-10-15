@@ -43,8 +43,7 @@ impl std::fmt::Display for ApiError {
         write!(
             f,
             "  -> Http status code {} at '{}'",
-            &self.http_status_code,
-            &self.url,
+            &self.http_status_code, &self.url,
         )?;
         Ok(())
     }

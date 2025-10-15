@@ -19,13 +19,7 @@ pub trait AgentExecutor: Send + Sync {
         &'a self,
         context: RequestContext,
         event_queue: EventQueue,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send>>>
-                + Send
-                + 'a,
-        >,
-    >;
+    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send>>> + Send + 'a>>;
 
     /// Request the agent to cancel an ongoing task.
     ///
@@ -36,11 +30,5 @@ pub trait AgentExecutor: Send + Sync {
         &'a self,
         context: RequestContext,
         event_queue: EventQueue,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send>>>
-                + Send
-                + 'a,
-        >,
-    >;
+    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send>>> + Send + 'a>>;
 }

@@ -12,6 +12,7 @@ use crate::{
 };
 
 /// Extension trait for EventConsumer
+#[allow(async_fn_in_trait)]
 pub trait EventConsumerExt {
     async fn recv(&mut self) -> Option<Event>;
 }

@@ -9,17 +9,6 @@ use serde::Serialize;
 use tracing::error;
 use utoipa::IntoResponses;
 
-use tokio_rustls::server::TlsStream;
-
-use axum::{Extension, middleware::AddExtension};
-use axum_server::{accept::Accept, tls_rustls::RustlsAcceptor};
-use futures_util::future::BoxFuture;
-use rustls::pki_types::CertificateDer;
-use std::io;
-use tokio::io::{AsyncRead, AsyncWrite};
-// use tokio_rustls::server::TlsStream;
-use tower::{Layer, ServiceBuilder};
-
 pub struct JsonResponse<T: Serialize, E: Serialize>(Result<T, E>);
 
 impl<T: Serialize, E: Serialize + IntoResponse> JsonResponse<T, E> {

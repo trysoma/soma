@@ -8,22 +8,21 @@ use url::Url;
 use utoipa::openapi::OpenApi;
 
 use crate::router::mcp::McpService;
-use crate::utils::restate::invoke::RestateIngressClient;
-use crate::utils::soma_agent_config::SomaConfig;
-use crate::{repository::Repository, logic::ConnectionManager};
 use crate::router::task::TaskService;
 use crate::utils::construct_src_dir_absolute;
+use crate::utils::restate::invoke::RestateIngressClient;
+use crate::utils::soma_agent_config::SomaConfig;
 use crate::{
     commands::StartParams,
     router::{a2a::Agent2AgentService, frontend::FrontendService},
 };
+use crate::{logic::ConnectionManager, repository::Repository};
 use shared::error::CommonError;
 
 pub(crate) mod a2a;
 pub(crate) mod frontend;
-pub(crate) mod task;
 pub(crate) mod mcp;
-
+pub(crate) mod task;
 
 #[derive(Clone)]
 pub(crate) struct RouterParams {
@@ -37,7 +36,8 @@ pub(crate) struct RouterParams {
 pub(crate) struct InitRouterParams {
     pub connection_manager: ConnectionManager,
     pub repository: Repository,
-    pub mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
+    pub mcp_transport_tx:
+        tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
     pub soma_config: SomaConfig,
     pub runtime_port: u16,
     pub restate_ingress_client: RestateIngressClient,
@@ -56,10 +56,17 @@ impl RouterParams {
             init_params.runtime_port,
             init_params.restate_ingress_client.clone(),
         ));
-        let task_service = Arc::new(TaskService::new(init_params.connection_manager.clone(), init_params.repository.clone()));
+        let task_service = Arc::new(TaskService::new(
+            init_params.connection_manager.clone(),
+            init_params.repository.clone(),
+        ));
         let frontend_service = Arc::new(FrontendService::new());
         // internally it's an Arc<McpServiceInner>
-        let mcp_service = McpService::new(init_params.mcp_transport_tx, init_params.repository.clone(), init_params.connection_manager.clone());
+        let mcp_service = McpService::new(
+            init_params.mcp_transport_tx,
+            init_params.repository.clone(),
+            init_params.connection_manager.clone(),
+        );
         Ok(Self {
             params,
             agent_service,
@@ -70,9 +77,7 @@ impl RouterParams {
     }
 }
 
-pub(crate) fn initiate_routers(
-    router_params: RouterParams,
-) -> Result<Router, CommonError> {
+pub(crate) fn initiate_routers(router_params: RouterParams) -> Result<Router, CommonError> {
     let mut router = Router::new();
 
     // let (live_connection_changes_tx, mut live_connection_changes_rx) = tokio::sync::mpsc::channel(10);
@@ -80,7 +85,7 @@ pub(crate) fn initiate_routers(
     // agent router
 
     let (agent_router, _) = a2a::create_router().split_for_parts();
-    
+
     let agent_router = agent_router.with_state(router_params.agent_service);
     router = router.merge(agent_router);
 

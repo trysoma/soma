@@ -1,16 +1,21 @@
-use crate::{logic::{Metadata, MessagePart, TaskTimelineItemPayload, TaskWithDetails}, repository::{CommonError, Message, Task, TaskEventUpdateType, TaskStatus, TaskTimelineItem}};
+use crate::{
+    logic::{MessagePart, Metadata, TaskTimelineItemPayload, TaskWithDetails},
+    repository::{CommonError, Message, Task, TaskEventUpdateType, TaskStatus, TaskTimelineItem},
+};
 use base64::Engine;
 use shared::primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4};
 use tracing::info;
 
-use super::{Row_get_task_by_id, Row_get_task_timeline_items, Row_get_tasks, Row_get_messages_by_task_id, Row_get_tasks_by_context_id};
+use super::{
+    Row_get_messages_by_task_id, Row_get_task_by_id, Row_get_task_timeline_items, Row_get_tasks,
+    Row_get_tasks_by_context_id,
+};
 
 // Task conversions
 impl TryFrom<Row_get_tasks> for Task {
     type Error = CommonError;
     fn try_from(row: Row_get_tasks) -> Result<Self, Self::Error> {
-
-        let metadata: Metadata =  serde_json::from_value(row.metadata.get_inner().clone())?;
+        let metadata: Metadata = serde_json::from_value(row.metadata.get_inner().clone())?;
         Ok(Task {
             id: row.id,
             context_id: row.context_id,
@@ -18,9 +23,8 @@ impl TryFrom<Row_get_tasks> for Task {
             status_timestamp: row.status_timestamp,
             status_message_id: row.status_message_id,
             metadata: metadata,
-            created_at: row
-                .created_at,
-            updated_at: row.updated_at
+            created_at: row.created_at,
+            updated_at: row.updated_at,
         })
     }
 }
@@ -28,8 +32,7 @@ impl TryFrom<Row_get_tasks> for Task {
 impl TryFrom<Row_get_tasks_by_context_id> for Task {
     type Error = CommonError;
     fn try_from(row: Row_get_tasks_by_context_id) -> Result<Self, Self::Error> {
-
-        let metadata: Metadata =  serde_json::from_value(row.metadata.get_inner().clone())?;
+        let metadata: Metadata = serde_json::from_value(row.metadata.get_inner().clone())?;
         Ok(Task {
             id: row.id,
             context_id: row.context_id,
@@ -37,9 +40,8 @@ impl TryFrom<Row_get_tasks_by_context_id> for Task {
             status_timestamp: row.status_timestamp,
             status_message_id: row.status_message_id,
             metadata: metadata,
-            created_at: row
-                .created_at,
-            updated_at: row.updated_at
+            created_at: row.created_at,
+            updated_at: row.updated_at,
         })
     }
 }
@@ -74,13 +76,18 @@ impl TryFrom<Row_get_task_by_id> for TaskWithDetails {
             created_at: row.created_at,
             updated_at: row.updated_at,
         };
-        
+
         let (messages, messages_next_page_token) = if messages.len() > 100 {
             let last_message = messages.get(100).unwrap();
             let last_message_created_at_string = last_message.created_at.get_inner().to_rfc3339();
-            (messages[..100].to_vec(), Some(base64::engine::general_purpose::STANDARD.encode(last_message_created_at_string.as_bytes())))
-        } 
-        else {
+            (
+                messages[..100].to_vec(),
+                Some(
+                    base64::engine::general_purpose::STANDARD
+                        .encode(last_message_created_at_string.as_bytes()),
+                ),
+            )
+        } else {
             (messages, None)
         };
 
@@ -97,13 +104,13 @@ impl TryFrom<Row_get_task_by_id> for TaskWithDetails {
 impl TryFrom<Row_get_task_timeline_items> for TaskTimelineItem {
     type Error = CommonError;
     fn try_from(row: Row_get_task_timeline_items) -> Result<Self, Self::Error> {
-        let event_payload: TaskTimelineItemPayload =  serde_json::from_value(row.event_payload.get_inner().clone())?;
+        let event_payload: TaskTimelineItemPayload =
+            serde_json::from_value(row.event_payload.get_inner().clone())?;
         Ok(TaskTimelineItem {
             id: WrappedUuidV4::try_from(row.id)?,
             task_id: WrappedUuidV4::try_from(row.task_id)?,
             event_payload: event_payload,
-            created_at: row
-                .created_at,
+            created_at: row.created_at,
         })
     }
 }
@@ -112,9 +119,10 @@ impl TryFrom<Row_get_task_timeline_items> for TaskTimelineItem {
 impl TryFrom<Row_get_messages_by_task_id> for Message {
     type Error = CommonError;
     fn try_from(row: Row_get_messages_by_task_id) -> Result<Self, Self::Error> {
-        let metadata: Metadata =  serde_json::from_value(row.metadata.get_inner().clone())?;
-        let parts: Vec<MessagePart> =  serde_json::from_value(row.parts.get_inner().clone())?;
-        let reference_task_ids: Vec<WrappedUuidV4> =  serde_json::from_value(row.reference_task_ids.get_inner().clone())?;
+        let metadata: Metadata = serde_json::from_value(row.metadata.get_inner().clone())?;
+        let parts: Vec<MessagePart> = serde_json::from_value(row.parts.get_inner().clone())?;
+        let reference_task_ids: Vec<WrappedUuidV4> =
+            serde_json::from_value(row.reference_task_ids.get_inner().clone())?;
         Ok(Message {
             id: row.id,
             task_id: row.task_id,

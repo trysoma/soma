@@ -42,10 +42,16 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use crate::a2a::RepositoryTaskStore;
-use crate::logic::{self, list_tasks_by_context_id, list_unique_contexts, ConnectionManager, CreateMessageRequest, ListTasksResponse, ListUniqueContextsResponse, WithTaskId};
+use crate::logic::{
+    self, ConnectionManager, CreateMessageRequest, ListTasksResponse, ListUniqueContextsResponse,
+    WithTaskId, list_tasks_by_context_id, list_unique_contexts,
+};
 use crate::repository::Repository;
 use crate::utils::restate;
-use crate::utils::restate::invoke::{construct_cancel_awakeable_id, construct_initial_object_id, construct_invocation_object_id, RestateIngressClient};
+use crate::utils::restate::invoke::{
+    RestateIngressClient, construct_cancel_awakeable_id, construct_initial_object_id,
+    construct_invocation_object_id,
+};
 use crate::utils::soma_agent_config::SomaConfig;
 
 pub const PATH_PREFIX: &str = "/api";
@@ -78,7 +84,6 @@ async fn route_config(
     let config = ctx.config.clone();
     JsonResponse::from(Ok(config.clone()))
 }
-
 
 pub(crate) struct Agent2AgentService {
     src_dir: PathBuf,
@@ -190,13 +195,8 @@ impl AgentExecutor for ProxiedAgent {
         &'a self,
         context: RequestContext,
         event_queue: EventQueue,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send>>>
-                + Send
-                + 'a,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send>>> + Send + 'a>>
+    {
         Box::pin(async move {
             let context_id = match context.context_id() {
                 Some(context_id) => context_id.to_string(),
@@ -236,10 +236,8 @@ impl AgentExecutor for ProxiedAgent {
             let task_id = match WrappedUuidV4::from_str(task_id) {
                 Ok(task_id) => task_id,
                 Err(e) => {
-                    let err = CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to parse task ID: {:?}",
-                        e
-                    ));
+                    let err =
+                        CommonError::Unknown(anyhow::anyhow!("Failed to parse task ID: {:?}", e));
                     return Err(Box::new(err) as Box<dyn std::error::Error + Send>);
                 }
             };
@@ -259,7 +257,7 @@ impl AgentExecutor for ProxiedAgent {
             };
             // self.restate_ingress_client.resolve_awakeable(&task.id, &json!({ "task": task, "timelineItem": message.timeline_item })).await?;
             // let client = Client::new();
-            
+
             // let service_url = format!("http://localhost:{}", self.runtime_port);
             // let service_url = "http://localhost:8080";
             // restate::invoke::invoke_virtual_object_handler(
@@ -278,7 +276,7 @@ impl AgentExecutor for ProxiedAgent {
             tokio::spawn(async move {
                 while let Some(event) = receiver.recv().await {
                     info!("Received event: {:?}", event);
-    
+
                     // Send event back to a2a response stream
                     match event_queue_clone.enqueue_event(event.clone()).await {
                         Ok(_) => (),
@@ -298,7 +296,6 @@ impl AgentExecutor for ProxiedAgent {
                     .unwrap();
             });
 
-
             let message = match context.message() {
                 Some(message) => message,
                 None => unreachable!("message must be present"),
@@ -308,7 +305,6 @@ impl AgentExecutor for ProxiedAgent {
                 .enqueue_event(Event::Task(task.clone()))
                 .await
                 .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
-
 
             info!("Invoking runtime agent with task: {:?}", task);
 
@@ -335,9 +331,8 @@ impl AgentExecutor for ProxiedAgent {
                                         text: text_part.text.clone(),
                                         metadata: logic::Metadata::new(),
                                     })
-                                },
+                                }
                                 _ => unreachable!("unsupported part type"),
-
                             })
                             .collect(),
                     },
@@ -354,20 +349,19 @@ impl AgentExecutor for ProxiedAgent {
 
             // suspend previous execution
 
-            
             // self.restate_ingress_client.resolve_awakeable(&construct_cancel_awakeable_id(&task.id), &json!({ })).await?;
             // let body: serde_json::Value = json!({ "task": task, "timelineItem": message.timeline_item });
             let body: serde_json::Value = json!({ "task": task});
             info!("Invoking virtual object handler with body: {:?}", body);
-            self.restate_ingress_client.invoke_virtual_object_handler(
-                &self.soma_config.project,
-                &construct_initial_object_id(&task.id),
-                "onNewMessage",
-                body,
-            )
-            .await?;
+            self.restate_ingress_client
+                .invoke_virtual_object_handler(
+                    &self.soma_config.project,
+                    &construct_initial_object_id(&task.id),
+                    "onNewMessage",
+                    body,
+                )
+                .await?;
 
-            
             Ok(())
         })
     }
@@ -376,13 +370,8 @@ impl AgentExecutor for ProxiedAgent {
         &'a self,
         _context: RequestContext,
         event_queue: EventQueue,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send>>>
-                + Send
-                + 'a,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send>>> + Send + 'a>>
+    {
         Box::pin(async move {
             info!("HelloWorldAgent cancel called");
 

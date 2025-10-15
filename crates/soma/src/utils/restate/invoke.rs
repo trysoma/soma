@@ -24,8 +24,19 @@ impl RestateIngressClient {
         handler: &str,
         body: serde_json::Value,
     ) -> Result<()> {
-        let url = format!("{}/{}/{}/{}", self.restate_base, urlencoding::encode(service), urlencoding::encode(key), urlencoding::encode(handler));
-        self.client.post(&url).json(&body).send().await?.error_for_status()?;
+        let url = format!(
+            "{}/{}/{}/{}",
+            self.restate_base,
+            urlencoding::encode(service),
+            urlencoding::encode(key),
+            urlencoding::encode(handler)
+        );
+        self.client
+            .post(&url)
+            .json(&body)
+            .send()
+            .await?
+            .error_for_status()?;
         Ok(())
     }
 
@@ -35,7 +46,8 @@ impl RestateIngressClient {
     {
         let url = format!(
             "{}/restate/awakeables/{}/resolve",
-            self.restate_base, urlencoding::encode(awakeable_id)
+            self.restate_base,
+            urlencoding::encode(awakeable_id)
         );
         info!("Resolving awakeable: {}", url);
         let res = self.client.post(&url).json(body).send().await?;
@@ -50,11 +62,11 @@ impl RestateIngressClient {
         Ok(())
     }
 
-    pub async fn reject_awakeable<T: Serialize >(&self, awakeable_id: &str, body: &T) -> Result<()>
-    {
+    pub async fn reject_awakeable<T: Serialize>(&self, awakeable_id: &str, body: &T) -> Result<()> {
         let url = format!(
             "{}/restate/awakeables/{}/reject",
-            self.restate_base, urlencoding::encode(awakeable_id)
+            self.restate_base,
+            urlencoding::encode(awakeable_id)
         );
         let res = self.client.post(&url).json(body).send().await?;
         let status = res.status();
@@ -69,16 +81,15 @@ impl RestateIngressClient {
     }
 }
 
-
-pub fn construct_initial_object_id(task_id: &str)-> String {
+pub fn construct_initial_object_id(task_id: &str) -> String {
     format!("soma:v1:task:{}", task_id)
 }
 
-pub fn construct_cancel_awakeable_id(task_id: &str)-> String {
+pub fn construct_cancel_awakeable_id(task_id: &str) -> String {
     format!("soma:v1:task:{}:cancel", task_id)
 }
 
-pub fn construct_invocation_object_id(task_id: &str)-> String {
+pub fn construct_invocation_object_id(task_id: &str) -> String {
     format!("soma:v1:task:{}:invocation", task_id)
 }
 

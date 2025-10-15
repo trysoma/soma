@@ -13,7 +13,9 @@ async fn ping_vite_dev_server() -> Result<(), CommonError> {
     if response.status().is_success() {
         Ok(())
     } else {
-        Err(CommonError::Unknown(anyhow::anyhow!("Failed to ping vite dev server")))
+        Err(CommonError::Unknown(anyhow::anyhow!(
+            "Failed to ping vite dev server"
+        )))
     }
 }
 
@@ -27,7 +29,9 @@ pub async fn wait_for_vite_dev_server_shutdown() -> Result<(), CommonError> {
         tokio::time::sleep(Duration::from_secs(1)).await;
         attempts += 1;
         if attempts >= max_attempts {
-            return Err(CommonError::Unknown(anyhow::anyhow!("Failed to wait for vite dev server to shutdown")));
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Failed to wait for vite dev server to shutdown"
+            )));
         }
     }
     Ok(())

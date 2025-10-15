@@ -36,7 +36,9 @@ use utoipa::{PartialSchema, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
-    logic::{create_message, update_task_status, ConnectionManager, CreateMessageRequest, WithTaskId},
+    logic::{
+        ConnectionManager, CreateMessageRequest, WithTaskId, create_message, update_task_status,
+    },
     mcp,
     repository::Repository,
 };

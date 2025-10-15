@@ -13,10 +13,8 @@ pub struct SomaConfig {
     pub agent: String,
     pub description: String,
     pub name: String,
-    pub version: String
+    pub version: String,
 }
-
-
 
 impl SomaConfig {
     pub fn from_yaml(yaml_str: &str) -> Result<Self, serde_yaml::Error> {
@@ -28,10 +26,9 @@ impl SomaConfig {
     }
 }
 
-
 pub struct ConstructAgentCardParams {
     pub config: SomaConfig,
-    pub url: String
+    pub url: String,
 }
 
 pub fn construct_agent_card(config: &SomaConfig, url: &Url) -> a2a_rs::types::AgentCard {

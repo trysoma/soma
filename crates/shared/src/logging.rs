@@ -5,9 +5,9 @@ use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
 
 pub fn configure_logging() -> Result<(), anyhow::Error> {
     let subscriber = tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::from_str(env::var("RUST_LOG").unwrap_or("info".to_string()).as_str())?
-        )
+        .with_env_filter(EnvFilter::from_str(
+            env::var("RUST_LOG").unwrap_or("info".to_string()).as_str(),
+        )?)
         .with_file(true)
         .with_line_number(true)
         .with_thread_ids(true)

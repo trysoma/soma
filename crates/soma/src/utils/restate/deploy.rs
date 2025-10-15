@@ -2,7 +2,7 @@
 // AND https://github.com/restatedev/cdk/blob/main/lib/restate-constructs/register-service-handler/entrypoint.mts
 use super::admin_client::AdminClient;
 use super::admin_interface::AdminClientInterface;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use http::{HeaderName, HeaderValue, Uri};
 use restate_admin_rest_model::deployments::RegisterDeploymentRequest;
 use restate_admin_rest_model::services::ModifyServiceRequest;
@@ -55,9 +55,7 @@ pub struct DeploymentRegistrationConfig {
 }
 
 /// Registers a deployment with Restate with retry logic
-pub async fn register_deployment(
-    config: DeploymentRegistrationConfig,
-) -> Result<ServiceMetadata> {
+pub async fn register_deployment(config: DeploymentRegistrationConfig) -> Result<ServiceMetadata> {
     // Wait for Restate admin to be healthy
     wait_for_healthy_admin(&config).await?;
 
@@ -108,16 +106,10 @@ async fn wait_for_healthy_http_service(uri: &str) -> Result<()> {
                 if status.is_client_error() || status.is_server_error() {
                     info!(
                         "HTTP service at {} is responding (status: {}). Note: {} responses are normal - Restate will discover the correct endpoints",
-                        uri,
-                        status,
-                        status
+                        uri, status, status
                     );
                 } else {
-                    info!(
-                        "HTTP service at {} is responding (status: {})",
-                        uri,
-                        status
-                    );
+                    info!("HTTP service at {} is responding (status: {})", uri, status);
                 }
                 return Ok(());
             }
@@ -154,49 +146,37 @@ async fn wait_for_healthy_admin(config: &DeploymentRegistrationConfig) -> Result
     const MAX_HEALTH_CHECK_ATTEMPTS: u32 = 10;
     const INITIAL_BACKOFF_MS: u64 = 1000;
 
-    info!(
-        "Checking health of Restate admin at {}",
-        config.admin_url
-    );
+    info!("Checking health of Restate admin at {}", config.admin_url);
 
     for attempt in 0..MAX_HEALTH_CHECK_ATTEMPTS {
-        let base_url = Url::parse(&config.admin_url).map_err(|e| {
-            anyhow!(
-                "Invalid admin URL '{}': {}",
-                config.admin_url,
-                e
-            )
-        })?;
+        let base_url = Url::parse(&config.admin_url)
+            .map_err(|e| anyhow!("Invalid admin URL '{}': {}", config.admin_url, e))?;
 
         match AdminClient::new(base_url, config.bearer_token.clone()).await {
-            Ok(client) => {
-                match client.health().await {
-                    Ok(response) => {
-                        match response.success_or_error() {
-                            Ok(_) => {
-                                info!("Restate admin is healthy");
-                                return Ok(());
-                            }
-                            Err(e) => {
-                                warn!(
-                                    "Health check failed (attempt {}/{}): {:?}",
-                                    attempt + 1,
-                                    MAX_HEALTH_CHECK_ATTEMPTS,
-                                    e
-                                );
-                            }
-                        }
+            Ok(client) => match client.health().await {
+                Ok(response) => match response.success_or_error() {
+                    Ok(_) => {
+                        info!("Restate admin is healthy");
+                        return Ok(());
                     }
                     Err(e) => {
                         warn!(
-                            "Health check request failed (attempt {}/{}): {:?}",
+                            "Health check failed (attempt {}/{}): {:?}",
                             attempt + 1,
                             MAX_HEALTH_CHECK_ATTEMPTS,
                             e
                         );
                     }
+                },
+                Err(e) => {
+                    warn!(
+                        "Health check request failed (attempt {}/{}): {:?}",
+                        attempt + 1,
+                        MAX_HEALTH_CHECK_ATTEMPTS,
+                        e
+                    );
                 }
-            }
+            },
             Err(e) => {
                 warn!(
                     "Failed to create admin client (attempt {}/{}): {:?}",
@@ -228,13 +208,8 @@ async fn register_deployment_with_retry(
     const MAX_REGISTRATION_ATTEMPTS: u32 = 3;
     const REGISTRATION_BACKOFF_MS: u64 = 2000;
 
-    let base_url = Url::parse(&config.admin_url).map_err(|e| {
-        anyhow!(
-            "Invalid admin URL '{}': {}",
-            config.admin_url,
-            e
-        )
-    })?;
+    let base_url = Url::parse(&config.admin_url)
+        .map_err(|e| anyhow!("Invalid admin URL '{}': {}", config.admin_url, e))?;
 
     let client = AdminClient::new(base_url, config.bearer_token.clone()).await?;
 
@@ -293,11 +268,13 @@ async fn try_register_deployment(
 ) -> Result<ServiceMetadata> {
     // Create the registration request based on deployment type
     let register_request = match &config.deployment_type {
-        DeploymentType::Lambda { arn, assume_role_arn } => {
+        DeploymentType::Lambda {
+            arn,
+            assume_role_arn,
+        } => {
             // Parse and validate the Lambda ARN
-            let lambda_arn = LambdaARN::from_str(arn).map_err(|e| {
-                anyhow!("Invalid Lambda ARN '{}': {:?}", arn, e)
-            })?;
+            let lambda_arn = LambdaARN::from_str(arn)
+                .map_err(|e| anyhow!("Invalid Lambda ARN '{}': {:?}", arn, e))?;
 
             info!("Registering Lambda deployment: {}", arn);
 
@@ -311,11 +288,14 @@ async fn try_register_deployment(
                 breaking: false,
             }
         }
-        DeploymentType::Http { uri, additional_headers } => {
+        DeploymentType::Http {
+            uri,
+            additional_headers,
+        } => {
             // Parse and validate the HTTP URI
-            let parsed_uri = uri.parse::<Uri>().map_err(|e| {
-                anyhow!("Invalid HTTP URI '{}': {}", uri, e)
-            })?;
+            let parsed_uri = uri
+                .parse::<Uri>()
+                .map_err(|e| anyhow!("Invalid HTTP URI '{}': {}", uri, e))?;
 
             info!("Registering HTTP deployment: {}", uri);
 
@@ -325,12 +305,11 @@ async fn try_register_deployment(
             } else {
                 let mut header_map: HashMap<HeaderName, HeaderValue> = HashMap::new();
                 for (key, value) in additional_headers {
-                    let header_name = key.parse::<HeaderName>().map_err(|e| {
-                        anyhow!("Invalid header name '{}': {}", key, e)
-                    })?;
-                    let header_value = HeaderValue::from_str(value).map_err(|e| {
-                        anyhow!("Invalid header value for '{}': {}", key, e)
-                    })?;
+                    let header_name = key
+                        .parse::<HeaderName>()
+                        .map_err(|e| anyhow!("Invalid header name '{}': {}", key, e))?;
+                    let header_value = HeaderValue::from_str(value)
+                        .map_err(|e| anyhow!("Invalid header value for '{}': {}", key, e))?;
                     header_map.insert(header_name, header_value);
                 }
                 Some(SerdeableHeaderHashMap::from(header_map))
@@ -474,10 +453,17 @@ mod tests {
         assert!(config.private);
         assert!(!config.force);
 
-        if let DeploymentType::Http { uri, additional_headers } = &config.deployment_type {
+        if let DeploymentType::Http {
+            uri,
+            additional_headers,
+        } = &config.deployment_type
+        {
             assert_eq!(uri, "http://localhost:9080");
             assert_eq!(additional_headers.len(), 1);
-            assert_eq!(additional_headers.get("x-custom-header"), Some(&"value".to_string()));
+            assert_eq!(
+                additional_headers.get("x-custom-header"),
+                Some(&"value".to_string())
+            );
         } else {
             panic!("Expected HTTP deployment type");
         }
@@ -489,18 +475,30 @@ mod tests {
         // Testing with a versioned ARN
         let valid_arn = "arn:aws:lambda:us-east-1:123456789012:function:my-function:$LATEST";
         let result = LambdaARN::from_str(valid_arn);
-        assert!(result.is_ok(), "Lambda ARN parsing failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Lambda ARN parsing failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn test_http_uri_parsing() {
         let valid_uri = "http://localhost:9080";
         let result = Url::parse(valid_uri);
-        assert!(result.is_ok(), "HTTP URI parsing failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "HTTP URI parsing failed: {:?}",
+            result.err()
+        );
 
         let valid_https_uri = "https://my-service.example.com:8080/path";
         let result = Url::parse(valid_https_uri);
-        assert!(result.is_ok(), "HTTPS URI parsing failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "HTTPS URI parsing failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]

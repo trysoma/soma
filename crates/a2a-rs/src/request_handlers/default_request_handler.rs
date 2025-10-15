@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -224,7 +223,10 @@ impl DefaultRequestHandler {
                 let error_msg = format!("{:?}", e);
                 // Check if this is a connection closed error (happens during server shutdown)
                 if error_msg.contains("connection closed before message completed") {
-                    tracing::warn!("Agent execution connection closed (likely due to shutdown): {}", error_msg);
+                    tracing::warn!(
+                        "Agent execution connection closed (likely due to shutdown): {}",
+                        error_msg
+                    );
                 } else {
                     error!("Agent execution failed: {:?}", e);
                 }
@@ -397,7 +399,10 @@ impl RequestHandler for DefaultRequestHandler {
     }
 
     /// Default handler for 'message/send' interface (non-streaming).
-    async fn on_message_send(&self, params: MessageSendParams) -> Result<SendMessageSuccessResponseResult, A2aServerError> {
+    async fn on_message_send(
+        &self,
+        params: MessageSendParams,
+    ) -> Result<SendMessageSuccessResponseResult, A2aServerError> {
         let (_task_manager, task_id, queue, result_aggregator, producer_task) =
             self.setup_message_execution(params).await?;
 
@@ -523,7 +528,10 @@ impl RequestHandler for DefaultRequestHandler {
     }
 
     /// Default handler for 'tasks/pushNotificationConfig/set'.
-    async fn on_set_task_push_notification_config(&self, params: TaskPushNotificationConfig) -> Result<TaskPushNotificationConfig, A2aServerError> {
+    async fn on_set_task_push_notification_config(
+        &self,
+        params: TaskPushNotificationConfig,
+    ) -> Result<TaskPushNotificationConfig, A2aServerError> {
         let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
             A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
         })?;
@@ -540,7 +548,10 @@ impl RequestHandler for DefaultRequestHandler {
     }
 
     /// Default handler for 'tasks/pushNotificationConfig/get'.
-    async fn on_get_task_push_notification_config(&self, params: GetTaskPushNotificationConfigParams) -> Result<TaskPushNotificationConfig, A2aServerError> {
+    async fn on_get_task_push_notification_config(
+        &self,
+        params: GetTaskPushNotificationConfigParams,
+    ) -> Result<TaskPushNotificationConfig, A2aServerError> {
         let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
             A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
         })?;
@@ -646,7 +657,10 @@ impl RequestHandler for DefaultRequestHandler {
     }
 
     /// Default handler for 'tasks/pushNotificationConfig/list'.
-    async fn on_list_task_push_notification_config(&self, params: ListTaskPushNotificationConfigParams) -> Result<Vec<TaskPushNotificationConfig>, A2aServerError> {
+    async fn on_list_task_push_notification_config(
+        &self,
+        params: ListTaskPushNotificationConfigParams,
+    ) -> Result<Vec<TaskPushNotificationConfig>, A2aServerError> {
         let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
             A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
         })?;
@@ -669,7 +683,10 @@ impl RequestHandler for DefaultRequestHandler {
     }
 
     /// Default handler for 'tasks/pushNotificationConfig/delete'.
-    async fn on_delete_task_push_notification_config(&self, params: DeleteTaskPushNotificationConfigParams) -> Result<(), A2aServerError> {
+    async fn on_delete_task_push_notification_config(
+        &self,
+        params: DeleteTaskPushNotificationConfigParams,
+    ) -> Result<(), A2aServerError> {
         let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
             A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
         })?;

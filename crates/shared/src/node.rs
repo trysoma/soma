@@ -16,21 +16,20 @@ fn get_fnm_paths() -> Vec<PathBuf> {
     #[cfg(target_os = "macos")]
     {
         // macOS default locations
-        paths.push(PathBuf::from(format!("{}/.fnm", home)));
+        paths.push(PathBuf::from(format!("{home}/.fnm")));
         paths.push(PathBuf::from(format!(
-            "{}/Library/Application Support/fnm",
-            home
+            "{home}/Library/Application Support/fnm"
         )));
     }
 
     #[cfg(target_os = "linux")]
     {
         // Linux default locations
-        paths.push(PathBuf::from(format!("{}/.fnm", home)));
+        paths.push(PathBuf::from(format!("{home}/.fnm")));
         if let Ok(xdg_data_home) = env::var("XDG_DATA_HOME") {
-            paths.push(PathBuf::from(format!("{}/fnm", xdg_data_home)));
+            paths.push(PathBuf::from(format!("{xdg_data_home}/fnm")));
         } else {
-            paths.push(PathBuf::from(format!("{}/.local/share/fnm", home)));
+            paths.push(PathBuf::from(format!("{home}/.local/share/fnm")));
         }
     }
 
@@ -38,9 +37,9 @@ fn get_fnm_paths() -> Vec<PathBuf> {
     {
         // Windows default locations
         if let Ok(app_data) = env::var("APPDATA") {
-            paths.push(PathBuf::from(format!("{}\\fnm", app_data)));
+            paths.push(PathBuf::from(format!("{app_data}\\fnm")));
         }
-        paths.push(PathBuf::from(format!("{}/.fnm", home)));
+        paths.push(PathBuf::from(format!("{home}/.fnm")));
     }
 
     paths

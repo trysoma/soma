@@ -11,15 +11,14 @@ use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 use vite_rs_axum_0_8::ViteServe;
 
-use shared::{error::CommonError, adapters::openapi::JsonResponse};
+use shared::{adapters::openapi::JsonResponse, error::CommonError};
 
 pub const PATH_PREFIX: &str = "/api";
 pub const API_VERSION_1: &str = "v1";
 pub const SERVICE_ROUTE_KEY: &str = "frontend";
 
 fn create_api_router() -> OpenApiRouter<Arc<FrontendService>> {
-    OpenApiRouter::new()
-        .routes(routes!(route_runtime_config))
+    OpenApiRouter::new().routes(routes!(route_runtime_config))
 }
 
 #[cfg(debug_assertions)]
@@ -123,23 +122,17 @@ async fn route_runtime_config(
     JsonResponse::from(runtime_config)
 }
 
-
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
-pub struct RuntimeConfig {
-}
-
+pub struct RuntimeConfig {}
 
 async fn runtime_config() -> Result<RuntimeConfig, CommonError> {
-    Ok(RuntimeConfig {
-    })
+    Ok(RuntimeConfig {})
 }
 
-pub struct FrontendService {
-}
+pub struct FrontendService {}
 
 impl FrontendService {
     pub fn new() -> Self {
-        Self {
-        }
+        Self {}
     }
 }

@@ -1,7 +1,7 @@
+use async_trait::async_trait;
 use derive_builder::Builder;
 use std::collections::HashMap;
 use std::sync::Arc;
-use async_trait::async_trait;
 use tokio::sync::RwLock;
 use tracing::debug;
 
@@ -19,7 +19,11 @@ pub struct InMemoryPushNotificationConfigStore {
 
 #[async_trait]
 impl PushNotificationConfigStore for InMemoryPushNotificationConfigStore {
-    async fn set_info(&self, task_id: &String, notification_config: &PushNotificationConfig) -> Result<(), A2aServerError> {
+    async fn set_info(
+        &self,
+        task_id: &String,
+        notification_config: &PushNotificationConfig,
+    ) -> Result<(), A2aServerError> {
         let mut infos = self.push_notification_infos.write().await;
 
         // Get or create the vector for this task_id
@@ -46,7 +50,10 @@ impl PushNotificationConfigStore for InMemoryPushNotificationConfigStore {
         Ok(())
     }
 
-    async fn get_info(&self, task_id: &String) -> Result<Vec<PushNotificationConfig>, A2aServerError> {
+    async fn get_info(
+        &self,
+        task_id: &String,
+    ) -> Result<Vec<PushNotificationConfig>, A2aServerError> {
         debug!(
             "Attempting to get push notification configs for task: {}",
             task_id
@@ -67,7 +74,11 @@ impl PushNotificationConfigStore for InMemoryPushNotificationConfigStore {
         Ok(configs)
     }
 
-    async fn delete_info(&self, task_id: &String, config_id: Option<&String>) -> Result<(), A2aServerError> {
+    async fn delete_info(
+        &self,
+        task_id: &String,
+        config_id: Option<&String>,
+    ) -> Result<(), A2aServerError> {
         debug!(
             "Attempting to delete push notification config for task: {}",
             task_id

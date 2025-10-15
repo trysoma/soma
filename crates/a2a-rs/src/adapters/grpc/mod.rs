@@ -70,8 +70,12 @@ impl proto::a2a_service_server::A2aService for GrpcService {
         let request_context = require_request_context!(request);
         let params = request.into_inner().into();
 
-        let result_stream = self.service.request_handler(request_context)
-            .on_message_send_stream(params).await.unwrap();
+        let result_stream = self
+            .service
+            .request_handler(request_context)
+            .on_message_send_stream(params)
+            .await
+            .unwrap();
         let stream = spawn_stream_to_grpc!(result_stream, 32);
         let mapped_stream: SendStreamingMessageStream = convert_stream_to_grpc(stream);
 

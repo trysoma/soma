@@ -6,11 +6,22 @@ use crate::{errors::A2aServerError, types::PushNotificationConfig};
 #[async_trait]
 pub trait PushNotificationConfigStore: Send + Sync {
     ///Sets or updates the push notification configuration for a task.
-    async fn set_info(&self, task_id: &String, notification_config: &PushNotificationConfig) -> Result<(), A2aServerError>;
+    async fn set_info(
+        &self,
+        task_id: &String,
+        notification_config: &PushNotificationConfig,
+    ) -> Result<(), A2aServerError>;
 
     ///Retrieves the push notification configuration for a task
-    async fn get_info(&self, task_id: &String) -> Result<Vec<PushNotificationConfig>, A2aServerError>;
+    async fn get_info(
+        &self,
+        task_id: &String,
+    ) -> Result<Vec<PushNotificationConfig>, A2aServerError>;
 
     ///Deletes the push notification configuration for a task
-    async fn delete_info(&self, task_id: &String, config_id: Option<&String>) -> Result<(), A2aServerError>;
+    async fn delete_info(
+        &self,
+        task_id: &String,
+        config_id: Option<&String>,
+    ) -> Result<(), A2aServerError>;
 }

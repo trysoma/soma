@@ -1,6 +1,6 @@
+use async_trait::async_trait;
 use derive_builder::Builder;
 use std::sync::Arc;
-use async_trait::async_trait;
 use tracing::{debug, error, warn};
 
 use crate::{

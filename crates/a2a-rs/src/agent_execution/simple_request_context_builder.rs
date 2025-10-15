@@ -1,6 +1,6 @@
+use async_trait::async_trait;
 use futures::future::join_all;
 use std::sync::Arc;
-use async_trait::async_trait;
 
 use crate::{
     agent_execution::{context::RequestContext, request_context_builder::RequestContextBuilder},

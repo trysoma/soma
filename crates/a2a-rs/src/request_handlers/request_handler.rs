@@ -57,7 +57,10 @@ pub trait RequestHandler {
     /// # Returns
     ///
     /// The final `Task` object or a final `Message` object.
-    async fn on_message_send(&self, params: MessageSendParams) -> Result<SendMessageSuccessResponseResult, A2aServerError>;
+    async fn on_message_send(
+        &self,
+        params: MessageSendParams,
+    ) -> Result<SendMessageSuccessResponseResult, A2aServerError>;
     /// Handles the 'message/stream' method (streaming).
     ///
     /// Sends a message to the agent and yields stream events as they are
@@ -100,7 +103,10 @@ pub trait RequestHandler {
     /// # Returns
     ///
     /// The provided `TaskPushNotificationConfig` upon success.
-    async fn on_set_task_push_notification_config(&self, params: TaskPushNotificationConfig) -> Result<TaskPushNotificationConfig, A2aServerError>;
+    async fn on_set_task_push_notification_config(
+        &self,
+        params: TaskPushNotificationConfig,
+    ) -> Result<TaskPushNotificationConfig, A2aServerError>;
 
     /// Handles the 'tasks/pushNotificationConfig/get' method.
     ///
@@ -114,7 +120,10 @@ pub trait RequestHandler {
     /// # Returns
     ///
     /// The `TaskPushNotificationConfig` for the task.
-    async fn on_get_task_push_notification_config(&self, params: GetTaskPushNotificationConfigParams) -> Result<TaskPushNotificationConfig, A2aServerError>;
+    async fn on_get_task_push_notification_config(
+        &self,
+        params: GetTaskPushNotificationConfigParams,
+    ) -> Result<TaskPushNotificationConfig, A2aServerError>;
 
     /// Handles the 'tasks/resubscribe' method.
     ///
@@ -157,7 +166,10 @@ pub trait RequestHandler {
     /// # Returns
     ///
     /// The `Vec<TaskPushNotificationConfig>` for the task.
-    async fn on_list_task_push_notification_config(&self, params: ListTaskPushNotificationConfigParams) -> Result<Vec<TaskPushNotificationConfig>, A2aServerError>;
+    async fn on_list_task_push_notification_config(
+        &self,
+        params: ListTaskPushNotificationConfigParams,
+    ) -> Result<Vec<TaskPushNotificationConfig>, A2aServerError>;
 
     /// Handles the 'tasks/pushNotificationConfig/delete' method.
     ///
@@ -167,5 +179,8 @@ pub trait RequestHandler {
     ///
     /// * `params` - Parameters including the task ID.
     /// * `context` - Context provided by the server.
-    async fn on_delete_task_push_notification_config(&self, params: DeleteTaskPushNotificationConfigParams) -> Result<(), A2aServerError>;
+    async fn on_delete_task_push_notification_config(
+        &self,
+        params: DeleteTaskPushNotificationConfigParams,
+    ) -> Result<(), A2aServerError>;
 }

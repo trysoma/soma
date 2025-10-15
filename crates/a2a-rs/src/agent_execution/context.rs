@@ -1,4 +1,3 @@
-use tracing::info;
 use uuid::Uuid;
 
 use crate::{

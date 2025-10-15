@@ -161,7 +161,7 @@ pub struct TaskWithDetails {
     pub task: Task,
     pub status_message: Option<Message>,
     pub messages: Vec<Message>,
-    pub messages_next_page_token: Option<String>
+    pub messages_next_page_token: Option<String>,
 }
 
 impl From<TaskWithDetails> for a2a_rs::types::Task {

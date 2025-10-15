@@ -176,7 +176,10 @@ impl AdminClient {
             );
         }
 
-        warn!("Could not verify the admin API version. Please make sure that your CLI is compatible with the Restate server '{}'.", client.base_url);
+        warn!(
+            "Could not verify the admin API version. Please make sure that your CLI is compatible with the Restate server '{}'.",
+            client.base_url
+        );
         // c_warn!(
         //     "Could not verify the admin API version. Please make sure that your CLI is compatible with the Restate server '{}'.",
         //     client.base_url

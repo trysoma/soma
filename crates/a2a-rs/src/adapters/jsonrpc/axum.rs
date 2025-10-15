@@ -14,7 +14,6 @@ use axum::{
 };
 use http::{HeaderMap, Uri};
 use shared::adapters::openapi::JsonResponse;
-use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio_stream::StreamExt as TokioStreamExt;
@@ -167,10 +166,8 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
             let id_for_task = id.clone();
 
             tokio::spawn(async move {
-                let handler = ctx
-                    .request_handler(request_context);
-                let stream_res = handler
-                    .on_message_send_stream(params).await;
+                let handler = ctx.request_handler(request_context);
+                let stream_res = handler.on_message_send_stream(params).await;
 
                 match stream_res {
                     Ok(mut stream) => {
@@ -211,21 +208,20 @@ async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
         }
         "tasks/resubscribe" => {
             info!("Received tasks/resubscribe request");
-            let params: crate::types::TaskIdParams = match serde_json::from_value(serde_json::Value::Object(body.params)) {
-                Ok(p) => p,
-                Err(e) => {
-                    error!("Failed to deserialize tasks/resubscribe params: {}", e);
-                    return (http::StatusCode::BAD_REQUEST, e.to_string()).into_response();
-                }
-            };
+            let params: crate::types::TaskIdParams =
+                match serde_json::from_value(serde_json::Value::Object(body.params)) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        error!("Failed to deserialize tasks/resubscribe params: {}", e);
+                        return (http::StatusCode::BAD_REQUEST, e.to_string()).into_response();
+                    }
+                };
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
             let id_for_task = id.clone();
 
             tokio::spawn(async move {
-                let handler = ctx
-                    .request_handler(request_context);
-                let stream_res = handler
-                    .on_resubscribe_to_task(params);
+                let handler = ctx.request_handler(request_context);
+                let stream_res = handler.on_resubscribe_to_task(params);
 
                 match stream_res {
                     Ok(mut stream) => {

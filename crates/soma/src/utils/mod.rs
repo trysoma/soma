@@ -14,6 +14,6 @@ pub fn construct_src_dir_absolute(src_dir: Option<PathBuf>) -> Result<PathBuf, C
     if !src_dir.is_absolute() {
         src_dir = cwd.join(src_dir);
     }
-    
+
     Ok(src_dir)
 }

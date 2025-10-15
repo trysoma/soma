@@ -1,20 +1,20 @@
 use std::time::Duration;
 
 use clap::{Parser, Subcommand};
-use tokio_graceful_shutdown::{errors::GracefulShutdownError, SubsystemHandle, Toplevel};
+use tokio_graceful_shutdown::{SubsystemHandle, Toplevel, errors::GracefulShutdownError};
 use tracing::{error, info};
 
-use crate::{commands::StartParams};
-use shared::{error::{CommonError, DynError}};
+use crate::commands::StartParams;
+use shared::error::{CommonError, DynError};
 
 mod a2a;
 mod commands;
+mod logic;
 mod mcp;
 mod repository;
 mod router;
-mod vite;
-mod logic;
 mod utils;
+mod vite;
 
 pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -30,7 +30,6 @@ pub enum Commands {
     Codegen,
 }
 
-
 pub type Subsys = SubsystemHandle<DynError>;
 
 fn unwrap_and_error<T>(cmd: Result<T, CommonError>) -> T {
@@ -43,16 +42,11 @@ fn unwrap_and_error<T>(cmd: Result<T, CommonError>) -> T {
     }
 }
 
-
 async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
     Toplevel::new(async move |subsys: SubsystemHandle| {
         let cmd_res = match cli.command {
-            Commands::Start(params) => {
-                commands::cmd_start(&subsys, params).await
-            }
-            Commands::Codegen => {
-                commands::cmd_codegen(&subsys).await
-            }
+            Commands::Start(params) => commands::cmd_start(&subsys, params).await,
+            Commands::Codegen => commands::cmd_codegen(&subsys).await,
         };
 
         unwrap_and_error(cmd_res);
@@ -71,10 +65,8 @@ async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
     })
 }
 
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-
     // Initialize tracing
     shared::env::configure_env()?;
     shared::logging::configure_logging()?;

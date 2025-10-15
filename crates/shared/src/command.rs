@@ -1,9 +1,8 @@
 use anyhow::Result;
-use tracing::{error, info};
-use std::process::Stdio;
 use std::collections::HashMap;
+use std::process::Stdio;
 use tokio::{process::Command, sync::oneshot};
-
+use tracing::{error, info};
 
 pub async fn run_child_process(
     process_name: &str,
@@ -20,21 +19,21 @@ pub async fn run_child_process(
         use std::os::unix::process::CommandExt;
         process.process_group(0);
     }
-    
-    let mut child = process
+
+    let process = process
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .kill_on_drop(true);
 
-    if let Some(extra_env) = extra_env {
-        for (key, value) in extra_env {
-            child.env(key, value);
-        }
+    let mut child = if let Some(extra_env) = extra_env {
+        let process = extra_env
+            .into_iter()
+            .fold(process, |proc, (key, value)| proc.env(key, value));
+        process.spawn()
+    } else {
+        process.spawn()
     }
-
-    
-    let mut child =child.spawn()
-        .map_err(|e| anyhow::anyhow!("{} process error: {e}", process_name))?;
+    .map_err(|e| anyhow::anyhow!("{process_name} process error: {e}"))?;
 
     info!("🚀 Started {} (pid={:?})", process_name, child.id());
 
@@ -42,11 +41,13 @@ pub async fn run_child_process(
         let status = child
             .wait()
             .await
-            .map_err(|e| anyhow::anyhow!("{} wait error: {e}", process_name))?;
+            .map_err(|e| anyhow::anyhow!("{process_name} wait error: {e}"))?;
 
         if !status.success() {
             error!("❌ {} exited with status: {:?}", process_name, status);
-            Err(anyhow::anyhow!("{} exited with status: {:?}", process_name, status))
+            Err(anyhow::anyhow!(
+                "{process_name} exited with status: {status:?}"
+            ))
         } else {
             info!("✅ {} exited cleanly: {:?}", process_name, status);
             Ok(())

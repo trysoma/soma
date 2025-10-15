@@ -1,4 +1,4 @@
-use std::{fmt, net::SocketAddr, str::FromStr};
+use std::{fmt, str::FromStr};
 
 use anyhow;
 use base64::Engine;
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use utoipa::{
     IntoParams, PartialSchema, ToSchema,
-    openapi::{Object, ObjectBuilder, OneOf, Schema, Type},
+    openapi::{ObjectBuilder, Type},
 };
 
 use crate::error::CommonError;
@@ -26,10 +26,6 @@ impl Default for WrappedUuidV4 {
 impl WrappedUuidV4 {
     pub fn new() -> Self {
         Self(uuid::Uuid::new_v4())
-    }
-
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
     }
 }
 
@@ -82,14 +78,14 @@ impl From<libsql::Value> for WrappedUuidV4 {
     fn from(val: libsql::Value) -> Self {
         match val {
             libsql::Value::Text(s) => WrappedUuidV4::try_from(s).unwrap(),
-            _ => panic!("Cannot convert {:?} to WrappedUuidV4", val),
+            _ => panic!("Cannot convert {val:?} to WrappedUuidV4"),
         }
     }
 }
 
 impl From<WrappedUuidV4> for libsql::Value {
     fn from(val: WrappedUuidV4) -> Self {
-        libsql::Value::Text(val.to_string())
+        libsql::Value::Text(val.0.to_string())
     }
 }
 
@@ -160,7 +156,7 @@ impl TryFrom<libsql::Value> for WrappedJsonValue {
         match val {
             libsql::Value::Text(s) => Ok(WrappedJsonValue::new(serde_json::from_str(&s).map_err(
                 |e| CommonError::InvalidRequest {
-                    msg: format!("invalid json value: {}", e),
+                    msg: format!("invalid json value: {e}"),
                     source: None,
                 },
             )?)),
@@ -224,9 +220,9 @@ impl TryFrom<&str> for WrappedChronoDateTime {
     }
 }
 
-impl ToString for WrappedChronoDateTime {
-    fn to_string(&self) -> String {
-        self.0.to_rfc3339()
+impl fmt::Display for WrappedChronoDateTime {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0.to_rfc3339())
     }
 }
 

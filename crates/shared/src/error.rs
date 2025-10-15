@@ -10,10 +10,7 @@ use utoipa::{IntoResponses, PartialSchema, ToSchema};
 
 use crate::adapters::mcp::McpErrorMsg;
 
-
-
 pub type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
-
 
 #[derive(Error, Debug, Serialize)]
 pub enum CommonError {
@@ -107,7 +104,7 @@ pub enum CommonError {
         #[source]
         source: axum::Error,
     },
-    
+
     #[error("address parse error")]
     AddrParseError {
         #[serde(skip)]
@@ -152,9 +149,6 @@ pub enum CommonError {
     },
 }
 
-
-
-
 impl<T: Send + Sync + 'static> From<tokio::sync::mpsc::error::SendError<T>> for CommonError {
     fn from(e: tokio::sync::mpsc::error::SendError<T>) -> Self {
         CommonError::TokioChannelError {
@@ -171,7 +165,9 @@ impl From<tokio::sync::oneshot::error::RecvError> for CommonError {
     }
 }
 
-impl<T: Send + Sync + 'static + std::fmt::Debug> From<tokio::sync::broadcast::error::SendError<T>> for CommonError {
+impl<T: Send + Sync + 'static + std::fmt::Debug> From<tokio::sync::broadcast::error::SendError<T>>
+    for CommonError
+{
     fn from(e: tokio::sync::broadcast::error::SendError<T>) -> Self {
         CommonError::TokioChannelError {
             source: Box::new(e),
@@ -350,16 +346,15 @@ pub struct ErrorResponse {
     message: String,
 }
 
-
 impl From<CommonError> for ErrorData {
     fn from(error: CommonError) -> ErrorData {
-        return match error {
+        match error {
             CommonError::NotFound {
                 msg,
-                lookup_id,
-                source,
+                lookup_id: _,
+                source: _,
             } => ErrorData::resource_not_found(msg, None),
-            CommonError::InvalidRequest { msg, source } => ErrorData::invalid_request(msg, None),
+            CommonError::InvalidRequest { msg, source: _ } => ErrorData::invalid_request(msg, None),
             CommonError::Authentication { .. }
             | CommonError::Authorization { .. }
             | CommonError::InvalidResponse { .. }
@@ -376,12 +371,12 @@ impl From<CommonError> for ErrorData {
             | CommonError::VarError { .. }
             | CommonError::GlobSetError { .. }
             | CommonError::NotifyError { .. }
-            | CommonError::ReqwestError { .. }
-            => ErrorData::internal_error(error.to_string(), None)
-        };
+            | CommonError::ReqwestError { .. } => {
+                ErrorData::internal_error(error.to_string(), None)
+            }
+        }
     }
 }
-
 
 impl McpErrorMsg for CommonError {
     fn to_mcp_error(&self) -> String {

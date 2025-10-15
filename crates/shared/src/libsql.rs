@@ -5,10 +5,8 @@ use std::{collections::BTreeMap, fs, path::PathBuf};
 use crate::error::CommonError;
 use libsql::params::IntoParams;
 use libsql::{BatchRows, Database, Rows};
-use serde_json::json;
 use tempfile::TempDir;
 use tracing::info;
-use tracing_subscriber::Layer;
 use url::Url;
 
 pub async fn write_migrations_to_temp_dir(
@@ -143,36 +141,33 @@ impl Connection {
     }
 }
 
-pub fn construct_db_folder_path(node_id: &str, data_dir: &PathBuf) -> PathBuf {
-    data_dir.join(format!("{}/dbs", node_id.to_string().replace("::", "_")))
+pub fn construct_db_folder_path(node_id: &str, data_dir: &Path) -> PathBuf {
+    let node_id_sanitized = node_id.replace("::", "_");
+    data_dir.join(format!("{node_id_sanitized}/dbs"))
 }
 
-pub fn construct_db_file_path(
-    node_id: &str,
-    data_dir: &PathBuf,
-    database_name: &str,
-) -> PathBuf {
-    construct_db_folder_path(node_id, data_dir).join(format!("{}/local.db", database_name))
+pub fn construct_db_file_path(node_id: &str, data_dir: &Path, database_name: &str) -> PathBuf {
+    construct_db_folder_path(node_id, data_dir).join(format!("{database_name}/local.db"))
 }
 
 pub fn create_db_file_parent_dir(
     node_id: &str,
-    data_dir: &PathBuf,
+    data_dir: &Path,
     database_name: &str,
 ) -> Result<(), CommonError> {
     let dbs_path = construct_db_file_path(node_id, data_dir, database_name);
     std::fs::create_dir_all(dbs_path.parent().unwrap()).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("failed to create dbs directory: {}", e))
+        CommonError::Unknown(anyhow::anyhow!("failed to create dbs directory: {e}"))
     })?;
     Ok(())
 }
 
 pub fn construct_db_remote_replica_url(
     remote_url: &str,
-    db_path: &PathBuf,
+    db_path: &Path,
     auth_token: &str,
 ) -> Result<String, CommonError> {
-    let mut conn_url = url::Url::parse(&remote_url)?;
+    let mut conn_url = url::Url::parse(remote_url)?;
 
     conn_url
         .query_pairs_mut()
@@ -210,7 +205,7 @@ fn get_libsql_path(url_str: &str) -> Result<String, CommonError> {
     let url = Url::parse(url_str).unwrap();
 
     if is_relative {
-        Ok(format!(".{}", url.path().to_string()))
+        Ok(format!(".{}", url.path()))
     } else {
         Ok(url.path().to_string())
     }
@@ -220,9 +215,9 @@ impl TryFrom<Url> for ConnectionType {
     type Error = CommonError;
     fn try_from(url: Url) -> Result<Self, Self::Error> {
         if url.scheme() != "libsql" {
+            let scheme = url.scheme();
             return Err(CommonError::Unknown(anyhow::anyhow!(
-                "invalid scheme: {}",
-                url.scheme()
+                "invalid scheme: {scheme}"
             )));
         }
 
@@ -241,7 +236,7 @@ impl TryFrom<Url> for ConnectionType {
 
         match mode.as_str() {
             "local" => Ok(ConnectionType::Local(LocalConnectionParams {
-                path_to_db_file: PathBuf::from(get_libsql_path(&url.to_string())?),
+                path_to_db_file: PathBuf::from(get_libsql_path(url.as_ref())?),
             })),
             "remote_replica" => {
                 let mut remote_url = url.clone();
@@ -272,7 +267,7 @@ impl TryFrom<Url> for ConnectionType {
                         auth_token,
                     },
                 ))
-            },
+            }
             "remote" => {
                 let mut remote_url = url.clone();
                 remote_url.set_query(None);
@@ -286,17 +281,13 @@ impl TryFrom<Url> for ConnectionType {
                     }
                 };
 
-
-                Ok(ConnectionType::Remote(
-                    RemoteConnectionParams {
-                        remote_url: remote_url.to_string(),
-                        auth_token,
-                    },
-                ))
+                Ok(ConnectionType::Remote(RemoteConnectionParams {
+                    remote_url: remote_url.to_string(),
+                    auth_token,
+                }))
             }
             _ => Err(CommonError::Unknown(anyhow::anyhow!(
-                "invalid mode: {}",
-                mode
+                "invalid mode: {mode}"
             ))),
         }
     }
@@ -307,10 +298,8 @@ pub fn construct_db_connection_string(
 ) -> Result<String, CommonError> {
     match connection_type {
         ConnectionType::Local(params) => {
-            let mut conn_url = url::Url::parse(&format!(
-                "libsql://{}",
-                params.path_to_db_file.to_string_lossy().to_string()
-            ))?;
+            let path = params.path_to_db_file.to_string_lossy();
+            let mut conn_url = url::Url::parse(&format!("libsql://{path}"))?;
             conn_url.query_pairs_mut().append_pair("mode", "local");
             Ok(conn_url.to_string())
         }
@@ -325,13 +314,18 @@ pub fn construct_db_connection_string(
         }
         ConnectionType::Remote(params) => {
             let mut conn_url = url::Url::parse(&params.remote_url)?;
-            conn_url.query_pairs_mut().append_pair("auth", &params.auth_token);
+            conn_url
+                .query_pairs_mut()
+                .append_pair("auth", &params.auth_token);
             Ok(conn_url.to_string())
         }
     }
 }
 
-pub fn inject_auth_token_to_db_url(url: &Url, auth_token: &Option<String>) -> Result<Url, CommonError> {
+pub fn inject_auth_token_to_db_url(
+    url: &Url,
+    auth_token: &Option<String>,
+) -> Result<Url, CommonError> {
     let mut conn_url = url.clone();
     if let Some(auth_token) = auth_token {
         conn_url.query_pairs_mut().append_pair("auth", auth_token);
@@ -366,7 +360,7 @@ pub async fn establish_db_connection<'a>(
 
     async fn create_db_file_parent_dir(parent_path: Option<&Path>) -> Result<(), CommonError> {
         if let Some(path) = parent_path {
-            if !std::fs::exists(&path)? {
+            if !std::fs::exists(path)? {
                 std::fs::create_dir_all(path)?;
             }
         }
@@ -400,9 +394,10 @@ pub async fn establish_db_connection<'a>(
             (db, conn)
         }
         ConnectionType::Remote(params) => {
-            let db = libsql::Builder::new_remote(params.remote_url.clone(), params.auth_token.clone())
-                .build()
-                .await?;
+            let db =
+                libsql::Builder::new_remote(params.remote_url.clone(), params.auth_token.clone())
+                    .build()
+                    .await?;
             let conn = db.connect()?;
             (db, conn)
         }
@@ -414,12 +409,12 @@ pub async fn establish_db_connection<'a>(
         let migrations_to_run = migrations_to_run
             .iter()
             .filter(|(k, _)| k.contains(".up."))
-            .map(|(k, v)| (k.clone(), v.clone()))
+            .map(|(k, v)| (*k, *v))
             .collect::<BTreeMap<&str, &str>>();
 
         let temp_dir = write_migrations_to_temp_dir(&migrations_to_run).await?;
         libsql_migration::dir::migrate(&conn, temp_dir).await?;
     }
 
-    return Ok((db, Connection(conn)));
+    Ok((db, Connection(conn)))
 }

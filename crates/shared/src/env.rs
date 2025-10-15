@@ -1,12 +1,12 @@
-use std::{collections::HashMap, env, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Context;
 
 fn travese_up_for_env_file(file_name: &str) -> Option<PathBuf> {
     let relative_workspace_root = PathBuf::from("./../../").join(file_name);
 
-    let env_path = if PathBuf::from(file_name).exists() {
-        println!("Loading environment variables from: {}", file_name);
+    if PathBuf::from(file_name).exists() {
+        println!("Loading environment variables from: {file_name}");
         Some(PathBuf::from(file_name))
     } else if relative_workspace_root.exists() {
         println!(
@@ -17,9 +17,7 @@ fn travese_up_for_env_file(file_name: &str) -> Option<PathBuf> {
     } else {
         println!("No environment variables file found");
         None
-    };
-
-    env_path
+    }
 }
 
 fn load_optional_env_file(file_name: Option<PathBuf>) {

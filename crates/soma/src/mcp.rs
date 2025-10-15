@@ -1,7 +1,7 @@
-// We have some dummed down domain models so that 
+// We have some dummed down domain models so that
 // it's easier for agents to complete and use.
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::logic::{self, MessageRole, Metadata, TaskStatus};
@@ -36,7 +36,7 @@ impl From<MessagePart> for logic::MessagePart {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema, JsonSchema)]
 pub struct CreateMessageRequest {
-    pub parts: Vec<MessagePart>
+    pub parts: Vec<MessagePart>,
 }
 
 impl From<CreateMessageRequest> for logic::CreateMessageRequest {
@@ -46,7 +46,6 @@ impl From<CreateMessageRequest> for logic::CreateMessageRequest {
             reference_task_ids: vec![],
             role: MessageRole::Agent,
             metadata: Metadata::new(),
-            
         }
     }
 }

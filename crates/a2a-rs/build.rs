@@ -8,9 +8,9 @@ fn main() {
     println!("cargo:rerun-if-changed=proto/a2a.proto");
     println!("cargo:rerun-if-changed=types/a2a.json");
     println!("cargo:rerun-if-changed=build.rs");
-    
+
     let proto_file = Path::new("proto/a2a.proto").to_path_buf();
-    let a2a_type_file = Path::new("types/a2a.json").to_path_buf();
+    let _a2a_type_file = Path::new("types/a2a.json").to_path_buf();
     let a2a_commit_hash_file = Path::new("types/a2a_commit_hash.txt").to_path_buf();
     let a2a_type_file = Path::new(&env::var("OUT_DIR").unwrap())
         .to_path_buf()
@@ -49,8 +49,7 @@ fn main() {
         // Download files (for local development)
         // URLs are pinned to specific commit hash for reproducibility
         let json_url = format!(
-            "https://raw.githubusercontent.com/a2aproject/A2A/{}/specification/json/a2a.json",
-            A2A_COMMIT_HASH
+            "https://raw.githubusercontent.com/a2aproject/A2A/{A2A_COMMIT_HASH}/specification/json/a2a.json"
         );
         let response = reqwest::blocking::get(&json_url).unwrap();
         let json_bytes = response.bytes().unwrap();
@@ -60,8 +59,7 @@ fn main() {
         fs::write(&a2a_type_file, serde_json::to_string(&schema).unwrap()).unwrap();
 
         let proto_url = format!(
-            "https://raw.githubusercontent.com/a2aproject/A2A/{}/specification/grpc/a2a.proto",
-            A2A_COMMIT_HASH
+            "https://raw.githubusercontent.com/a2aproject/A2A/{A2A_COMMIT_HASH}/specification/grpc/a2a.proto"
         );
         let proto_response = reqwest::blocking::get(&proto_url).unwrap();
         let proto_bytes = proto_response.bytes().unwrap();
@@ -95,7 +93,6 @@ fn main() {
     let contents =
         prettyplease::unparse(&syn::parse2::<syn::File>(type_space.to_stream()).unwrap());
 
-   
     fs::write(a2a_type_file, contents).unwrap();
-    fs::write(a2a_commit_hash_file, A2A_COMMIT_HASH.to_string()).unwrap();
+    fs::write(a2a_commit_hash_file, A2A_COMMIT_HASH).unwrap();
 }

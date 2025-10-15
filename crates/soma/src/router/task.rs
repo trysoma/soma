@@ -12,7 +12,11 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     logic::{
-        create_message, get_task, get_task_timeline_items, list_tasks, list_tasks_by_context_id, list_unique_contexts, update_task_status, ConnectionManager, CreateMessageRequest, CreateMessageResponse, GetTaskResponse, GetTaskTimelineItemsResponse, ListTasksResponse, ListUniqueContextsResponse, TaskWithDetails, UpdateTaskStatusRequest, UpdateTaskStatusResponse, WithContextId, WithTaskId
+        ConnectionManager, CreateMessageRequest, CreateMessageResponse, GetTaskResponse,
+        GetTaskTimelineItemsResponse, ListTasksResponse, ListUniqueContextsResponse,
+        TaskWithDetails, UpdateTaskStatusRequest, UpdateTaskStatusResponse, WithContextId,
+        WithTaskId, create_message, get_task, get_task_timeline_items, list_tasks,
+        list_tasks_by_context_id, list_unique_contexts, update_task_status,
     },
     repository::{CreateTaskTimelineItem, Repository, TaskRepositoryLike, UpdateTaskStatus},
 };
@@ -118,7 +122,6 @@ async fn route_list_tasks_by_context_id(
     JsonResponse::from(res)
 }
 
-
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/{{task_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
@@ -139,11 +142,7 @@ async fn route_get_task(
     State(ctx): State<Arc<TaskService>>,
     Path(task_id): Path<WrappedUuidV4>,
 ) -> JsonResponse<GetTaskResponse, CommonError> {
-    let res = get_task(
-        &ctx.repository,
-        task_id,
-    )
-    .await;
+    let res = get_task(&ctx.repository, task_id).await;
     JsonResponse::from(res)
 }
 

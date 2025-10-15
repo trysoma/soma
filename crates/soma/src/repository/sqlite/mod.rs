@@ -3,19 +3,19 @@ mod raw_impl;
 
 include!("raw.generated.rs");
 
-use crate::repository::{
-    CreateTask, CreateTaskTimelineItem, Task, TaskRepositoryLike, TaskTimelineItem,
-    UpdateTaskStatus, CreateMessage, Message,
-};
 use crate::logic::{MessageRole, TaskWithDetails};
+use crate::repository::{
+    CreateMessage, CreateTask, CreateTaskTimelineItem, Message, Task, TaskRepositoryLike,
+    TaskTimelineItem, UpdateTaskStatus,
+};
+use anyhow::Context;
 use shared::{
     error::CommonError,
     primitives::{
-        decode_pagination_token, PaginatedResponse, PaginationRequest, SqlMigrationLoader,
-        WrappedUuidV4,
+        PaginatedResponse, PaginationRequest, SqlMigrationLoader, WrappedUuidV4,
+        decode_pagination_token,
     },
 };
-use anyhow::Context;
 use std::collections::BTreeMap;
 
 #[derive(Clone)]
@@ -107,13 +107,11 @@ impl TaskRepositoryLike for Repository {
                 None
             } else {
                 Some(
-                    shared::primitives::WrappedChronoDateTime::try_from(
-                        decoded_parts[0].as_str(),
-                    )
-                    .map_err(|e| CommonError::Repository {
-                        msg: format!("Invalid datetime in pagination token: {}", e),
-                        source: Some(e.into()),
-                    })?,
+                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
+                        .map_err(|e| CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {}", e),
+                            source: Some(e.into()),
+                        })?,
                 )
             }
         } else {
@@ -133,7 +131,8 @@ impl TaskRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Result<Vec<Task>, CommonError> = rows.into_iter().map(|row| Task::try_from(row)).collect();
+        let items: Result<Vec<Task>, CommonError> =
+            rows.into_iter().map(|row| Task::try_from(row)).collect();
         let items = items?;
 
         Ok(PaginatedResponse::from_items_with_extra(
@@ -158,13 +157,11 @@ impl TaskRepositoryLike for Repository {
                 None
             } else {
                 Some(
-                    shared::primitives::WrappedChronoDateTime::try_from(
-                        decoded_parts[0].as_str(),
-                    )
-                    .map_err(|e| CommonError::Repository {
-                        msg: format!("Invalid datetime in pagination token: {}", e),
-                        source: Some(e.into()),
-                    })?,
+                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
+                        .map_err(|e| CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {}", e),
+                            source: Some(e.into()),
+                        })?,
                 )
             }
         } else {
@@ -215,13 +212,11 @@ impl TaskRepositoryLike for Repository {
                 None
             } else {
                 Some(
-                    shared::primitives::WrappedChronoDateTime::try_from(
-                        decoded_parts[0].as_str(),
-                    )
-                    .map_err(|e| CommonError::Repository {
-                        msg: format!("Invalid datetime in pagination token: {}", e),
-                        source: Some(e.into()),
-                    })?,
+                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
+                        .map_err(|e| CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {}", e),
+                            source: Some(e.into()),
+                        })?,
                 )
             }
         } else {
@@ -242,7 +237,8 @@ impl TaskRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Result<Vec<Task>, CommonError> = rows.into_iter().map(|row| Task::try_from(row)).collect();
+        let items: Result<Vec<Task>, CommonError> =
+            rows.into_iter().map(|row| Task::try_from(row)).collect();
         let items = items?;
 
         Ok(PaginatedResponse::from_items_with_extra(
@@ -268,13 +264,11 @@ impl TaskRepositoryLike for Repository {
                 None
             } else {
                 Some(
-                    shared::primitives::WrappedChronoDateTime::try_from(
-                        decoded_parts[0].as_str(),
-                    )
-                    .map_err(|e| CommonError::Repository {
-                        msg: format!("Invalid datetime in pagination token: {}", e),
-                        source: Some(e.into()),
-                    })?,
+                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
+                        .map_err(|e| CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {}", e),
+                            source: Some(e.into()),
+                        })?,
                 )
             }
         } else {
@@ -295,7 +289,10 @@ impl TaskRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Result<Vec<TaskTimelineItem>, CommonError> = rows.into_iter().map(|row| TaskTimelineItem::try_from(row)).collect();
+        let items: Result<Vec<TaskTimelineItem>, CommonError> = rows
+            .into_iter()
+            .map(|row| TaskTimelineItem::try_from(row))
+            .collect();
         let items = items?;
 
         Ok(PaginatedResponse::from_items_with_extra(
@@ -305,7 +302,10 @@ impl TaskRepositoryLike for Repository {
         ))
     }
 
-    async fn get_task_by_id(&self, id: &WrappedUuidV4) -> Result<Option<TaskWithDetails>, CommonError> {
+    async fn get_task_by_id(
+        &self,
+        id: &WrappedUuidV4,
+    ) -> Result<Option<TaskWithDetails>, CommonError> {
         let sqlc_params = get_task_by_id_params { id };
 
         let row_opt = get_task_by_id(&self.conn, sqlc_params)
@@ -359,13 +359,11 @@ impl TaskRepositoryLike for Repository {
                 None
             } else {
                 Some(
-                    shared::primitives::WrappedChronoDateTime::try_from(
-                        decoded_parts[0].as_str(),
-                    )
-                    .map_err(|e| CommonError::Repository {
-                        msg: format!("Invalid datetime in pagination token: {}", e),
-                        source: Some(e.into()),
-                    })?,
+                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
+                        .map_err(|e| CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {}", e),
+                            source: Some(e.into()),
+                        })?,
                 )
             }
         } else {
@@ -386,7 +384,8 @@ impl TaskRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Result<Vec<Message>, CommonError> = rows.into_iter().map(|row| Message::try_from(row)).collect();
+        let items: Result<Vec<Message>, CommonError> =
+            rows.into_iter().map(|row| Message::try_from(row)).collect();
         let items = items?;
 
         Ok(PaginatedResponse::from_items_with_extra(
@@ -403,8 +402,14 @@ impl SqlMigrationLoader for Repository {
         let mut sqlite_migrations = BTreeMap::new();
 
         // 0_init migration
-        sqlite_migrations.insert("0_init.up.sql", include_str!("../../../migrations/0_init.up.sql"));
-        sqlite_migrations.insert("0_init.down.sql", include_str!("../../../migrations/0_init.down.sql"));
+        sqlite_migrations.insert(
+            "0_init.up.sql",
+            include_str!("../../../migrations/0_init.up.sql"),
+        );
+        sqlite_migrations.insert(
+            "0_init.down.sql",
+            include_str!("../../../migrations/0_init.down.sql"),
+        );
 
         all_migrations.insert("sqlite", sqlite_migrations);
 
@@ -415,20 +420,25 @@ impl SqlMigrationLoader for Repository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::repository::{
-        CreateTask, CreateTaskTimelineItem, TaskRepositoryLike, CreateMessage
+    use crate::logic::{
+        Message, MessagePart, MessageRole, MessageTaskTimelineItem, Metadata, TaskEventUpdateType,
+        TaskStatus, TaskStatusUpdateTaskTimelineItem, TaskTimelineItemPayload, TextPart,
     };
-    use crate::logic::{TaskStatus, TaskEventUpdateType, Metadata, MessagePart, TextPart, MessageRole, Message, TaskTimelineItemPayload, TaskStatusUpdateTaskTimelineItem, MessageTaskTimelineItem};
-    use shared::primitives::{PaginationRequest, SqlMigrationLoader, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4};
-    use shared::test_utils::repository::setup_in_memory_database;
+    use crate::repository::{
+        CreateMessage, CreateTask, CreateTaskTimelineItem, TaskRepositoryLike,
+    };
     use base64::Engine;
+    use shared::primitives::{
+        PaginationRequest, SqlMigrationLoader, WrappedChronoDateTime, WrappedJsonValue,
+        WrappedUuidV4,
+    };
+    use shared::test_utils::repository::setup_in_memory_database;
 
     #[tokio::test]
     async fn test_create_and_get_task() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         let task_id = WrappedUuidV4::new();
@@ -463,10 +473,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_task_status() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         let task_id = WrappedUuidV4::new();
@@ -525,10 +534,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_insert_task_timeline_item() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         let task_id = WrappedUuidV4::new();
@@ -602,10 +610,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_tasks_pagination() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         let context_id = WrappedUuidV4::new();
@@ -670,10 +677,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_task_timeline_items_pagination() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         let task_id = WrappedUuidV4::new();
@@ -716,14 +722,21 @@ mod tests {
                     created_at: WrappedChronoDateTime::now(),
                 };
                 let payload = TaskTimelineItemPayload::Message(MessageTaskTimelineItem { message });
-                (TaskEventUpdateType::Message, WrappedJsonValue::new(serde_json::to_value(&payload).unwrap()))
+                (
+                    TaskEventUpdateType::Message,
+                    WrappedJsonValue::new(serde_json::to_value(&payload).unwrap()),
+                )
             } else {
                 // Create TaskStatusUpdate payload
-                let payload = TaskTimelineItemPayload::TaskStatusUpdate(TaskStatusUpdateTaskTimelineItem {
-                    status: TaskStatus::Working,
-                    status_message_id: None,
-                });
-                (TaskEventUpdateType::TaskStatusUpdate, WrappedJsonValue::new(serde_json::to_value(&payload).unwrap()))
+                let payload =
+                    TaskTimelineItemPayload::TaskStatusUpdate(TaskStatusUpdateTaskTimelineItem {
+                        status: TaskStatus::Working,
+                        status_message_id: None,
+                    });
+                (
+                    TaskEventUpdateType::TaskStatusUpdate,
+                    WrappedJsonValue::new(serde_json::to_value(&payload).unwrap()),
+                )
             };
             let timeline_created_at = WrappedChronoDateTime::now();
 
@@ -783,10 +796,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_task_by_id_not_found() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         let non_existent_id = WrappedUuidV4::new();
@@ -796,10 +808,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_task_status_transitions() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         let task_id = WrappedUuidV4::new();
@@ -847,10 +858,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_insert_and_get_message() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create a task first
@@ -879,14 +889,16 @@ mod tests {
         let metadata = Metadata::new();
         let parts = vec![MessagePart::TextPart(TextPart {
             text: "Hello".to_string(),
-            metadata: Metadata::new()
+            metadata: Metadata::new(),
         })];
         let message_created_at = WrappedChronoDateTime::now();
 
         let message_params = CreateMessage {
             id: message_id.clone(),
             task_id: task_id.clone(),
-            reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+            reference_task_ids: WrappedJsonValue::new(
+                serde_json::to_value(&reference_task_ids).unwrap(),
+            ),
             role: role.clone(),
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
             parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
@@ -899,7 +911,10 @@ mod tests {
             page_size: 10,
             next_page_token: None,
         };
-        let response = repo.get_messages_by_task_id(&task_id, &pagination).await.unwrap();
+        let response = repo
+            .get_messages_by_task_id(&task_id, &pagination)
+            .await
+            .unwrap();
 
         assert_eq!(response.items.len(), 1);
         let message = &response.items[0];
@@ -911,10 +926,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_messages_pagination() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create a task first
@@ -943,18 +957,24 @@ mod tests {
             sleep(Duration::from_millis(10)); // Ensure different timestamps
             let message_id = WrappedUuidV4::new();
             let reference_task_ids = Vec::<WrappedUuidV4>::new();
-            let role = if i % 2 == 0 { MessageRole::User } else { MessageRole::Agent };
+            let role = if i % 2 == 0 {
+                MessageRole::User
+            } else {
+                MessageRole::Agent
+            };
             let metadata = Metadata::new();
             let parts = vec![MessagePart::TextPart(TextPart {
                 text: format!("Message {}", i),
-                metadata: Metadata::new()
+                metadata: Metadata::new(),
             })];
             let message_created_at = WrappedChronoDateTime::now();
 
             let message_params = CreateMessage {
                 id: message_id.clone(),
                 task_id: task_id.clone(),
-                reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+                reference_task_ids: WrappedJsonValue::new(
+                    serde_json::to_value(&reference_task_ids).unwrap(),
+                ),
                 role: role.clone(),
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
                 parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
@@ -968,7 +988,10 @@ mod tests {
             page_size: 10,
             next_page_token: None,
         };
-        let response = repo.get_messages_by_task_id(&task_id, &pagination).await.unwrap();
+        let response = repo
+            .get_messages_by_task_id(&task_id, &pagination)
+            .await
+            .unwrap();
 
         assert_eq!(response.items.len(), 5);
         assert!(response.next_page_token.is_none());
@@ -983,7 +1006,10 @@ mod tests {
             page_size: 3,
             next_page_token: None,
         };
-        let response = repo.get_messages_by_task_id(&task_id, &pagination).await.unwrap();
+        let response = repo
+            .get_messages_by_task_id(&task_id, &pagination)
+            .await
+            .unwrap();
         assert_eq!(response.items.len(), 3);
         assert!(response.next_page_token.is_some());
 
@@ -992,16 +1018,18 @@ mod tests {
             page_size: 3,
             next_page_token: response.next_page_token,
         };
-        let response = repo.get_messages_by_task_id(&task_id, &pagination).await.unwrap();
+        let response = repo
+            .get_messages_by_task_id(&task_id, &pagination)
+            .await
+            .unwrap();
         assert!(response.items.len() >= 2 && response.items.len() <= 3);
     }
 
     #[tokio::test]
     async fn test_messages_multiple_tasks() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create two tasks
@@ -1034,14 +1062,16 @@ mod tests {
             let metadata = Metadata::new();
             let parts = vec![MessagePart::TextPart(TextPart {
                 text: format!("Task 1 Message {}", i),
-                metadata: Metadata::new()
+                metadata: Metadata::new(),
             })];
             let message_created_at = WrappedChronoDateTime::now();
 
             let message_params = CreateMessage {
                 id: message_id.clone(),
                 task_id: task_id_1.clone(),
-                reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+                reference_task_ids: WrappedJsonValue::new(
+                    serde_json::to_value(&reference_task_ids).unwrap(),
+                ),
                 role: role.clone(),
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
                 parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
@@ -1057,14 +1087,16 @@ mod tests {
             let metadata = Metadata::new();
             let parts = vec![MessagePart::TextPart(TextPart {
                 text: format!("Task 2 Message {}", i),
-                metadata: Metadata::new()
+                metadata: Metadata::new(),
             })];
             let message_created_at = WrappedChronoDateTime::now();
 
             let message_params = CreateMessage {
                 id: message_id.clone(),
                 task_id: task_id_2.clone(),
-                reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+                reference_task_ids: WrappedJsonValue::new(
+                    serde_json::to_value(&reference_task_ids).unwrap(),
+                ),
                 role: role.clone(),
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
                 parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
@@ -1078,7 +1110,10 @@ mod tests {
             page_size: 10,
             next_page_token: None,
         };
-        let response = repo.get_messages_by_task_id(&task_id_1, &pagination).await.unwrap();
+        let response = repo
+            .get_messages_by_task_id(&task_id_1, &pagination)
+            .await
+            .unwrap();
         assert_eq!(response.items.len(), 3);
         for message in &response.items {
             assert_eq!(message.task_id, task_id_1);
@@ -1086,7 +1121,10 @@ mod tests {
         }
 
         // Get messages for task 2
-        let response = repo.get_messages_by_task_id(&task_id_2, &pagination).await.unwrap();
+        let response = repo
+            .get_messages_by_task_id(&task_id_2, &pagination)
+            .await
+            .unwrap();
         assert_eq!(response.items.len(), 2);
         for message in &response.items {
             assert_eq!(message.task_id, task_id_2);
@@ -1096,10 +1134,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_message_with_reference_task_ids() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create tasks
@@ -1130,14 +1167,16 @@ mod tests {
         let metadata = Metadata::new();
         let parts = vec![MessagePart::TextPart(TextPart {
             text: "Message referencing other tasks".to_string(),
-            metadata: Metadata::new()
+            metadata: Metadata::new(),
         })];
         let message_created_at = WrappedChronoDateTime::now();
 
         let message_params = CreateMessage {
             id: message_id.clone(),
             task_id: task_id.clone(),
-            reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+            reference_task_ids: WrappedJsonValue::new(
+                serde_json::to_value(&reference_task_ids).unwrap(),
+            ),
             role: role.clone(),
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
             parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
@@ -1150,7 +1189,10 @@ mod tests {
             page_size: 10,
             next_page_token: None,
         };
-        let response = repo.get_messages_by_task_id(&task_id, &pagination).await.unwrap();
+        let response = repo
+            .get_messages_by_task_id(&task_id, &pagination)
+            .await
+            .unwrap();
 
         assert_eq!(response.items.len(), 1);
         let message = &response.items[0];
@@ -1162,10 +1204,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_task_by_id_with_no_messages() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create task without any messages
@@ -1199,10 +1240,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_task_by_id_with_messages() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create task
@@ -1230,13 +1270,15 @@ mod tests {
         let role = MessageRole::User;
         let parts = vec![MessagePart::TextPart(TextPart {
             text: "Test message".to_string(),
-            metadata: Metadata::new()
+            metadata: Metadata::new(),
         })];
 
         let message_params = CreateMessage {
             id: message_id.clone(),
             task_id: task_id.clone(),
-            reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+            reference_task_ids: WrappedJsonValue::new(
+                serde_json::to_value(&reference_task_ids).unwrap(),
+            ),
             role: role.clone(),
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
             parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
@@ -1254,10 +1296,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_task_by_id_with_status_message() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create task
@@ -1284,13 +1325,15 @@ mod tests {
         let role = MessageRole::Agent;
         let parts = vec![MessagePart::TextPart(TextPart {
             text: "Task completed successfully".to_string(),
-            metadata: Metadata::new()
+            metadata: Metadata::new(),
         })];
 
         let message_params = CreateMessage {
             id: status_message_id.clone(),
             task_id: task_id.clone(),
-            reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+            reference_task_ids: WrappedJsonValue::new(
+                serde_json::to_value(&reference_task_ids).unwrap(),
+            ),
             role: role.clone(),
             metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
             parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
@@ -1313,16 +1356,18 @@ mod tests {
         let task_with_details = repo.get_task_by_id(&task_id).await.unwrap().unwrap();
         assert_eq!(task_with_details.task.id, task_id);
         assert!(task_with_details.status_message.is_some());
-        assert_eq!(task_with_details.status_message.unwrap().id, status_message_id);
+        assert_eq!(
+            task_with_details.status_message.unwrap().id,
+            status_message_id
+        );
         assert_eq!(task_with_details.messages.len(), 1);
     }
 
     #[tokio::test]
     async fn test_get_task_timeline_items_empty() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create task without any timeline items
@@ -1348,7 +1393,10 @@ mod tests {
             page_size: 10,
             next_page_token: None,
         };
-        let response = repo.get_task_timeline_items(&task_id, &pagination).await.unwrap();
+        let response = repo
+            .get_task_timeline_items(&task_id, &pagination)
+            .await
+            .unwrap();
 
         assert_eq!(response.items.len(), 0);
         assert!(response.next_page_token.is_none());
@@ -1356,10 +1404,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_messages_by_task_id_empty() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create task without any messages
@@ -1385,7 +1432,10 @@ mod tests {
             page_size: 10,
             next_page_token: None,
         };
-        let response = repo.get_messages_by_task_id(&task_id, &pagination).await.unwrap();
+        let response = repo
+            .get_messages_by_task_id(&task_id, &pagination)
+            .await
+            .unwrap();
 
         assert_eq!(response.items.len(), 0);
         assert!(response.next_page_token.is_none());
@@ -1393,10 +1443,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_tasks_empty() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Get tasks from empty database
@@ -1412,10 +1461,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_unique_contexts() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create 3 tasks with 2 different context_ids
@@ -1475,7 +1523,11 @@ mod tests {
         assert_eq!(response.items.len(), 3);
 
         // Verify both context_ids are present
-        let context_ids: Vec<_> = response.items.iter().map(|c| c.context_id.clone()).collect();
+        let context_ids: Vec<_> = response
+            .items
+            .iter()
+            .map(|c| c.context_id.clone())
+            .collect();
         assert!(context_ids.contains(&context_id_1));
         assert!(context_ids.contains(&context_id_2));
 
@@ -1487,10 +1539,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_tasks_by_context_id() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         let context_id_1 = WrappedUuidV4::new();
@@ -1548,7 +1599,10 @@ mod tests {
             page_size: 10,
             next_page_token: None,
         };
-        let response = repo.get_tasks_by_context_id(&context_id_1, &pagination).await.unwrap();
+        let response = repo
+            .get_tasks_by_context_id(&context_id_1, &pagination)
+            .await
+            .unwrap();
 
         // Should have 3 tasks
         assert_eq!(response.items.len(), 3);
@@ -1565,7 +1619,10 @@ mod tests {
         }
 
         // Get tasks for context_id_2
-        let response = repo.get_tasks_by_context_id(&context_id_2, &pagination).await.unwrap();
+        let response = repo
+            .get_tasks_by_context_id(&context_id_2, &pagination)
+            .await
+            .unwrap();
 
         // Should have 2 tasks
         assert_eq!(response.items.len(), 2);
@@ -1584,10 +1641,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_tasks_by_context_id_pagination() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         let context_id = WrappedUuidV4::new();
@@ -1620,7 +1676,10 @@ mod tests {
             page_size: 3,
             next_page_token: None,
         };
-        let response = repo.get_tasks_by_context_id(&context_id, &pagination).await.unwrap();
+        let response = repo
+            .get_tasks_by_context_id(&context_id, &pagination)
+            .await
+            .unwrap();
 
         assert_eq!(response.items.len(), 3);
         assert!(response.next_page_token.is_some());
@@ -1630,16 +1689,18 @@ mod tests {
             page_size: 3,
             next_page_token: response.next_page_token,
         };
-        let response = repo.get_tasks_by_context_id(&context_id, &pagination).await.unwrap();
+        let response = repo
+            .get_tasks_by_context_id(&context_id, &pagination)
+            .await
+            .unwrap();
         assert!(response.items.len() >= 2 && response.items.len() <= 3);
     }
 
     #[tokio::test]
     async fn test_get_tasks_by_context_id_empty() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         let non_existent_context_id = WrappedUuidV4::new();
@@ -1649,7 +1710,10 @@ mod tests {
             page_size: 10,
             next_page_token: None,
         };
-        let response = repo.get_tasks_by_context_id(&non_existent_context_id, &pagination).await.unwrap();
+        let response = repo
+            .get_tasks_by_context_id(&non_existent_context_id, &pagination)
+            .await
+            .unwrap();
 
         assert_eq!(response.items.len(), 0);
         assert!(response.next_page_token.is_none());
@@ -1657,10 +1721,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_task_by_id_with_messages_pagination() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create task
@@ -1689,16 +1752,22 @@ mod tests {
             sleep(Duration::from_millis(5));
             let message_id = WrappedUuidV4::new();
             let reference_task_ids = Vec::<WrappedUuidV4>::new();
-            let role = if i % 2 == 0 { MessageRole::User } else { MessageRole::Agent };
+            let role = if i % 2 == 0 {
+                MessageRole::User
+            } else {
+                MessageRole::Agent
+            };
             let parts = vec![MessagePart::TextPart(TextPart {
                 text: format!("Message {}", i),
-                metadata: Metadata::new()
+                metadata: Metadata::new(),
             })];
 
             let message_params = CreateMessage {
                 id: message_id.clone(),
                 task_id: task_id.clone(),
-                reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+                reference_task_ids: WrappedJsonValue::new(
+                    serde_json::to_value(&reference_task_ids).unwrap(),
+                ),
                 role: role.clone(),
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
                 parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
@@ -1724,10 +1793,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_task_by_id_with_messages_no_pagination() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create task
@@ -1759,13 +1827,15 @@ mod tests {
             let role = MessageRole::User;
             let parts = vec![MessagePart::TextPart(TextPart {
                 text: format!("Message {}", i),
-                metadata: Metadata::new()
+                metadata: Metadata::new(),
             })];
 
             let message_params = CreateMessage {
                 id: message_id.clone(),
                 task_id: task_id.clone(),
-                reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+                reference_task_ids: WrappedJsonValue::new(
+                    serde_json::to_value(&reference_task_ids).unwrap(),
+                ),
                 role: role.clone(),
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
                 parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
@@ -1786,10 +1856,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_task_by_id_with_exactly_100_messages() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create task
@@ -1821,13 +1890,15 @@ mod tests {
             let role = MessageRole::User;
             let parts = vec![MessagePart::TextPart(TextPart {
                 text: format!("Message {}", i),
-                metadata: Metadata::new()
+                metadata: Metadata::new(),
             })];
 
             let message_params = CreateMessage {
                 id: message_id.clone(),
                 task_id: task_id.clone(),
-                reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+                reference_task_ids: WrappedJsonValue::new(
+                    serde_json::to_value(&reference_task_ids).unwrap(),
+                ),
                 role: role.clone(),
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
                 parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
@@ -1848,10 +1919,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_task_by_id_with_messages_pagination_token_format() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create task
@@ -1883,13 +1953,15 @@ mod tests {
             let role = MessageRole::User;
             let parts = vec![MessagePart::TextPart(TextPart {
                 text: format!("Message {}", i),
-                metadata: Metadata::new()
+                metadata: Metadata::new(),
             })];
 
             let message_params = CreateMessage {
                 id: message_id.clone(),
                 task_id: task_id.clone(),
-                reference_task_ids: WrappedJsonValue::new(serde_json::to_value(&reference_task_ids).unwrap()),
+                reference_task_ids: WrappedJsonValue::new(
+                    serde_json::to_value(&reference_task_ids).unwrap(),
+                ),
                 role: role.clone(),
                 metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
                 parts: WrappedJsonValue::new(serde_json::to_value(&parts).unwrap()),
@@ -1909,16 +1981,26 @@ mod tests {
 
         // Verify the pagination token contains a valid RFC3339 timestamp
         let token = task_with_details.messages_next_page_token.unwrap();
-        let decoded = base64::engine::general_purpose::STANDARD.decode(&token).unwrap();
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(&token)
+            .unwrap();
         let timestamp_str = String::from_utf8(decoded).unwrap();
 
         // Verify it's a valid RFC3339 timestamp
         let parsed = chrono::DateTime::parse_from_rfc3339(&timestamp_str);
-        assert!(parsed.is_ok(), "Token should contain a valid RFC3339 timestamp");
+        assert!(
+            parsed.is_ok(),
+            "Token should contain a valid RFC3339 timestamp"
+        );
 
         // The timestamp should be from the 101st message (index 100)
         // which is the message that triggers pagination
-        let message_101_created_at = task_with_details.messages.get(99).unwrap().created_at.clone();
+        let message_101_created_at = task_with_details
+            .messages
+            .get(99)
+            .unwrap()
+            .created_at
+            .clone();
 
         // The token should represent a timestamp that can be used for pagination
         assert!(parsed.unwrap().timestamp() > 0);
@@ -1926,10 +2008,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_timeline_with_both_messages_and_status_updates() {
-        let (_db, conn) =
-            setup_in_memory_database(vec![Repository::load_sql_migrations()])
-                .await
-                .unwrap();
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
         let repo = Repository::new(conn);
 
         // Create task
@@ -1976,29 +2057,39 @@ mod tests {
             event_payload: WrappedJsonValue::new(serde_json::to_value(&message_payload).unwrap()),
             created_at: WrappedChronoDateTime::now(),
         };
-        repo.insert_task_timeline_item(&timeline_params).await.unwrap();
+        repo.insert_task_timeline_item(&timeline_params)
+            .await
+            .unwrap();
 
         // Insert a status update timeline item
         sleep(Duration::from_millis(10));
-        let status_update_payload = TaskTimelineItemPayload::TaskStatusUpdate(TaskStatusUpdateTaskTimelineItem {
-            status: TaskStatus::Working,
-            status_message_id: None,
-        });
+        let status_update_payload =
+            TaskTimelineItemPayload::TaskStatusUpdate(TaskStatusUpdateTaskTimelineItem {
+                status: TaskStatus::Working,
+                status_message_id: None,
+            });
         let timeline_params2 = CreateTaskTimelineItem {
             id: WrappedUuidV4::new(),
             task_id: task_id.clone(),
             event_update_type: TaskEventUpdateType::TaskStatusUpdate,
-            event_payload: WrappedJsonValue::new(serde_json::to_value(&status_update_payload).unwrap()),
+            event_payload: WrappedJsonValue::new(
+                serde_json::to_value(&status_update_payload).unwrap(),
+            ),
             created_at: WrappedChronoDateTime::now(),
         };
-        repo.insert_task_timeline_item(&timeline_params2).await.unwrap();
+        repo.insert_task_timeline_item(&timeline_params2)
+            .await
+            .unwrap();
 
         // Get timeline items
         let pagination = PaginationRequest {
             page_size: 10,
             next_page_token: None,
         };
-        let response = repo.get_task_timeline_items(&task_id, &pagination).await.unwrap();
+        let response = repo
+            .get_task_timeline_items(&task_id, &pagination)
+            .await
+            .unwrap();
 
         assert_eq!(response.items.len(), 2);
 

@@ -113,7 +113,16 @@ typify = "0.4.2"
 restate-admin-rest-model = { git = "https://github.com/restatedev/restate", package = "restate-admin-rest-model", features = ["schema"] }
 restate-types = { git = "https://github.com/restatedev/restate", package = "restate-types", features = ["schemars"] }
 restate-serde-util = { git = "https://github.com/restatedev/restate", package = "restate-serde-util", features = ["schema"] }
+restate-sdk = "0.7.0"
 clerk-rs = { git = "https://github.com/trysoma/clerk-rs", rev = "5b45669779e5178b870df2a7d24d780213f180bb" }
+
+## File system / utilities
+globset = "0.4.16"
+notify = "8.2.0"
+notify-debouncer-full = "0.6.0"
+dashmap = "6.1.0"
+tokio-util = "0.7.16"
+urlencoding = "2.1.3"
 
 
 ## internal crates
