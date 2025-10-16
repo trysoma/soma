@@ -1,51 +1,63 @@
 CREATE TABLE IF NOT EXISTS resource_server_credential (
     id TEXT PRIMARY KEY,
-    credential_type TEXT NOT NULL,
-    credential_data JSON NOT NULL,
+    type_id TEXT NOT NULL,
     metadata JSON NOT NULL,
+    value JSON NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    run_refresh_before DATETIME,
-    
-    CONSTRAINT credential_type_check CHECK (credential_type IN ("no_auth", "oauth2_authorization_code_flow", "oauth2_jwt_bearer_assertion_flow", "custom"))
+    next_rotation_time DATETIME
 );
 
 CREATE TABLE IF NOT EXISTS user_credential (
     id TEXT PRIMARY KEY,
-    credential_type TEXT NOT NULL,
-    credential_data JSON NOT NULL,
+    type_id TEXT NOT NULL,
     metadata JSON NOT NULL,
+    value JSON NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    run_refresh_before DATETIME,
-
-    CONSTRAINT credential_type_check CHECK (credential_type IN ("no_auth", "oauth2_authorization_code_flow", "oauth2_jwt_bearer_assertion_flow", "custom"))
+    next_rotation_time DATETIME
 );
 
 CREATE TABLE IF NOT EXISTS provider_instance (
     id TEXT PRIMARY KEY,
-    provider_id TEXT NOT NULL,
     resource_server_credential_id TEXT NOT NULL,
     user_credential_id TEXT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    provider_controller_type_id TEXT NOT NULL,
+    credential_controller_type_id TEXT NOT NULL,
 
-    CONSTRAINT provider_id_check CHECK (provider_id IN ("google_mail"))
+    FOREIGN KEY (resource_server_credential_id) REFERENCES resource_server_credential(id),
+    FOREIGN KEY (user_credential_id) REFERENCES user_credential(id)
 );
 
 CREATE TABLE IF NOT EXISTS function_instance (
     id TEXT PRIMARY KEY,
-    function_id TEXT NOT NULL,
-    provider_instance_id TEXT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    provider_instance_id TEXT NOT NULL,
+    function_controller_type_id TEXT NOT NULL,
 
     FOREIGN KEY (provider_instance_id) REFERENCES provider_instance(id)
 );
 
-CREATE TABLE IF NOT EXISTS credential_exchange_state (
+CREATE TABLE IF NOT EXISTS broker_state (
     id TEXT PRIMARY KEY,
-    state JSON NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resource_server_cred_id TEXT NOT NULL,
+    provider_controller_type_id TEXT NOT NULL,
+    credential_controller_type_id TEXT NOT NULL,
+    metadata JSON NOT NULL,
+    action JSON NOT NULL,
+
+    FOREIGN KEY (resource_server_cred_id) REFERENCES resource_server_credential(id)
+);
+
+CREATE TABLE IF NOT EXISTS data_encryption_key (
+    id TEXT PRIMARY KEY,
+    envelope_encryption_key_id JSON NOT NULL,
+    encryption_key TEXT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

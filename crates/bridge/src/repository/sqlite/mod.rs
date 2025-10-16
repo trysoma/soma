@@ -3,13 +3,16 @@ mod raw_impl;
 
 include!("raw.generated.rs");
 
+use crate::logic::{
+    BrokerState, DataEncryptionKey, FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
+    ProviderInstanceSerialized, ResourceServerCredentialSerialized, UserCredentialSerialized,
+};
 use crate::repository::{
-    CreateCredentialExchangeState, CreateFunctionInstance, CreateProviderInstance,
-    CreateResourceServerCredential, CreateUserCredential, CredentialExchangeState,
-    ProviderRepositoryLike,
+    CreateBrokerState, CreateDataEncryptionKey, CreateFunctionInstance, CreateProviderInstance,
+    CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
 };
 use anyhow::Context;
-use shared::{error::CommonError, primitives::SqlMigrationLoader};
+use shared::{error::CommonError, primitives::{SqlMigrationLoader, WrappedUuidV4}};
 use std::collections::BTreeMap;
 
 #[derive(Clone)]
@@ -30,10 +33,12 @@ impl ProviderRepositoryLike for Repository {
     ) -> Result<(), CommonError> {
         let sqlc_params = create_resource_server_credential_params {
             id: &params.id,
-            credential_type: &params.credential_type,
-            credential_data: &params.credential_data,
+            type_id: &params.type_id,
             metadata: &params.metadata,
-            run_refresh_before: &params.run_refresh_before,
+            value: &params.value,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+            next_rotation_time: &params.next_rotation_time,
         };
 
         create_resource_server_credential(&self.conn, sqlc_params)
@@ -46,16 +51,35 @@ impl ProviderRepositoryLike for Repository {
         Ok(())
     }
 
+    async fn get_resource_server_credential_by_id(
+        &self,
+        id: &WrappedUuidV4,
+    ) -> Result<Option<ResourceServerCredentialSerialized>, CommonError> {
+        let sqlc_params = get_resource_server_credential_by_id_params { id };
+
+        let result = get_resource_server_credential_by_id(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get resource server credential by id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        result.map(|row| row.try_into()).transpose()
+    }
+
     async fn create_user_credential(
         &self,
         params: &CreateUserCredential,
     ) -> Result<(), CommonError> {
         let sqlc_params = create_user_credential_params {
             id: &params.id,
-            credential_type: &params.credential_type,
-            credential_data: &params.credential_data,
+            type_id: &params.type_id,
             metadata: &params.metadata,
-            run_refresh_before: &params.run_refresh_before,
+            value: &params.value,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+            next_rotation_time: &params.next_rotation_time,
         };
 
         create_user_credential(&self.conn, sqlc_params)
@@ -68,15 +92,35 @@ impl ProviderRepositoryLike for Repository {
         Ok(())
     }
 
+    async fn get_user_credential_by_id(
+        &self,
+        id: &WrappedUuidV4,
+    ) -> Result<Option<UserCredentialSerialized>, CommonError> {
+        let sqlc_params = get_user_credential_by_id_params { id };
+
+        let result = get_user_credential_by_id(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get user credential by id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        result.map(|row| row.try_into()).transpose()
+    }
+
     async fn create_provider_instance(
         &self,
         params: &CreateProviderInstance,
     ) -> Result<(), CommonError> {
         let sqlc_params = create_provider_instance_params {
             id: &params.id,
-            provider_id: &params.provider_id,
             resource_server_credential_id: &params.resource_server_credential_id,
             user_credential_id: &params.user_credential_id,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+            provider_controller_type_id: &params.provider_controller_type_id,
+            credential_controller_type_id: &params.credential_controller_type_id,
         };
 
         create_provider_instance(&self.conn, sqlc_params)
@@ -89,14 +133,33 @@ impl ProviderRepositoryLike for Repository {
         Ok(())
     }
 
+    async fn get_provider_instance_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<ProviderInstanceSerialized>, CommonError> {
+        let sqlc_params = get_provider_instance_by_id_params { id: &id.to_string() };
+
+        let result = get_provider_instance_by_id(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get provider instance by id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        result.map(|row| row.try_into()).transpose()
+    }
+
     async fn create_function_instance(
         &self,
         params: &CreateFunctionInstance,
     ) -> Result<(), CommonError> {
         let sqlc_params = create_function_instance_params {
             id: &params.id,
-            function_id: &params.function_id,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
             provider_instance_id: &params.provider_instance_id,
+            function_controller_type_id: &params.function_controller_type_id,
         };
 
         create_function_instance(&self.conn, sqlc_params)
@@ -109,18 +172,32 @@ impl ProviderRepositoryLike for Repository {
         Ok(())
     }
 
-    async fn create_credential_exchange_state(
+    async fn get_function_instance_by_id(
         &self,
-        params: &CreateCredentialExchangeState,
-    ) -> Result<(), CommonError> {
-        let sqlc_params = create_credential_exchange_state_params {
-            id: &params.id,
-            state: &params.state,
-        };
+        id: &str,
+    ) -> Result<Option<FunctionInstanceSerialized>, CommonError> {
+        let sqlc_params = get_function_instance_by_id_params { id: &id.to_string() };
 
-        create_credential_exchange_state(&self.conn, sqlc_params)
+        let result = get_function_instance_by_id(&self.conn, sqlc_params)
             .await
-            .context("Failed to create credential exchange state")
+            .context("Failed to get function instance by id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        result.map(|row| row.try_into()).transpose()
+    }
+
+    async fn delete_function_instance(
+        &self,
+        id: &str,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = delete_function_instance_params { id: &id.to_string() };
+
+        delete_function_instance(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete function instance")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
@@ -128,26 +205,118 @@ impl ProviderRepositoryLike for Repository {
         Ok(())
     }
 
-    async fn get_credential_exchange_state_by_id(
+    async fn get_function_instance_with_credentials(
         &self,
         id: &str,
-    ) -> Result<Option<CredentialExchangeState>, CommonError> {
-        let sqlc_params = get_credential_exchange_state_by_id_params { id: &id.to_string() };
+    ) -> Result<Option<FunctionInstanceSerializedWithCredentials>, CommonError> {
+        let sqlc_params = get_function_instance_with_credentials_params { id: &id.to_string() };
 
-        let result = get_credential_exchange_state_by_id(&self.conn, sqlc_params)
+        let result = get_function_instance_with_credentials(&self.conn, sqlc_params)
             .await
-            .context("Failed to get credential exchange state by id")
+            .context("Failed to get function instance with credentials")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
             })?;
 
-        Ok(result.map(|row| CredentialExchangeState {
-            id: row.id,
-            state: row.state,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
-        }))
+        result.map(|row| row.try_into()).transpose()
+    }
+
+    async fn create_broker_state(
+        &self,
+        params: &CreateBrokerState,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = create_broker_state_params {
+            id: &params.id,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+            resource_server_cred_id: &params.resource_server_cred_id,
+            provider_controller_type_id: &params.provider_controller_type_id,
+            credential_controller_type_id: &params.credential_controller_type_id,
+            metadata: &params.metadata,
+            action: &params.action,
+        };
+
+        create_broker_state(&self.conn, sqlc_params)
+            .await
+            .context("Failed to create broker state")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn get_broker_state_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<BrokerState>, CommonError> {
+        let sqlc_params = get_broker_state_by_id_params { id: &id.to_string() };
+
+        let result = get_broker_state_by_id(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get broker state by id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        result.map(|row| row.try_into()).transpose()
+    }
+
+    async fn delete_broker_state(
+        &self,
+        id: &str,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = delete_broker_state_params { id: &id.to_string() };
+
+        delete_broker_state(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete broker state")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn create_data_encryption_key(
+        &self,
+        params: &CreateDataEncryptionKey,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = create_data_encryption_key_params {
+            id: &params.id,
+            envelope_encryption_key_id: &params.envelope_encryption_key_id,
+            encryption_key: &params.encryption_key,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+        };
+
+        create_data_encryption_key(&self.conn, sqlc_params)
+            .await
+            .context("Failed to create data encryption key")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn get_data_encryption_key_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<DataEncryptionKey>, CommonError> {
+        let sqlc_params = get_data_encryption_key_by_id_params { id: &id.to_string() };
+
+        let result = get_data_encryption_key_by_id(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get data encryption key by id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        result.map(|row| row.try_into()).transpose()
     }
 }
 
@@ -176,605 +345,436 @@ impl SqlMigrationLoader for Repository {
 mod tests {
     use super::*;
     use crate::logic::{
-        Metadata, NoAuthResourceServerCredential, NoAuthUserCredential,
-        Oauth2AuthorizationCodeFlowResourceServerCredential,
-        Oauth2AuthorizationCodeFlowUserCredential, ResourceServerCredential,
-        ResourceServerCredentialVariant, UserCredential, UserCredentialVariant,
+        BrokerAction, BrokerState, Metadata, ResourceServerCredentialSerialized,
+        UserCredentialSerialized, ProviderInstanceSerialized, FunctionInstanceSerialized,
     };
     use crate::repository::{
-        CreateCredentialExchangeState, CreateFunctionInstance, CreateProviderInstance,
+        CreateBrokerState, CreateFunctionInstance, CreateProviderInstance,
         CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
     };
     use shared::primitives::{
-        SqlMigrationLoader, WrappedChronoDateTime, WrappedUuidV4,
+        SqlMigrationLoader, WrappedChronoDateTime, WrappedUuidV4, WrappedJsonValue,
     };
     use shared::test_utils::repository::setup_in_memory_database;
 
     #[tokio::test]
-    async fn test_create_resource_server_credential_no_auth() {
+    async fn test_create_and_get_resource_server_credential() {
         let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
             .await
             .unwrap();
         let repo = Repository::new(conn);
 
-        let credential_id = WrappedUuidV4::new();
-        let metadata = Metadata::new();
-        let inner = ResourceServerCredentialVariant::NoAuth(NoAuthResourceServerCredential {
-            metadata: metadata.clone(),
-        });
-
-        let credential = ResourceServerCredential {
-            id: credential_id.clone(),
-            inner: inner.clone(),
-            metadata: metadata.clone(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: None,
+        let now = WrappedChronoDateTime::now();
+        let credential = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_oauth2_authorization_code_flow".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({
+                "client_id": "test_client",
+                "client_secret": "test_secret",
+                "redirect_uri": "https://example.com/callback"
+            })),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
         };
 
-        let create_params = CreateResourceServerCredential::try_from(credential).unwrap();
+        let create_params = CreateResourceServerCredential::from(credential.clone());
         repo.create_resource_server_credential(&create_params)
             .await
             .unwrap();
 
-        // Verify it was created (would need a get query to fully verify)
-        // For now, just ensuring no error is thrown
+        // Verify it was created
+        let retrieved = repo
+            .get_resource_server_credential_by_id(&credential.id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(retrieved.id, credential.id);
+        assert_eq!(retrieved.type_id, credential.type_id);
     }
 
     #[tokio::test]
-    async fn test_create_resource_server_credential_oauth2() {
+    async fn test_create_and_get_user_credential() {
         let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
             .await
             .unwrap();
         let repo = Repository::new(conn);
 
-        let credential_id = WrappedUuidV4::new();
-        let metadata = Metadata::new();
-        let inner = ResourceServerCredentialVariant::Oauth2AuthorizationCodeFlow(
-            Oauth2AuthorizationCodeFlowResourceServerCredential {
-                client_id: "test_client_id".to_string(),
-                client_secret: "test_client_secret".to_string(),
-                redirect_uri: "https://example.com/callback".to_string(),
-                metadata: metadata.clone(),
-            },
-        );
-
-        let credential = ResourceServerCredential {
-            id: credential_id.clone(),
-            inner: inner.clone(),
-            metadata: metadata.clone(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: None,
+        let now = WrappedChronoDateTime::now();
+        let credential = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "oauth2_authorization_code_flow".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({
+                "code": "test_code",
+                "access_token": "test_access_token",
+                "refresh_token": "test_refresh_token",
+                "expiry_time": now.to_string(),
+                "sub": "test_sub"
+            })),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: Some(now),
         };
 
-        let create_params = CreateResourceServerCredential::try_from(credential).unwrap();
-        repo.create_resource_server_credential(&create_params)
-            .await
-            .unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_create_user_credential_no_auth() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let credential_id = WrappedUuidV4::new();
-        let metadata = Metadata::new();
-        let inner = UserCredentialVariant::NoAuth(NoAuthUserCredential {
-            metadata: metadata.clone(),
-        });
-
-        let credential = UserCredential {
-            id: credential_id.clone(),
-            inner: inner.clone(),
-            metadata: metadata.clone(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: None,
-        };
-
-        let create_params = CreateUserCredential::try_from(credential).unwrap();
+        let create_params = CreateUserCredential::from(credential.clone());
         repo.create_user_credential(&create_params).await.unwrap();
+
+        // Verify it was created
+        let retrieved = repo
+            .get_user_credential_by_id(&credential.id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(retrieved.id, credential.id);
+        assert_eq!(retrieved.type_id, credential.type_id);
     }
 
     #[tokio::test]
-    async fn test_create_user_credential_oauth2() {
+    async fn test_create_and_get_provider_instance() {
         let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
             .await
             .unwrap();
         let repo = Repository::new(conn);
 
-        let credential_id = WrappedUuidV4::new();
-        let metadata = Metadata::new();
-        let inner = UserCredentialVariant::Oauth2AuthorizationCodeFlow(
-            Oauth2AuthorizationCodeFlowUserCredential {
-                code: "test_code".to_string(),
-                access_token: "test_access_token".to_string(),
-                refresh_token: "test_refresh_token".to_string(),
-                expiry_time: WrappedChronoDateTime::now(),
-                sub: "test_sub".to_string(),
-                metadata: metadata.clone(),
-            },
-        );
+        let now = WrappedChronoDateTime::now();
 
-        let credential = UserCredential {
-            id: credential_id.clone(),
-            inner: inner.clone(),
-            metadata: metadata.clone(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: None,
+        // Create resource server credential
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
         };
-
-        let create_params = CreateUserCredential::try_from(credential).unwrap();
-        repo.create_user_credential(&create_params).await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_create_provider_instance() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        // First create resource server credential
-        let resource_server_cred_id = WrappedUuidV4::new();
-        let metadata = Metadata::new();
-        let resource_server_inner =
-            ResourceServerCredentialVariant::NoAuth(NoAuthResourceServerCredential {
-                metadata: metadata.clone(),
-            });
-
-        let resource_server_credential = ResourceServerCredential {
-            id: resource_server_cred_id.clone(),
-            inner: resource_server_inner,
-            metadata: metadata.clone(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: None,
-        };
-
-        let create_rs_params =
-            CreateResourceServerCredential::try_from(resource_server_credential).unwrap();
-        repo.create_resource_server_credential(&create_rs_params)
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(resource_server_cred.clone()))
             .await
             .unwrap();
 
         // Create user credential
-        let user_cred_id = WrappedUuidV4::new();
-        let user_inner = UserCredentialVariant::NoAuth(NoAuthUserCredential {
-            metadata: metadata.clone(),
-        });
-
-        let user_credential = UserCredential {
-            id: user_cred_id.clone(),
-            inner: user_inner,
-            metadata: metadata.clone(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: None,
+        let user_cred = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
         };
-
-        let create_user_params = CreateUserCredential::try_from(user_credential).unwrap();
-        repo.create_user_credential(&create_user_params)
+        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
             .await
             .unwrap();
 
         // Create provider instance
-        let provider_instance_id = uuid::Uuid::new_v4().to_string();
-        let provider_id = "google_mail".to_string();
-
-        let create_provider_params = CreateProviderInstance {
-            id: provider_instance_id.clone(),
-            provider_id: provider_id.clone(),
-            resource_server_credential_id: resource_server_cred_id.clone(),
-            user_credential_id: user_cred_id.clone(),
+        let provider_instance = ProviderInstanceSerialized {
+            id: uuid::Uuid::new_v4().to_string(),
+            resource_server_credential_id: resource_server_cred.id.clone(),
+            user_credential_id: user_cred.id.clone(),
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "no_auth".to_string(),
         };
 
-        repo.create_provider_instance(&create_provider_params)
+        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
             .await
             .unwrap();
+
+        // Verify it was created
+        let retrieved = repo
+            .get_provider_instance_by_id(&provider_instance.id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(retrieved.id, provider_instance.id);
+        assert_eq!(retrieved.provider_controller_type_id, provider_instance.provider_controller_type_id);
     }
 
     #[tokio::test]
-    async fn test_create_multiple_credentials() {
+    async fn test_create_get_and_delete_function_instance() {
         let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
             .await
             .unwrap();
         let repo = Repository::new(conn);
 
-        // Create multiple resource server credentials
-        for _i in 0..3 {
-            let credential_id = WrappedUuidV4::new();
-            let metadata = Metadata::new();
-            let inner = ResourceServerCredentialVariant::NoAuth(NoAuthResourceServerCredential {
-                metadata: metadata.clone(),
-            });
+        let now = WrappedChronoDateTime::now();
 
-            let credential = ResourceServerCredential {
-                id: credential_id,
-                inner,
-                metadata,
-                created_at: WrappedChronoDateTime::now(),
-                updated_at: WrappedChronoDateTime::now(),
-                run_refresh_before: None,
-            };
-
-            let create_params = CreateResourceServerCredential::try_from(credential).unwrap();
-            repo.create_resource_server_credential(&create_params)
-                .await
-                .unwrap();
-        }
-
-        // Create multiple user credentials
-        for _i in 0..3 {
-            let credential_id = WrappedUuidV4::new();
-            let metadata = Metadata::new();
-            let inner = UserCredentialVariant::NoAuth(NoAuthUserCredential {
-                metadata: metadata.clone(),
-            });
-
-            let credential = UserCredential {
-                id: credential_id,
-                inner,
-                metadata,
-                created_at: WrappedChronoDateTime::now(),
-                updated_at: WrappedChronoDateTime::now(),
-                run_refresh_before: None,
-            };
-
-            let create_params = CreateUserCredential::try_from(credential).unwrap();
-            repo.create_user_credential(&create_params).await.unwrap();
-        }
-    }
-
-    #[tokio::test]
-    async fn test_json_serialization_in_credentials() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        // Test that complex nested structures serialize correctly
-        let credential_id = WrappedUuidV4::new();
-        let mut metadata = Metadata::new();
-        metadata
-            .0
-            .insert("key1".to_string(), serde_json::json!("value1"));
-        metadata.0.insert(
-            "nested".to_string(),
-            serde_json::json!({"inner_key": "inner_value"}),
-        );
-
-        let inner = ResourceServerCredentialVariant::Oauth2AuthorizationCodeFlow(
-            Oauth2AuthorizationCodeFlowResourceServerCredential {
-                client_id: "complex_client_id".to_string(),
-                client_secret: "complex_secret".to_string(),
-                redirect_uri: "https://example.com/redirect".to_string(),
-                metadata: metadata.clone(),
-            },
-        );
-
-        let credential = ResourceServerCredential {
-            id: credential_id,
-            inner,
-            metadata,
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: None,
+        // Setup credentials and provider instance
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
         };
-
-        let create_params = CreateResourceServerCredential::try_from(credential).unwrap();
-        repo.create_resource_server_credential(&create_params)
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(resource_server_cred.clone()))
             .await
             .unwrap();
-    }
 
-    #[tokio::test]
-    async fn test_create_credentials_with_run_refresh_before() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        // Test resource server credential with run_refresh_before
-        let credential_id = WrappedUuidV4::new();
-        let metadata = Metadata::new();
-        let refresh_time = WrappedChronoDateTime::now();
-        let inner = ResourceServerCredentialVariant::Oauth2AuthorizationCodeFlow(
-            Oauth2AuthorizationCodeFlowResourceServerCredential {
-                client_id: "test_client_id".to_string(),
-                client_secret: "test_client_secret".to_string(),
-                redirect_uri: "https://example.com/callback".to_string(),
-                metadata: metadata.clone(),
-            },
-        );
-
-        let credential = ResourceServerCredential {
-            id: credential_id.clone(),
-            inner,
-            metadata: metadata.clone(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: Some(refresh_time),
+        let user_cred = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
         };
-
-        let create_params = CreateResourceServerCredential::try_from(credential).unwrap();
-        repo.create_resource_server_credential(&create_params)
+        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
             .await
             .unwrap();
 
-        // Test user credential with run_refresh_before
-        let user_credential_id = WrappedUuidV4::new();
-        let user_refresh_time = WrappedChronoDateTime::now();
-        let user_inner = UserCredentialVariant::Oauth2AuthorizationCodeFlow(
-            Oauth2AuthorizationCodeFlowUserCredential {
-                code: "test_code".to_string(),
-                access_token: "test_access_token".to_string(),
-                refresh_token: "test_refresh_token".to_string(),
-                expiry_time: WrappedChronoDateTime::now(),
-                sub: "test_sub".to_string(),
-                metadata: metadata.clone(),
-            },
-        );
-
-        let user_credential = UserCredential {
-            id: user_credential_id,
-            inner: user_inner,
-            metadata,
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: Some(user_refresh_time),
+        let provider_instance = ProviderInstanceSerialized {
+            id: uuid::Uuid::new_v4().to_string(),
+            resource_server_credential_id: resource_server_cred.id,
+            user_credential_id: user_cred.id,
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "no_auth".to_string(),
         };
-
-        let create_user_params = CreateUserCredential::try_from(user_credential).unwrap();
-        repo.create_user_credential(&create_user_params)
-            .await
-            .unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_create_function_instance() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        // First create resource server credential
-        let resource_server_cred_id = WrappedUuidV4::new();
-        let metadata = Metadata::new();
-        let resource_server_inner =
-            ResourceServerCredentialVariant::NoAuth(NoAuthResourceServerCredential {
-                metadata: metadata.clone(),
-            });
-
-        let resource_server_credential = ResourceServerCredential {
-            id: resource_server_cred_id.clone(),
-            inner: resource_server_inner,
-            metadata: metadata.clone(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: None,
-        };
-
-        let create_rs_params =
-            CreateResourceServerCredential::try_from(resource_server_credential).unwrap();
-        repo.create_resource_server_credential(&create_rs_params)
-            .await
-            .unwrap();
-
-        // Create user credential
-        let user_cred_id = WrappedUuidV4::new();
-        let user_inner = UserCredentialVariant::NoAuth(NoAuthUserCredential {
-            metadata: metadata.clone(),
-        });
-
-        let user_credential = UserCredential {
-            id: user_cred_id.clone(),
-            inner: user_inner,
-            metadata: metadata.clone(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: None,
-        };
-
-        let create_user_params = CreateUserCredential::try_from(user_credential).unwrap();
-        repo.create_user_credential(&create_user_params)
-            .await
-            .unwrap();
-
-        // Create provider instance
-        let provider_instance_id = uuid::Uuid::new_v4().to_string();
-        let provider_id = "google_mail".to_string();
-
-        let create_provider_params = CreateProviderInstance {
-            id: provider_instance_id.clone(),
-            provider_id: provider_id.clone(),
-            resource_server_credential_id: resource_server_cred_id.clone(),
-            user_credential_id: user_cred_id.clone(),
-        };
-
-        repo.create_provider_instance(&create_provider_params)
+        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
             .await
             .unwrap();
 
         // Create function instance
-        let function_instance_id = uuid::Uuid::new_v4().to_string();
-        let function_id = "send_email".to_string();
-
-        let create_function_params = CreateFunctionInstance {
-            id: function_instance_id.clone(),
-            function_id: function_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
+        let function_instance = FunctionInstanceSerialized {
+            id: uuid::Uuid::new_v4().to_string(),
+            created_at: now,
+            updated_at: now,
+            provider_instance_id: provider_instance.id.clone(),
+            function_controller_type_id: "send_email".to_string(),
         };
 
-        repo.create_function_instance(&create_function_params)
+        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
             .await
             .unwrap();
+
+        // Verify it was created
+        let retrieved = repo
+            .get_function_instance_by_id(&function_instance.id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(retrieved.id, function_instance.id);
+        assert_eq!(retrieved.function_controller_type_id, function_instance.function_controller_type_id);
+
+        // Delete the function instance
+        repo.delete_function_instance(&function_instance.id)
+            .await
+            .unwrap();
+
+        // Verify it was deleted
+        let deleted = repo
+            .get_function_instance_by_id(&function_instance.id)
+            .await
+            .unwrap();
+
+        assert!(deleted.is_none());
     }
 
     #[tokio::test]
-    async fn test_create_multiple_function_instances() {
+    async fn test_create_and_get_broker_state() {
         let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
             .await
             .unwrap();
         let repo = Repository::new(conn);
 
-        // Setup: Create credentials and provider instance
-        let resource_server_cred_id = WrappedUuidV4::new();
-        let user_cred_id = WrappedUuidV4::new();
-        let metadata = Metadata::new();
+        let now = WrappedChronoDateTime::now();
 
-        let resource_server_credential = ResourceServerCredential {
-            id: resource_server_cred_id.clone(),
-            inner: ResourceServerCredentialVariant::NoAuth(NoAuthResourceServerCredential {
-                metadata: metadata.clone(),
-            }),
-            metadata: metadata.clone(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: None,
+        // Create resource server credential for broker state
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_oauth2_authorization_code_flow".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
         };
-
-        repo.create_resource_server_credential(
-            &CreateResourceServerCredential::try_from(resource_server_credential).unwrap(),
-        )
-        .await
-        .unwrap();
-
-        let user_credential = UserCredential {
-            id: user_cred_id.clone(),
-            inner: UserCredentialVariant::NoAuth(NoAuthUserCredential {
-                metadata: metadata.clone(),
-            }),
-            metadata: metadata.clone(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            run_refresh_before: None,
-        };
-
-        repo.create_user_credential(&CreateUserCredential::try_from(user_credential).unwrap())
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(resource_server_cred.clone()))
             .await
             .unwrap();
 
-        let provider_instance_id = uuid::Uuid::new_v4().to_string();
-        repo.create_provider_instance(&CreateProviderInstance {
-            id: provider_instance_id.clone(),
-            provider_id: "google_mail".to_string(),
-            resource_server_credential_id: resource_server_cred_id,
-            user_credential_id: user_cred_id,
-        })
-        .await
-        .unwrap();
+        let broker_state = BrokerState {
+            id: uuid::Uuid::new_v4().to_string(),
+            created_at: now,
+            updated_at: now,
+            resource_server_cred_id: resource_server_cred.id,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "oauth2_authorization_code_flow".to_string(),
+            metadata: Metadata::new(),
+            action: BrokerAction::Redirect {
+                url: "https://example.com/oauth/authorize".to_string(),
+            },
+        };
 
-        // Create multiple function instances
-        let function_ids = vec!["send_email", "read_email", "delete_email"];
-        for function_id in function_ids {
-            let function_instance_id = uuid::Uuid::new_v4().to_string();
-            repo.create_function_instance(&CreateFunctionInstance {
-                id: function_instance_id,
-                function_id: function_id.to_string(),
-                provider_instance_id: provider_instance_id.clone(),
-            })
+        repo.create_broker_state(&CreateBrokerState::from(broker_state.clone()))
             .await
             .unwrap();
+
+        // Verify it was created
+        let retrieved = repo
+            .get_broker_state_by_id(&broker_state.id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(retrieved.id, broker_state.id);
+        assert_eq!(retrieved.provider_controller_type_id, broker_state.provider_controller_type_id);
+        match retrieved.action {
+            BrokerAction::Redirect { url } => assert_eq!(url, "https://example.com/oauth/authorize"),
+            _ => panic!("Expected Redirect action"),
         }
     }
 
     #[tokio::test]
-    async fn test_create_credential_exchange_state() {
+    async fn test_delete_broker_state() {
         let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
             .await
             .unwrap();
         let repo = Repository::new(conn);
 
-        let state_id = uuid::Uuid::new_v4().to_string();
-        let mut state = Metadata::new();
-        state
-            .0
-            .insert("provider_id".to_string(), serde_json::json!("google_mail"));
-        state
-            .0
-            .insert("redirect_uri".to_string(), serde_json::json!("https://example.com/callback"));
+        let now = WrappedChronoDateTime::now();
 
-        let create_params = CreateCredentialExchangeState {
-            id: state_id.clone(),
-            state: state.clone(),
+        // Create resource server credential
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
         };
-
-        repo.create_credential_exchange_state(&create_params)
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(resource_server_cred.clone()))
             .await
             .unwrap();
+
+        let broker_state = BrokerState {
+            id: uuid::Uuid::new_v4().to_string(),
+            created_at: now,
+            updated_at: now,
+            resource_server_cred_id: resource_server_cred.id,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "no_auth".to_string(),
+            metadata: Metadata::new(),
+            action: BrokerAction::None,
+        };
+
+        repo.create_broker_state(&CreateBrokerState::from(broker_state.clone()))
+            .await
+            .unwrap();
+
+        // Delete the broker state
+        repo.delete_broker_state(&broker_state.id)
+            .await
+            .unwrap();
+
+        // Verify it was deleted
+        let deleted = repo
+            .get_broker_state_by_id(&broker_state.id)
+            .await
+            .unwrap();
+
+        assert!(deleted.is_none());
     }
 
     #[tokio::test]
-    async fn test_get_credential_exchange_state_by_id() {
+    async fn test_get_nonexistent_records() {
         let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
             .await
             .unwrap();
         let repo = Repository::new(conn);
 
-        // First create a credential exchange state
-        let state_id = uuid::Uuid::new_v4().to_string();
-        let mut state = Metadata::new();
-        state
-            .0
-            .insert("provider_id".to_string(), serde_json::json!("google_mail"));
-        state
-            .0
-            .insert("user_email".to_string(), serde_json::json!("test@example.com"));
-        state
-            .0
-            .insert("nonce".to_string(), serde_json::json!("random_nonce_value"));
-
-        let create_params = CreateCredentialExchangeState {
-            id: state_id.clone(),
-            state: state.clone(),
-        };
-
-        repo.create_credential_exchange_state(&create_params)
-            .await
-            .unwrap();
-
-        // Now retrieve it
-        let retrieved = repo
-            .get_credential_exchange_state_by_id(&state_id)
-            .await
-            .unwrap();
-
-        assert!(retrieved.is_some());
-        let retrieved_state = retrieved.unwrap();
-        assert_eq!(retrieved_state.id, state_id);
-        assert_eq!(
-            retrieved_state.state.0.get("provider_id"),
-            Some(&serde_json::json!("google_mail"))
-        );
-        assert_eq!(
-            retrieved_state.state.0.get("user_email"),
-            Some(&serde_json::json!("test@example.com"))
-        );
-        assert_eq!(
-            retrieved_state.state.0.get("nonce"),
-            Some(&serde_json::json!("random_nonce_value"))
-        );
-    }
-
-    #[tokio::test]
-    async fn test_get_nonexistent_credential_exchange_state() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let nonexistent_id = uuid::Uuid::new_v4().to_string();
+        // Test getting nonexistent resource server credential
         let result = repo
-            .get_credential_exchange_state_by_id(&nonexistent_id)
+            .get_resource_server_credential_by_id(&WrappedUuidV4::new())
+            .await
+            .unwrap();
+        assert!(result.is_none());
+
+        // Test getting nonexistent user credential
+        let result = repo
+            .get_user_credential_by_id(&WrappedUuidV4::new())
+            .await
+            .unwrap();
+        assert!(result.is_none());
+
+        // Test getting nonexistent provider instance
+        let result = repo
+            .get_provider_instance_by_id(&uuid::Uuid::new_v4().to_string())
+            .await
+            .unwrap();
+        assert!(result.is_none());
+
+        // Test getting nonexistent function instance
+        let result = repo
+            .get_function_instance_by_id(&uuid::Uuid::new_v4().to_string())
+            .await
+            .unwrap();
+        assert!(result.is_none());
+
+        // Test getting nonexistent broker state
+        let result = repo
+            .get_broker_state_by_id(&uuid::Uuid::new_v4().to_string())
+            .await
+            .unwrap();
+        assert!(result.is_none());
+
+        // Test getting nonexistent data encryption key
+        let result = repo
+            .get_data_encryption_key_by_id(&uuid::Uuid::new_v4().to_string())
+            .await
+            .unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_create_and_get_data_encryption_key() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let dek = DataEncryptionKey {
+            id: uuid::Uuid::new_v4().to_string(),
+            envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
+                arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012".to_string(),
+            },
+            encryption_key: crate::logic::EncryptedDataKey("encrypted_key_data".to_string()),
+            created_at: now,
+            updated_at: now,
+        };
+
+        let create_params = CreateDataEncryptionKey::from(dek.clone());
+        repo.create_data_encryption_key(&create_params)
             .await
             .unwrap();
 
-        assert!(result.is_none());
+        // Verify it was created
+        let retrieved = repo
+            .get_data_encryption_key_by_id(&dek.id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(retrieved.id, dek.id);
+        assert_eq!(retrieved.encryption_key.0, dek.encryption_key.0);
+        match retrieved.envelope_encryption_key_id {
+            crate::logic::EnvelopeEncryptionKeyId::AwsKms { arn } => {
+                assert_eq!(arn, "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012");
+            }
+        }
     }
 }

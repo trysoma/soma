@@ -24,14 +24,11 @@ sql:
             - db_type: text
               column: resource_server_credential.id
               rust_type: "shared::primitives::WrappedUuidV4"
-            - db_type: text
-              column: resource_server_credential.credential_type
-              rust_type: "crate::logic::ResourceServerCredentialType"
-            - db_type: json
-              column: resource_server_credential.credential_data
-              rust_type: "shared::primitives::WrappedJsonValue"
             - db_type: json
               column: resource_server_credential.metadata
+              rust_type: "crate::logic::Metadata"
+            - db_type: json
+              column: resource_server_credential.value
               rust_type: "shared::primitives::WrappedJsonValue"
             - db_type: datetime
               column: resource_server_credential.created_at
@@ -39,22 +36,19 @@ sql:
             - db_type: datetime
               column: resource_server_credential.updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
-            
             - db_type: datetime
-              column: user_credential.run_refresh_before
+              column: resource_server_credential.next_rotation_time
               rust_type: "shared::primitives::WrappedChronoDateTime"
+
             # user_credential table
             - db_type: text
               column: user_credential.id
               rust_type: "shared::primitives::WrappedUuidV4"
-            - db_type: text
-              column: user_credential.credential_type
-              rust_type: "crate::logic::UserCredentialType"
-            - db_type: json
-              column: user_credential.credential_data
-              rust_type: "shared::primitives::WrappedJsonValue"
             - db_type: json
               column: user_credential.metadata
+              rust_type: "crate::logic::Metadata"
+            - db_type: json
+              column: user_credential.value
               rust_type: "shared::primitives::WrappedJsonValue"
             - db_type: datetime
               column: user_credential.created_at
@@ -63,8 +57,9 @@ sql:
               column: user_credential.updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
             - db_type: datetime
-              column: user_credential.run_refresh_before
+              column: user_credential.next_rotation_time
               rust_type: "shared::primitives::WrappedChronoDateTime"
+
             # provider_instance table
             - db_type: text
               column: provider_instance.resource_server_credential_id
@@ -78,6 +73,7 @@ sql:
             - db_type: datetime
               column: provider_instance.updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
+
             # function_instance table
             - db_type: datetime
               column: function_instance.created_at
@@ -85,13 +81,34 @@ sql:
             - db_type: datetime
               column: function_instance.updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
-            # credential_exchange_state table
+
+            # broker_state table
+            - db_type: text
+              column: broker_state.resource_server_cred_id
+              rust_type: "shared::primitives::WrappedUuidV4"
             - db_type: json
-              column: credential_exchange_state.state
+              column: broker_state.metadata
               rust_type: "crate::logic::Metadata"
+            - db_type: json
+              column: broker_state.action
+              rust_type: "shared::primitives::WrappedJsonValue"
             - db_type: datetime
-              column: credential_exchange_state.created_at
+              column: broker_state.created_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
             - db_type: datetime
-              column: credential_exchange_state.updated_at
+              column: broker_state.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # data_encryption_key table
+            - db_type: json
+              column: data_encryption_key.envelope_encryption_key_id
+              rust_type: "crate::logic::EnvelopeEncryptionKeyId"
+            - db_type: text
+              column: data_encryption_key.encryption_key
+              rust_type: "crate::logic::EncryptedDataKey"
+            - db_type: datetime
+              column: data_encryption_key.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: data_encryption_key.updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
