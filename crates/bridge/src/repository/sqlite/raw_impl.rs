@@ -150,7 +150,7 @@ impl TryFrom<Row_get_data_encryption_key_by_id> for crate::logic::DataEncryption
         Ok(crate::logic::DataEncryptionKey {
             id: row.id,
             envelope_encryption_key_id: row.envelope_encryption_key_id,
-            encryption_key: row.encryption_key,
+            encrypted_data_envelope_key: row.encryption_key,
             created_at: row.created_at,
             updated_at: row.updated_at,
         })

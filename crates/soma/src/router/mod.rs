@@ -29,6 +29,7 @@ pub(crate) struct RouterParams {
     pub task_service: Arc<TaskService>,
     pub frontend_service: Arc<FrontendService>,
     pub mcp_service: McpService,
+    pub bridge_service: Arc<BridgeService>,
 }
 
 pub(crate) struct InitRouterParams {

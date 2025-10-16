@@ -9,7 +9,7 @@ use shared::{
 pub use sqlite::Repository;
 
 use crate::logic::{
-    BrokerState, DataEncryptionKey, EncryptedDataKey, EnvelopeEncryptionKeyId, Metadata,
+    BrokerState, DataEncryptionKey, EncryptedDataEnvelopeKey, EnvelopeEncryptionKeyId, Metadata,
     ResourceServerCredentialSerialized, UserCredentialSerialized,
     ProviderInstanceSerialized, FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
 };
@@ -148,7 +148,7 @@ impl From<BrokerState> for CreateBrokerState {
 pub struct CreateDataEncryptionKey {
     pub id: String,
     pub envelope_encryption_key_id: EnvelopeEncryptionKeyId,
-    pub encryption_key: EncryptedDataKey,
+    pub encryption_key: EncryptedDataEnvelopeKey,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
 }
@@ -158,7 +158,7 @@ impl From<DataEncryptionKey> for CreateDataEncryptionKey {
         CreateDataEncryptionKey {
             id: dek.id,
             envelope_encryption_key_id: dek.envelope_encryption_key_id,
-            encryption_key: dek.encryption_key,
+            encryption_key: dek.encrypted_data_envelope_key,
             created_at: dek.created_at,
             updated_at: dek.updated_at,
         }

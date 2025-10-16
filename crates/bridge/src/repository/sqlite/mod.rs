@@ -752,7 +752,7 @@ mod tests {
             envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
                 arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012".to_string(),
             },
-            encryption_key: crate::logic::EncryptedDataKey("encrypted_key_data".to_string()),
+            encrypted_data_envelope_key: crate::logic::EncryptedDataEnvelopeKey("encrypted_key_data".to_string()),
             created_at: now,
             updated_at: now,
         };
@@ -770,7 +770,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(retrieved.id, dek.id);
-        assert_eq!(retrieved.encryption_key.0, dek.encryption_key.0);
+        assert_eq!(retrieved.encrypted_data_envelope_key.0, dek.encrypted_data_envelope_key.0);
         match retrieved.envelope_encryption_key_id {
             crate::logic::EnvelopeEncryptionKeyId::AwsKms { arn } => {
                 assert_eq!(arn, "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012");

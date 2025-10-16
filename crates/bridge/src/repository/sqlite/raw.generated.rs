@@ -627,8 +627,8 @@ WHERE fi.id = ?"#).await?;
       pub envelope_encryption_key_id: &'a 
           crate::logic::EnvelopeEncryptionKeyId
       ,
-      pub encryption_key: &'a 
-          crate::logic::EncryptedDataKey
+      pub encryption_key: &'a
+          crate::logic::EncryptedDataEnvelopeKey
       ,
       pub created_at: &'a 
           shared::primitives::WrappedChronoDateTime
@@ -650,7 +650,7 @@ VALUES (?, ?, ?, ?, ?)"#, libsql::params![
               <crate::logic::EnvelopeEncryptionKeyId as TryInto<libsql::Value>>::try_into(params.envelope_encryption_key_id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <crate::logic::EncryptedDataKey as TryInto<libsql::Value>>::try_into(params.encryption_key.clone())
+              <crate::logic::EncryptedDataEnvelopeKey as TryInto<libsql::Value>>::try_into(params.encryption_key.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
@@ -672,7 +672,7 @@ VALUES (?, ?, ?, ?, ?)"#, libsql::params![
   pub struct Row_get_data_encryption_key_by_id {
       pub id:String,
       pub envelope_encryption_key_id:crate::logic::EnvelopeEncryptionKeyId,
-      pub encryption_key:crate::logic::EncryptedDataKey,
+      pub encryption_key:crate::logic::EncryptedDataEnvelopeKey,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
   }

@@ -124,6 +124,15 @@ dashmap = "6.1.0"
 tokio-util = "0.7.16"
 urlencoding = "2.1.3"
 
+## AWS SDK
+aws-config = { version = "1.5", features = ["behavior-version-latest"] }
+aws-sdk-kms = "1.52"
+
+## Cryptography
+aes-gcm = "0.10"
+rand = "0.8"
+zeroize = { version = "1.8", features = ["derive"] }
+
 
 ## internal crates
 a2a-rs = { path = "./crates/a2a-rs" }

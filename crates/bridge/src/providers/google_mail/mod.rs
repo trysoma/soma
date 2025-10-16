@@ -1,11 +1,14 @@
+use async_trait::async_trait;
 use bridge_macros::define_provider;
 use schemars::{JsonSchema, SchemaGenerator};
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
+use std::sync::Arc;
 use crate::logic::FunctionControllerLike;
 use crate::logic::*;
 use crate::providers::*;
+use crate::oauth::{OauthAuthFlowController, Oauth2JwtBearerAssertionFlowController};
 
 // define_provider!(google_mail {
 //     id: "google_mail",
@@ -166,3 +169,32 @@ use crate::providers::*;
 //         schemars::schema_for!(GoogleMailFnSendEmailOutput)
 //     }
 // }
+
+pub struct GoogleMailProviderController;
+
+#[async_trait]
+impl ProviderControllerLike for GoogleMailProviderController {
+    fn type_id(&self) ->  &'static str {
+        "google_mail"
+    }
+    
+    fn documentation(&self) ->  &'static str {
+        "Google Mail"
+    }
+    
+    fn name(&self) ->  &'static str {
+        "Google Mail"
+    }
+    
+    fn functions(&self) -> Vec<Arc<dyn FunctionControllerLike> >  {
+        vec![]
+    }
+    
+    fn credential_controllers(&self) -> Vec<Arc<dyn ProviderCredentialControllerLike> >  {
+        vec![
+            Arc::new(OauthAuthFlowController),
+            Arc::new(Oauth2JwtBearerAssertionFlowController),
+        ]
+    }
+}
+
