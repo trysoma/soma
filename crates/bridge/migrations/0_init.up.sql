@@ -1,32 +1,51 @@
-CREATE TABLE IF NOT EXISTS task (
+CREATE TABLE IF NOT EXISTS resource_server_credential (
     id TEXT PRIMARY KEY,
-    context_id TEXT NOT NULL,
-    status TEXT NOT NULL,
-    status_message_id TEXT,
-    status_timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    credential_type TEXT NOT NULL,
+    credential_data JSON NOT NULL,
     metadata JSON NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT status_check CHECK (status IN ("submitted", "working", "input-required", "completed", "canceled", "failed", "rejected", "auth-required", "unknown"))
+    run_refresh_before DATETIME,
+    
+    CONSTRAINT credential_type_check CHECK (credential_type IN ("no_auth", "oauth2_authorization_code_flow", "oauth2_jwt_bearer_assertion_flow", "custom"))
 );
 
-CREATE TABLE IF NOT EXISTS task_timeline (
+CREATE TABLE IF NOT EXISTS user_credential (
     id TEXT PRIMARY KEY,
-    task_id TEXT NOT NULL,
-    event_update_type TEXT NOT NULL,
-    event_payload JSON NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT event_update_type_check CHECK (event_update_type IN ('task-status-update', 'message'))
-);
-
-CREATE TABLE IF NOT EXISTS message (
-    id TEXT PRIMARY KEY,
-    task_id TEXT NOT NULL,
-    reference_task_ids JSON NOT NULL,
-    role TEXT NOT NULL,
+    credential_type TEXT NOT NULL,
+    credential_data JSON NOT NULL,
     metadata JSON NOT NULL,
-    parts JSON NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    run_refresh_before DATETIME,
+
+    CONSTRAINT credential_type_check CHECK (credential_type IN ("no_auth", "oauth2_authorization_code_flow", "oauth2_jwt_bearer_assertion_flow", "custom"))
+);
+
+CREATE TABLE IF NOT EXISTS provider_instance (
+    id TEXT PRIMARY KEY,
+    provider_id TEXT NOT NULL,
+    resource_server_credential_id TEXT NOT NULL,
+    user_credential_id TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT provider_id_check CHECK (provider_id IN ("google_mail"))
+);
+
+CREATE TABLE IF NOT EXISTS function_instance (
+    id TEXT PRIMARY KEY,
+    function_id TEXT NOT NULL,
+    provider_instance_id TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (provider_instance_id) REFERENCES provider_instance(id)
+);
+
+CREATE TABLE IF NOT EXISTS credential_exchange_state (
+    id TEXT PRIMARY KEY,
+    state JSON NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

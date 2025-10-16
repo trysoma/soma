@@ -3,12 +3,11 @@ use std::{fmt, str::FromStr};
 use anyhow;
 use base64::Engine;
 use libsql::FromValue;
-use schemars::JsonSchema;
+use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use utoipa::{
-    IntoParams, PartialSchema, ToSchema,
-    openapi::{ObjectBuilder, Type},
+    openapi::{schema::AdditionalProperties, ObjectBuilder, Type}, IntoParams, PartialSchema, ToSchema
 };
 
 use crate::error::CommonError;
@@ -146,6 +145,15 @@ impl libsql::FromValue for WrappedJsonValue {
             libsql::Value::Null => Err(libsql::Error::NullValue),
             _ => Err(libsql::Error::InvalidColumnType),
         }
+    }
+}
+
+
+impl TryInto<WrappedJsonValue> for Schema {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+    fn try_into(self) -> Result<WrappedJsonValue, Self::Error> {
+        let json_value = serde_json::to_value(self)?;
+        Ok(WrappedJsonValue::from(json_value))
     }
 }
 
@@ -388,5 +396,115 @@ impl<T: ToSchema + Serialize> PaginatedResponse<T> {
             items,
             next_page_token,
         }
+    }
+}
+
+
+
+#[derive(Debug, Clone,  Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+pub struct WrappedSchema(schemars::Schema);
+
+impl WrappedSchema {
+    pub fn new(value: schemars::Schema) -> Self {
+        Self(value)
+    }
+
+    pub fn into_inner(self) -> schemars::Schema {
+        self.0
+    }
+
+    pub fn get_inner(&self) -> &schemars::Schema {
+        &self.0
+    }
+}
+impl From<schemars::Schema> for WrappedSchema {
+    fn from(value: schemars::Schema) -> Self {
+        Self(value)
+    }
+}
+
+impl From<WrappedSchema> for libsql::Value {
+    fn from(value: WrappedSchema) -> Self {
+        libsql::Value::Text(serde_json::to_string(&value.0.as_value().to_string()).unwrap())
+    }
+}
+
+impl From<WrappedSchema> for schemars::Schema {
+    fn from(value: WrappedSchema) -> Self {
+        value.0
+    }
+}
+
+impl libsql::FromValue for WrappedSchema {
+    fn from_sql(val: libsql::Value) -> libsql::Result<Self>
+    where
+        Self: Sized,
+    {
+        let s = match val {
+            libsql::Value::Text(s) => s,
+            libsql::Value::Null => return Err(libsql::Error::NullValue),
+            _ => return Err(libsql::Error::InvalidColumnType),
+        };
+        let value: serde_json::Value = serde_json::from_str(&s).map_err(|_e| libsql::Error::InvalidColumnType)?;
+        let schema = schemars::Schema::try_from(value).map_err(|_e| libsql::Error::InvalidColumnType)?;
+        Ok(WrappedSchema::new(schema))
+    }
+}
+
+
+// impl TryInto<WrappedSchema> for schemars::Schema {
+//     type Error = Box<dyn std::error::Error + Send + Sync>;
+//     fn try_into(self) -> Result<WrappedSchema, Self::Error> {
+//         Ok(WrappedSchema::new(self))
+//     }
+// }
+
+impl TryFrom<libsql::Value> for WrappedSchema {
+    type Error = CommonError;
+
+    fn try_from(val: libsql::Value) -> Result<Self, Self::Error> {
+        let s = match val {
+            libsql::Value::Text(s) => s,
+            libsql::Value::Null => return Err(CommonError::InvalidRequest {
+                msg: "null value".to_string(),
+                source: None,
+            }),
+            _ => return Err(CommonError::InvalidRequest {
+                msg: "invalid value type".to_string(),
+                source: None,
+            }),
+        };
+        let value: serde_json::Value = serde_json::from_str(&s).map_err(|e| CommonError::InvalidRequest {
+            msg: format!("invalid json value: {e}"),
+            source: None,
+        })?;
+        let schema = schemars::Schema::try_from(value).map_err(|e| CommonError::InvalidRequest {
+            msg: format!("invalid schema value: {e}"),
+            source: None,
+        })?;
+        Ok(WrappedSchema::new(schema))
+        
+    }
+}
+
+impl ToSchema for WrappedSchema {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned("JsonSchema".to_string())
+    }
+
+    fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+        schemas.push((Self::name().to_string(), Self::schema()));
+    }
+}
+
+impl PartialSchema for WrappedSchema {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        utoipa::openapi::RefOr::T(utoipa::openapi::schema::Schema::Object(
+            ObjectBuilder::new()
+                .schema_type(Type::Object)
+                .additional_properties(Some(AdditionalProperties::FreeForm(true)))
+                .build()
+        ))
     }
 }

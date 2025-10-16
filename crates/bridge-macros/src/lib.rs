@@ -1,11 +1,11 @@
+use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
-use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use syn::{
     braced, bracketed,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    token, Ident, LitStr, Token, Expr, ExprStruct,
+    token, Expr, ExprStruct, Ident, LitStr, Token,
 };
 
 // -----------------------------------------------------------------------------
@@ -23,6 +23,7 @@ struct ProviderBody {
     docs: LitStr,
     flows: Vec<FlowDef>,
     default_scopes: Vec<LitStr>,
+    functions: Vec<Expr>,
 }
 
 struct FlowDef {
@@ -42,22 +43,26 @@ impl Parse for DefineProviderInput {
 
 impl Parse for ProviderBody {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        input.parse::<Ident>()?; // id
+        // id
+        input.parse::<Ident>()?;
         input.parse::<Token![:]>()?;
         let id: LitStr = input.parse()?;
         input.parse::<Token![,]>()?;
 
-        input.parse::<Ident>()?; // name
+        // name
+        input.parse::<Ident>()?;
         input.parse::<Token![:]>()?;
         let name: LitStr = input.parse()?;
         input.parse::<Token![,]>()?;
 
-        input.parse::<Ident>()?; // docs
+        // docs
+        input.parse::<Ident>()?;
         input.parse::<Token![:]>()?;
         let docs: LitStr = input.parse()?;
         input.parse::<Token![,]>()?;
 
-        input.parse::<Ident>()?; // flows
+        // flows
+        input.parse::<Ident>()?;
         input.parse::<Token![:]>()?;
         let flow_outer;
         bracketed!(flow_outer in input);
@@ -66,14 +71,37 @@ impl Parse for ProviderBody {
             .collect::<Vec<_>>();
         input.parse::<Token![,]>()?;
 
-        input.parse::<Ident>()?; // default_scopes
+        // default_scopes
+        input.parse::<Ident>()?;
         input.parse::<Token![:]>()?;
         let scopes_inner;
         bracketed!(scopes_inner in input);
         let default_scopes = Punctuated::<LitStr, Token![,]>::parse_terminated(&scopes_inner)?
             .into_iter()
             .collect::<Vec<_>>();
+
+        // optional comma
         input.parse::<Token![,]>().ok();
+
+        // functions (optional)
+        let mut functions: Vec<Expr> = vec![];
+        if input.peek(Ident) {
+            let key: Ident = input.parse()?;
+            if key == "functions" {
+                input.parse::<Token![:]>()?;
+                let fn_inner;
+                bracketed!(fn_inner in input);
+                functions = Punctuated::<Expr, Token![,]>::parse_terminated(&fn_inner)?
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                input.parse::<Token![,]>().ok();
+            } else {
+                return Err(syn::Error::new_spanned(
+                    key,
+                    "expected `functions:` key",
+                ));
+            }
+        }
 
         Ok(Self {
             id,
@@ -81,19 +109,19 @@ impl Parse for ProviderBody {
             docs,
             flows,
             default_scopes,
+            functions,
         })
     }
 }
+
 impl Parse for FlowDef {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let flow_outer;
         braced!(flow_outer in input);
 
-        // Parse flow name: e.g. Oauth2AuthorizationCodeFlow:
         let flow_name: Ident = flow_outer.parse()?;
         flow_outer.parse::<Token![:]>()?;
 
-        // Inner flow body: { static_credentials: SomeType { ... } }
         let flow_body;
         braced!(flow_body in flow_outer);
 
@@ -102,12 +130,9 @@ impl Parse for FlowDef {
         while !flow_body.is_empty() {
             let key: Ident = flow_body.parse()?;
             flow_body.parse::<Token![:]>()?;
-
             match key.to_string().as_str() {
                 "static_credentials" => {
-                    // Parse as any expression (struct literal is an ExprStruct)
                     let expr: Expr = if flow_body.peek(Ident) && flow_body.peek2(token::Brace) {
-                        // explicitly parse a struct literal expression
                         Expr::Struct(flow_body.parse::<ExprStruct>()?)
                     } else {
                         flow_body.parse()?
@@ -117,12 +142,10 @@ impl Parse for FlowDef {
                 _ => {
                     return Err(syn::Error::new_spanned(
                         key,
-                        "Unknown key in flow block (expected: static_credentials: ...)",
+                        "unknown key (expected `static_credentials:`)",
                     ));
                 }
             }
-
-            // Optional trailing comma after key-value pair
             if flow_body.peek(Token![,]) {
                 flow_body.parse::<Token![,]>()?;
             }
@@ -141,7 +164,8 @@ impl Parse for FlowDef {
 
 #[proc_macro]
 pub fn define_provider(input: TokenStream) -> TokenStream {
-    let DefineProviderInput { provider_id, body } = syn::parse_macro_input!(input as DefineProviderInput);
+    let DefineProviderInput { provider_id, body } =
+        syn::parse_macro_input!(input as DefineProviderInput);
 
     let ProviderBody {
         id,
@@ -149,6 +173,7 @@ pub fn define_provider(input: TokenStream) -> TokenStream {
         docs,
         flows,
         default_scopes,
+        functions,
     } = body;
 
     let controller_ident = format_ident!("{}Controller", pascal(&provider_id));
@@ -157,10 +182,10 @@ pub fn define_provider(input: TokenStream) -> TokenStream {
 
     let flow_names: Vec<_> = flows.iter().map(|f| &f.flow_name).collect();
 
-    // default scopes vec
+    // Default scopes
     let scope_vec = default_scopes.iter().map(|s| quote! { #s.to_string() });
 
-    // Match arms for save_resource_server_credential and save_user_credential
+    // save_* match arms
     let match_arms_resource = flow_names.iter().map(|f| quote! {
         ResourceServerCredentialVariant::#f(_) => (),
     });
@@ -168,7 +193,7 @@ pub fn define_provider(input: TokenStream) -> TokenStream {
         UserCredentialVariant::#f(_) => (),
     });
 
-    // Match arms for get_static_credentials
+    // get_static_credentials match arms
     let static_match_arms = flows.iter().map(|f| {
         let flow = &f.flow_name;
         if let Some(static_expr) = &f.static_credentials {
@@ -202,23 +227,49 @@ pub fn define_provider(input: TokenStream) -> TokenStream {
         quote! { #flow(#full), }
     });
 
+    // configuration_schema inserts
+    let config_schema_inserts = flow_names.iter().map(|f| {
+        let flow_str = f.to_string().to_case(Case::Snake);
+        let resource_server_ty = format_ident!("{}ResourceServerCredential", f);
+        let user_credential_ty = format_ident!("{}UserCredential", f);
+        quote! {
+            map.insert(
+                #flow_str.to_string(),
+                ConfigurationSchemaItem {
+                    resource_server: schemars::schema_for!(#resource_server_ty),
+                    user_credential: schemars::schema_for!(#user_credential_ty),
+                }
+            );
+        }
+    });
+
+    // functions vec
+    let functions_vec = functions.iter().map(|f| {
+        quote! { #f }
+    });
+    let provider_controller_variant_ident = format_ident!("{}", pascal(&provider_id));
 
     let expanded = quote! {
-        use serde::{Serialize, Deserialize};
-        use crate::logic::*;
-        use shared::{error::CommonError, primitives::{WrappedChronoDateTime, WrappedUuidV4}};
-    
+        
+
         pub struct #controller_ident;
-    
+
+        pub static INSTANCE: crate::providers::ProviderController =
+            crate::providers::ProviderController::#provider_controller_variant_ident(#controller_ident);
+
+        #[ctor::ctor]
+        fn register() {
+            crate::providers::PROVIDER_REGISTRY.write().unwrap().push(&INSTANCE);
+        }
+
         impl ProviderControllerLike for #controller_ident {
-            type ProviderInstance = #instance_ident;
-    
+
             async fn save_resource_server_credential(
                 input: ResourceServerCredentialVariant,
-            ) -> Result<ResourceServerCredential, CommonError> {
+            ) -> Result<ResourceServerCredential, shared::error::CommonError> {
                 match input {
                     #(#match_arms_resource)*
-                    _ => return Err(CommonError::InvalidRequest {
+                    _ => return Err(shared::error::CommonError::InvalidRequest {
                         msg: concat!("Unsupported credential type for ", stringify!(#provider_id)).into(),
                         source: None,
                     }),
@@ -229,15 +280,16 @@ pub fn define_provider(input: TokenStream) -> TokenStream {
                     updated_at: WrappedChronoDateTime::now(),
                     inner: input,
                     metadata: Metadata::new(),
+                    run_refresh_before: None,
                 })
             }
-    
+
             async fn save_user_credential(
                 input: UserCredentialVariant,
-            ) -> Result<UserCredential, CommonError> {
+            ) -> Result<UserCredential, shared::error::CommonError> {
                 match input {
                     #(#match_arms_user)*
-                    _ => return Err(CommonError::InvalidRequest {
+                    _ => return Err(shared::error::CommonError::InvalidRequest {
                         msg: concat!("Unsupported user credential type for ", stringify!(#provider_id)).into(),
                         source: None,
                     }),
@@ -248,33 +300,44 @@ pub fn define_provider(input: TokenStream) -> TokenStream {
                     updated_at: WrappedChronoDateTime::now(),
                     inner: input,
                     metadata: Metadata::new(),
+                    run_refresh_before: None,
                 })
             }
-    
+
             async fn get_static_credentials(
                 variant: StaticCredentialConfigurationType,
-            ) -> Result<StaticCredentialConfiguration, CommonError> {
+            ) -> Result<StaticCredentialConfiguration, shared::error::CommonError> {
                 match variant {
                     #(#static_match_arms)*
-                    _ => Err(CommonError::InvalidRequest {
+                    _ => Err(shared::error::CommonError::InvalidRequest {
                         msg: concat!("No static credentials configured for ", stringify!(#provider_id)).into(),
                         source: None,
                     }),
                 }
             }
-    
+
             fn id() -> String { #id.to_string() }
             fn name() -> String { #name.to_string() }
-            fn documentation_url() -> String { #docs.to_string() }
+            fn documentation() -> String { #docs.to_string() }
+
+            fn configuration_schema() -> ConfigurationSchema {
+                let mut map = std::collections::HashMap::new();
+                #(#config_schema_inserts)*
+                ConfigurationSchema(map)
+            }
+
+            fn functions() -> Vec<FunctionController> {
+                vec![ #(#functions_vec),* ]
+            }
         }
-    
-        #[derive(Serialize, Deserialize)]
+
+        #[derive(serde::Serialize, serde::Deserialize)]
         #[serde(tag = "type", rename_all = "snake_case")]
         pub enum #variant_ident {
             #(#enum_variants)*
         }
 
-        #[derive(Serialize, Deserialize)]
+        #[derive(serde::Serialize, serde::Deserialize)]
         #[serde(transparent)]
         pub struct #instance_ident(pub #variant_ident);
     };
