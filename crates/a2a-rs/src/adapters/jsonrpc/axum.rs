@@ -13,12 +13,12 @@ use axum::{
     response::sse::{Event, Sse},
 };
 use http::{HeaderMap, Uri};
-use shared::adapters::openapi::JsonResponse;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio_stream::StreamExt as TokioStreamExt;
 use tracing::{error, info};
 use utoipa_axum::{router::OpenApiRouter, routes};
+use super::utils::JsonResponse;
 
 pub fn create_router<S: A2aServiceLike + Send + Sync + 'static>() -> OpenApiRouter<Arc<S>> {
     OpenApiRouter::new()
@@ -51,8 +51,8 @@ async fn agent_card<S: A2aServiceLike + Send + Sync + 'static>(
 ) -> JsonResponse<AgentCard, A2aServerError> {
     info!("Received agent card request");
     let request_context = require_request_context!(uri, headers);
-    let res = ctx.agent_card(request_context);
-    JsonResponse::from(Ok(res.clone()))
+    let res =  ctx.agent_card(request_context).await;
+    JsonResponse::from(res)
 }
 
 #[utoipa::path(
@@ -69,7 +69,12 @@ async fn extended_agent_card<S: A2aServiceLike + Send + Sync + 'static>(
     headers: HeaderMap,
 ) -> impl IntoResponse {
     let request_context = require_request_context!(uri, headers);
-    let res = ctx.extended_agent_card(request_context);
+    let res = match ctx
+        .extended_agent_card(request_context)
+        .await {
+            Ok(x)=> x,
+            Err(e)=> return (http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        };
     match res.as_ref() {
         Some(card) => (http::StatusCode::OK, Json(card.clone())).into_response(),
         None => (http::StatusCode::NOT_FOUND).into_response(),

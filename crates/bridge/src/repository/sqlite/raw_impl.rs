@@ -28,6 +28,7 @@ impl TryFrom<Row_get_resource_server_credential_by_id> for ResourceServerCredent
             created_at: row.created_at,
             updated_at: row.updated_at,
             next_rotation_time: row.next_rotation_time,
+            data_encryption_key_id: row.data_encryption_key_id,
         })
     }
 }
@@ -43,6 +44,7 @@ impl TryFrom<Row_get_user_credential_by_id> for UserCredentialSerialized {
             created_at: row.created_at,
             updated_at: row.updated_at,
             next_rotation_time: row.next_rotation_time,
+            data_encryption_key_id: row.data_encryption_key_id,
         })
     }
 }
@@ -52,6 +54,7 @@ impl TryFrom<Row_get_provider_instance_by_id> for ProviderInstanceSerialized {
     fn try_from(row: Row_get_provider_instance_by_id) -> Result<Self, Self::Error> {
         Ok(ProviderInstanceSerialized {
             id: row.id,
+            display_name: row.display_name,
             resource_server_credential_id: row.resource_server_credential_id,
             user_credential_id: row.user_credential_id,
             created_at: row.created_at,
@@ -105,6 +108,7 @@ impl TryFrom<Row_get_function_instance_with_credentials> for FunctionInstanceSer
             },
             provider_instance: ProviderInstanceSerialized {
                 id: row.provider_instance_id,
+                display_name: row.provider_instance_display_name,
                 resource_server_credential_id: row.provider_instance_resource_server_credential_id.clone(),
                 user_credential_id: row.provider_instance_user_credential_id.clone(),
                 created_at: row.provider_instance_created_at,
@@ -120,6 +124,7 @@ impl TryFrom<Row_get_function_instance_with_credentials> for FunctionInstanceSer
                 created_at: row.resource_server_credential_created_at,
                 updated_at: row.resource_server_credential_updated_at,
                 next_rotation_time: row.resource_server_credential_next_rotation_time,
+                data_encryption_key_id: row.resource_server_credential_data_encryption_key_id,
             },
             user_credential: UserCredentialSerialized {
                 id: row.user_credential_id,
@@ -129,16 +134,7 @@ impl TryFrom<Row_get_function_instance_with_credentials> for FunctionInstanceSer
                 created_at: row.user_credential_created_at,
                 updated_at: row.user_credential_updated_at,
                 next_rotation_time: row.user_credential_next_rotation_time,
-            },
-            static_credential: crate::logic::StaticCredentialSerialized {
-                // Static credentials are not stored in the database, they're derived from the provider controller
-                // This will need to be populated by the repository implementation
-                id: "static".to_string(),
-                type_id: "static_no_auth".to_string(),
-                metadata: crate::logic::Metadata::new(),
-                value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
-                created_at: row.function_instance_created_at,
-                updated_at: row.function_instance_updated_at,
+                data_encryption_key_id: row.user_credential_data_encryption_key_id,
             },
         })
     }
@@ -150,7 +146,7 @@ impl TryFrom<Row_get_data_encryption_key_by_id> for crate::logic::DataEncryption
         Ok(crate::logic::DataEncryptionKey {
             id: row.id,
             envelope_encryption_key_id: row.envelope_encryption_key_id,
-            encrypted_data_envelope_key: row.encryption_key,
+            encrypted_data_encryption_key: row.encryption_key,
             created_at: row.created_at,
             updated_at: row.updated_at,
         })

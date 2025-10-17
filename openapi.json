@@ -98,16 +98,871 @@
         }
       }
     },
-    "/api/a2a/v1/config": {
+    "/api/a2a/v1/definition": {
       "get": {
-        "operationId": "get-agent-config",
+        "operationId": "get-agent-definition",
         "responses": {
           "200": {
-            "description": "Agent config",
+            "description": "Agent definition",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SomaConfig"
+                  "$ref": "#/components/schemas/SomaAgentDefinition"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/available-providers": {
+      "get": {
+        "operationId": "list-available-providers",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List available providers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderControllerSerializedPaginatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}": {
+      "post": {
+        "operationId": "create-provider-instance",
+        "parameters": [
+          {
+            "name": "provider_controller_type_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "credential_controller_type_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProviderInstanceParamsInner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Create provider instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderInstanceSerialized"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server": {
+      "post": {
+        "operationId": "create-resource-server-credential",
+        "parameters": [
+          {
+            "name": "provider_controller_type_id",
+            "in": "path",
+            "description": "Provider controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "credential_controller_type_id",
+            "in": "path",
+            "description": "Credential controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateResourceServerCredentialParamsInner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Create resource server credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceServerCredentialSerialized"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt": {
+      "post": {
+        "operationId": "encrypt-resource-server-configuration",
+        "parameters": [
+          {
+            "name": "provider_controller_type_id",
+            "in": "path",
+            "description": "Provider controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "credential_controller_type_id",
+            "in": "path",
+            "description": "Credential controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptCredentialConfigurationParamsInner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Encrypt provider configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WrappedJsonValue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential": {
+      "post": {
+        "operationId": "create-user-credential",
+        "parameters": [
+          {
+            "name": "provider_controller_type_id",
+            "in": "path",
+            "description": "Provider controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "credential_controller_type_id",
+            "in": "path",
+            "description": "Credential controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserCredentialParamsInner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Create user credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCredentialSerialized"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker": {
+      "post": {
+        "operationId": "start-user-credential-brokering",
+        "parameters": [
+          {
+            "name": "provider_controller_type_id",
+            "in": "path",
+            "description": "Provider controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "credential_controller_type_id",
+            "in": "path",
+            "description": "Credential controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartUserCredentialBrokeringParamsInner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Start user credential brokering",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCredentialBrokeringResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt": {
+      "post": {
+        "operationId": "encrypt-user-credential-configuration",
+        "parameters": [
+          {
+            "name": "provider_controller_type_id",
+            "in": "path",
+            "description": "Provider controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "credential_controller_type_id",
+            "in": "path",
+            "description": "Credential controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptCredentialConfigurationParamsInner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Encrypt user credential configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WrappedJsonValue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/encryption/data-encryption-key": {
+      "get": {
+        "operationId": "list-data-encryption-keys",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List data encryption keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEncryptionKeyListItemPaginatedResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "create-data-encryption-key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDataEncryptionKeyParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Create data encryption key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEncryptionKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/generic-oauth-callback": {
+      "get": {
+        "operationId": "resume-user-credential-brokering",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "description": "OAuth state parameter",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "description": "OAuth authorization code",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "description": "OAuth error code",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error_description",
+            "in": "query",
+            "description": "OAuth error description",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Generic OAuth callback",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserCredentialBrokeringResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/provider/{provider_instance_id}": {
+      "delete": {
+        "operationId": "delete-provider-instance",
+        "parameters": [
+          {
+            "name": "provider_instance_id",
+            "in": "path",
+            "description": "Provider instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delete provider instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "default": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/provider/{provider_instance_id}/available-functions/{function_controller_type_id}/enable": {
+      "post": {
+        "operationId": "enable-function",
+        "parameters": [
+          {
+            "name": "provider_instance_id",
+            "in": "path",
+            "description": "Provider instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "function_controller_type_id",
+            "in": "path",
+            "description": "Function controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnableFunctionParamsInner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Enable function",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionInstanceSerialized"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/disable": {
+      "post": {
+        "operationId": "disable-function",
+        "parameters": [
+          {
+            "name": "provider_instance_id",
+            "in": "path",
+            "description": "Provider instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "function_instance_id",
+            "in": "path",
+            "description": "Function instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disable function",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TupleUnit"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/invoke": {
+      "post": {
+        "operationId": "invoke-function",
+        "parameters": [
+          {
+            "name": "provider_instance_id",
+            "in": "path",
+            "description": "Provider instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "function_instance_id",
+            "in": "path",
+            "description": "Function instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvokeFunctionParamsInner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Invoke function",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WrappedJsonValue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -816,6 +1671,109 @@
       "AgentCard": {
         "type": "object"
       },
+      "BridgeConfig": {
+        "type": "object",
+        "required": [
+          "encryption"
+        ],
+        "properties": {
+          "encryption": {
+            "$ref": "#/components/schemas/BridgeEncryptionConfig"
+          }
+        }
+      },
+      "BridgeEncryptionConfig": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/EncryptionConfiguration"
+        },
+        "propertyNames": {
+          "type": "string"
+        }
+      },
+      "BrokerAction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Redirect"
+            ],
+            "properties": {
+              "Redirect": {
+                "type": "object",
+                "required": [
+                  "url"
+                ],
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "None"
+            ]
+          }
+        ]
+      },
+      "BrokerState": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "resource_server_cred_id",
+          "provider_controller_type_id",
+          "credential_controller_type_id",
+          "metadata",
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/BrokerAction"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "credential_controller_type_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          },
+          "provider_controller_type_id": {
+            "type": "string"
+          },
+          "resource_server_cred_id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
+      "ConfigurationSchema": {
+        "type": "object",
+        "required": [
+          "resource_server",
+          "user_credential"
+        ],
+        "properties": {
+          "resource_server": {
+            "$ref": "#/components/schemas/JsonSchema"
+          },
+          "user_credential": {
+            "$ref": "#/components/schemas/JsonSchema"
+          }
+        }
+      },
       "ContextInfo": {
         "type": "object",
         "required": [
@@ -846,6 +1804,27 @@
           },
           "next_page_token": {
             "type": "string"
+          }
+        }
+      },
+      "CreateDataEncryptionKeyParams": {
+        "type": "object",
+        "properties": {
+          "encrypted_data_envelope_key": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EncryptedDataEncryptionKey"
+              }
+            ]
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -893,6 +1872,233 @@
           }
         }
       },
+      "CreateProviderInstanceParamsInner": {
+        "type": "object",
+        "required": [
+          "resource_server_credential_id",
+          "user_credential_id",
+          "display_name"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string"
+          },
+          "provider_instance_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resource_server_credential_id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          },
+          "user_credential_id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          }
+        }
+      },
+      "CreateResourceServerCredentialParamsInner": {
+        "type": "object",
+        "required": [
+          "resource_server_configuration",
+          "data_encryption_key_id"
+        ],
+        "properties": {
+          "data_encryption_key_id": {
+            "type": "string"
+          },
+          "metadata": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Metadata"
+              }
+            ]
+          },
+          "resource_server_configuration": {
+            "$ref": "#/components/schemas/WrappedJsonValue"
+          }
+        }
+      },
+      "CreateUserCredentialParamsInner": {
+        "type": "object",
+        "required": [
+          "user_credential_configuration",
+          "data_encryption_key_id"
+        ],
+        "properties": {
+          "data_encryption_key_id": {
+            "type": "string"
+          },
+          "metadata": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Metadata"
+              }
+            ]
+          },
+          "user_credential_configuration": {
+            "$ref": "#/components/schemas/WrappedJsonValue"
+          }
+        }
+      },
+      "DataEncryptionKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "envelope_encryption_key_id",
+          "encrypted_data_encryption_key",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "encrypted_data_encryption_key": {
+            "$ref": "#/components/schemas/EncryptedDataEncryptionKey"
+          },
+          "envelope_encryption_key_id": {
+            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+          },
+          "id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
+      "DataEncryptionKeyListItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "envelope_encryption_key_id",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "envelope_encryption_key_id": {
+            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+          },
+          "id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
+      "DataEncryptionKeyListItemPaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "next_page_token"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataEncryptionKeyListItem"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
+      "EnableFunctionParamsInner": {
+        "type": "object",
+        "properties": {
+          "function_instance_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "EncryptCredentialConfigurationParamsInner": {
+        "type": "object",
+        "required": [
+          "value",
+          "data_encryption_key_id"
+        ],
+        "properties": {
+          "data_encryption_key_id": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/WrappedJsonValue"
+          }
+        }
+      },
+      "EncryptedDataEncryptionKey": {
+        "type": "string"
+      },
+      "EncryptionConfiguration": {
+        "type": "object",
+        "required": [
+          "encryptedDataEncryptionKey",
+          "envelopeEncryptionKeyId"
+        ],
+        "properties": {
+          "encryptedDataEncryptionKey": {
+            "type": "string"
+          },
+          "envelopeEncryptionKeyId": {
+            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+          }
+        }
+      },
+      "EnvelopeEncryptionKeyId": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "arn",
+              "type"
+            ],
+            "properties": {
+              "arn": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "aws_kms"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "key_id",
+              "type"
+            ],
+            "properties": {
+              "key_id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "local"
+                ]
+              }
+            }
+          }
+        ]
+      },
       "Error": {
         "type": "object",
         "required": [
@@ -904,6 +2110,82 @@
             "type": "string"
           }
         }
+      },
+      "FunctionControllerSerialized": {
+        "type": "object",
+        "required": [
+          "type_id",
+          "name",
+          "documentation",
+          "parameters",
+          "output",
+          "categories"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "documentation": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "output": {
+            "$ref": "#/components/schemas/JsonSchema"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/JsonSchema"
+          },
+          "type_id": {
+            "type": "string"
+          }
+        }
+      },
+      "FunctionInstanceSerialized": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "provider_instance_id",
+          "function_controller_type_id"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "function_controller_type_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "provider_instance_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
+      "InvokeFunctionParamsInner": {
+        "type": "object",
+        "required": [
+          "params"
+        ],
+        "properties": {
+          "params": {
+            "$ref": "#/components/schemas/WrappedJsonValue"
+          }
+        }
+      },
+      "JsonSchema": {
+        "type": "object",
+        "additionalProperties": true
       },
       "JsonrpcRequest": {
         "type": "object"
@@ -999,10 +2281,187 @@
           "type": "string"
         }
       },
+      "ProviderControllerSerialized": {
+        "type": "object",
+        "required": [
+          "type_id",
+          "name",
+          "categories",
+          "documentation",
+          "functions",
+          "credential_controllers"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "credential_controllers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderCredentialControllerSerialized"
+            }
+          },
+          "documentation": {
+            "type": "string"
+          },
+          "functions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FunctionControllerSerialized"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "type_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ProviderControllerSerializedPaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "next_page_token"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderControllerSerialized"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
+      "ProviderCredentialControllerSerialized": {
+        "type": "object",
+        "required": [
+          "type_id",
+          "configuration_schema",
+          "name",
+          "documentation",
+          "requires_brokering",
+          "requires_resource_server_credential_refreshing",
+          "requires_user_credential_refreshing"
+        ],
+        "properties": {
+          "configuration_schema": {
+            "$ref": "#/components/schemas/ConfigurationSchema"
+          },
+          "documentation": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "requires_brokering": {
+            "type": "boolean"
+          },
+          "requires_resource_server_credential_refreshing": {
+            "type": "boolean"
+          },
+          "requires_user_credential_refreshing": {
+            "type": "boolean"
+          },
+          "type_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ProviderInstanceSerialized": {
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "resource_server_credential_id",
+          "user_credential_id",
+          "created_at",
+          "updated_at",
+          "provider_controller_type_id",
+          "credential_controller_type_id"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "credential_controller_type_id": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "provider_controller_type_id": {
+            "type": "string"
+          },
+          "resource_server_credential_id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "user_credential_id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          }
+        }
+      },
+      "ResourceServerCredentialSerialized": {
+        "type": "object",
+        "required": [
+          "id",
+          "type_id",
+          "metadata",
+          "value",
+          "created_at",
+          "updated_at",
+          "data_encryption_key_id"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "data_encryption_key_id": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          },
+          "next_rotation_time": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WrappedChronoDateTime"
+              }
+            ]
+          },
+          "type_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "value": {
+            "$ref": "#/components/schemas/WrappedJsonValue"
+          }
+        }
+      },
       "RuntimeConfig": {
         "type": "object"
       },
-      "SomaConfig": {
+      "SomaAgentDefinition": {
         "type": "object",
         "required": [
           "project",
@@ -1015,6 +2474,16 @@
           "agent": {
             "type": "string"
           },
+          "bridge": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BridgeConfig"
+              }
+            ]
+          },
           "description": {
             "type": "string"
           },
@@ -1026,6 +2495,17 @@
           },
           "version": {
             "type": "string"
+          }
+        }
+      },
+      "StartUserCredentialBrokeringParamsInner": {
+        "type": "object",
+        "required": [
+          "resource_server_cred_id"
+        ],
+        "properties": {
+          "resource_server_cred_id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
           }
         }
       },
@@ -1287,6 +2767,97 @@
           }
         }
       },
+      "UserCredentialBrokeringResponse": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrokerState"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "broker_state"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserCredentialSerialized"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "user_credential"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "UserCredentialSerialized": {
+        "type": "object",
+        "required": [
+          "id",
+          "type_id",
+          "metadata",
+          "value",
+          "created_at",
+          "updated_at",
+          "data_encryption_key_id"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "data_encryption_key_id": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          },
+          "next_rotation_time": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WrappedChronoDateTime"
+              }
+            ]
+          },
+          "type_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "value": {
+            "$ref": "#/components/schemas/WrappedJsonValue"
+          }
+        }
+      },
       "WrappedChronoDateTime": {
         "type": "string",
         "format": "date-time"
@@ -1294,6 +2865,7 @@
       "WrappedClientJsonRpcMessage": {
         "type": "object"
       },
+      "WrappedJsonValue": {},
       "WrappedUuidV4": {
         "type": "string",
         "format": "uuid"

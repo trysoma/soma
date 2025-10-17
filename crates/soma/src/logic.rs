@@ -703,7 +703,10 @@ mod tests {
 
     // Test helper to create a test repository
     async fn setup_test_repo() -> Repository {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+        let (_db, conn) = setup_in_memory_database(vec![
+            Repository::load_sql_migrations(),
+            bridge::repository::Repository::load_sql_migrations(),
+        ])
             .await
             .unwrap();
         Repository::new(conn)

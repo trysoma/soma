@@ -141,7 +141,7 @@ shared-macros = { path = "./crates/shared-macros" }
 soma = { path = "./crates/soma" }
 bridge = { path = "./crates/bridge" }
 bridge-macros = { path = "./crates/bridge-macros" }
-
+soma-api-client = { path = "./crates/soma-api-client" }
 
 [profile.release]
 opt-level = 3

@@ -1,29 +1,32 @@
 -- name: create_resource_server_credential :exec
-INSERT INTO resource_server_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO resource_server_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: get_resource_server_credential_by_id :one
-SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time
+SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
 FROM resource_server_credential
 WHERE id = ?;
 
 -- name: create_user_credential :exec
-INSERT INTO user_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO user_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: get_user_credential_by_id :one
-SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time
+SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
 FROM user_credential
 WHERE id = ?;
 
 -- name: create_provider_instance :exec
-INSERT INTO provider_instance (id, resource_server_credential_id, user_credential_id, created_at, updated_at, provider_controller_type_id, credential_controller_type_id)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO provider_instance (id, display_name, resource_server_credential_id, user_credential_id, created_at, updated_at, provider_controller_type_id, credential_controller_type_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: get_provider_instance_by_id :one
-SELECT id, resource_server_credential_id, user_credential_id, created_at, updated_at, provider_controller_type_id, credential_controller_type_id
+SELECT id, display_name, resource_server_credential_id, user_credential_id, created_at, updated_at, provider_controller_type_id, credential_controller_type_id
 FROM provider_instance
 WHERE id = ?;
+
+-- name: delete_provider_instance :exec
+DELETE FROM provider_instance WHERE id = ?;
 
 -- name: create_function_instance :exec
 INSERT INTO function_instance (id, created_at, updated_at, provider_instance_id, function_controller_type_id)
@@ -57,6 +60,7 @@ SELECT
     fi.provider_instance_id as function_instance_provider_instance_id,
     fi.function_controller_type_id,
     pi.id as provider_instance_id,
+    pi.display_name as provider_instance_display_name,
     pi.resource_server_credential_id as provider_instance_resource_server_credential_id,
     pi.user_credential_id as provider_instance_user_credential_id,
     pi.created_at as provider_instance_created_at,
@@ -70,13 +74,15 @@ SELECT
     rsc.created_at as resource_server_credential_created_at,
     rsc.updated_at as resource_server_credential_updated_at,
     rsc.next_rotation_time as resource_server_credential_next_rotation_time,
+    rsc.data_encryption_key_id as resource_server_credential_data_encryption_key_id,
     uc.id as user_credential_id,
     uc.type_id as user_credential_type_id,
     uc.metadata as user_credential_metadata,
     uc.value as user_credential_value,
     uc.created_at as user_credential_created_at,
     uc.updated_at as user_credential_updated_at,
-    uc.next_rotation_time as user_credential_next_rotation_time
+    uc.next_rotation_time as user_credential_next_rotation_time,
+    uc.data_encryption_key_id as user_credential_data_encryption_key_id
 FROM function_instance fi
 JOIN provider_instance pi ON fi.provider_instance_id = pi.id
 JOIN resource_server_credential rsc ON pi.resource_server_credential_id = rsc.id
@@ -91,3 +97,12 @@ VALUES (?, ?, ?, ?, ?);
 SELECT id, envelope_encryption_key_id, encryption_key, created_at, updated_at
 FROM data_encryption_key
 WHERE id = ?;
+
+-- name: delete_data_encryption_key :exec
+DELETE FROM data_encryption_key WHERE id = ?;
+
+-- name: get_data_encryption_keys :many
+SELECT id, envelope_encryption_key_id, created_at, updated_at
+FROM data_encryption_key WHERE (created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
+ORDER BY created_at DESC
+LIMIT CAST(sqlc.arg(page_size) AS INTEGER) + 1;

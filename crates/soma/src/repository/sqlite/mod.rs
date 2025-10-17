@@ -17,6 +17,7 @@ use shared::{
     },
 };
 use std::collections::BTreeMap;
+use shared_macros::load_sql_migrations;
 
 #[derive(Clone)]
 pub struct Repository {
@@ -398,22 +399,7 @@ impl TaskRepositoryLike for Repository {
 
 impl SqlMigrationLoader for Repository {
     fn load_sql_migrations() -> BTreeMap<&'static str, BTreeMap<&'static str, &'static str>> {
-        let mut all_migrations = BTreeMap::new();
-        let mut sqlite_migrations = BTreeMap::new();
-
-        // 0_init migration
-        sqlite_migrations.insert(
-            "0_init.up.sql",
-            include_str!("../../../migrations/0_init.up.sql"),
-        );
-        sqlite_migrations.insert(
-            "0_init.down.sql",
-            include_str!("../../../migrations/0_init.down.sql"),
-        );
-
-        all_migrations.insert("sqlite", sqlite_migrations);
-
-        all_migrations
+        load_sql_migrations!("migrations")
     }
 }
 

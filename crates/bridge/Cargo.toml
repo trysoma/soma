@@ -35,3 +35,9 @@ utoipa-axum.workspace = true
 uuid.workspace = true
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 zeroize.workspace = true
+shared-macros.workspace = true
+sha2 = "0.10.9"
+http.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

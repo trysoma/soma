@@ -1,3 +1,11 @@
+CREATE TABLE IF NOT EXISTS data_encryption_key (
+    id TEXT PRIMARY KEY,
+    envelope_encryption_key_id JSON NOT NULL,
+    encryption_key TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS resource_server_credential (
     id TEXT PRIMARY KEY,
     type_id TEXT NOT NULL,
@@ -5,7 +13,9 @@ CREATE TABLE IF NOT EXISTS resource_server_credential (
     value JSON NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    next_rotation_time DATETIME
+    next_rotation_time DATETIME,
+    data_encryption_key_id TEXT NOT NULL,
+    FOREIGN KEY (data_encryption_key_id) REFERENCES data_encryption_key(id)
 );
 
 CREATE TABLE IF NOT EXISTS user_credential (
@@ -15,11 +25,14 @@ CREATE TABLE IF NOT EXISTS user_credential (
     value JSON NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    next_rotation_time DATETIME
+    next_rotation_time DATETIME,
+    data_encryption_key_id TEXT NOT NULL,
+    FOREIGN KEY (data_encryption_key_id) REFERENCES data_encryption_key(id)
 );
 
 CREATE TABLE IF NOT EXISTS provider_instance (
     id TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL,
     resource_server_credential_id TEXT NOT NULL,
     user_credential_id TEXT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -38,7 +51,7 @@ CREATE TABLE IF NOT EXISTS function_instance (
     provider_instance_id TEXT NOT NULL,
     function_controller_type_id TEXT NOT NULL,
 
-    FOREIGN KEY (provider_instance_id) REFERENCES provider_instance(id)
+    FOREIGN KEY (provider_instance_id) REFERENCES provider_instance(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS broker_state (
@@ -52,12 +65,4 @@ CREATE TABLE IF NOT EXISTS broker_state (
     action JSON NOT NULL,
 
     FOREIGN KEY (resource_server_cred_id) REFERENCES resource_server_credential(id)
-);
-
-CREATE TABLE IF NOT EXISTS data_encryption_key (
-    id TEXT PRIMARY KEY,
-    envelope_encryption_key_id JSON NOT NULL,
-    encryption_key TEXT NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

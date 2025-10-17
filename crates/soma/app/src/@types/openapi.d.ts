@@ -52,16 +52,224 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/a2a/v1/config": {
+    "/api/a2a/v1/definition": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["get-agent-config"];
+        get: operations["get-agent-definition"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/available-providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list-available-providers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create-provider-instance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create-resource-server-credential"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["encrypt-resource-server-configuration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create-user-credential"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["start-user-credential-brokering"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["encrypt-user-credential-configuration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/encryption/data-encryption-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list-data-encryption-keys"];
+        put?: never;
+        post: operations["create-data-encryption-key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/generic-oauth-callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["resume-user-credential-brokering"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/provider/{provider_instance_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete-provider-instance"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/provider/{provider_instance_id}/available-functions/{function_controller_type_id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["enable-function"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["disable-function"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/invoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["invoke-function"];
         delete?: never;
         options?: never;
         head?: never;
@@ -201,6 +409,31 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         AgentCard: Record<string, never>;
+        BridgeConfig: {
+            encryption: components["schemas"]["BridgeEncryptionConfig"];
+        };
+        BridgeEncryptionConfig: {
+            [key: string]: components["schemas"]["EncryptionConfiguration"];
+        };
+        BrokerAction: {
+            Redirect: {
+                url: string;
+            };
+        } | "None";
+        BrokerState: {
+            action: components["schemas"]["BrokerAction"];
+            created_at: components["schemas"]["WrappedChronoDateTime"];
+            credential_controller_type_id: string;
+            id: string;
+            metadata: components["schemas"]["Metadata"];
+            provider_controller_type_id: string;
+            resource_server_cred_id: components["schemas"]["WrappedUuidV4"];
+            updated_at: components["schemas"]["WrappedChronoDateTime"];
+        };
+        ConfigurationSchema: {
+            resource_server: components["schemas"]["JsonSchema"];
+            user_credential: components["schemas"]["JsonSchema"];
+        };
         ContextInfo: {
             context_id: components["schemas"]["WrappedUuidV4"];
             created_at: components["schemas"]["WrappedChronoDateTime"];
@@ -208,6 +441,10 @@ export interface components {
         ContextInfoPaginatedResponse: {
             items: components["schemas"]["ContextInfo"][];
             next_page_token: string;
+        };
+        CreateDataEncryptionKeyParams: {
+            encrypted_data_envelope_key?: null | components["schemas"]["EncryptedDataEncryptionKey"];
+            id?: string | null;
         };
         CreateMessageRequest: {
             metadata: components["schemas"]["Metadata"];
@@ -219,9 +456,84 @@ export interface components {
             message: components["schemas"]["Message"];
             timeline_item: components["schemas"]["TaskTimelineItem"];
         };
+        CreateProviderInstanceParamsInner: {
+            display_name: string;
+            provider_instance_id?: string | null;
+            resource_server_credential_id: components["schemas"]["WrappedUuidV4"];
+            user_credential_id: components["schemas"]["WrappedUuidV4"];
+        };
+        CreateResourceServerCredentialParamsInner: {
+            data_encryption_key_id: string;
+            metadata?: null | components["schemas"]["Metadata"];
+            resource_server_configuration: components["schemas"]["WrappedJsonValue"];
+        };
+        CreateUserCredentialParamsInner: {
+            data_encryption_key_id: string;
+            metadata?: null | components["schemas"]["Metadata"];
+            user_credential_configuration: components["schemas"]["WrappedJsonValue"];
+        };
+        DataEncryptionKey: {
+            created_at: components["schemas"]["WrappedChronoDateTime"];
+            encrypted_data_encryption_key: components["schemas"]["EncryptedDataEncryptionKey"];
+            envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKeyId"];
+            id: string;
+            updated_at: components["schemas"]["WrappedChronoDateTime"];
+        };
+        DataEncryptionKeyListItem: {
+            created_at: components["schemas"]["WrappedChronoDateTime"];
+            envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKeyId"];
+            id: string;
+            updated_at: components["schemas"]["WrappedChronoDateTime"];
+        };
+        DataEncryptionKeyListItemPaginatedResponse: {
+            items: components["schemas"]["DataEncryptionKeyListItem"][];
+            next_page_token: string;
+        };
+        EnableFunctionParamsInner: {
+            function_instance_id?: string | null;
+        };
+        EncryptCredentialConfigurationParamsInner: {
+            data_encryption_key_id: string;
+            value: components["schemas"]["WrappedJsonValue"];
+        };
+        EncryptedDataEncryptionKey: string;
+        EncryptionConfiguration: {
+            encryptedDataEncryptionKey: string;
+            envelopeEncryptionKeyId: components["schemas"]["EnvelopeEncryptionKeyId"];
+        };
+        EnvelopeEncryptionKeyId: {
+            arn: string;
+            /** @enum {string} */
+            type: "aws_kms";
+        } | {
+            key_id: string;
+            /** @enum {string} */
+            type: "local";
+        };
         Error: {
             data?: unknown;
             message: string;
+        };
+        FunctionControllerSerialized: {
+            categories: string[];
+            documentation: string;
+            name: string;
+            output: components["schemas"]["JsonSchema"];
+            parameters: components["schemas"]["JsonSchema"];
+            type_id: string;
+        };
+        FunctionInstanceSerialized: {
+            created_at: components["schemas"]["WrappedChronoDateTime"];
+            function_controller_type_id: string;
+            id: string;
+            provider_instance_id: string;
+            updated_at: components["schemas"]["WrappedChronoDateTime"];
+        };
+        InvokeFunctionParamsInner: {
+            params: components["schemas"]["WrappedJsonValue"];
+        };
+        JsonSchema: {
+            [key: string]: unknown;
         };
         JsonrpcRequest: Record<string, never>;
         Message: {
@@ -245,13 +557,58 @@ export interface components {
         Metadata: {
             [key: string]: unknown;
         };
+        ProviderControllerSerialized: {
+            categories: string[];
+            credential_controllers: components["schemas"]["ProviderCredentialControllerSerialized"][];
+            documentation: string;
+            functions: components["schemas"]["FunctionControllerSerialized"][];
+            name: string;
+            type_id: string;
+        };
+        ProviderControllerSerializedPaginatedResponse: {
+            items: components["schemas"]["ProviderControllerSerialized"][];
+            next_page_token: string;
+        };
+        ProviderCredentialControllerSerialized: {
+            configuration_schema: components["schemas"]["ConfigurationSchema"];
+            documentation: string;
+            name: string;
+            requires_brokering: boolean;
+            requires_resource_server_credential_refreshing: boolean;
+            requires_user_credential_refreshing: boolean;
+            type_id: string;
+        };
+        ProviderInstanceSerialized: {
+            created_at: components["schemas"]["WrappedChronoDateTime"];
+            credential_controller_type_id: string;
+            display_name: string;
+            id: string;
+            provider_controller_type_id: string;
+            resource_server_credential_id: components["schemas"]["WrappedUuidV4"];
+            updated_at: components["schemas"]["WrappedChronoDateTime"];
+            user_credential_id: components["schemas"]["WrappedUuidV4"];
+        };
+        ResourceServerCredentialSerialized: {
+            created_at: components["schemas"]["WrappedChronoDateTime"];
+            data_encryption_key_id: string;
+            id: components["schemas"]["WrappedUuidV4"];
+            metadata: components["schemas"]["Metadata"];
+            next_rotation_time?: null | components["schemas"]["WrappedChronoDateTime"];
+            type_id: string;
+            updated_at: components["schemas"]["WrappedChronoDateTime"];
+            value: components["schemas"]["WrappedJsonValue"];
+        };
         RuntimeConfig: Record<string, never>;
-        SomaConfig: {
+        SomaAgentDefinition: {
             agent: string;
+            bridge?: null | components["schemas"]["BridgeConfig"];
             description: string;
             name: string;
             project: string;
             version: string;
+        };
+        StartUserCredentialBrokeringParamsInner: {
+            resource_server_cred_id: components["schemas"]["WrappedUuidV4"];
         };
         Task: {
             context_id: components["schemas"]["WrappedUuidV4"];
@@ -306,9 +663,27 @@ export interface components {
             message?: null | components["schemas"]["CreateMessageRequest"];
             status: components["schemas"]["TaskStatus"];
         };
+        UserCredentialBrokeringResponse: (components["schemas"]["BrokerState"] & {
+            /** @enum {string} */
+            type: "broker_state";
+        }) | (components["schemas"]["UserCredentialSerialized"] & {
+            /** @enum {string} */
+            type: "user_credential";
+        });
+        UserCredentialSerialized: {
+            created_at: components["schemas"]["WrappedChronoDateTime"];
+            data_encryption_key_id: string;
+            id: components["schemas"]["WrappedUuidV4"];
+            metadata: components["schemas"]["Metadata"];
+            next_rotation_time?: null | components["schemas"]["WrappedChronoDateTime"];
+            type_id: string;
+            updated_at: components["schemas"]["WrappedChronoDateTime"];
+            value: components["schemas"]["WrappedJsonValue"];
+        };
         /** Format: date-time */
         WrappedChronoDateTime: string;
         WrappedClientJsonRpcMessage: Record<string, never>;
+        WrappedJsonValue: unknown;
         /** Format: uuid */
         WrappedUuidV4: string;
     };
@@ -409,7 +784,7 @@ export interface operations {
             };
         };
     };
-    "get-agent-config": {
+    "get-agent-definition": {
         parameters: {
             query?: never;
             header?: never;
@@ -418,13 +793,624 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Agent config */
+            /** @description Agent definition */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SomaConfig"];
+                    "application/json": components["schemas"]["SomaAgentDefinition"];
+                };
+            };
+        };
+    };
+    "list-available-providers": {
+        parameters: {
+            query: {
+                page_size: number;
+                next_page_token?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List available providers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderControllerSerializedPaginatedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "create-provider-instance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider_controller_type_id: string;
+                credential_controller_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProviderInstanceParamsInner"];
+            };
+        };
+        responses: {
+            /** @description Create provider instance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderInstanceSerialized"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "create-resource-server-credential": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider controller type ID */
+                provider_controller_type_id: string;
+                /** @description Credential controller type ID */
+                credential_controller_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateResourceServerCredentialParamsInner"];
+            };
+        };
+        responses: {
+            /** @description Create resource server credential */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceServerCredentialSerialized"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "encrypt-resource-server-configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider controller type ID */
+                provider_controller_type_id: string;
+                /** @description Credential controller type ID */
+                credential_controller_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EncryptCredentialConfigurationParamsInner"];
+            };
+        };
+        responses: {
+            /** @description Encrypt provider configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WrappedJsonValue"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "create-user-credential": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider controller type ID */
+                provider_controller_type_id: string;
+                /** @description Credential controller type ID */
+                credential_controller_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserCredentialParamsInner"];
+            };
+        };
+        responses: {
+            /** @description Create user credential */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserCredentialSerialized"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "start-user-credential-brokering": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider controller type ID */
+                provider_controller_type_id: string;
+                /** @description Credential controller type ID */
+                credential_controller_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartUserCredentialBrokeringParamsInner"];
+            };
+        };
+        responses: {
+            /** @description Start user credential brokering */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserCredentialBrokeringResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "encrypt-user-credential-configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider controller type ID */
+                provider_controller_type_id: string;
+                /** @description Credential controller type ID */
+                credential_controller_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EncryptCredentialConfigurationParamsInner"];
+            };
+        };
+        responses: {
+            /** @description Encrypt user credential configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WrappedJsonValue"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "list-data-encryption-keys": {
+        parameters: {
+            query: {
+                page_size: number;
+                next_page_token?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List data encryption keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataEncryptionKeyListItemPaginatedResponse"];
+                };
+            };
+        };
+    };
+    "create-data-encryption-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDataEncryptionKeyParams"];
+            };
+        };
+        responses: {
+            /** @description Create data encryption key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataEncryptionKey"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "resume-user-credential-brokering": {
+        parameters: {
+            query?: {
+                /** @description OAuth state parameter */
+                state?: string;
+                /** @description OAuth authorization code */
+                code?: string;
+                /** @description OAuth error code */
+                error?: string;
+                /** @description OAuth error description */
+                error_description?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Generic OAuth callback */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserCredentialBrokeringResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "delete-provider-instance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider instance ID */
+                provider_instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Delete provider instance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "enable-function": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider instance ID */
+                provider_instance_id: string;
+                /** @description Function controller type ID */
+                function_controller_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnableFunctionParamsInner"];
+            };
+        };
+        responses: {
+            /** @description Enable function */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FunctionInstanceSerialized"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "disable-function": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider instance ID */
+                provider_instance_id: string;
+                /** @description Function instance ID */
+                function_instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disable function */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TupleUnit"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "invoke-function": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider instance ID */
+                provider_instance_id: string;
+                /** @description Function instance ID */
+                function_instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvokeFunctionParamsInner"];
+            };
+        };
+        responses: {
+            /** @description Invoke function */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WrappedJsonValue"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };

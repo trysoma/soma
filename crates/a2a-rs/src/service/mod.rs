@@ -1,8 +1,8 @@
 use std::{ops::Deref, sync::Arc};
 
 use derive_builder::Builder;
-
-use crate::{request_handlers::request_handler::RequestHandler, types::AgentCard};
+use async_trait::async_trait;
+use crate::{errors::A2aServerError, request_handlers::request_handler::RequestHandler, types::AgentCard};
 
 #[derive(Debug, Clone)]
 pub struct RequestContext {
@@ -10,9 +10,10 @@ pub struct RequestContext {
     pub headers: http::HeaderMap,
 }
 
-pub trait A2aServiceLike {
-    fn agent_card(&self, context: RequestContext) -> AgentCard;
-    fn extended_agent_card(&self, context: RequestContext) -> Option<AgentCard>;
+#[async_trait]
+pub trait A2aServiceLike: Send + Sync {
+    async fn agent_card(&self, context: RequestContext) -> Result<AgentCard, A2aServerError>;
+    async fn extended_agent_card(&self, context: RequestContext) -> Result<Option<AgentCard>, A2aServerError>;
     fn request_handler(&self, context: RequestContext) -> Arc<dyn RequestHandler + Send + Sync>;
 }
 
@@ -24,16 +25,17 @@ pub struct A2aService {
     request_handler: Arc<dyn RequestHandler + Send + Sync>,
 }
 
+#[async_trait]
 impl A2aServiceLike for A2aService {
     fn request_handler(&self, _context: RequestContext) -> Arc<dyn RequestHandler + Send + Sync> {
         self.request_handler.clone()
     }
 
-    fn agent_card(&self, _context: RequestContext) -> AgentCard {
-        self.agent_card.deref().clone()
+    async fn agent_card(&self, _context: RequestContext) -> Result<AgentCard, A2aServerError> {
+        Ok(self.agent_card.deref().clone())
     }
 
-    fn extended_agent_card(&self, _context: RequestContext) -> Option<AgentCard> {
-        self.extended_agent_card.deref().clone()
+    async fn extended_agent_card(&self, _context: RequestContext) -> Result<Option<AgentCard>, A2aServerError> {
+        Ok(self.extended_agent_card.deref().clone())
     }
 }

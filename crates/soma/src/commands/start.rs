@@ -1,12 +1,17 @@
 use std::collections::HashMap;
 use std::fs;
+use std::future::Future;
 use std::net::SocketAddr;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::future::Future;
 
+use bridge::logic::get_or_create_local_encryption_key;
+use bridge::logic::register_all_bridge_providers;
+use bridge::logic::{EnvelopeEncryptionKeyContents, EnvelopeEncryptionKeyId};
+use bridge::logic::OnConfigChangeEvt;
+use bridge::logic::OnConfigChangeRx;
 use clap::Parser;
 use futures::{FutureExt, TryFutureExt, future};
 use globset::{Glob, GlobSet, GlobSetBuilder};
@@ -20,19 +25,23 @@ use shared::primitives::SqlMigrationLoader;
 use tokio::process::Command;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle};
+use tracing::error;
+use tracing::warn;
 use tracing::{debug, info};
 
 use crate::logic::ConnectionManager;
 use crate::repository::Repository;
 use crate::router;
 use crate::router::RouterParams;
+use crate::utils::config::CliConfig;
+use crate::utils::config::get_config_file_path;
 use crate::utils::restate::deploy::DeploymentRegistrationConfig;
 use crate::utils::restate::invoke::RestateIngressClient;
-use crate::utils::soma_agent_config::SomaConfig;
 use crate::utils::{self, construct_src_dir_absolute, restate};
 use crate::vite::{Assets, wait_for_vite_dev_server_shutdown};
 use shared::command::run_child_process;
 use shared::error::CommonError;
+use shared::soma_agent_definition::SomaAgentDefinition;
 use url::Url;
 
 #[derive(Debug, Clone, Parser)]
@@ -53,6 +62,12 @@ pub struct StartParams {
     pub restate_ingress_url: Url,
     #[arg(long)]
     pub restate_admin_token: Option<String>,
+    #[arg(
+        long,
+        default_value = "local",
+        help = "The type of key encryption key to use. Valid values are 'local' or a valid AWS KMS ARN (arn:aws:kms:region:account-id:key/key-id)."
+    )]
+    pub key_encryption_key: Option<String>,
 }
 
 async fn setup_repository(
@@ -62,7 +77,10 @@ async fn setup_repository(
     info!("starting metadata database");
 
     let migrations = Repository::load_sql_migrations();
-    let migrations = merge_nested_migrations(vec![migrations]);
+    let migrations = merge_nested_migrations(vec![
+        migrations,
+        bridge::repository::Repository::load_sql_migrations(),
+    ]);
     let auth_conn_string = inject_auth_token_to_db_url(&conn_string, &auth_token)?;
     let (db, conn) = establish_db_connection(&auth_conn_string, Some(migrations)).await?;
 
@@ -83,7 +101,61 @@ fn find_free_port(start: u16, end: u16) -> std::io::Result<u16> {
     ))
 }
 
-pub async fn cmd_start(subsys: &SubsystemHandle, params: StartParams) -> Result<(), CommonError> {
+pub async fn cmd_start(
+    subsys: &SubsystemHandle,
+    params: StartParams,
+    cli_config: &mut CliConfig,
+) -> Result<(), CommonError> {
+    let key_encryption_key = params.key_encryption_key.clone();
+    let local_key_path = get_config_file_path()?
+        .parent()
+        .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            "Failed to get config file path"
+        )))?
+        .join("local-key.bin");
+
+    let envelope_encryption_key_contents = match key_encryption_key {
+        Some(key_encryption_key) => match key_encryption_key.as_str() {
+            "local" => get_or_create_local_encryption_key(&local_key_path)?,
+            _ => {
+                if key_encryption_key.starts_with("arn:aws:kms:") {
+                    EnvelopeEncryptionKeyContents::AwsKms {
+                        arn: key_encryption_key,
+                    }
+                } else {
+                    return Err(CommonError::Unknown(anyhow::anyhow!(
+                        "Invalid AWS KMS ARN: {}",
+                        key_encryption_key
+                    )));
+                }
+            }
+        },
+        None => get_or_create_local_encryption_key(&local_key_path)?,
+    };
+
+    if matches!(
+        envelope_encryption_key_contents,
+        EnvelopeEncryptionKeyContents::Local { .. }
+    ) {
+        warn!(
+            "Local key encryption key is for getting started quickly. Please use a valid AWS KMS ARN for production."
+        );
+    }
+    let src_dir = construct_src_dir_absolute(params.clone().src_dir)?;
+    let path_to_soma_definition = src_dir.join("soma.yaml");
+
+    if !path_to_soma_definition.exists() {
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Soma definition not found at {}",
+            path_to_soma_definition.display()
+        )));
+    }
+    let soma_definition = shared::soma_agent_definition::YamlSomaAgentDefinition::load_from_file(
+        path_to_soma_definition,
+    )?;
+    let soma_definition = Arc::new(soma_definition);
+    
+
     let connection_manager = ConnectionManager::new();
     let (_db, _conn, repository) =
         setup_repository(params.db_conn_string.clone(), params.db_auth_token.clone()).await?;
@@ -101,7 +173,10 @@ pub async fn cmd_start(subsys: &SubsystemHandle, params: StartParams) -> Result<
                     // Ignore channel errors - child may have already exited
                     let _ = shutdown_complete_restate_signal_receiver.await;
                 },
-                _ = start_restate_server(kill_restate_signal_receiver, shutdown_complete_restate_signal_trigger) => {
+                result = start_restate_server(kill_restate_signal_receiver, shutdown_complete_restate_signal_trigger) => {
+                    if let Err(e) = result {
+                        error!("Restate server stopped unexpectedly: {:?}", e);
+                    }
                     info!("Restate server stopped");
                     subsys.request_shutdown();
                 }
@@ -120,7 +195,6 @@ pub async fn cmd_start(subsys: &SubsystemHandle, params: StartParams) -> Result<
 
     let (file_change_tx, mut _file_change_rx) = broadcast::channel::<FileChangeEvt>(10);
     let file_change_tx = Arc::new(file_change_tx);
-    let src_dir = construct_src_dir_absolute(params.clone().src_dir)?;
     let src_dir_clone = src_dir.clone();
     let runtime_clone = runtime.clone();
     let file_change_tx_clone = file_change_tx.clone();
@@ -132,7 +206,10 @@ pub async fn cmd_start(subsys: &SubsystemHandle, params: StartParams) -> Result<
                     info!("system shutdown requested");
                     info!("File watcher stopped");
                 }
-                _ = start_dev_file_watcher(src_dir_clone, runtime_clone, file_change_tx_clone) => {
+                result = start_dev_file_watcher(src_dir_clone, runtime_clone, file_change_tx_clone) => {
+                    if let Err(e) = result {
+                        error!("File watcher stopped unexpectedly: {:?}", e);
+                    }
                     info!("File watcher stopped");
                     subsys.request_shutdown();
                 }
@@ -143,6 +220,8 @@ pub async fn cmd_start(subsys: &SubsystemHandle, params: StartParams) -> Result<
     ));
 
     let file_change_tx_clone = file_change_tx.clone();
+    let cli_config_clone = cli_config.clone();
+    let envelope_encryption_key_contents_clone = envelope_encryption_key_contents.clone();
     subsys.start(SubsystemBuilder::new(
         "restartable-processes-on-config-change",
         move |subsys: SubsystemHandle| async move {
@@ -152,7 +231,7 @@ pub async fn cmd_start(subsys: &SubsystemHandle, params: StartParams) -> Result<
                     subsys.wait_for_children().await;
                     info!("Restartable processes on config change stopped");
                 }
-                _ = start_dev_restartable_processes_on_config_change(&subsys, DevRestartableProcesses {
+                result = start_dev_restartable_processes_on_config_change(&subsys, DevRestartableProcesses {
                     runtime,
                     runtime_port,
                     file_change_tx: file_change_tx_clone,
@@ -160,13 +239,19 @@ pub async fn cmd_start(subsys: &SubsystemHandle, params: StartParams) -> Result<
                     params,
                     connection_manager,
                     repository,
+                    db_connection: _conn,
+                    cli_config: cli_config_clone.clone(),
+                    soma_definition: soma_definition.clone(),
+                    envelope_encryption_key_contents: envelope_encryption_key_contents_clone,
                 }) => {
-                    info!("Restartable processes on config change stopped unexpectedly");
+                    if let Err(e) = result {
+                        error!("Restartable processes on config change stopped unexpectedly: {:?}", e);
+                    }
                     subsys.wait_for_children().await;
                     info!("Restartable processes on config change stopped");
                 }
             }
-            
+
             Ok::<(), CommonError>(())
         },
     ));
@@ -184,6 +269,10 @@ struct DevRestartableProcesses {
     params: StartParams,
     connection_manager: ConnectionManager,
     repository: Repository,
+    db_connection: shared::libsql::Connection,
+    cli_config: CliConfig,
+    soma_definition: Arc<dyn shared::soma_agent_definition::SomaAgentDefinitionLike>,
+    envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
 }
 
 async fn start_dev_restartable_processes_on_config_change(
@@ -196,7 +285,6 @@ async fn start_dev_restartable_processes_on_config_change(
             params_clone.file_change_tx.subscribe();
 
         info!("🔁  starting system after config change");
-        let soma_config = get_soma_config(params_clone.src_dir.clone())?;
         let (restart_tx, restart_rx) = oneshot::channel::<()>();
         subsys.start(SubsystemBuilder::new(
             "restartable-processes",
@@ -209,7 +297,10 @@ async fn start_dev_restartable_processes_on_config_change(
                         info!("Restartable processes on config change stopped");
                         let _ = restart_tx.send(());
                     }
-                    _ = start_dev_restartable_processes(&subsys, params_clone.clone(), soma_config) => {
+                    result = start_dev_restartable_processes(&subsys, params_clone) => {
+                        if let Err(e) = result {
+                            error!("Restartable processes stopped unexpectedly: {:?}", e);
+                        }
                         info!("Processes exitted unexpectedly, something went wrong.");
                         return Ok(());
                     }
@@ -225,7 +316,6 @@ async fn start_dev_restartable_processes_on_config_change(
 async fn start_dev_restartable_processes(
     subsys: &SubsystemHandle,
     params: DevRestartableProcesses,
-    soma_config: SomaConfig,
 ) -> Result<(), CommonError> {
     let DevRestartableProcesses {
         runtime,
@@ -235,54 +325,37 @@ async fn start_dev_restartable_processes(
         params,
         connection_manager,
         repository,
+        db_connection,
+        cli_config,
+        soma_definition,
+        envelope_encryption_key_contents,
     } = params;
 
-    let (kill_runtime_signal_trigger, kill_runtime_signal_receiver) = broadcast::channel::<()>(1);
-    let (shutdown_runtime_complete_signal_trigger, shutdown_runtime_complete_signal_receiver) =
-        oneshot::channel::<()>();
-    let src_dir_clone = src_dir.clone();
-    let runtime_clone = runtime.clone();
-    let runtime_port_clone = runtime_port;
-    let mut file_change_rx = file_change_tx.subscribe();
-    subsys.start(SubsystemBuilder::new(
-        "runtime",
-        move |subsys: SubsystemHandle| async move {
-            tokio::select! {
-                _ = subsys.on_shutdown_requested() => {
-                    info!("system shutdown requested");
-                    // Ignore channel errors - child may have already exited
-                    let _ = kill_runtime_signal_trigger.send(());
-                    let _ = shutdown_runtime_complete_signal_receiver.await;
-                    info!("Runtime shutdown complete");
-                }
-                _ = start_dev_runtime(src_dir_clone, runtime_clone, runtime_port_clone, &mut file_change_rx, kill_runtime_signal_receiver, shutdown_runtime_complete_signal_trigger) => {
-                    info!("Runtime stopped");
-                    subsys.request_shutdown();
-                }
-            }
-
-            Ok::<(), CommonError>(())
-
-        },
-    ));
+    soma_definition.reload().await?;
 
     let params_clone = params.clone();
     let (mcp_transport_tx, mut mcp_transport_rx) = tokio::sync::mpsc::unbounded_channel();
-    let soma_config_clone = soma_config.clone();
     let restate_ingress_client = RestateIngressClient::new(params.restate_ingress_url.to_string());
+    let (on_bridge_config_change_tx, on_bridge_config_change_rx) =
+        mpsc::channel::<OnConfigChangeEvt>(10);
     let router_params = router::RouterParams::new(
         params.clone(),
         router::InitRouterParams {
-            connection_manager,
-            repository,
+            connection_manager: connection_manager.clone(),
+            repository: repository.clone(),
             mcp_transport_tx,
-            soma_config: soma_config_clone,
+            soma_definition: soma_definition.clone(),
             runtime_port,
             restate_ingress_client,
+            db_connection: db_connection.clone(),
+            on_bridge_config_change_tx,
+            envelope_encryption_key_contents: envelope_encryption_key_contents.clone(),
         },
-    )?;
+    ).await?;
 
     let router_params_clone = router_params.clone();
+    let mut cli_config_clone = cli_config.clone();
+    let (on_server_started_tx, on_server_started_rx) = oneshot::channel::<()>();
     subsys.start(SubsystemBuilder::new(
         "axum-server",
         move |subsys: SubsystemHandle| async move {
@@ -291,7 +364,9 @@ async fn start_dev_restartable_processes(
                 info!("Starting vite dev server");
                 Assets::start_dev_server(false)
             };
-            let (server_fut, handle) = start_axum_server(params_clone, router_params_clone)?;
+            let (server_fut, handle) =
+                start_axum_server(params_clone, router_params_clone, &mut cli_config_clone).await?;
+            let _ = on_server_started_tx.send(());
             tokio::select! {
                 _ = subsys.on_shutdown_requested() => {
                     info!("Shutting down axum server");
@@ -318,7 +393,7 @@ async fn start_dev_restartable_processes(
     let mcp_service = router_params.mcp_service.clone();
     let mcp_ct = tokio_util::sync::CancellationToken::new();
     subsys.start(SubsystemBuilder::new(
-        "mcp-server",
+        "mcp-transport-processor",
         move |subsys: SubsystemHandle| {
             let mcp_server_instance = mcp_service.clone();
             let mcp_ct = mcp_ct.clone();
@@ -360,10 +435,65 @@ async fn start_dev_restartable_processes(
         },
     ));
 
+    let soma_definition_clone = soma_definition.clone();
+    subsys.start(SubsystemBuilder::new(
+        "bridge-config-change-listener",
+        move |subsys: SubsystemHandle| async move {
+            tokio::select! {
+                _ = subsys.on_shutdown_requested() => {
+                    info!("system shutdown requested");
+                    info!("Bridge config change listener stopped");
+                }
+                _ = watch_for_bridge_config_change(on_bridge_config_change_rx, soma_definition_clone) => {
+                    info!("Bridge config change watcher stopped");
+                    subsys.request_shutdown();
+                }
+            }
+
+            Ok::<(), CommonError>(())
+        },
+    ));
+
+    info!("Waiting for server to start, before starting runtime");
+    on_server_started_rx.await?;
+
+    let (kill_runtime_signal_trigger, kill_runtime_signal_receiver) = broadcast::channel::<()>(1);
+    let (shutdown_runtime_complete_signal_trigger, shutdown_runtime_complete_signal_receiver) =
+        oneshot::channel::<()>();
+    let src_dir_clone = src_dir.clone();
+    let runtime_clone = runtime.clone();
+    let runtime_port_clone = runtime_port;
+    let mut file_change_rx = file_change_tx.subscribe();
+    subsys.start(SubsystemBuilder::new(
+        "runtime",
+        move |subsys: SubsystemHandle| async move {
+            tokio::select! {
+                _ = subsys.on_shutdown_requested() => {
+                    info!("system shutdown requested");
+                    // Ignore channel errors - child may have already exited
+                    let _ = kill_runtime_signal_trigger.send(());
+                    let _ = shutdown_runtime_complete_signal_receiver.await;
+                    info!("Runtime shutdown complete");
+                }
+                result = start_dev_runtime(src_dir_clone, runtime_clone, runtime_port_clone, &mut file_change_rx, kill_runtime_signal_receiver, shutdown_runtime_complete_signal_trigger) => {
+                    if let Err(e) = result {
+                        error!("Runtime stopped unexpectedly: {:?}", e);
+                    }
+                    info!("Runtime stopped");
+                    subsys.request_shutdown();
+                }
+            }
+
+            Ok::<(), CommonError>(())
+
+        },
+    ));
+
+
     info!("Starting Restate deployment");
     let runtime_port_clone = runtime_port;
     let params_clone = params.clone();
-    let soma_config_clone = soma_config.clone();
+    let soma_definition_clone = soma_definition.clone();
     subsys.start(SubsystemBuilder::new(
         "restate-deployment",
         move |subsys: SubsystemHandle| async move {
@@ -372,7 +502,7 @@ async fn start_dev_restartable_processes(
                     info!("system shutdown requested");
                     info!("Restate deployment shutdown complete");
                 }
-                _ = start_restate_deployment(params_clone, runtime_port_clone, soma_config_clone) => {
+                _ = start_restate_deployment(params_clone, runtime_port_clone, soma_definition_clone) => {
                     info!("Restate deployment completed");
                 }
             }
@@ -381,17 +511,10 @@ async fn start_dev_restartable_processes(
         },
     ));
 
+
     subsys.on_shutdown_requested().await;
 
     Ok(())
-}
-
-fn get_soma_config(src_dir: PathBuf) -> Result<SomaConfig, CommonError> {
-    let soma_config = utils::soma_agent_config::SomaConfig::from_yaml(&fs::read_to_string(
-        src_dir.join("soma.yaml"),
-    )?)
-    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to get soma config: {e:?}")))?;
-    Ok(soma_config)
 }
 
 async fn on_soma_config_change(file_change_rx: &mut FileChangeRx) -> Result<bool, CommonError> {
@@ -407,18 +530,61 @@ async fn on_soma_config_change(file_change_rx: &mut FileChangeRx) -> Result<bool
     }
 }
 
-// async fn start_dev_soma_config_watcher(src_dir: PathBuf, mut soma_config_watcher: broadcast::Receiver<()>, soma_config_clone: Arc<Mutex<SomaConfig>>) -> Result<(), CommonError> {
-//     loop {
-//         let event = soma_config_watcher.recv().await;
-//         let mut soma_config = soma_config_clone.lock().await;
-//         *soma_config = get_soma_config(src_dir.clone())?;
-//     }
-// }
+
+async fn watch_for_bridge_config_change(
+    mut on_bridge_config_change_rx: OnConfigChangeRx,
+    soma_definition: Arc<dyn shared::soma_agent_definition::SomaAgentDefinitionLike>,
+) -> Result<(), CommonError> {
+    loop {
+        let event = match on_bridge_config_change_rx.recv().await {
+            Some(event) => event,
+            None => {
+                info!("Bridge config change receiver dropped");
+                return Ok(());
+            }
+        };
+
+        match event {
+            OnConfigChangeEvt::ProviderInstanceAdded(provider_instance) => {}
+            OnConfigChangeEvt::ProviderInstanceRemoved(provider_instance_id) => {}
+            OnConfigChangeEvt::DataEncryptionKeyAdded(data_encryption_key) => {
+                info!("Data encryption key added: {:?}", data_encryption_key.id);
+                soma_definition
+                    .add_data_encryption_key(
+                        data_encryption_key.id,
+                        data_encryption_key.encrypted_data_encryption_key.0,
+                        match data_encryption_key.envelope_encryption_key_id {
+                            bridge::logic::EnvelopeEncryptionKeyId::AwsKms { arn } => {
+                                shared::soma_agent_definition::EnvelopeEncryptionKeyId::AwsKms {
+                                    arn,
+                                }
+                            }
+                            bridge::logic::EnvelopeEncryptionKeyId::Local { key_id } => {
+                                shared::soma_agent_definition::EnvelopeEncryptionKeyId::Local {
+                                    key_id,
+                                }
+                            }
+                        },
+                    )
+                    .await?;
+            }
+            OnConfigChangeEvt::DataEncryptionKeyRemoved(data_encryption_key_id) => {
+                soma_definition
+                    .remove_data_encryption_key(data_encryption_key_id)
+                    .await?;
+            }
+            OnConfigChangeEvt::FunctionInstanceAdded(function_instance_serialized) => {}
+            OnConfigChangeEvt::FunctionInstanceRemoved(_) => {}
+        }
+    }
+
+    Ok(())
+}
 
 async fn start_restate_deployment(
     params: StartParams,
     runtime_port: u16,
-    soma_config: SomaConfig,
+    soma_definition: Arc<dyn shared::soma_agent_definition::SomaAgentDefinitionLike>,
 ) -> Result<(), CommonError> {
     info!("Starting Restate deployment registration");
 
@@ -429,10 +595,11 @@ async fn start_restate_deployment(
         "Registering service at {} with Restate admin at {}",
         service_uri, params.restate_admin_url
     );
+    let definition = soma_definition.get_definition().await?;
     restate::deploy::register_deployment(DeploymentRegistrationConfig {
         admin_url: params.restate_admin_url.to_string(),
         // TODO: this should be the service path from the soma.yaml file
-        service_path: soma_config.project.clone(),
+        service_path: definition.project.clone(),
         deployment_type: restate::deploy::DeploymentType::Http {
             uri: service_uri,
             additional_headers: HashMap::new(),
@@ -468,9 +635,10 @@ async fn start_restate_server(
     Ok(())
 }
 
-fn start_axum_server(
+async fn start_axum_server(
     params: StartParams,
     router_params: RouterParams,
+    cli_config: &mut CliConfig,
 ) -> Result<
     (
         impl Future<Output = Result<(), std::io::Error>>,
@@ -478,19 +646,24 @@ fn start_axum_server(
     ),
     CommonError,
 > {
-    let addr: SocketAddr = format!("{}:{}", params.host, params.port)
+    let port = find_free_port(params.port, params.port + 100)?;
+    let addr: SocketAddr = format!("{}:{}", params.host, port)
         .parse()
         .map_err(|e| CommonError::AddrParseError { source: e })?;
 
     info!("Starting server on {}", addr);
 
     let router = router::initiate_routers(router_params)?;
-
+    info!("Router initiated");
     let handle = axum_server::Handle::new();
     let handle_clone = handle.clone();
     let server_fut = axum_server::bind(addr)
         .handle(handle)
         .serve(router.into_make_service());
+    info!("Server bound");
+    cli_config.update_dev_server_url(addr.to_string()).await?;
+    info!("Server URL updated");
+    info!("Server started");
 
     Ok((server_fut, handle_clone))
 }
@@ -613,11 +786,9 @@ fn determine_runtime(params: StartParams) -> Result<Option<Runtime>, CommonError
     match matched_runtimes.len() {
         0 => Ok(None),
         1 => Ok(Some(matched_runtimes[0].clone())),
-        _ => {
-            Err(CommonError::Unknown(anyhow::anyhow!(
-                "Multiple runtimes matched"
-            )))
-        }
+        _ => Err(CommonError::Unknown(anyhow::anyhow!(
+            "Multiple runtimes matched"
+        ))),
     }
 }
 

@@ -20,6 +20,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
                 {
                   label: 'Agent 2 Agent',
                   href: LINKS.A2A(),
+                },
+                {
+                  label: 'Bridge MCP',
+                  href: LINKS.BRIDGE(),
                 }
               ]} />
             </div>
@@ -32,7 +36,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
               }}
               plugins={[
                 {
-                  name: 'Tanstack Roaaauter',
+                  name: 'Tanstack Router',
                   render: <TanStackRouterDevtoolsPanel />,
                 },
               ]}

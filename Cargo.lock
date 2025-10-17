@@ -23,7 +23,6 @@ dependencies = [
  "schemars 1.0.4",
  "serde",
  "serde_json",
- "shared",
  "syn 2.0.106",
  "thiserror 2.0.17",
  "tokio",
@@ -962,6 +961,7 @@ dependencies = [
  "chrono",
  "ctor",
  "enum_dispatch",
+ "http 1.3.1",
  "libsql",
  "once_cell",
  "paste",
@@ -970,7 +970,10 @@ dependencies = [
  "schemars 1.0.4",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "shared",
+ "shared-macros",
+ "tempfile",
  "thiserror 2.0.17",
  "tokio",
  "tokio-graceful-shutdown",
@@ -1567,6 +1570,27 @@ dependencies = [
  "block-buffer 0.11.0-pre.5",
  "const-oid",
  "crypto-common 0.2.0-pre.5",
+]
+
+[[package]]
+name = "dirs"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
+dependencies = [
+ "dirs-sys",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2867,6 +2891,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
+name = "libredox"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "416f7e718bdb06000964960ffa43b4335ad4012ae8b99060261aa4a8088d5ccb"
+dependencies = [
+ "bitflags 2.9.4",
+ "libc",
+]
+
+[[package]]
 name = "libsql"
 version = "0.9.24"
 source = "git+https://github.com/trysoma/tursodatabase-libsql?rev=25266445e3d3b76ed781d5a7acb82f1ece29c09e#25266445e3d3b76ed781d5a7acb82f1ece29c09e"
@@ -3442,6 +3476,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "option-ext"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+
+[[package]]
 name = "outref"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3995,6 +4035,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "redox_users"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
+dependencies = [
+ "getrandom 0.2.16",
+ "libredox",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "ref-cast"
 version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4101,6 +4152,7 @@ dependencies = [
  "hyper-util",
  "js-sys",
  "log",
+ "mime_guess",
  "percent-encoding",
  "pin-project-lite",
  "quinn",
@@ -4853,6 +4905,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_repr"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+]
+
+[[package]]
 name = "serde_spanned"
 version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4970,7 +5033,9 @@ dependencies = [
 name = "shared"
 version = "0.0.0"
 dependencies = [
+ "a2a-rs",
  "anyhow",
+ "async-trait",
  "axum 0.8.6",
  "axum-server",
  "base64 0.22.1",
@@ -4990,6 +5055,7 @@ dependencies = [
  "schemars 1.0.4",
  "serde",
  "serde_json",
+ "serde_yaml",
  "tempfile",
  "thiserror 2.0.17",
  "tokio",
@@ -5108,6 +5174,7 @@ dependencies = [
  "chrono",
  "clap",
  "dashmap",
+ "dirs",
  "futures",
  "globset",
  "http 1.3.1",
@@ -5126,6 +5193,8 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "shared",
+ "shared-macros",
+ "soma-api-client",
  "thiserror 2.0.17",
  "tokio",
  "tokio-graceful-shutdown",
@@ -5142,6 +5211,19 @@ dependencies = [
  "vite-rs",
  "vite-rs-axum-0-8",
  "workspace-hack",
+]
+
+[[package]]
+name = "soma-api-client"
+version = "0.0.1"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "serde_with",
+ "url",
+ "uuid",
 ]
 
 [[package]]

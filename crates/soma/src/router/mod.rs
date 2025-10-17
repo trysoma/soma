@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use axum::Router;
+use bridge::logic::{CreateDataEncryptionKeyParams, EncryptedDataEncryptionKey};
 use tower_http::cors::CorsLayer;
+use tracing::info;
 use url::Url;
 use utoipa::openapi::OpenApi;
 
@@ -9,13 +11,20 @@ use crate::router::mcp::McpService;
 use crate::router::task::TaskService;
 use crate::utils::construct_src_dir_absolute;
 use crate::utils::restate::invoke::RestateIngressClient;
-use crate::utils::soma_agent_config::SomaConfig;
 use crate::{
     commands::StartParams,
     router::{a2a::Agent2AgentService, frontend::FrontendService},
 };
 use crate::{logic::ConnectionManager, repository::Repository};
+use bridge::{
+    logic::{
+        EnvelopeEncryptionKeyContents, OnConfigChangeTx, create_data_encryption_key,
+        register_all_bridge_providers,
+    },
+    router::bridge::{BridgeService, create_router as create_bridge_router},
+};
 use shared::error::CommonError;
+use shared::soma_agent_definition::{SomaAgentDefinition, SomaAgentDefinitionLike};
 
 pub(crate) mod a2a;
 pub(crate) mod frontend;
@@ -37,18 +46,24 @@ pub(crate) struct InitRouterParams {
     pub repository: Repository,
     pub mcp_transport_tx:
         tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
-    pub soma_config: SomaConfig,
+    pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub runtime_port: u16,
     pub restate_ingress_client: RestateIngressClient,
+    pub db_connection: shared::libsql::Connection,
+    pub on_bridge_config_change_tx: OnConfigChangeTx,
+    pub envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
 }
 
 impl RouterParams {
-    pub fn new(params: StartParams, init_params: InitRouterParams) -> Result<Self, CommonError> {
+    pub async fn new(
+        params: StartParams,
+        init_params: InitRouterParams,
+    ) -> Result<Self, CommonError> {
         let src_dir = construct_src_dir_absolute(params.src_dir.clone())?;
 
         let agent_service = Arc::new(Agent2AgentService::new(
             src_dir,
-            init_params.soma_config,
+            init_params.soma_definition.clone(),
             Url::parse(format!("http://{}:{}", params.host, params.port).as_str())?,
             init_params.connection_manager.clone(),
             init_params.repository.clone(),
@@ -66,12 +81,40 @@ impl RouterParams {
             init_params.repository.clone(),
             init_params.connection_manager.clone(),
         );
+
+        let bridge_repository =
+            bridge::repository::Repository::new(init_params.db_connection.clone());
+        let bridge_service = Arc::new(BridgeService::new(
+            bridge_repository.clone(),
+            init_params.on_bridge_config_change_tx.clone(),
+            init_params.envelope_encryption_key_contents.clone(),
+        ));
+        register_all_bridge_providers().await?;
+        info!("Bridge providers registered");
+
+        let defintion = init_params.soma_definition.get_definition().await?;
+        if let Some(bridge) = &defintion.bridge {
+            futures::future::try_join_all(bridge.encryption.0.iter().map(async |(id, encryption)| {
+                create_data_encryption_key(
+                    &init_params.envelope_encryption_key_contents,
+                    &init_params.on_bridge_config_change_tx.clone(),
+                    &bridge_repository.clone(),
+                    CreateDataEncryptionKeyParams {
+                        id: Some(id.clone()),
+                        encrypted_data_envelope_key: Some(EncryptedDataEncryptionKey(encryption.encrypted_data_encryption_key.clone())),
+                    },
+                )
+                .await
+            })).await?;
+        }
+
         Ok(Self {
             params,
             agent_service,
             task_service,
             frontend_service,
             mcp_service,
+            bridge_service,
         })
     }
 }
@@ -103,6 +146,11 @@ pub(crate) fn initiate_routers(router_params: RouterParams) -> Result<Router, Co
     let mcp_router = mcp_router.with_state(router_params.mcp_service);
     router = router.merge(mcp_router);
 
+    // bridge router
+    let (bridge_router, _) = create_bridge_router().split_for_parts();
+    let bridge_router = bridge_router.with_state(router_params.bridge_service);
+    router = router.merge(bridge_router);
+
     let router = router.layer(CorsLayer::permissive());
 
     Ok(router)
@@ -113,9 +161,11 @@ pub(crate) fn generate_openapi_spec() -> OpenApi {
     let (_, agent_spec) = a2a::create_router().split_for_parts();
     let (_, task_spec) = task::create_router().split_for_parts();
     let (_, mcp_spec) = mcp::create_router().split_for_parts();
+    let (_, bridge_spec) = create_bridge_router().split_for_parts();
     spec.merge(agent_spec);
     spec.merge(task_spec);
     spec.merge(mcp_spec);
+    spec.merge(bridge_spec);
 
     spec
 }

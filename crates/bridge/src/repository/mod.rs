@@ -2,16 +2,14 @@ mod sqlite;
 
 use shared::{
     error::CommonError,
-    primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4},
+    primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4},
 };
 
 #[allow(unused_imports)]
 pub use sqlite::Repository;
 
 use crate::logic::{
-    BrokerState, DataEncryptionKey, EncryptedDataEnvelopeKey, EnvelopeEncryptionKeyId, Metadata,
-    ResourceServerCredentialSerialized, UserCredentialSerialized,
-    ProviderInstanceSerialized, FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
+    BrokerState, DataEncryptionKey, DataEncryptionKeyListItem, EncryptedDataEncryptionKey, EnvelopeEncryptionKeyId, FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials, Metadata, ProviderInstanceSerialized, ResourceServerCredentialSerialized, UserCredentialSerialized
 };
 
 // Repository parameter structs for resource server credentials
@@ -24,6 +22,7 @@ pub struct CreateResourceServerCredential {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub next_rotation_time: Option<WrappedChronoDateTime>,
+    pub data_encryption_key_id: String,
 }
 
 impl From<ResourceServerCredentialSerialized> for CreateResourceServerCredential {
@@ -36,6 +35,7 @@ impl From<ResourceServerCredentialSerialized> for CreateResourceServerCredential
             created_at: cred.created_at,
             updated_at: cred.updated_at,
             next_rotation_time: cred.next_rotation_time,
+            data_encryption_key_id: cred.data_encryption_key_id,
         }
     }
 }
@@ -50,6 +50,7 @@ pub struct CreateUserCredential {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub next_rotation_time: Option<WrappedChronoDateTime>,
+    pub data_encryption_key_id: String,
 }
 
 impl From<UserCredentialSerialized> for CreateUserCredential {
@@ -62,6 +63,7 @@ impl From<UserCredentialSerialized> for CreateUserCredential {
             created_at: cred.created_at,
             updated_at: cred.updated_at,
             next_rotation_time: cred.next_rotation_time,
+            data_encryption_key_id: cred.data_encryption_key_id,
         }
     }
 }
@@ -70,6 +72,7 @@ impl From<UserCredentialSerialized> for CreateUserCredential {
 #[derive(Debug)]
 pub struct CreateProviderInstance {
     pub id: String,
+    pub display_name: String,
     pub resource_server_credential_id: WrappedUuidV4,
     pub user_credential_id: WrappedUuidV4,
     pub created_at: WrappedChronoDateTime,
@@ -82,6 +85,7 @@ impl From<ProviderInstanceSerialized> for CreateProviderInstance {
     fn from(pi: ProviderInstanceSerialized) -> Self {
         CreateProviderInstance {
             id: pi.id,
+            display_name: pi.display_name,
             resource_server_credential_id: pi.resource_server_credential_id,
             user_credential_id: pi.user_credential_id,
             created_at: pi.created_at,
@@ -148,7 +152,7 @@ impl From<BrokerState> for CreateBrokerState {
 pub struct CreateDataEncryptionKey {
     pub id: String,
     pub envelope_encryption_key_id: EnvelopeEncryptionKeyId,
-    pub encryption_key: EncryptedDataEnvelopeKey,
+    pub encryption_key: EncryptedDataEncryptionKey,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
 }
@@ -158,7 +162,7 @@ impl From<DataEncryptionKey> for CreateDataEncryptionKey {
         CreateDataEncryptionKey {
             id: dek.id,
             envelope_encryption_key_id: dek.envelope_encryption_key_id,
-            encryption_key: dek.encrypted_data_envelope_key,
+            encryption_key: dek.encrypted_data_encryption_key,
             created_at: dek.created_at,
             updated_at: dek.updated_at,
         }
@@ -196,6 +200,11 @@ pub trait ProviderRepositoryLike {
         &self,
         id: &str,
     ) -> Result<Option<ProviderInstanceSerialized>, CommonError>;
+
+    async fn delete_provider_instance(
+        &self,
+        id: &str,
+    ) -> Result<(), CommonError>;
 
     async fn create_function_instance(
         &self,
@@ -241,4 +250,14 @@ pub trait ProviderRepositoryLike {
         &self,
         id: &str,
     ) -> Result<Option<DataEncryptionKey>, CommonError>;
+
+    async fn delete_data_encryption_key(
+        &self,
+        id: &str,
+    ) -> Result<(), CommonError>;
+
+    async fn list_data_encryption_keys(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<DataEncryptionKeyListItem>, CommonError>;
 }

@@ -1,9 +1,13 @@
+
+pub mod config;
+pub(crate) mod restate;
+pub(crate) mod soma_agent_definition;
+
 use std::path::PathBuf;
 
 use shared::error::CommonError;
+use tracing::info;
 
-pub(crate) mod restate;
-pub(crate) mod soma_agent_config;
 
 pub fn construct_src_dir_absolute(src_dir: Option<PathBuf>) -> Result<PathBuf, CommonError> {
     let cwd = std::env::current_dir()?;
@@ -16,4 +20,23 @@ pub fn construct_src_dir_absolute(src_dir: Option<PathBuf>) -> Result<PathBuf, C
     }
 
     Ok(src_dir)
+}
+
+
+pub fn get_api_config() -> Result<soma_api_client::apis::configuration::Configuration, anyhow::Error> {
+    // let user = ensure_user_is_set(config)?;
+    let mut headers = http::HeaderMap::new();
+    // headers.insert("authorization", format!("Bearer {}", user.jwt).parse().unwrap());
+    let client = reqwest::Client::builder()
+        .default_headers(headers)
+        .build()?;
+    let client = soma_api_client::apis::configuration::Configuration {
+        base_path: "http://localhost:3000".to_string(),
+        // base_path: config.base_api_url.clone(),
+        // bearer_access_token: Some(user.jwt),
+        client,
+        ..Default::default()
+    };
+    info!("API config: {:?}", client);
+    Ok(client)
 }

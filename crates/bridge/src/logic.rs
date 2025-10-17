@@ -1,12 +1,19 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
+use aes_gcm::{
+    Aes256Gcm, Nonce,
+    aead::{Aead, KeyInit, OsRng},
+};
 use async_trait::async_trait;
+use base64::Engine;
 use enum_dispatch::enum_dispatch;
 use once_cell::sync::Lazy;
+use rand::RngCore;
 use reqwest::Request;
 use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use shared::{
     error::CommonError,
     primitives::{
@@ -14,45 +21,63 @@ use shared::{
         WrappedSchema, WrappedUuidV4,
     },
 };
+use std::fs;
+use std::path::Path;
 use std::sync::RwLock;
 use utoipa::ToSchema;
 
-use crate::repository::ProviderRepositoryLike;
+use crate::{
+    providers::google_mail::GoogleMailProviderController, repository::ProviderRepositoryLike,
+};
+
+// on change events
+
+pub enum OnConfigChangeEvt {
+    DataEncryptionKeyAdded(DataEncryptionKey),
+    DataEncryptionKeyRemoved(String),
+    ProviderInstanceAdded(ProviderInstanceSerializedWithCredentials),
+    ProviderInstanceRemoved(String),
+    FunctionInstanceAdded(FunctionInstanceSerialized),
+    FunctionInstanceRemoved(String),
+}
+
+pub type OnConfigChangeTx = tokio::sync::mpsc::Sender<OnConfigChangeEvt>;
+pub type OnConfigChangeRx = tokio::sync::mpsc::Receiver<OnConfigChangeEvt>;
 
 // encrpyion
 
 // encrpyion
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
 #[serde(transparent)]
-pub struct EncryptedDataEnvelopeKey(pub String);
+pub struct EncryptedDataEncryptionKey(pub String);
 
 #[derive(Debug, Clone, zeroize::Zeroize, zeroize::ZeroizeOnDrop)]
 pub struct DecryptedDataEnvelopeKey(pub Vec<u8>);
 
-impl TryInto<libsql::Value> for EncryptedDataEnvelopeKey {
+impl TryInto<libsql::Value> for EncryptedDataEncryptionKey {
     type Error = Box<dyn std::error::Error + Send + Sync>;
     fn try_into(self) -> Result<libsql::Value, Self::Error> {
         Ok(libsql::Value::Text(self.0))
     }
 }
 
-impl TryFrom<libsql::Value> for EncryptedDataEnvelopeKey {
+impl TryFrom<libsql::Value> for EncryptedDataEncryptionKey {
     type Error = Box<dyn std::error::Error + Send + Sync>;
     fn try_from(value: libsql::Value) -> Result<Self, Self::Error> {
         match value {
-            libsql::Value::Text(s) => Ok(EncryptedDataEnvelopeKey(s)),
-            _ => Err("Expected Text value for EncryptedDataEnvelopeKey".into()),
+            libsql::Value::Text(s) => Ok(EncryptedDataEncryptionKey(s)),
+            _ => Err("Expected Text value for EncryptedDataEncryptionKey".into()),
         }
     }
 }
 
-impl libsql::FromValue for EncryptedDataEnvelopeKey {
+impl libsql::FromValue for EncryptedDataEncryptionKey {
     fn from_sql(val: libsql::Value) -> libsql::Result<Self>
     where
         Self: Sized,
     {
         match val {
-            libsql::Value::Text(s) => Ok(EncryptedDataEnvelopeKey(s)),
+            libsql::Value::Text(s) => Ok(EncryptedDataEncryptionKey(s)),
             libsql::Value::Null => Err(libsql::Error::NullValue),
             _ => Err(libsql::Error::InvalidColumnType),
         }
@@ -63,6 +88,29 @@ impl libsql::FromValue for EncryptedDataEnvelopeKey {
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum EnvelopeEncryptionKeyId {
     AwsKms { arn: String },
+    Local { key_id: String },
+}
+
+#[derive(Clone, zeroize::Zeroize, zeroize::ZeroizeOnDrop)]
+pub enum EnvelopeEncryptionKeyContents {
+    AwsKms { arn: String },
+    Local { key_id: String, key_bytes: Vec<u8> },
+}
+
+impl From<EnvelopeEncryptionKeyContents> for EnvelopeEncryptionKeyId {
+    fn from(contents: EnvelopeEncryptionKeyContents) -> Self {
+        match &contents {
+            EnvelopeEncryptionKeyContents::AwsKms { arn } => {
+                EnvelopeEncryptionKeyId::AwsKms { arn: arn.clone() }
+            }
+            EnvelopeEncryptionKeyContents::Local {
+                key_id,
+                key_bytes: _,
+            } => EnvelopeEncryptionKeyId::Local {
+                key_id: key_id.clone(),
+            },
+        }
+    }
 }
 
 impl TryInto<libsql::Value> for EnvelopeEncryptionKeyId {
@@ -108,16 +156,22 @@ impl libsql::FromValue for EnvelopeEncryptionKeyId {
 pub struct DataEncryptionKey {
     pub id: String,
     pub envelope_encryption_key_id: EnvelopeEncryptionKeyId,
-    pub encrypted_data_envelope_key: EncryptedDataEnvelopeKey,
+    pub encrypted_data_encryption_key: EncryptedDataEncryptionKey,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct DataEncryptionKeyListItem {
+    pub id: String,
+    pub envelope_encryption_key_id: EnvelopeEncryptionKeyId,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema, ToSchema)]
 #[serde(transparent)]
 pub struct EncryptedString(pub String);
-
 
 #[derive(Clone)]
 pub struct CryptoService {
@@ -126,14 +180,47 @@ pub struct CryptoService {
 }
 
 impl CryptoService {
-    pub async fn new(data_encryption_key: DataEncryptionKey) -> Result<Self, CommonError> {
-        let decrypted_data_envelope_key = decrypt_data_envelope_key(&data_encryption_key.envelope_encryption_key_id, &data_encryption_key.encrypted_data_envelope_key).await?;
+    pub async fn new(
+        envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+        data_encryption_key: DataEncryptionKey,
+    ) -> Result<Self, CommonError> {
+        let mut envelop_key_match = false;
+
+        if let EnvelopeEncryptionKeyContents::Local { key_id, key_bytes } =
+            &envelope_encryption_key_contents
+            && let EnvelopeEncryptionKeyId::Local {
+                key_id: data_encryption_key_id,
+                ..
+            } = &data_encryption_key.envelope_encryption_key_id
+        {
+            envelop_key_match = key_id == data_encryption_key_id;
+        } else if let EnvelopeEncryptionKeyContents::AwsKms { arn } =
+            &envelope_encryption_key_contents
+            && let EnvelopeEncryptionKeyId::AwsKms {
+                arn: data_encryption_key_arn,
+                ..
+            } = &data_encryption_key.envelope_encryption_key_id
+        {
+            envelop_key_match = arn == data_encryption_key_arn;
+        }
+
+        if !envelop_key_match {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Envelope encryption key contents do not match data encryption key"
+            )));
+        }
+
+        let decrypted_data_envelope_key = decrypt_data_envelope_key(
+            &envelope_encryption_key_contents,
+            &data_encryption_key.encrypted_data_encryption_key,
+        )
+        .await?;
         Ok(Self {
             data_encryption_key,
             cached_decrypted_data_envelope_key: decrypted_data_envelope_key,
         })
     }
-}   
+}
 
 pub struct EncryptionService(CryptoService);
 
@@ -144,8 +231,8 @@ impl EncryptionService {
 
     pub async fn encrypt_data(&self, data: String) -> Result<EncryptedString, CommonError> {
         use aes_gcm::{
-            aead::{Aead, KeyInit, OsRng},
             Aes256Gcm, Nonce,
+            aead::{Aead, KeyInit, OsRng},
         };
         use rand::RngCore;
 
@@ -192,13 +279,15 @@ impl DecryptionService {
 
     pub async fn decrypt_data(&self, data: EncryptedString) -> Result<String, CommonError> {
         use aes_gcm::{
-            aead::{Aead, KeyInit},
             Aes256Gcm, Nonce,
+            aead::{Aead, KeyInit},
         };
 
         // Base64 decode the input
-        let encrypted_data = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &data.0)
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to decode base64: {}", e)))?;
+        let encrypted_data =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &data.0).map_err(
+                |e| CommonError::Unknown(anyhow::anyhow!("Failed to decode base64: {}", e)),
+            )?;
 
         // Ensure we have at least the nonce (12 bytes)
         if encrypted_data.len() < 12 {
@@ -232,8 +321,9 @@ impl DecryptionService {
             .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Decryption failed: {}", e)))?;
 
         // Convert to UTF-8 string
-        let result = String::from_utf8(plaintext)
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid UTF-8 in decrypted data: {}", e)))?;
+        let result = String::from_utf8(plaintext).map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Invalid UTF-8 in decrypted data: {}", e))
+        })?;
 
         Ok(result)
     }
@@ -246,6 +336,12 @@ pub struct Metadata(pub serde_json::Map<String, serde_json::Value>);
 impl Metadata {
     pub fn new() -> Self {
         Self(serde_json::Map::new())
+    }
+}
+
+impl Default for Metadata {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -309,8 +405,7 @@ pub trait RotateableCredentialLike: Send + Sync {
 
 // Static credential configurations
 
-
-pub trait StaticCredentialConfigurationLike {
+pub trait StaticCredentialConfigurationLike: Send + Sync {
     fn type_id(&self) -> &'static str;
     fn value(&self) -> WrappedJsonValue;
     fn as_rotateable_credential(&self) -> Option<&dyn RotateableCredentialLike> {
@@ -332,8 +427,7 @@ impl StaticCredentialConfigurationLike for NoAuthStaticCredentialConfiguration {
     }
 }
 
-pub type StaticCredential = Credential<Arc<dyn StaticCredentialConfigurationLike>>;
-
+// pub type StaticCredential = Credential<Arc<dyn StaticCredentialConfigurationLike>>;
 
 // Resource server credentials
 
@@ -525,14 +619,18 @@ pub trait UserCredentialBrokerLike: Send + Sync {
 }
 
 #[derive(Serialize, Deserialize, Clone, ToSchema, JsonSchema)]
-pub struct ConfigurationSchemaItem {
+pub struct ConfigurationSchema {
     pub resource_server: WrappedSchema,
     pub user_credential: WrappedSchema,
 }
 
-#[derive(Serialize, Deserialize, Clone, ToSchema, JsonSchema)]
-#[serde(transparent)]
-pub struct ConfigurationSchema(pub HashMap<String, ConfigurationSchemaItem>);
+// #[derive(Serialize, Deserialize, Clone, ToSchema, JsonSchema)]
+// #[serde(transparent)]
+// pub struct ConfigurationSchema(pub HashMap<String, ConfigurationSchemaItem>);
+
+pub trait StaticProviderCredentialControllerLike {
+    fn static_type_id() -> &'static str;
+}
 
 #[async_trait]
 pub trait ProviderCredentialControllerLike: Send + Sync {
@@ -540,6 +638,8 @@ pub trait ProviderCredentialControllerLike: Send + Sync {
     fn documentation(&self) -> &'static str;
     fn name(&self) -> &'static str;
     fn configuration_schema(&self) -> ConfigurationSchema;
+    fn static_credentials(&self) -> Box<dyn StaticCredentialConfigurationLike>;
+    fn as_any(&self) -> &dyn std::any::Any;
     fn as_rotateable_controller_resource_server_credential(
         &self,
     ) -> Option<&dyn RotateableControllerResourceServerCredentialLike> {
@@ -581,9 +681,9 @@ pub trait ProviderControllerLike: Send + Sync {
     fn type_id(&self) -> &'static str;
     fn documentation(&self) -> &'static str;
     fn name(&self) -> &'static str;
+    fn categories(&self) -> Vec<&'static str>;
     fn functions(&self) -> Vec<Arc<dyn FunctionControllerLike>>;
     fn credential_controllers(&self) -> Vec<Arc<dyn ProviderCredentialControllerLike>>;
-
 }
 
 pub trait ProviderInstanceLike {
@@ -629,10 +729,12 @@ pub trait FunctionControllerLike: Send + Sync {
     fn documentation(&self) -> &'static str;
     fn parameters(&self) -> WrappedSchema;
     fn output(&self) -> WrappedSchema;
+    fn categories(&self) -> Vec<&'static str>;
     async fn invoke(
         &self,
         crypto_service: &DecryptionService,
-        static_credential: &StaticCredentialSerialized,
+        credential_controller: &Arc<dyn ProviderCredentialControllerLike>,
+        static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
         resource_server_credential: &ResourceServerCredentialSerialized,
         user_credential: &UserCredentialSerialized,
         params: WrappedJsonValue,
@@ -644,14 +746,11 @@ pub trait FunctionControllerLike: Send + Sync {
 #[derive(Serialize, Deserialize, ToSchema, Clone)]
 pub struct StaticCredentialSerialized {
     // not UUID as some ID's will be deterministic
-    pub id: String,
     pub type_id: String,
     pub metadata: Metadata,
 
     // this is the serialized version of the actual configuration fields
     pub value: WrappedJsonValue,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
 }
 
 impl From<Credential<Arc<dyn StaticCredentialConfigurationLike>>> for StaticCredentialSerialized {
@@ -659,9 +758,6 @@ impl From<Credential<Arc<dyn StaticCredentialConfigurationLike>>> for StaticCred
         StaticCredentialSerialized {
             type_id: static_cred.inner.type_id().to_string(),
             metadata: static_cred.metadata.clone(),
-            id: static_cred.id.to_string(),
-            created_at: static_cred.created_at,
-            updated_at: static_cred.updated_at,
             value: static_cred.inner.value(),
         }
     }
@@ -676,6 +772,7 @@ pub struct ResourceServerCredentialSerialized {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub next_rotation_time: Option<WrappedChronoDateTime>,
+    pub data_encryption_key_id: String,
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Clone)]
@@ -687,6 +784,7 @@ pub struct UserCredentialSerialized {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub next_rotation_time: Option<WrappedChronoDateTime>,
+    pub data_encryption_key_id: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
@@ -722,12 +820,20 @@ impl From<Arc<dyn ProviderCredentialControllerLike>> for ProviderCredentialContr
 pub struct ProviderInstanceSerialized {
     // not UUID as some ID's will be deterministic
     pub id: String,
+    pub display_name: String,
     pub resource_server_credential_id: WrappedUuidV4,
     pub user_credential_id: WrappedUuidV4,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub provider_controller_type_id: String,
     pub credential_controller_type_id: String,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
+pub struct ProviderInstanceSerializedWithCredentials {
+    pub provider_instance: ProviderInstanceSerialized,
+    pub resource_server_credential: ResourceServerCredentialSerialized,
+    pub user_credential: UserCredentialSerialized,
 }
 
 // we shouldn't need this besides the fact that we want to keep track of functions intentionally enabled
@@ -745,7 +851,6 @@ pub struct FunctionInstanceSerialized {
 pub struct FunctionInstanceSerializedWithCredentials {
     pub function_instance: FunctionInstanceSerialized,
     pub provider_instance: ProviderInstanceSerialized,
-    pub static_credential: StaticCredentialSerialized,
     pub resource_server_credential: ResourceServerCredentialSerialized,
     pub user_credential: UserCredentialSerialized,
 }
@@ -759,6 +864,7 @@ pub struct FunctionControllerSerialized {
     pub documentation: String,
     pub parameters: WrappedSchema,
     pub output: WrappedSchema,
+    pub categories: Vec<String>, // TODO: change to Vec<&'static str>
 }
 
 impl From<Arc<dyn FunctionControllerLike>> for FunctionControllerSerialized {
@@ -769,6 +875,11 @@ impl From<Arc<dyn FunctionControllerLike>> for FunctionControllerSerialized {
             documentation: function.documentation().to_string(),
             parameters: function.parameters(),
             output: function.output(),
+            categories: function
+                .categories()
+                .into_iter()
+                .map(|c| c.to_string())
+                .collect(),
         }
     }
 }
@@ -777,6 +888,7 @@ impl From<Arc<dyn FunctionControllerLike>> for FunctionControllerSerialized {
 pub struct ProviderControllerSerialized {
     pub type_id: String,
     pub name: String,
+    pub categories: Vec<String>,
     pub documentation: String,
     pub functions: Vec<FunctionControllerSerialized>,
     pub credential_controllers: Vec<ProviderCredentialControllerSerialized>,
@@ -787,6 +899,11 @@ impl From<&dyn ProviderControllerLike> for ProviderControllerSerialized {
         ProviderControllerSerialized {
             type_id: provider.type_id().to_string(),
             name: provider.name().to_string(),
+            categories: provider
+                .categories()
+                .into_iter()
+                .map(|c| c.to_string())
+                .collect(),
             documentation: provider.documentation().to_string(),
             credential_controllers: provider
                 .credential_controllers()
@@ -804,12 +921,63 @@ impl From<&dyn ProviderControllerLike> for ProviderControllerSerialized {
 
 // encryption functions
 
+/// Generate or load a local encryption key from a file path.
+/// If the file already exists, it reads and returns the key.
+/// If the file doesn't exist, it generates a new 32-byte key, saves it, and returns it.
+pub fn get_or_create_local_encryption_key(
+    file_path: &PathBuf,
+) -> Result<EnvelopeEncryptionKeyContents, CommonError> {
+    use rand::RngCore;
+
+    // If file exists, read and return the key
+    if file_path.exists() {
+        let key_bytes = std::fs::read(file_path.clone()).map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!(
+                "Failed to read local KEK file at {}: {}",
+                file_path.display(),
+                e
+            ))
+        })?;
+
+        if key_bytes.len() != 32 {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Invalid local KEK length in file {}: expected 32 bytes, got {}",
+                file_path.display(),
+                key_bytes.len()
+            )));
+        }
+
+        return Ok(EnvelopeEncryptionKeyContents::Local {
+            key_id: file_path.to_string_lossy().to_string(),
+            key_bytes,
+        });
+    }
+
+    // File doesn't exist - generate new key
+    let mut key_bytes = vec![0u8; 32];
+    rand::thread_rng().fill_bytes(&mut key_bytes);
+
+    // Write the key to file
+    std::fs::write(file_path, &key_bytes).map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!(
+            "Failed to write local KEK file at {}: {}",
+            file_path.display(),
+            e
+        ))
+    })?;
+
+    Ok(EnvelopeEncryptionKeyContents::Local {
+        key_id: file_path.to_string_lossy().to_string(),
+        key_bytes,
+    })
+}
+
 pub async fn encrypt_data_envelope_key(
-    parent_encryption_key: &EnvelopeEncryptionKeyId,
+    parent_encryption_key: &EnvelopeEncryptionKeyContents,
     data_envelope_key: String,
-) -> Result<EncryptedDataEnvelopeKey, CommonError> {
+) -> Result<EncryptedDataEncryptionKey, CommonError> {
     match parent_encryption_key {
-        EnvelopeEncryptionKeyId::AwsKms { arn } => {
+        EnvelopeEncryptionKeyContents::AwsKms { arn } => {
             // Create AWS KMS client
             let config = aws_config::load_from_env().await;
             let kms_client = aws_sdk_kms::Client::new(&config);
@@ -818,7 +986,9 @@ pub async fn encrypt_data_envelope_key(
             let encrypt_output = kms_client
                 .encrypt()
                 .key_id(arn)
-                .plaintext(aws_sdk_kms::primitives::Blob::new(data_envelope_key.as_bytes()))
+                .plaintext(aws_sdk_kms::primitives::Blob::new(
+                    data_envelope_key.as_bytes(),
+                ))
                 .send()
                 .await
                 .map_err(|e| {
@@ -841,17 +1011,50 @@ pub async fn encrypt_data_envelope_key(
                 ciphertext_blob.as_ref(),
             );
 
-            Ok(EncryptedDataEnvelopeKey(encrypted_key))
+            Ok(EncryptedDataEncryptionKey(encrypted_key))
+        }
+        EnvelopeEncryptionKeyContents::Local {
+            key_id: _,
+            key_bytes,
+        } => {
+            // --- Local AES-GCM path ---
+            if key_bytes.len() != 32 {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Invalid local KEK length: expected 32 bytes, got {}",
+                    key_bytes.len()
+                )));
+            }
+
+            let key = aes_gcm::Key::<Aes256Gcm>::from_slice(&key_bytes);
+            let cipher = Aes256Gcm::new(key);
+
+            let mut nonce_bytes = [0u8; 12];
+            OsRng.fill_bytes(&mut nonce_bytes);
+            let nonce = Nonce::from_slice(&nonce_bytes);
+
+            let ciphertext = cipher
+                .encrypt(nonce, data_envelope_key.as_bytes())
+                .map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!("Local envelope encryption failed: {}", e))
+                })?;
+
+            // Combine nonce + ciphertext
+            let mut combined = Vec::with_capacity(nonce_bytes.len() + ciphertext.len());
+            combined.extend_from_slice(&nonce_bytes);
+            combined.extend_from_slice(&ciphertext);
+
+            let encoded = base64::engine::general_purpose::STANDARD.encode(&combined);
+            Ok(EncryptedDataEncryptionKey(encoded))
         }
     }
 }
 
 pub async fn decrypt_data_envelope_key(
-    parent_encryption_key: &EnvelopeEncryptionKeyId,
-    encrypted_data_envelope_key: &EncryptedDataEnvelopeKey,
+    parent_encryption_key: &EnvelopeEncryptionKeyContents,
+    encrypted_data_envelope_key: &EncryptedDataEncryptionKey,
 ) -> Result<DecryptedDataEnvelopeKey, CommonError> {
     match parent_encryption_key {
-        EnvelopeEncryptionKeyId::AwsKms { arn } => {
+        EnvelopeEncryptionKeyContents::AwsKms { arn } => {
             // Decode the base64 encrypted key
             let ciphertext_blob = base64::Engine::decode(
                 &base64::engine::general_purpose::STANDARD,
@@ -892,106 +1095,222 @@ pub async fn decrypt_data_envelope_key(
             // Store as raw bytes (no UTF-8 conversion needed for key material)
             Ok(DecryptedDataEnvelopeKey(plaintext.as_ref().to_vec()))
         }
+        EnvelopeEncryptionKeyContents::Local {
+            key_id: _,
+            key_bytes,
+        } => {
+            // --- Local AES-GCM path ---
+            if key_bytes.len() != 32 {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Invalid local KEK length: expected 32 bytes, got {}",
+                    key_bytes.len()
+                )));
+            }
+
+            let key = aes_gcm::Key::<Aes256Gcm>::from_slice(&key_bytes);
+            let cipher = Aes256Gcm::new(key);
+
+            let encrypted_data = base64::engine::general_purpose::STANDARD
+                .decode(&encrypted_data_envelope_key.0)
+                .map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to decode base64 encrypted DEK: {}",
+                        e
+                    ))
+                })?;
+
+            if encrypted_data.len() < 12 {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Invalid encrypted DEK format: missing nonce"
+                )));
+            }
+
+            let nonce = Nonce::from_slice(&encrypted_data[..12]);
+            let ciphertext = &encrypted_data[12..];
+
+            let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Local DEK decryption failed: {}", e))
+            })?;
+
+            Ok(DecryptedDataEnvelopeKey(plaintext))
+        }
     }
 }
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct CreateDataEncryptionKeyParams {
-    pub envelope_encryption_key_id: EnvelopeEncryptionKeyId,
+    // pub envelope_encryption_key_id: EnvelopeEncryptionKeyId,
     pub id: Option<String>,
-    pub encrypted_data_envelope_key: Option<EncryptedDataEnvelopeKey>,
+    pub encrypted_data_envelope_key: Option<EncryptedDataEncryptionKey>,
 }
-
 
 pub type CreateDataEncryptionKeyResponse = DataEncryptionKey;
 
 pub async fn create_data_encryption_key(
+    key_encryption_key: &EnvelopeEncryptionKeyContents,
+    on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateDataEncryptionKeyParams,
 ) -> Result<CreateDataEncryptionKeyResponse, CommonError> {
     let id = match params.id {
-        Some(id) => id,
+        Some(id) => {
+            // overwrite existing DEK if same ID exists
+            repo.delete_data_encryption_key(&id).await?;
+            on_config_change_tx
+                .send(OnConfigChangeEvt::DataEncryptionKeyRemoved(id.clone()))
+                .await?;
+            id
+        }
         None => uuid::Uuid::new_v4().to_string(),
     };
 
-    let encrypted_data_envelope_key = match params.encrypted_data_envelope_key {
-        Some(encrypted_data_envelope_key) => encrypted_data_envelope_key,
-        None => {
-            // Use AWS KMS GenerateDataKey to create a secure data key
-            // This is the recommended approach for envelope encryption with AWS KMS
-            match &params.envelope_encryption_key_id {
-                EnvelopeEncryptionKeyId::AwsKms { arn } => {
-                    // Create AWS KMS client
-                    let config = aws_config::load_from_env().await;
-                    let kms_client = aws_sdk_kms::Client::new(&config);
+    let key_encryption_key = key_encryption_key.clone();
+    let encrypted_data_encryption_key = match params.encrypted_data_envelope_key {
+        Some(existing) => existing,
+        None => match &key_encryption_key {
+            EnvelopeEncryptionKeyContents::AwsKms { arn } => {
+                // --- AWS KMS path ---
+                let config = aws_config::load_from_env().await;
+                let kms_client = aws_sdk_kms::Client::new(&config);
 
-                    // Generate a 256-bit data key using AWS KMS
-                    let generate_output = kms_client
-                        .generate_data_key()
-                        .key_id(arn)
-                        .key_spec(aws_sdk_kms::types::DataKeySpec::Aes256)
-                        .send()
-                        .await
-                        .map_err(|e| {
-                            CommonError::Unknown(anyhow::anyhow!(
-                                "Failed to generate data key with AWS KMS: {}",
-                                e
-                            ))
-                        })?;
-
-                    // Get the encrypted data key (ciphertext blob)
-                    let ciphertext_blob = generate_output.ciphertext_blob().ok_or_else(|| {
+                let output = kms_client
+                    .generate_data_key()
+                    .key_id(arn)
+                    .key_spec(aws_sdk_kms::types::DataKeySpec::Aes256)
+                    .send()
+                    .await
+                    .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(
-                            "AWS KMS GenerateDataKey response did not contain ciphertext blob"
+                            "Failed to generate data key with AWS KMS: {}",
+                            e
                         ))
                     })?;
 
-                    // Encode to base64 for storage
-                    let encrypted_key = base64::Engine::encode(
-                        &base64::engine::general_purpose::STANDARD,
-                        ciphertext_blob.as_ref(),
-                    );
+                let ciphertext_blob = output.ciphertext_blob().ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!(
+                        "AWS KMS GenerateDataKey response did not contain ciphertext blob"
+                    ))
+                })?;
 
-                    EncryptedDataEnvelopeKey(encrypted_key)
-                }
+                let encoded = base64::engine::general_purpose::STANDARD.encode(ciphertext_blob);
+                EncryptedDataEncryptionKey(encoded)
             }
-        }
+
+            EnvelopeEncryptionKeyContents::Local { key_id, key_bytes } => {
+                // --- Local path (no AWS involved) ---
+                if key_bytes.len() != 32 {
+                    return Err(CommonError::Unknown(anyhow::anyhow!(
+                        "Invalid KEK length in {} (expected 32 bytes, got {})",
+                        key_id,
+                        key_bytes.len()
+                    )));
+                }
+
+                // Generate random 32-byte DEK
+                let mut dek = [0u8; 32];
+                rand::thread_rng().fill_bytes(&mut dek);
+
+                // Encrypt DEK with local KEK using AES-GCM
+                use aes_gcm::{
+                    Aes256Gcm, Nonce,
+                    aead::{Aead, KeyInit, OsRng},
+                };
+
+                let key = aes_gcm::Key::<Aes256Gcm>::from_slice(&key_bytes);
+                let cipher = Aes256Gcm::new(key);
+
+                let mut nonce_bytes = [0u8; 12];
+                OsRng.fill_bytes(&mut nonce_bytes);
+                let nonce = Nonce::from_slice(&nonce_bytes);
+
+                let ciphertext = cipher.encrypt(nonce, dek.as_slice()).map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!("Failed to encrypt DEK locally: {}", e))
+                })?;
+
+                let mut combined = Vec::with_capacity(12 + ciphertext.len());
+                combined.extend_from_slice(&nonce_bytes);
+                combined.extend_from_slice(&ciphertext);
+
+                let encoded = base64::engine::general_purpose::STANDARD.encode(&combined);
+                EncryptedDataEncryptionKey(encoded)
+            }
+        },
     };
 
     let now = WrappedChronoDateTime::now();
 
     let data_encryption_key = DataEncryptionKey {
         id,
-        envelope_encryption_key_id: params.envelope_encryption_key_id,
-        encrypted_data_envelope_key,
+        envelope_encryption_key_id: key_encryption_key.into(),
+        encrypted_data_encryption_key,
         created_at: now,
         updated_at: now,
     };
+
     repo.create_data_encryption_key(&data_encryption_key.clone().into())
         .await?;
+
+    on_config_change_tx
+        .send(OnConfigChangeEvt::DataEncryptionKeyAdded(
+            data_encryption_key.clone(),
+        ))
+        .await?;
+
     Ok(data_encryption_key)
 }
 
+pub type ListDataEncryptionKeysParams = PaginationRequest;
+pub type ListDataEncryptionKeysResponse = PaginatedResponse<DataEncryptionKeyListItem>;
+
+pub async fn list_data_encryption_keys(
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: ListDataEncryptionKeysParams,
+) -> Result<ListDataEncryptionKeysResponse, CommonError> {
+    let data_encryption_keys = repo.list_data_encryption_keys(&params).await?;
+    Ok(data_encryption_keys)
+}
+
 async fn get_crypto_service(
+    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
     repo: &impl crate::repository::ProviderRepositoryLike,
     data_encryption_key_id: &String,
-) -> Result<EncryptionService, CommonError> {
-    let data_encryption_key = repo.get_data_encryption_key_by_id(&data_encryption_key_id).await?;
+) -> Result<CryptoService, CommonError> {
+    let data_encryption_key = repo
+        .get_data_encryption_key_by_id(&data_encryption_key_id)
+        .await?;
 
     let data_encryption_key = match data_encryption_key {
         Some(data_encryption_key) => data_encryption_key,
         None => {
-            return Err(CommonError::Unknown(anyhow::anyhow!("Data encryption key not found")));
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Data encryption key not found"
+            )));
         }
     };
 
-    let crypto_service = CryptoService::new(data_encryption_key).await?;
-    Ok(EncryptionService::new(crypto_service))
+    let crypto_service = CryptoService::new(
+        envelope_encryption_key_contents.clone(),
+        data_encryption_key,
+    )
+    .await?;
+    Ok(crypto_service)
+}
+
+fn get_encryption_service(
+    crypto_service: &CryptoService,
+) -> Result<EncryptionService, CommonError> {
+    Ok(EncryptionService(crypto_service.clone()))
+}
+
+fn get_decryption_service(
+    crypto_service: &CryptoService,
+) -> Result<DecryptionService, CommonError> {
+    Ok(DecryptionService(crypto_service.clone()))
 }
 
 // everything else functions
 
-pub const MAIL_CATEGORY: &str = "mail";
+pub const CATEGORY_EMAIL: &str = "email";
 
 pub static PROVIDER_REGISTRY: Lazy<RwLock<Vec<Arc<dyn ProviderControllerLike>>>> =
     Lazy::new(|| RwLock::new(Vec::new()));
@@ -1051,7 +1370,7 @@ fn get_provider_controller(
             "Provider controller not found"
         )))?
         .clone();
-    
+
     Ok(provider_controller)
 }
 
@@ -1067,7 +1386,7 @@ fn get_credential_controller(
             "Credential controller not found"
         )))?
         .clone();
-    
+
     Ok(credential_controller)
 }
 
@@ -1079,38 +1398,60 @@ fn get_function_controller(
         .functions()
         .iter()
         .find(|f| f.type_id() == function_controller_type_id)
-        .ok_or(CommonError::Unknown(anyhow::anyhow!("Function controller not found")))?
+        .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            "Function controller not found"
+        )))?
         .clone();
     Ok(function_controller)
 }
 
 pub async fn encrypt_resource_server_configuration(
+    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: EncryptConfigurationParams,
 ) -> Result<EncryptedCredentialConfigurationResponse, CommonError> {
-    let crypto_service = get_crypto_service(repo, &params.inner.inner.data_encryption_key_id).await?;
+    let crypto_service = get_crypto_service(
+        envelope_encryption_key_contents,
+        repo,
+        &params.inner.inner.data_encryption_key_id,
+    )
+    .await?;
+    let encryption_service = get_encryption_service(&crypto_service)?;
     let provider_controller = get_provider_controller(&params.provider_controller_type_id)?;
-    let credential_controller = get_credential_controller(&provider_controller, &params.inner.credential_controller_type_id)?;
+    let credential_controller = get_credential_controller(
+        &provider_controller,
+        &params.inner.credential_controller_type_id,
+    )?;
     let resource_server_configuration = params.inner.inner.value;
 
     let encrypted_resource_server_configuration = credential_controller
-        .encrypt_resource_server_configuration(&crypto_service, resource_server_configuration)
+        .encrypt_resource_server_configuration(&encryption_service, resource_server_configuration)
         .await?;
 
     Ok(encrypted_resource_server_configuration.value())
 }
 
 pub async fn encrypt_user_credential_configuration(
+    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: EncryptConfigurationParams,
 ) -> Result<EncryptedCredentialConfigurationResponse, CommonError> {
-    let crypto_service = get_crypto_service(repo, &params.inner.inner.data_encryption_key_id).await?;
+    let crypto_service = get_crypto_service(
+        envelope_encryption_key_contents,
+        repo,
+        &params.inner.inner.data_encryption_key_id,
+    )
+    .await?;
+    let encryption_service = get_encryption_service(&crypto_service)?;
     let provider_controller = get_provider_controller(&params.provider_controller_type_id)?;
-    let credential_controller = get_credential_controller(&provider_controller, &params.inner.credential_controller_type_id)?;
+    let credential_controller = get_credential_controller(
+        &provider_controller,
+        &params.inner.credential_controller_type_id,
+    )?;
     let user_credential_configuration = params.inner.inner.value;
 
     let encrypted_user_credential_configuration = credential_controller
-        .encrypt_user_credential_configuration(&crypto_service, user_credential_configuration)
+        .encrypt_user_credential_configuration(&encryption_service, user_credential_configuration)
         .await?;
 
     Ok(encrypted_user_credential_configuration.value())
@@ -1120,6 +1461,8 @@ pub async fn encrypt_user_credential_configuration(
 pub struct CreateResourceServerCredentialParamsInner {
     // NOTE: serialized values are always already encrypted, only encrypt_provider_configuration accepts raw values
     pub resource_server_configuration: WrappedJsonValue,
+    pub metadata: Option<Metadata>,
+    pub data_encryption_key_id: String,
 }
 pub type CreateResourceServerCredentialParams = WithProviderControllerTypeId<
     WithCredentialControllerTypeId<CreateResourceServerCredentialParamsInner>,
@@ -1132,12 +1475,19 @@ pub async fn create_resource_server_credential(
 ) -> Result<CreateResourceServerCredentialResponse, CommonError> {
     let provider_controller = get_provider_controller(&params.provider_controller_type_id)?;
 
-    let credential_controller = get_credential_controller(&provider_controller, &params.inner.credential_controller_type_id)?;
+    let credential_controller = get_credential_controller(
+        &provider_controller,
+        &params.inner.credential_controller_type_id,
+    )?;
 
-    let (resource_server_credential, metadata) = credential_controller
+    let (resource_server_credential, mut core_metadata) = credential_controller
         .from_serialized_resource_server_configuration(
             params.inner.inner.resource_server_configuration,
         )?;
+
+    if let Some(metadata) = params.inner.inner.metadata {
+        core_metadata.0.extend(metadata.0);
+    }
 
     let next_rotation_time = if let Some(resource_server_credential) =
         resource_server_credential.as_rotateable_credential()
@@ -1151,11 +1501,12 @@ pub async fn create_resource_server_credential(
     let resource_server_credential_serialized = ResourceServerCredentialSerialized {
         id: WrappedUuidV4::new(),
         type_id: resource_server_credential.type_id().to_string(),
-        metadata: metadata,
+        metadata: core_metadata,
         value: resource_server_credential.value(),
         created_at: now,
         updated_at: now,
         next_rotation_time: next_rotation_time,
+        data_encryption_key_id: params.inner.inner.data_encryption_key_id,
     };
 
     // Save to database
@@ -1173,6 +1524,7 @@ pub async fn create_resource_server_credential(
 pub struct CreateUserCredentialParamsInner {
     pub user_credential_configuration: WrappedJsonValue,
     pub metadata: Option<Metadata>,
+    pub data_encryption_key_id: String,
 }
 pub type CreateUserCredentialParams =
     WithProviderControllerTypeId<WithCredentialControllerTypeId<CreateUserCredentialParamsInner>>;
@@ -1184,7 +1536,10 @@ pub async fn create_user_credential(
 ) -> Result<CreateUserCredentialResponse, CommonError> {
     let provider_controller = get_provider_controller(&params.provider_controller_type_id)?;
 
-    let credential_controller = get_credential_controller(&provider_controller, &params.inner.credential_controller_type_id)?;
+    let credential_controller = get_credential_controller(
+        &provider_controller,
+        &params.inner.credential_controller_type_id,
+    )?;
 
     let (user_credential, mut core_metadata) = credential_controller
         .from_serialized_user_credential_configuration(
@@ -1211,6 +1566,7 @@ pub async fn create_user_credential(
         created_at: now,
         updated_at: now,
         next_rotation_time: next_rotation_time,
+        data_encryption_key_id: params.inner.inner.data_encryption_key_id,
     };
 
     // Save to database
@@ -1227,28 +1583,35 @@ pub struct CreateProviderInstanceParamsInner {
     pub resource_server_credential_id: WrappedUuidV4,
     pub user_credential_id: WrappedUuidV4,
     pub provider_instance_id: Option<String>,
+    pub display_name: String,
 }
 pub type CreateProviderInstanceParams =
     WithProviderControllerTypeId<WithCredentialControllerTypeId<CreateProviderInstanceParamsInner>>;
 pub type CreateProviderInstanceResponse = ProviderInstanceSerialized;
 
 pub async fn create_provider_instance(
+    on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateProviderInstanceParams,
 ) -> Result<CreateProviderInstanceResponse, CommonError> {
     let provider_controller = get_provider_controller(&params.provider_controller_type_id)?;
 
-    let credential_controller = get_credential_controller(&provider_controller, &params.inner.credential_controller_type_id)?;
+    let credential_controller = get_credential_controller(
+        &provider_controller,
+        &params.inner.credential_controller_type_id,
+    )?;
 
     // Verify resource server credential exists
-    repo.get_resource_server_credential_by_id(&params.inner.inner.resource_server_credential_id)
+    let resource_server_credential = repo
+        .get_resource_server_credential_by_id(&params.inner.inner.resource_server_credential_id)
         .await?
         .ok_or(CommonError::Unknown(anyhow::anyhow!(
             "Resource server credential not found"
         )))?;
 
     // Verify user credential exists
-    repo.get_user_credential_by_id(&params.inner.inner.user_credential_id)
+    let user_credential = repo
+        .get_user_credential_by_id(&params.inner.inner.user_credential_id)
         .await?
         .ok_or(CommonError::Unknown(anyhow::anyhow!(
             "User credential not found"
@@ -1261,6 +1624,7 @@ pub async fn create_provider_instance(
     let now = WrappedChronoDateTime::now();
     let provider_instance_serialized = ProviderInstanceSerialized {
         id: provider_instance_id,
+        display_name: params.inner.inner.display_name,
         resource_server_credential_id: params.inner.inner.resource_server_credential_id,
         user_credential_id: params.inner.inner.user_credential_id,
         created_at: now,
@@ -1275,7 +1639,36 @@ pub async fn create_provider_instance(
     ))
     .await?;
 
+    let provider_instance_with_credentials = ProviderInstanceSerializedWithCredentials {
+        provider_instance: provider_instance_serialized.clone(),
+        resource_server_credential: resource_server_credential.clone(),
+        user_credential: user_credential.clone(),
+    };
+    on_config_change_tx
+        .send(OnConfigChangeEvt::ProviderInstanceAdded(
+            provider_instance_with_credentials,
+        ))
+        .await?;
+
     Ok(provider_instance_serialized)
+}
+
+pub type DeleteProviderInstanceParams = WithProviderInstanceId<()>;
+pub type DeleteProviderInstanceResponse = ();
+
+pub async fn delete_provider_instance(
+    on_config_change_tx: &OnConfigChangeTx,
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: DeleteProviderInstanceParams,
+) -> Result<DeleteProviderInstanceResponse, CommonError> {
+    repo.delete_provider_instance(&params.provider_instance_id)
+        .await?;
+    on_config_change_tx
+        .send(OnConfigChangeEvt::ProviderInstanceRemoved(
+            params.provider_instance_id.clone(),
+        ))
+        .await?;
+    Ok(())
 }
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
@@ -1307,11 +1700,13 @@ pub type EnableFunctionParams =
 pub type EnableFunctionResponse = FunctionInstanceSerialized;
 
 pub async fn enable_function(
+    on_config_change_tx: &OnConfigChangeTx,
     repo: &crate::repository::Repository,
     params: EnableFunctionParams,
 ) -> Result<EnableFunctionResponse, CommonError> {
     // Verify provider instance exists
-    let provider_instance = repo.get_provider_instance_by_id(&params.provider_instance_id)
+    let provider_instance = repo
+        .get_provider_instance_by_id(&params.provider_instance_id)
         .await?
         .ok_or(CommonError::Unknown(anyhow::anyhow!(
             "Provider instance not found"
@@ -1319,7 +1714,10 @@ pub async fn enable_function(
 
     // // Verify function exists in provider controller
     let provider_controller = get_provider_controller(&params.provider_instance_id)?;
-    let _function_controller = get_function_controller(&provider_controller, &params.inner.function_controller_type_id)?;
+    let _function_controller = get_function_controller(
+        &provider_controller,
+        &params.inner.function_controller_type_id,
+    )?;
 
     let function_instance_id = match params.inner.inner.function_instance_id {
         Some(function_instance_id) => function_instance_id,
@@ -1335,11 +1733,17 @@ pub async fn enable_function(
     };
 
     // Save to database
-    let create_params = crate::repository::CreateFunctionInstance::from(function_instance_serialized.clone());
+    let create_params =
+        crate::repository::CreateFunctionInstance::from(function_instance_serialized.clone());
     repo.create_function_instance(&create_params).await?;
 
-    Ok(function_instance_serialized)
+    on_config_change_tx
+        .send(OnConfigChangeEvt::FunctionInstanceAdded(
+            function_instance_serialized.clone(),
+        ))
+        .await?;
 
+    Ok(function_instance_serialized)
 }
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
@@ -1352,7 +1756,7 @@ pub type InvokeFunctionResponse = WrappedJsonValue;
 
 pub async fn invoke_function(
     repo: &crate::repository::Repository,
-    decryption_service: &DecryptionService,
+    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
     params: InvokeFunctionParams,
 ) -> Result<InvokeFunctionResponse, CommonError> {
     let function_instance_with_credentials = repo
@@ -1362,53 +1766,44 @@ pub async fn invoke_function(
             "Function instance not found"
         )))?;
 
-    let provder_controller = PROVIDER_REGISTRY
-        .read()
-        .map_err(|_e| CommonError::Unknown(anyhow::anyhow!("Poison error")))?
-        .iter()
-        .find(|p| {
-            p.type_id()
-                == function_instance_with_credentials
-                    .provider_instance
-                    .provider_controller_type_id
-        })
-        .ok_or(CommonError::Unknown(anyhow::anyhow!(
-            "Provider instance not found"
-        )))?
-        .clone();
-
-    let function_controller = provder_controller
-        .functions()
-        .iter()
-        .find(|f| {
-            f.type_id()
-                == function_instance_with_credentials
-                    .function_instance
-                    .function_controller_type_id
-        })
-        .ok_or(CommonError::Unknown(anyhow::anyhow!("Function not found")))?
-        .clone();
+    // TODO: we assume user and resource credentials are encrypted with the same data encryption key
+    // this could change in future as the sql tables permit different data encryption keys for user and resource credentials
+    let crypto_service = get_crypto_service(
+        envelope_encryption_key_contents,
+        repo,
+        &function_instance_with_credentials
+            .resource_server_credential
+            .data_encryption_key_id,
+    )
+    .await?;
+    let decryption_service = get_decryption_service(&crypto_service)?;
+    let provder_controller = get_provider_controller(
+        &function_instance_with_credentials
+            .provider_instance
+            .provider_controller_type_id,
+    )?;
+    let function_controller = get_function_controller(
+        &provder_controller,
+        &function_instance_with_credentials
+            .function_instance
+            .function_controller_type_id,
+    )?;
 
     // TODO: I think the credential controller should manage decrypting the resource server credential and user credential and static credentials
     // and pass a single return type to the function invocation that implements a DecryptedFullCredentialLike trait?
-    let credential_controller = provder_controller
-        .credential_controllers()
-        .iter()
-        .find(|c| {
-            c.type_id()
-                == function_instance_with_credentials
-                    .provider_instance
-                    .credential_controller_type_id
-        })
-        .ok_or(CommonError::Unknown(anyhow::anyhow!(
-            "Credential controller not found"
-        )))?
-        .clone();
+    let credential_controller = get_credential_controller(
+        &provder_controller,
+        &function_instance_with_credentials
+            .provider_instance
+            .credential_controller_type_id,
+    )?;
+    let static_credentials = credential_controller.static_credentials();
 
     let response = function_controller
         .invoke(
-            decryption_service,
-            &function_instance_with_credentials.static_credential,
+            &decryption_service,
+            &credential_controller,
+            &static_credentials,
             &function_instance_with_credentials.resource_server_credential,
             &function_instance_with_credentials.user_credential,
             params.inner.inner.params,
@@ -1416,7 +1811,6 @@ pub async fn invoke_function(
         .await?;
     Ok(response)
 }
-
 
 #[derive(Serialize, Deserialize, Clone, ToSchema, JsonSchema)]
 pub struct DisableFunctionParamsInner {
@@ -1426,11 +1820,17 @@ pub type DisableFunctionParams = WithProviderInstanceId<DisableFunctionParamsInn
 pub type DisableFunctionResponse = ();
 
 pub async fn disable_function(
+    on_config_change_tx: &OnConfigChangeTx,
     repo: &crate::repository::Repository,
     params: DisableFunctionParams,
 ) -> Result<DisableFunctionResponse, CommonError> {
     // Delete from database
     repo.delete_function_instance(&params.inner.function_instance_id)
+        .await?;
+    on_config_change_tx
+        .send(OnConfigChangeEvt::FunctionInstanceRemoved(
+            params.inner.function_instance_id.clone(),
+        ))
         .await?;
     Ok(())
 }
@@ -1450,6 +1850,19 @@ async fn process_broker_outcome(
             user_credential,
             metadata,
         } => {
+            let resource_server_cred = repo
+                .get_resource_server_credential_by_id(&resource_server_cred_id)
+                .await?;
+
+            let resource_server_cred = match resource_server_cred {
+                Some(resource_server_cred) => resource_server_cred,
+                None => {
+                    return Err(CommonError::Unknown(anyhow::anyhow!(
+                        "Resource server credential not found"
+                    )));
+                }
+            };
+            let data_encryption_key_id = resource_server_cred.data_encryption_key_id;
             let user_credential = create_user_credential(
                 repo,
                 CreateUserCredentialParams {
@@ -1457,6 +1870,7 @@ async fn process_broker_outcome(
                     inner: WithCredentialControllerTypeId {
                         credential_controller_type_id: credential_controller.type_id().to_string(),
                         inner: CreateUserCredentialParamsInner {
+                            data_encryption_key_id: data_encryption_key_id,
                             user_credential_configuration: user_credential.value(),
                             metadata: Some(metadata),
                         },
@@ -1511,7 +1925,10 @@ pub async fn start_user_credential_brokering(
     params: StartUserCredentialBrokeringParams,
 ) -> Result<UserCredentialBrokeringResponse, CommonError> {
     let provider_controller = get_provider_controller(&params.provider_controller_type_id)?;
-    let credential_controller = get_credential_controller(&provider_controller, &params.inner.credential_controller_type_id)?;
+    let credential_controller = get_credential_controller(
+        &provider_controller,
+        &params.inner.credential_controller_type_id,
+    )?;
     let user_credential_broker = match credential_controller.as_user_credential_broker() {
         Some(broker) => broker,
         None => {
@@ -1570,8 +1987,11 @@ pub async fn resume_user_credential_brokering(
             "Broker state not found"
         )))?;
 
-    let provider_controller = get_provider_controller( &broker_state.provider_controller_type_id)?;
-    let credential_controller = get_credential_controller(&provider_controller, &broker_state.credential_controller_type_id)?;
+    let provider_controller = get_provider_controller(&broker_state.provider_controller_type_id)?;
+    let credential_controller = get_credential_controller(
+        &provider_controller,
+        &broker_state.credential_controller_type_id,
+    )?;
 
     let user_credential_broker = match credential_controller.as_user_credential_broker() {
         Some(broker) => broker,
@@ -1598,11 +2018,21 @@ pub async fn resume_user_credential_brokering(
     Ok(response)
 }
 
+pub async fn register_all_bridge_providers() -> Result<(), CommonError> {
+    let mut registry = PROVIDER_REGISTRY.write().map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!("Failed to write provider registry: {}", e))
+    })?;
+    registry.push(Arc::new(GoogleMailProviderController));
+    drop(registry);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const TEST_KMS_KEY_ARN: &str = "arn:aws:kms:us-east-1:855806899624:key/0155f7f0-b3a2-4e5a-afdc-9070c2cd4059";
+    const TEST_KMS_KEY_ARN: &str =
+        "arn:aws:kms:us-east-1:855806899624:key/0155f7f0-b3a2-4e5a-afdc-9070c2cd4059";
 
     #[tokio::test]
     async fn test_encrypt_data_envelope_key_with_aws_kms() {
@@ -1610,7 +2040,7 @@ mod tests {
 
         // Test data
         let test_data = "This is a test data encryption key for envelope encryption";
-        let parent_key = EnvelopeEncryptionKeyId::AwsKms {
+        let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
         };
 
@@ -1622,14 +2052,18 @@ mod tests {
         let encrypted_key = result.unwrap();
 
         // Verify the encrypted key is not empty
-        assert!(!encrypted_key.0.is_empty(), "Encrypted key should not be empty");
+        assert!(
+            !encrypted_key.0.is_empty(),
+            "Encrypted key should not be empty"
+        );
 
         // Verify the encrypted key is base64 encoded
-        let decode_result = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            &encrypted_key.0,
+        let decode_result =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &encrypted_key.0);
+        assert!(
+            decode_result.is_ok(),
+            "Encrypted key should be valid base64"
         );
-        assert!(decode_result.is_ok(), "Encrypted key should be valid base64");
 
         // Verify the encrypted key is different from the original
         assert_ne!(
@@ -1644,7 +2078,7 @@ mod tests {
 
         // Test data
         let test_data = "This is a test data encryption key for envelope encryption";
-        let parent_key = EnvelopeEncryptionKeyId::AwsKms {
+        let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
         };
 
@@ -1662,7 +2096,8 @@ mod tests {
 
         // Verify the decrypted key matches the original
         assert_eq!(
-            decrypted_key.0, test_data.as_bytes(),
+            decrypted_key.0,
+            test_data.as_bytes(),
             "Decrypted key should match original plaintext"
         );
     }
@@ -1681,7 +2116,7 @@ mod tests {
             long_key.as_str(), // Long key
         ];
 
-        let parent_key = EnvelopeEncryptionKeyId::AwsKms {
+        let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
         };
 
@@ -1698,7 +2133,8 @@ mod tests {
 
             // Verify
             assert_eq!(
-                decrypted.0, test_data.as_bytes(),
+                decrypted.0,
+                test_data.as_bytes(),
                 "Roundtrip should preserve data for: {}",
                 test_data
             );
@@ -1709,12 +2145,12 @@ mod tests {
     async fn test_decrypt_with_invalid_base64() {
         shared::setup_test!();
 
-        let parent_key = EnvelopeEncryptionKeyId::AwsKms {
+        let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
         };
 
         // Create an invalid base64 encrypted key
-        let invalid_encrypted_key = EncryptedDataEnvelopeKey("Not valid base64!!!".to_string());
+        let invalid_encrypted_key = EncryptedDataEncryptionKey("Not valid base64!!!".to_string());
 
         // Try to decrypt
         let result = decrypt_data_envelope_key(&parent_key, &invalid_encrypted_key).await;
@@ -1732,7 +2168,7 @@ mod tests {
     async fn test_decrypt_with_invalid_ciphertext() {
         shared::setup_test!();
 
-        let parent_key = EnvelopeEncryptionKeyId::AwsKms {
+        let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
         };
 
@@ -1741,7 +2177,7 @@ mod tests {
             &base64::engine::general_purpose::STANDARD,
             b"This is not a valid KMS ciphertext",
         );
-        let invalid_encrypted_key = EncryptedDataEnvelopeKey(invalid_ciphertext);
+        let invalid_encrypted_key = EncryptedDataEncryptionKey(invalid_ciphertext);
 
         // Try to decrypt
         let result = decrypt_data_envelope_key(&parent_key, &invalid_encrypted_key).await;
@@ -1760,7 +2196,7 @@ mod tests {
         shared::setup_test!();
 
         let test_data = "Same plaintext data";
-        let parent_key = EnvelopeEncryptionKeyId::AwsKms {
+        let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
         };
 
@@ -1789,11 +2225,13 @@ mod tests {
             .expect("Second decryption should succeed");
 
         assert_eq!(
-            decrypted1.0, test_data.as_bytes(),
+            decrypted1.0,
+            test_data.as_bytes(),
             "First decryption should match original"
         );
         assert_eq!(
-            decrypted2.0, test_data.as_bytes(),
+            decrypted2.0,
+            test_data.as_bytes(),
             "Second decryption should match original"
         );
     }
@@ -1803,7 +2241,7 @@ mod tests {
         shared::setup_test!();
 
         let test_data = "";
-        let parent_key = EnvelopeEncryptionKeyId::AwsKms {
+        let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
         };
 
@@ -1827,7 +2265,7 @@ mod tests {
         // AWS KMS has a 4KB limit for direct encryption
         // This test ensures we handle data close to that limit
         let test_data = "A".repeat(4000); // 4000 bytes
-        let parent_key = EnvelopeEncryptionKeyId::AwsKms {
+        let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
         };
 
@@ -1843,7 +2281,8 @@ mod tests {
 
         // Verify
         assert_eq!(
-            decrypted.0, test_data.as_bytes(),
+            decrypted.0,
+            test_data.as_bytes(),
             "Large data should roundtrip correctly"
         );
     }
@@ -1853,7 +2292,7 @@ mod tests {
         shared::setup_test!();
 
         let test_data = "Test data";
-        let invalid_parent_key = EnvelopeEncryptionKeyId::AwsKms {
+        let invalid_parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: "arn:aws:kms:us-east-1:123456789012:key/invalid-key-id".to_string(),
         };
 
@@ -1874,7 +2313,7 @@ mod tests {
         shared::setup_test!();
 
         // Generate a 32-byte (256-bit) key using AWS KMS
-        let parent_key = EnvelopeEncryptionKeyId::AwsKms {
+        let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
         };
 
@@ -1904,14 +2343,14 @@ mod tests {
         let now = WrappedChronoDateTime::now();
         let data_encryption_key = DataEncryptionKey {
             id: uuid::Uuid::new_v4().to_string(),
-            envelope_encryption_key_id: parent_key,
-            encrypted_data_envelope_key: EncryptedDataEnvelopeKey(encrypted_key),
+            envelope_encryption_key_id: EnvelopeEncryptionKeyId::from(parent_key.clone()),
+            encrypted_data_encryption_key: EncryptedDataEncryptionKey(encrypted_key),
             created_at: now,
             updated_at: now,
         };
 
         // Create crypto service
-        let crypto_service = CryptoService::new(data_encryption_key.clone())
+        let crypto_service = CryptoService::new(parent_key, data_encryption_key.clone())
             .await
             .expect("Failed to create crypto service");
 
@@ -1942,10 +2381,8 @@ mod tests {
             );
 
             // Verify encrypted is base64
-            let decode_result = base64::Engine::decode(
-                &base64::engine::general_purpose::STANDARD,
-                &encrypted.0,
-            );
+            let decode_result =
+                base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &encrypted.0);
             assert!(
                 decode_result.is_ok(),
                 "Encrypted data should be valid base64"
@@ -1970,7 +2407,7 @@ mod tests {
         shared::setup_test!();
 
         // Generate a 32-byte (256-bit) key using AWS KMS
-        let parent_key = EnvelopeEncryptionKeyId::AwsKms {
+        let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
         };
 
@@ -1997,13 +2434,13 @@ mod tests {
         let now = WrappedChronoDateTime::now();
         let data_encryption_key = DataEncryptionKey {
             id: uuid::Uuid::new_v4().to_string(),
-            envelope_encryption_key_id: parent_key,
-            encrypted_data_envelope_key: EncryptedDataEnvelopeKey(encrypted_key),
+            envelope_encryption_key_id: EnvelopeEncryptionKeyId::from(parent_key.clone()),
+            encrypted_data_encryption_key: EncryptedDataEncryptionKey(encrypted_key),
             created_at: now,
             updated_at: now,
         };
 
-        let crypto_service = CryptoService::new(data_encryption_key)
+        let crypto_service = CryptoService::new(parent_key, data_encryption_key)
             .await
             .expect("Failed to create crypto service");
 
@@ -2016,7 +2453,8 @@ mod tests {
         assert!(result.is_err(), "Should fail with invalid base64");
 
         // Test with too short data (less than nonce size)
-        let short_data = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &[0u8; 5]);
+        let short_data =
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &[0u8; 5]);
         let result = decryption_service
             .decrypt_data(EncryptedString(short_data))
             .await;
@@ -2033,7 +2471,7 @@ mod tests {
         shared::setup_test!();
 
         // Generate a 32-byte (256-bit) key using AWS KMS
-        let parent_key = EnvelopeEncryptionKeyId::AwsKms {
+        let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
         };
 
@@ -2060,13 +2498,13 @@ mod tests {
         let now = WrappedChronoDateTime::now();
         let data_encryption_key = DataEncryptionKey {
             id: uuid::Uuid::new_v4().to_string(),
-            envelope_encryption_key_id: parent_key,
-            encrypted_data_envelope_key: EncryptedDataEnvelopeKey(encrypted_key),
+            envelope_encryption_key_id: EnvelopeEncryptionKeyId::from(parent_key.clone()),
+            encrypted_data_encryption_key: EncryptedDataEncryptionKey(encrypted_key),
             created_at: now,
             updated_at: now,
         };
 
-        let crypto_service = CryptoService::new(data_encryption_key)
+        let crypto_service = CryptoService::new(parent_key, data_encryption_key)
             .await
             .expect("Failed to create crypto service");
 
@@ -2076,6 +2514,416 @@ mod tests {
         let test_data = "Same plaintext for both encryptions";
 
         // Encrypt same data twice
+        let encrypted1 = encryption_service
+            .encrypt_data(test_data.to_string())
+            .await
+            .expect("First encryption should succeed");
+
+        let encrypted2 = encryption_service
+            .encrypt_data(test_data.to_string())
+            .await
+            .expect("Second encryption should succeed");
+
+        // Ciphertexts should be different (due to random nonce)
+        assert_ne!(
+            encrypted1.0, encrypted2.0,
+            "Multiple encryptions should produce different ciphertexts"
+        );
+
+        // But both should decrypt to same plaintext
+        let decrypted1 = decryption_service
+            .decrypt_data(encrypted1)
+            .await
+            .expect("First decryption should succeed");
+
+        let decrypted2 = decryption_service
+            .decrypt_data(encrypted2)
+            .await
+            .expect("Second decryption should succeed");
+
+        assert_eq!(decrypted1, test_data);
+        assert_eq!(decrypted2, test_data);
+    }
+
+    // Helper function to create a temporary KEK file for local encryption tests
+    fn create_temp_kek_file() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
+        use rand::RngCore;
+        let mut kek_bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut kek_bytes);
+
+        let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
+        std::fs::write(temp_file.path(), &kek_bytes).expect("Failed to write KEK to temp file");
+
+        let key_id = temp_file
+            .path()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("test-key")
+            .to_string();
+
+        let contents = EnvelopeEncryptionKeyContents::Local {
+            key_id,
+            key_bytes: kek_bytes.to_vec(),
+        };
+
+        (temp_file, contents)
+    }
+
+    #[tokio::test]
+    async fn test_encrypt_data_envelope_key_with_local() {
+        shared::setup_test!();
+
+        let (_temp_file, parent_key) = create_temp_kek_file();
+        let test_data = "This is a test data encryption key for local envelope encryption";
+
+        // Encrypt the data envelope key
+        let result = encrypt_data_envelope_key(&parent_key, test_data.to_string()).await;
+
+        // Verify encryption succeeded
+        assert!(result.is_ok(), "Encryption should succeed");
+        let encrypted_key = result.unwrap();
+
+        // Verify the encrypted key is not empty
+        assert!(
+            !encrypted_key.0.is_empty(),
+            "Encrypted key should not be empty"
+        );
+
+        // Verify the encrypted key is base64 encoded
+        let decode_result =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &encrypted_key.0);
+        assert!(
+            decode_result.is_ok(),
+            "Encrypted key should be valid base64"
+        );
+
+        // Verify the encrypted key is different from the original
+        assert_ne!(
+            encrypted_key.0, test_data,
+            "Encrypted key should be different from plaintext"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_decrypt_data_envelope_key_with_local() {
+        shared::setup_test!();
+
+        let (_temp_file, parent_key) = create_temp_kek_file();
+        let test_data = "This is a test data encryption key for local envelope encryption";
+
+        // First, encrypt the data
+        let encrypted_key = encrypt_data_envelope_key(&parent_key, test_data.to_string())
+            .await
+            .expect("Encryption should succeed");
+
+        // Now decrypt it
+        let result = decrypt_data_envelope_key(&parent_key, &encrypted_key).await;
+
+        // Verify decryption succeeded
+        assert!(result.is_ok(), "Decryption should succeed");
+        let decrypted_key = result.unwrap();
+
+        // Verify the decrypted key matches the original
+        assert_eq!(
+            decrypted_key.0,
+            test_data.as_bytes(),
+            "Decrypted key should match original plaintext"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_local_encrypt_decrypt_roundtrip() {
+        shared::setup_test!();
+
+        let (_temp_file, parent_key) = create_temp_kek_file();
+
+        // Test multiple different data strings
+        let long_key = "A".repeat(1000);
+        let test_cases = vec![
+            "Simple test key",
+            "Key with special characters: !@#$%^&*()_+-=[]{}|;:',.<>?",
+            "Multi\nline\nkey\nwith\nnewlines",
+            "Unicode characters: 你好世界 🌍🔐",
+            long_key.as_str(),
+        ];
+
+        for test_data in test_cases {
+            // Encrypt
+            let encrypted = encrypt_data_envelope_key(&parent_key, test_data.to_string())
+                .await
+                .expect("Encryption should succeed");
+
+            // Decrypt
+            let decrypted = decrypt_data_envelope_key(&parent_key, &encrypted)
+                .await
+                .expect("Decryption should succeed");
+
+            // Verify
+            assert_eq!(
+                decrypted.0,
+                test_data.as_bytes(),
+                "Roundtrip should preserve data for: {}",
+                test_data
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_local_encrypt_multiple_times_produces_different_ciphertext() {
+        shared::setup_test!();
+
+        let (_temp_file, parent_key) = create_temp_kek_file();
+        let test_data = "Same plaintext data";
+
+        // Encrypt the same data multiple times
+        let encrypted1 = encrypt_data_envelope_key(&parent_key, test_data.to_string())
+            .await
+            .expect("First encryption should succeed");
+
+        let encrypted2 = encrypt_data_envelope_key(&parent_key, test_data.to_string())
+            .await
+            .expect("Second encryption should succeed");
+
+        // The ciphertexts should be different (due to random nonce in encryption)
+        assert_ne!(
+            encrypted1.0, encrypted2.0,
+            "Multiple encryptions of same plaintext should produce different ciphertexts"
+        );
+
+        // But both should decrypt to the same plaintext
+        let decrypted1 = decrypt_data_envelope_key(&parent_key, &encrypted1)
+            .await
+            .expect("First decryption should succeed");
+
+        let decrypted2 = decrypt_data_envelope_key(&parent_key, &encrypted2)
+            .await
+            .expect("Second decryption should succeed");
+
+        assert_eq!(
+            decrypted1.0,
+            test_data.as_bytes(),
+            "First decryption should match original"
+        );
+        assert_eq!(
+            decrypted2.0,
+            test_data.as_bytes(),
+            "Second decryption should match original"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_local_decrypt_with_invalid_base64() {
+        shared::setup_test!();
+
+        let (_temp_file, parent_key) = create_temp_kek_file();
+
+        // Create an invalid base64 encrypted key
+        let invalid_encrypted_key = EncryptedDataEncryptionKey("Not valid base64!!!".to_string());
+
+        // Try to decrypt
+        let result = decrypt_data_envelope_key(&parent_key, &invalid_encrypted_key).await;
+
+        // Should fail with a base64 decode error
+        assert!(result.is_err(), "Should fail with invalid base64");
+        let error_msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            error_msg.contains("Failed to decode base64"),
+            "Error should mention base64 decode failure"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_local_decrypt_with_invalid_ciphertext() {
+        shared::setup_test!();
+
+        let (_temp_file, parent_key) = create_temp_kek_file();
+
+        // Create a valid base64 string but invalid ciphertext (wrong nonce or corrupted data)
+        let invalid_ciphertext = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            b"This is not valid encrypted data with proper nonce",
+        );
+        let invalid_encrypted_key = EncryptedDataEncryptionKey(invalid_ciphertext);
+
+        // Try to decrypt
+        let result = decrypt_data_envelope_key(&parent_key, &invalid_encrypted_key).await;
+
+        // Should fail with a decryption error
+        assert!(result.is_err(), "Should fail with invalid ciphertext");
+        let error_msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            error_msg.contains("Local DEK decryption failed"),
+            "Error should mention local decryption failure"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_local_decrypt_with_missing_nonce() {
+        shared::setup_test!();
+
+        let (_temp_file, parent_key) = create_temp_kek_file();
+
+        // Create encrypted data that's too short (less than 12 bytes for nonce)
+        let short_data =
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, b"short");
+        let invalid_encrypted_key = EncryptedDataEncryptionKey(short_data);
+
+        // Try to decrypt
+        let result = decrypt_data_envelope_key(&parent_key, &invalid_encrypted_key).await;
+
+        // Should fail
+        assert!(result.is_err(), "Should fail with missing nonce");
+        let error_msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            error_msg.contains("missing nonce"),
+            "Error should mention missing nonce"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_local_encrypt_with_nonexistent_key_file() {
+        shared::setup_test!();
+
+        // Create a Local variant with empty key_bytes to test error handling
+        let parent_key = EnvelopeEncryptionKeyContents::Local {
+            key_id: "test-key-1".to_string(),
+            key_bytes: vec![], // Empty bytes to trigger encryption failure
+        };
+
+        let test_data = "Test data";
+
+        // Try to encrypt with invalid key (empty bytes)
+        let result = encrypt_data_envelope_key(&parent_key, test_data.to_string()).await;
+
+        // Should fail
+        assert!(result.is_err(), "Should fail with invalid key");
+        let error_msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            error_msg.contains("Invalid local KEK length")
+                || error_msg.contains("Local DEK encryption failed"),
+            "Error should mention invalid key or encryption failure"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_local_encrypt_with_invalid_key_length() {
+        shared::setup_test!();
+
+        // Create a Local variant with wrong key length (16 bytes instead of 32)
+        let parent_key = EnvelopeEncryptionKeyContents::Local {
+            key_id: "test-key-1".to_string(),
+            key_bytes: vec![0u8; 16], // Wrong length
+        };
+
+        let test_data = "Test data";
+
+        // Try to encrypt with invalid key length
+        let result = encrypt_data_envelope_key(&parent_key, test_data.to_string()).await;
+
+        // Should fail
+        assert!(result.is_err(), "Should fail with invalid key length");
+        let error_msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            error_msg.contains("Invalid local KEK length")
+                || error_msg.contains("Local DEK encryption failed"),
+            "Error should mention invalid key length or encryption failure"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_local_encryption_service_aes_gcm_roundtrip() {
+        shared::setup_test!();
+
+        let (_temp_file, parent_key) = create_temp_kek_file();
+
+        // Generate a DEK using local encryption
+        let dek_plaintext = "A".repeat(32); // 32-byte DEK
+        let encrypted_dek = encrypt_data_envelope_key(&parent_key, dek_plaintext)
+            .await
+            .expect("Failed to encrypt DEK with local KEK");
+
+        let now = WrappedChronoDateTime::now();
+        let data_encryption_key = DataEncryptionKey {
+            id: uuid::Uuid::new_v4().to_string(),
+            envelope_encryption_key_id: EnvelopeEncryptionKeyId::from(parent_key.clone()),
+            encrypted_data_encryption_key: encrypted_dek,
+            created_at: now,
+            updated_at: now,
+        };
+
+        // Create crypto service
+        let crypto_service = CryptoService::new(parent_key, data_encryption_key.clone())
+            .await
+            .expect("Failed to create crypto service");
+
+        let encryption_service = EncryptionService::new(crypto_service.clone());
+        let decryption_service = DecryptionService::new(crypto_service);
+
+        // Test cases
+        let long_data = "A".repeat(1000);
+        let test_cases = vec![
+            "Simple plaintext",
+            "Data with special characters: !@#$%^&*()_+-=[]{}|;:',.<>?",
+            "Multi\nline\ndata\nwith\nnewlines",
+            "Unicode characters: 你好世界 🌍🔐",
+            long_data.as_str(),
+        ];
+
+        for test_data in test_cases {
+            // Encrypt
+            let encrypted = encryption_service
+                .encrypt_data(test_data.to_string())
+                .await
+                .expect(&format!("Encryption should succeed for: {}", test_data));
+
+            // Verify encrypted is different from plaintext
+            assert_ne!(
+                encrypted.0, test_data,
+                "Encrypted should differ from plaintext"
+            );
+
+            // Decrypt
+            let decrypted = decryption_service
+                .decrypt_data(encrypted)
+                .await
+                .expect(&format!("Decryption should succeed for: {}", test_data));
+
+            // Verify roundtrip
+            assert_eq!(decrypted, test_data, "Roundtrip should preserve data");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_local_encryption_produces_different_ciphertexts() {
+        shared::setup_test!();
+
+        let (_temp_file, parent_key) = create_temp_kek_file();
+
+        // Generate a DEK using local encryption
+        let dek_plaintext = "B".repeat(32); // 32-byte DEK
+        let encrypted_dek = encrypt_data_envelope_key(&parent_key, dek_plaintext)
+            .await
+            .expect("Failed to encrypt DEK with local KEK");
+
+        let now = WrappedChronoDateTime::now();
+        let data_encryption_key = DataEncryptionKey {
+            id: uuid::Uuid::new_v4().to_string(),
+            envelope_encryption_key_id: EnvelopeEncryptionKeyId::from(parent_key.clone()),
+            encrypted_data_encryption_key: encrypted_dek,
+            created_at: now,
+            updated_at: now,
+        };
+
+        let crypto_service = CryptoService::new(parent_key, data_encryption_key)
+            .await
+            .expect("Failed to create crypto service");
+
+        let encryption_service = EncryptionService::new(crypto_service.clone());
+        let decryption_service = DecryptionService::new(crypto_service);
+
+        let test_data = "Same data encrypted twice";
+
+        // Encrypt twice
         let encrypted1 = encryption_service
             .encrypt_data(test_data.to_string())
             .await

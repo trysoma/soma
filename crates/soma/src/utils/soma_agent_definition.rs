@@ -1,37 +1,19 @@
 use std::collections::HashMap;
 
 use a2a_rs::types::AgentCard;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use url::Url;
-use utoipa::ToSchema;
+use shared::soma_agent_definition::SomaAgentDefinition;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct SomaConfig {
-    pub project: String,
-    pub agent: String,
-    pub description: String,
-    pub name: String,
-    pub version: String,
-}
 
-impl SomaConfig {
-    pub fn from_yaml(yaml_str: &str) -> Result<Self, serde_yaml::Error> {
-        serde_yaml::from_str(yaml_str)
-    }
-
-    pub fn to_yaml(&self) -> Result<String, serde_yaml::Error> {
-        serde_yaml::to_string(self)
-    }
-}
 
 pub struct ConstructAgentCardParams {
-    pub config: SomaConfig,
+    pub definition: SomaAgentDefinition,
     pub url: String,
 }
 
-pub fn construct_agent_card(config: &SomaConfig, url: &Url) -> a2a_rs::types::AgentCard {
+pub fn construct_agent_card(params: ConstructAgentCardParams) -> a2a_rs::types::AgentCard {
+    let definition = params.definition;
+    let url = params.url;
+
     AgentCard {
         additional_interfaces: vec![],
         capabilities: a2a_rs::types::AgentCapabilities {
@@ -42,10 +24,10 @@ pub fn construct_agent_card(config: &SomaConfig, url: &Url) -> a2a_rs::types::Ag
         },
         default_input_modes: vec![],
         default_output_modes: vec![],
-        description: config.description.clone(),
+        description: definition.description.clone(),
         documentation_url: None,
         icon_url: None,
-        name: config.name.clone(),
+        name: definition.name.clone(),
         preferred_transport: "JSONRPC".to_string(),
         protocol_version: "1.0.0".to_string(),
         provider: None,
@@ -55,6 +37,6 @@ pub fn construct_agent_card(config: &SomaConfig, url: &Url) -> a2a_rs::types::Ag
         skills: vec![],
         supports_authenticated_extended_card: None,
         url: url.to_string(),
-        version: config.version.clone(),
+        version: definition.version.clone(),
     }
 }

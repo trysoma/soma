@@ -6,7 +6,7 @@ use std::sync::Arc;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::{
-    create_data_encryption_key, create_provider_instance, create_resource_server_credential, create_user_credential, disable_function, enable_function, encrypt_resource_server_configuration, encrypt_user_credential_configuration, invoke_function, list_available_providers, resume_user_credential_brokering, start_user_credential_brokering, BrokerAction, BrokerInput, BrokerState, CreateDataEncryptionKeyParams, CreateDataEncryptionKeyResponse, CreateProviderInstanceParams, CreateProviderInstanceParamsInner, CreateProviderInstanceResponse, CreateResourceServerCredentialParams, CreateResourceServerCredentialParamsInner, CreateResourceServerCredentialResponse, CreateUserCredentialParams, CreateUserCredentialParamsInner, CreateUserCredentialResponse, CryptoService, DataEncryptionKey, DecryptionService, DisableFunctionParams, DisableFunctionParamsInner, DisableFunctionResponse, EnableFunctionParams, EnableFunctionParamsInner, EnableFunctionResponse, EncryptConfigurationParams, EncryptCredentialConfigurationParamsInner, EncryptedCredentialConfigurationResponse, EncryptionService, InvokeFunctionParams, InvokeFunctionResponse, ListAvailableProvidersResponse, ResumeUserCredentialBrokeringParams, StartUserCredentialBrokeringParams, StartUserCredentialBrokeringParamsInner, UserCredentialBrokeringResponse, UserCredentialSerialized, WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithFunctionInstanceId, WithProviderControllerTypeId, WithProviderInstanceId
+    create_data_encryption_key, create_provider_instance, create_resource_server_credential, create_user_credential, delete_provider_instance, disable_function, enable_function, encrypt_resource_server_configuration, encrypt_user_credential_configuration, invoke_function, list_available_providers, list_data_encryption_keys, resume_user_credential_brokering, start_user_credential_brokering, BrokerAction, BrokerInput, BrokerState, CreateDataEncryptionKeyParams, CreateDataEncryptionKeyResponse, CreateProviderInstanceParams, CreateProviderInstanceParamsInner, CreateProviderInstanceResponse, CreateResourceServerCredentialParams, CreateResourceServerCredentialParamsInner, CreateResourceServerCredentialResponse, CreateUserCredentialParams, CreateUserCredentialParamsInner, CreateUserCredentialResponse, CryptoService, DataEncryptionKey, DecryptionService, DisableFunctionParams, DisableFunctionParamsInner, DisableFunctionResponse, EnableFunctionParams, EnableFunctionParamsInner, EnableFunctionResponse, EncryptConfigurationParams, EncryptCredentialConfigurationParamsInner, EncryptedCredentialConfigurationResponse, EncryptionService, EnvelopeEncryptionKeyContents, EnvelopeEncryptionKeyId, InvokeFunctionParams, InvokeFunctionParamsInner, InvokeFunctionResponse, ListAvailableProvidersResponse, ListDataEncryptionKeysResponse, OnConfigChangeTx, ResumeUserCredentialBrokeringParams, StartUserCredentialBrokeringParams, StartUserCredentialBrokeringParamsInner, UserCredentialBrokeringResponse, UserCredentialSerialized, WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithFunctionInstanceId, WithProviderControllerTypeId, WithProviderInstanceId
 };
 use crate::repository::Repository;
 use shared::{adapters::openapi::JsonResponse, error::CommonError, primitives::PaginationRequest};
@@ -21,6 +21,7 @@ pub fn create_router() -> OpenApiRouter<Arc<BridgeService>> {
         .routes(routes!(route_list_available_providers))
         // Data encryption key endpoints
         .routes(routes!(route_create_data_encryption_key))
+        .routes(routes!(route_list_data_encryption_keys))
         // Configuration endpoints
         .routes(routes!(route_encrypt_resource_server_configuration))
         .routes(routes!(route_encrypt_user_credential_configuration))
@@ -33,6 +34,7 @@ pub fn create_router() -> OpenApiRouter<Arc<BridgeService>> {
         .routes(routes!(generic_oauth_callback))
         // Provider instance endpoints
         .routes(routes!(route_create_provider_instance))
+        .routes(routes!(route_delete_provider_instance))
         // Function endpoints
         .routes(routes!(route_enable_function))
         .routes(routes!(route_disable_function))
@@ -81,6 +83,7 @@ async fn route_create_provider_instance(
     Json(params): Json<CreateProviderInstanceParamsInner>,
 ) -> JsonResponse<CreateProviderInstanceResponse, CommonError> {
     let res = create_provider_instance(
+        &ctx.on_config_change_tx,
         &ctx.repository,
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
@@ -113,7 +116,32 @@ async fn route_create_data_encryption_key(
     State(ctx): State<Arc<BridgeService>>,
     Json(params): Json<CreateDataEncryptionKeyParams>,
 ) -> JsonResponse<CreateDataEncryptionKeyResponse, CommonError> {
-    let res = create_data_encryption_key(&ctx.repository, params).await;
+    let res = create_data_encryption_key(
+        &ctx.envelope_encryption_key_contents,
+        &ctx.on_config_change_tx,
+        &ctx.repository,
+        params,
+    )
+    .await;
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/encryption/data-encryption-key", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    params(
+        PaginationRequest
+    ),
+    responses(
+        (status = 200, description = "List data encryption keys", body = ListDataEncryptionKeysResponse),
+    ),
+    operation_id = "list-data-encryption-keys",
+)]
+async fn route_list_data_encryption_keys(
+    State(ctx): State<Arc<BridgeService>>,
+    Query(pagination): Query<PaginationRequest>,
+) -> JsonResponse<ListDataEncryptionKeysResponse, CommonError> {
+    let res = list_data_encryption_keys(&ctx.repository, pagination).await;
     JsonResponse::from(res)
 }
 
@@ -142,6 +170,7 @@ async fn route_encrypt_resource_server_configuration(
     Json(params): Json<EncryptCredentialConfigurationParamsInner>,
 ) -> JsonResponse<EncryptedCredentialConfigurationResponse, CommonError> {
     let res = encrypt_resource_server_configuration(
+        &ctx.envelope_encryption_key_contents,
         &ctx.repository,
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
@@ -177,6 +206,7 @@ async fn route_encrypt_user_credential_configuration(
     Json(params): Json<EncryptCredentialConfigurationParamsInner>,
 ) -> JsonResponse<EncryptedCredentialConfigurationResponse, CommonError> {
     let res = encrypt_user_credential_configuration(
+        &ctx.envelope_encryption_key_contents,
         &ctx.repository,
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
@@ -234,7 +264,7 @@ async fn route_create_resource_server_credential(
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/available-providers/{{provider_controller_type_id}}/available-credentials/{{credential_controller_type_id}}/credential/user-credential", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    request_body = CreateUserCredentialParams,
+    request_body = CreateUserCredentialParamsInner,
     params(
         ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
         ("credential_controller_type_id" = String, Path, description = "Credential controller type ID"),
@@ -269,7 +299,6 @@ async fn route_create_user_credential(
 // User credential brokering endpoints
 // ============================================================================
 
-
 macro_rules! respond_err {
     ($expr:expr) => {{
         let data = $expr.into();
@@ -278,9 +307,9 @@ macro_rules! respond_err {
     }};
 }
 
-fn handle_user_credential_brokering_response(response: Result<UserCredentialBrokeringResponse, CommonError>) -> impl IntoResponse {
-
-
+fn handle_user_credential_brokering_response(
+    response: Result<UserCredentialBrokeringResponse, CommonError>,
+) -> impl IntoResponse {
     let response = match response {
         Ok(response) => response,
         Err(e) => {
@@ -289,19 +318,18 @@ fn handle_user_credential_brokering_response(response: Result<UserCredentialBrok
     };
 
     match response {
-        UserCredentialBrokeringResponse::BrokerState(broker_state) => {
-            match broker_state.action {
-                BrokerAction::Redirect { url } => {
-                    axum::response::Redirect::to(url.as_str()).into_response()
-                }
-                BrokerAction::None => {
-                    let res: JsonResponse<(), CommonError> = JsonResponse::new_ok(());
-                    res.into_response()
-                }
+        UserCredentialBrokeringResponse::BrokerState(broker_state) => match broker_state.action {
+            BrokerAction::Redirect { url } => {
+                axum::response::Redirect::to(url.as_str()).into_response()
             }
-        }
+            BrokerAction::None => {
+                let res: JsonResponse<(), CommonError> = JsonResponse::new_ok(());
+                res.into_response()
+            }
+        },
         UserCredentialBrokeringResponse::UserCredential(user_cred) => {
-            let res: JsonResponse<UserCredentialSerialized, CommonError> = JsonResponse::new_ok(user_cred);
+            let res: JsonResponse<UserCredentialSerialized, CommonError> =
+                JsonResponse::new_ok(user_cred);
             res.into_response()
         }
     }
@@ -310,7 +338,7 @@ fn handle_user_credential_brokering_response(response: Result<UserCredentialBrok
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/available-providers/{{provider_controller_type_id}}/available-credentials/{{credential_controller_type_id}}/credential/user-credential/broker", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    request_body = StartUserCredentialBrokeringParams,
+    request_body = StartUserCredentialBrokeringParamsInner,
     params(
         ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
         ("credential_controller_type_id" = String, Path, description = "Credential controller type ID"),
@@ -350,7 +378,6 @@ pub struct GenericOAuthCallbackParams {
     pub error_description: Option<String>,
 }
 
-
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/generic-oauth-callback", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
@@ -373,7 +400,9 @@ async fn generic_oauth_callback(
 ) -> impl IntoResponse {
     // Check for OAuth errors first
     if let Some(error) = params.error {
-        let error_desc = params.error_description.unwrap_or_else(|| "No description provided".to_string());
+        let error_desc = params
+            .error_description
+            .unwrap_or_else(|| "No description provided".to_string());
         return respond_err!(CommonError::Unknown(anyhow::anyhow!(
             "OAuth error: {} - {}",
             error,
@@ -414,13 +443,41 @@ async fn generic_oauth_callback(
     )
     .await;
 
-
     return handle_user_credential_brokering_response(res).into_response();
 }
 
 // ============================================================================
 // Function endpoints
 // ============================================================================
+
+#[utoipa::path(
+    delete,
+    path = format!("{}/{}/{}/provider/{{provider_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    params(
+        ("provider_instance_id" = String, Path, description = "Provider instance ID"),
+    ),
+    responses(
+        (status = 200, description = "Delete provider instance", body = ()),
+        (status = 400, description = "Bad Request", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    operation_id = "delete-provider-instance",
+)]
+async fn route_delete_provider_instance(
+    State(ctx): State<Arc<BridgeService>>,
+    Path(provider_instance_id): Path<String>,
+) -> JsonResponse<(), CommonError> {
+    let res = delete_provider_instance(
+        &ctx.on_config_change_tx,
+        &ctx.repository,
+        WithProviderInstanceId {
+            provider_instance_id: provider_instance_id.clone(),
+            inner: (),
+        },
+    )
+    .await;
+    JsonResponse::from(res)
+}
 
 #[utoipa::path(
     post,
@@ -443,6 +500,7 @@ async fn route_enable_function(
     Json(params): Json<EnableFunctionParamsInner>,
 ) -> JsonResponse<EnableFunctionResponse, CommonError> {
     let res = enable_function(
+        &ctx.on_config_change_tx,
         &ctx.repository,
         WithProviderInstanceId {
             provider_instance_id: provider_instance_id.clone(),
@@ -458,7 +516,7 @@ async fn route_enable_function(
 
 #[utoipa::path(
     post,
-    path = format!("{}/{}/{}/provider/{{provider_instance_id}}/available-functions/{{function_controller_type_id}}/disable", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/provider/{{provider_instance_id}}/function/{{function_instance_id}}/disable", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     params(
         ("provider_instance_id" = String, Path, description = "Provider instance ID"),
         ("function_instance_id" = String, Path, description = "Function instance ID"),
@@ -475,6 +533,7 @@ async fn route_disable_function(
     Path((provider_instance_id, function_instance_id)): Path<(String, String)>,
 ) -> JsonResponse<DisableFunctionResponse, CommonError> {
     let res = disable_function(
+        &ctx.on_config_change_tx,
         &ctx.repository,
         WithProviderInstanceId {
             provider_instance_id: provider_instance_id.clone(),
@@ -489,8 +548,12 @@ async fn route_disable_function(
 
 #[utoipa::path(
     post,
-    path = format!("{}/{}/{}/function/invoke", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    request_body = InvokeFunctionParams,
+    path = format!("{}/{}/{}/provider/{{provider_instance_id}}/function/{{function_instance_id}}/invoke", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    request_body = InvokeFunctionParamsInner,
+    params(
+        ("provider_instance_id" = String, Path, description = "Provider instance ID"),
+        ("function_instance_id" = String, Path, description = "Function instance ID"),
+    ),
     responses(
         (status = 200, description = "Invoke function", body = InvokeFunctionResponse),
         (status = 400, description = "Bad Request", body = CommonError),
@@ -500,30 +563,22 @@ async fn route_disable_function(
 )]
 async fn route_invoke_function(
     State(ctx): State<Arc<BridgeService>>,
-    Json(params): Json<InvokeFunctionParams>,
+    Path((provider_instance_id, function_instance_id)): Path<(String, String)>,
+    Json(params): Json<InvokeFunctionParamsInner>,
 ) -> JsonResponse<InvokeFunctionResponse, CommonError> {
-    // TODO: Need to get the actual decryption service from a data encryption key
-    // For now, use a placeholder that will fail if actual decryption is attempted
-    let placeholder_dek = DataEncryptionKey {
-        id: "placeholder".to_string(),
-        envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
-            arn: "placeholder".to_string(),
+    let res = invoke_function(
+        &ctx.repository,
+        &ctx.envelope_encryption_key_contents,
+        WithProviderInstanceId {
+            provider_instance_id: provider_instance_id.clone(),
+            inner: WithFunctionInstanceId {
+                function_instance_id: function_instance_id.clone(),
+                inner: params,
+            },
         },
-        encrypted_data_envelope_key: crate::logic::EncryptedDataEnvelopeKey("".to_string()),
-        created_at: shared::primitives::WrappedChronoDateTime::now(),
-        updated_at: shared::primitives::WrappedChronoDateTime::now(),
-    };
-
-    // This will fail if we try to use it, but it satisfies the type system for now
-    let crypto_service_result = CryptoService::new(placeholder_dek).await;
-    match crypto_service_result {
-        Ok(crypto_service) => {
-            let decryption_service = DecryptionService::new(crypto_service);
-            let res = invoke_function(&ctx.repository, &decryption_service, params).await;
-            JsonResponse::from(res)
-        }
-        Err(e) => JsonResponse::from(Err(e))
-    }
+    )
+    .await;
+    JsonResponse::from(res)
 }
 
 // ============================================================================
@@ -532,43 +587,20 @@ async fn route_invoke_function(
 
 pub struct BridgeService {
     repository: Repository,
+    on_config_change_tx: OnConfigChangeTx,
+    envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
 }
 
 impl BridgeService {
-    pub fn new(repository: Repository) -> Self {
-        // TODO: Load the actual data encryption key from the database or environment
-        // For now, we'll need to handle this properly - this is a placeholder
-        // In a real implementation, you'd need to:
-        // 1. Load or create a data encryption key
-        // 2. Initialize the crypto service with it
-        // 3. Create encryption and decryption services
-
-        // Placeholder crypto service - this needs to be properly initialized
-        // with actual encryption key configuration
-        // let data_encryption_key = DataEncryptionKey {
-        //     id: "default".to_string(),
-        //     envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
-        //         arn: std::env::var("AWS_KMS_KEY_ARN").unwrap_or_else(|_| {
-        //             "arn:aws:kms:us-east-1:123456789012:key/placeholder".to_string()
-        //         }),
-        //     },
-        //     encrypted_data_envelope_key: crate::logic::EncryptedDataEnvelopeKey(String::new()),
-        //     created_at: shared::primitives::WrappedChronoDateTime::now(),
-        //     updated_at: shared::primitives::WrappedChronoDateTime::now(),
-        // };
-
-        // let crypto_service = CryptoService {
-        //     data_encryption_key,
-        //     cached_decrypted_data_envelope_key: None,
-        // };
-
-        // let encryption_service = EncryptionService::new(crypto_service.clone());
-        // let decryption_service = DecryptionService::new(crypto_service);
-
+    pub fn new(
+        repository: Repository,
+        on_config_change_tx: OnConfigChangeTx,
+        envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+    ) -> Self {
         Self {
             repository,
-            // encryption_service,
-            // decryption_service,
+            on_config_change_tx,
+            envelope_encryption_key_contents,
         }
     }
 }

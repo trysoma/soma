@@ -1,5 +1,7 @@
 use async_trait::async_trait;
-use schemars::{schema_for, JsonSchema};
+use http::HeaderValue;
+use reqwest::Request;
+use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use shared::{
@@ -9,16 +11,13 @@ use shared::{
 use std::collections::HashMap;
 
 use crate::logic::{
-    BrokerAction, BrokerInput, BrokerOutcome, BrokerState, ConfigurationSchema,
-    ConfigurationSchemaItem, Credential, EncryptedString, EncryptionService, Metadata,
-    ProviderCredentialControllerLike, ResourceServerCredentialLike,
-    RotateableControllerUserCredentialLike, RotateableCredentialLike,
-    StaticCredentialConfigurationLike, UserCredentialBrokerLike, UserCredentialLike,
+    BrokerAction, BrokerInput, BrokerOutcome, BrokerState, ConfigurationSchema, Credential, DecryptionService, EncryptedString, EncryptionService, Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike, RotateableControllerUserCredentialLike, RotateableCredentialLike, StaticCredentialConfigurationLike, StaticProviderCredentialControllerLike, UserCredentialBrokerLike, UserCredentialLike, UserCredentialSerialized
 };
 
 // ============================================================================
 // Static Credential Configuration
 // ============================================================================
+
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
@@ -51,6 +50,8 @@ pub struct Oauth2AuthorizationCodeFlowResourceServerCredential {
     pub client_id: String,
     pub client_secret: EncryptedString,
     pub redirect_uri: String,
+    #[serde(default)]
+    #[schemars(skip)]
     pub metadata: Metadata,
 }
 
@@ -73,6 +74,17 @@ pub struct Oauth2AuthorizationCodeFlowUserCredential {
     pub code: EncryptedString,
     pub access_token: EncryptedString,
     pub refresh_token: EncryptedString,
+    pub expiry_time: WrappedChronoDateTime,
+    pub sub: String,
+    pub scopes: Vec<String>,
+    pub metadata: Metadata,
+}
+
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+pub struct DecryptedOauthCredentials {
+    pub code: String,
+    pub access_token: String,
+    pub refresh_token: String,
     pub expiry_time: WrappedChronoDateTime,
     pub sub: String,
     pub scopes: Vec<String>,
@@ -108,12 +120,48 @@ impl RotateableCredentialLike for Oauth2AuthorizationCodeFlowUserCredential {
 // OAuth Authorization Code Flow Controller
 // ============================================================================
 
-pub struct OauthAuthFlowController;
+pub struct OauthAuthFlowController {
+    pub static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
+}
+
+const STATIC_TYPE_ID_OAUTH_AUTH_FLOW: &str = "oauth_auth_flow";
+
+impl OauthAuthFlowController {
+
+    pub async fn decrypt_oauth_credentials(
+        &self,
+        crypto_service: &DecryptionService,
+        user_credential: &UserCredentialSerialized,
+    ) -> Result<DecryptedOauthCredentials, CommonError> {
+        let typed_creds: Oauth2AuthorizationCodeFlowUserCredential = serde_json::from_value(user_credential.value.clone().into())?;
+        let decrypted_creds: DecryptedOauthCredentials = DecryptedOauthCredentials {
+            code: crypto_service.decrypt_data(typed_creds.code).await?,
+            access_token: crypto_service.decrypt_data(typed_creds.access_token).await?,
+            refresh_token: crypto_service.decrypt_data(typed_creds.refresh_token).await?,
+            expiry_time: typed_creds.expiry_time,
+            sub: typed_creds.sub,
+            scopes: typed_creds.scopes,
+            metadata: typed_creds.metadata,
+        };
+
+        Ok(decrypted_creds)
+    }
+}
+
+impl StaticProviderCredentialControllerLike for OauthAuthFlowController {
+    fn static_type_id() -> &'static str {
+        STATIC_TYPE_ID_OAUTH_AUTH_FLOW
+    }
+}
 
 #[async_trait]
 impl ProviderCredentialControllerLike for OauthAuthFlowController {
+    fn static_credentials(&self) -> Box<dyn StaticCredentialConfigurationLike> {
+        Box::new(self.static_credentials.clone())
+    }
+
     fn type_id(&self) -> &'static str {
-        "oauth_auth_flow"
+        STATIC_TYPE_ID_OAUTH_AUTH_FLOW
     }
 
     fn documentation(&self) -> &'static str {
@@ -125,19 +173,14 @@ impl ProviderCredentialControllerLike for OauthAuthFlowController {
     }
 
     fn configuration_schema(&self) -> ConfigurationSchema {
-        let resource_server_schema = schema_for!(Oauth2AuthorizationCodeFlowResourceServerCredential);
-        let user_credential_schema = schema_for!(Oauth2AuthorizationCodeFlowUserCredential);
-
-        let mut schemas = HashMap::new();
-        schemas.insert(
-            "oauth2_authorization_code_flow".to_string(),
-            ConfigurationSchemaItem {
-                resource_server: WrappedSchema::new(resource_server_schema.into()),
-                user_credential: WrappedSchema::new(user_credential_schema.into()),
-            },
-        );
-
-        ConfigurationSchema(schemas)
+        ConfigurationSchema {
+            resource_server: WrappedSchema::new(
+                schema_for!(Oauth2AuthorizationCodeFlowResourceServerCredential).into(),
+            ),
+            user_credential: WrappedSchema::new(
+                schema_for!(Oauth2AuthorizationCodeFlowUserCredential).into(),
+            ),
+        }
     }
 
     async fn encrypt_resource_server_configuration(
@@ -150,12 +193,8 @@ impl ProviderCredentialControllerLike for OauthAuthFlowController {
             serde_json::from_value(raw_resource_server_configuration.into())?;
 
         // Encrypt the client secret
-        config.client_secret = EncryptedString(
-            crypto_service
-                .encrypt_data(config.client_secret.0)
-                .await?
-                .0,
-        );
+        config.client_secret =
+            EncryptedString(crypto_service.encrypt_data(config.client_secret.0).await?.0);
 
         Ok(Box::new(config))
     }
@@ -171,18 +210,10 @@ impl ProviderCredentialControllerLike for OauthAuthFlowController {
 
         // Encrypt sensitive fields
         config.code = EncryptedString(crypto_service.encrypt_data(config.code.0).await?.0);
-        config.access_token = EncryptedString(
-            crypto_service
-                .encrypt_data(config.access_token.0)
-                .await?
-                .0,
-        );
-        config.refresh_token = EncryptedString(
-            crypto_service
-                .encrypt_data(config.refresh_token.0)
-                .await?
-                .0,
-        );
+        config.access_token =
+            EncryptedString(crypto_service.encrypt_data(config.access_token.0).await?.0);
+        config.refresh_token =
+            EncryptedString(crypto_service.encrypt_data(config.refresh_token.0).await?.0);
 
         Ok(Box::new(config))
     }
@@ -209,6 +240,7 @@ impl ProviderCredentialControllerLike for OauthAuthFlowController {
         Ok((Box::new(config), metadata))
     }
 
+
     fn as_rotateable_controller_user_credential(
         &self,
     ) -> Option<&dyn RotateableControllerUserCredentialLike> {
@@ -217,6 +249,10 @@ impl ProviderCredentialControllerLike for OauthAuthFlowController {
 
     fn as_user_credential_broker(&self) -> Option<&dyn UserCredentialBrokerLike> {
         Some(self)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -282,7 +318,11 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
             refresh_token: EncryptedString("refresh_token_placeholder".to_string()),
             expiry_time: expiry,
             sub: "user_sub_placeholder".to_string(),
-            scopes: vec!["openid".to_string(), "profile".to_string(), "email".to_string()],
+            scopes: vec![
+                "openid".to_string(),
+                "profile".to_string(),
+                "email".to_string(),
+            ],
             metadata: state.metadata.clone(),
         };
 
@@ -386,6 +426,8 @@ pub struct Oauth2JwtBearerAssertionFlowResourceServerCredential {
     pub client_id: String,
     pub private_key: EncryptedString,
     pub token_uri: String,
+    #[serde(default)]
+    #[schemars(skip)]
     pub metadata: Metadata,
 }
 
@@ -438,12 +480,49 @@ impl RotateableCredentialLike for Oauth2JwtBearerAssertionFlowUserCredential {
 // OAuth JWT Bearer Assertion Flow Controller
 // ============================================================================
 
-pub struct Oauth2JwtBearerAssertionFlowController;
+pub struct Oauth2JwtBearerAssertionFlowController {
+    pub static_credentials: Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration,
+}
+
+
+impl Oauth2JwtBearerAssertionFlowController {
+
+    pub async fn decrypt_oauth_credentials(
+        &self,
+        crypto_service: &DecryptionService,
+        user_credential: &UserCredentialSerialized,
+    ) -> Result<DecryptedOauthCredentials, CommonError> {
+        let typed_creds: Oauth2AuthorizationCodeFlowUserCredential = serde_json::from_value(user_credential.value.clone().into())?;
+        let decrypted_creds: DecryptedOauthCredentials = DecryptedOauthCredentials {
+            code: crypto_service.decrypt_data(typed_creds.code).await?,
+            access_token: crypto_service.decrypt_data(typed_creds.access_token).await?,
+            refresh_token: crypto_service.decrypt_data(typed_creds.refresh_token).await?,
+            expiry_time: typed_creds.expiry_time,
+            sub: typed_creds.sub,
+            scopes: typed_creds.scopes,
+            metadata: typed_creds.metadata,
+        };
+
+        Ok(decrypted_creds)
+    }
+}
+
+const STATIC_TYPE_ID_OAUTH2_JWT_BEARER_ASSERTION_FLOW: &str = "oauth2_jwt_bearer_assertion_flow";
+
+impl StaticProviderCredentialControllerLike for Oauth2JwtBearerAssertionFlowController {
+    fn static_type_id() -> &'static str {
+        STATIC_TYPE_ID_OAUTH2_JWT_BEARER_ASSERTION_FLOW
+    }
+}
 
 #[async_trait]
 impl ProviderCredentialControllerLike for Oauth2JwtBearerAssertionFlowController {
+    fn static_credentials(&self) -> Box<dyn StaticCredentialConfigurationLike> {
+        Box::new(self.static_credentials.clone())
+    }
+
     fn type_id(&self) -> &'static str {
-        "oauth2_jwt_bearer_assertion_flow"
+        STATIC_TYPE_ID_OAUTH2_JWT_BEARER_ASSERTION_FLOW
     }
 
     fn documentation(&self) -> &'static str {
@@ -455,19 +534,14 @@ impl ProviderCredentialControllerLike for Oauth2JwtBearerAssertionFlowController
     }
 
     fn configuration_schema(&self) -> ConfigurationSchema {
-        let resource_server_schema = schema_for!(Oauth2JwtBearerAssertionFlowResourceServerCredential);
-        let user_credential_schema = schema_for!(Oauth2JwtBearerAssertionFlowUserCredential);
-
-        let mut schemas = HashMap::new();
-        schemas.insert(
-            "oauth2_jwt_bearer_assertion_flow".to_string(),
-            ConfigurationSchemaItem {
-                resource_server: WrappedSchema::new(resource_server_schema.into()),
-                user_credential: WrappedSchema::new(user_credential_schema.into()),
-            },
-        );
-
-        ConfigurationSchema(schemas)
+        ConfigurationSchema {
+            resource_server: WrappedSchema::new(
+                schema_for!(Oauth2JwtBearerAssertionFlowResourceServerCredential).into(),
+            ),
+            user_credential: WrappedSchema::new(
+                schema_for!(Oauth2JwtBearerAssertionFlowUserCredential).into(),
+            ),
+        }
     }
 
     async fn encrypt_resource_server_configuration(
@@ -479,12 +553,8 @@ impl ProviderCredentialControllerLike for Oauth2JwtBearerAssertionFlowController
             serde_json::from_value(raw_resource_server_configuration.into())?;
 
         // Encrypt the private key
-        config.private_key = EncryptedString(
-            crypto_service
-                .encrypt_data(config.private_key.0)
-                .await?
-                .0,
-        );
+        config.private_key =
+            EncryptedString(crypto_service.encrypt_data(config.private_key.0).await?.0);
 
         Ok(Box::new(config))
     }
@@ -498,13 +568,10 @@ impl ProviderCredentialControllerLike for Oauth2JwtBearerAssertionFlowController
             serde_json::from_value(raw_user_credential_configuration.into())?;
 
         // Encrypt sensitive fields
-        config.assertion = EncryptedString(crypto_service.encrypt_data(config.assertion.0).await?.0);
-        config.access_token = EncryptedString(
-            crypto_service
-                .encrypt_data(config.access_token.0)
-                .await?
-                .0,
-        );
+        config.assertion =
+            EncryptedString(crypto_service.encrypt_data(config.assertion.0).await?.0);
+        config.access_token =
+            EncryptedString(crypto_service.encrypt_data(config.access_token.0).await?.0);
 
         Ok(Box::new(config))
     }
@@ -535,6 +602,10 @@ impl ProviderCredentialControllerLike for Oauth2JwtBearerAssertionFlowController
         &self,
     ) -> Option<&dyn RotateableControllerUserCredentialLike> {
         Some(self)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

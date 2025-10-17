@@ -24,14 +24,17 @@ use serde::{Serialize, Deserialize};
       pub next_rotation_time: &'a Option<
           shared::primitives::WrappedChronoDateTime
       >,
+      pub data_encryption_key_id: &'a 
+          String
+      ,
   }
 
   pub async fn create_resource_server_credential(
     conn: &shared::libsql::Connection
     ,params: create_resource_server_credential_params<'_>
 ) -> Result<u64, libsql::Error> {
-    conn.execute(r#"INSERT INTO resource_server_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time)
-VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
+    conn.execute(r#"INSERT INTO resource_server_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
               <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
@@ -58,6 +61,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
                 None => libsql::Value::Null,
               }
             ,
+              <String as TryInto<libsql::Value>>::try_into(params.data_encryption_key_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
     ]).await
 }
   pub struct get_resource_server_credential_by_id_params<'a> {
@@ -76,12 +82,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
       pub next_rotation_time:Option<shared::primitives::WrappedChronoDateTime> ,
+      pub data_encryption_key_id:String,
   }
   pub async fn get_resource_server_credential_by_id(
       conn: &shared::libsql::Connection
       ,params: get_resource_server_credential_by_id_params<'_>
   ) -> Result<Option<Row_get_resource_server_credential_by_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time
+      let mut stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
 FROM resource_server_credential
 WHERE id = ?"#).await?;
       let res = stmt.query_row(
@@ -97,6 +104,7 @@ WHERE id = ?"#).await?;
                   created_at: row.get(4)?,
                   updated_at: row.get(5)?,
                   next_rotation_time: row.get(6)?,
+                  data_encryption_key_id: row.get(7)?,
               })),
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),
@@ -124,14 +132,17 @@ WHERE id = ?"#).await?;
       pub next_rotation_time: &'a Option<
           shared::primitives::WrappedChronoDateTime
       >,
+      pub data_encryption_key_id: &'a 
+          String
+      ,
   }
 
   pub async fn create_user_credential(
     conn: &shared::libsql::Connection
     ,params: create_user_credential_params<'_>
 ) -> Result<u64, libsql::Error> {
-    conn.execute(r#"INSERT INTO user_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time)
-VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
+    conn.execute(r#"INSERT INTO user_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
               <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
@@ -158,6 +169,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
                 None => libsql::Value::Null,
               }
             ,
+              <String as TryInto<libsql::Value>>::try_into(params.data_encryption_key_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
     ]).await
 }
   pub struct get_user_credential_by_id_params<'a> {
@@ -176,12 +190,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
       pub next_rotation_time:Option<shared::primitives::WrappedChronoDateTime> ,
+      pub data_encryption_key_id:String,
   }
   pub async fn get_user_credential_by_id(
       conn: &shared::libsql::Connection
       ,params: get_user_credential_by_id_params<'_>
   ) -> Result<Option<Row_get_user_credential_by_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time
+      let mut stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
 FROM user_credential
 WHERE id = ?"#).await?;
       let res = stmt.query_row(
@@ -197,6 +212,7 @@ WHERE id = ?"#).await?;
                   created_at: row.get(4)?,
                   updated_at: row.get(5)?,
                   next_rotation_time: row.get(6)?,
+                  data_encryption_key_id: row.get(7)?,
               })),
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),
@@ -204,6 +220,9 @@ WHERE id = ?"#).await?;
   }
   pub struct create_provider_instance_params<'a> {
       pub id: &'a 
+          String
+      ,
+      pub display_name: &'a 
           String
       ,
       pub resource_server_credential_id: &'a 
@@ -230,9 +249,12 @@ WHERE id = ?"#).await?;
     conn: &shared::libsql::Connection
     ,params: create_provider_instance_params<'_>
 ) -> Result<u64, libsql::Error> {
-    conn.execute(r#"INSERT INTO provider_instance (id, resource_server_credential_id, user_credential_id, created_at, updated_at, provider_controller_type_id, credential_controller_type_id)
-VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
+    conn.execute(r#"INSERT INTO provider_instance (id, display_name, resource_server_credential_id, user_credential_id, created_at, updated_at, provider_controller_type_id, credential_controller_type_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
               <String as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.display_name.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.resource_server_credential_id.clone())
@@ -265,6 +287,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
   #[allow(non_camel_case_types)]
   pub struct Row_get_provider_instance_by_id {
       pub id:String,
+      pub display_name:String,
       pub resource_server_credential_id:shared::primitives::WrappedUuidV4,
       pub user_credential_id:shared::primitives::WrappedUuidV4,
       pub created_at:shared::primitives::WrappedChronoDateTime,
@@ -276,7 +299,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_provider_instance_by_id_params<'_>
   ) -> Result<Option<Row_get_provider_instance_by_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, resource_server_credential_id, user_credential_id, created_at, updated_at, provider_controller_type_id, credential_controller_type_id
+      let mut stmt = conn.prepare(r#"SELECT id, display_name, resource_server_credential_id, user_credential_id, created_at, updated_at, provider_controller_type_id, credential_controller_type_id
 FROM provider_instance
 WHERE id = ?"#).await?;
       let res = stmt.query_row(
@@ -286,17 +309,34 @@ WHERE id = ?"#).await?;
       match res {
           Ok(row) => Ok(Some(Row_get_provider_instance_by_id {
                   id: row.get(0)?,
-                  resource_server_credential_id: row.get(1)?,
-                  user_credential_id: row.get(2)?,
-                  created_at: row.get(3)?,
-                  updated_at: row.get(4)?,
-                  provider_controller_type_id: row.get(5)?,
-                  credential_controller_type_id: row.get(6)?,
+                  display_name: row.get(1)?,
+                  resource_server_credential_id: row.get(2)?,
+                  user_credential_id: row.get(3)?,
+                  created_at: row.get(4)?,
+                  updated_at: row.get(5)?,
+                  provider_controller_type_id: row.get(6)?,
+                  credential_controller_type_id: row.get(7)?,
               })),
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),
       }
   }
+  pub struct delete_provider_instance_params<'a> {
+      pub id: &'a 
+          String
+      ,
+  }
+
+  pub async fn delete_provider_instance(
+    conn: &shared::libsql::Connection
+    ,params: delete_provider_instance_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"DELETE FROM provider_instance WHERE id = ?"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
   pub struct create_function_instance_params<'a> {
       pub id: &'a 
           String
@@ -526,6 +566,7 @@ WHERE id = ?"#).await?;
       pub function_instance_provider_instance_id:String,
       pub function_controller_type_id:String,
       pub provider_instance_id:String,
+      pub provider_instance_display_name:String,
       pub provider_instance_resource_server_credential_id:shared::primitives::WrappedUuidV4,
       pub provider_instance_user_credential_id:shared::primitives::WrappedUuidV4,
       pub provider_instance_created_at:shared::primitives::WrappedChronoDateTime,
@@ -539,6 +580,7 @@ WHERE id = ?"#).await?;
       pub resource_server_credential_created_at:shared::primitives::WrappedChronoDateTime,
       pub resource_server_credential_updated_at:shared::primitives::WrappedChronoDateTime,
       pub resource_server_credential_next_rotation_time:Option<shared::primitives::WrappedChronoDateTime> ,
+      pub resource_server_credential_data_encryption_key_id:String,
       pub user_credential_id:shared::primitives::WrappedUuidV4,
       pub user_credential_type_id:String,
       pub user_credential_metadata:crate::logic::Metadata,
@@ -546,6 +588,7 @@ WHERE id = ?"#).await?;
       pub user_credential_created_at:shared::primitives::WrappedChronoDateTime,
       pub user_credential_updated_at:shared::primitives::WrappedChronoDateTime,
       pub user_credential_next_rotation_time:Option<shared::primitives::WrappedChronoDateTime> ,
+      pub user_credential_data_encryption_key_id:String,
   }
   pub async fn get_function_instance_with_credentials(
       conn: &shared::libsql::Connection
@@ -558,6 +601,7 @@ WHERE id = ?"#).await?;
     fi.provider_instance_id as function_instance_provider_instance_id,
     fi.function_controller_type_id,
     pi.id as provider_instance_id,
+    pi.display_name as provider_instance_display_name,
     pi.resource_server_credential_id as provider_instance_resource_server_credential_id,
     pi.user_credential_id as provider_instance_user_credential_id,
     pi.created_at as provider_instance_created_at,
@@ -571,13 +615,15 @@ WHERE id = ?"#).await?;
     rsc.created_at as resource_server_credential_created_at,
     rsc.updated_at as resource_server_credential_updated_at,
     rsc.next_rotation_time as resource_server_credential_next_rotation_time,
+    rsc.data_encryption_key_id as resource_server_credential_data_encryption_key_id,
     uc.id as user_credential_id,
     uc.type_id as user_credential_type_id,
     uc.metadata as user_credential_metadata,
     uc.value as user_credential_value,
     uc.created_at as user_credential_created_at,
     uc.updated_at as user_credential_updated_at,
-    uc.next_rotation_time as user_credential_next_rotation_time
+    uc.next_rotation_time as user_credential_next_rotation_time,
+    uc.data_encryption_key_id as user_credential_data_encryption_key_id
 FROM function_instance fi
 JOIN provider_instance pi ON fi.provider_instance_id = pi.id
 JOIN resource_server_credential rsc ON pi.resource_server_credential_id = rsc.id
@@ -595,26 +641,29 @@ WHERE fi.id = ?"#).await?;
                   function_instance_provider_instance_id: row.get(3)?,
                   function_controller_type_id: row.get(4)?,
                   provider_instance_id: row.get(5)?,
-                  provider_instance_resource_server_credential_id: row.get(6)?,
-                  provider_instance_user_credential_id: row.get(7)?,
-                  provider_instance_created_at: row.get(8)?,
-                  provider_instance_updated_at: row.get(9)?,
-                  provider_controller_type_id: row.get(10)?,
-                  credential_controller_type_id: row.get(11)?,
-                  resource_server_credential_id: row.get(12)?,
-                  resource_server_credential_type_id: row.get(13)?,
-                  resource_server_credential_metadata: row.get(14)?,
-                  resource_server_credential_value: row.get(15)?,
-                  resource_server_credential_created_at: row.get(16)?,
-                  resource_server_credential_updated_at: row.get(17)?,
-                  resource_server_credential_next_rotation_time: row.get(18)?,
-                  user_credential_id: row.get(19)?,
-                  user_credential_type_id: row.get(20)?,
-                  user_credential_metadata: row.get(21)?,
-                  user_credential_value: row.get(22)?,
-                  user_credential_created_at: row.get(23)?,
-                  user_credential_updated_at: row.get(24)?,
-                  user_credential_next_rotation_time: row.get(25)?,
+                  provider_instance_display_name: row.get(6)?,
+                  provider_instance_resource_server_credential_id: row.get(7)?,
+                  provider_instance_user_credential_id: row.get(8)?,
+                  provider_instance_created_at: row.get(9)?,
+                  provider_instance_updated_at: row.get(10)?,
+                  provider_controller_type_id: row.get(11)?,
+                  credential_controller_type_id: row.get(12)?,
+                  resource_server_credential_id: row.get(13)?,
+                  resource_server_credential_type_id: row.get(14)?,
+                  resource_server_credential_metadata: row.get(15)?,
+                  resource_server_credential_value: row.get(16)?,
+                  resource_server_credential_created_at: row.get(17)?,
+                  resource_server_credential_updated_at: row.get(18)?,
+                  resource_server_credential_next_rotation_time: row.get(19)?,
+                  resource_server_credential_data_encryption_key_id: row.get(20)?,
+                  user_credential_id: row.get(21)?,
+                  user_credential_type_id: row.get(22)?,
+                  user_credential_metadata: row.get(23)?,
+                  user_credential_value: row.get(24)?,
+                  user_credential_created_at: row.get(25)?,
+                  user_credential_updated_at: row.get(26)?,
+                  user_credential_next_rotation_time: row.get(27)?,
+                  user_credential_data_encryption_key_id: row.get(28)?,
               })),
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),
@@ -627,8 +676,8 @@ WHERE fi.id = ?"#).await?;
       pub envelope_encryption_key_id: &'a 
           crate::logic::EnvelopeEncryptionKeyId
       ,
-      pub encryption_key: &'a
-          crate::logic::EncryptedDataEnvelopeKey
+      pub encryption_key: &'a 
+          crate::logic::EncryptedDataEncryptionKey
       ,
       pub created_at: &'a 
           shared::primitives::WrappedChronoDateTime
@@ -650,7 +699,7 @@ VALUES (?, ?, ?, ?, ?)"#, libsql::params![
               <crate::logic::EnvelopeEncryptionKeyId as TryInto<libsql::Value>>::try_into(params.envelope_encryption_key_id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <crate::logic::EncryptedDataEnvelopeKey as TryInto<libsql::Value>>::try_into(params.encryption_key.clone())
+              <crate::logic::EncryptedDataEncryptionKey as TryInto<libsql::Value>>::try_into(params.encryption_key.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
@@ -672,7 +721,7 @@ VALUES (?, ?, ?, ?, ?)"#, libsql::params![
   pub struct Row_get_data_encryption_key_by_id {
       pub id:String,
       pub envelope_encryption_key_id:crate::logic::EnvelopeEncryptionKeyId,
-      pub encryption_key:crate::logic::EncryptedDataEnvelopeKey,
+      pub encryption_key:crate::logic::EncryptedDataEncryptionKey,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
   }
@@ -698,4 +747,59 @@ WHERE id = ?"#).await?;
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),
       }
+  }
+  pub struct delete_data_encryption_key_params<'a> {
+      pub id: &'a 
+          String
+      ,
+  }
+
+  pub async fn delete_data_encryption_key(
+    conn: &shared::libsql::Connection
+    ,params: delete_data_encryption_key_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"DELETE FROM data_encryption_key WHERE id = ?"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct get_data_encryption_keys_params<'a> {
+      pub cursor: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub page_size: &'a 
+          i64
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_data_encryption_keys {
+      pub id:String,
+      pub envelope_encryption_key_id:crate::logic::EnvelopeEncryptionKeyId,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn get_data_encryption_keys(
+      conn: &shared::libsql::Connection
+      ,params: get_data_encryption_keys_params<'_>
+  ) -> Result<Vec<Row_get_data_encryption_keys>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, created_at, updated_at
+FROM data_encryption_key WHERE (created_at < ?1 OR ?1 IS NULL)
+ORDER BY created_at DESC
+LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
+      let mut mapped = vec![];
+
+      while let Some(row) = rows.next().await? {
+          mapped.push(Row_get_data_encryption_keys {
+              id: row.get(0)?,
+              envelope_encryption_key_id: row.get(1)?,
+              created_at: row.get(2)?,
+              updated_at: row.get(3)?,
+          });
+      }
+
+      Ok(mapped)
   }

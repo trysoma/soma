@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 use tokio_graceful_shutdown::{SubsystemHandle, Toplevel, errors::GracefulShutdownError};
 use tracing::error;
 
-use crate::commands::StartParams;
+use crate::{commands::StartParams, utils::config::get_or_init_cli_config};
 use shared::error::{CommonError, DynError};
 
 mod a2a;
@@ -28,7 +28,14 @@ pub struct Cli {
 pub enum Commands {
     Start(StartParams),
     Codegen,
+    // #[command(subcommand)]
+    // Bridge(BridgeCommands),
 }
+
+// #[derive(Subcommand)]
+// pub enum BridgeCommands {
+//     Init(commands::BridgeInitParams),
+// }
 
 pub type Subsys = SubsystemHandle<DynError>;
 
@@ -44,9 +51,21 @@ fn unwrap_and_error<T>(cmd: Result<T, CommonError>) -> T {
 
 async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
     Toplevel::new(async move |subsys: SubsystemHandle| {
+        let mut config = get_or_init_cli_config()
+            .await
+            .inspect_err(|e| {
+                error!("Failed to get or init CLI config: {:?}", e);
+            })
+            .unwrap();
+
         let cmd_res = match cli.command {
-            Commands::Start(params) => commands::cmd_start(&subsys, params).await,
-            Commands::Codegen => commands::cmd_codegen(&subsys).await,
+            Commands::Start(params) => commands::cmd_start(&subsys, params, &mut config).await,
+            Commands::Codegen => commands::cmd_codegen(&subsys, &mut config).await,
+            // Commands::Bridge(bridge_cmd) => match bridge_cmd {
+            //     BridgeCommands::Init(params) => {
+            //         commands::cmd_bridge_init(&subsys, params, &mut config).await
+            //     }
+            // },
         };
 
         unwrap_and_error(cmd_res);

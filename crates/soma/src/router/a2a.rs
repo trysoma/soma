@@ -1,4 +1,5 @@
 use a2a_rs::agent_execution::SimpleRequestContextBuilder;
+use a2a_rs::errors::A2aServerError;
 use a2a_rs::events::InMemoryQueueManager;
 use a2a_rs::service::A2aServiceLike;
 use a2a_rs::tasks::base_push_notification_sender::BasePushNotificationSenderBuilder;
@@ -15,6 +16,7 @@ use a2a_rs::{
         TaskStatus,
     },
 };
+use async_trait::async_trait;
 use axum::extract::State;
 use reqwest::Client;
 use serde_json::json;
@@ -39,14 +41,15 @@ use crate::repository::Repository;
 use crate::utils::restate::invoke::{
     RestateIngressClient, construct_initial_object_id,
 };
-use crate::utils::soma_agent_config::SomaConfig;
+use crate::utils::soma_agent_definition::ConstructAgentCardParams;
+use shared::soma_agent_definition::{SomaAgentDefinition, SomaAgentDefinitionLike};
 
 pub const PATH_PREFIX: &str = "/api";
 pub const SERVICE_ROUTE_KEY: &str = "a2a";
 pub const API_VERSION_1: &str = "v1";
 
 pub fn create_router() -> OpenApiRouter<Arc<Agent2AgentService>> {
-    let openapi_router = OpenApiRouter::new().routes(routes!(route_config));
+    let openapi_router = OpenApiRouter::new().routes(routes!(route_definition));
 
     let a2a_router: OpenApiRouter<Arc<Agent2AgentService>> = create_a2a_router();
     
@@ -59,22 +62,22 @@ pub fn create_router() -> OpenApiRouter<Arc<Agent2AgentService>> {
 
 #[utoipa::path(
     get,
-    path = format!("{}/{}/{}/config", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/definition", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     responses(
-        (status = 200, description = "Agent config", body = SomaConfig),
+        (status = 200, description = "Agent definition", body = SomaAgentDefinition),
     ),
-    operation_id = "get-agent-config",
+    operation_id = "get-agent-definition",
 )]
-async fn route_config(
+async fn route_definition(
     State(ctx): State<Arc<Agent2AgentService>>,
-) -> JsonResponse<SomaConfig, CommonError> {
-    let config = ctx.config.clone();
-    JsonResponse::from(Ok(config.clone()))
+) -> JsonResponse<SomaAgentDefinition, CommonError> {
+    let soma_definition = ctx.soma_definition.get_definition().await;
+    JsonResponse::from(soma_definition)
 }
 
 pub(crate) struct Agent2AgentService {
     src_dir: PathBuf,
-    config: SomaConfig,
+    soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     host: Url,
     request_handler: Arc<dyn RequestHandler + Send + Sync>,
     runtime_port: u16,
@@ -84,7 +87,7 @@ pub(crate) struct Agent2AgentService {
 impl Agent2AgentService {
     pub fn new(
         src_dir: PathBuf,
-        config: SomaConfig,
+        soma_definition: Arc<dyn SomaAgentDefinitionLike>,
         host: Url,
         connection_manager: ConnectionManager,
         repository: Repository,
@@ -94,7 +97,7 @@ impl Agent2AgentService {
         // Create the agent executor
         let agent_executor = Arc::new(ProxiedAgent {
             connection_manager,
-            soma_config: config.clone(),
+            soma_definition: soma_definition.clone(),
             repository: repository.clone(),
             restate_ingress_client,
         });
@@ -129,7 +132,7 @@ impl Agent2AgentService {
 
         Self {
             src_dir,
-            config,
+            soma_definition: soma_definition.clone(),
             host,
             request_handler,
             runtime_port,
@@ -138,24 +141,27 @@ impl Agent2AgentService {
     }
 }
 
+#[async_trait]
 impl A2aServiceLike for Agent2AgentService {
-    fn agent_card(&self, _context: a2a_rs::service::RequestContext) -> a2a_rs::types::AgentCard {
-        let soma_str = std::fs::read_to_string(self.src_dir.join("soma.yaml")).unwrap();
-        let soma_config =
-            crate::utils::soma_agent_config::SomaConfig::from_yaml(&soma_str).unwrap();
+    async fn agent_card(&self, _context: a2a_rs::service::RequestContext) -> Result<a2a_rs::types::AgentCard, A2aServerError> {
+        let soma_definition = self.soma_definition.get_definition().await?;
         let mut full_url = self.host.clone();
         full_url.set_path(&format!(
             "{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}"
         ));
         
-        crate::utils::soma_agent_config::construct_agent_card(&soma_config, &full_url)
+        let card = crate::utils::soma_agent_definition::construct_agent_card(ConstructAgentCardParams {
+            definition: soma_definition,
+            url: full_url.to_string(),
+        });
+        Ok(card)
     }
 
-    fn extended_agent_card(
+    async fn extended_agent_card(
         &self,
         _context: a2a_rs::service::RequestContext,
-    ) -> Option<a2a_rs::types::AgentCard> {
-        None
+    ) -> Result<Option<a2a_rs::types::AgentCard>, A2aServerError> {
+        Ok(None)
     }
 
     fn request_handler(
@@ -168,7 +174,7 @@ impl A2aServiceLike for Agent2AgentService {
 
 struct ProxiedAgent {
     connection_manager: ConnectionManager,
-    soma_config: SomaConfig,
+    soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     repository: Repository,
     restate_ingress_client: RestateIngressClient,
 }
@@ -178,7 +184,7 @@ impl AgentExecutor for ProxiedAgent {
         &'a self,
         context: RequestContext,
         event_queue: EventQueue,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send>>> + Send + 'a>>
+    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>> + Send + 'a>>
     {
         Box::pin(async move {
             let context_id = match context.context_id() {
@@ -213,7 +219,7 @@ impl AgentExecutor for ProxiedAgent {
                 Some(task_id) => task_id,
                 None => {
                     let err = CommonError::Unknown(anyhow::anyhow!("Task ID is required"));
-                    return Err(Box::new(err) as Box<dyn std::error::Error + Send>);
+                    return Err(Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>);
                 }
             };
             let task_id = match WrappedUuidV4::from_str(task_id) {
@@ -221,7 +227,7 @@ impl AgentExecutor for ProxiedAgent {
                 Err(e) => {
                     let err =
                         CommonError::Unknown(anyhow::anyhow!("Failed to parse task ID: {e:?}"));
-                    return Err(Box::new(err) as Box<dyn std::error::Error + Send>);
+                    return Err(Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>);
                 }
             };
 
@@ -235,7 +241,7 @@ impl AgentExecutor for ProxiedAgent {
                 Err(e) => {
                     let err =
                         CommonError::Unknown(anyhow::anyhow!("Failed to add connection: {e:?}"));
-                    return Err(Box::new(err) as Box<dyn std::error::Error + Send>);
+                    return Err(Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>);
                 }
             };
             // self.restate_ingress_client.resolve_awakeable(&task.id, &json!({ "task": task, "timelineItem": message.timeline_item })).await?;
@@ -287,7 +293,7 @@ impl AgentExecutor for ProxiedAgent {
             event_queue
                 .enqueue_event(Event::Task(task.clone()))
                 .await
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
 
             info!("Invoking runtime agent with task: {:?}", task);
 
@@ -323,12 +329,12 @@ impl AgentExecutor for ProxiedAgent {
                 true,
             )
             .await
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
 
             event_queue
                 .enqueue_event(Event::Message(message.message.into()))
                 .await
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
 
             // suspend previous execution
 
@@ -336,9 +342,10 @@ impl AgentExecutor for ProxiedAgent {
             // let body: serde_json::Value = json!({ "task": task, "timelineItem": message.timeline_item });
             let body: serde_json::Value = json!({ "task": task});
             info!("Invoking virtual object handler with body: {:?}", body);
+            let definition = self.soma_definition.get_definition().await?;
             self.restate_ingress_client
                 .invoke_virtual_object_handler(
-                    &self.soma_config.project,
+                    &definition.project,
                     &construct_initial_object_id(&task.id),
                     "onNewMessage",
                     body,
@@ -353,7 +360,7 @@ impl AgentExecutor for ProxiedAgent {
         &'a self,
         _context: RequestContext,
         event_queue: EventQueue,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send>>> + Send + 'a>>
+    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>> + Send + 'a>>
     {
         Box::pin(async move {
             info!("HelloWorldAgent cancel called");
@@ -382,7 +389,7 @@ impl AgentExecutor for ProxiedAgent {
             event_queue
                 .enqueue_event(Event::Task(task))
                 .await
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
             Ok(())
         })
     }
