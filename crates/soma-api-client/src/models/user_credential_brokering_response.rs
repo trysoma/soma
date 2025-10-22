@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 pub enum UserCredentialBrokeringResponse {
     UserCredentialBrokeringResponseOneOf(Box<models::UserCredentialBrokeringResponseOneOf>),
     UserCredentialBrokeringResponseOneOf1(Box<models::UserCredentialBrokeringResponseOneOf1>),
+    UserCredentialBrokeringResponseOneOf2(Box<models::UserCredentialBrokeringResponseOneOf2>),
 }
 
 impl Default for UserCredentialBrokeringResponse {
@@ -30,6 +31,8 @@ pub enum Type {
     BrokerState,
     #[serde(rename = "user_credential")]
     UserCredential,
+    #[serde(rename = "redirect")]
+    Redirect,
 }
 
 impl Default for Type {

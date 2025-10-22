@@ -7,7 +7,7 @@ import { loadConfig } from './lib/config.ts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 await loadConfig()
-const queryClient = new QueryClient()
+export const queryClient = new QueryClient()
 
 // Render the app
 const rootElement = document.getElementById('app')

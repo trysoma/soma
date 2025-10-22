@@ -1,4 +1,5 @@
 import { Outlet, createRootRouteWithContext } from '@tanstack/react-router'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanstackDevtools } from '@tanstack/react-devtools'
 import ReactQueryProvider from '@/context/request-query-provider'
@@ -30,6 +31,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
             <div className="flex-1 overflow-hidden"> 
               <Outlet />
             </div>
+            <ReactQueryDevtools buttonPosition="top-right" />
             <TanstackDevtools
               config={{
                 position: 'bottom-left',

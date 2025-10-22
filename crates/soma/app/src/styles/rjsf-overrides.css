@@ -1,0 +1,31 @@
+/* React JSON Schema Form (RJSF) overrides for shadcn integration */
+
+/* This file provides custom styling for react-jsonschema-form components */
+/* to better integrate with shadcn/ui design system */
+
+.rjsf-form-wrapper .btn-toolbar {
+  margin-top: 1.5rem;
+  border-top: none !important;
+  padding-top: 0 !important;
+}
+
+.rjsf-form-wrapper .form-group {
+  margin-bottom: 1.5rem;
+}
+
+.rjsf-form-wrapper input {
+  background-color: white;
+}
+
+/* Remove any separators/dividers before submit buttons */
+.rjsf-form-wrapper .btn-toolbar::before,
+.rjsf-form-wrapper .btn-toolbar > hr,
+.rjsf-form-wrapper .btn-toolbar + hr,
+.rjsf-form-wrapper hr:last-of-type {
+  display: none !important;
+}
+
+/* Style required field asterisks in red */
+.rjsf-form-wrapper .required {
+  color: #dc2626 !important; /* red-600 */
+}

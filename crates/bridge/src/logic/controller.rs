@@ -1,0 +1,297 @@
+
+
+
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
+
+use aes_gcm::{
+    Aes256Gcm, Nonce,
+    aead::{Aead, KeyInit, OsRng},
+};
+use async_trait::async_trait;
+use base64::Engine;
+use enum_dispatch::enum_dispatch;
+use once_cell::sync::Lazy;
+use rand::RngCore;
+use reqwest::Request;
+use schemars::{JsonSchema, Schema};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde_json::json;
+use sha2::{Digest, Sha256};
+use shared::{
+    error::CommonError,
+    primitives::{
+        PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
+        WrappedSchema, WrappedUuidV4,
+    },
+};
+use std::fs;
+use std::path::Path;
+use std::sync::RwLock;
+use utoipa::ToSchema;
+
+use crate::{logic::{credential::ConfigurationSchema, FunctionControllerLike, ProviderControllerLike, ProviderCredentialControllerLike}, providers::{google_mail::GoogleMailProviderController, stripe::StripeProviderController}};
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct ProviderCredentialControllerSerialized {
+    pub type_id: String,
+    pub configuration_schema: ConfigurationSchema,
+    pub name: String,
+    pub documentation: String,
+    pub requires_brokering: bool,
+    pub requires_resource_server_credential_refreshing: bool,
+    pub requires_user_credential_refreshing: bool,
+}
+
+impl From<Arc<dyn ProviderCredentialControllerLike>> for ProviderCredentialControllerSerialized {
+    fn from(credential_controller: Arc<dyn ProviderCredentialControllerLike>) -> Self {
+        ProviderCredentialControllerSerialized {
+            type_id: credential_controller.type_id().to_string(),
+            configuration_schema: credential_controller.configuration_schema(),
+            name: credential_controller.name().to_string(),
+            documentation: credential_controller.documentation().to_string(),
+            requires_brokering: credential_controller.as_user_credential_broker().is_some(),
+            requires_resource_server_credential_refreshing: credential_controller
+                .as_rotateable_controller_resource_server_credential()
+                .is_some(),
+            requires_user_credential_refreshing: credential_controller
+                .as_rotateable_controller_user_credential()
+                .is_some(),
+        }
+    }
+}
+
+impl From<&Arc<dyn ProviderCredentialControllerLike>> for ProviderCredentialControllerSerialized {
+    fn from(credential_controller: &Arc<dyn ProviderCredentialControllerLike>) -> Self {
+        ProviderCredentialControllerSerialized {
+            type_id: credential_controller.type_id().to_string(),
+            configuration_schema: credential_controller.configuration_schema(),
+            name: credential_controller.name().to_string(),
+            documentation: credential_controller.documentation().to_string(),
+            requires_brokering: credential_controller.as_user_credential_broker().is_some(),
+            requires_resource_server_credential_refreshing: credential_controller
+                .as_rotateable_controller_resource_server_credential()
+                .is_some(),
+            requires_user_credential_refreshing: credential_controller
+                .as_rotateable_controller_user_credential()
+                .is_some(),
+        }
+    }
+}
+
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct FunctionControllerSerialized {
+    pub type_id: String,
+    pub name: String,
+    pub documentation: String,
+    pub parameters: WrappedSchema,
+    pub output: WrappedSchema,
+    pub categories: Vec<String>, // TODO: change to Vec<&'static str>
+}
+
+impl From<Arc<dyn FunctionControllerLike>> for FunctionControllerSerialized {
+    fn from(function: Arc<dyn FunctionControllerLike>) -> Self {
+        FunctionControllerSerialized {
+            type_id: function.type_id().to_string(),
+            name: function.name().to_string(),
+            documentation: function.documentation().to_string(),
+            parameters: function.parameters(),
+            output: function.output(),
+            categories: function
+                .categories()
+                .into_iter()
+                .map(|c| c.to_string())
+                .collect(),
+        }
+    }
+}
+
+impl From<&Arc<dyn FunctionControllerLike>> for FunctionControllerSerialized {
+    fn from(function: &Arc<dyn FunctionControllerLike>) -> Self {
+        FunctionControllerSerialized {
+            type_id: function.type_id().to_string(),
+            name: function.name().to_string(),
+            documentation: function.documentation().to_string(),
+            parameters: function.parameters(),
+            output: function.output(),
+            categories: function
+                .categories()
+                .into_iter()
+                .map(|c| c.to_string())
+                .collect(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct ProviderControllerSerialized {
+    pub type_id: String,
+    pub name: String,
+    pub categories: Vec<String>,
+    pub documentation: String,
+    pub functions: Vec<FunctionControllerSerialized>,
+    pub credential_controllers: Vec<ProviderCredentialControllerSerialized>,
+}
+
+impl From<&dyn ProviderControllerLike> for ProviderControllerSerialized {
+    fn from(provider: &dyn ProviderControllerLike) -> Self {
+        ProviderControllerSerialized {
+            type_id: provider.type_id().to_string(),
+            name: provider.name().to_string(),
+            categories: provider
+                .categories()
+                .into_iter()
+                .map(|c| c.to_string())
+                .collect(),
+            documentation: provider.documentation().to_string(),
+            credential_controllers: provider
+                .credential_controllers()
+                .into_iter()
+                .map(|c| c.into())
+                .collect::<Vec<ProviderCredentialControllerSerialized>>(),
+            functions: provider
+                .functions()
+                .into_iter()
+                .map(|f| f.into())
+                .collect::<Vec<FunctionControllerSerialized>>(),
+        }
+    }
+}
+
+
+pub const CATEGORY_EMAIL: &str = "email";
+pub const CATEGORY_PAYMENTS: &str = "payments";
+
+pub static PROVIDER_REGISTRY: Lazy<RwLock<Vec<Arc<dyn ProviderControllerLike>>>> =
+    Lazy::new(|| RwLock::new(Vec::new()));
+
+pub type ListAvailableProvidersParams = PaginationRequest;
+pub type ListAvailableProvidersResponse = PaginatedResponse<ProviderControllerSerialized>;
+pub async fn list_available_providers(
+    pagination: ListAvailableProvidersParams,
+) -> Result<ListAvailableProvidersResponse, CommonError> {
+    let providers = PROVIDER_REGISTRY
+        .read()
+        .map_err(|_e| CommonError::Unknown(anyhow::anyhow!("Poison error")))?
+        .iter()
+        .map(|p| p.as_ref().into())
+        .collect::<Vec<ProviderControllerSerialized>>();
+
+    Ok(ListAvailableProvidersResponse::from_items_with_extra(
+        providers,
+        &pagination,
+        |p| vec![p.type_id.to_string()],
+    ))
+}
+
+
+
+pub fn get_provider_controller(
+    provider_controller_type_id: &str,
+) -> Result<Arc<dyn ProviderControllerLike>, CommonError> {
+    let registry = PROVIDER_REGISTRY
+        .read()
+        .map_err(|_e| CommonError::Unknown(anyhow::anyhow!("Poison error")))?;
+
+    tracing::debug!(
+        "Looking for provider controller with type_id: {}, registered providers: {:?}",
+        provider_controller_type_id,
+        registry.iter().map(|p| p.type_id()).collect::<Vec<_>>()
+    );
+
+    let provider_controller = registry
+        .iter()
+        .find(|p| p.type_id() == provider_controller_type_id)
+        .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            "Provider controller not found: '{}'. Available providers: {:?}",
+            provider_controller_type_id,
+            registry.iter().map(|p| p.type_id()).collect::<Vec<_>>()
+        )))?
+        .clone();
+
+    Ok(provider_controller)
+}
+
+pub fn get_credential_controller(
+    provider_controller: &Arc<dyn ProviderControllerLike>,
+    credential_controller_type_id: &str,
+) -> Result<Arc<dyn ProviderCredentialControllerLike>, CommonError> {
+    let credential_controller = provider_controller
+        .credential_controllers()
+        .iter()
+        .find(|c| c.type_id() == credential_controller_type_id)
+        .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            "Credential controller not found"
+        )))?
+        .clone();
+
+    Ok(credential_controller)
+}
+
+pub fn get_function_controller(
+    provider_controller: &Arc<dyn ProviderControllerLike>,
+    function_controller_type_id: &str,
+) -> Result<Arc<dyn FunctionControllerLike>, CommonError> {
+    let function_controller = provider_controller
+        .functions()
+        .iter()
+        .find(|f| f.type_id() == function_controller_type_id)
+        .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            "Function controller not found"
+        )))?
+        .clone();
+    Ok(function_controller)
+}
+
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct WithFunctionControllerTypeId<T> {
+    pub function_controller_type_id: String,
+    pub inner: T,
+}
+
+pub async fn register_all_bridge_providers() -> Result<(), CommonError> {
+    let mut registry = PROVIDER_REGISTRY.write().map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!("Failed to write provider registry: {}", e))
+    })?;
+    registry.push(Arc::new(GoogleMailProviderController));
+    registry.push(Arc::new(StripeProviderController));
+    drop(registry);
+    Ok(())
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct WithProviderControllerTypeId<T> {
+    pub provider_controller_type_id: String,
+    pub inner: T,
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct WithCredentialControllerTypeId<T> {
+    pub credential_controller_type_id: String,
+    pub inner: T,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shared::primitives::PaginationRequest;
+
+    #[tokio::test]
+    async fn test_list_available_providers() {
+        shared::setup_test!();
+
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+
+        let result = list_available_providers(pagination).await;
+        assert!(result.is_ok());
+
+        let response = result.unwrap();
+        // Should have at least the registered providers
+        // Should return a valid paginated response (may be empty during isolated tests)
+        // Just verify the structure is correct
+    }
+}

@@ -1,0 +1,868 @@
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
+
+use aes_gcm::{
+    Aes256Gcm, Nonce,
+    aead::{Aead, KeyInit, OsRng},
+};
+use async_trait::async_trait;
+use base64::Engine;
+use enum_dispatch::enum_dispatch;
+use once_cell::sync::Lazy;
+use rand::RngCore;
+use reqwest::Request;
+use schemars::{JsonSchema, Schema};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde_json::json;
+use sha2::{Digest, Sha256};
+use shared::{
+    error::CommonError,
+    primitives::{
+        PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
+        WrappedSchema, WrappedUuidV4,
+    },
+};
+use std::fs;
+use std::path::Path;
+use std::sync::RwLock;
+use utoipa::{IntoParams, ToSchema};
+
+use crate::{
+    logic::{
+        OnConfigChangeEvt, OnConfigChangeTx, ProviderControllerLike, FunctionControllerLike,
+        controller::{
+            FunctionControllerSerialized, ProviderControllerSerialized,
+            ProviderCredentialControllerSerialized, WithCredentialControllerTypeId,
+            WithFunctionControllerTypeId, WithProviderControllerTypeId, get_credential_controller,
+            get_function_controller, get_provider_controller, PROVIDER_REGISTRY,
+        },
+        credential::{ResourceServerCredentialSerialized, UserCredentialSerialized},
+        encryption::{EnvelopeEncryptionKeyContents, get_crypto_service, get_decryption_service},
+    },
+    providers::google_mail::GoogleMailProviderController,
+    repository::ProviderRepositoryLike,
+};
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct ProviderInstanceSerialized {
+    // not UUID as some ID's will be deterministic
+    pub id: String,
+    pub display_name: String,
+    pub resource_server_credential_id: WrappedUuidV4,
+    pub user_credential_id: Option<WrappedUuidV4>,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+    pub provider_controller_type_id: String,
+    pub credential_controller_type_id: String,
+    pub status: String,
+    pub return_on_successful_brokering: Option<ReturnAddress>,
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema, Debug)]
+pub struct ReturnAddressUrl {
+    pub url: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema, Debug)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ReturnAddress {
+    Url(ReturnAddressUrl),
+}
+
+// Repository layer struct - includes functions and credentials from SQL join
+#[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
+pub struct ProviderInstanceSerializedWithFunctions {
+    pub provider_instance: ProviderInstanceSerialized,
+    pub functions: Vec<FunctionInstanceSerialized>,
+    pub resource_server_credential: ResourceServerCredentialSerialized,
+    pub user_credential: Option<UserCredentialSerialized>,
+}
+
+// Repository layer struct - includes credentials without functions
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct ProviderInstanceSerializedWithCredentials {
+    pub provider_instance: ProviderInstanceSerialized,
+    pub resource_server_credential: ResourceServerCredentialSerialized,
+    pub user_credential: Option<UserCredentialSerialized>,
+}
+
+// List response struct - enriched with controller metadata
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
+pub struct ProviderInstanceListItem {
+    #[serde(flatten)]
+    pub provider_instance: ProviderInstanceSerialized,
+    pub functions: Vec<FunctionInstanceListItem>,
+    pub controller: ProviderControllerSerialized,
+    pub credential_controller: ProviderCredentialControllerSerialized,
+}
+
+// List response struct for function instances
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
+pub struct FunctionInstanceListItem {
+    #[serde(flatten)]
+    pub function_instance: FunctionInstanceSerialized,
+    pub controller: FunctionControllerSerialized,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
+pub struct ProviderInstanceSerializedWithEverything {
+    #[serde(flatten)]
+    pub instance_data: ProviderInstanceSerializedWithCredentials,
+    pub functions: Vec<FunctionInstanceListItem>,
+    pub controller: ProviderControllerSerialized,
+    pub credential_controller: ProviderCredentialControllerSerialized,
+}
+
+// we shouldn't need this besides the fact that we want to keep track of functions intentionally enabled
+// by users. if all functions were enabled, always, we could drop this struct.
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct FunctionInstanceSerialized {
+    pub function_controller_type_id: String,
+    pub provider_controller_type_id: String,
+    pub provider_instance_id: String,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
+pub struct FunctionInstanceSerializedWithEverything {
+    #[serde(flatten)]
+    pub function_instance: FunctionInstanceSerializedWithCredentials,
+    pub controller: FunctionControllerSerialized,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
+pub struct FunctionInstanceSerializedWithCredentials {
+    pub function_instance: FunctionInstanceSerialized,
+    pub provider_instance: ProviderInstanceSerialized,
+    pub resource_server_credential: ResourceServerCredentialSerialized,
+    pub user_credential: UserCredentialSerialized,
+}
+
+#[derive(Debug, Clone)]
+pub struct ListProviderInstancesParams {
+    pub pagination: PaginationRequest,
+    pub status: Option<String>,
+    pub provider_controller_type_id: Option<String>,
+}
+
+pub type ListProviderInstancesResponse = PaginatedResponse<ProviderInstanceListItem>;
+
+pub async fn list_provider_instances(
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: ListProviderInstancesParams,
+) -> Result<ListProviderInstancesResponse, CommonError> {
+    let provider_instances_with_data = repo
+        .list_provider_instances(
+            &params.pagination,
+            params.status.as_deref(),
+            params.provider_controller_type_id.as_deref(),
+        )
+        .await?;
+
+    // Enrich with PROVIDER_REGISTRY data
+    let enriched_items: Result<Vec<ProviderInstanceListItem>, CommonError> =
+        provider_instances_with_data
+            .items
+            .into_iter()
+            .map(|pwf| {
+                // Get provider controller from registry
+                let provider_controller =
+                    get_provider_controller(&pwf.provider_instance.provider_controller_type_id)?;
+                let controller_serialized: ProviderControllerSerialized =
+                    provider_controller.as_ref().into();
+
+                // Get credential controller from provider
+                let credential_controller = get_credential_controller(
+                    &provider_controller,
+                    &pwf.provider_instance.credential_controller_type_id,
+                )?;
+                let credential_controller_serialized: ProviderCredentialControllerSerialized =
+                    (&credential_controller).into();
+
+                // Enrich functions with their controllers using reusable helper
+                let enriched_functions =
+                    enrich_function_instances(pwf.functions, &provider_controller)?;
+
+                Ok(ProviderInstanceListItem {
+                    provider_instance: pwf.provider_instance,
+                    functions: enriched_functions,
+                    controller: controller_serialized,
+                    credential_controller: credential_controller_serialized,
+                })
+            })
+            .collect();
+
+    Ok(PaginatedResponse {
+        items: enriched_items?,
+        next_page_token: provider_instances_with_data.next_page_token,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct ListFunctionInstancesParams {
+    pub pagination: PaginationRequest,
+    pub provider_instance_id: Option<String>,
+}
+
+pub type ListFunctionInstancesResponse = PaginatedResponse<FunctionInstanceSerialized>;
+
+pub async fn list_function_instances(
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: ListFunctionInstancesParams,
+) -> Result<ListFunctionInstancesResponse, CommonError> {
+    let function_instances = repo
+        .list_function_instances(&params.pagination, params.provider_instance_id.as_deref())
+        .await?;
+    Ok(function_instances)
+}
+
+/// Enriches a function instance with its controller metadata
+fn enrich_function_instance(
+    function_instance: FunctionInstanceSerialized,
+    provider_controller: &Arc<dyn ProviderControllerLike>,
+) -> Result<FunctionInstanceListItem, CommonError> {
+    let function_controller = get_function_controller(
+        provider_controller,
+        &function_instance.function_controller_type_id,
+    )?;
+    let function_controller_serialized: FunctionControllerSerialized =
+        (&function_controller).into();
+
+    Ok(FunctionInstanceListItem {
+        function_instance,
+        controller: function_controller_serialized,
+    })
+}
+
+/// Enriches multiple function instances with their controller metadata
+fn enrich_function_instances(
+    functions: Vec<FunctionInstanceSerialized>,
+    provider_controller: &Arc<dyn ProviderControllerLike>,
+) -> Result<Vec<FunctionInstanceListItem>, CommonError> {
+    functions
+        .into_iter()
+        .map(|func| enrich_function_instance(func, provider_controller))
+        .collect()
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct CreateProviderInstanceParamsInner {
+    pub resource_server_credential_id: WrappedUuidV4,
+    pub user_credential_id: Option<WrappedUuidV4>,
+    pub provider_instance_id: Option<String>,
+    pub display_name: String,
+    pub return_on_successful_brokering: Option<ReturnAddress>,
+}
+pub type CreateProviderInstanceParams =
+    WithProviderControllerTypeId<WithCredentialControllerTypeId<CreateProviderInstanceParamsInner>>;
+pub type CreateProviderInstanceResponse = ProviderInstanceSerialized;
+
+pub async fn create_provider_instance(
+    on_config_change_tx: &OnConfigChangeTx,
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: CreateProviderInstanceParams,
+    publish_on_change_evt: bool,
+) -> Result<CreateProviderInstanceResponse, CommonError> {
+    let provider_controller = get_provider_controller(&params.provider_controller_type_id)?;
+
+    let _credential_controller = get_credential_controller(
+        &provider_controller,
+        &params.inner.credential_controller_type_id,
+    )?;
+
+    // Verify resource server credential exists
+    let resource_server_credential = repo
+        .get_resource_server_credential_by_id(&params.inner.inner.resource_server_credential_id)
+        .await?
+        .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            "Resource server credential not found"
+        )))?;
+
+    // Verify user credential exists if provided
+    let user_credential = if let Some(user_credential_id) = &params.inner.inner.user_credential_id {
+        Some(
+            repo.get_user_credential_by_id(user_credential_id)
+                .await?
+                .ok_or(CommonError::Unknown(anyhow::anyhow!(
+                    "User credential not found"
+                )))?,
+        )
+    } else {
+        None
+    };
+
+    let provider_instance_id = match params.inner.inner.provider_instance_id {
+        Some(provider_instance_id) => provider_instance_id,
+        None => uuid::Uuid::new_v4().to_string(),
+    };
+
+    // Determine status based on whether user_credential_id is set
+    let status = if params.inner.inner.user_credential_id.is_some() {
+        "active".to_string()
+    } else {
+        "brokering_initiated".to_string()
+    };
+
+    let now = WrappedChronoDateTime::now();
+    let provider_instance_serialized = ProviderInstanceSerialized {
+        id: provider_instance_id,
+        display_name: params.inner.inner.display_name,
+        resource_server_credential_id: params.inner.inner.resource_server_credential_id,
+        user_credential_id: params.inner.inner.user_credential_id,
+        created_at: now,
+        updated_at: now,
+        provider_controller_type_id: params.provider_controller_type_id,
+        credential_controller_type_id: params.inner.credential_controller_type_id,
+        status,
+        return_on_successful_brokering: params.inner.inner.return_on_successful_brokering.clone(),
+    };
+
+    // Save to database
+    repo.create_provider_instance(&crate::repository::CreateProviderInstance::from(
+        provider_instance_serialized.clone(),
+    ))
+    .await?;
+
+    let provider_instance_with_credentials = ProviderInstanceSerializedWithCredentials {
+        provider_instance: provider_instance_serialized.clone(),
+        resource_server_credential: resource_server_credential.clone(),
+        user_credential: user_credential.clone(),
+    };
+    if publish_on_change_evt {
+        on_config_change_tx
+            .send(OnConfigChangeEvt::ProviderInstanceAdded(
+                provider_instance_with_credentials,
+            ))
+            .await?;
+    }
+
+    Ok(provider_instance_serialized)
+}
+
+pub type UpdateProviderInstanceParams = WithProviderInstanceId<UpdateProviderInstanceParamsInner>;
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct UpdateProviderInstanceParamsInner {
+    pub display_name: String,
+}
+
+pub type UpdateProviderInstanceResponse = ();
+
+pub async fn update_provider_instance(
+    on_config_change_tx: &OnConfigChangeTx,
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: UpdateProviderInstanceParams,
+    publish_on_change_evt: bool,
+) -> Result<UpdateProviderInstanceResponse, CommonError> {
+    repo.update_provider_instance(&params.provider_instance_id, &params.inner.display_name)
+        .await?;
+
+    // Get the updated provider instance with credentials to send config change event
+    let provider_instance_with_functions = repo
+        .get_provider_instance_by_id(&params.provider_instance_id)
+        .await?
+        .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("Provider instance not found")))?;
+
+    let resource_server_cred = repo
+        .get_resource_server_credential_by_id(
+            &provider_instance_with_functions
+                .provider_instance
+                .resource_server_credential_id,
+        )
+        .await?
+        .ok_or_else(|| {
+            CommonError::Unknown(anyhow::anyhow!("Resource server credential not found"))
+        })?;
+
+    let user_cred = if let Some(user_credential_id) = &provider_instance_with_functions
+        .provider_instance
+        .user_credential_id
+    {
+        Some(
+            repo.get_user_credential_by_id(user_credential_id)
+                .await?
+                .ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("User credential not found"))
+                })?,
+        )
+    } else {
+        None
+    };
+
+    let provider_instance_with_creds = ProviderInstanceSerializedWithCredentials {
+        provider_instance: provider_instance_with_functions.provider_instance,
+        resource_server_credential: resource_server_cred,
+        user_credential: user_cred,
+    };
+
+    if publish_on_change_evt {
+        on_config_change_tx
+            .send(OnConfigChangeEvt::ProviderInstanceAdded(
+                provider_instance_with_creds,
+            ))
+            .await?;
+    }
+
+    Ok(())
+}
+
+pub type DeleteProviderInstanceParams = WithProviderInstanceId<()>;
+pub type DeleteProviderInstanceResponse = ();
+
+// Types for list_provider_instances_grouped_by_function
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct FunctionInstanceConfig {
+    pub function_controller: FunctionControllerSerialized,
+    pub provider_controller: ProviderControllerSerialized,
+    pub provider_instances: Vec<ProviderInstanceSerializedWithCredentials>,
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema, IntoParams)]
+pub struct ListProviderInstancesGroupedByFunctionParams {
+    pub next_page_token: Option<String>,
+    pub page_size: i64,
+    pub provider_controller_type_id: Option<String>,
+    pub function_category: Option<String>,
+}
+pub type ListProviderInstancesGroupedByFunctionResponse = PaginatedResponse<FunctionInstanceConfig>;
+
+pub async fn delete_provider_instance(
+    on_config_change_tx: &OnConfigChangeTx,
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: DeleteProviderInstanceParams,
+    publish_on_change_evt: bool,
+) -> Result<DeleteProviderInstanceResponse, CommonError> {
+    repo.delete_provider_instance(&params.provider_instance_id)
+        .await?;
+    if publish_on_change_evt {
+        on_config_change_tx
+            .send(OnConfigChangeEvt::ProviderInstanceRemoved(
+                params.provider_instance_id.clone(),
+            ))
+            .await?;
+    }
+    Ok(())
+}
+
+pub async fn list_provider_instances_grouped_by_function(
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: ListProviderInstancesGroupedByFunctionParams,
+) -> Result<ListProviderInstancesGroupedByFunctionResponse, CommonError> {
+    // Get all providers from registry
+    let providers = PROVIDER_REGISTRY
+        .read()
+        .map_err(|_e| CommonError::Unknown(anyhow::anyhow!("Poison error")))?
+        .clone();
+
+    // Create a vector of (provider_controller, function_controller) tuples, sorted by display names
+    let mut function_configs: Vec<(Arc<dyn ProviderControllerLike>, Arc<dyn FunctionControllerLike>)> = Vec::new();
+
+    for provider in providers.iter() {
+        // Apply provider_controller_type_id filter if provided
+        if let Some(ref filter_provider_type) = params.provider_controller_type_id {
+            if provider.type_id() != filter_provider_type {
+                continue;
+            }
+        }
+
+        for function in provider.functions() {
+            // Apply function_category filter if provided
+            if let Some(ref filter_category) = params.function_category {
+                if !function.categories().contains(&filter_category.as_str()) {
+                    continue;
+                }
+            }
+
+            function_configs.push((provider.clone(), function));
+        }
+    }
+
+    // Sort by provider name (ascending), then by function name (ascending)
+    function_configs.sort_by(|a, b| {
+        let provider_cmp = a.0.name().cmp(b.0.name());
+        if provider_cmp == std::cmp::Ordering::Equal {
+            a.1.name().cmp(b.1.name())
+        } else {
+            provider_cmp
+        }
+    });
+
+    // Apply pagination - decode the next_page_token as an offset
+    let offset = if let Some(token) = &params.next_page_token {
+        let decoded_parts = shared::primitives::decode_pagination_token(token)
+            .map_err(|e| CommonError::Repository {
+                msg: format!("Invalid pagination token: {}", e),
+                source: Some(e.into()),
+            })?;
+        if decoded_parts.is_empty() {
+            0
+        } else {
+            decoded_parts[0].parse::<usize>().map_err(|e| CommonError::Repository {
+                msg: format!("Invalid offset in pagination token: {}", e),
+                source: Some(e.into()),
+            })?
+        }
+    } else {
+        0
+    };
+
+    // Get the paginated slice
+    let page_size = params.page_size as usize;
+    let end_offset = std::cmp::min(offset + page_size, function_configs.len());
+    let paginated_configs = &function_configs[offset..end_offset];
+
+    // Extract function_controller_type_ids from the paginated slice
+    let function_controller_type_ids: Vec<String> = paginated_configs
+        .iter()
+        .map(|(_, function)| function.type_id().to_string())
+        .collect();
+
+    // If no functions match the filter criteria, return empty result immediately
+    // This avoids passing an empty array to the SQL IN clause which would be invalid SQL
+    let grouped_results = if function_controller_type_ids.is_empty() {
+        Vec::new()
+    } else {
+        // Call the repository method to get provider instances grouped by function controller type id
+        repo.get_provider_instances_grouped_by_function_controller_type_id(&function_controller_type_ids)
+            .await?
+    };
+
+    // Create a HashMap for quick lookup of provider instances by function_controller_type_id
+    let provider_instances_map: std::collections::HashMap<String, Vec<ProviderInstanceSerializedWithCredentials>> = grouped_results
+        .into_iter()
+        .map(|group| (group.function_controller_type_id, group.provider_instances))
+        .collect();
+
+    // Construct the final result maintaining the sorted order from paginated_configs
+    let items: Vec<FunctionInstanceConfig> = paginated_configs
+        .iter()
+        .map(|(provider, function)| {
+            let provider_instances = provider_instances_map
+                .get(function.type_id())
+                .cloned()
+                .unwrap_or_else(Vec::new);
+
+            FunctionInstanceConfig {
+                function_controller: function.into(),
+                provider_controller: provider.as_ref().into(),
+                provider_instances,
+            }
+        })
+        .collect();
+
+    // Calculate next_page_token
+    let next_page_token = if end_offset < function_configs.len() {
+        let token_value = end_offset.to_string();
+        Some(base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            token_value.as_bytes(),
+        ))
+    } else {
+        None
+    };
+
+    Ok(PaginatedResponse {
+        items,
+        next_page_token,
+    })
+}
+
+pub type GetProviderInstanceParams = WithProviderInstanceId<()>;
+pub type GetProviderInstanceResponse = ProviderInstanceSerializedWithEverything;
+
+pub async fn get_provider_instance(
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: GetProviderInstanceParams,
+) -> Result<GetProviderInstanceResponse, CommonError> {
+    let provider_instance = repo
+        .get_provider_instance_by_id(&params.provider_instance_id)
+        .await?
+        .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            "Provider instance not found"
+        )))?;
+
+    let provider_controller = get_provider_controller(
+        &provider_instance
+            .provider_instance
+            .provider_controller_type_id,
+    )?;
+
+    let credential_controller = get_credential_controller(
+        &provider_controller,
+        &provider_instance
+            .provider_instance
+            .credential_controller_type_id,
+    )?;
+    let credential_controller_serialized: ProviderCredentialControllerSerialized =
+        (&credential_controller).into();
+
+    let functions = enrich_function_instances(provider_instance.functions, &provider_controller)?;
+
+    let provider_instance_with_everything = ProviderInstanceSerializedWithEverything {
+        functions: functions,
+        controller: provider_controller.as_ref().into(),
+        credential_controller: credential_controller_serialized,
+        instance_data: ProviderInstanceSerializedWithCredentials {
+            provider_instance: provider_instance.provider_instance,
+            resource_server_credential: provider_instance.resource_server_credential,
+            user_credential: provider_instance.user_credential,
+        },
+    };
+    Ok(provider_instance_with_everything)
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct WithProviderInstanceId<T> {
+    pub provider_instance_id: String,
+    pub inner: T,
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema, JsonSchema)]
+pub struct EnableFunctionParamsInner {}
+pub type EnableFunctionParams =
+    WithProviderInstanceId<WithFunctionControllerTypeId<EnableFunctionParamsInner>>;
+pub type EnableFunctionResponse = FunctionInstanceSerialized;
+
+pub async fn enable_function(
+    on_config_change_tx: &OnConfigChangeTx,
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: EnableFunctionParams,
+    publish_on_change_evt: bool,
+) -> Result<EnableFunctionResponse, CommonError> {
+    // Verify provider instance exists
+    let provider_instance = repo
+        .get_provider_instance_by_id(&params.provider_instance_id)
+        .await?
+        .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            "Provider instance not found"
+        )))?;
+
+    // // Verify function exists in provider controller
+    let provider_controller = get_provider_controller(
+        &provider_instance
+            .provider_instance
+            .provider_controller_type_id,
+    )?;
+    let _function_controller = get_function_controller(
+        &provider_controller,
+        &params.inner.function_controller_type_id,
+    )?;
+
+    let now = WrappedChronoDateTime::now();
+    let function_instance_serialized = FunctionInstanceSerialized {
+        function_controller_type_id: params.inner.function_controller_type_id.clone(),
+        provider_controller_type_id: provider_instance.provider_instance.provider_controller_type_id.clone(),
+        provider_instance_id: params.provider_instance_id.clone(),
+        created_at: now,
+        updated_at: now,
+    };
+
+    // Save to database
+    let create_params =
+        crate::repository::CreateFunctionInstance::from(function_instance_serialized.clone());
+    repo.create_function_instance(&create_params).await?;
+
+    if publish_on_change_evt {
+        on_config_change_tx
+            .send(OnConfigChangeEvt::FunctionInstanceAdded(
+                function_instance_serialized.clone(),
+            ))
+            .await?;
+    }
+
+    Ok(function_instance_serialized)
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct InvokeFunctionParamsInner {
+    pub params: WrappedJsonValue,
+}
+pub type InvokeFunctionParams =
+    WithProviderInstanceId<WithFunctionInstanceId<InvokeFunctionParamsInner>>;
+pub type InvokeFunctionResponse = WrappedJsonValue;
+
+pub async fn invoke_function(
+    repo: &crate::repository::Repository,
+    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
+    params: InvokeFunctionParams,
+) -> Result<InvokeFunctionResponse, CommonError> {
+    // Get provider instance to retrieve provider_controller_type_id
+    let provider_instance = repo
+        .get_provider_instance_by_id(&params.provider_instance_id)
+        .await?
+        .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            "Provider instance not found"
+        )))?;
+
+    let function_instance_with_credentials = repo
+        .get_function_instance_with_credentials(
+            &params.inner.function_controller_type_id,
+            &provider_instance.provider_instance.provider_controller_type_id,
+            &params.provider_instance_id,
+        )
+        .await?
+        .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            "Function instance not found"
+        )))?;
+
+    // TODO: we assume user and resource credentials are encrypted with the same data encryption key
+    // this could change in future as the sql tables permit different data encryption keys for user and resource credentials
+    let crypto_service = get_crypto_service(
+        envelope_encryption_key_contents,
+        repo,
+        &function_instance_with_credentials
+            .resource_server_credential
+            .data_encryption_key_id,
+    )
+    .await?;
+    let decryption_service = get_decryption_service(&crypto_service)?;
+    let provder_controller = get_provider_controller(
+        &function_instance_with_credentials
+            .provider_instance
+            .provider_controller_type_id,
+    )?;
+    let function_controller = get_function_controller(
+        &provder_controller,
+        &function_instance_with_credentials
+            .function_instance
+            .function_controller_type_id,
+    )?;
+
+    // TODO: I think the credential controller should manage decrypting the resource server credential and user credential and static credentials
+    // and pass a single return type to the function invocation that implements a DecryptedFullCredentialLike trait?
+    let credential_controller = get_credential_controller(
+        &provder_controller,
+        &function_instance_with_credentials
+            .provider_instance
+            .credential_controller_type_id,
+    )?;
+    let static_credentials = credential_controller.static_credentials();
+
+    let response = function_controller
+        .invoke(
+            &decryption_service,
+            &credential_controller,
+            &static_credentials,
+            &function_instance_with_credentials.resource_server_credential,
+            &function_instance_with_credentials.user_credential,
+            params.inner.inner.params,
+        )
+        .await?;
+    Ok(response)
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema, JsonSchema)]
+pub struct DisableFunctionParamsInner {}
+pub type DisableFunctionParams = WithProviderInstanceId<WithFunctionControllerTypeId<DisableFunctionParamsInner>>;
+pub type DisableFunctionResponse = ();
+
+pub async fn disable_function(
+    on_config_change_tx: &OnConfigChangeTx,
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: DisableFunctionParams,
+    publish_on_change_evt: bool,
+) -> Result<DisableFunctionResponse, CommonError> {
+    // Get provider instance to retrieve provider_controller_type_id
+    let provider_instance = repo
+        .get_provider_instance_by_id(&params.provider_instance_id)
+        .await?
+        .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            "Provider instance not found"
+        )))?;
+
+    // Delete from database
+    repo.delete_function_instance(
+        &params.inner.function_controller_type_id,
+        &provider_instance.provider_instance.provider_controller_type_id,
+        &params.provider_instance_id,
+    )
+    .await?;
+
+    if publish_on_change_evt {
+        on_config_change_tx
+            .send(OnConfigChangeEvt::FunctionInstanceRemoved(
+                params.inner.function_controller_type_id.clone(),
+                provider_instance.provider_instance.provider_controller_type_id.clone(),
+                params.provider_instance_id.clone(),
+            ))
+            .await?;
+    }
+    Ok(())
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct WithFunctionInstanceId<T> {
+    pub function_controller_type_id: String,
+    pub inner: T,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shared::primitives::{PaginationRequest, SqlMigrationLoader};
+
+    #[tokio::test]
+    async fn test_list_provider_instances_empty() {
+        shared::setup_test!();
+
+        let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+            crate::repository::Repository::load_sql_migrations(),
+        ])
+        .await
+        .unwrap();
+        let repo = crate::repository::Repository::new(conn);
+
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+
+        let result = list_provider_instances(
+            &repo,
+            ListProviderInstancesParams {
+                pagination,
+                status: None,
+                provider_controller_type_id: None,
+            },
+        )
+        .await;
+        assert!(result.is_ok());
+
+        let response = result.unwrap();
+        assert_eq!(response.items.len(), 0);
+        assert!(response.next_page_token.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_list_function_instances_empty() {
+        shared::setup_test!();
+
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
+
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+
+        let result = list_function_instances(
+            &repo,
+            ListFunctionInstancesParams {
+                pagination,
+                provider_instance_id: None,
+            },
+        )
+        .await;
+        assert!(result.is_ok());
+
+        let response = result.unwrap();
+        assert_eq!(response.items.len(), 0);
+        assert!(response.next_page_token.is_none());
+    }
+}

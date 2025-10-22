@@ -10,7 +10,7 @@ Name | Type | Description | Notes
 **id** | **String** |  | 
 **metadata** | [**std::collections::HashMap<String, serde_json::Value>**](serde_json::Value.md) |  | 
 **provider_controller_type_id** | **String** |  | 
-**resource_server_cred_id** | [**uuid::Uuid**](uuid::Uuid.md) |  | 
+**provider_instance_id** | **String** |  | 
 **updated_at** | **String** |  | 
 **r#type** | **String** |  | 
 

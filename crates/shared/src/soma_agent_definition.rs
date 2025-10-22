@@ -11,7 +11,7 @@ use crate::error::CommonError;
 use async_trait::async_trait;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct SomaAgentDefinition {
     pub project: String,
     pub agent: String,
@@ -23,13 +23,15 @@ pub struct SomaAgentDefinition {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct BridgeConfig {
     pub encryption: BridgeEncryptionConfig,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub providers: Option<HashMap<String, ProviderConfig>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 #[serde(transparent)]
 pub struct BridgeEncryptionConfig(pub HashMap<String, EncryptionConfiguration>);
 
@@ -42,10 +44,37 @@ pub enum EnvelopeEncryptionKeyId {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct EncryptionConfiguration {
     pub encrypted_data_encryption_key: String,
     pub envelope_encryption_key_id: EnvelopeEncryptionKeyId,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ProviderConfig {
+    pub provider_controller_type_id: String,
+    pub credential_controller_type_id: String,
+    pub display_name: String,
+    pub resource_server_credential: CredentialConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_credential: Option<CredentialConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub functions: Option<Vec<String>>,
+}
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CredentialConfig {
+    pub id: String,
+    pub type_id: String,
+    pub metadata: serde_json::Value,
+    pub value: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_rotation_time: Option<String>,
+    pub data_encryption_key_id: String,
 }
 
 #[async_trait]
@@ -59,6 +88,24 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
     ) -> Result<(), CommonError>;
     async fn list_data_encryption_keys(&self) -> Result<Vec<EncryptionConfiguration>, CommonError>;
     async fn remove_data_encryption_key(&self, key_id: String) -> Result<(), CommonError>;
+    async fn add_provider(
+        &self,
+        provider_id: String,
+        config: ProviderConfig,
+    ) -> Result<(), CommonError>;
+    async fn remove_provider(&self, provider_id: String) -> Result<(), CommonError>;
+    async fn add_function_instance(
+        &self,
+        provider_controller_type_id: String,
+        function_controller_type_id: String,
+        provider_instance_id: String,
+    ) -> Result<(), CommonError>;
+    async fn remove_function_instance(
+        &self,
+        provider_controller_type_id: String,
+        function_controller_type_id: String,
+        provider_instance_id: String,
+    ) -> Result<(), CommonError>;
     async fn reload(&self) -> Result<(), CommonError>;
 }
 
@@ -128,6 +175,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         if definition.bridge.is_none() {
             definition.bridge = Some(BridgeConfig {
                 encryption: BridgeEncryptionConfig(HashMap::new()),
+                providers: None,
             });
         }
         let bridge = match &mut definition.bridge {
@@ -166,12 +214,120 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             Some(bridge) => bridge,
             None => return Ok(()),
         };
-        
+
         match bridge.encryption.0.remove(&key_id) {
             Some(_) => (),
             None => return Ok(()),
         };
         info!("Data encryption key removed from bridge: {:?}", key_id);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn add_provider(
+        &self,
+        provider_id: String,
+        config: ProviderConfig,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        if definition.bridge.is_none() {
+            definition.bridge = Some(BridgeConfig {
+                encryption: BridgeEncryptionConfig(HashMap::new()),
+                providers: Some(HashMap::new()),
+            });
+        }
+        let bridge = match &mut definition.bridge {
+            Some(bridge) => bridge,
+            None => return Err(CommonError::Unknown(anyhow::anyhow!("Bridge configuration not found"))),
+        };
+        if bridge.providers.is_none() {
+            bridge.providers = Some(HashMap::new());
+        }
+        let providers = bridge.providers.as_mut().unwrap();
+        providers.insert(provider_id.clone(), config);
+        info!("Provider added to bridge: {:?}", provider_id);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_provider(&self, provider_id: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        let bridge = match &mut definition.bridge {
+            Some(bridge) => bridge,
+            None => return Ok(()),
+        };
+
+        let providers = match &mut bridge.providers {
+            Some(providers) => providers,
+            None => return Ok(()),
+        };
+
+        match providers.remove(&provider_id) {
+            Some(_) => (),
+            None => return Ok(()),
+        };
+        info!("Provider removed from bridge: {:?}", provider_id);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn add_function_instance(
+        &self,
+        provider_controller_type_id: String,
+        function_controller_type_id: String,
+        provider_instance_id: String,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        let bridge = match &mut definition.bridge {
+            Some(bridge) => bridge,
+            None => return Err(CommonError::Unknown(anyhow::anyhow!("Bridge configuration not found"))),
+        };
+        let providers = match &mut bridge.providers {
+            Some(providers) => providers,
+            None => return Err(CommonError::Unknown(anyhow::anyhow!("Providers not found"))),
+        };
+        let provider = match providers.get_mut(&provider_instance_id) {
+            Some(provider) => provider,
+            None => return Err(CommonError::Unknown(anyhow::anyhow!("Provider not found"))),
+        };
+        if provider.functions.is_none() {
+            provider.functions = Some(Vec::new());
+        }
+        let functions = provider.functions.as_mut().unwrap();
+        functions.push(function_controller_type_id.clone());
+        info!("Function instance added to provider {}: {:?}", provider_controller_type_id, function_controller_type_id);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_function_instance(
+        &self,
+        provider_controller_type_id: String,
+        function_controller_type_id: String,
+        provider_instance_id: String,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        let bridge = match &mut definition.bridge {
+            Some(bridge) => bridge,
+            None => return Ok(()),
+        };
+        let providers = match &mut bridge.providers {
+            Some(providers) => providers,
+            None => return Ok(()),
+        };
+        let provider = match providers.get_mut(&provider_instance_id) {
+            Some(provider) => provider,
+            None => return Ok(()),
+        };
+        let functions = match &mut provider.functions {
+            Some(functions) => functions,
+            None => return Ok(()),
+        };
+
+        functions.retain(|f| *f != function_controller_type_id);
+
+        info!("Function instance ({}) removed from provider ({}, {})", function_controller_type_id, provider_controller_type_id, provider_instance_id);
         self.save(definition).await?;
         Ok(())
     }

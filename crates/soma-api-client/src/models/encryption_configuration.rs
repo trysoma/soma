@@ -13,9 +13,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct EncryptionConfiguration {
-    #[serde(rename = "encryptedDataEncryptionKey")]
+    #[serde(rename = "encrypted_data_encryption_key")]
     pub encrypted_data_encryption_key: String,
-    #[serde(rename = "envelopeEncryptionKeyId")]
+    #[serde(rename = "envelope_encryption_key_id")]
     pub envelope_encryption_key_id: Box<models::EnvelopeEncryptionKeyId>,
 }
 

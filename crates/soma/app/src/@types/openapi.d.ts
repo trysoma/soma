@@ -196,6 +196,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/bridge/v1/function-instances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list-function-instances"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bridge/v1/generic-oauth-callback": {
         parameters: {
             query?: never;
@@ -212,6 +228,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/bridge/v1/provider": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list-provider-instances"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/provider/grouped-by-function": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list-provider-instances-grouped-by-function"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bridge/v1/provider/{provider_instance_id}": {
         parameters: {
             query?: never;
@@ -219,32 +267,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["get-provider-instance"];
         put?: never;
         post?: never;
         delete: operations["delete-provider-instance"];
         options?: never;
         head?: never;
-        patch?: never;
+        patch: operations["update-provider-instance"];
         trace?: never;
     };
-    "/api/bridge/v1/provider/{provider_instance_id}/available-functions/{function_controller_type_id}/enable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["enable-function"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/disable": {
+    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable": {
         parameters: {
             query?: never;
             header?: never;
@@ -260,7 +292,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/invoke": {
+    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["enable-function"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke": {
         parameters: {
             query?: never;
             header?: never;
@@ -411,6 +459,9 @@ export interface components {
         AgentCard: Record<string, never>;
         BridgeConfig: {
             encryption: components["schemas"]["BridgeEncryptionConfig"];
+            providers?: {
+                [key: string]: components["schemas"]["ProviderConfig"];
+            } | null;
         };
         BridgeEncryptionConfig: {
             [key: string]: components["schemas"]["EncryptionConfiguration"];
@@ -427,7 +478,7 @@ export interface components {
             id: string;
             metadata: components["schemas"]["Metadata"];
             provider_controller_type_id: string;
-            resource_server_cred_id: components["schemas"]["WrappedUuidV4"];
+            provider_instance_id: string;
             updated_at: components["schemas"]["WrappedChronoDateTime"];
         };
         ConfigurationSchema: {
@@ -460,7 +511,8 @@ export interface components {
             display_name: string;
             provider_instance_id?: string | null;
             resource_server_credential_id: components["schemas"]["WrappedUuidV4"];
-            user_credential_id: components["schemas"]["WrappedUuidV4"];
+            return_on_successful_brokering?: null | components["schemas"]["ReturnAddress"];
+            user_credential_id?: null | components["schemas"]["WrappedUuidV4"];
         };
         CreateResourceServerCredentialParamsInner: {
             data_encryption_key_id: string;
@@ -471,6 +523,14 @@ export interface components {
             data_encryption_key_id: string;
             metadata?: null | components["schemas"]["Metadata"];
             user_credential_configuration: components["schemas"]["WrappedJsonValue"];
+        };
+        CredentialConfig: {
+            data_encryption_key_id: string;
+            id: string;
+            metadata: unknown;
+            next_rotation_time?: string | null;
+            type_id: string;
+            value: unknown;
         };
         DataEncryptionKey: {
             created_at: components["schemas"]["WrappedChronoDateTime"];
@@ -489,17 +549,15 @@ export interface components {
             items: components["schemas"]["DataEncryptionKeyListItem"][];
             next_page_token: string;
         };
-        EnableFunctionParamsInner: {
-            function_instance_id?: string | null;
-        };
+        EnableFunctionParamsInner: Record<string, never>;
         EncryptCredentialConfigurationParamsInner: {
             data_encryption_key_id: string;
             value: components["schemas"]["WrappedJsonValue"];
         };
         EncryptedDataEncryptionKey: string;
         EncryptionConfiguration: {
-            encryptedDataEncryptionKey: string;
-            envelopeEncryptionKeyId: components["schemas"]["EnvelopeEncryptionKeyId"];
+            encrypted_data_encryption_key: string;
+            envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKeyId"];
         };
         EnvelopeEncryptionKeyId: {
             arn: string;
@@ -522,12 +580,28 @@ export interface components {
             parameters: components["schemas"]["JsonSchema"];
             type_id: string;
         };
+        FunctionInstanceConfig: {
+            function_controller: components["schemas"]["FunctionControllerSerialized"];
+            provider_controller: components["schemas"]["ProviderControllerSerialized"];
+            provider_instances: components["schemas"]["ProviderInstanceSerializedWithCredentials"][];
+        };
+        FunctionInstanceConfigPaginatedResponse: {
+            items: components["schemas"]["FunctionInstanceConfig"][];
+            next_page_token: string;
+        };
+        FunctionInstanceListItem: components["schemas"]["FunctionInstanceSerialized"] & {
+            controller: components["schemas"]["FunctionControllerSerialized"];
+        };
         FunctionInstanceSerialized: {
             created_at: components["schemas"]["WrappedChronoDateTime"];
             function_controller_type_id: string;
-            id: string;
+            provider_controller_type_id: string;
             provider_instance_id: string;
             updated_at: components["schemas"]["WrappedChronoDateTime"];
+        };
+        FunctionInstanceSerializedPaginatedResponse: {
+            items: components["schemas"]["FunctionInstanceSerialized"][];
+            next_page_token: string;
         };
         InvokeFunctionParamsInner: {
             params: components["schemas"]["WrappedJsonValue"];
@@ -557,6 +631,14 @@ export interface components {
         Metadata: {
             [key: string]: unknown;
         };
+        ProviderConfig: {
+            credential_controller_type_id: string;
+            display_name: string;
+            functions?: string[] | null;
+            provider_controller_type_id: string;
+            resource_server_credential: components["schemas"]["CredentialConfig"];
+            user_credential?: null | components["schemas"]["CredentialConfig"];
+        };
         ProviderControllerSerialized: {
             categories: string[];
             credential_controllers: components["schemas"]["ProviderCredentialControllerSerialized"][];
@@ -578,6 +660,15 @@ export interface components {
             requires_user_credential_refreshing: boolean;
             type_id: string;
         };
+        ProviderInstanceListItem: components["schemas"]["ProviderInstanceSerialized"] & {
+            controller: components["schemas"]["ProviderControllerSerialized"];
+            credential_controller: components["schemas"]["ProviderCredentialControllerSerialized"];
+            functions: components["schemas"]["FunctionInstanceListItem"][];
+        };
+        ProviderInstanceListItemPaginatedResponse: {
+            items: components["schemas"]["ProviderInstanceListItem"][];
+            next_page_token: string;
+        };
         ProviderInstanceSerialized: {
             created_at: components["schemas"]["WrappedChronoDateTime"];
             credential_controller_type_id: string;
@@ -585,8 +676,20 @@ export interface components {
             id: string;
             provider_controller_type_id: string;
             resource_server_credential_id: components["schemas"]["WrappedUuidV4"];
+            return_on_successful_brokering?: null | components["schemas"]["ReturnAddress"];
+            status: string;
             updated_at: components["schemas"]["WrappedChronoDateTime"];
-            user_credential_id: components["schemas"]["WrappedUuidV4"];
+            user_credential_id?: null | components["schemas"]["WrappedUuidV4"];
+        };
+        ProviderInstanceSerializedWithCredentials: {
+            provider_instance: components["schemas"]["ProviderInstanceSerialized"];
+            resource_server_credential: components["schemas"]["ResourceServerCredentialSerialized"];
+            user_credential?: null | components["schemas"]["UserCredentialSerialized"];
+        };
+        ProviderInstanceSerializedWithEverything: components["schemas"]["ProviderInstanceSerializedWithCredentials"] & {
+            controller: components["schemas"]["ProviderControllerSerialized"];
+            credential_controller: components["schemas"]["ProviderCredentialControllerSerialized"];
+            functions: components["schemas"]["FunctionInstanceListItem"][];
         };
         ResourceServerCredentialSerialized: {
             created_at: components["schemas"]["WrappedChronoDateTime"];
@@ -598,6 +701,13 @@ export interface components {
             updated_at: components["schemas"]["WrappedChronoDateTime"];
             value: components["schemas"]["WrappedJsonValue"];
         };
+        ReturnAddress: components["schemas"]["ReturnAddressUrl"] & {
+            /** @enum {string} */
+            type: "url";
+        };
+        ReturnAddressUrl: {
+            url: string;
+        };
         RuntimeConfig: Record<string, never>;
         SomaAgentDefinition: {
             agent: string;
@@ -608,7 +718,7 @@ export interface components {
             version: string;
         };
         StartUserCredentialBrokeringParamsInner: {
-            resource_server_cred_id: components["schemas"]["WrappedUuidV4"];
+            provider_instance_id: string;
         };
         Task: {
             context_id: components["schemas"]["WrappedUuidV4"];
@@ -659,6 +769,9 @@ export interface components {
         };
         /** @default null */
         TupleUnit: unknown;
+        UpdateProviderInstanceParamsInner: {
+            display_name: string;
+        };
         UpdateTaskStatusRequest: {
             message?: null | components["schemas"]["CreateMessageRequest"];
             status: components["schemas"]["TaskStatus"];
@@ -669,7 +782,10 @@ export interface components {
         }) | (components["schemas"]["UserCredentialSerialized"] & {
             /** @enum {string} */
             type: "user_credential";
-        });
+        }) | {
+            /** @enum {string} */
+            type: "redirect";
+        };
         UserCredentialSerialized: {
             created_at: components["schemas"]["WrappedChronoDateTime"];
             data_encryption_key_id: string;
@@ -1190,6 +1306,48 @@ export interface operations {
             };
         };
     };
+    "list-function-instances": {
+        parameters: {
+            query: {
+                page_size: number;
+                next_page_token?: string;
+                provider_instance_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List function instances */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FunctionInstanceSerializedPaginatedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     "resume-user-credential-brokering": {
         parameters: {
             query?: {
@@ -1237,6 +1395,133 @@ export interface operations {
             };
         };
     };
+    "list-provider-instances": {
+        parameters: {
+            query: {
+                page_size: number;
+                next_page_token?: string;
+                status?: string;
+                provider_controller_type_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List provider instances */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderInstanceListItemPaginatedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "list-provider-instances-grouped-by-function": {
+        parameters: {
+            query: {
+                next_page_token?: string | null;
+                page_size: number;
+                provider_controller_type_id?: string | null;
+                function_category?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List provider instances grouped by function */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FunctionInstanceConfigPaginatedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "get-provider-instance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider instance ID */
+                provider_instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Get provider instance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderInstanceSerializedWithEverything"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     "delete-provider-instance": {
         parameters: {
             query?: never;
@@ -1256,6 +1541,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "update-provider-instance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider instance ID */
+                provider_instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProviderInstanceParamsInner"];
+            };
+        };
+        responses: {
+            /** @description Update provider instance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TupleUnit"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "disable-function": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider instance ID */
+                provider_instance_id: string;
+                /** @description Function controller type ID */
+                function_controller_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disable function */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TupleUnit"];
                 };
             };
             /** @description Bad Request */
@@ -1325,49 +1698,6 @@ export interface operations {
             };
         };
     };
-    "disable-function": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Provider instance ID */
-                provider_instance_id: string;
-                /** @description Function instance ID */
-                function_instance_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Disable function */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TupleUnit"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
     "invoke-function": {
         parameters: {
             query?: never;
@@ -1375,8 +1705,8 @@ export interface operations {
             path: {
                 /** @description Provider instance ID */
                 provider_instance_id: string;
-                /** @description Function instance ID */
-                function_instance_id: string;
+                /** @description Function controller type ID */
+                function_controller_type_id: string;
             };
             cookie?: never;
         };

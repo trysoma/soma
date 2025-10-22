@@ -15,12 +15,15 @@ use serde::{Deserialize, Serialize};
 pub struct BridgeConfig {
     #[serde(rename = "encryption")]
     pub encryption: std::collections::HashMap<String, models::EncryptionConfiguration>,
+    #[serde(rename = "providers", skip_serializing_if = "Option::is_none")]
+    pub providers: Option<std::collections::HashMap<String, models::ProviderConfig>>,
 }
 
 impl BridgeConfig {
     pub fn new(encryption: std::collections::HashMap<String, models::EncryptionConfiguration>) -> BridgeConfig {
         BridgeConfig {
             encryption,
+            providers: None,
         }
     }
 }

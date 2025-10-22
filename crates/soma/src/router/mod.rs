@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::Router;
 use bridge::logic::{CreateDataEncryptionKeyParams, EncryptedDataEncryptionKey};
@@ -37,8 +38,8 @@ pub(crate) struct RouterParams {
     pub agent_service: Arc<Agent2AgentService>,
     pub task_service: Arc<TaskService>,
     pub frontend_service: Arc<FrontendService>,
-    pub mcp_service: McpService,
-    pub bridge_service: Arc<BridgeService>,
+    // pub mcp_service: McpService,
+    pub bridge_service: BridgeService,
 }
 
 pub(crate) struct InitRouterParams {
@@ -52,6 +53,7 @@ pub(crate) struct InitRouterParams {
     pub db_connection: shared::libsql::Connection,
     pub on_bridge_config_change_tx: OnConfigChangeTx,
     pub envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+    pub mcp_sse_ping_interval: Duration,
 }
 
 impl RouterParams {
@@ -76,44 +78,47 @@ impl RouterParams {
         ));
         let frontend_service = Arc::new(FrontendService::new());
         // internally it's an Arc<McpServiceInner>
-        let mcp_service = McpService::new(
-            init_params.mcp_transport_tx,
-            init_params.repository.clone(),
-            init_params.connection_manager.clone(),
-        );
+        // let mcp_service = McpService::new(
+        //     init_params.mcp_transport_tx,
+        //     init_params.repository.clone(),
+        //     init_params.connection_manager.clone(),
+        // );
 
         let bridge_repository =
             bridge::repository::Repository::new(init_params.db_connection.clone());
-        let bridge_service = Arc::new(BridgeService::new(
+        let bridge_service = BridgeService::new(
             bridge_repository.clone(),
             init_params.on_bridge_config_change_tx.clone(),
             init_params.envelope_encryption_key_contents.clone(),
-        ));
-        register_all_bridge_providers().await?;
-        info!("Bridge providers registered");
+            init_params.mcp_transport_tx,
+            init_params.mcp_sse_ping_interval,
+        );
+        // register_all_bridge_providers().await?;
+        // info!("Bridge providers registered");
 
-        let defintion = init_params.soma_definition.get_definition().await?;
-        if let Some(bridge) = &defintion.bridge {
-            futures::future::try_join_all(bridge.encryption.0.iter().map(async |(id, encryption)| {
-                create_data_encryption_key(
-                    &init_params.envelope_encryption_key_contents,
-                    &init_params.on_bridge_config_change_tx.clone(),
-                    &bridge_repository.clone(),
-                    CreateDataEncryptionKeyParams {
-                        id: Some(id.clone()),
-                        encrypted_data_envelope_key: Some(EncryptedDataEncryptionKey(encryption.encrypted_data_encryption_key.clone())),
-                    },
-                )
-                .await
-            })).await?;
-        }
+        // let defintion = init_params.soma_definition.get_definition().await?;
+        // if let Some(bridge) = &defintion.bridge {
+        //     futures::future::try_join_all(bridge.encryption.0.iter().map(async |(id, encryption)| {
+        //         create_data_encryption_key(
+        //             &init_params.envelope_encryption_key_contents,
+        //             &init_params.on_bridge_config_change_tx.clone(),
+        //             &bridge_repository.clone(),
+        //             CreateDataEncryptionKeyParams {
+        //                 id: Some(id.clone()),
+        //                 encrypted_data_envelope_key: Some(EncryptedDataEncryptionKey(encryption.encrypted_data_encryption_key.clone())),
+        //             },
+        //             true,
+        //         )
+        //         .await
+        //     })).await?;
+        // }
 
         Ok(Self {
             params,
             agent_service,
             task_service,
             frontend_service,
-            mcp_service,
+            // mcp_service,
             bridge_service,
         })
     }
@@ -142,9 +147,9 @@ pub(crate) fn initiate_routers(router_params: RouterParams) -> Result<Router, Co
     router = router.merge(fe_router);
 
     // mcp router
-    let (mcp_router, _) = mcp::create_router().split_for_parts();
-    let mcp_router = mcp_router.with_state(router_params.mcp_service);
-    router = router.merge(mcp_router);
+    // let (mcp_router, _) = mcp::create_router().split_for_parts();
+    // let mcp_router = mcp_router.with_state(router_params.mcp_service);
+    // router = router.merge(mcp_router);
 
     // bridge router
     let (bridge_router, _) = create_bridge_router().split_for_parts();

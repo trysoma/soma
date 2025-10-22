@@ -13,14 +13,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct StartUserCredentialBrokeringParamsInner {
-    #[serde(rename = "resource_server_cred_id")]
-    pub resource_server_cred_id: uuid::Uuid,
+    #[serde(rename = "provider_instance_id")]
+    pub provider_instance_id: String,
 }
 
 impl StartUserCredentialBrokeringParamsInner {
-    pub fn new(resource_server_cred_id: uuid::Uuid) -> StartUserCredentialBrokeringParamsInner {
+    pub fn new(provider_instance_id: String) -> StartUserCredentialBrokeringParamsInner {
         StartUserCredentialBrokeringParamsInner {
-            resource_server_cred_id,
+            provider_instance_id,
         }
     }
 }

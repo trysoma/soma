@@ -19,17 +19,20 @@ pub struct CreateProviderInstanceParamsInner {
     pub provider_instance_id: Option<Option<String>>,
     #[serde(rename = "resource_server_credential_id")]
     pub resource_server_credential_id: uuid::Uuid,
-    #[serde(rename = "user_credential_id")]
-    pub user_credential_id: uuid::Uuid,
+    #[serde(rename = "return_on_successful_brokering", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub return_on_successful_brokering: Option<Option<Box<models::ReturnAddress>>>,
+    #[serde(rename = "user_credential_id", skip_serializing_if = "Option::is_none")]
+    pub user_credential_id: Option<uuid::Uuid>,
 }
 
 impl CreateProviderInstanceParamsInner {
-    pub fn new(display_name: String, resource_server_credential_id: uuid::Uuid, user_credential_id: uuid::Uuid) -> CreateProviderInstanceParamsInner {
+    pub fn new(display_name: String, resource_server_credential_id: uuid::Uuid) -> CreateProviderInstanceParamsInner {
         CreateProviderInstanceParamsInner {
             display_name,
             provider_instance_id: None,
             resource_server_credential_id,
-            user_credential_id,
+            return_on_successful_brokering: None,
+            user_credential_id: None,
         }
     }
 }

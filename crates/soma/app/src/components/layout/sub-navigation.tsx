@@ -4,7 +4,6 @@ import { CornerDownRightIcon, ExternalLinkIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "@tanstack/react-router";
-import { LINKS } from "@/lib/links";
 
 export interface SubNavItem {
 	label: string;

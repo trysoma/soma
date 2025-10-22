@@ -661,11 +661,12 @@ pub async fn create_message(
     })
 }
 
+pub type GetTaskTimelineItemsRequest = WithTaskId<PaginationRequest>;
 pub type GetTaskTimelineItemsResponse = PaginatedResponse<TaskTimelineItem>;
 
 pub async fn get_task_timeline_items(
     repository: &Repository,
-    request: WithTaskId<PaginationRequest>,
+    request: GetTaskTimelineItemsRequest,
 ) -> Result<GetTaskTimelineItemsResponse, CommonError> {
     let timeline_items = repository
         .get_task_timeline_items(&request.task_id, &request.inner)

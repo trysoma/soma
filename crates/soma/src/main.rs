@@ -8,6 +8,7 @@ use crate::{commands::StartParams, utils::config::get_or_init_cli_config};
 use shared::error::{CommonError, DynError};
 
 mod a2a;
+mod bridge_sync;
 mod commands;
 mod logic;
 mod mcp;

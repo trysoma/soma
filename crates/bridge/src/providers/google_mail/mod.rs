@@ -1,11 +1,13 @@
+use crate::logic::credential::{ResourceServerCredentialSerialized, StaticCredentialConfigurationLike, UserCredentialSerialized};
+use crate::logic::encryption::DecryptionService;
 use crate::logic::FunctionControllerLike;
 use crate::logic::*;
-use crate::logic::{CATEGORY_EMAIL, PROVIDER_REGISTRY};
-use crate::oauth::{
+use crate::logic::controller::{CATEGORY_EMAIL, PROVIDER_REGISTRY};
+use crate::logic::credential::oauth::{
     Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
     Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration,
 };
-use crate::oauth::{Oauth2JwtBearerAssertionFlowController, OauthAuthFlowController};
+use crate::logic::credential::oauth::{Oauth2JwtBearerAssertionFlowController, OauthAuthFlowController};
 use crate::providers::*;
 use async_trait::async_trait;
 use base64::Engine;

@@ -6,7 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **created_at** | **String** |  | 
 **function_controller_type_id** | **String** |  | 
-**id** | **String** |  | 
+**provider_controller_type_id** | **String** |  | 
 **provider_instance_id** | **String** |  | 
 **updated_at** | **String** |  | 
 

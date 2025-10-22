@@ -7,29 +7,56 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use bridge::logic::get_or_create_local_encryption_key;
-use bridge::logic::register_all_bridge_providers;
-use bridge::logic::{EnvelopeEncryptionKeyContents, EnvelopeEncryptionKeyId};
+use async_trait::async_trait;
+use bridge::logic::DecryptionService;
+use bridge::logic::FunctionControllerLike;
+use bridge::logic::Metadata;
+use bridge::logic::no_auth::NoAuthStaticCredentialConfiguration;
 use bridge::logic::OnConfigChangeEvt;
 use bridge::logic::OnConfigChangeRx;
+use bridge::logic::ResourceServerCredentialSerialized;
+use bridge::logic::StaticCredentialConfigurationLike;
+use bridge::logic::StaticProviderCredentialControllerLike;
+use bridge::logic::UserCredentialSerialized;
+use bridge::logic::PROVIDER_REGISTRY;
+use bridge::logic::ProviderControllerLike;
+use bridge::logic::ProviderCredentialControllerLike;
+use bridge::logic::get_or_create_local_encryption_key;
+use bridge::logic::mcp::handle_mcp_transport;
+use bridge::logic::no_auth::NoAuthController;
+use bridge::logic::oauth::Oauth2JwtBearerAssertionFlowController;
+use bridge::logic::register_all_bridge_providers;
+use bridge::logic::{EnvelopeEncryptionKeyContents, EnvelopeEncryptionKeyId};
 use clap::Parser;
 use futures::{FutureExt, TryFutureExt, future};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use notify::{EventKind, RecursiveMode};
 use notify_debouncer_full::{DebounceEventResult, new_debouncer};
 use rmcp::service::serve_directly_with_ct;
+use schemars::schema_for;
+use schemars::JsonSchema;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::json;
 use shared::libsql::{
     establish_db_connection, inject_auth_token_to_db_url, merge_nested_migrations,
 };
 use shared::primitives::SqlMigrationLoader;
+use shared::primitives::WrappedJsonValue;
+use shared::primitives::WrappedSchema;
 use tokio::process::Command;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle};
 use tracing::error;
 use tracing::warn;
 use tracing::{debug, info};
+use utoipa::ToSchema;
 
+use crate::logic::get_task_timeline_items;
 use crate::logic::ConnectionManager;
+use crate::logic::GetTaskTimelineItemsRequest;
+use crate::logic::GetTaskTimelineItemsResponse;
+use crate::logic::WithTaskId;
 use crate::repository::Repository;
 use crate::router;
 use crate::router::RouterParams;
@@ -154,11 +181,19 @@ pub async fn cmd_start(
         path_to_soma_definition,
     )?;
     let soma_definition = Arc::new(soma_definition);
-    
 
     let connection_manager = ConnectionManager::new();
     let (_db, _conn, repository) =
         setup_repository(params.db_conn_string.clone(), params.db_auth_token.clone()).await?;
+
+
+    // Register all bridge providers before syncing
+    bridge::logic::register_all_bridge_providers().await?;
+    PROVIDER_REGISTRY
+        .write()
+        .unwrap()
+        .push(Arc::new(SomaProviderController::new(repository.clone())));
+
 
     let (kill_restate_signal_trigger, kill_restate_signal_receiver) = oneshot::channel::<()>();
     let (shutdown_complete_restate_signal_trigger, shutdown_complete_restate_signal_receiver) =
@@ -338,6 +373,19 @@ async fn start_dev_restartable_processes(
     let restate_ingress_client = RestateIngressClient::new(params.restate_ingress_url.to_string());
     let (on_bridge_config_change_tx, on_bridge_config_change_rx) =
         mpsc::channel::<OnConfigChangeEvt>(10);
+
+    // Sync bridge from soma definition
+    let bridge_repository = bridge::repository::Repository::new(db_connection.clone());
+    let soma_def = soma_definition.get_definition().await?;
+    crate::bridge_sync::sync_bridge(
+        &envelope_encryption_key_contents,
+        &on_bridge_config_change_tx,
+        &bridge_repository,
+        &soma_def,
+    )
+    .await?;
+    info!("Bridge synced from soma definition");
+
     let router_params = router::RouterParams::new(
         params.clone(),
         router::InitRouterParams {
@@ -350,8 +398,10 @@ async fn start_dev_restartable_processes(
             db_connection: db_connection.clone(),
             on_bridge_config_change_tx,
             envelope_encryption_key_contents: envelope_encryption_key_contents.clone(),
+            mcp_sse_ping_interval: Duration::from_secs(10),
         },
-    ).await?;
+    )
+    .await?;
 
     let router_params_clone = router_params.clone();
     let mut cli_config_clone = cli_config.clone();
@@ -390,14 +440,11 @@ async fn start_dev_restartable_processes(
         },
     ));
 
-    let mcp_service = router_params.mcp_service.clone();
+    let bridge_service = router_params.bridge_service.clone();
     let mcp_ct = tokio_util::sync::CancellationToken::new();
     subsys.start(SubsystemBuilder::new(
         "mcp-transport-processor",
         move |subsys: SubsystemHandle| {
-            let mcp_server_instance = mcp_service.clone();
-            let mcp_ct = mcp_ct.clone();
-
             async move {
                 loop {
                     tokio::select! {
@@ -407,22 +454,7 @@ async fn start_dev_restartable_processes(
                             break;
                         }
                         maybe_transport = mcp_transport_rx.recv() => {
-                            match maybe_transport {
-                                Some(transport) => {
-                                    let service = mcp_server_instance.clone();
-                                    let ct = mcp_ct.child_token();
-
-                                    tokio::spawn(async move {
-                                        let server = serve_directly_with_ct(service, transport, None, ct);
-                                        server.waiting().await?;
-                                        tokio::io::Result::Ok(())
-                                    });
-                                }
-                                None => {
-                                    // Sender dropped; nothing left to serve.
-                                    break;
-                                }
-                            }
+                            handle_mcp_transport(maybe_transport, &bridge_service, &mcp_ct).await?;
                         }
                     }
                 }
@@ -489,7 +521,6 @@ async fn start_dev_restartable_processes(
         },
     ));
 
-
     info!("Starting Restate deployment");
     let runtime_port_clone = runtime_port;
     let params_clone = params.clone();
@@ -511,7 +542,6 @@ async fn start_dev_restartable_processes(
         },
     ));
 
-
     subsys.on_shutdown_requested().await;
 
     Ok(())
@@ -530,7 +560,6 @@ async fn on_soma_config_change(file_change_rx: &mut FileChangeRx) -> Result<bool
     }
 }
 
-
 async fn watch_for_bridge_config_change(
     mut on_bridge_config_change_rx: OnConfigChangeRx,
     soma_definition: Arc<dyn shared::soma_agent_definition::SomaAgentDefinitionLike>,
@@ -545,8 +574,84 @@ async fn watch_for_bridge_config_change(
         };
 
         match event {
-            OnConfigChangeEvt::ProviderInstanceAdded(provider_instance) => {}
-            OnConfigChangeEvt::ProviderInstanceRemoved(provider_instance_id) => {}
+            OnConfigChangeEvt::ProviderInstanceAdded(provider_instance) => {
+                info!(
+                    "Provider instance added: {:?}",
+                    provider_instance.provider_instance.id
+                );
+
+                // Only write to soma.yaml if the provider instance status is "active"
+                if provider_instance.provider_instance.status == "active" {
+                    let user_credential = provider_instance.user_credential.as_ref().map(|uc| {
+                        shared::soma_agent_definition::CredentialConfig {
+                            id: uc.id.to_string(),
+                            type_id: uc.type_id.clone(),
+                            metadata: json!(uc.metadata.0.clone()),
+                            value: uc.value.get_inner().clone(),
+                            next_rotation_time: uc.next_rotation_time.map(|t| t.to_string()),
+                            data_encryption_key_id: uc.data_encryption_key_id.clone(),
+                        }
+                    });
+
+                    soma_definition
+                        .add_provider(
+                            provider_instance.provider_instance.id.clone(),
+                            shared::soma_agent_definition::ProviderConfig {
+                                provider_controller_type_id: provider_instance
+                                    .provider_instance
+                                    .provider_controller_type_id
+                                    .clone(),
+                                credential_controller_type_id: provider_instance
+                                    .provider_instance
+                                    .credential_controller_type_id
+                                    .clone(),
+                                display_name: provider_instance
+                                    .provider_instance
+                                    .display_name
+                                    .clone(),
+                                resource_server_credential:
+                                    shared::soma_agent_definition::CredentialConfig {
+                                        id: provider_instance
+                                            .resource_server_credential
+                                            .id
+                                            .to_string(),
+                                        type_id: provider_instance
+                                            .resource_server_credential
+                                            .type_id
+                                            .clone(),
+                                        metadata: json!(
+                                            provider_instance
+                                                .resource_server_credential
+                                                .metadata
+                                                .0
+                                                .clone()
+                                        ),
+                                        value: provider_instance
+                                            .resource_server_credential
+                                            .value
+                                            .get_inner()
+                                            .clone(),
+                                        next_rotation_time: provider_instance
+                                            .resource_server_credential
+                                            .next_rotation_time
+                                            .map(|t| t.to_string()),
+                                        data_encryption_key_id: provider_instance
+                                            .resource_server_credential
+                                            .data_encryption_key_id
+                                            .clone(),
+                                    },
+                                user_credential,
+                                functions: None,
+                            },
+                        )
+                        .await?;
+                }
+            }
+            OnConfigChangeEvt::ProviderInstanceRemoved(provider_instance_id) => {
+                soma_definition
+                    .remove_provider(provider_instance_id)
+                    .await?;
+            }
             OnConfigChangeEvt::DataEncryptionKeyAdded(data_encryption_key) => {
                 info!("Data encryption key added: {:?}", data_encryption_key.id);
                 soma_definition
@@ -573,8 +678,39 @@ async fn watch_for_bridge_config_change(
                     .remove_data_encryption_key(data_encryption_key_id)
                     .await?;
             }
-            OnConfigChangeEvt::FunctionInstanceAdded(function_instance_serialized) => {}
-            OnConfigChangeEvt::FunctionInstanceRemoved(_) => {}
+            OnConfigChangeEvt::FunctionInstanceAdded(function_instance_serialized) => {
+                info!(
+                    "Function instance added: {:?}",
+                    function_instance_serialized.function_controller_type_id
+                );
+                soma_definition
+                    .add_function_instance(
+                        function_instance_serialized.provider_instance_id.clone(),
+                        function_instance_serialized
+                            .function_controller_type_id
+                            .clone(),
+                        function_instance_serialized.provider_instance_id.clone(),
+                    )
+                    .await?;
+            }
+            OnConfigChangeEvt::FunctionInstanceRemoved(
+                function_controller_type_id,
+                provider_controller_type_id,
+                provider_instance_id,
+            ) => {
+                info!(
+                    "Function instance removed: function_controller_type_id={:?}, provider_instance_id={:?}",
+                    function_controller_type_id, provider_instance_id
+                );
+                // Remove the function instance from the provider
+                soma_definition
+                    .remove_function_instance(
+                        provider_controller_type_id,
+                        function_controller_type_id,
+                        provider_instance_id,
+                    )
+                    .await?;
+            }
         }
     }
 
@@ -949,4 +1085,132 @@ async fn start_dev_runtime(
     }
 
     Ok(())
+}
+
+pub struct SomaProviderController {
+    repository: Repository,
+}
+
+impl SomaProviderController {
+    pub fn new(repository: Repository) -> Self {
+        Self { repository }
+    }
+}
+
+#[async_trait]
+impl ProviderControllerLike for SomaProviderController {
+    fn type_id(&self) -> &'static str {
+        "soma"
+    }
+
+    fn documentation(&self) -> &'static str {
+        ""
+    }
+
+    fn name(&self) -> &'static str {
+        "Soma"
+    }
+
+    fn categories(&self) -> Vec<&'static str> {
+        vec![]
+    }
+
+    fn functions(&self) -> Vec<Arc<dyn FunctionControllerLike>> {
+        vec![Arc::new(GetTaskTimelineItemsFunctionController {
+            repository: self.repository.clone(),
+        })]
+    }
+
+    fn credential_controllers(&self) -> Vec<Arc<dyn ProviderCredentialControllerLike>> {
+        vec![Arc::new(NoAuthController {
+            static_credentials: NoAuthStaticCredentialConfiguration {
+                metadata: Metadata::new(),
+            },
+        })]
+    }
+}
+
+struct GetTaskTimelineItemsFunctionController {
+    repository: Repository,
+}
+
+impl GetTaskTimelineItemsFunctionController {
+    pub fn new(repository: Repository) -> Self {
+        Self { repository }
+    }
+}
+
+// #[derive(Serialize, Deserialize, ToSchema, Clone, JsonSchema)]
+// struct GetTaskTimelineItemsFunctionParameters {
+//     task_id: WrappedUuidV4,
+//     pagination: PaginationRequest,
+// }
+
+// #[derive(Serialize, Deserialize, ToSchema, Clone, JsonSchema)]
+// struct GetTaskTimelineItemsFunctionOutput {
+//     message_id: String,
+// }
+
+#[async_trait]
+impl FunctionControllerLike for GetTaskTimelineItemsFunctionController {
+    fn type_id(&self) -> &'static str {
+        "soma_get_task_timeline_items"
+    }
+    fn name(&self) -> &'static str {
+        "Get task timeline items"
+    }
+    fn documentation(&self) -> &'static str {
+        ""
+    }
+    fn parameters(&self) -> WrappedSchema {
+        WrappedSchema::new(schema_for!(GetTaskTimelineItemsRequest).into())
+    }
+    fn output(&self) -> WrappedSchema {
+        WrappedSchema::new(schema_for!(GetTaskTimelineItemsResponse).into())
+    }
+    fn categories(&self) -> Vec<&'static str> {
+        vec![]
+    }
+
+    async fn invoke(
+        &self,
+        crypto_service: &DecryptionService,
+        credential_controller: &Arc<dyn ProviderCredentialControllerLike>,
+        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _resource_server_credential: &ResourceServerCredentialSerialized,
+        user_credential: &UserCredentialSerialized,
+        params: WrappedJsonValue,
+    ) -> Result<WrappedJsonValue, CommonError> {
+        // Parse the function parameters
+        let params: GetTaskTimelineItemsRequest = serde_json::from_value(params.into())
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid parameters: {}", e)))?;
+
+        // Downcast to OAuth controller and decrypt credentials
+        let cred_controller_type_id = credential_controller.type_id();
+
+        if cred_controller_type_id == NoAuthController::static_type_id() {
+            let _controller = credential_controller
+                .as_any()
+                .downcast_ref::<NoAuthController>()
+                .ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to downcast to NoAuthController"
+                    ))
+                })?;
+            
+        }  else {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Unsupported credential controller type: {}",
+                cred_controller_type_id
+            )));
+        };
+
+        let res = get_task_timeline_items(
+            &self.repository,
+            params,
+        )
+        .await;
+        
+        Ok(WrappedJsonValue::new(serde_json::json!(res)))
+    }
 }

@@ -10,25 +10,30 @@ Method | HTTP request | Description
 [**create_resource_server_credential**](DefaultApi.md#create_resource_server_credential) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server | 
 [**create_user_credential**](DefaultApi.md#create_user_credential) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential | 
 [**delete_provider_instance**](DefaultApi.md#delete_provider_instance) | **DELETE** /api/bridge/v1/provider/{provider_instance_id} | 
-[**disable_function**](DefaultApi.md#disable_function) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/disable | 
-[**enable_function**](DefaultApi.md#enable_function) | **POST** /api/bridge/v1/provider/{provider_instance_id}/available-functions/{function_controller_type_id}/enable | 
+[**disable_function**](DefaultApi.md#disable_function) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable | 
+[**enable_function**](DefaultApi.md#enable_function) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable | 
 [**encrypt_resource_server_configuration**](DefaultApi.md#encrypt_resource_server_configuration) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt | 
 [**encrypt_user_credential_configuration**](DefaultApi.md#encrypt_user_credential_configuration) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt | 
 [**extended_agent_card**](DefaultApi.md#extended_agent_card) | **GET** /api/a2a/v1/agent/authenticatedExtendedCard | 
 [**get_agent_definition**](DefaultApi.md#get_agent_definition) | **GET** /api/a2a/v1/definition | 
 [**get_frontend_env**](DefaultApi.md#get_frontend_env) | **GET** /api/frontend/v1/runtime_config | 
+[**get_provider_instance**](DefaultApi.md#get_provider_instance) | **GET** /api/bridge/v1/provider/{provider_instance_id} | 
 [**get_task_by_id**](DefaultApi.md#get_task_by_id) | **GET** /api/task/v1/{task_id} | 
-[**invoke_function**](DefaultApi.md#invoke_function) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/invoke | 
+[**invoke_function**](DefaultApi.md#invoke_function) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke | 
 [**json_rpc**](DefaultApi.md#json_rpc) | **POST** /api/a2a/v1 | 
 [**list_available_providers**](DefaultApi.md#list_available_providers) | **GET** /api/bridge/v1/available-providers | 
 [**list_contexts**](DefaultApi.md#list_contexts) | **GET** /api/task/v1/context | 
 [**list_data_encryption_keys**](DefaultApi.md#list_data_encryption_keys) | **GET** /api/bridge/v1/encryption/data-encryption-key | 
+[**list_function_instances**](DefaultApi.md#list_function_instances) | **GET** /api/bridge/v1/function-instances | 
+[**list_provider_instances**](DefaultApi.md#list_provider_instances) | **GET** /api/bridge/v1/provider | 
+[**list_provider_instances_grouped_by_function**](DefaultApi.md#list_provider_instances_grouped_by_function) | **GET** /api/bridge/v1/provider/grouped-by-function | 
 [**list_tasks**](DefaultApi.md#list_tasks) | **GET** /api/task/v1 | 
 [**list_tasks_by_context_id**](DefaultApi.md#list_tasks_by_context_id) | **GET** /api/task/v1/context/{context_id}/task | 
 [**resume_user_credential_brokering**](DefaultApi.md#resume_user_credential_brokering) | **GET** /api/bridge/v1/generic-oauth-callback | 
 [**send_message**](DefaultApi.md#send_message) | **POST** /api/task/v1/{task_id}/message | 
 [**start_user_credential_brokering**](DefaultApi.md#start_user_credential_brokering) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker | 
 [**task_history**](DefaultApi.md#task_history) | **GET** /api/task/v1/{task_id}/timeline | 
+[**update_provider_instance**](DefaultApi.md#update_provider_instance) | **PATCH** /api/bridge/v1/provider/{provider_instance_id} | 
 [**update_task_status**](DefaultApi.md#update_task_status) | **PUT** /api/task/v1/{task_id} | 
 
 
@@ -206,7 +211,7 @@ No authorization required
 
 ## disable_function
 
-> serde_json::Value disable_function(provider_instance_id, function_instance_id)
+> serde_json::Value disable_function(provider_instance_id, function_controller_type_id)
 
 
 ### Parameters
@@ -215,7 +220,7 @@ No authorization required
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
 **provider_instance_id** | **String** | Provider instance ID | [required] |
-**function_instance_id** | **String** | Function instance ID | [required] |
+**function_controller_type_id** | **String** | Function controller type ID | [required] |
 
 ### Return type
 
@@ -235,7 +240,7 @@ No authorization required
 
 ## enable_function
 
-> models::FunctionInstanceSerialized enable_function(provider_instance_id, function_controller_type_id, enable_function_params_inner)
+> models::FunctionInstanceSerialized enable_function(provider_instance_id, function_controller_type_id, body)
 
 
 ### Parameters
@@ -245,7 +250,7 @@ Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
 **provider_instance_id** | **String** | Provider instance ID | [required] |
 **function_controller_type_id** | **String** | Function controller type ID | [required] |
-**enable_function_params_inner** | [**EnableFunctionParamsInner**](EnableFunctionParamsInner.md) |  | [required] |
+**body** | **serde_json::Value** |  | [required] |
 
 ### Return type
 
@@ -398,6 +403,34 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
+## get_provider_instance
+
+> models::ProviderInstanceSerializedWithEverything get_provider_instance(provider_instance_id)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**provider_instance_id** | **String** | Provider instance ID | [required] |
+
+### Return type
+
+[**models::ProviderInstanceSerializedWithEverything**](ProviderInstanceSerializedWithEverything.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
 ## get_task_by_id
 
 > models::TaskWithDetails get_task_by_id(task_id)
@@ -428,7 +461,7 @@ No authorization required
 
 ## invoke_function
 
-> serde_json::Value invoke_function(provider_instance_id, function_instance_id, invoke_function_params_inner)
+> serde_json::Value invoke_function(provider_instance_id, function_controller_type_id, invoke_function_params_inner)
 
 
 ### Parameters
@@ -437,7 +470,7 @@ No authorization required
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
 **provider_instance_id** | **String** | Provider instance ID | [required] |
-**function_instance_id** | **String** | Function instance ID | [required] |
+**function_controller_type_id** | **String** | Function controller type ID | [required] |
 **invoke_function_params_inner** | [**InvokeFunctionParamsInner**](InvokeFunctionParamsInner.md) |  | [required] |
 
 ### Return type
@@ -558,6 +591,98 @@ Name | Type | Description  | Required | Notes
 ### Return type
 
 [**models::DataEncryptionKeyListItemPaginatedResponse**](DataEncryptionKeyListItemPaginatedResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## list_function_instances
+
+> models::FunctionInstanceSerializedPaginatedResponse list_function_instances(page_size, next_page_token, provider_instance_id)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**page_size** | **i64** |  | [required] |
+**next_page_token** | Option<**String**> |  |  |
+**provider_instance_id** | Option<**String**> |  |  |
+
+### Return type
+
+[**models::FunctionInstanceSerializedPaginatedResponse**](FunctionInstanceSerializedPaginatedResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## list_provider_instances
+
+> models::ProviderInstanceListItemPaginatedResponse list_provider_instances(page_size, next_page_token, status, provider_controller_type_id)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**page_size** | **i64** |  | [required] |
+**next_page_token** | Option<**String**> |  |  |
+**status** | Option<**String**> |  |  |
+**provider_controller_type_id** | Option<**String**> |  |  |
+
+### Return type
+
+[**models::ProviderInstanceListItemPaginatedResponse**](ProviderInstanceListItemPaginatedResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## list_provider_instances_grouped_by_function
+
+> models::FunctionInstanceConfigPaginatedResponse list_provider_instances_grouped_by_function(page_size, next_page_token, provider_controller_type_id, function_category)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**page_size** | **i64** |  | [required] |
+**next_page_token** | Option<**String**> |  |  |
+**provider_controller_type_id** | Option<**String**> |  |  |
+**function_category** | Option<**String**> |  |  |
+
+### Return type
+
+[**models::FunctionInstanceConfigPaginatedResponse**](FunctionInstanceConfigPaginatedResponse.md)
 
 ### Authorization
 
@@ -745,6 +870,35 @@ No authorization required
 ### HTTP request headers
 
 - **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## update_provider_instance
+
+> serde_json::Value update_provider_instance(provider_instance_id, update_provider_instance_params_inner)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**provider_instance_id** | **String** | Provider instance ID | [required] |
+**update_provider_instance_params_inner** | [**UpdateProviderInstanceParamsInner**](UpdateProviderInstanceParamsInner.md) |  | [required] |
+
+### Return type
+
+[**serde_json::Value**](serde_json::Value.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
 - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

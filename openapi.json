@@ -656,6 +656,73 @@
         }
       }
     },
+    "/api/bridge/v1/function-instances": {
+      "get": {
+        "operationId": "list-function-instances",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "name": "provider_instance_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List function instances",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionInstanceSerializedPaginatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/bridge/v1/generic-oauth-callback": {
       "get": {
         "operationId": "resume-user-credential-brokering",
@@ -731,7 +798,210 @@
         }
       }
     },
+    "/api/bridge/v1/provider": {
+      "get": {
+        "operationId": "list-provider-instances",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "name": "provider_controller_type_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List provider instances",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderInstanceListItemPaginatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/provider/grouped-by-function": {
+      "get": {
+        "operationId": "list-provider-instances-grouped-by-function",
+        "parameters": [
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "provider_controller_type_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "function_category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List provider instances grouped by function",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionInstanceConfigPaginatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/bridge/v1/provider/{provider_instance_id}": {
+      "get": {
+        "operationId": "get-provider-instance",
+        "parameters": [
+          {
+            "name": "provider_instance_id",
+            "in": "path",
+            "description": "Provider instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get provider instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderInstanceSerializedWithEverything"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "operationId": "delete-provider-instance",
         "parameters": [
@@ -777,9 +1047,122 @@
             }
           }
         }
+      },
+      "patch": {
+        "operationId": "update-provider-instance",
+        "parameters": [
+          {
+            "name": "provider_instance_id",
+            "in": "path",
+            "description": "Provider instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderInstanceParamsInner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Update provider instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TupleUnit"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
-    "/api/bridge/v1/provider/{provider_instance_id}/available-functions/{function_controller_type_id}/enable": {
+    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable": {
+      "post": {
+        "operationId": "disable-function",
+        "parameters": [
+          {
+            "name": "provider_instance_id",
+            "in": "path",
+            "description": "Provider instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "function_controller_type_id",
+            "in": "path",
+            "description": "Function controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disable function",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TupleUnit"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable": {
       "post": {
         "operationId": "enable-function",
         "parameters": [
@@ -846,64 +1229,7 @@
         }
       }
     },
-    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/disable": {
-      "post": {
-        "operationId": "disable-function",
-        "parameters": [
-          {
-            "name": "provider_instance_id",
-            "in": "path",
-            "description": "Provider instance ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "function_instance_id",
-            "in": "path",
-            "description": "Function instance ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Disable function",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TupleUnit"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/invoke": {
+    "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke": {
       "post": {
         "operationId": "invoke-function",
         "parameters": [
@@ -917,9 +1243,9 @@
             }
           },
           {
-            "name": "function_instance_id",
+            "name": "function_controller_type_id",
             "in": "path",
-            "description": "Function instance ID",
+            "description": "Function controller type ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -1679,6 +2005,18 @@
         "properties": {
           "encryption": {
             "$ref": "#/components/schemas/BridgeEncryptionConfig"
+          },
+          "providers": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ProviderConfig"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           }
         }
       },
@@ -1726,7 +2064,7 @@
           "id",
           "created_at",
           "updated_at",
-          "resource_server_cred_id",
+          "provider_instance_id",
           "provider_controller_type_id",
           "credential_controller_type_id",
           "metadata",
@@ -1751,8 +2089,8 @@
           "provider_controller_type_id": {
             "type": "string"
           },
-          "resource_server_cred_id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
+          "provider_instance_id": {
+            "type": "string"
           },
           "updated_at": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
@@ -1876,7 +2214,6 @@
         "type": "object",
         "required": [
           "resource_server_credential_id",
-          "user_credential_id",
           "display_name"
         ],
         "properties": {
@@ -1892,8 +2229,25 @@
           "resource_server_credential_id": {
             "$ref": "#/components/schemas/WrappedUuidV4"
           },
+          "return_on_successful_brokering": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReturnAddress"
+              }
+            ]
+          },
           "user_credential_id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WrappedUuidV4"
+              }
+            ]
           }
         }
       },
@@ -1945,6 +2299,35 @@
           "user_credential_configuration": {
             "$ref": "#/components/schemas/WrappedJsonValue"
           }
+        }
+      },
+      "CredentialConfig": {
+        "type": "object",
+        "required": [
+          "id",
+          "type_id",
+          "metadata",
+          "value",
+          "data_encryption_key_id"
+        ],
+        "properties": {
+          "data_encryption_key_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "metadata": {},
+          "next_rotation_time": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type_id": {
+            "type": "string"
+          },
+          "value": {}
         }
       },
       "DataEncryptionKey": {
@@ -2016,15 +2399,7 @@
         }
       },
       "EnableFunctionParamsInner": {
-        "type": "object",
-        "properties": {
-          "function_instance_id": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        }
+        "type": "object"
       },
       "EncryptCredentialConfigurationParamsInner": {
         "type": "object",
@@ -2047,14 +2422,14 @@
       "EncryptionConfiguration": {
         "type": "object",
         "required": [
-          "encryptedDataEncryptionKey",
-          "envelopeEncryptionKeyId"
+          "encrypted_data_encryption_key",
+          "envelope_encryption_key_id"
         ],
         "properties": {
-          "encryptedDataEncryptionKey": {
+          "encrypted_data_encryption_key": {
             "type": "string"
           },
-          "envelopeEncryptionKeyId": {
+          "envelope_encryption_key_id": {
             "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
           }
         }
@@ -2145,14 +2520,72 @@
           }
         }
       },
+      "FunctionInstanceConfig": {
+        "type": "object",
+        "required": [
+          "function_controller",
+          "provider_controller",
+          "provider_instances"
+        ],
+        "properties": {
+          "function_controller": {
+            "$ref": "#/components/schemas/FunctionControllerSerialized"
+          },
+          "provider_controller": {
+            "$ref": "#/components/schemas/ProviderControllerSerialized"
+          },
+          "provider_instances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderInstanceSerializedWithCredentials"
+            }
+          }
+        }
+      },
+      "FunctionInstanceConfigPaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "next_page_token"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FunctionInstanceConfig"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
+      "FunctionInstanceListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FunctionInstanceSerialized"
+          },
+          {
+            "type": "object",
+            "required": [
+              "controller"
+            ],
+            "properties": {
+              "controller": {
+                "$ref": "#/components/schemas/FunctionControllerSerialized"
+              }
+            }
+          }
+        ]
+      },
       "FunctionInstanceSerialized": {
         "type": "object",
         "required": [
-          "id",
-          "created_at",
-          "updated_at",
+          "function_controller_type_id",
+          "provider_controller_type_id",
           "provider_instance_id",
-          "function_controller_type_id"
+          "created_at",
+          "updated_at"
         ],
         "properties": {
           "created_at": {
@@ -2161,7 +2594,7 @@
           "function_controller_type_id": {
             "type": "string"
           },
-          "id": {
+          "provider_controller_type_id": {
             "type": "string"
           },
           "provider_instance_id": {
@@ -2169,6 +2602,24 @@
           },
           "updated_at": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
+      "FunctionInstanceSerializedPaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "next_page_token"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FunctionInstanceSerialized"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
           }
         }
       },
@@ -2281,6 +2732,48 @@
           "type": "string"
         }
       },
+      "ProviderConfig": {
+        "type": "object",
+        "required": [
+          "provider_controller_type_id",
+          "credential_controller_type_id",
+          "display_name",
+          "resource_server_credential"
+        ],
+        "properties": {
+          "credential_controller_type_id": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "functions": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "provider_controller_type_id": {
+            "type": "string"
+          },
+          "resource_server_credential": {
+            "$ref": "#/components/schemas/CredentialConfig"
+          },
+          "user_credential": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CredentialConfig"
+              }
+            ]
+          }
+        }
+      },
       "ProviderControllerSerialized": {
         "type": "object",
         "required": [
@@ -2374,17 +2867,64 @@
           }
         }
       },
+      "ProviderInstanceListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ProviderInstanceSerialized"
+          },
+          {
+            "type": "object",
+            "required": [
+              "functions",
+              "controller",
+              "credential_controller"
+            ],
+            "properties": {
+              "controller": {
+                "$ref": "#/components/schemas/ProviderControllerSerialized"
+              },
+              "credential_controller": {
+                "$ref": "#/components/schemas/ProviderCredentialControllerSerialized"
+              },
+              "functions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FunctionInstanceListItem"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ProviderInstanceListItemPaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "next_page_token"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderInstanceListItem"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
       "ProviderInstanceSerialized": {
         "type": "object",
         "required": [
           "id",
           "display_name",
           "resource_server_credential_id",
-          "user_credential_id",
           "created_at",
           "updated_at",
           "provider_controller_type_id",
-          "credential_controller_type_id"
+          "credential_controller_type_id",
+          "status"
         ],
         "properties": {
           "created_at": {
@@ -2405,13 +2945,87 @@
           "resource_server_credential_id": {
             "$ref": "#/components/schemas/WrappedUuidV4"
           },
+          "return_on_successful_brokering": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReturnAddress"
+              }
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
           "updated_at": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
           },
           "user_credential_id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WrappedUuidV4"
+              }
+            ]
           }
         }
+      },
+      "ProviderInstanceSerializedWithCredentials": {
+        "type": "object",
+        "required": [
+          "provider_instance",
+          "resource_server_credential"
+        ],
+        "properties": {
+          "provider_instance": {
+            "$ref": "#/components/schemas/ProviderInstanceSerialized"
+          },
+          "resource_server_credential": {
+            "$ref": "#/components/schemas/ResourceServerCredentialSerialized"
+          },
+          "user_credential": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UserCredentialSerialized"
+              }
+            ]
+          }
+        }
+      },
+      "ProviderInstanceSerializedWithEverything": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ProviderInstanceSerializedWithCredentials"
+          },
+          {
+            "type": "object",
+            "required": [
+              "functions",
+              "controller",
+              "credential_controller"
+            ],
+            "properties": {
+              "controller": {
+                "$ref": "#/components/schemas/ProviderControllerSerialized"
+              },
+              "credential_controller": {
+                "$ref": "#/components/schemas/ProviderCredentialControllerSerialized"
+              },
+              "functions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FunctionInstanceListItem"
+                }
+              }
+            }
+          }
+        ]
       },
       "ResourceServerCredentialSerialized": {
         "type": "object",
@@ -2458,6 +3072,42 @@
           }
         }
       },
+      "ReturnAddress": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReturnAddressUrl"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "url"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "ReturnAddressUrl": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        }
+      },
       "RuntimeConfig": {
         "type": "object"
       },
@@ -2501,11 +3151,11 @@
       "StartUserCredentialBrokeringParamsInner": {
         "type": "object",
         "required": [
-          "resource_server_cred_id"
+          "provider_instance_id"
         ],
         "properties": {
-          "resource_server_cred_id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
+          "provider_instance_id": {
+            "type": "string"
           }
         }
       },
@@ -2746,6 +3396,17 @@
       "TupleUnit": {
         "default": null
       },
+      "UpdateProviderInstanceParamsInner": {
+        "type": "object",
+        "required": [
+          "display_name"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string"
+          }
+        }
+      },
       "UpdateTaskStatusRequest": {
         "type": "object",
         "required": [
@@ -2810,6 +3471,20 @@
                 }
               }
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "redirect"
+                ]
+              }
+            }
           }
         ]
       },

@@ -3,7 +3,7 @@ use http::HeaderValue;
 use reqwest::Request;
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use shared::{
     error::CommonError,
     primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedSchema},
@@ -11,7 +11,7 @@ use shared::{
 use std::collections::HashMap;
 
 use crate::logic::{
-    BrokerAction, BrokerInput, BrokerOutcome, BrokerState, ConfigurationSchema, Credential, DecryptionService, EncryptedString, EncryptionService, Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike, RotateableControllerUserCredentialLike, RotateableCredentialLike, StaticCredentialConfigurationLike, StaticProviderCredentialControllerLike, UserCredentialBrokerLike, UserCredentialLike, UserCredentialSerialized
+    schemars_make_password, BrokerAction, BrokerInput, BrokerOutcome, BrokerState, ConfigurationSchema, Credential, DecryptionService, EncryptedString, EncryptionService, Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike, ResourceServerCredentialSerialized, RotateableControllerUserCredentialLike, RotateableCredentialLike, StaticCredentialConfigurationLike, StaticProviderCredentialControllerLike, UserCredentialBrokerLike, UserCredentialLike, UserCredentialSerialized
 };
 
 // ============================================================================
@@ -48,6 +48,7 @@ impl StaticCredentialConfigurationLike
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct Oauth2AuthorizationCodeFlowResourceServerCredential {
     pub client_id: String,
+    #[schemars(transform = schemars_make_password)]
     pub client_secret: EncryptedString,
     pub redirect_uri: String,
     #[serde(default)]
@@ -71,8 +72,11 @@ impl ResourceServerCredentialLike for Oauth2AuthorizationCodeFlowResourceServerC
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct Oauth2AuthorizationCodeFlowUserCredential {
+    #[schemars(transform = schemars_make_password)]
     pub code: EncryptedString,
+    #[schemars(transform = schemars_make_password)]
     pub access_token: EncryptedString,
+    #[schemars(transform = schemars_make_password)]
     pub refresh_token: EncryptedString,
     pub expiry_time: WrappedChronoDateTime,
     pub sub: String,
@@ -80,10 +84,14 @@ pub struct Oauth2AuthorizationCodeFlowUserCredential {
     pub metadata: Metadata,
 }
 
+
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct DecryptedOauthCredentials {
+    #[schemars(transform = schemars_make_password)]
     pub code: String,
+    #[schemars(transform = schemars_make_password)]
     pub access_token: String,
+    #[schemars(transform = schemars_make_password)]
     pub refresh_token: String,
     pub expiry_time: WrappedChronoDateTime,
     pub sub: String,
@@ -273,18 +281,22 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
         // Parse static credential to get OAuth endpoints
         // For now, we'll construct the authorization URL
         // In a real implementation, you'd get this from the static credential
+        let state_id = uuid::Uuid::new_v4().to_string();
         let auth_url = format!(
-            "{}?client_id={}&redirect_uri={}&response_type=code&scope=openid profile email",
-            "https://oauth.provider.com/authorize", // This should come from static config
+            "{}?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}",
+            self.static_credentials.auth_uri,
             urlencoding::encode(&config.client_id),
-            urlencoding::encode(&config.redirect_uri)
+            urlencoding::encode(&config.redirect_uri),
+            self.static_credentials.scopes.join(" "),
+            state_id
         );
 
         let action = BrokerAction::Redirect { url: auth_url };
 
         // We need to wait for the callback with the authorization code
         let outcome = BrokerOutcome::Continue {
-            metadata: config.metadata.clone(),
+            state_metadata: config.metadata.clone(),
+            state_id: state_id,
         };
 
         Ok((action, outcome))
@@ -292,8 +304,11 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
 
     async fn resume(
         &self,
+        decryption_service: &DecryptionService,
+        encryption_service: &EncryptionService,
         state: &BrokerState,
         input: BrokerInput,
+        resource_server_cred: &ResourceServerCredentialSerialized,
     ) -> Result<(BrokerAction, BrokerOutcome), CommonError> {
         // Extract the authorization code from the input
         let code = match input {
@@ -301,28 +316,99 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
             BrokerInput::Oauth2AuthorizationCodeFlowWithPkce { code, .. } => code,
         };
 
-        // TODO: Exchange the authorization code for an access token
-        // This would involve making an HTTP request to the token endpoint
-        // For now, we'll create a placeholder credential
 
+        // Deserialize and decrypt the resource server credential
+        let config: Oauth2AuthorizationCodeFlowResourceServerCredential = serde_json::from_value(resource_server_cred.value.clone().into())?;
+        
+        let client_secret = decryption_service.decrypt_data(config.client_secret).await?;
+
+        // Exchange authorization code for access token
+        let client = reqwest::Client::new();
+        let token_response = client
+            .post(&self.static_credentials.token_uri)
+            .form(&[
+                ("grant_type", "authorization_code"),
+                ("code", &code),
+                ("client_id", &config.client_id),
+                ("client_secret", &client_secret),
+                ("redirect_uri", &config.redirect_uri),
+            ])
+            .send()
+            .await
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Token exchange failed: {}", e)))?;
+
+        let token_status = token_response.status();
+        if !token_status.is_success() {
+            let error_text = token_response.text().await.unwrap_or_default();
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Token exchange failed with status {}: {}",
+                token_status,
+                error_text
+            )));
+        }
+
+        #[derive(Deserialize)]
+        struct TokenResponse {
+            access_token: String,
+            refresh_token: Option<String>,
+            expires_in: i64,
+            #[serde(default)]
+            scope: String,
+            #[serde(default)]
+            id_token: Option<String>,
+        }
+
+        let token_data: TokenResponse = token_response
+            .json()
+            .await
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {}", e)))?;
+
+        // Fetch user info to get the subject ID
+        let userinfo_response = client
+            .get(&self.static_credentials.userinfo_uri)
+            .bearer_auth(&token_data.access_token)
+            .send()
+            .await
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Userinfo request failed: {}", e)))?;
+
+        #[derive(Deserialize)]
+        struct UserinfoResponse {
+            sub: String,
+        }
+
+        let userinfo: UserinfoResponse = userinfo_response
+            .json()
+            .await
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse userinfo response: {}", e)))?;
+
+        // Calculate expiry time
         let now = WrappedChronoDateTime::now();
         let expiry = now
             .get_inner()
-            .checked_add_signed(chrono::Duration::hours(1))
+            .checked_add_signed(chrono::Duration::seconds(token_data.expires_in))
             .map(WrappedChronoDateTime::new)
             .unwrap_or(now);
 
+        // Parse scopes
+        let scopes: Vec<String> = token_data.scope
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+
+        // Encrypt the sensitive data
+        let encrypted_code = encryption_service.encrypt_data(code).await?;
+        let encrypted_access_token = encryption_service.encrypt_data(token_data.access_token).await?;
+        let encrypted_refresh_token = encryption_service
+            .encrypt_data(token_data.refresh_token.unwrap_or_default())
+            .await?;
+
         let user_credential = Oauth2AuthorizationCodeFlowUserCredential {
-            code: EncryptedString(code.clone()),
-            access_token: EncryptedString("access_token_placeholder".to_string()),
-            refresh_token: EncryptedString("refresh_token_placeholder".to_string()),
+            code: encrypted_code,
+            access_token: encrypted_access_token,
+            refresh_token: encrypted_refresh_token,
             expiry_time: expiry,
-            sub: "user_sub_placeholder".to_string(),
-            scopes: vec![
-                "openid".to_string(),
-                "profile".to_string(),
-                "email".to_string(),
-            ],
+            sub: userinfo.sub,
+            scopes,
             metadata: state.metadata.clone(),
         };
 

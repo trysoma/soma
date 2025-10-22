@@ -102,10 +102,10 @@ sql:
             # data_encryption_key table
             - db_type: json
               column: data_encryption_key.envelope_encryption_key_id
-              rust_type: "crate::logic::EnvelopeEncryptionKeyId"
+              rust_type: "crate::logic::encryption::EnvelopeEncryptionKeyId"
             - db_type: text
               column: data_encryption_key.encryption_key
-              rust_type: "crate::logic::EncryptedDataEncryptionKey"
+              rust_type: "crate::logic::encryption::EncryptedDataEncryptionKey"
             - db_type: datetime
               column: data_encryption_key.created_at
               rust_type: "shared::primitives::WrappedChronoDateTime"

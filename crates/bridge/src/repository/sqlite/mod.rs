@@ -3,21 +3,29 @@ mod raw_impl;
 
 include!("raw.generated.rs");
 
-use crate::logic::{
-    BrokerState, DataEncryptionKey, DataEncryptionKeyListItem, FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
-    ProviderInstanceSerialized, ResourceServerCredentialSerialized, UserCredentialSerialized,
+use crate::logic::credential::{
+    BrokerState, ResourceServerCredentialSerialized, UserCredentialSerialized,
+};
+use crate::logic::encryption::{DataEncryptionKey, DataEncryptionKeyListItem};
+use crate::logic::instance::{
+    FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
+    ProviderInstanceSerializedWithFunctions,
 };
 use crate::repository::{
     CreateBrokerState, CreateDataEncryptionKey, CreateFunctionInstance, CreateProviderInstance,
     CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
 };
 use anyhow::Context;
+use shared::primitives::WrappedJsonValue;
 use shared::{
     error::CommonError,
-    primitives::{PaginatedResponse, PaginationRequest, SqlMigrationLoader, WrappedUuidV4, decode_pagination_token},
+    primitives::{
+        PaginatedResponse, PaginationRequest, SqlMigrationLoader, WrappedUuidV4,
+        decode_pagination_token,
+    },
 };
-use std::collections::BTreeMap;
 use shared_macros::load_sql_migrations;
+use std::collections::BTreeMap;
 
 #[derive(Clone)]
 pub struct Repository {
@@ -115,10 +123,144 @@ impl ProviderRepositoryLike for Repository {
         result.map(|row| row.try_into()).transpose()
     }
 
+    async fn delete_user_credential(&self, id: &WrappedUuidV4) -> Result<(), CommonError> {
+        let sqlc_params = delete_user_credential_params { id };
+
+        delete_user_credential(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete user credential")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn delete_resource_server_credential(
+        &self,
+        id: &WrappedUuidV4,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = delete_resource_server_credential_params { id };
+
+        delete_resource_server_credential(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete resource server credential")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn list_user_credentials(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<UserCredentialSerialized>, CommonError> {
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
+                        .map_err(|e| CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let sqlc_params = get_user_credentials_params {
+            cursor: &cursor_datetime,
+            page_size: &pagination.page_size,
+        };
+
+        let rows = get_user_credentials(&self.conn, sqlc_params)
+            .await
+            .context("Failed to list user credentials")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Vec<UserCredentialSerialized> = rows
+            .into_iter()
+            .map(|row| row.try_into())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(PaginatedResponse::from_items_with_extra(
+            items,
+            pagination,
+            |item| vec![item.created_at.get_inner().to_rfc3339()],
+        ))
+    }
+
+    async fn list_resource_server_credentials(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<ResourceServerCredentialSerialized>, CommonError> {
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
+                        .map_err(|e| CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let sqlc_params = get_resource_server_credentials_params {
+            cursor: &cursor_datetime,
+            page_size: &pagination.page_size,
+        };
+
+        let rows = get_resource_server_credentials(&self.conn, sqlc_params)
+            .await
+            .context("Failed to list resource server credentials")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Vec<ResourceServerCredentialSerialized> = rows
+            .into_iter()
+            .map(|row| row.try_into())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(PaginatedResponse::from_items_with_extra(
+            items,
+            pagination,
+            |item| vec![item.created_at.get_inner().to_rfc3339()],
+        ))
+    }
+
     async fn create_provider_instance(
         &self,
         params: &CreateProviderInstance,
     ) -> Result<(), CommonError> {
+        // let return_on_successful_brokering_json = params.return_on_successful_brokering.as_ref()
+        //     .map(|r| serde_json::to_value(r).ok())
+        //     .flatten()
+        //     .map(|v| WrappedJsonValue::new(v));
+
         let sqlc_params = create_provider_instance_params {
             id: &params.id,
             display_name: &params.display_name,
@@ -128,6 +270,13 @@ impl ProviderRepositoryLike for Repository {
             updated_at: &params.updated_at,
             provider_controller_type_id: &params.provider_controller_type_id,
             credential_controller_type_id: &params.credential_controller_type_id,
+            status: &params.status,
+            return_on_successful_brokering: &match &params.return_on_successful_brokering {
+                Some(v) => Some(WrappedJsonValue::new(
+                    serde_json::to_value(v).ok().unwrap_or_default(),
+                )),
+                None => None,
+            },
         };
 
         create_provider_instance(&self.conn, sqlc_params)
@@ -143,8 +292,10 @@ impl ProviderRepositoryLike for Repository {
     async fn get_provider_instance_by_id(
         &self,
         id: &str,
-    ) -> Result<Option<ProviderInstanceSerialized>, CommonError> {
-        let sqlc_params = get_provider_instance_by_id_params { id: &id.to_string() };
+    ) -> Result<Option<ProviderInstanceSerializedWithFunctions>, CommonError> {
+        let sqlc_params = get_provider_instance_by_id_params {
+            id: &id.to_string(),
+        };
 
         let result = get_provider_instance_by_id(&self.conn, sqlc_params)
             .await
@@ -157,11 +308,50 @@ impl ProviderRepositoryLike for Repository {
         result.map(|row| row.try_into()).transpose()
     }
 
-    async fn delete_provider_instance(
+    async fn update_provider_instance(
         &self,
         id: &str,
+        display_name: &str,
     ) -> Result<(), CommonError> {
-        let sqlc_params = delete_provider_instance_params { id: &id.to_string() };
+        let sqlc_params = update_provider_instance_params {
+            display_name: &display_name.to_string(),
+            id: &id.to_string(),
+        };
+
+        update_provider_instance(&self.conn, sqlc_params)
+            .await
+            .context("Failed to update provider instance")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn update_provider_instance_after_brokering(
+        &self,
+        id: &str,
+        user_credential_id: &WrappedUuidV4,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = update_provider_instance_after_brokering_params {
+            user_credential_id: &Some(user_credential_id.clone()),
+            id: &id.to_string(),
+        };
+
+        update_provider_instance_after_brokering(&self.conn, sqlc_params)
+            .await
+            .context("Failed to update provider instance after brokering")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn delete_provider_instance(&self, id: &str) -> Result<(), CommonError> {
+        let sqlc_params = delete_provider_instance_params {
+            id: &id.to_string(),
+        };
 
         delete_provider_instance(&self.conn, sqlc_params)
             .await
@@ -178,11 +368,11 @@ impl ProviderRepositoryLike for Repository {
         params: &CreateFunctionInstance,
     ) -> Result<(), CommonError> {
         let sqlc_params = create_function_instance_params {
-            id: &params.id,
+            function_controller_type_id: &params.function_controller_type_id,
+            provider_controller_type_id: &params.provider_controller_type_id,
+            provider_instance_id: &params.provider_instance_id,
             created_at: &params.created_at,
             updated_at: &params.updated_at,
-            provider_instance_id: &params.provider_instance_id,
-            function_controller_type_id: &params.function_controller_type_id,
         };
 
         create_function_instance(&self.conn, sqlc_params)
@@ -197,9 +387,15 @@ impl ProviderRepositoryLike for Repository {
 
     async fn get_function_instance_by_id(
         &self,
-        id: &str,
+        function_controller_type_id: &str,
+        provider_controller_type_id: &str,
+        provider_instance_id: &str,
     ) -> Result<Option<FunctionInstanceSerialized>, CommonError> {
-        let sqlc_params = get_function_instance_by_id_params { id: &id.to_string() };
+        let sqlc_params = get_function_instance_by_id_params {
+            function_controller_type_id: &function_controller_type_id.to_string(),
+            provider_controller_type_id: &provider_controller_type_id.to_string(),
+            provider_instance_id: &provider_instance_id.to_string(),
+        };
 
         let result = get_function_instance_by_id(&self.conn, sqlc_params)
             .await
@@ -214,9 +410,15 @@ impl ProviderRepositoryLike for Repository {
 
     async fn delete_function_instance(
         &self,
-        id: &str,
+        function_controller_type_id: &str,
+        provider_controller_type_id: &str,
+        provider_instance_id: &str,
     ) -> Result<(), CommonError> {
-        let sqlc_params = delete_function_instance_params { id: &id.to_string() };
+        let sqlc_params = delete_function_instance_params {
+            function_controller_type_id: &function_controller_type_id.to_string(),
+            provider_controller_type_id: &provider_controller_type_id.to_string(),
+            provider_instance_id: &provider_instance_id.to_string(),
+        };
 
         delete_function_instance(&self.conn, sqlc_params)
             .await
@@ -230,9 +432,15 @@ impl ProviderRepositoryLike for Repository {
 
     async fn get_function_instance_with_credentials(
         &self,
-        id: &str,
+        function_controller_type_id: &str,
+        provider_controller_type_id: &str,
+        provider_instance_id: &str,
     ) -> Result<Option<FunctionInstanceSerializedWithCredentials>, CommonError> {
-        let sqlc_params = get_function_instance_with_credentials_params { id: &id.to_string() };
+        let sqlc_params = get_function_instance_with_credentials_params {
+            function_controller_type_id: &function_controller_type_id.to_string(),
+            provider_controller_type_id: &provider_controller_type_id.to_string(),
+            provider_instance_id: &provider_instance_id.to_string(),
+        };
 
         let result = get_function_instance_with_credentials(&self.conn, sqlc_params)
             .await
@@ -245,15 +453,12 @@ impl ProviderRepositoryLike for Repository {
         result.map(|row| row.try_into()).transpose()
     }
 
-    async fn create_broker_state(
-        &self,
-        params: &CreateBrokerState,
-    ) -> Result<(), CommonError> {
+    async fn create_broker_state(&self, params: &CreateBrokerState) -> Result<(), CommonError> {
         let sqlc_params = create_broker_state_params {
             id: &params.id,
             created_at: &params.created_at,
             updated_at: &params.updated_at,
-            resource_server_cred_id: &params.resource_server_cred_id,
+            provider_instance_id: &params.provider_instance_id,
             provider_controller_type_id: &params.provider_controller_type_id,
             credential_controller_type_id: &params.credential_controller_type_id,
             metadata: &params.metadata,
@@ -270,11 +475,10 @@ impl ProviderRepositoryLike for Repository {
         Ok(())
     }
 
-    async fn get_broker_state_by_id(
-        &self,
-        id: &str,
-    ) -> Result<Option<BrokerState>, CommonError> {
-        let sqlc_params = get_broker_state_by_id_params { id: &id.to_string() };
+    async fn get_broker_state_by_id(&self, id: &str) -> Result<Option<BrokerState>, CommonError> {
+        let sqlc_params = get_broker_state_by_id_params {
+            id: &id.to_string(),
+        };
 
         let result = get_broker_state_by_id(&self.conn, sqlc_params)
             .await
@@ -287,11 +491,10 @@ impl ProviderRepositoryLike for Repository {
         result.map(|row| row.try_into()).transpose()
     }
 
-    async fn delete_broker_state(
-        &self,
-        id: &str,
-    ) -> Result<(), CommonError> {
-        let sqlc_params = delete_broker_state_params { id: &id.to_string() };
+    async fn delete_broker_state(&self, id: &str) -> Result<(), CommonError> {
+        let sqlc_params = delete_broker_state_params {
+            id: &id.to_string(),
+        };
 
         delete_broker_state(&self.conn, sqlc_params)
             .await
@@ -329,7 +532,9 @@ impl ProviderRepositoryLike for Repository {
         &self,
         id: &str,
     ) -> Result<Option<DataEncryptionKey>, CommonError> {
-        let sqlc_params = get_data_encryption_key_by_id_params { id: &id.to_string() };
+        let sqlc_params = get_data_encryption_key_by_id_params {
+            id: &id.to_string(),
+        };
 
         let result = get_data_encryption_key_by_id(&self.conn, sqlc_params)
             .await
@@ -342,11 +547,10 @@ impl ProviderRepositoryLike for Repository {
         result.map(|row| row.try_into()).transpose()
     }
 
-    async fn delete_data_encryption_key(
-        &self,
-        id: &str,
-    ) -> Result<(), CommonError> {
-        let sqlc_params = delete_data_encryption_key_params { id: &id.to_string() };
+    async fn delete_data_encryption_key(&self, id: &str) -> Result<(), CommonError> {
+        let sqlc_params = delete_data_encryption_key_params {
+            id: &id.to_string(),
+        };
 
         delete_data_encryption_key(&self.conn, sqlc_params)
             .await
@@ -413,6 +617,264 @@ impl ProviderRepositoryLike for Repository {
             |item| vec![item.created_at.get_inner().to_rfc3339()],
         ))
     }
+
+    async fn list_provider_instances(
+        &self,
+        pagination: &PaginationRequest,
+        status: Option<&str>,
+        provider_controller_type_id: Option<&str>,
+    ) -> Result<PaginatedResponse<ProviderInstanceSerializedWithFunctions>, CommonError> {
+        // Decode the base64 token to get the datetime cursor
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
+                        .map_err(|e| CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let sqlc_params = get_provider_instances_params {
+            cursor: &cursor_datetime,
+            page_size: &pagination.page_size,
+            status: &status.map(|status| status.to_string()),
+            provider_controller_type_id: &provider_controller_type_id.map(|s| s.to_string()),
+        };
+
+        let rows = get_provider_instances(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get provider instances")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Vec<ProviderInstanceSerializedWithFunctions> = rows
+            .into_iter()
+            .map(|row| row.try_into())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(PaginatedResponse::from_items_with_extra(
+            items,
+            pagination,
+            |item| vec![item.provider_instance.created_at.get_inner().to_rfc3339()],
+        ))
+    }
+
+    async fn list_function_instances(
+        &self,
+        pagination: &PaginationRequest,
+        provider_instance_id: Option<&str>,
+    ) -> Result<PaginatedResponse<FunctionInstanceSerialized>, CommonError> {
+        // Decode the base64 token to get the datetime cursor
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
+                        .map_err(|e| CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let sqlc_params = get_function_instances_params {
+            cursor: &cursor_datetime,
+            page_size: &pagination.page_size,
+            provider_instance_id: &provider_instance_id.map(|id| id.to_string()),
+        };
+
+        let rows = get_function_instances(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get function instances")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Vec<FunctionInstanceSerialized> = rows
+            .into_iter()
+            .map(|row| FunctionInstanceSerialized {
+                function_controller_type_id: row.function_controller_type_id,
+                provider_controller_type_id: row.provider_controller_type_id,
+                provider_instance_id: row.provider_instance_id,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+            })
+            .collect();
+
+        Ok(PaginatedResponse::from_items_with_extra(
+            items,
+            pagination,
+            |item| vec![item.created_at.get_inner().to_rfc3339()],
+        ))
+    }
+
+    async fn get_provider_instances_grouped_by_function_controller_type_id(
+        &self,
+        function_controller_type_ids: &[String],
+    ) -> Result<
+        Vec<crate::repository::ProviderInstancesGroupedByFunctionControllerTypeId>,
+        CommonError,
+    > {
+        // Convert the slice of strings to JSON array format for SQLite IN clause
+        let ids_json = function_controller_type_ids.join(", ");
+        tracing::info!("ids_json: {}", ids_json);
+
+        let sqlc_params = ManualGetProviderInstancesGroupedByFunctionControllerTypeIdParams {
+            function_controller_type_ids: &Some(function_controller_type_ids.to_vec().into()),
+        };
+
+        let rows = manual_get_provider_instances_grouped_by_function_controller_type_id(
+            &self.conn,
+            sqlc_params,
+        )
+        .await
+        .context("Failed to get provider instances grouped by function controller type id")
+        .map_err(|e| CommonError::Repository {
+            msg: e.to_string(),
+            source: Some(e),
+        })?;
+
+        let items: Vec<crate::repository::ProviderInstancesGroupedByFunctionControllerTypeId> =
+            rows.into_iter()
+                .map(|row| row.try_into())
+                .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(items)
+    }
+}
+
+struct ManualGetProviderInstancesGroupedByFunctionControllerTypeIdParams<'a> {
+    function_controller_type_ids: &'a Option<Vec<String>>,
+}
+
+async fn manual_get_provider_instances_grouped_by_function_controller_type_id(
+    conn: &shared::libsql::Connection,
+    params: ManualGetProviderInstancesGroupedByFunctionControllerTypeIdParams<'_>,
+) -> Result<Vec<Row_get_provider_instances_grouped_by_function_controller_type_id>, libsql::Error> {
+    let where_clause = match params.function_controller_type_ids {
+        Some(ids) => {
+            format!(
+                "WHERE fi.function_controller_type_id IN ({})",
+                ids.iter()
+                    .map(|id| format!("'{}'", id))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        }
+        None => "".to_string(),
+    };
+    let mut stmt = conn
+        .prepare(
+            format!(
+                r#"SELECT 
+    fi.function_controller_type_id,
+    CAST(
+        JSON_GROUP_ARRAY(
+            JSON_OBJECT(
+                'id', pi.id,
+                'display_name', pi.display_name,
+                'provider_controller_type_id', pi.provider_controller_type_id,
+                'credential_controller_type_id', pi.credential_controller_type_id,
+                'status', pi.status,
+                'return_on_successful_brokering', pi.return_on_successful_brokering,
+                'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', pi.created_at),
+                'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', pi.updated_at),
+
+                -- resource server credential
+                'resource_server_credential', COALESCE((
+                    SELECT JSON_OBJECT(
+                        'id', rsc.id,
+                        'type_id', rsc.type_id,
+                        'metadata', JSON(rsc.metadata),
+                        'value', JSON(rsc.value),
+                        'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.created_at),
+                        'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.updated_at),
+                        'next_rotation_time', CASE
+                            WHEN rsc.next_rotation_time IS NOT NULL
+                            THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time)
+                            ELSE NULL END,
+                        'data_encryption_key_id', rsc.data_encryption_key_id
+                    )
+                    FROM resource_server_credential rsc
+                    WHERE rsc.id = pi.resource_server_credential_id
+                ), JSON('null')),
+
+                -- user credential
+                'user_credential', COALESCE((
+                    SELECT JSON_OBJECT(
+                        'id', uc.id,
+                        'type_id', uc.type_id,
+                        'metadata', JSON(uc.metadata),
+                        'value', JSON(uc.value),
+                        'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.created_at),
+                        'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.updated_at),
+                        'next_rotation_time', CASE
+                            WHEN uc.next_rotation_time IS NOT NULL
+                            THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time)
+                            ELSE NULL END,
+                        'data_encryption_key_id', uc.data_encryption_key_id
+                    )
+                    FROM user_credential uc
+                    WHERE uc.id = pi.user_credential_id
+                ), JSON('null')),
+
+                -- include function_instance metadata
+                'function_instance', JSON_OBJECT(
+                    'provider_controller_type_id', fi.provider_controller_type_id,
+                    'provider_instance_id', fi.provider_instance_id,
+                    'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', fi.created_at),
+                    'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', fi.updated_at)
+                )
+            )
+        ) AS TEXT
+    ) AS provider_instances
+FROM function_instance fi
+JOIN provider_instance pi ON fi.provider_instance_id = pi.id
+{where_clause}
+GROUP BY fi.function_controller_type_id
+ORDER BY fi.function_controller_type_id ASC"#,
+            )
+            .as_str(),
+        )
+        .await?;
+
+    let mut rows = stmt.query(libsql::params![]).await?;
+    let mut mapped = vec![];
+
+    while let Some(row) = rows.next().await? {
+        mapped.push(
+            Row_get_provider_instances_grouped_by_function_controller_type_id {
+                function_controller_type_id: row.get(0)?,
+                provider_instances: row.get(1)?,
+            },
+        );
+    }
+
+    Ok(mapped)
 }
 
 impl SqlMigrationLoader for Repository {
@@ -426,15 +888,16 @@ mod tests {
     use super::*;
     use crate::logic::{
         BrokerAction, BrokerState, DataEncryptionKey, EncryptedDataEncryptionKey,
-        EnvelopeEncryptionKeyId, Metadata, ResourceServerCredentialSerialized,
-        UserCredentialSerialized, ProviderInstanceSerialized, FunctionInstanceSerialized,
+        EnvelopeEncryptionKeyId, Metadata, ProviderInstanceSerialized,
+        ResourceServerCredentialSerialized, UserCredentialSerialized,
+        instance::FunctionInstanceSerialized,
     };
     use crate::repository::{
         CreateBrokerState, CreateDataEncryptionKey, CreateFunctionInstance, CreateProviderInstance,
         CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
     };
     use shared::primitives::{
-        SqlMigrationLoader, WrappedChronoDateTime, WrappedUuidV4, WrappedJsonValue,
+        SqlMigrationLoader, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4,
     };
     use shared::test_utils::repository::setup_in_memory_database;
 
@@ -445,11 +908,15 @@ mod tests {
             envelope_encryption_key_id: EnvelopeEncryptionKeyId::AwsKms {
                 arn: "arn:aws:kms:us-east-1:123456789012:key/test-key".to_string(),
             },
-            encrypted_data_encryption_key: EncryptedDataEncryptionKey("test_encrypted_key".to_string()),
+            encrypted_data_encryption_key: EncryptedDataEncryptionKey(
+                "test_encrypted_key".to_string(),
+            ),
             created_at: now,
             updated_at: now,
         };
-        repo.create_data_encryption_key(&CreateDataEncryptionKey::from(dek)).await.unwrap();
+        repo.create_data_encryption_key(&CreateDataEncryptionKey::from(dek))
+            .await
+            .unwrap();
         dek_id
     }
 
@@ -556,9 +1023,11 @@ mod tests {
             next_rotation_time: None,
             data_encryption_key_id: dek_id.clone(),
         };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(resource_server_cred.clone()))
-            .await
-            .unwrap();
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
 
         // Create user credential
         let user_cred = UserCredentialSerialized {
@@ -580,11 +1049,13 @@ mod tests {
             id: uuid::Uuid::new_v4().to_string(),
             display_name: "Test Provider".to_string(),
             resource_server_credential_id: resource_server_cred.id.clone(),
-            user_credential_id: user_cred.id.clone(),
+            user_credential_id: Some(user_cred.id.clone()),
             created_at: now,
             updated_at: now,
             provider_controller_type_id: "google_mail".to_string(),
             credential_controller_type_id: "no_auth".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
         };
 
         repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
@@ -598,9 +1069,107 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        assert_eq!(retrieved.id, provider_instance.id);
-        assert_eq!(retrieved.display_name, provider_instance.display_name);
-        assert_eq!(retrieved.provider_controller_type_id, provider_instance.provider_controller_type_id);
+        assert_eq!(retrieved.provider_instance.id, provider_instance.id);
+        assert_eq!(
+            retrieved.provider_instance.display_name,
+            provider_instance.display_name
+        );
+        assert_eq!(
+            retrieved.provider_instance.provider_controller_type_id,
+            provider_instance.provider_controller_type_id
+        );
+    }
+
+    #[tokio::test]
+    async fn test_update_provider_instance() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let dek_id = create_test_dek(&repo, now).await;
+
+        // Create resource server credential
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            data_encryption_key_id: dek_id.clone(),
+        };
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
+
+        // Create user credential
+        let user_cred = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            data_encryption_key_id: dek_id.clone(),
+        };
+        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+            .await
+            .unwrap();
+
+        // Create provider instance
+        let provider_instance = ProviderInstanceSerialized {
+            id: uuid::Uuid::new_v4().to_string(),
+            display_name: "Original Name".to_string(),
+            resource_server_credential_id: resource_server_cred.id.clone(),
+            user_credential_id: Some(user_cred.id.clone()),
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "no_auth".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+
+        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+            .await
+            .unwrap();
+
+        // Verify it was created with original name
+        let retrieved = repo
+            .get_provider_instance_by_id(&provider_instance.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(retrieved.provider_instance.display_name, "Original Name");
+
+        // Store the original updated_at timestamp
+        let original_updated_at = retrieved.provider_instance.updated_at;
+
+        // Sleep 1 second to ensure different timestamp (SQLite CURRENT_TIMESTAMP has second precision)
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+        // Update the display name
+        repo.update_provider_instance(&provider_instance.id, "Updated Name")
+            .await
+            .unwrap();
+
+        // Verify it was updated
+        let updated = repo
+            .get_provider_instance_by_id(&provider_instance.id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(updated.provider_instance.id, provider_instance.id);
+        assert_eq!(updated.provider_instance.display_name, "Updated Name");
+        // Verify updated_at was changed (should be greater than the original)
+        assert!(updated.provider_instance.updated_at.get_inner() > original_updated_at.get_inner());
     }
 
     #[tokio::test]
@@ -624,9 +1193,11 @@ mod tests {
             next_rotation_time: None,
             data_encryption_key_id: dek_id.clone(),
         };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(resource_server_cred.clone()))
-            .await
-            .unwrap();
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
 
         // Create user credential
         let user_cred = UserCredentialSerialized {
@@ -648,11 +1219,13 @@ mod tests {
             id: uuid::Uuid::new_v4().to_string(),
             display_name: "Test Provider Delete".to_string(),
             resource_server_credential_id: resource_server_cred.id.clone(),
-            user_credential_id: user_cred.id.clone(),
+            user_credential_id: Some(user_cred.id.clone()),
             created_at: now,
             updated_at: now,
             provider_controller_type_id: "google_mail".to_string(),
             credential_controller_type_id: "no_auth".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
         };
 
         repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
@@ -701,9 +1274,11 @@ mod tests {
             next_rotation_time: None,
             data_encryption_key_id: dek_id.clone(),
         };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(resource_server_cred.clone()))
-            .await
-            .unwrap();
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
 
         // Create user credential
         let user_cred = UserCredentialSerialized {
@@ -725,11 +1300,13 @@ mod tests {
             id: uuid::Uuid::new_v4().to_string(),
             display_name: "Test Provider Cascade".to_string(),
             resource_server_credential_id: resource_server_cred.id,
-            user_credential_id: user_cred.id,
+            user_credential_id: Some(user_cred.id),
             created_at: now,
             updated_at: now,
             provider_controller_type_id: "google_mail".to_string(),
             credential_controller_type_id: "no_auth".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
         };
         repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
             .await
@@ -737,11 +1314,11 @@ mod tests {
 
         // Create a function instance that depends on the provider instance
         let function_instance = FunctionInstanceSerialized {
-            id: uuid::Uuid::new_v4().to_string(),
+            function_controller_type_id: "send_email".to_string(),
+            provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
+            provider_instance_id: provider_instance.id.clone(),
             created_at: now,
             updated_at: now,
-            provider_instance_id: provider_instance.id.clone(),
-            function_controller_type_id: "send_email".to_string(),
         };
         repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
             .await
@@ -749,7 +1326,11 @@ mod tests {
 
         // Verify function instance was created
         let retrieved_function = repo
-            .get_function_instance_by_id(&function_instance.id)
+            .get_function_instance_by_id(
+                &function_instance.function_controller_type_id,
+                &function_instance.provider_controller_type_id,
+                &function_instance.provider_instance_id,
+            )
             .await
             .unwrap();
         assert!(retrieved_function.is_some());
@@ -768,7 +1349,11 @@ mod tests {
 
         // Verify function instance was also cascade deleted
         let deleted_function = repo
-            .get_function_instance_by_id(&function_instance.id)
+            .get_function_instance_by_id(
+                &function_instance.function_controller_type_id,
+                &function_instance.provider_controller_type_id,
+                &function_instance.provider_instance_id,
+            )
             .await
             .unwrap();
         assert!(deleted_function.is_none());
@@ -795,9 +1380,11 @@ mod tests {
             next_rotation_time: None,
             data_encryption_key_id: dek_id.clone(),
         };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(resource_server_cred.clone()))
-            .await
-            .unwrap();
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
 
         let user_cred = UserCredentialSerialized {
             id: WrappedUuidV4::new(),
@@ -817,11 +1404,13 @@ mod tests {
             id: uuid::Uuid::new_v4().to_string(),
             display_name: "Test Provider Function".to_string(),
             resource_server_credential_id: resource_server_cred.id,
-            user_credential_id: user_cred.id,
+            user_credential_id: Some(user_cred.id),
             created_at: now,
             updated_at: now,
             provider_controller_type_id: "google_mail".to_string(),
             credential_controller_type_id: "no_auth".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
         };
         repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
             .await
@@ -829,11 +1418,11 @@ mod tests {
 
         // Create function instance
         let function_instance = FunctionInstanceSerialized {
-            id: uuid::Uuid::new_v4().to_string(),
+            function_controller_type_id: "send_email".to_string(),
+            provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
+            provider_instance_id: provider_instance.id.clone(),
             created_at: now,
             updated_at: now,
-            provider_instance_id: provider_instance.id.clone(),
-            function_controller_type_id: "send_email".to_string(),
         };
 
         repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
@@ -842,22 +1431,44 @@ mod tests {
 
         // Verify it was created
         let retrieved = repo
-            .get_function_instance_by_id(&function_instance.id)
+            .get_function_instance_by_id(
+                &function_instance.function_controller_type_id,
+                &function_instance.provider_controller_type_id,
+                &function_instance.provider_instance_id,
+            )
             .await
             .unwrap()
             .unwrap();
 
-        assert_eq!(retrieved.id, function_instance.id);
-        assert_eq!(retrieved.function_controller_type_id, function_instance.function_controller_type_id);
+        assert_eq!(
+            retrieved.function_controller_type_id,
+            function_instance.function_controller_type_id
+        );
+        assert_eq!(
+            retrieved.provider_controller_type_id,
+            function_instance.provider_controller_type_id
+        );
+        assert_eq!(
+            retrieved.provider_instance_id,
+            function_instance.provider_instance_id
+        );
 
         // Delete the function instance
-        repo.delete_function_instance(&function_instance.id)
-            .await
-            .unwrap();
+        repo.delete_function_instance(
+            &function_instance.function_controller_type_id,
+            &function_instance.provider_controller_type_id,
+            &function_instance.provider_instance_id,
+        )
+        .await
+        .unwrap();
 
         // Verify it was deleted
         let deleted = repo
-            .get_function_instance_by_id(&function_instance.id)
+            .get_function_instance_by_id(
+                &function_instance.function_controller_type_id,
+                &function_instance.provider_controller_type_id,
+                &function_instance.provider_instance_id,
+            )
             .await
             .unwrap();
 
@@ -885,7 +1496,25 @@ mod tests {
             next_rotation_time: None,
             data_encryption_key_id: dek_id,
         };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(resource_server_cred.clone()))
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
+
+        let provider_instance = ProviderInstanceSerialized {
+            id: uuid::Uuid::new_v4().to_string(),
+            display_name: "Test Provider Function".to_string(),
+            resource_server_credential_id: resource_server_cred.id,
+            user_credential_id: None,
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "no_auth".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
             .await
             .unwrap();
 
@@ -893,7 +1522,7 @@ mod tests {
             id: uuid::Uuid::new_v4().to_string(),
             created_at: now,
             updated_at: now,
-            resource_server_cred_id: resource_server_cred.id,
+            provider_instance_id: provider_instance.id,
             provider_controller_type_id: "google_mail".to_string(),
             credential_controller_type_id: "oauth2_authorization_code_flow".to_string(),
             metadata: Metadata::new(),
@@ -914,9 +1543,14 @@ mod tests {
             .unwrap();
 
         assert_eq!(retrieved.id, broker_state.id);
-        assert_eq!(retrieved.provider_controller_type_id, broker_state.provider_controller_type_id);
+        assert_eq!(
+            retrieved.provider_controller_type_id,
+            broker_state.provider_controller_type_id
+        );
         match retrieved.action {
-            BrokerAction::Redirect { url } => assert_eq!(url, "https://example.com/oauth/authorize"),
+            BrokerAction::Redirect { url } => {
+                assert_eq!(url, "https://example.com/oauth/authorize")
+            }
             _ => panic!("Expected Redirect action"),
         }
     }
@@ -942,7 +1576,25 @@ mod tests {
             next_rotation_time: None,
             data_encryption_key_id: dek_id,
         };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(resource_server_cred.clone()))
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
+
+        let provider_instance = ProviderInstanceSerialized {
+            id: uuid::Uuid::new_v4().to_string(),
+            display_name: "Test Provider Function".to_string(),
+            resource_server_credential_id: resource_server_cred.id,
+            user_credential_id: None,
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "no_auth".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
             .await
             .unwrap();
 
@@ -950,7 +1602,7 @@ mod tests {
             id: uuid::Uuid::new_v4().to_string(),
             created_at: now,
             updated_at: now,
-            resource_server_cred_id: resource_server_cred.id,
+            provider_instance_id: provider_instance.id,
             provider_controller_type_id: "google_mail".to_string(),
             credential_controller_type_id: "no_auth".to_string(),
             metadata: Metadata::new(),
@@ -962,15 +1614,10 @@ mod tests {
             .unwrap();
 
         // Delete the broker state
-        repo.delete_broker_state(&broker_state.id)
-            .await
-            .unwrap();
+        repo.delete_broker_state(&broker_state.id).await.unwrap();
 
         // Verify it was deleted
-        let deleted = repo
-            .get_broker_state_by_id(&broker_state.id)
-            .await
-            .unwrap();
+        let deleted = repo.get_broker_state_by_id(&broker_state.id).await.unwrap();
 
         assert!(deleted.is_none());
     }
@@ -1005,7 +1652,11 @@ mod tests {
 
         // Test getting nonexistent function instance
         let result = repo
-            .get_function_instance_by_id(&uuid::Uuid::new_v4().to_string())
+            .get_function_instance_by_id(
+                "nonexistent_function",
+                "nonexistent_provider",
+                &uuid::Uuid::new_v4().to_string(),
+            )
             .await
             .unwrap();
         assert!(result.is_none());
@@ -1036,9 +1687,12 @@ mod tests {
         let dek = DataEncryptionKey {
             id: uuid::Uuid::new_v4().to_string(),
             envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
-                arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012".to_string(),
+                arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+                    .to_string(),
             },
-            encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey("encrypted_key_data".to_string()),
+            encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(
+                "encrypted_key_data".to_string(),
+            ),
             created_at: now,
             updated_at: now,
         };
@@ -1056,10 +1710,16 @@ mod tests {
             .unwrap();
 
         assert_eq!(retrieved.id, dek.id);
-        assert_eq!(retrieved.encrypted_data_encryption_key.0, dek.encrypted_data_encryption_key.0);
+        assert_eq!(
+            retrieved.encrypted_data_encryption_key.0,
+            dek.encrypted_data_encryption_key.0
+        );
         match retrieved.envelope_encryption_key_id {
             crate::logic::EnvelopeEncryptionKeyId::AwsKms { arn } => {
-                assert_eq!(arn, "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012");
+                assert_eq!(
+                    arn,
+                    "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+                );
             }
             crate::logic::EnvelopeEncryptionKeyId::Local { .. } => {
                 panic!("Expected AwsKms variant");
@@ -1078,9 +1738,12 @@ mod tests {
         let dek = DataEncryptionKey {
             id: uuid::Uuid::new_v4().to_string(),
             envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
-                arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012".to_string(),
+                arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+                    .to_string(),
             },
-            encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey("encrypted_key_data".to_string()),
+            encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(
+                "encrypted_key_data".to_string(),
+            ),
             created_at: now,
             updated_at: now,
         };
@@ -1091,22 +1754,14 @@ mod tests {
             .unwrap();
 
         // Verify it was created
-        let retrieved = repo
-            .get_data_encryption_key_by_id(&dek.id)
-            .await
-            .unwrap();
+        let retrieved = repo.get_data_encryption_key_by_id(&dek.id).await.unwrap();
         assert!(retrieved.is_some());
 
         // Delete the data encryption key
-        repo.delete_data_encryption_key(&dek.id)
-            .await
-            .unwrap();
+        repo.delete_data_encryption_key(&dek.id).await.unwrap();
 
         // Verify it was deleted
-        let deleted = repo
-            .get_data_encryption_key_by_id(&dek.id)
-            .await
-            .unwrap();
+        let deleted = repo.get_data_encryption_key_by_id(&dek.id).await.unwrap();
 
         assert!(deleted.is_none());
     }
@@ -1123,9 +1778,7 @@ mod tests {
             next_page_token: None,
         };
 
-        let result = repo.list_data_encryption_keys(&pagination)
-            .await
-            .unwrap();
+        let result = repo.list_data_encryption_keys(&pagination).await.unwrap();
 
         assert_eq!(result.items.len(), 0);
         assert!(result.next_page_token.is_none());
@@ -1148,7 +1801,10 @@ mod tests {
                 envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
                     arn: format!("arn:aws:kms:us-east-1:123456789012:key/key-{}", i),
                 },
-                encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(format!("encrypted_key_{}", i)),
+                encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(format!(
+                    "encrypted_key_{}",
+                    i
+                )),
                 created_at: now,
                 updated_at: now,
             };
@@ -1166,9 +1822,7 @@ mod tests {
             next_page_token: None,
         };
 
-        let result = repo.list_data_encryption_keys(&pagination)
-            .await
-            .unwrap();
+        let result = repo.list_data_encryption_keys(&pagination).await.unwrap();
 
         assert_eq!(result.items.len(), 3);
         assert!(result.next_page_token.is_none());
@@ -1202,7 +1856,10 @@ mod tests {
                 envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
                     arn: format!("arn:aws:kms:us-east-1:123456789012:key/key-{}", i),
                 },
-                encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(format!("encrypted_key_{}", i)),
+                encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(format!(
+                    "encrypted_key_{}",
+                    i
+                )),
                 created_at: now,
                 updated_at: now,
             };
@@ -1218,9 +1875,7 @@ mod tests {
             next_page_token: None,
         };
 
-        let first_page = repo.list_data_encryption_keys(&pagination)
-            .await
-            .unwrap();
+        let first_page = repo.list_data_encryption_keys(&pagination).await.unwrap();
 
         assert_eq!(first_page.items.len(), 2);
         assert!(first_page.next_page_token.is_some());
@@ -1231,9 +1886,7 @@ mod tests {
             next_page_token: first_page.next_page_token.clone(),
         };
 
-        let second_page = repo.list_data_encryption_keys(&pagination)
-            .await
-            .unwrap();
+        let second_page = repo.list_data_encryption_keys(&pagination).await.unwrap();
 
         assert_eq!(second_page.items.len(), 2);
         assert!(second_page.next_page_token.is_some());
@@ -1244,9 +1897,7 @@ mod tests {
             next_page_token: second_page.next_page_token.clone(),
         };
 
-        let third_page = repo.list_data_encryption_keys(&pagination)
-            .await
-            .unwrap();
+        let third_page = repo.list_data_encryption_keys(&pagination).await.unwrap();
 
         assert_eq!(third_page.items.len(), 1);
         assert!(third_page.next_page_token.is_none());
@@ -1276,9 +1927,12 @@ mod tests {
         let dek = DataEncryptionKey {
             id: uuid::Uuid::new_v4().to_string(),
             envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
-                arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012".to_string(),
+                arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+                    .to_string(),
             },
-            encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey("super_secret_encrypted_key_data".to_string()),
+            encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(
+                "super_secret_encrypted_key_data".to_string(),
+            ),
             created_at: now,
             updated_at: now,
         };
@@ -1293,9 +1947,7 @@ mod tests {
             next_page_token: None,
         };
 
-        let result = repo.list_data_encryption_keys(&pagination)
-            .await
-            .unwrap();
+        let result = repo.list_data_encryption_keys(&pagination).await.unwrap();
 
         assert_eq!(result.items.len(), 1);
         let list_item = &result.items[0];
@@ -1310,13 +1962,17 @@ mod tests {
 
         // To verify the sensitive data isn't there, we can check by getting the full object
         // and ensuring the list item doesn't contain the encrypted key
-        let full_dek = repo.get_data_encryption_key_by_id(&dek.id)
+        let full_dek = repo
+            .get_data_encryption_key_by_id(&dek.id)
             .await
             .unwrap()
             .unwrap();
 
         // The full DEK has the encrypted key
-        assert_eq!(full_dek.encrypted_data_encryption_key.0, "super_secret_encrypted_key_data");
+        assert_eq!(
+            full_dek.encrypted_data_encryption_key.0,
+            "super_secret_encrypted_key_data"
+        );
 
         // But the list item type doesn't have this field at all
         // (compile-time safety through type system)
@@ -1334,8 +1990,7 @@ mod tests {
             next_page_token: Some("invalid_token".to_string()),
         };
 
-        let result = repo.list_data_encryption_keys(&pagination)
-            .await;
+        let result = repo.list_data_encryption_keys(&pagination).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -1344,5 +1999,882 @@ mod tests {
             }
             _ => panic!("Expected Repository error"),
         }
+    }
+
+    #[tokio::test]
+    async fn test_list_provider_instances_json_deserialization() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let dek_id = create_test_dek(&repo, now).await;
+
+        // Create resource server credential with JSON fields
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_oauth2".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({
+                "client_id": "test_client",
+                "client_secret": "test_secret"
+            })),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            data_encryption_key_id: dek_id.clone(),
+        };
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
+
+        // Create user credential with JSON fields
+        let user_cred = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "oauth2_token".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({
+                "access_token": "test_token",
+                "refresh_token": "test_refresh"
+            })),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            data_encryption_key_id: dek_id.clone(),
+        };
+        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+            .await
+            .unwrap();
+
+        // Create provider instance
+        let provider_instance = ProviderInstanceSerialized {
+            id: uuid::Uuid::new_v4().to_string(),
+            display_name: "Test Provider JSON".to_string(),
+            resource_server_credential_id: resource_server_cred.id.clone(),
+            user_credential_id: Some(user_cred.id.clone()),
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "oauth2".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+            .await
+            .unwrap();
+
+        // Create a function instance
+        let function_instance = FunctionInstanceSerialized {
+            function_controller_type_id: "send_email".to_string(),
+            provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
+            provider_instance_id: provider_instance.id.clone(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+            .await
+            .unwrap();
+
+        // List provider instances - this will test JSON deserialization
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+
+        let result = repo
+            .list_provider_instances(&pagination, None, None)
+            .await
+            .unwrap();
+
+        assert_eq!(result.items.len(), 1);
+        let item = &result.items[0];
+
+        // Verify provider instance
+        assert_eq!(item.provider_instance.id, provider_instance.id);
+        assert_eq!(
+            item.provider_instance.display_name,
+            provider_instance.display_name
+        );
+
+        // Verify resource server credential was deserialized correctly
+        assert_eq!(item.resource_server_credential.id, resource_server_cred.id);
+        assert_eq!(
+            item.resource_server_credential.type_id,
+            resource_server_cred.type_id
+        );
+        // Verify the JSON value was properly deserialized (not double-encoded)
+        let rsc_value = item.resource_server_credential.value.get_inner();
+        assert_eq!(rsc_value.get("client_id").unwrap(), "test_client");
+        assert_eq!(rsc_value.get("client_secret").unwrap(), "test_secret");
+
+        // Verify user credential was deserialized correctly
+        assert!(item.user_credential.is_some());
+        let uc = item.user_credential.as_ref().unwrap();
+        assert_eq!(uc.id, user_cred.id);
+        assert_eq!(uc.type_id, user_cred.type_id);
+        // Verify the JSON value was properly deserialized (not double-encoded)
+        let uc_value = uc.value.get_inner();
+        assert_eq!(uc_value.get("access_token").unwrap(), "test_token");
+        assert_eq!(uc_value.get("refresh_token").unwrap(), "test_refresh");
+
+        // Verify functions were deserialized correctly
+        assert_eq!(item.functions.len(), 1);
+        assert_eq!(
+            item.functions[0].function_controller_type_id,
+            function_instance.function_controller_type_id
+        );
+        assert_eq!(
+            item.functions[0].provider_controller_type_id,
+            function_instance.provider_controller_type_id
+        );
+        assert_eq!(
+            item.functions[0].provider_instance_id,
+            function_instance.provider_instance_id
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_provider_instance_by_id_json_deserialization() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let dek_id = create_test_dek(&repo, now).await;
+
+        // Create resource server credential with JSON fields
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_oauth2".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({
+                "client_id": "test_client_123",
+                "client_secret": "test_secret_456"
+            })),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            data_encryption_key_id: dek_id.clone(),
+        };
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
+
+        // Create user credential with JSON fields
+        let user_cred = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "oauth2_token".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({
+                "access_token": "test_access_token_789",
+                "refresh_token": "test_refresh_token_000"
+            })),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            data_encryption_key_id: dek_id.clone(),
+        };
+        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+            .await
+            .unwrap();
+
+        // Create provider instance
+        let provider_instance = ProviderInstanceSerialized {
+            id: uuid::Uuid::new_v4().to_string(),
+            display_name: "Test Provider By ID".to_string(),
+            resource_server_credential_id: resource_server_cred.id.clone(),
+            user_credential_id: Some(user_cred.id.clone()),
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "github".to_string(),
+            credential_controller_type_id: "oauth2".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+            .await
+            .unwrap();
+
+        // Create multiple function instances
+        let function_instance_1 = FunctionInstanceSerialized {
+            function_controller_type_id: "create_repo".to_string(),
+            provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
+            provider_instance_id: provider_instance.id.clone(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_function_instance(&CreateFunctionInstance::from(function_instance_1.clone()))
+            .await
+            .unwrap();
+
+        let function_instance_2 = FunctionInstanceSerialized {
+            function_controller_type_id: "create_issue".to_string(),
+            provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
+            provider_instance_id: provider_instance.id.clone(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_function_instance(&CreateFunctionInstance::from(function_instance_2.clone()))
+            .await
+            .unwrap();
+
+        // Get provider instance by ID - this will test JSON deserialization
+        let result = repo
+            .get_provider_instance_by_id(&provider_instance.id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        // Verify provider instance
+        assert_eq!(result.provider_instance.id, provider_instance.id);
+        assert_eq!(result.provider_instance.display_name, "Test Provider By ID");
+        assert_eq!(
+            result.provider_instance.provider_controller_type_id,
+            "github"
+        );
+
+        // Verify resource server credential was deserialized correctly
+        assert_eq!(
+            result.resource_server_credential.id,
+            resource_server_cred.id
+        );
+        assert_eq!(
+            result.resource_server_credential.type_id,
+            resource_server_cred.type_id
+        );
+        // Verify the JSON value was properly deserialized (not double-encoded)
+        let rsc_value = result.resource_server_credential.value.get_inner();
+        assert_eq!(rsc_value.get("client_id").unwrap(), "test_client_123");
+        assert_eq!(rsc_value.get("client_secret").unwrap(), "test_secret_456");
+
+        // Verify user credential was deserialized correctly
+        assert!(result.user_credential.is_some());
+        let uc = result.user_credential.as_ref().unwrap();
+        assert_eq!(uc.id, user_cred.id);
+        assert_eq!(uc.type_id, user_cred.type_id);
+        // Verify the JSON value was properly deserialized (not double-encoded)
+        let uc_value = uc.value.get_inner();
+        assert_eq!(
+            uc_value.get("access_token").unwrap(),
+            "test_access_token_789"
+        );
+        assert_eq!(
+            uc_value.get("refresh_token").unwrap(),
+            "test_refresh_token_000"
+        );
+
+        // Verify functions were deserialized correctly
+        assert_eq!(result.functions.len(), 2);
+        // Functions are ordered, so verify both are present
+        let func_types: Vec<String> = result
+            .functions
+            .iter()
+            .map(|f| f.function_controller_type_id.clone())
+            .collect();
+        assert!(func_types.contains(&"create_repo".to_string()));
+        assert!(func_types.contains(&"create_issue".to_string()));
+
+        // Verify all functions have the correct provider_controller_type_id and provider_instance_id
+        for func in &result.functions {
+            assert_eq!(
+                func.provider_controller_type_id,
+                provider_instance.provider_controller_type_id
+            );
+            assert_eq!(func.provider_instance_id, provider_instance.id);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_list_provider_instances_filter_by_status() {
+        shared::setup_test!();
+
+        let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+            Repository::load_sql_migrations(),
+        ])
+        .await
+        .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create test data encryption key
+        let now = shared::primitives::WrappedChronoDateTime::now();
+        let dek = CreateDataEncryptionKey {
+            id: "test-dek".to_string(),
+            envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKeyId::Local {
+                key_id: "test".to_string(),
+            },
+            encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
+                "test-encrypted-key".to_string(),
+            ),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+        };
+        repo.create_data_encryption_key(&dek).await.unwrap();
+
+        // Create resource server credentials
+        let rsc_id_1 = shared::primitives::WrappedUuidV4::new();
+        let rsc_params_1 = CreateResourceServerCredential {
+            id: rsc_id_1.clone(),
+            type_id: "test_type".to_string(),
+            metadata: crate::logic::Metadata::new(),
+            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({"test": "value"})),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            next_rotation_time: None,
+            data_encryption_key_id: "test-dek".to_string(),
+        };
+        repo.create_resource_server_credential(&rsc_params_1)
+            .await
+            .unwrap();
+
+        let rsc_id_2 = shared::primitives::WrappedUuidV4::new();
+        let rsc_params_2 = CreateResourceServerCredential {
+            id: rsc_id_2.clone(),
+            type_id: "test_type".to_string(),
+            metadata: crate::logic::Metadata::new(),
+            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({"test": "value"})),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            next_rotation_time: None,
+            data_encryption_key_id: "test-dek".to_string(),
+        };
+        repo.create_resource_server_credential(&rsc_params_2)
+            .await
+            .unwrap();
+
+        // Create provider instances with different statuses
+        let pi_params_1 = CreateProviderInstance {
+            id: "pi-active".to_string(),
+            display_name: "Active Provider".to_string(),
+            resource_server_credential_id: rsc_id_1,
+            user_credential_id: None,
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            provider_controller_type_id: "test_provider".to_string(),
+            credential_controller_type_id: "test_credential".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&pi_params_1).await.unwrap();
+
+        let pi_params_2 = CreateProviderInstance {
+            id: "pi-disabled".to_string(),
+            display_name: "Disabled Provider".to_string(),
+            resource_server_credential_id: rsc_id_2,
+            user_credential_id: None,
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            provider_controller_type_id: "test_provider".to_string(),
+            credential_controller_type_id: "test_credential".to_string(),
+            status: "disabled".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&pi_params_2).await.unwrap();
+
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+
+        // Test with status=None (should return all)
+        let result_all = repo
+            .list_provider_instances(&pagination, None, None)
+            .await
+            .unwrap();
+        assert_eq!(result_all.items.len(), 2);
+
+        // Test with status="active" (should return only active)
+        let result_active = repo
+            .list_provider_instances(&pagination, Some("active"), None)
+            .await
+            .unwrap();
+        assert_eq!(result_active.items.len(), 1);
+        assert_eq!(result_active.items[0].provider_instance.status, "active");
+
+        // Test with status="disabled" (should return only disabled)
+        let result_disabled = repo
+            .list_provider_instances(&pagination, Some("disabled"), None)
+            .await
+            .unwrap();
+        assert_eq!(result_disabled.items.len(), 1);
+        assert_eq!(
+            result_disabled.items[0].provider_instance.status,
+            "disabled"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_list_function_instances_filter_by_provider_instance() {
+        shared::setup_test!();
+
+        let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+            Repository::load_sql_migrations(),
+        ])
+        .await
+        .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create test data encryption key
+        let now = shared::primitives::WrappedChronoDateTime::now();
+        let dek = CreateDataEncryptionKey {
+            id: "test-dek".to_string(),
+            envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKeyId::Local {
+                key_id: "test".to_string(),
+            },
+            encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
+                "test-encrypted-key".to_string(),
+            ),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+        };
+        repo.create_data_encryption_key(&dek).await.unwrap();
+
+        // Create resource server credentials
+        let rsc_id_1 = shared::primitives::WrappedUuidV4::new();
+        let rsc_params_1 = CreateResourceServerCredential {
+            id: rsc_id_1.clone(),
+            type_id: "test_type".to_string(),
+            metadata: crate::logic::Metadata::new(),
+            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({"test": "value"})),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            next_rotation_time: None,
+            data_encryption_key_id: "test-dek".to_string(),
+        };
+        repo.create_resource_server_credential(&rsc_params_1)
+            .await
+            .unwrap();
+
+        let rsc_id_2 = shared::primitives::WrappedUuidV4::new();
+        let rsc_params_2 = CreateResourceServerCredential {
+            id: rsc_id_2.clone(),
+            type_id: "test_type".to_string(),
+            metadata: crate::logic::Metadata::new(),
+            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({"test": "value"})),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            next_rotation_time: None,
+            data_encryption_key_id: "test-dek".to_string(),
+        };
+        repo.create_resource_server_credential(&rsc_params_2)
+            .await
+            .unwrap();
+
+        // Create provider instances
+        let pi_params_1 = CreateProviderInstance {
+            id: "pi-1".to_string(),
+            display_name: "Provider 1".to_string(),
+            resource_server_credential_id: rsc_id_1,
+            user_credential_id: None,
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            provider_controller_type_id: "test_provider".to_string(),
+            credential_controller_type_id: "test_credential".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&pi_params_1).await.unwrap();
+
+        let pi_params_2 = CreateProviderInstance {
+            id: "pi-2".to_string(),
+            display_name: "Provider 2".to_string(),
+            resource_server_credential_id: rsc_id_2,
+            user_credential_id: None,
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            provider_controller_type_id: "test_provider".to_string(),
+            credential_controller_type_id: "test_credential".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&pi_params_2).await.unwrap();
+
+        // Create function instances for different provider instances
+        let fi_params_1 = CreateFunctionInstance {
+            function_controller_type_id: "test_function_1".to_string(),
+            provider_controller_type_id: "test_provider".to_string(),
+            provider_instance_id: "pi-1".to_string(),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+        };
+        repo.create_function_instance(&fi_params_1).await.unwrap();
+
+        let fi_params_2 = CreateFunctionInstance {
+            function_controller_type_id: "test_function_2".to_string(),
+            provider_controller_type_id: "test_provider".to_string(),
+            provider_instance_id: "pi-1".to_string(),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+        };
+        repo.create_function_instance(&fi_params_2).await.unwrap();
+
+        let fi_params_3 = CreateFunctionInstance {
+            function_controller_type_id: "test_function_3".to_string(),
+            provider_controller_type_id: "test_provider".to_string(),
+            provider_instance_id: "pi-2".to_string(),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+        };
+        repo.create_function_instance(&fi_params_3).await.unwrap();
+
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+
+        // Test with provider_instance_id=None (should return all)
+        let result_all = repo
+            .list_function_instances(&pagination, None)
+            .await
+            .unwrap();
+        assert_eq!(result_all.items.len(), 3);
+
+        // Test with provider_instance_id="pi-1" (should return only pi-1 functions)
+        let result_pi1 = repo
+            .list_function_instances(&pagination, Some("pi-1"))
+            .await
+            .unwrap();
+        assert_eq!(result_pi1.items.len(), 2);
+        assert!(
+            result_pi1
+                .items
+                .iter()
+                .all(|item| item.provider_instance_id == "pi-1")
+        );
+
+        // Test with provider_instance_id="pi-2" (should return only pi-2 functions)
+        let result_pi2 = repo
+            .list_function_instances(&pagination, Some("pi-2"))
+            .await
+            .unwrap();
+        assert_eq!(result_pi2.items.len(), 1);
+        assert_eq!(result_pi2.items[0].provider_instance_id, "pi-2");
+    }
+
+    #[tokio::test]
+    async fn test_list_provider_instances_filter_by_provider_controller_type_id() {
+        shared::setup_test!();
+
+        let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+            Repository::load_sql_migrations(),
+        ])
+        .await
+        .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create test data encryption key
+        let now = shared::primitives::WrappedChronoDateTime::now();
+        let dek = CreateDataEncryptionKey {
+            id: "test-dek".to_string(),
+            envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKeyId::Local {
+                key_id: "test".to_string(),
+            },
+            encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
+                "test-encrypted-key".to_string(),
+            ),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+        };
+        repo.create_data_encryption_key(&dek).await.unwrap();
+
+        // Create resource server credentials for provider instances
+        let rsc_id_1 = shared::primitives::WrappedUuidV4::new();
+        let rsc_params_1 = CreateResourceServerCredential {
+            id: rsc_id_1.clone(),
+            type_id: "test_type".to_string(),
+            metadata: crate::logic::Metadata::new(),
+            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            next_rotation_time: None,
+            data_encryption_key_id: "test-dek".to_string(),
+        };
+        repo.create_resource_server_credential(&rsc_params_1)
+            .await
+            .unwrap();
+
+        let rsc_id_2 = shared::primitives::WrappedUuidV4::new();
+        let rsc_params_2 = CreateResourceServerCredential {
+            id: rsc_id_2.clone(),
+            type_id: "test_type".to_string(),
+            metadata: crate::logic::Metadata::new(),
+            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            next_rotation_time: None,
+            data_encryption_key_id: "test-dek".to_string(),
+        };
+        repo.create_resource_server_credential(&rsc_params_2)
+            .await
+            .unwrap();
+
+        let rsc_id_3 = shared::primitives::WrappedUuidV4::new();
+        let rsc_params_3 = CreateResourceServerCredential {
+            id: rsc_id_3.clone(),
+            type_id: "test_type".to_string(),
+            metadata: crate::logic::Metadata::new(),
+            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            next_rotation_time: None,
+            data_encryption_key_id: "test-dek".to_string(),
+        };
+        repo.create_resource_server_credential(&rsc_params_3)
+            .await
+            .unwrap();
+
+        // Create three provider instances with different provider_controller_type_ids
+        let pi_params_1 = CreateProviderInstance {
+            id: "pi-1".to_string(),
+            display_name: "Provider 1".to_string(),
+            resource_server_credential_id: rsc_id_1.clone(),
+            user_credential_id: None,
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            provider_controller_type_id: "github".to_string(),
+            credential_controller_type_id: "test_cred".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&pi_params_1).await.unwrap();
+
+        let pi_params_2 = CreateProviderInstance {
+            id: "pi-2".to_string(),
+            display_name: "Provider 2".to_string(),
+            resource_server_credential_id: rsc_id_2.clone(),
+            user_credential_id: None,
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            provider_controller_type_id: "gitlab".to_string(),
+            credential_controller_type_id: "test_cred".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&pi_params_2).await.unwrap();
+
+        let pi_params_3 = CreateProviderInstance {
+            id: "pi-3".to_string(),
+            display_name: "Provider 3".to_string(),
+            resource_server_credential_id: rsc_id_3.clone(),
+            user_credential_id: None,
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            provider_controller_type_id: "github".to_string(),
+            credential_controller_type_id: "test_cred".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&pi_params_3).await.unwrap();
+
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+
+        // Test with provider_controller_type_id=None (should return all 3)
+        let result_all = repo
+            .list_provider_instances(&pagination, None, None)
+            .await
+            .unwrap();
+        assert_eq!(result_all.items.len(), 3);
+
+        // Test with provider_controller_type_id="github" (should return 2)
+        let result_github = repo
+            .list_provider_instances(&pagination, None, Some("github"))
+            .await
+            .unwrap();
+        assert_eq!(result_github.items.len(), 2);
+        assert!(
+            result_github
+                .items
+                .iter()
+                .all(|item| item.provider_instance.provider_controller_type_id == "github")
+        );
+
+        // Test with provider_controller_type_id="gitlab" (should return 1)
+        let result_gitlab = repo
+            .list_provider_instances(&pagination, None, Some("gitlab"))
+            .await
+            .unwrap();
+        assert_eq!(result_gitlab.items.len(), 1);
+        assert_eq!(
+            result_gitlab.items[0]
+                .provider_instance
+                .provider_controller_type_id,
+            "gitlab"
+        );
+
+        // Test with combined filters: status="active" AND provider_controller_type_id="github" (should return 2)
+        let result_combined = repo
+            .list_provider_instances(&pagination, Some("active"), Some("github"))
+            .await
+            .unwrap();
+        assert_eq!(result_combined.items.len(), 2);
+        assert!(
+            result_combined
+                .items
+                .iter()
+                .all(|item| item.provider_instance.status == "active"
+                    && item.provider_instance.provider_controller_type_id == "github")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_provider_instances_grouped_by_function_controller_type_id() {
+        shared::setup_test!();
+
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let dek_id = create_test_dek(&repo, now).await;
+
+        // Create resource server credentials
+        let rsc1 = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "oauth2".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({"client_id": "test1"})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            data_encryption_key_id: dek_id.clone(),
+        };
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(rsc1.clone()))
+            .await
+            .unwrap();
+
+        let rsc2 = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "oauth2".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({"client_id": "test2"})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            data_encryption_key_id: dek_id.clone(),
+        };
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(rsc2.clone()))
+            .await
+            .unwrap();
+
+        // Create provider instances
+        let pi1 = ProviderInstanceSerialized {
+            id: "provider-1".to_string(),
+            display_name: "Provider 1".to_string(),
+            resource_server_credential_id: rsc1.id.clone(),
+            user_credential_id: None,
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "oauth2".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&CreateProviderInstance::from(pi1.clone()))
+            .await
+            .unwrap();
+
+        let pi2 = ProviderInstanceSerialized {
+            id: "provider-2".to_string(),
+            display_name: "Provider 2".to_string(),
+            resource_server_credential_id: rsc2.id.clone(),
+            user_credential_id: None,
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "oauth2".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&CreateProviderInstance::from(pi2.clone()))
+            .await
+            .unwrap();
+
+        // Create function instances
+        let fi1 = FunctionInstanceSerialized {
+            function_controller_type_id: "send_email".to_string(),
+            provider_controller_type_id: "google_mail".to_string(),
+            provider_instance_id: "provider-1".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_function_instance(&CreateFunctionInstance::from(fi1.clone()))
+            .await
+            .unwrap();
+
+        let fi2 = FunctionInstanceSerialized {
+            function_controller_type_id: "send_email".to_string(),
+            provider_controller_type_id: "google_mail".to_string(),
+            provider_instance_id: "provider-2".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_function_instance(&CreateFunctionInstance::from(fi2.clone()))
+            .await
+            .unwrap();
+
+        let fi3 = FunctionInstanceSerialized {
+            function_controller_type_id: "read_email".to_string(),
+            provider_controller_type_id: "google_mail".to_string(),
+            provider_instance_id: "provider-1".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_function_instance(&CreateFunctionInstance::from(fi3.clone()))
+            .await
+            .unwrap();
+
+        // Test: Get grouped provider instances for specific function types
+        let function_ids = vec!["send_email".to_string(), "read_email".to_string()];
+        let result = repo
+            .get_provider_instances_grouped_by_function_controller_type_id(&function_ids)
+            .await
+            .unwrap();
+
+        // Should have 2 groups (one for send_email, one for read_email)
+        assert_eq!(result.len(), 2);
+
+        // Find the send_email group
+        let send_email_group = result
+            .iter()
+            .find(|g| g.function_controller_type_id == "send_email")
+            .expect("send_email group not found");
+
+        // Should have 2 provider instances for send_email
+        assert_eq!(send_email_group.provider_instances.len(), 2);
+
+        // Verify provider instances have credentials
+        for pi in &send_email_group.provider_instances {
+            assert!(!pi.provider_instance.id.is_empty());
+            assert!(!pi.resource_server_credential.id.to_string().is_empty());
+        }
+
+        // Find the read_email group
+        let read_email_group = result
+            .iter()
+            .find(|g| g.function_controller_type_id == "read_email")
+            .expect("read_email group not found");
+
+        // Should have 1 provider instance for read_email
+        assert_eq!(read_email_group.provider_instances.len(), 1);
+        assert_eq!(
+            read_email_group.provider_instances[0].provider_instance.id,
+            "provider-1"
+        );
+
+        // Test with empty function_ids
+        let result_empty = repo
+            .get_provider_instances_grouped_by_function_controller_type_id(&[])
+            .await
+            .unwrap();
+        assert_eq!(result_empty.len(), 0);
     }
 }

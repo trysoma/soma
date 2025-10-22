@@ -1,4 +1,4 @@
-import { createFileRoute, useLocation } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { DEFAULT_AGENT_CARD_PATH, DEFAULT_AGENT_SSE_PATH, useA2a } from '@/context/a2a';
 import { PageLayout } from '@/components/ui/page-layout';
 import { PageHeader } from '@/components/ui/page-header';
@@ -11,7 +11,6 @@ export const Route = createFileRoute('/a2a/')({
 })
 
 function RouteComponent() {
-  const { agentCard } = useA2a();
   const baseUrl = window.location.origin
 
   return <PageLayout className="py-6">

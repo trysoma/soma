@@ -8,9 +8,10 @@ use shared::{
 #[allow(unused_imports)]
 pub use sqlite::Repository;
 
-use crate::logic::{
-    BrokerState, DataEncryptionKey, DataEncryptionKeyListItem, EncryptedDataEncryptionKey, EnvelopeEncryptionKeyId, FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials, Metadata, ProviderInstanceSerialized, ResourceServerCredentialSerialized, UserCredentialSerialized
-};
+use crate::logic::Metadata;
+use crate::logic::credential::{BrokerState, ResourceServerCredentialSerialized, UserCredentialSerialized};
+use crate::logic::encryption::{DataEncryptionKey, DataEncryptionKeyListItem, EncryptedDataEncryptionKey, EnvelopeEncryptionKeyId};
+use crate::logic::instance::{FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials, ProviderInstanceSerialized, ProviderInstanceSerializedWithCredentials, ProviderInstanceSerializedWithFunctions};
 
 // Repository parameter structs for resource server credentials
 #[derive(Debug)]
@@ -74,11 +75,13 @@ pub struct CreateProviderInstance {
     pub id: String,
     pub display_name: String,
     pub resource_server_credential_id: WrappedUuidV4,
-    pub user_credential_id: WrappedUuidV4,
+    pub user_credential_id: Option<WrappedUuidV4>,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub provider_controller_type_id: String,
     pub credential_controller_type_id: String,
+    pub status: String,
+    pub return_on_successful_brokering: Option<crate::logic::ReturnAddress>,
 }
 
 impl From<ProviderInstanceSerialized> for CreateProviderInstance {
@@ -92,6 +95,8 @@ impl From<ProviderInstanceSerialized> for CreateProviderInstance {
             updated_at: pi.updated_at,
             provider_controller_type_id: pi.provider_controller_type_id,
             credential_controller_type_id: pi.credential_controller_type_id,
+            status: pi.status,
+            return_on_successful_brokering: pi.return_on_successful_brokering,
         }
     }
 }
@@ -99,21 +104,21 @@ impl From<ProviderInstanceSerialized> for CreateProviderInstance {
 // Repository parameter structs for function instances
 #[derive(Debug)]
 pub struct CreateFunctionInstance {
-    pub id: String,
+    pub function_controller_type_id: String,
+    pub provider_controller_type_id: String,
+    pub provider_instance_id: String,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
-    pub provider_instance_id: String,
-    pub function_controller_type_id: String,
 }
 
 impl From<FunctionInstanceSerialized> for CreateFunctionInstance {
     fn from(fi: FunctionInstanceSerialized) -> Self {
         CreateFunctionInstance {
-            id: fi.id,
+            function_controller_type_id: fi.function_controller_type_id,
+            provider_controller_type_id: fi.provider_controller_type_id,
+            provider_instance_id: fi.provider_instance_id,
             created_at: fi.created_at,
             updated_at: fi.updated_at,
-            provider_instance_id: fi.provider_instance_id,
-            function_controller_type_id: fi.function_controller_type_id,
         }
     }
 }
@@ -124,7 +129,7 @@ pub struct CreateBrokerState {
     pub id: String,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
-    pub resource_server_cred_id: WrappedUuidV4,
+    pub provider_instance_id: String,
     pub provider_controller_type_id: String,
     pub credential_controller_type_id: String,
     pub metadata: Metadata,
@@ -138,7 +143,7 @@ impl From<BrokerState> for CreateBrokerState {
             id: bs.id,
             created_at: bs.created_at,
             updated_at: bs.updated_at,
-            resource_server_cred_id: bs.resource_server_cred_id,
+            provider_instance_id: bs.provider_instance_id,
             provider_controller_type_id: bs.provider_controller_type_id,
             credential_controller_type_id: bs.credential_controller_type_id,
             metadata: bs.metadata,
@@ -169,6 +174,13 @@ impl From<DataEncryptionKey> for CreateDataEncryptionKey {
     }
 }
 
+// Repository return struct for grouped provider instances
+#[derive(Debug)]
+pub struct ProviderInstancesGroupedByFunctionControllerTypeId {
+    pub function_controller_type_id: String,
+    pub provider_instances: Vec<ProviderInstanceSerializedWithCredentials>,
+}
+
 // Repository trait
 pub trait ProviderRepositoryLike {
     async fn create_resource_server_credential(
@@ -191,6 +203,26 @@ pub trait ProviderRepositoryLike {
         id: &WrappedUuidV4,
     ) -> Result<Option<UserCredentialSerialized>, CommonError>;
 
+    async fn delete_user_credential(
+        &self,
+        id: &WrappedUuidV4,
+    ) -> Result<(), CommonError>;
+
+    async fn delete_resource_server_credential(
+        &self,
+        id: &WrappedUuidV4,
+    ) -> Result<(), CommonError>;
+
+    async fn list_user_credentials(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<UserCredentialSerialized>, CommonError>;
+
+    async fn list_resource_server_credentials(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<ResourceServerCredentialSerialized>, CommonError>;
+
     async fn create_provider_instance(
         &self,
         params: &CreateProviderInstance,
@@ -199,7 +231,19 @@ pub trait ProviderRepositoryLike {
     async fn get_provider_instance_by_id(
         &self,
         id: &str,
-    ) -> Result<Option<ProviderInstanceSerialized>, CommonError>;
+    ) -> Result<Option<ProviderInstanceSerializedWithFunctions>, CommonError>;
+
+    async fn update_provider_instance(
+        &self,
+        id: &str,
+        display_name: &str,
+    ) -> Result<(), CommonError>;
+
+    async fn update_provider_instance_after_brokering(
+        &self,
+        id: &str,
+        user_credential_id: &WrappedUuidV4,
+    ) -> Result<(), CommonError>;
 
     async fn delete_provider_instance(
         &self,
@@ -213,17 +257,23 @@ pub trait ProviderRepositoryLike {
 
     async fn get_function_instance_by_id(
         &self,
-        id: &str,
+        function_controller_type_id: &str,
+        provider_controller_type_id: &str,
+        provider_instance_id: &str,
     ) -> Result<Option<FunctionInstanceSerialized>, CommonError>;
 
     async fn delete_function_instance(
         &self,
-        id: &str,
+        function_controller_type_id: &str,
+        provider_controller_type_id: &str,
+        provider_instance_id: &str,
     ) -> Result<(), CommonError>;
 
     async fn get_function_instance_with_credentials(
         &self,
-        id: &str,
+        function_controller_type_id: &str,
+        provider_controller_type_id: &str,
+        provider_instance_id: &str,
     ) -> Result<Option<FunctionInstanceSerializedWithCredentials>, CommonError>;
 
     async fn create_broker_state(
@@ -260,4 +310,22 @@ pub trait ProviderRepositoryLike {
         &self,
         pagination: &PaginationRequest,
     ) -> Result<PaginatedResponse<DataEncryptionKeyListItem>, CommonError>;
+
+    async fn list_provider_instances(
+        &self,
+        pagination: &PaginationRequest,
+        status: Option<&str>,
+        provider_controller_type_id: Option<&str>,
+    ) -> Result<PaginatedResponse<ProviderInstanceSerializedWithFunctions>, CommonError>;
+
+    async fn list_function_instances(
+        &self,
+        pagination: &PaginationRequest,
+        provider_instance_id: Option<&str>,
+    ) -> Result<PaginatedResponse<FunctionInstanceSerialized>, CommonError>;
+
+    async fn get_provider_instances_grouped_by_function_controller_type_id(
+        &self,
+        function_controller_type_ids: &[String],
+    ) -> Result<Vec<ProviderInstancesGroupedByFunctionControllerTypeId>, CommonError>;
 }

@@ -32,25 +32,30 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**create_resource_server_credential**](docs/DefaultApi.md#create_resource_server_credential) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server | 
 *DefaultApi* | [**create_user_credential**](docs/DefaultApi.md#create_user_credential) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential | 
 *DefaultApi* | [**delete_provider_instance**](docs/DefaultApi.md#delete_provider_instance) | **DELETE** /api/bridge/v1/provider/{provider_instance_id} | 
-*DefaultApi* | [**disable_function**](docs/DefaultApi.md#disable_function) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/disable | 
-*DefaultApi* | [**enable_function**](docs/DefaultApi.md#enable_function) | **POST** /api/bridge/v1/provider/{provider_instance_id}/available-functions/{function_controller_type_id}/enable | 
+*DefaultApi* | [**disable_function**](docs/DefaultApi.md#disable_function) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable | 
+*DefaultApi* | [**enable_function**](docs/DefaultApi.md#enable_function) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable | 
 *DefaultApi* | [**encrypt_resource_server_configuration**](docs/DefaultApi.md#encrypt_resource_server_configuration) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt | 
 *DefaultApi* | [**encrypt_user_credential_configuration**](docs/DefaultApi.md#encrypt_user_credential_configuration) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt | 
 *DefaultApi* | [**extended_agent_card**](docs/DefaultApi.md#extended_agent_card) | **GET** /api/a2a/v1/agent/authenticatedExtendedCard | 
 *DefaultApi* | [**get_agent_definition**](docs/DefaultApi.md#get_agent_definition) | **GET** /api/a2a/v1/definition | 
 *DefaultApi* | [**get_frontend_env**](docs/DefaultApi.md#get_frontend_env) | **GET** /api/frontend/v1/runtime_config | 
+*DefaultApi* | [**get_provider_instance**](docs/DefaultApi.md#get_provider_instance) | **GET** /api/bridge/v1/provider/{provider_instance_id} | 
 *DefaultApi* | [**get_task_by_id**](docs/DefaultApi.md#get_task_by_id) | **GET** /api/task/v1/{task_id} | 
-*DefaultApi* | [**invoke_function**](docs/DefaultApi.md#invoke_function) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/invoke | 
+*DefaultApi* | [**invoke_function**](docs/DefaultApi.md#invoke_function) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke | 
 *DefaultApi* | [**json_rpc**](docs/DefaultApi.md#json_rpc) | **POST** /api/a2a/v1 | 
 *DefaultApi* | [**list_available_providers**](docs/DefaultApi.md#list_available_providers) | **GET** /api/bridge/v1/available-providers | 
 *DefaultApi* | [**list_contexts**](docs/DefaultApi.md#list_contexts) | **GET** /api/task/v1/context | 
 *DefaultApi* | [**list_data_encryption_keys**](docs/DefaultApi.md#list_data_encryption_keys) | **GET** /api/bridge/v1/encryption/data-encryption-key | 
+*DefaultApi* | [**list_function_instances**](docs/DefaultApi.md#list_function_instances) | **GET** /api/bridge/v1/function-instances | 
+*DefaultApi* | [**list_provider_instances**](docs/DefaultApi.md#list_provider_instances) | **GET** /api/bridge/v1/provider | 
+*DefaultApi* | [**list_provider_instances_grouped_by_function**](docs/DefaultApi.md#list_provider_instances_grouped_by_function) | **GET** /api/bridge/v1/provider/grouped-by-function | 
 *DefaultApi* | [**list_tasks**](docs/DefaultApi.md#list_tasks) | **GET** /api/task/v1 | 
 *DefaultApi* | [**list_tasks_by_context_id**](docs/DefaultApi.md#list_tasks_by_context_id) | **GET** /api/task/v1/context/{context_id}/task | 
 *DefaultApi* | [**resume_user_credential_brokering**](docs/DefaultApi.md#resume_user_credential_brokering) | **GET** /api/bridge/v1/generic-oauth-callback | 
 *DefaultApi* | [**send_message**](docs/DefaultApi.md#send_message) | **POST** /api/task/v1/{task_id}/message | 
 *DefaultApi* | [**start_user_credential_brokering**](docs/DefaultApi.md#start_user_credential_brokering) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker | 
 *DefaultApi* | [**task_history**](docs/DefaultApi.md#task_history) | **GET** /api/task/v1/{task_id}/timeline | 
+*DefaultApi* | [**update_provider_instance**](docs/DefaultApi.md#update_provider_instance) | **PATCH** /api/bridge/v1/provider/{provider_instance_id} | 
 *DefaultApi* | [**update_task_status**](docs/DefaultApi.md#update_task_status) | **PUT** /api/task/v1/{task_id} | 
 *McpApi* | [**listen_to_mcp_sse**](docs/McpApi.md#listen_to_mcp_sse) | **GET** /api/mcp/v1/task/{task_id} | 
 *McpApi* | [**trigger_mcp_message**](docs/McpApi.md#trigger_mcp_message) | **POST** /api/mcp/v1/task/{task_id} | 
@@ -72,10 +77,10 @@ Class | Method | HTTP request | Description
  - [CreateProviderInstanceParamsInner](docs/CreateProviderInstanceParamsInner.md)
  - [CreateResourceServerCredentialParamsInner](docs/CreateResourceServerCredentialParamsInner.md)
  - [CreateUserCredentialParamsInner](docs/CreateUserCredentialParamsInner.md)
+ - [CredentialConfig](docs/CredentialConfig.md)
  - [DataEncryptionKey](docs/DataEncryptionKey.md)
  - [DataEncryptionKeyListItem](docs/DataEncryptionKeyListItem.md)
  - [DataEncryptionKeyListItemPaginatedResponse](docs/DataEncryptionKeyListItemPaginatedResponse.md)
- - [EnableFunctionParamsInner](docs/EnableFunctionParamsInner.md)
  - [EncryptCredentialConfigurationParamsInner](docs/EncryptCredentialConfigurationParamsInner.md)
  - [EncryptionConfiguration](docs/EncryptionConfiguration.md)
  - [EnvelopeEncryptionKeyId](docs/EnvelopeEncryptionKeyId.md)
@@ -83,17 +88,28 @@ Class | Method | HTTP request | Description
  - [EnvelopeEncryptionKeyIdOneOf1](docs/EnvelopeEncryptionKeyIdOneOf1.md)
  - [Error](docs/Error.md)
  - [FunctionControllerSerialized](docs/FunctionControllerSerialized.md)
+ - [FunctionInstanceConfig](docs/FunctionInstanceConfig.md)
+ - [FunctionInstanceConfigPaginatedResponse](docs/FunctionInstanceConfigPaginatedResponse.md)
+ - [FunctionInstanceListItem](docs/FunctionInstanceListItem.md)
  - [FunctionInstanceSerialized](docs/FunctionInstanceSerialized.md)
+ - [FunctionInstanceSerializedPaginatedResponse](docs/FunctionInstanceSerializedPaginatedResponse.md)
  - [InvokeFunctionParamsInner](docs/InvokeFunctionParamsInner.md)
  - [Message](docs/Message.md)
  - [MessagePart](docs/MessagePart.md)
  - [MessageRole](docs/MessageRole.md)
  - [MessageTaskTimelineItem](docs/MessageTaskTimelineItem.md)
+ - [ProviderConfig](docs/ProviderConfig.md)
  - [ProviderControllerSerialized](docs/ProviderControllerSerialized.md)
  - [ProviderControllerSerializedPaginatedResponse](docs/ProviderControllerSerializedPaginatedResponse.md)
  - [ProviderCredentialControllerSerialized](docs/ProviderCredentialControllerSerialized.md)
+ - [ProviderInstanceListItem](docs/ProviderInstanceListItem.md)
+ - [ProviderInstanceListItemPaginatedResponse](docs/ProviderInstanceListItemPaginatedResponse.md)
  - [ProviderInstanceSerialized](docs/ProviderInstanceSerialized.md)
+ - [ProviderInstanceSerializedWithCredentials](docs/ProviderInstanceSerializedWithCredentials.md)
+ - [ProviderInstanceSerializedWithEverything](docs/ProviderInstanceSerializedWithEverything.md)
  - [ResourceServerCredentialSerialized](docs/ResourceServerCredentialSerialized.md)
+ - [ReturnAddress](docs/ReturnAddress.md)
+ - [ReturnAddressUrl](docs/ReturnAddressUrl.md)
  - [SomaAgentDefinition](docs/SomaAgentDefinition.md)
  - [StartUserCredentialBrokeringParamsInner](docs/StartUserCredentialBrokeringParamsInner.md)
  - [Task](docs/Task.md)
@@ -107,10 +123,12 @@ Class | Method | HTTP request | Description
  - [TaskTimelineItemPayloadOneOf1](docs/TaskTimelineItemPayloadOneOf1.md)
  - [TaskWithDetails](docs/TaskWithDetails.md)
  - [TextPart](docs/TextPart.md)
+ - [UpdateProviderInstanceParamsInner](docs/UpdateProviderInstanceParamsInner.md)
  - [UpdateTaskStatusRequest](docs/UpdateTaskStatusRequest.md)
  - [UserCredentialBrokeringResponse](docs/UserCredentialBrokeringResponse.md)
  - [UserCredentialBrokeringResponseOneOf](docs/UserCredentialBrokeringResponseOneOf.md)
  - [UserCredentialBrokeringResponseOneOf1](docs/UserCredentialBrokeringResponseOneOf1.md)
+ - [UserCredentialBrokeringResponseOneOf2](docs/UserCredentialBrokeringResponseOneOf2.md)
  - [UserCredentialSerialized](docs/UserCredentialSerialized.md)
 
 

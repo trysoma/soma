@@ -25,14 +25,18 @@ pub struct ProviderInstanceSerialized {
     pub provider_controller_type_id: String,
     #[serde(rename = "resource_server_credential_id")]
     pub resource_server_credential_id: uuid::Uuid,
+    #[serde(rename = "return_on_successful_brokering", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    pub return_on_successful_brokering: Option<Option<Box<models::ReturnAddress>>>,
+    #[serde(rename = "status")]
+    pub status: String,
     #[serde(rename = "updated_at")]
     pub updated_at: String,
-    #[serde(rename = "user_credential_id")]
-    pub user_credential_id: uuid::Uuid,
+    #[serde(rename = "user_credential_id", skip_serializing_if = "Option::is_none")]
+    pub user_credential_id: Option<uuid::Uuid>,
 }
 
 impl ProviderInstanceSerialized {
-    pub fn new(created_at: String, credential_controller_type_id: String, display_name: String, id: String, provider_controller_type_id: String, resource_server_credential_id: uuid::Uuid, updated_at: String, user_credential_id: uuid::Uuid) -> ProviderInstanceSerialized {
+    pub fn new(created_at: String, credential_controller_type_id: String, display_name: String, id: String, provider_controller_type_id: String, resource_server_credential_id: uuid::Uuid, status: String, updated_at: String) -> ProviderInstanceSerialized {
         ProviderInstanceSerialized {
             created_at,
             credential_controller_type_id,
@@ -40,8 +44,10 @@ impl ProviderInstanceSerialized {
             id,
             provider_controller_type_id,
             resource_server_credential_id,
+            return_on_successful_brokering: None,
+            status,
             updated_at,
-            user_credential_id,
+            user_credential_id: None,
         }
     }
 }

@@ -126,6 +126,15 @@ pub enum GetFrontendEnvError {
     UnknownValue(serde_json::Value),
 }
 
+/// struct for typed errors of method [`get_provider_instance`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum GetProviderInstanceError {
+    Status400(models::Error),
+    Status500(models::Error),
+    UnknownValue(serde_json::Value),
+}
+
 /// struct for typed errors of method [`get_task_by_id`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -180,6 +189,33 @@ pub enum ListContextsError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ListDataEncryptionKeysError {
+    UnknownValue(serde_json::Value),
+}
+
+/// struct for typed errors of method [`list_function_instances`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ListFunctionInstancesError {
+    Status400(models::Error),
+    Status500(models::Error),
+    UnknownValue(serde_json::Value),
+}
+
+/// struct for typed errors of method [`list_provider_instances`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ListProviderInstancesError {
+    Status400(models::Error),
+    Status500(models::Error),
+    UnknownValue(serde_json::Value),
+}
+
+/// struct for typed errors of method [`list_provider_instances_grouped_by_function`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ListProviderInstancesGroupedByFunctionError {
+    Status400(models::Error),
+    Status500(models::Error),
     UnknownValue(serde_json::Value),
 }
 
@@ -246,6 +282,15 @@ pub enum TaskHistoryError {
     Status403(models::Error),
     Status500(models::Error),
     Status502(models::Error),
+    UnknownValue(serde_json::Value),
+}
+
+/// struct for typed errors of method [`update_provider_instance`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum UpdateProviderInstanceError {
+    Status400(models::Error),
+    Status500(models::Error),
     UnknownValue(serde_json::Value),
 }
 
@@ -486,12 +531,12 @@ pub async fn delete_provider_instance(configuration: &configuration::Configurati
     }
 }
 
-pub async fn disable_function(configuration: &configuration::Configuration, provider_instance_id: &str, function_instance_id: &str) -> Result<serde_json::Value, Error<DisableFunctionError>> {
+pub async fn disable_function(configuration: &configuration::Configuration, provider_instance_id: &str, function_controller_type_id: &str) -> Result<serde_json::Value, Error<DisableFunctionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_provider_instance_id = provider_instance_id;
-    let p_function_instance_id = function_instance_id;
+    let p_function_controller_type_id = function_controller_type_id;
 
-    let uri_str = format!("{}/api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/disable", configuration.base_path, provider_instance_id=crate::apis::urlencode(p_provider_instance_id), function_instance_id=crate::apis::urlencode(p_function_instance_id));
+    let uri_str = format!("{}/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable", configuration.base_path, provider_instance_id=crate::apis::urlencode(p_provider_instance_id), function_controller_type_id=crate::apis::urlencode(p_function_controller_type_id));
     let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
 
     if let Some(ref user_agent) = configuration.user_agent {
@@ -523,19 +568,19 @@ pub async fn disable_function(configuration: &configuration::Configuration, prov
     }
 }
 
-pub async fn enable_function(configuration: &configuration::Configuration, provider_instance_id: &str, function_controller_type_id: &str, enable_function_params_inner: models::EnableFunctionParamsInner) -> Result<models::FunctionInstanceSerialized, Error<EnableFunctionError>> {
+pub async fn enable_function(configuration: &configuration::Configuration, provider_instance_id: &str, function_controller_type_id: &str, body: serde_json::Value) -> Result<models::FunctionInstanceSerialized, Error<EnableFunctionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_provider_instance_id = provider_instance_id;
     let p_function_controller_type_id = function_controller_type_id;
-    let p_enable_function_params_inner = enable_function_params_inner;
+    let p_body = body;
 
-    let uri_str = format!("{}/api/bridge/v1/provider/{provider_instance_id}/available-functions/{function_controller_type_id}/enable", configuration.base_path, provider_instance_id=crate::apis::urlencode(p_provider_instance_id), function_controller_type_id=crate::apis::urlencode(p_function_controller_type_id));
+    let uri_str = format!("{}/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable", configuration.base_path, provider_instance_id=crate::apis::urlencode(p_provider_instance_id), function_controller_type_id=crate::apis::urlencode(p_function_controller_type_id));
     let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
 
     if let Some(ref user_agent) = configuration.user_agent {
         req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
     }
-    req_builder = req_builder.json(&p_enable_function_params_inner);
+    req_builder = req_builder.json(&p_body);
 
     let req = req_builder.build()?;
     let resp = configuration.client.execute(req).await?;
@@ -742,6 +787,42 @@ pub async fn get_frontend_env(configuration: &configuration::Configuration, ) ->
     }
 }
 
+pub async fn get_provider_instance(configuration: &configuration::Configuration, provider_instance_id: &str) -> Result<models::ProviderInstanceSerializedWithEverything, Error<GetProviderInstanceError>> {
+    // add a prefix to parameters to efficiently prevent name collisions
+    let p_provider_instance_id = provider_instance_id;
+
+    let uri_str = format!("{}/api/bridge/v1/provider/{provider_instance_id}", configuration.base_path, provider_instance_id=crate::apis::urlencode(p_provider_instance_id));
+    let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
+
+    if let Some(ref user_agent) = configuration.user_agent {
+        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    }
+
+    let req = req_builder.build()?;
+    let resp = configuration.client.execute(req).await?;
+
+    let status = resp.status();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream");
+    let content_type = super::ContentType::from(content_type);
+
+    if !status.is_client_error() && !status.is_server_error() {
+        let content = resp.text().await?;
+        match content_type {
+            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::ProviderInstanceSerializedWithEverything`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::ProviderInstanceSerializedWithEverything`")))),
+        }
+    } else {
+        let content = resp.text().await?;
+        let entity: Option<GetProviderInstanceError> = serde_json::from_str(&content).ok();
+        Err(Error::ResponseError(ResponseContent { status, content, entity }))
+    }
+}
+
 pub async fn get_task_by_id(configuration: &configuration::Configuration, task_id: &str) -> Result<models::TaskWithDetails, Error<GetTaskByIdError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_task_id = task_id;
@@ -778,13 +859,13 @@ pub async fn get_task_by_id(configuration: &configuration::Configuration, task_i
     }
 }
 
-pub async fn invoke_function(configuration: &configuration::Configuration, provider_instance_id: &str, function_instance_id: &str, invoke_function_params_inner: models::InvokeFunctionParamsInner) -> Result<serde_json::Value, Error<InvokeFunctionError>> {
+pub async fn invoke_function(configuration: &configuration::Configuration, provider_instance_id: &str, function_controller_type_id: &str, invoke_function_params_inner: models::InvokeFunctionParamsInner) -> Result<serde_json::Value, Error<InvokeFunctionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
     let p_provider_instance_id = provider_instance_id;
-    let p_function_instance_id = function_instance_id;
+    let p_function_controller_type_id = function_controller_type_id;
     let p_invoke_function_params_inner = invoke_function_params_inner;
 
-    let uri_str = format!("{}/api/bridge/v1/provider/{provider_instance_id}/function/{function_instance_id}/invoke", configuration.base_path, provider_instance_id=crate::apis::urlencode(p_provider_instance_id), function_instance_id=crate::apis::urlencode(p_function_instance_id));
+    let uri_str = format!("{}/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke", configuration.base_path, provider_instance_id=crate::apis::urlencode(p_provider_instance_id), function_controller_type_id=crate::apis::urlencode(p_function_controller_type_id));
     let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
 
     if let Some(ref user_agent) = configuration.user_agent {
@@ -962,6 +1043,149 @@ pub async fn list_data_encryption_keys(configuration: &configuration::Configurat
     } else {
         let content = resp.text().await?;
         let entity: Option<ListDataEncryptionKeysError> = serde_json::from_str(&content).ok();
+        Err(Error::ResponseError(ResponseContent { status, content, entity }))
+    }
+}
+
+pub async fn list_function_instances(configuration: &configuration::Configuration, page_size: i64, next_page_token: Option<&str>, provider_instance_id: Option<&str>) -> Result<models::FunctionInstanceSerializedPaginatedResponse, Error<ListFunctionInstancesError>> {
+    // add a prefix to parameters to efficiently prevent name collisions
+    let p_page_size = page_size;
+    let p_next_page_token = next_page_token;
+    let p_provider_instance_id = provider_instance_id;
+
+    let uri_str = format!("{}/api/bridge/v1/function-instances", configuration.base_path);
+    let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
+
+    req_builder = req_builder.query(&[("page_size", &p_page_size.to_string())]);
+    if let Some(ref param_value) = p_next_page_token {
+        req_builder = req_builder.query(&[("next_page_token", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_provider_instance_id {
+        req_builder = req_builder.query(&[("provider_instance_id", &param_value.to_string())]);
+    }
+    if let Some(ref user_agent) = configuration.user_agent {
+        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    }
+
+    let req = req_builder.build()?;
+    let resp = configuration.client.execute(req).await?;
+
+    let status = resp.status();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream");
+    let content_type = super::ContentType::from(content_type);
+
+    if !status.is_client_error() && !status.is_server_error() {
+        let content = resp.text().await?;
+        match content_type {
+            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::FunctionInstanceSerializedPaginatedResponse`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::FunctionInstanceSerializedPaginatedResponse`")))),
+        }
+    } else {
+        let content = resp.text().await?;
+        let entity: Option<ListFunctionInstancesError> = serde_json::from_str(&content).ok();
+        Err(Error::ResponseError(ResponseContent { status, content, entity }))
+    }
+}
+
+pub async fn list_provider_instances(configuration: &configuration::Configuration, page_size: i64, next_page_token: Option<&str>, status: Option<&str>, provider_controller_type_id: Option<&str>) -> Result<models::ProviderInstanceListItemPaginatedResponse, Error<ListProviderInstancesError>> {
+    // add a prefix to parameters to efficiently prevent name collisions
+    let p_page_size = page_size;
+    let p_next_page_token = next_page_token;
+    let p_status = status;
+    let p_provider_controller_type_id = provider_controller_type_id;
+
+    let uri_str = format!("{}/api/bridge/v1/provider", configuration.base_path);
+    let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
+
+    req_builder = req_builder.query(&[("page_size", &p_page_size.to_string())]);
+    if let Some(ref param_value) = p_next_page_token {
+        req_builder = req_builder.query(&[("next_page_token", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_status {
+        req_builder = req_builder.query(&[("status", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_provider_controller_type_id {
+        req_builder = req_builder.query(&[("provider_controller_type_id", &param_value.to_string())]);
+    }
+    if let Some(ref user_agent) = configuration.user_agent {
+        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    }
+
+    let req = req_builder.build()?;
+    let resp = configuration.client.execute(req).await?;
+
+    let status = resp.status();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream");
+    let content_type = super::ContentType::from(content_type);
+
+    if !status.is_client_error() && !status.is_server_error() {
+        let content = resp.text().await?;
+        match content_type {
+            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::ProviderInstanceListItemPaginatedResponse`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::ProviderInstanceListItemPaginatedResponse`")))),
+        }
+    } else {
+        let content = resp.text().await?;
+        let entity: Option<ListProviderInstancesError> = serde_json::from_str(&content).ok();
+        Err(Error::ResponseError(ResponseContent { status, content, entity }))
+    }
+}
+
+pub async fn list_provider_instances_grouped_by_function(configuration: &configuration::Configuration, page_size: i64, next_page_token: Option<&str>, provider_controller_type_id: Option<&str>, function_category: Option<&str>) -> Result<models::FunctionInstanceConfigPaginatedResponse, Error<ListProviderInstancesGroupedByFunctionError>> {
+    // add a prefix to parameters to efficiently prevent name collisions
+    let p_page_size = page_size;
+    let p_next_page_token = next_page_token;
+    let p_provider_controller_type_id = provider_controller_type_id;
+    let p_function_category = function_category;
+
+    let uri_str = format!("{}/api/bridge/v1/provider/grouped-by-function", configuration.base_path);
+    let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
+
+    if let Some(ref param_value) = p_next_page_token {
+        req_builder = req_builder.query(&[("next_page_token", &param_value.to_string())]);
+    }
+    req_builder = req_builder.query(&[("page_size", &p_page_size.to_string())]);
+    if let Some(ref param_value) = p_provider_controller_type_id {
+        req_builder = req_builder.query(&[("provider_controller_type_id", &param_value.to_string())]);
+    }
+    if let Some(ref param_value) = p_function_category {
+        req_builder = req_builder.query(&[("function_category", &param_value.to_string())]);
+    }
+    if let Some(ref user_agent) = configuration.user_agent {
+        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    }
+
+    let req = req_builder.build()?;
+    let resp = configuration.client.execute(req).await?;
+
+    let status = resp.status();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream");
+    let content_type = super::ContentType::from(content_type);
+
+    if !status.is_client_error() && !status.is_server_error() {
+        let content = resp.text().await?;
+        match content_type {
+            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::FunctionInstanceConfigPaginatedResponse`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::FunctionInstanceConfigPaginatedResponse`")))),
+        }
+    } else {
+        let content = resp.text().await?;
+        let entity: Option<ListProviderInstancesGroupedByFunctionError> = serde_json::from_str(&content).ok();
         Err(Error::ResponseError(ResponseContent { status, content, entity }))
     }
 }
@@ -1215,6 +1439,44 @@ pub async fn task_history(configuration: &configuration::Configuration, page_siz
     } else {
         let content = resp.text().await?;
         let entity: Option<TaskHistoryError> = serde_json::from_str(&content).ok();
+        Err(Error::ResponseError(ResponseContent { status, content, entity }))
+    }
+}
+
+pub async fn update_provider_instance(configuration: &configuration::Configuration, provider_instance_id: &str, update_provider_instance_params_inner: models::UpdateProviderInstanceParamsInner) -> Result<serde_json::Value, Error<UpdateProviderInstanceError>> {
+    // add a prefix to parameters to efficiently prevent name collisions
+    let p_provider_instance_id = provider_instance_id;
+    let p_update_provider_instance_params_inner = update_provider_instance_params_inner;
+
+    let uri_str = format!("{}/api/bridge/v1/provider/{provider_instance_id}", configuration.base_path, provider_instance_id=crate::apis::urlencode(p_provider_instance_id));
+    let mut req_builder = configuration.client.request(reqwest::Method::PATCH, &uri_str);
+
+    if let Some(ref user_agent) = configuration.user_agent {
+        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    }
+    req_builder = req_builder.json(&p_update_provider_instance_params_inner);
+
+    let req = req_builder.build()?;
+    let resp = configuration.client.execute(req).await?;
+
+    let status = resp.status();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream");
+    let content_type = super::ContentType::from(content_type);
+
+    if !status.is_client_error() && !status.is_server_error() {
+        let content = resp.text().await?;
+        match content_type {
+            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `serde_json::Value`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `serde_json::Value`")))),
+        }
+    } else {
+        let content = resp.text().await?;
+        let entity: Option<UpdateProviderInstanceError> = serde_json::from_str(&content).ok();
         Err(Error::ResponseError(ResponseContent { status, content, entity }))
     }
 }

@@ -16,36 +16,114 @@ SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time,
 FROM user_credential
 WHERE id = ?;
 
+-- name: delete_user_credential :exec
+DELETE FROM user_credential WHERE id = ?;
+
+-- name: delete_resource_server_credential :exec
+DELETE FROM resource_server_credential WHERE id = ?;
+
+-- name: get_user_credentials :many
+SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
+FROM user_credential WHERE (created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
+ORDER BY created_at DESC
+LIMIT CAST(sqlc.arg(page_size) AS INTEGER) + 1;
+
+-- name: get_resource_server_credentials :many
+SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
+FROM resource_server_credential WHERE (created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
+ORDER BY created_at DESC
+LIMIT CAST(sqlc.arg(page_size) AS INTEGER) + 1;
+
 -- name: create_provider_instance :exec
-INSERT INTO provider_instance (id, display_name, resource_server_credential_id, user_credential_id, created_at, updated_at, provider_controller_type_id, credential_controller_type_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO provider_instance (id, display_name, resource_server_credential_id, user_credential_id, created_at, updated_at, provider_controller_type_id, credential_controller_type_id, status, return_on_successful_brokering)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: update_provider_instance :exec
+UPDATE provider_instance SET display_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
+-- name: update_provider_instance_after_brokering :exec
+UPDATE provider_instance SET user_credential_id = ?, status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 
 -- name: get_provider_instance_by_id :one
-SELECT id, display_name, resource_server_credential_id, user_credential_id, created_at, updated_at, provider_controller_type_id, credential_controller_type_id
-FROM provider_instance
-WHERE id = ?;
+SELECT 
+    pi.id,
+    pi.display_name,
+    pi.resource_server_credential_id,
+    pi.user_credential_id,
+    pi.created_at,
+    pi.updated_at,
+    pi.provider_controller_type_id,
+    pi.credential_controller_type_id, pi.status, pi.return_on_successful_brokering,
+    CAST(COALESCE(
+        (SELECT JSON_GROUP_ARRAY(
+            JSON_OBJECT(
+                'function_controller_type_id', fi.function_controller_type_id,
+                'provider_controller_type_id', fi.provider_controller_type_id,
+                'provider_instance_id', fi.provider_instance_id,
+                'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', fi.created_at),
+                'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', fi.updated_at)
+            )
+        )
+        FROM function_instance fi
+        WHERE fi.provider_instance_id = pi.id
+        ), JSON('[]')) AS TEXT
+    ) AS functions,
+    CAST(COALESCE(
+        (SELECT JSON_OBJECT(
+            'id', rsc.id,
+            'type_id', rsc.type_id,
+            'metadata', JSON(rsc.metadata),
+            'value', JSON(rsc.value),
+            'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.created_at),
+            'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.updated_at),
+            'next_rotation_time', CASE WHEN rsc.next_rotation_time IS NOT NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time) ELSE NULL END,
+            'data_encryption_key_id', rsc.data_encryption_key_id
+        )
+        FROM resource_server_credential rsc
+        WHERE rsc.id = pi.resource_server_credential_id
+        ), JSON('null')) AS TEXT
+    ) AS resource_server_credential,
+    CAST(COALESCE(
+        (SELECT JSON_OBJECT(
+            'id', uc.id,
+            'type_id', uc.type_id,
+            'metadata', JSON(uc.metadata),
+            'value', JSON(uc.value),
+            'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.created_at),
+            'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.updated_at),
+            'next_rotation_time', CASE WHEN uc.next_rotation_time IS NOT NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time) ELSE NULL END,
+            'data_encryption_key_id', uc.data_encryption_key_id
+        )
+        FROM user_credential uc
+        WHERE uc.id = pi.user_credential_id
+        ), JSON('null')) AS TEXT
+    ) AS user_credential
+FROM provider_instance pi
+WHERE pi.id = ?;
+
+
 
 -- name: delete_provider_instance :exec
 DELETE FROM provider_instance WHERE id = ?;
 
 -- name: create_function_instance :exec
-INSERT INTO function_instance (id, created_at, updated_at, provider_instance_id, function_controller_type_id)
+INSERT INTO function_instance (function_controller_type_id, provider_controller_type_id, provider_instance_id, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?);
 
 -- name: get_function_instance_by_id :one
-SELECT id, created_at, updated_at, provider_instance_id, function_controller_type_id
+SELECT function_controller_type_id, provider_controller_type_id, provider_instance_id, created_at, updated_at
 FROM function_instance
-WHERE id = ?;
+WHERE function_controller_type_id = ? AND provider_controller_type_id = ? AND provider_instance_id = ?;
 
 -- name: delete_function_instance :exec
-DELETE FROM function_instance WHERE id = ?;
+DELETE FROM function_instance WHERE function_controller_type_id = ? AND provider_controller_type_id = ? AND provider_instance_id = ?;
 
 -- name: create_broker_state :exec
-INSERT INTO broker_state (id, created_at, updated_at, resource_server_cred_id, provider_controller_type_id, credential_controller_type_id, metadata, action)
+INSERT INTO broker_state (id, created_at, updated_at, provider_instance_id, provider_controller_type_id, credential_controller_type_id, metadata, action)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: get_broker_state_by_id :one
-SELECT id, created_at, updated_at, resource_server_cred_id, provider_controller_type_id, credential_controller_type_id, metadata, action
+SELECT id, created_at, updated_at, provider_instance_id, provider_controller_type_id, credential_controller_type_id, metadata, action
 FROM broker_state
 WHERE id = ?;
 
@@ -54,19 +132,21 @@ DELETE FROM broker_state WHERE id = ?;
 
 -- name: get_function_instance_with_credentials :one
 SELECT
-    fi.id as function_instance_id,
+    fi.function_controller_type_id as function_instance_function_controller_type_id,
+    fi.provider_controller_type_id as function_instance_provider_controller_type_id,
+    fi.provider_instance_id as function_instance_provider_instance_id,
     fi.created_at as function_instance_created_at,
     fi.updated_at as function_instance_updated_at,
-    fi.provider_instance_id as function_instance_provider_instance_id,
-    fi.function_controller_type_id,
     pi.id as provider_instance_id,
     pi.display_name as provider_instance_display_name,
     pi.resource_server_credential_id as provider_instance_resource_server_credential_id,
     pi.user_credential_id as provider_instance_user_credential_id,
     pi.created_at as provider_instance_created_at,
     pi.updated_at as provider_instance_updated_at,
-    pi.provider_controller_type_id,
+    pi.provider_controller_type_id as provider_instance_provider_controller_type_id,
     pi.credential_controller_type_id,
+    pi.status as provider_instance_status,
+    pi.return_on_successful_brokering as provider_instance_return_on_successful_brokering,
     rsc.id as resource_server_credential_id,
     rsc.type_id as resource_server_credential_type_id,
     rsc.metadata as resource_server_credential_metadata,
@@ -86,8 +166,8 @@ SELECT
 FROM function_instance fi
 JOIN provider_instance pi ON fi.provider_instance_id = pi.id
 JOIN resource_server_credential rsc ON pi.resource_server_credential_id = rsc.id
-JOIN user_credential uc ON pi.user_credential_id = uc.id
-WHERE fi.id = ?;
+LEFT JOIN user_credential uc ON pi.user_credential_id = uc.id
+WHERE fi.function_controller_type_id = ? AND fi.provider_controller_type_id = ? AND fi.provider_instance_id = ?;
 
 -- name: create_data_encryption_key :exec
 INSERT INTO data_encryption_key (id, envelope_encryption_key_id, encryption_key, created_at, updated_at)
@@ -106,3 +186,146 @@ SELECT id, envelope_encryption_key_id, created_at, updated_at
 FROM data_encryption_key WHERE (created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(sqlc.arg(page_size) AS INTEGER) + 1;
+
+-- name: get_provider_instances :many
+SELECT
+    pi.id,
+    pi.display_name,
+    pi.resource_server_credential_id,
+    pi.user_credential_id,
+    pi.created_at,
+    pi.updated_at,
+    pi.provider_controller_type_id,
+    pi.credential_controller_type_id,
+    pi.status,
+    pi.return_on_successful_brokering,
+    CAST(COALESCE(
+        (SELECT JSON_GROUP_ARRAY(
+            JSON_OBJECT(
+                'function_controller_type_id', fi.function_controller_type_id,
+                'provider_controller_type_id', fi.provider_controller_type_id,
+                'provider_instance_id', fi.provider_instance_id,
+                'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', fi.created_at),
+                'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', fi.updated_at)
+            )
+        )
+        FROM function_instance fi
+        WHERE fi.provider_instance_id = pi.id
+        ), JSON('[]')) AS TEXT
+    ) AS functions,
+    CAST(COALESCE(
+        (SELECT JSON_OBJECT(
+            'id', rsc.id,
+            'type_id', rsc.type_id,
+            'metadata', JSON(rsc.metadata),
+            'value', JSON(rsc.value),
+            'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.created_at),
+            'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.updated_at),
+            'next_rotation_time', CASE WHEN rsc.next_rotation_time IS NOT NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time) ELSE NULL END,
+            'data_encryption_key_id', rsc.data_encryption_key_id
+        )
+        FROM resource_server_credential rsc
+        WHERE rsc.id = pi.resource_server_credential_id
+        ), JSON('null')) AS TEXT
+    ) AS resource_server_credential,
+    CAST(COALESCE(
+        (SELECT JSON_OBJECT(
+            'id', uc.id,
+            'type_id', uc.type_id,
+            'metadata', JSON(uc.metadata),
+            'value', JSON(uc.value),
+            'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.created_at),
+            'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.updated_at),
+            'next_rotation_time', CASE WHEN uc.next_rotation_time IS NOT NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time) ELSE NULL END,
+            'data_encryption_key_id', uc.data_encryption_key_id
+        )
+        FROM user_credential uc
+        WHERE uc.id = pi.user_credential_id
+        ), JSON('null')) AS TEXT
+    ) AS user_credential
+FROM provider_instance pi
+WHERE (pi.created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
+  AND (CAST(pi.status = sqlc.narg(status) AS TEXT) OR sqlc.narg(status) IS NULL)
+  AND (CAST(pi.provider_controller_type_id = sqlc.narg(provider_controller_type_id) AS TEXT) OR sqlc.narg(provider_controller_type_id) IS NULL)
+ORDER BY pi.created_at DESC
+LIMIT CAST(sqlc.arg(page_size) AS INTEGER) + 1;
+
+-- name: get_function_instances :many
+SELECT function_controller_type_id, provider_controller_type_id, provider_instance_id, created_at, updated_at
+FROM function_instance
+WHERE (created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
+  AND (CAST(provider_instance_id = sqlc.narg(provider_instance_id) AS TEXT) OR sqlc.narg(provider_instance_id) IS NULL)
+ORDER BY created_at DESC
+LIMIT CAST(sqlc.arg(page_size) AS INTEGER) + 1;
+
+-- name: get_provider_instances_grouped_by_function_controller_type_id :many
+SELECT 
+    fi.function_controller_type_id,
+    CAST(
+        JSON_GROUP_ARRAY(
+            JSON_OBJECT(
+                'id', pi.id,
+                'display_name', pi.display_name,
+                'provider_controller_type_id', pi.provider_controller_type_id,
+                'credential_controller_type_id', pi.credential_controller_type_id,
+                'status', pi.status,
+                'return_on_successful_brokering', pi.return_on_successful_brokering,
+                'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', pi.created_at),
+                'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', pi.updated_at),
+
+                -- resource server credential
+                'resource_server_credential', COALESCE((
+                    SELECT JSON_OBJECT(
+                        'id', rsc.id,
+                        'type_id', rsc.type_id,
+                        'metadata', JSON(rsc.metadata),
+                        'value', JSON(rsc.value),
+                        'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.created_at),
+                        'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.updated_at),
+                        'next_rotation_time', CASE
+                            WHEN rsc.next_rotation_time IS NOT NULL
+                            THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time)
+                            ELSE NULL END,
+                        'data_encryption_key_id', rsc.data_encryption_key_id
+                    )
+                    FROM resource_server_credential rsc
+                    WHERE rsc.id = pi.resource_server_credential_id
+                ), JSON('null')),
+
+                -- user credential
+                'user_credential', COALESCE((
+                    SELECT JSON_OBJECT(
+                        'id', uc.id,
+                        'type_id', uc.type_id,
+                        'metadata', JSON(uc.metadata),
+                        'value', JSON(uc.value),
+                        'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.created_at),
+                        'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.updated_at),
+                        'next_rotation_time', CASE
+                            WHEN uc.next_rotation_time IS NOT NULL
+                            THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time)
+                            ELSE NULL END,
+                        'data_encryption_key_id', uc.data_encryption_key_id
+                    )
+                    FROM user_credential uc
+                    WHERE uc.id = pi.user_credential_id
+                ), JSON('null')),
+
+                -- include function_instance metadata
+                'function_instance', JSON_OBJECT(
+                    'provider_controller_type_id', fi.provider_controller_type_id,
+                    'provider_instance_id', fi.provider_instance_id,
+                    'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', fi.created_at),
+                    'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', fi.updated_at)
+                )
+            )
+        ) AS TEXT
+    ) AS provider_instances
+FROM function_instance fi
+JOIN provider_instance pi ON fi.provider_instance_id = pi.id
+WHERE (
+    fi.function_controller_type_id IN (sqlc.narg('function_controller_type_ids'))
+    OR sqlc.narg('function_controller_type_ids') IS NULL
+)
+GROUP BY fi.function_controller_type_id
+ORDER BY fi.function_controller_type_id ASC;

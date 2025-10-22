@@ -1,0 +1,71 @@
+"use client";
+import { createFileRoute, useParams } from '@tanstack/react-router'
+import { LinkProviderInstancesTable } from "@/components/bridge/configuration-form";
+import $api from '@/lib/api-client.client';
+import { useMemo } from "react";
+
+export const Route = createFileRoute('/bridge/enable-functions/available/$functionControllerId/configure/existing')({
+  component: RouteComponent,
+})
+
+export function RouteComponent() {
+  const { functionControllerId } = useParams({ from: '/bridge/enable-functions/available/$functionControllerId/configure' });
+
+  // Query available providers
+  const {
+    data: availableProviders,
+  } = $api.useQuery("get", "/api/bridge/v1/available-providers", {
+    params: {
+      query: {
+        page_size: 1000,
+      },
+    },
+  });
+
+  // Find the provider for this function
+  const provider = useMemo(() => {
+    if (!availableProviders?.items) return null;
+
+    for (const prov of availableProviders.items) {
+      const fn = prov.functions.find((f) => f.type_id === functionControllerId);
+      if (fn) {
+        return prov;
+      }
+    }
+    return null;
+  }, [availableProviders, functionControllerId]);
+
+  // Query existing provider instances for this provider type (status=active)
+  const {
+    data: providerInstancesData,
+  } = $api.useQuery("get", "/api/bridge/v1/provider", {
+    params: {
+      query: {
+        page_size: 1000,
+        status: "active",
+      },
+    },
+  }, {
+    enabled: !!provider,
+  });
+
+  // Filter instances by provider controller type
+  const existingProviderInstances = useMemo(() => {
+    if (!providerInstancesData?.items || !provider) return [];
+    return providerInstancesData.items.filter(
+      (instance) => instance.provider_controller_type_id === provider.type_id
+    );
+  }, [providerInstancesData, provider]);
+
+  if (!provider) {
+    return null;
+  }
+
+  return (
+    <LinkProviderInstancesTable
+      instances={existingProviderInstances}
+      provider={provider}
+      functionTypeId={functionControllerId}
+    />
+  );
+}

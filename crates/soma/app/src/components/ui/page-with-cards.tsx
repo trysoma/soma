@@ -1,7 +1,7 @@
 "use client";
 
-import React, { ReactNode, useState } from "react";
-import { Search, Plus } from "lucide-react";
+import React, { type ReactNode, useState } from "react";
+import { Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

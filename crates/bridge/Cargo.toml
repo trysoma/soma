@@ -38,6 +38,10 @@ zeroize.workspace = true
 shared-macros.workspace = true
 sha2 = "0.10.9"
 http.workspace = true
+rmcp.workspace = true
+tokio-stream.workspace = true
+tokio-util.workspace = true
+futures.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
