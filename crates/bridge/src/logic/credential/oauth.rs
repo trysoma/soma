@@ -430,54 +430,64 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
 impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
     async fn rotate_user_credential(
         &self,
-        _resource_server_cred: &crate::logic::ResourceServerCredential,
-        user_cred: &Credential<std::sync::Arc<dyn UserCredentialLike>>,
+        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _resource_server_cred: &ResourceServerCredentialSerialized,
+        user_cred: &UserCredentialSerialized,
+        decryption_service: &DecryptionService,
+        encryption_service: &EncryptionService,
     ) -> Result<Credential<std::sync::Arc<dyn UserCredentialLike>>, CommonError> {
-        // Deserialize the user credential
-        let mut config: Oauth2AuthorizationCodeFlowUserCredential =
-            serde_json::from_value(user_cred.inner.value().into())?;
+        // // Deserialize the user credential
+        // let mut config: Oauth2AuthorizationCodeFlowUserCredential =
+        //     serde_json::from_value(user_cred.inner.value().into())?;
 
-        // TODO: Use the refresh token to get a new access token
-        // This would involve making an HTTP request to the token endpoint
-        // For now, we'll just extend the expiry time
+        // // TODO: Use the refresh token to get a new access token
+        // // This would involve making an HTTP request to the token endpoint
+        // // For now, we'll just extend the expiry time
 
-        let now = WrappedChronoDateTime::now();
-        config.expiry_time = now
-            .get_inner()
-            .checked_add_signed(chrono::Duration::hours(1))
-            .map(WrappedChronoDateTime::new)
-            .unwrap_or(now);
+        // let now = WrappedChronoDateTime::now();
+        // config.expiry_time = now
+        //     .get_inner()
+        //     .checked_add_signed(chrono::Duration::hours(1))
+        //     .map(WrappedChronoDateTime::new)
+        //     .unwrap_or(now);
 
-        // Create a new credential with the refreshed token
-        let rotated_credential = Credential {
-            inner: std::sync::Arc::new(config) as std::sync::Arc<dyn UserCredentialLike>,
-            metadata: user_cred.metadata.clone(),
-            id: user_cred.id.clone(),
-            created_at: user_cred.created_at.clone(),
-            updated_at: now,
-        };
+        // // Create a new credential with the refreshed token
+        // let rotated_credential = Credential {
+        //     inner: std::sync::Arc::new(config) as std::sync::Arc<dyn UserCredentialLike>,
+        //     metadata: user_cred.metadata.clone(),
+        //     id: user_cred.id.clone(),
+        //     created_at: user_cred.created_at.clone(),
+        //     updated_at: now,
+        // };
 
-        Ok(rotated_credential)
+        // Ok(rotated_credential)
+
+        todo!()
     }
 
     async fn next_user_credential_rotation_time(
         &self,
-        _resource_server_cred: &crate::logic::ResourceServerCredential,
-        user_cred: &Credential<std::sync::Arc<dyn UserCredentialLike>>,
+        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _resource_server_cred: &ResourceServerCredentialSerialized,
+        user_cred: &UserCredentialSerialized,
+        decryption_service: &DecryptionService,
+        encryption_service: &EncryptionService,
     ) -> WrappedChronoDateTime {
-        // Deserialize to get the rotateable credential
-        if let Ok(config) = serde_json::from_value::<Oauth2AuthorizationCodeFlowUserCredential>(
-            user_cred.inner.value().into(),
-        ) {
-            config.next_rotation_time()
-        } else {
-            // Fallback: rotate in 1 hour
-            WrappedChronoDateTime::now()
-                .get_inner()
-                .checked_add_signed(chrono::Duration::hours(1))
-                .map(WrappedChronoDateTime::new)
-                .unwrap_or(WrappedChronoDateTime::now())
-        }
+        // // Deserialize to get the rotateable credential
+        // if let Ok(config) = serde_json::from_value::<Oauth2AuthorizationCodeFlowUserCredential>(
+        //     user_cred.inner.value().into(),
+        // ) {
+        //     config.next_rotation_time()
+        // } else {
+        //     // Fallback: rotate in 1 hour
+        //     WrappedChronoDateTime::now()
+        //         .get_inner()
+        //         .checked_add_signed(chrono::Duration::hours(1))
+        //         .map(WrappedChronoDateTime::new)
+        //         .unwrap_or(WrappedChronoDateTime::now())
+        // }
+
+        todo!()
     }
 }
 
@@ -703,11 +713,14 @@ impl ProviderCredentialControllerLike for Oauth2JwtBearerAssertionFlowController
 impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowController {
     async fn rotate_user_credential(
         &self,
-        _resource_server_cred: &crate::logic::ResourceServerCredential,
-        user_cred: &Credential<std::sync::Arc<dyn UserCredentialLike>>,
+        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _resource_server_cred: &ResourceServerCredentialSerialized,
+        user_cred: &UserCredentialSerialized,
+        decryption_service: &DecryptionService,
+        encryption_service: &EncryptionService,
     ) -> Result<Credential<std::sync::Arc<dyn UserCredentialLike>>, CommonError> {
-        let mut config: Oauth2JwtBearerAssertionFlowUserCredential =
-            serde_json::from_value(user_cred.inner.value().into())?;
+        // let mut config: Oauth2JwtBearerAssertionFlowUserCredential =
+        //     serde_json::from_value(user_cred.inner.value().into())?;
 
         // TODO: Generate a new JWT assertion and exchange it for a new access token
         // This would involve:
@@ -715,39 +728,34 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
         // 2. Making an HTTP request to the token endpoint
         // For now, we'll just extend the expiry time
 
-        let now = WrappedChronoDateTime::now();
-        config.expiry_time = now
-            .get_inner()
-            .checked_add_signed(chrono::Duration::hours(1))
-            .map(WrappedChronoDateTime::new)
-            .unwrap_or(now);
+        // let now = WrappedChronoDateTime::now();
+        // config.expiry_time = now
+        //     .get_inner()
+        //     .checked_add_signed(chrono::Duration::hours(1))
+        //     .map(WrappedChronoDateTime::new)
+        //     .unwrap_or(now);
 
-        let rotated_credential = Credential {
-            inner: std::sync::Arc::new(config) as std::sync::Arc<dyn UserCredentialLike>,
-            metadata: user_cred.metadata.clone(),
-            id: user_cred.id.clone(),
-            created_at: user_cred.created_at.clone(),
-            updated_at: now,
-        };
+        // let rotated_credential = Credential {
+        //     inner: std::sync::Arc::new(config) as std::sync::Arc<dyn UserCredentialLike>,
+        //     metadata: user_cred.metadata.clone(),
+        //     id: user_cred.id.clone(),
+        //     created_at: user_cred.created_at.clone(),
+        //     updated_at: now,
+        // };
 
-        Ok(rotated_credential)
+        // Ok(rotated_credential)
+
+        todo!()
     }
 
     async fn next_user_credential_rotation_time(
         &self,
-        _resource_server_cred: &crate::logic::ResourceServerCredential,
-        user_cred: &Credential<std::sync::Arc<dyn UserCredentialLike>>,
+        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _resource_server_cred: &ResourceServerCredentialSerialized,
+        user_cred: &UserCredentialSerialized,
+        decryption_service: &DecryptionService,
+        encryption_service: &EncryptionService,
     ) -> WrappedChronoDateTime {
-        if let Ok(config) = serde_json::from_value::<Oauth2JwtBearerAssertionFlowUserCredential>(
-            user_cred.inner.value().into(),
-        ) {
-            config.next_rotation_time()
-        } else {
-            WrappedChronoDateTime::now()
-                .get_inner()
-                .checked_add_signed(chrono::Duration::hours(1))
-                .map(WrappedChronoDateTime::new)
-                .unwrap_or(WrappedChronoDateTime::now())
-        }
+        todo!()
     }
 }

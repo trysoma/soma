@@ -41,6 +41,7 @@ interface ConfigurationFormProps {
 	} | null;
 	existingResourceServerCredential?: ResourceServerCredential | null;
 	existingUserCredential?: UserCredential | null;
+	functionControllerId?: string; // If provided, will create function instance after provider instance creation
 	onSuccess?: () => void;
 }
 
@@ -52,6 +53,7 @@ export const ConfigurationForm = ({
 	existingProviderInstance,
 	existingResourceServerCredential,
 	existingUserCredential,
+	functionControllerId,
 	onSuccess
 }: ConfigurationFormProps) => {
 	return (
@@ -61,6 +63,7 @@ export const ConfigurationForm = ({
 				existingProviderInstance={existingProviderInstance}
 				existingResourceServerCredential={existingResourceServerCredential}
 				existingUserCredential={existingUserCredential}
+				functionControllerId={functionControllerId}
 				onSuccess={onSuccess}
 			/>
 		</div>
@@ -256,6 +259,7 @@ const AddNewProviderInstance = ({
 	existingProviderInstance,
 	existingResourceServerCredential,
 	existingUserCredential,
+	functionControllerId,
 	onSuccess
 }: {
 	provider: ProviderController;
@@ -266,6 +270,7 @@ const AddNewProviderInstance = ({
 	} | null;
 	existingResourceServerCredential?: ResourceServerCredential | null;
 	existingUserCredential?: UserCredential | null;
+	functionControllerId?: string;
 	onSuccess?: () => void;
 }) => {
 	const credentialControllers = provider.credential_controllers;
@@ -290,6 +295,7 @@ const AddNewProviderInstance = ({
 					existingProviderInstance={existingProviderInstance}
 					existingResourceServerCredential={existingResourceServerCredential}
 					existingUserCredential={existingUserCredential}
+					functionControllerId={functionControllerId}
 					onSuccess={onSuccess}
 				/>
 			</div>
@@ -337,6 +343,8 @@ const AddNewProviderInstance = ({
 										providerTypeId={provider.type_id}
 										existingProviderInstance={existingProviderInstance}
 										existingResourceServerCredential={existingResourceServerCredential}
+										existingUserCredential={existingUserCredential}
+										functionControllerId={functionControllerId}
 										onSuccess={onSuccess}
 									/>
 								</div>
@@ -360,6 +368,7 @@ interface ResourceServerConfigurationFormProps {
 	} | null;
 	existingResourceServerCredential?: ResourceServerCredential | null;
 	existingUserCredential?: UserCredential | null;
+	functionControllerId?: string;
 	onSuccess?: () => void;
 }
 
@@ -369,6 +378,7 @@ const ResourceServerConfigurationForm = ({
 	existingProviderInstance,
 	existingResourceServerCredential,
 	existingUserCredential,
+	functionControllerId,
 	onSuccess
 }: ResourceServerConfigurationFormProps) => {
 	const [formErrors, setFormErrors] = useState<string[]>([]);
@@ -425,6 +435,7 @@ const ResourceServerConfigurationForm = ({
 	const startBrokeringMutation = $api.useMutation("post", "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker");
 	const encryptUserCredentialMutation = $api.useMutation("post", "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt");
 	const createUserCredentialMutation = $api.useMutation("post", "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential");
+	const createFunctionInstanceMutation = $api.useMutation("post", "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable");
 
 	// Parse the JSON schemas for resource server and user credential configuration
 	const rawResourceServerSchema = credentialController.configuration_schema.resource_server;
@@ -639,7 +650,27 @@ const ResourceServerConfigurationForm = ({
 
 			console.log("Provider instance created:", providerInstance);
 
-			// Step 5: If requires brokering, start the user credential brokering flow
+			// Step 5: Create function instance if functionControllerId is provided
+			if (functionControllerId) {
+				try {
+					await createFunctionInstanceMutation.mutateAsync({
+						params: {
+							path: {
+								provider_instance_id: providerInstance.id,
+								function_controller_type_id: functionControllerId,
+							},
+						},
+						body: {},
+					});
+					console.log("Function instance created for:", functionControllerId);
+				} catch (error) {
+					console.error("Error creating function instance:", error);
+					// Don't fail the whole flow if function instance creation fails
+					// The user can enable it later
+				}
+			}
+
+			// Step 6: If requires brokering, start the user credential brokering flow
 			if (credentialController.requires_brokering && resourceServerCredential.id) {
 				const brokeringResponse = await startBrokeringMutation.mutateAsync({
 					params: {

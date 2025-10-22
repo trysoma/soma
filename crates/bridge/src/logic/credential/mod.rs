@@ -596,7 +596,5 @@ pub async fn resume_user_credential_brokering(
     )
     .await?;
 
-
-
     Ok(response)
 }

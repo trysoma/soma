@@ -409,22 +409,6 @@ pub async fn update_provider_instance(
 pub type DeleteProviderInstanceParams = WithProviderInstanceId<()>;
 pub type DeleteProviderInstanceResponse = ();
 
-// Types for list_provider_instances_grouped_by_function
-#[derive(Serialize, Deserialize, Clone, ToSchema)]
-pub struct FunctionInstanceConfig {
-    pub function_controller: FunctionControllerSerialized,
-    pub provider_controller: ProviderControllerSerialized,
-    pub provider_instances: Vec<ProviderInstanceSerializedWithCredentials>,
-}
-
-#[derive(Serialize, Deserialize, Clone, ToSchema, IntoParams)]
-pub struct ListProviderInstancesGroupedByFunctionParams {
-    pub next_page_token: Option<String>,
-    pub page_size: i64,
-    pub provider_controller_type_id: Option<String>,
-    pub function_category: Option<String>,
-}
-pub type ListProviderInstancesGroupedByFunctionResponse = PaginatedResponse<FunctionInstanceConfig>;
 
 pub async fn delete_provider_instance(
     on_config_change_tx: &OnConfigChangeTx,
@@ -443,6 +427,24 @@ pub async fn delete_provider_instance(
     }
     Ok(())
 }
+
+// Types for list_provider_instances_grouped_by_function
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct FunctionInstanceConfig {
+    pub function_controller: FunctionControllerSerialized,
+    pub provider_controller: ProviderControllerSerialized,
+    pub provider_instances: Vec<ProviderInstanceSerializedWithCredentials>,
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema, IntoParams)]
+pub struct ListProviderInstancesGroupedByFunctionParams {
+    pub next_page_token: Option<String>,
+    pub page_size: i64,
+    pub provider_controller_type_id: Option<String>,
+    pub function_category: Option<String>,
+}
+pub type ListProviderInstancesGroupedByFunctionResponse = PaginatedResponse<FunctionInstanceConfig>;
+
 
 pub async fn list_provider_instances_grouped_by_function(
     repo: &impl crate::repository::ProviderRepositoryLike,

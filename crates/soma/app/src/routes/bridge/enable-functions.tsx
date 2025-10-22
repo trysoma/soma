@@ -210,30 +210,12 @@ function EnableFunctionsPage() {
 	const [providerSearchQuery, setProviderSearchQuery] = useState("");
 	const [categorySearchQuery, setCategorySearchQuery] = useState("");
 
-	// Query available providers to get ALL functions
-	const {
-		data: availableProvidersData,
-		isLoading: isLoadingProviders,
-		isFetching: isFetchingProviders,
-	} = $api.useQuery("get", "/api/bridge/v1/available-providers",
-		{
-			params: {
-				query: {
-					page_size: 1000,
-				},
-			},
-		},
-		{
-			enabled: hasEncryptionKeys,
-			// Keep previous data while fetching new data to prevent flashing
-			placeholderData: (previousData) => previousData,
-		}
-	)
-
-	// Query provider instances grouped by function to enrich with enabled instances
+	// Query provider instances grouped by function (only when keys exist)
 	// This query uses server-side filtering via provider_controller_type_id and function_category
 	const {
 		data: functionInstanceData,
+		isLoading: isLoadingFunctions,
+		isFetching: isFetchingFunctions,
 	} = $api.useQuery("get", "/api/bridge/v1/provider/grouped-by-function",
 		{
 			params: {
@@ -248,6 +230,22 @@ function EnableFunctionsPage() {
 			enabled: hasEncryptionKeys,
 			// Keep previous data while fetching new data to prevent flashing
 			placeholderData: (previousData) => previousData,
+		}
+	)
+
+	// Query available providers to get the list for filter dropdown
+	const {
+		data: availableProvidersData,
+	} = $api.useQuery("get", "/api/bridge/v1/available-providers",
+		{
+			params: {
+				query: {
+					page_size: 1000,
+				},
+			},
+		},
+		{
+			enabled: hasEncryptionKeys,
 		}
 	)
 
@@ -269,51 +267,24 @@ function EnableFunctionsPage() {
 		}
 	}
 
-	// Transform available providers into available functions, enriched with enabled instances
+	// Transform function instance data into available functions
 	const availableFunctions = useMemo(() => {
-		if (!availableProvidersData?.items) return [];
+		if (!functionInstanceData?.items) return [];
 
-		// Create a map of function_type_id -> enabled provider instances
-		const enabledInstancesMap = new Map<string, ProviderInstance[]>();
-		if (functionInstanceData?.items) {
-			functionInstanceData.items.forEach((item) => {
-				enabledInstancesMap.set(
-					item.function_controller.type_id,
-					item.provider_instances || []
-				);
-			});
-		}
-
-		// Build all available functions from available providers
-		const functions: AvailableFunction[] = [];
-		for (const provider of availableProvidersData.items) {
-			// Apply provider filter (client-side since available-providers doesn't support filtering)
-			if (selectedProviderFilter && provider.type_id !== selectedProviderFilter) {
-				continue;
-			}
-
-			// Apply category filter (client-side)
-			if (selectedCategoryFilter && !provider.categories?.includes(selectedCategoryFilter)) {
-				continue;
-			}
-
-			for (const func of provider.functions) {
-				functions.push({
-					id: func.type_id,
-					providerTypeId: provider.type_id,
-					providerName: provider.name,
-					functionName: func.name,
-					documentation: func.documentation,
-					parametersSchema: func.parameters,
-					outputSchema: func.output,
-					categories: provider.categories || [],
-					providerInstances: enabledInstancesMap.get(func.type_id) || [],
-				});
-			}
-		}
+		const functions: AvailableFunction[] = functionInstanceData.items.map((item) => ({
+			id: item.function_controller.type_id,
+			providerTypeId: item.provider_controller.type_id,
+			providerName: item.provider_controller.name,
+			functionName: item.function_controller.name,
+			documentation: item.function_controller.documentation,
+			parametersSchema: item.function_controller.parameters,
+			outputSchema: item.function_controller.output,
+			categories: item.provider_controller.categories || [],
+			providerInstances: item.provider_instances || [],
+		}));
 
 		return functions;
-	}, [availableProvidersData, functionInstanceData, selectedProviderFilter, selectedCategoryFilter]);
+	}, [functionInstanceData]);
 
 	// Get unique providers and categories for filters from available providers
 	const allProviders = useMemo(() => {
@@ -396,7 +367,7 @@ function EnableFunctionsPage() {
 	}
 
 	// If loading, show loading state
-	if (isLoadingKeys || (hasEncryptionKeys && isLoadingProviders)) {
+	if (isLoadingKeys || (hasEncryptionKeys && isLoadingFunctions)) {
 		return (
 			<PageLayout>
 				<PageHeaderWithAction
@@ -493,7 +464,7 @@ function EnableFunctionsPage() {
 							{/* Data tables */}
 							<div className="space-y-4 relative">
 								{/* Loading overlay - shows when fetching new data */}
-								{isFetchingProviders && !isLoadingProviders && (
+								{isFetchingFunctions && !isLoadingFunctions && (
 									<div className="absolute top-0 right-0 z-10">
 										<div className="bg-blue-50 border border-blue-200 rounded px-3 py-1.5 text-xs text-blue-700 flex items-center gap-2">
 											<div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full" />
@@ -501,7 +472,7 @@ function EnableFunctionsPage() {
 										</div>
 									</div>
 								)}
-								<div className={`transition-opacity duration-200 ${isFetchingProviders && !isLoadingProviders ? 'opacity-60' : 'opacity-100'}`}>
+								<div className={`transition-opacity duration-200 ${isFetchingFunctions && !isLoadingFunctions ? 'opacity-60' : 'opacity-100'}`}>
 									<FunctionsTable
 										functions={displayedAvailableFunctions}
 										title="Available Functions"

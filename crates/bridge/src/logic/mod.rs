@@ -193,11 +193,17 @@ pub trait ProviderInstanceLike {
 pub trait RotateableControllerResourceServerCredentialLike {
     async fn rotate_resource_server_credential(
         &self,
+        static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
         resource_server_cred: &Credential<Arc<dyn ResourceServerCredentialLike>>,
+        decryption_service: &DecryptionService,
+        encryption_service: &EncryptionService,
     ) -> Result<Credential<Arc<dyn ResourceServerCredentialLike>>, CommonError>;
     fn next_resource_server_credential_rotation_time(
         &self,
-        resource_server_cred: &Credential<Arc<dyn ResourceServerCredentialLike>>,
+        static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        resource_server_cred: &ResourceServerCredentialSerialized,
+        decryption_service: &DecryptionService,
+        encryption_service: &EncryptionService,
     ) -> WrappedChronoDateTime;
 }
 
@@ -205,13 +211,19 @@ pub trait RotateableControllerResourceServerCredentialLike {
 pub trait RotateableControllerUserCredentialLike {
     async fn rotate_user_credential(
         &self,
-        resource_server_cred: &ResourceServerCredential,
-        user_cred: &Credential<Arc<dyn UserCredentialLike>>,
+        static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        resource_server_cred: &ResourceServerCredentialSerialized,
+        user_cred: &UserCredentialSerialized,
+        decryption_service: &DecryptionService,
+        encryption_service: &EncryptionService,
     ) -> Result<Credential<Arc<dyn UserCredentialLike>>, CommonError>;
     async fn next_user_credential_rotation_time(
         &self,
-        resource_server_cred: &ResourceServerCredential,
-        user_cred: &Credential<Arc<dyn UserCredentialLike>>,
+        static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        resource_server_cred: &ResourceServerCredentialSerialized,
+        user_cred: &UserCredentialSerialized,
+        decryption_service: &DecryptionService,
+        encryption_service: &EncryptionService,
     ) -> WrappedChronoDateTime;
 }
 

@@ -47,8 +47,9 @@ export function RouteComponent() {
   }
 
   return (
-    <ConfigurationForm 
+    <ConfigurationForm
       provider={provider}
+      functionControllerId={functionControllerId}
       onSuccess={handleSuccess}
     />
   );
