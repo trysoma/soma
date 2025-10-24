@@ -1,14 +1,4 @@
-use std::time::Duration;
-
-use clap::{Parser, Subcommand};
-use tokio_graceful_shutdown::{SubsystemHandle, Toplevel, errors::GracefulShutdownError};
-use tracing::error;
-
-use crate::{commands::StartParams, utils::config::get_or_init_cli_config};
-use shared::error::{CommonError, DynError};
-
 mod a2a;
-mod bridge_sync;
 mod commands;
 mod logic;
 mod mcp;
@@ -16,6 +6,18 @@ mod repository;
 mod router;
 mod utils;
 mod vite;
+
+use std::time::Duration;
+
+use clap::{Parser, Subcommand};
+use soma::unwrap_and_error;
+use tokio_graceful_shutdown::{SubsystemHandle, Toplevel, errors::GracefulShutdownError};
+use tracing::error;
+
+use crate::{commands::dev::DevParams, utils::config::get_or_init_cli_config};
+use shared::error::{CommonError, DynError};
+
+
 
 pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -27,7 +29,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    Start(StartParams),
+    Dev(DevParams),
     Codegen,
     // #[command(subcommand)]
     // Bridge(BridgeCommands),
@@ -38,17 +40,6 @@ pub enum Commands {
 //     Init(commands::BridgeInitParams),
 // }
 
-pub type Subsys = SubsystemHandle<DynError>;
-
-fn unwrap_and_error<T>(cmd: Result<T, CommonError>) -> T {
-    match cmd {
-        Ok(value) => value,
-        Err(e) => {
-            error!("Error: {:?}", &e);
-            panic!("Error: {:?}", &e);
-        }
-    }
-}
 
 async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
     Toplevel::new(async move |subsys: SubsystemHandle| {
@@ -60,7 +51,7 @@ async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
             .unwrap();
 
         let cmd_res = match cli.command {
-            Commands::Start(params) => commands::cmd_start(&subsys, params, &mut config).await,
+            Commands::Dev(params) => commands::cmd_dev(&subsys, params, &mut config).await,
             Commands::Codegen => commands::cmd_codegen(&subsys, &mut config).await,
         };
 

@@ -6,6 +6,7 @@ pub(crate) mod soma_agent_definition;
 use std::path::PathBuf;
 
 use shared::error::CommonError;
+use tokio::net::TcpListener;
 use tracing::info;
 
 
@@ -23,7 +24,7 @@ pub fn construct_src_dir_absolute(src_dir: Option<PathBuf>) -> Result<PathBuf, C
 }
 
 
-pub fn get_api_config() -> Result<soma_api_client::apis::configuration::Configuration, anyhow::Error> {
+pub fn get_api_config() -> Result<soma_api_client::apis::configuration::Configuration, CommonError> {
     // let user = ensure_user_is_set(config)?;
     let mut headers = http::HeaderMap::new();
     // headers.insert("authorization", format!("Bearer {}", user.jwt).parse().unwrap());
@@ -39,4 +40,20 @@ pub fn get_api_config() -> Result<soma_api_client::apis::configuration::Configur
     };
     info!("API config: {:?}", client);
     Ok(client)
+}
+
+pub async fn is_port_in_use(port: u16) -> Result<bool, CommonError> {
+    match TcpListener::bind(("127.0.0.1", port)).await {
+        Ok(listener) => {
+            drop(listener);
+            Ok(false)
+        }
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::AddrInUse {
+                Ok(true)
+            } else {
+                Err(CommonError::Unknown(anyhow::anyhow!("Failed to check if port is in use: {:?}", e)))
+            }
+        },
+    }
 }

@@ -1,20 +1,16 @@
+
+use std::sync::Arc;
+
 use bridge::logic::{
-    create_data_encryption_key, create_provider_instance, create_resource_server_credential,
-    create_user_credential, delete_data_encryption_key, delete_provider_instance, disable_function,
-    enable_function, list_data_encryption_keys, list_function_instances,
-    CreateDataEncryptionKeyParams, CreateProviderInstanceParamsInner,
-    CreateResourceServerCredentialParams, CreateResourceServerCredentialParamsInner,
-    CreateUserCredentialParams, CreateUserCredentialParamsInner, DisableFunctionParamsInner,
-    EnableFunctionParamsInner, EncryptedDataEncryptionKey, EnvelopeEncryptionKeyContents, Metadata,
-    OnConfigChangeTx, ProviderInstanceSerializedWithFunctions, WithCredentialControllerTypeId,
-    WithFunctionControllerTypeId, WithProviderControllerTypeId, WithProviderInstanceId,
+    create_data_encryption_key, create_provider_instance, create_resource_server_credential, create_user_credential, delete_data_encryption_key, delete_provider_instance, disable_function, enable_function, list_data_encryption_keys, list_function_instances, register_all_bridge_providers, CreateDataEncryptionKeyParams, CreateProviderInstanceParamsInner, CreateResourceServerCredentialParams, CreateResourceServerCredentialParamsInner, CreateUserCredentialParams, CreateUserCredentialParamsInner, DisableFunctionParamsInner, EnableFunctionParamsInner, EncryptedDataEncryptionKey, EnvelopeEncryptionKeyContents, Metadata, OnConfigChangeTx, ProviderInstanceSerializedWithFunctions, WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithProviderControllerTypeId, WithProviderInstanceId, PROVIDER_REGISTRY
 };
 use shared::{
     error::CommonError,
     primitives::{PaginationRequest, WrappedJsonValue},
-    soma_agent_definition::SomaAgentDefinition,
+    soma_agent_definition::{SomaAgentDefinition, SomaAgentDefinitionLike},
 };
-
+use tracing::info;
+use crate::commands::dev::bridge_util::providers::soma::SomaProviderController;
 /// Synchronizes the bridge database with the soma.yaml definition.
 ///
 /// This function performs a smart sync that:
@@ -29,13 +25,23 @@ use shared::{
 ///
 /// All operations are performed with `publish_on_change_evt: false` to prevent
 /// circular updates back to the soma.yaml file during sync.
-pub async fn sync_bridge(
+pub async fn sync_bridge_db_from_soma_definition_on_start(
     key_encryption_key: &EnvelopeEncryptionKeyContents,
     on_config_change_tx: &OnConfigChangeTx,
-    repo: &impl bridge::repository::ProviderRepositoryLike,
-    soma_definition: &SomaAgentDefinition,
+    bridge_repo: &impl bridge::repository::ProviderRepositoryLike,
+    soma_repo: &crate::repository::Repository,
+    soma_definition_provider: &Arc<dyn SomaAgentDefinitionLike>,
 ) -> Result<(), CommonError> {
+    let soma_definition = soma_definition_provider.get_definition().await?;
     use std::collections::{HashMap, HashSet};
+
+     // Register all bridge providers before syncing
+    register_all_bridge_providers().await?;
+    PROVIDER_REGISTRY
+        .write()
+        .unwrap()
+        .push(Arc::new(SomaProviderController::new(soma_repo.clone())));
+
 
     // 1. Sync data encryption keys
     // Get all existing keys
@@ -47,7 +53,7 @@ pub async fn sync_bridge(
                 page_size: 100,
                 next_page_token: next_page_token.clone(),
             };
-            let response = list_data_encryption_keys(repo, pagination).await?;
+            let response = list_data_encryption_keys(bridge_repo, pagination).await?;
             for key in response.items {
                 keys.insert(key.id.clone(), key);
             }
@@ -70,7 +76,7 @@ pub async fn sync_bridge(
     // Delete keys not in yaml
     for (key_id, _) in existing_keys.iter() {
         if !yaml_keys.contains_key(key_id) {
-            delete_data_encryption_key(on_config_change_tx, repo, key_id.clone(), false).await?;
+            delete_data_encryption_key(on_config_change_tx, bridge_repo, key_id.clone(), false).await?;
         }
     }
 
@@ -80,7 +86,7 @@ pub async fn sync_bridge(
             create_data_encryption_key(
                 key_encryption_key,
                 on_config_change_tx,
-                repo,
+                bridge_repo,
                 CreateDataEncryptionKeyParams {
                     id: Some(key_id.clone()),
                     encrypted_data_envelope_key: Some(EncryptedDataEncryptionKey(
@@ -106,7 +112,7 @@ pub async fn sync_bridge(
                         next_page_token: next_page_token.clone(),
                     };
                     // Use repository directly to get instances with credentials
-                    let response = repo
+                    let response = bridge_repo
                         .list_provider_instances(&pagination, None, None)
                         .await?;
                     for item in response.items {
@@ -175,7 +181,7 @@ pub async fn sync_bridge(
                         tracing::info!("Provider '{}' configuration changed, recreating", provider_id);
                         delete_provider_instance(
                             on_config_change_tx,
-                            repo,
+                            bridge_repo,
                             WithProviderInstanceId {
                                 provider_instance_id: provider_id.clone(),
                                 inner: (),
@@ -189,7 +195,7 @@ pub async fn sync_bridge(
 
                     // Create resource server credential
                     let resource_server_credential = create_resource_server_credential(
-                        repo,
+                        bridge_repo,
                         CreateResourceServerCredentialParams {
                             provider_controller_type_id: provider_controller_type_id.clone(),
                             inner: WithCredentialControllerTypeId {
@@ -218,7 +224,7 @@ pub async fn sync_bridge(
                         if let Some(user_cred_config) = &provider_config.user_credential {
                             Some(
                                 create_user_credential(
-                                    repo,
+                                    bridge_repo,
                                     CreateUserCredentialParams {
                                         provider_controller_type_id: provider_controller_type_id
                                             .clone(),
@@ -249,7 +255,7 @@ pub async fn sync_bridge(
                     // Create provider instance
                     create_provider_instance(
                         on_config_change_tx,
-                        repo,
+                        bridge_repo,
                         WithProviderControllerTypeId {
                             provider_controller_type_id: provider_controller_type_id.clone(),
                             inner: WithCredentialControllerTypeId {
@@ -282,7 +288,7 @@ pub async fn sync_bridge(
                             next_page_token: next_page_token.clone(),
                         };
                         let response = list_function_instances(
-                            repo,
+                            bridge_repo,
                             bridge::logic::ListFunctionInstancesParams {
                                 pagination,
                                 provider_instance_id: Some(provider_id.clone()),
@@ -311,7 +317,7 @@ pub async fn sync_bridge(
                     if !yaml_functions.contains(function_id) {
                         disable_function(
                             on_config_change_tx,
-                            repo,
+                            bridge_repo,
                             WithProviderInstanceId {
                                 provider_instance_id: provider_id.clone(),
                                 inner: WithFunctionControllerTypeId {
@@ -330,7 +336,7 @@ pub async fn sync_bridge(
                     if !existing_functions.contains(function_id) {
                         enable_function(
                             on_config_change_tx,
-                            repo,
+                            bridge_repo,
                             WithProviderInstanceId {
                                 provider_instance_id: provider_id.clone(),
                                 inner: WithFunctionControllerTypeId {
@@ -355,7 +361,7 @@ pub async fn sync_bridge(
                     );
                     delete_provider_instance(
                         on_config_change_tx,
-                        repo,
+                        bridge_repo,
                         WithProviderInstanceId {
                             provider_instance_id: provider_id.clone(),
                             inner: (),
@@ -368,17 +374,23 @@ pub async fn sync_bridge(
         }
     }
 
+
+    info!("Bridge synced from soma definition");
+
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
     use bridge::logic::EnvelopeEncryptionKeyId;
-    use shared::primitives::SqlMigrationLoader;
+    use shared::{primitives::SqlMigrationLoader, soma_agent_definition::YamlSomaAgentDefinition};
+    use tokio::sync::Mutex;
 
     #[tokio::test]
-    async fn test_sync_bridge_empty_database() {
+    async fn test_sync_on_start_empty_database() {
         shared::setup_test!();
 
         let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
@@ -386,7 +398,8 @@ mod tests {
         ])
         .await
         .unwrap();
-        let repo = bridge::repository::Repository::new(conn);
+        let bridge_repo = bridge::repository::Repository::new(conn.clone());
+        let soma_repo = crate::repository::Repository::new(conn.clone());
         let (tx, _rx) = tokio::sync::mpsc::channel(10);
 
         let kek = EnvelopeEncryptionKeyContents::Local {
@@ -395,21 +408,25 @@ mod tests {
         };
 
         // Create empty soma definition
-        let soma_def = SomaAgentDefinition {
-            project: "test-project".to_string(),
-            agent: "test-agent".to_string(),
-            description: "Test agent".to_string(),
-            name: "test".to_string(),
-            version: "1.0.0".to_string(),
-            bridge: None,
+        let soma_def = YamlSomaAgentDefinition {
+            cached_definition: Arc::new(Mutex::new(SomaAgentDefinition {
+                project: "test-project".to_string(),
+                agent: "test-agent".to_string(),
+                description: "Test agent".to_string(),
+                name: "test".to_string(),
+                version: "1.0.0".to_string(),
+                bridge: None,
+            })),
+            path: PathBuf::from("test.yaml"),
         };
+        let soma_def_provider = Arc::new(soma_def) as Arc<dyn SomaAgentDefinitionLike>;
 
-        let result = sync_bridge(&kek, &tx, &repo, &soma_def).await;
+        let result = sync_bridge_db_from_soma_definition_on_start(&kek, &tx, &bridge_repo, &soma_repo, &soma_def_provider).await;
         assert!(result.is_ok());
 
         // Verify database is still empty
         let dek_list = list_data_encryption_keys(
-            &repo,
+            &bridge_repo,
             PaginationRequest {
                 page_size: 10,
                 next_page_token: None,
@@ -421,7 +438,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_sync_bridge_creates_encryption_keys() {
+    async fn test_sync_on_start_creates_encryption_keys() {
         shared::setup_test!();
 
         let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
@@ -429,7 +446,8 @@ mod tests {
         ])
         .await
         .unwrap();
-        let repo = bridge::repository::Repository::new(conn);
+        let bridge_repo = bridge::repository::Repository::new(conn.clone()  );
+        let soma_repo = crate::repository::Repository::new(conn.clone());
         let (tx, _rx) = tokio::sync::mpsc::channel(10);
 
         let kek = EnvelopeEncryptionKeyContents::Local {
@@ -449,24 +467,27 @@ mod tests {
             },
         );
 
-        let soma_def = SomaAgentDefinition {
-            project: "test-project".to_string(),
-            agent: "test-agent".to_string(),
-            description: "Test agent".to_string(),
-            name: "test".to_string(),
-            version: "1.0.0".to_string(),
-            bridge: Some(shared::soma_agent_definition::BridgeConfig {
-                encryption: shared::soma_agent_definition::BridgeEncryptionConfig(encryption_map),
-                providers: None,
-            }),
+        let soma_def_provider = YamlSomaAgentDefinition {
+            cached_definition: Arc::new(Mutex::new(SomaAgentDefinition {
+                project: "test-project".to_string(),
+                agent: "test-agent".to_string(),
+                description: "Test agent".to_string(),
+                name: "test".to_string(),
+                version: "1.0.0".to_string(),
+                bridge: Some(shared::soma_agent_definition::BridgeConfig {
+                    encryption: shared::soma_agent_definition::BridgeEncryptionConfig(encryption_map),
+                    providers: None,
+                }),
+            })),
+            path: PathBuf::from("test.yaml"),
         };
-
-        let result = sync_bridge(&kek, &tx, &repo, &soma_def).await;
+        let soma_def_provider = Arc::new(soma_def_provider) as Arc<dyn SomaAgentDefinitionLike>;
+        let result = sync_bridge_db_from_soma_definition_on_start(&kek, &tx, &bridge_repo, &soma_repo, &soma_def_provider).await;
         assert!(result.is_ok());
 
         // Verify encryption key was created
         let dek_list = list_data_encryption_keys(
-            &repo,
+            &bridge_repo,
             PaginationRequest {
                 page_size: 10,
                 next_page_token: None,
@@ -479,7 +500,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_sync_bridge_deletes_existing_keys() {
+    async fn test_sync_on_start_deletes_existing_keys() {
         shared::setup_test!();
 
         let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
@@ -487,7 +508,8 @@ mod tests {
         ])
         .await
         .unwrap();
-        let repo = bridge::repository::Repository::new(conn);
+        let bridge_repo = bridge::repository::Repository::new(conn.clone());
+        let soma_repo = crate::repository::Repository::new(conn.clone());
         let (tx, _rx) = tokio::sync::mpsc::channel(10);
 
         let kek = EnvelopeEncryptionKeyContents::Local {
@@ -499,7 +521,7 @@ mod tests {
         create_data_encryption_key(
             &kek,
             &tx,
-            &repo,
+            &bridge_repo,
             CreateDataEncryptionKeyParams {
                 id: Some("old-key-1".to_string()),
                 encrypted_data_envelope_key: None,
@@ -512,7 +534,7 @@ mod tests {
         create_data_encryption_key(
             &kek,
             &tx,
-            &repo,
+            &bridge_repo,
             CreateDataEncryptionKeyParams {
                 id: Some("old-key-2".to_string()),
                 encrypted_data_envelope_key: None,
@@ -523,26 +545,29 @@ mod tests {
         .unwrap();
 
         // Sync with empty definition
-        let soma_def = SomaAgentDefinition {
-            project: "test-project".to_string(),
-            agent: "test-agent".to_string(),
-            description: "Test agent".to_string(),
-            name: "test".to_string(),
-            version: "1.0.0".to_string(),
-            bridge: Some(shared::soma_agent_definition::BridgeConfig {
-                encryption: shared::soma_agent_definition::BridgeEncryptionConfig(
-                    std::collections::HashMap::new(),
-                ),
-                providers: None,
-            }),
+        let soma_def_provider = YamlSomaAgentDefinition {
+            cached_definition: Arc::new(Mutex::new(SomaAgentDefinition {
+                project: "test-project".to_string(),
+                agent: "test-agent".to_string(),
+                description: "Test agent".to_string(),
+                name: "test".to_string(),
+                version: "1.0.0".to_string(),
+                bridge: Some(shared::soma_agent_definition::BridgeConfig {
+                    encryption: shared::soma_agent_definition::BridgeEncryptionConfig(
+                        std::collections::HashMap::new(),
+                    ),
+                    providers: None,
+                }),
+            })),
+            path: PathBuf::from("test.yaml"),
         };
-
-        let result = sync_bridge(&kek, &tx, &repo, &soma_def).await;
+        let soma_def_provider = Arc::new(soma_def_provider) as Arc<dyn SomaAgentDefinitionLike>;
+        let result = sync_bridge_db_from_soma_definition_on_start(&kek, &tx, &bridge_repo, &soma_repo, &soma_def_provider).await;
         assert!(result.is_ok());
 
         // Verify all old keys were deleted
         let dek_list = list_data_encryption_keys(
-            &repo,
+            &bridge_repo,
             PaginationRequest {
                 page_size: 10,
                 next_page_token: None,

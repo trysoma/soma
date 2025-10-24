@@ -9,7 +9,8 @@ use restate_admin_rest_model::services::ModifyServiceRequest;
 use restate_serde_util::SerdeableHeaderHashMap;
 use restate_types::identifiers::LambdaARN;
 use restate_types::schema::service::ServiceMetadata;
-use std::collections::HashMap;
+use std::fmt::Formatter;
+use std::{collections::HashMap, fmt::Display};
 use std::str::FromStr;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -33,6 +34,15 @@ pub enum DeploymentType {
         /// Additional HTTP headers to include in requests
         additional_headers: HashMap<String, String>,
     },
+}
+
+impl Display for DeploymentType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeploymentType::Lambda { arn, .. } => write!(f, "Lambda ARN: {arn}"),
+            DeploymentType::Http { uri, .. } => write!(f, "HTTP URI: {uri}"),
+        }
+    }
 }
 
 /// Configuration for registering a Restate deployment

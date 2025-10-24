@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -13,7 +14,7 @@ use crate::router::task::TaskService;
 use crate::utils::construct_src_dir_absolute;
 use crate::utils::restate::invoke::RestateIngressClient;
 use crate::{
-    commands::StartParams,
+    commands::dev::DevParams,
     router::{a2a::Agent2AgentService, frontend::FrontendService},
 };
 use crate::{logic::ConnectionManager, repository::Repository};
@@ -33,8 +34,7 @@ pub(crate) mod mcp;
 pub(crate) mod task;
 
 #[derive(Clone)]
-pub(crate) struct RouterParams {
-    pub params: StartParams,
+pub(crate) struct Routers {
     pub agent_service: Arc<Agent2AgentService>,
     pub task_service: Arc<TaskService>,
     pub frontend_service: Arc<FrontendService>,
@@ -43,6 +43,9 @@ pub(crate) struct RouterParams {
 }
 
 pub(crate) struct InitRouterParams {
+    pub project_dir: PathBuf,
+    pub host: String,
+    pub port: u16,
     pub connection_manager: ConnectionManager,
     pub repository: Repository,
     pub mcp_transport_tx:
@@ -57,17 +60,15 @@ pub(crate) struct InitRouterParams {
     pub mcp_sse_ping_interval: Duration,
 }
 
-impl RouterParams {
+impl Routers {
     pub async fn new(
-        params: StartParams,
         init_params: InitRouterParams,
     ) -> Result<Self, CommonError> {
-        let src_dir = construct_src_dir_absolute(params.src_dir.clone())?;
 
         let agent_service = Arc::new(Agent2AgentService::new(
-            src_dir,
+            init_params.project_dir.clone(),
             init_params.soma_definition.clone(),
-            Url::parse(format!("http://{}:{}", params.host, params.port).as_str())?,
+            Url::parse(format!("http://{}:{}", init_params.host, init_params.port).as_str())?,
             init_params.connection_manager.clone(),
             init_params.repository.clone(),
             init_params.runtime_port,
@@ -116,7 +117,6 @@ impl RouterParams {
         // }
 
         Ok(Self {
-            params,
             agent_service,
             task_service,
             frontend_service,
@@ -126,7 +126,7 @@ impl RouterParams {
     }
 }
 
-pub(crate) fn initiate_routers(router_params: RouterParams) -> Result<Router, CommonError> {
+pub(crate) fn initiate_routers(routers: Routers) -> Result<Router, CommonError> {
     let mut router = Router::new();
 
     // let (live_connection_changes_tx, mut live_connection_changes_rx) = tokio::sync::mpsc::channel(10);
@@ -135,17 +135,17 @@ pub(crate) fn initiate_routers(router_params: RouterParams) -> Result<Router, Co
 
     let (agent_router, _) = a2a::create_router().split_for_parts();
 
-    let agent_router = agent_router.with_state(router_params.agent_service);
+    let agent_router = agent_router.with_state(routers.agent_service);
     router = router.merge(agent_router);
 
     // task router
     let (task_router, _) = task::create_router().split_for_parts();
-    let task_router = task_router.with_state(router_params.task_service);
+    let task_router = task_router.with_state(routers.task_service);
     router = router.merge(task_router);
 
     // frontend router
     let (fe_router, _) = frontend::create_router().split_for_parts();
-    let fe_router = fe_router.with_state(router_params.frontend_service);
+    let fe_router = fe_router.with_state(routers.frontend_service);
     router = router.merge(fe_router);
 
     // mcp router
@@ -155,7 +155,7 @@ pub(crate) fn initiate_routers(router_params: RouterParams) -> Result<Router, Co
 
     // bridge router
     let (bridge_router, _) = create_bridge_router().split_for_parts();
-    let bridge_router = bridge_router.with_state(router_params.bridge_service);
+    let bridge_router = bridge_router.with_state(routers.bridge_service);
     router = router.merge(bridge_router);
 
     let router = router.layer(CorsLayer::permissive());

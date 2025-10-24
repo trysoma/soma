@@ -6,6 +6,7 @@ use restate_admin_rest_model::version::{AdminApiVersion, VersionInformation};
 // use restate_cli_util::{CliContext, c_warn};
 use restate_types::SemanticRestateVersion;
 use serde::{Serialize, de::DeserializeOwned};
+use shared::error::CommonError;
 use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, info, warn};
@@ -123,7 +124,7 @@ pub struct AdminClient {
 
 impl AdminClient {
     // pub async fn new(env: &CliEnv) -> anyhow::Result<Self> {
-    pub async fn new(base_url: Url, bearer_token: Option<String>) -> anyhow::Result<Self> {
+    pub async fn new(base_url: Url, bearer_token: Option<String>) -> Result<Self, CommonError> {
         let raw_client = reqwest::Client::builder()
             .user_agent(format!(
                 "{}/{} {}-{}",
@@ -170,20 +171,12 @@ impl AdminClient {
             .and_then(|r| r.success_or_error())
             .is_err()
         {
-            bail!(
+            return Err(CommonError::Unknown(anyhow::anyhow!(
                 "Unable to connect to the Restate server '{}'. Please make sure that it is running and reachable.",
                 client.base_url
-            );
+            )));
         }
 
-        warn!(
-            "Could not verify the admin API version. Please make sure that your CLI is compatible with the Restate server '{}'.",
-            client.base_url
-        );
-        // c_warn!(
-        //     "Could not verify the admin API version. Please make sure that your CLI is compatible with the Restate server '{}'.",
-        //     client.base_url
-        // );
         Ok(client)
     }
 
@@ -209,7 +202,7 @@ impl AdminClient {
     fn choose_api_version(
         mut client: AdminClient,
         version_information: VersionInformation,
-    ) -> anyhow::Result<AdminClient> {
+    ) -> Result<AdminClient, CommonError> {
         if let Some(admin_api_version) = AdminApiVersion::choose_max_supported_version(
             MIN_ADMIN_API_VERSION..=MAX_ADMIN_API_VERSION,
             version_information.min_admin_api_version..=version_information.max_admin_api_version,
@@ -230,11 +223,11 @@ impl AdminClient {
                 version_information.ingress_endpoint.map(|u| u.to_string());
             Ok(client)
         } else {
-            bail!(
+            return Err(CommonError::Unknown(anyhow::anyhow!(
                 "The CLI is not compatible with the Restate server '{}'. Please update the CLI to match the Restate server version '{}'.",
                 client.base_url,
                 version_information.version
-            );
+            )));
         }
     }
 

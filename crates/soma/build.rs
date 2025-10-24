@@ -10,6 +10,12 @@ fn main() {
     // Export it so the derive macro sees it
     println!("cargo:rustc-env=FRONTEND_APP_DIR={}", app_dir.display());
 
+    // if debug build, skip pnpm steps
+    if cfg!(debug_assertions) {
+        println!("cargo:warning=Debug build, skipping pnpm steps");
+        return;
+    }
+    
     // Skip npm/pnpm commands in Nix builds (no network access)
     // Only run npm commands in non-Nix environments
     let install_result = std::process::Command::new("pnpm")

@@ -3,6 +3,8 @@ name = "soma"
 version = "0.0.1"
 edition = "2024"
 
+[lib]
+
 [[bin]]
 name = "soma"
 path = "src/main.rs"
@@ -55,3 +57,6 @@ tokio-util.workspace = true
 urlencoding.workspace = true
 shared-macros.workspace = true
 dirs = "6.0.0"
+
+[dev-dependencies]
+tempfile = "3.8"
