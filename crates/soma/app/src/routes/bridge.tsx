@@ -17,6 +17,10 @@ function LayoutComponent() {
         {
           label: 'Manage credentials',
           href: LINKS.BRIDGE_MANAGE_CREDENTIALS(),
+        },
+        {
+          label: 'MCP Inspector',
+          href: LINKS.BRIDGE_MCP_INSPECTOR(),
         }
       ]}
       nestLevel='second' />

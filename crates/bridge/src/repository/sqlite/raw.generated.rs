@@ -1274,7 +1274,7 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_provider_instances_grouped_by_function_controller_type_id_params<'_>
   ) -> Result<Vec<Row_get_provider_instances_grouped_by_function_controller_type_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT 
+      let mut stmt = conn.prepare(r#"SELECT
     fi.function_controller_type_id,
     CAST(
         JSON_GROUP_ARRAY(
@@ -1344,7 +1344,6 @@ WHERE (
 )
 GROUP BY fi.function_controller_type_id
 ORDER BY fi.function_controller_type_id ASC"#).await?;
-
       let mut rows = stmt.query(libsql::params![params.function_controller_type_ids.clone(),]).await?;
       let mut mapped = vec![];
 
@@ -1352,6 +1351,266 @@ ORDER BY fi.function_controller_type_id ASC"#).await?;
           mapped.push(Row_get_provider_instances_grouped_by_function_controller_type_id {
               function_controller_type_id: row.get(0)?,
               provider_instances: row.get(1)?,
+          });
+      }
+
+      Ok(mapped)
+  }
+  pub struct update_resource_server_credential_params<'a> {
+      pub value: &'a Option<
+          shared::primitives::WrappedJsonValue
+      >,
+      pub metadata: &'a Option<
+          shared::primitives::WrappedJsonValue
+      >,
+      pub next_rotation_time: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub updated_at: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+  }
+
+  pub async fn update_resource_server_credential(
+    conn: &shared::libsql::Connection
+    ,params: update_resource_server_credential_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"UPDATE resource_server_credential
+SET value = CASE WHEN CAST(?1 AS JSON) IS NOT NULL
+    THEN ?1
+    ELSE value
+    END,
+    metadata = CASE WHEN CAST(?2 AS JSON) IS NOT NULL
+    THEN ?2
+    ELSE metadata
+    END,
+    next_rotation_time = CASE WHEN CAST(?3 AS DATETIME) IS NOT NULL
+    THEN ?3
+    ELSE next_rotation_time
+    END,
+    updated_at = CASE WHEN CAST(?4 AS DATETIME) IS NOT NULL
+    THEN ?4
+    ELSE CURRENT_TIMESTAMP
+    END
+WHERE id = ?5"#, libsql::params![
+              match params.value.clone() {
+                Some(value) => {
+                  <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            ,
+              match params.metadata.clone() {
+                Some(value) => {
+                  <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            ,
+              match params.next_rotation_time.clone() {
+                Some(value) => {
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            ,
+              match params.updated_at.clone() {
+                Some(value) => {
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            ,
+              <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct update_user_credential_params<'a> {
+      pub value: &'a Option<
+          shared::primitives::WrappedJsonValue
+      >,
+      pub metadata: &'a Option<
+          shared::primitives::WrappedJsonValue
+      >,
+      pub next_rotation_time: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub updated_at: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+  }
+
+  pub async fn update_user_credential(
+    conn: &shared::libsql::Connection
+    ,params: update_user_credential_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"UPDATE user_credential
+SET value = CASE WHEN CAST(?1 AS JSON) IS NOT NULL
+    THEN ?1
+    ELSE value
+    END,
+    metadata = CASE WHEN CAST(?2 AS JSON) IS NOT NULL
+    THEN ?2
+    ELSE metadata
+    END,
+    next_rotation_time = CASE WHEN CAST(?3 AS DATETIME) IS NOT NULL
+    THEN ?3
+    ELSE next_rotation_time
+    END,
+    updated_at = CASE WHEN CAST(?4 AS DATETIME) IS NOT NULL
+    THEN ?4
+    ELSE CURRENT_TIMESTAMP
+    END
+WHERE id = ?5"#, libsql::params![
+              match params.value.clone() {
+                Some(value) => {
+                  <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            ,
+              match params.metadata.clone() {
+                Some(value) => {
+                  <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            ,
+              match params.next_rotation_time.clone() {
+                Some(value) => {
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            ,
+              match params.updated_at.clone() {
+                Some(value) => {
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            ,
+              <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct get_provider_instances_with_credentials_params<'a> {
+      pub cursor: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub status: &'a Option<
+          String
+      >,
+      pub rotation_window_end: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub page_size: &'a 
+          i64
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_provider_instances_with_credentials {
+      pub id:String,
+      pub display_name:String,
+      pub provider_controller_type_id:String,
+      pub credential_controller_type_id:String,
+      pub status:String,
+      pub return_on_successful_brokering:Option<shared::primitives::WrappedJsonValue> ,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+      pub resource_server_credential:String,
+      pub user_credential:String,
+  }
+  pub async fn get_provider_instances_with_credentials(
+      conn: &shared::libsql::Connection
+      ,params: get_provider_instances_with_credentials_params<'_>
+  ) -> Result<Vec<Row_get_provider_instances_with_credentials>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT
+    pi.id,
+    pi.display_name,
+    pi.provider_controller_type_id,
+    pi.credential_controller_type_id,
+    pi.status,
+    pi.return_on_successful_brokering,
+    pi.created_at,
+    pi.updated_at,
+    CAST(JSON_OBJECT(
+        'id', rsc.id,
+        'type_id', rsc.type_id,
+        'metadata', JSON(rsc.metadata),
+        'value', JSON(rsc.value),
+        'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.created_at),
+        'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.updated_at),
+        'next_rotation_time', CASE
+            WHEN rsc.next_rotation_time IS NOT NULL
+            THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time)
+            ELSE NULL END,
+        'data_encryption_key_id', rsc.data_encryption_key_id
+    ) AS TEXT) as resource_server_credential,
+    CAST(COALESCE(
+        CASE WHEN uc.id IS NOT NULL THEN
+            JSON_OBJECT(
+                'id', uc.id,
+                'type_id', uc.type_id,
+                'metadata', JSON(uc.metadata),
+                'value', JSON(uc.value),
+                'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.created_at),
+                'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.updated_at),
+                'next_rotation_time', CASE
+                    WHEN uc.next_rotation_time IS NOT NULL
+                    THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time)
+                    ELSE NULL END,
+                'data_encryption_key_id', uc.data_encryption_key_id
+            )
+        ELSE NULL END,
+    JSON('null')) AS TEXT) as user_credential
+FROM provider_instance pi
+INNER JOIN resource_server_credential rsc ON rsc.id = pi.resource_server_credential_id
+LEFT JOIN user_credential uc ON uc.id = pi.user_credential_id
+WHERE (pi.created_at < ?1 OR ?1 IS NULL)
+  AND (pi.status = ?2 OR ?2 IS NULL)
+  AND (
+    (rsc.next_rotation_time IS NOT NULL AND datetime(rsc.next_rotation_time) <= ?3)
+    OR
+    (uc.next_rotation_time IS NOT NULL AND datetime(uc.next_rotation_time) <= ?3)
+    OR
+    ?3 IS NULL
+  )
+ORDER BY pi.created_at DESC
+LIMIT CAST(?4 AS INTEGER) + 1"#).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.status.clone(),params.rotation_window_end.clone(),params.page_size.clone(),]).await?;
+      let mut mapped = vec![];
+
+      while let Some(row) = rows.next().await? {
+          mapped.push(Row_get_provider_instances_with_credentials {
+              id: row.get(0)?,
+              display_name: row.get(1)?,
+              provider_controller_type_id: row.get(2)?,
+              credential_controller_type_id: row.get(3)?,
+              status: row.get(4)?,
+              return_on_successful_brokering: row.get(5)?,
+              created_at: row.get(6)?,
+              updated_at: row.get(7)?,
+              resource_server_credential: row.get(8)?,
+              user_credential: row.get(9)?,
           });
       }
 

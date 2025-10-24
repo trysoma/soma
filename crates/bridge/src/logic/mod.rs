@@ -34,7 +34,7 @@ use std::sync::RwLock;
 use utoipa::ToSchema;
 
 // Metadata must be defined before pub use statements so submodules can import it
-#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema, PartialEq, Eq)]
 #[serde(transparent)]
 pub struct Metadata(pub serde_json::Map<String, serde_json::Value>);
 
@@ -114,6 +114,7 @@ pub enum OnConfigChangeEvt {
     DataEncryptionKeyRemoved(String),
     ProviderInstanceAdded(ProviderInstanceSerializedWithCredentials),
     ProviderInstanceRemoved(String),
+    ProviderInstanceUpdated(ProviderInstanceSerializedWithCredentials),
     FunctionInstanceAdded(FunctionInstanceSerialized),
     FunctionInstanceRemoved(String, String, String), // (function_controller_type_id, provider_controller_type_id, provider_instance_id)
 }
@@ -193,30 +194,31 @@ pub trait ProviderInstanceLike {
 pub trait RotateableControllerResourceServerCredentialLike {
     async fn rotate_resource_server_credential(
         &self,
-        static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
-        resource_server_cred: &Credential<Arc<dyn ResourceServerCredentialLike>>,
         decryption_service: &DecryptionService,
         encryption_service: &EncryptionService,
-    ) -> Result<Credential<Arc<dyn ResourceServerCredentialLike>>, CommonError>;
-    fn next_resource_server_credential_rotation_time(
-        &self,
         static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
         resource_server_cred: &ResourceServerCredentialSerialized,
+    ) -> Result<ResourceServerCredentialSerialized, CommonError>;
+    fn next_resource_server_credential_rotation_time(
+        &self,
         decryption_service: &DecryptionService,
         encryption_service: &EncryptionService,
-    ) -> WrappedChronoDateTime;
+        static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        resource_server_cred: &ResourceServerCredentialSerialized,
+        
+    ) -> Result<WrappedChronoDateTime, CommonError>;
 }
 
 #[async_trait]
 pub trait RotateableControllerUserCredentialLike {
     async fn rotate_user_credential(
         &self,
+        decryption_service: &DecryptionService,
+        encryption_service: &EncryptionService,
         static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
         resource_server_cred: &ResourceServerCredentialSerialized,
         user_cred: &UserCredentialSerialized,
-        decryption_service: &DecryptionService,
-        encryption_service: &EncryptionService,
-    ) -> Result<Credential<Arc<dyn UserCredentialLike>>, CommonError>;
+    ) -> Result<UserCredentialSerialized, CommonError>;
     async fn next_user_credential_rotation_time(
         &self,
         static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
@@ -224,7 +226,7 @@ pub trait RotateableControllerUserCredentialLike {
         user_cred: &UserCredentialSerialized,
         decryption_service: &DecryptionService,
         encryption_service: &EncryptionService,
-    ) -> WrappedChronoDateTime;
+    ) -> Result<WrappedChronoDateTime, CommonError>;
 }
 
 #[async_trait]

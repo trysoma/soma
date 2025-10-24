@@ -26,6 +26,7 @@ use shared::{
         WrappedSchema, WrappedUuidV4,
     },
 };
+use tracing::info;
 use std::fs;
 use std::path::Path;
 use std::sync::RwLock;
@@ -437,6 +438,7 @@ async fn process_broker_outcome(
                 credential_controller_type_id: credential_controller.type_id().to_string(),
             };
 
+            info!("Saving broker state to database: {:?}", broker_state);
             // Save broker state to database
             repo.create_broker_state(&crate::repository::CreateBrokerState::from(
                 broker_state.clone(),
@@ -597,4 +599,579 @@ pub async fn resume_user_credential_brokering(
     .await?;
 
     Ok(response)
+}
+
+// ============================================================================
+// Credential Rotation Background Task
+// ============================================================================
+
+/// Background task that periodically rotates credentials
+/// This function is designed to be called in its own tokio::spawn
+pub async fn credential_rotation_task(
+    repo: impl ProviderRepositoryLike,
+    envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+    on_config_change_tx: OnConfigChangeTx,
+)  {
+    use tokio::time::{interval, Duration};
+
+    let mut timer = interval(Duration::from_secs(10 * 60)); // 10 minutes
+    
+    loop {
+        timer.tick().await;
+
+        tracing::info!("Starting credential rotation check");
+
+        if let Err(e) = process_credential_rotations_with_window(
+            &repo,
+            &on_config_change_tx,
+            &envelope_encryption_key_contents,
+            20,
+        ).await {
+            tracing::error!("Error processing credential rotations: {:?}", e);
+        }
+
+        tracing::info!("Completed credential rotation check");
+    }
+}
+
+
+
+pub async fn process_credential_rotations_with_window(
+    repo: &impl ProviderRepositoryLike,
+    on_config_change_tx: &OnConfigChangeTx,
+    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
+    window_minutes: i64,
+) -> Result<(), CommonError> {
+    // Calculate rotation window
+    let now = WrappedChronoDateTime::now();
+    let rotation_window_end: WrappedChronoDateTime = WrappedChronoDateTime::new(
+        now.get_inner()
+            .checked_add_signed(chrono::Duration::minutes(window_minutes))
+            .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("Failed to calculate rotation window")))?,
+    );
+    let mut next_page_token: Option<String> = None;
+    
+    loop {
+
+        let provider_instances = repo.list_provider_instances_with_credentials(
+            &PaginationRequest {
+                page_size: 1000,
+                next_page_token,
+            },
+            None,
+            Some(&rotation_window_end),
+        ).await?;
+        info!("Provider instances with credentials: {:?}", provider_instances.items.len());
+        next_page_token = provider_instances.next_page_token.clone();
+        
+        let refresh_fut = provider_instances.items.iter().map(async |pi| {
+            info!("Processing credential rotation for provider instance: {:?}", pi.provider_instance.id);
+            process_credential_rotation(
+                repo,
+                on_config_change_tx,
+                envelope_encryption_key_contents,
+                pi,
+                &rotation_window_end,
+                true,
+            ).await
+        }).collect::<Vec<_>>();
+
+        futures::future::try_join_all(refresh_fut).await?;
+
+        if next_page_token.is_none() {
+            break;
+        }
+    }
+    Ok(())
+}
+
+pub async fn process_credential_rotation(
+    repo: &impl ProviderRepositoryLike,
+    on_config_change_tx: &OnConfigChangeTx,
+    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
+    pi: &ProviderInstanceSerializedWithCredentials,
+    rotation_window_end: &WrappedChronoDateTime,
+    publish_update: bool,
+) -> Result<(), CommonError> {
+    let mut resource_server_rotated = false;
+    let mut user_cred_rotated = false;
+
+    // Rotate resource server credential if needed
+    let resource_server_cred_rotation_result = match pi.resource_server_credential.next_rotation_time {
+        Some(next_rotation_time) => {
+            if next_rotation_time.get_inner() <= rotation_window_end.get_inner() {
+                resource_server_rotated = true;
+                rotate_resource_server_credential(
+                    repo,
+                    envelope_encryption_key_contents,
+                    &pi.provider_instance,
+                    &pi.resource_server_credential,
+                ).await?
+            } else {
+                pi.resource_server_credential.clone()
+            }
+        }
+        None => pi.resource_server_credential.clone(),
+    };
+
+    // Rotate user credential if needed
+    let user_cred_rotation_result = match &pi.user_credential {
+        Some(user_cred) => {
+            match user_cred.next_rotation_time {
+                Some(next_rotation_time) => {
+                    if next_rotation_time.get_inner() <= rotation_window_end.get_inner() {
+                        user_cred_rotated = true;
+                        Some(rotate_user_credential(
+                            repo,
+                            envelope_encryption_key_contents,
+                            &pi.provider_instance,
+                            &resource_server_cred_rotation_result,
+                            user_cred,
+                        ).await?)
+                    }
+                    else {
+                        Some(user_cred.clone())
+                    }
+                }
+                None => Some(user_cred.clone()),
+            }
+        },
+        None => None,
+    };
+
+    // Only send update event if something was actually rotated
+    if publish_update && (resource_server_rotated || user_cred_rotated) {
+        on_config_change_tx.send(OnConfigChangeEvt::ProviderInstanceUpdated(ProviderInstanceSerializedWithCredentials {
+            provider_instance: pi.provider_instance.clone(),
+            resource_server_credential: resource_server_cred_rotation_result,
+            user_credential: user_cred_rotation_result,
+        })).await?;
+    }
+
+    Ok::<(), CommonError>(())
+}
+
+async fn rotate_resource_server_credential(
+    repo: &impl ProviderRepositoryLike,
+    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
+    provider_instance: &ProviderInstanceSerialized,
+    resource_server_cred: &ResourceServerCredentialSerialized,
+) -> Result<ResourceServerCredentialSerialized, CommonError> {
+    let crypto_service = get_crypto_service(
+        envelope_encryption_key_contents,
+        repo,
+        &resource_server_cred.data_encryption_key_id,
+    )
+    .await?;
+    let encryption_service = get_encryption_service(&crypto_service)?;
+    let decryption_service = get_decryption_service(&crypto_service)?;
+    
+    let provider_controller = get_provider_controller(&provider_instance.provider_controller_type_id)?;
+    let credential_controller = get_credential_controller(
+        &provider_controller,
+        &provider_instance.credential_controller_type_id,
+    )?;
+    let rotateable_controller = credential_controller.as_rotateable_controller_resource_server_credential();
+    
+    let rotateable_controller = match rotateable_controller {
+        Some(rotateable_controller) => rotateable_controller,
+        None => {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Provider controller does not support resource server credential rotation"
+            )));
+        }
+    };
+    
+    let rotated_credential = rotateable_controller.rotate_resource_server_credential(
+        &decryption_service,
+        &encryption_service,
+        &credential_controller.static_credentials(),
+        resource_server_cred,
+    ).await?;
+    // id: &WrappedUuidV4,
+    // value: Option<&WrappedJsonValue>,
+    // metadata: Option<&crate::logic::Metadata>,
+    // next_rotation_time: Option<&WrappedChronoDateTime>,
+    // updated_at: Option<&WrappedChronoDateTime>,
+    repo.update_resource_server_credential(
+        &resource_server_cred.id,
+        Some(&rotated_credential.value),
+        Some(&rotated_credential.metadata),
+        Some(&match rotated_credential.next_rotation_time {
+            Some(next_rotation_time) => next_rotation_time,
+            None => return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Resource server credential has no next rotation time"
+            ))),
+        }),
+        Some(&WrappedChronoDateTime::now()),
+    ).await?;
+
+    Ok(rotated_credential)
+}
+
+
+
+async fn rotate_user_credential(
+    repo: &impl ProviderRepositoryLike,
+    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
+    provider_instance: &ProviderInstanceSerialized,
+    resource_server_cred: &ResourceServerCredentialSerialized,
+    user_cred: &UserCredentialSerialized,
+) -> Result<UserCredentialSerialized, CommonError> {
+    // todo: we assume resource server credential and user credential use the same data encryption key id
+    let crypto_service = get_crypto_service(
+        envelope_encryption_key_contents,
+        repo,
+        &resource_server_cred.data_encryption_key_id,
+    )
+    .await?;
+    let encryption_service = get_encryption_service(&crypto_service)?;
+    let decryption_service = get_decryption_service(&crypto_service)?;
+    
+    let provider_controller = get_provider_controller(&provider_instance.provider_controller_type_id)?;
+    let credential_controller = get_credential_controller(
+        &provider_controller,
+        &provider_instance.credential_controller_type_id,
+    )?;
+    let rotateable_controller = credential_controller.as_rotateable_controller_user_credential();
+    
+    let rotateable_controller = match rotateable_controller {
+        Some(rotateable_controller) => rotateable_controller,
+        None => {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Provider controller does not support resource server credential rotation"
+            )));
+        }
+    };
+    
+    let rotated_credential = rotateable_controller.rotate_user_credential(
+        &decryption_service,
+        &encryption_service,
+        &credential_controller.static_credentials(),
+        resource_server_cred,
+        user_cred,
+    ).await?;
+    // id: &WrappedUuidV4,
+    // value: Option<&WrappedJsonValue>,
+    // metadata: Option<&crate::logic::Metadata>,
+    // next_rotation_time: Option<&WrappedChronoDateTime>,
+    // updated_at: Option<&WrappedChronoDateTime>,
+    repo.update_user_credential(
+        &user_cred.id,
+        Some(&rotated_credential.value),
+        Some(&rotated_credential.metadata),
+        Some(&match rotated_credential.next_rotation_time {
+            Some(next_rotation_time) => next_rotation_time,
+            None => return Err(CommonError::Unknown(anyhow::anyhow!(
+                "User credential has no next rotation time"
+            ))),
+        }),
+        Some(&WrappedChronoDateTime::now()),
+    ).await?;
+
+    Ok(rotated_credential)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::logic::encryption::{
+        create_data_encryption_key, get_crypto_service, get_decryption_service,
+        get_encryption_service, CreateDataEncryptionKeyParams, EnvelopeEncryptionKeyContents,
+    };
+    use crate::logic::credential::oauth::{
+        Oauth2AuthorizationCodeFlowResourceServerCredential,
+        Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
+        Oauth2AuthorizationCodeFlowUserCredential, OauthAuthFlowController,
+    };
+    use crate::logic::StaticProviderCredentialControllerLike;
+    use crate::logic::instance::ProviderInstanceSerialized;
+    use shared::primitives::{SqlMigrationLoader, WrappedUuidV4};
+
+    fn create_temp_kek_file() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
+        use rand::RngCore;
+        let mut kek_bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut kek_bytes);
+
+        let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
+        std::fs::write(temp_file.path(), &kek_bytes).expect("Failed to write KEK to temp file");
+
+        let key_id = temp_file
+            .path()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("test-key")
+            .to_string();
+
+        let contents = EnvelopeEncryptionKeyContents::Local {
+            key_id,
+            key_bytes: kek_bytes.to_vec(),
+        };
+
+        (temp_file, contents)
+    }
+
+    #[tokio::test]
+    async fn test_create_resource_server_credential() {
+        shared::setup_test!();
+
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
+        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (_temp_file, kek) = create_temp_kek_file();
+
+        // Create a data encryption key
+        let dek = create_data_encryption_key(
+            &kek,
+            &tx,
+            &repo,
+            CreateDataEncryptionKeyParams {
+                id: Some("test-dek".to_string()),
+                encrypted_data_envelope_key: None,
+            },
+            false,
+        )
+        .await
+        .unwrap();
+
+        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
+        let encryption_service = get_encryption_service(&crypto_service).unwrap();
+
+        // Create encrypted resource server configuration
+        let controller = OauthAuthFlowController {
+            static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+                auth_uri: "https://example.com/auth".to_string(),
+                token_uri: "https://example.com/token".to_string(),
+                userinfo_uri: "https://example.com/userinfo".to_string(),
+                jwks_uri: "https://example.com/jwks".to_string(),
+                issuer: "https://example.com".to_string(),
+                scopes: vec!["scope1".to_string()],
+                metadata: Metadata::new(),
+            },
+        };
+
+        let raw_config = WrappedJsonValue::new(serde_json::json!({
+            "client_id": "test-client-id",
+            "client_secret": "plain-text-secret",
+            "redirect_uri": "https://example.com/callback",
+            "metadata": {"key": "value"}
+        }));
+
+        let encrypted_cred = controller
+            .encrypt_resource_server_configuration(&encryption_service, raw_config)
+            .await
+            .unwrap();
+
+        // Note: We cannot test create_resource_server_credential directly without registering
+        // a provider in the provider registry. Instead, test that the encryption works correctly.
+        let config = encrypted_cred.value();
+        let deserialized: Oauth2AuthorizationCodeFlowResourceServerCredential =
+            serde_json::from_value(config.into()).unwrap();
+
+        // Verify the client_id is preserved
+        assert_eq!(deserialized.client_id, "test-client-id");
+
+        // Verify the client_secret is encrypted
+        assert_ne!(deserialized.client_secret.0, "plain-text-secret");
+
+        // Verify it's base64 encoded
+        assert!(base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            &deserialized.client_secret.0
+        )
+        .is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_user_credential() {
+        shared::setup_test!();
+
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
+        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (_temp_file, kek) = create_temp_kek_file();
+
+        let dek = create_data_encryption_key(
+            &kek,
+            &tx,
+            &repo,
+            CreateDataEncryptionKeyParams {
+                id: Some("test-dek".to_string()),
+                encrypted_data_envelope_key: None,
+            },
+            false,
+        )
+        .await
+        .unwrap();
+
+        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
+        let encryption_service = get_encryption_service(&crypto_service).unwrap();
+
+        let controller = OauthAuthFlowController {
+            static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+                auth_uri: "https://example.com/auth".to_string(),
+                token_uri: "https://example.com/token".to_string(),
+                userinfo_uri: "https://example.com/userinfo".to_string(),
+                jwks_uri: "https://example.com/jwks".to_string(),
+                issuer: "https://example.com".to_string(),
+                scopes: vec!["scope1".to_string()],
+                metadata: Metadata::new(),
+            },
+        };
+
+        let expiry = WrappedChronoDateTime::new(
+            WrappedChronoDateTime::now()
+                .get_inner()
+                .checked_add_signed(chrono::Duration::hours(1))
+                .unwrap(),
+        );
+
+        let raw_config = WrappedJsonValue::new(serde_json::json!({
+            "code": "plain-code",
+            "access_token": "plain-access-token",
+            "refresh_token": "plain-refresh-token",
+            "expiry_time": expiry,
+            "sub": "test-user",
+            "scopes": ["scope1", "scope2"],
+            "metadata": {"key": "value"}
+        }));
+
+        let encrypted_cred = controller
+            .encrypt_user_credential_configuration(&encryption_service, raw_config)
+            .await
+            .unwrap();
+
+        // Note: We cannot test create_user_credential directly without registering
+        // a provider in the provider registry. Instead, test that the encryption and
+        // rotation time calculation work correctly.
+        let config = encrypted_cred.value();
+        let deserialized: Oauth2AuthorizationCodeFlowUserCredential =
+            serde_json::from_value(config.into()).unwrap();
+
+        // Verify non-sensitive fields are preserved
+        assert_eq!(deserialized.sub, "test-user");
+        assert_eq!(deserialized.scopes, vec!["scope1", "scope2"]);
+
+        // Verify all sensitive fields are encrypted
+        assert_ne!(deserialized.code.0, "plain-code");
+        assert_ne!(deserialized.access_token.0, "plain-access-token");
+        assert_ne!(deserialized.refresh_token.0, "plain-refresh-token");
+
+        // Test rotation time calculation
+        let next_rotation = deserialized.next_rotation_time();
+        let expected_rotation = WrappedChronoDateTime::new(
+            expiry
+                .get_inner()
+                .checked_sub_signed(chrono::Duration::minutes(5))
+                .unwrap(),
+        );
+        assert_eq!(next_rotation.get_inner(), expected_rotation.get_inner());
+    }
+
+    #[tokio::test]
+    async fn test_process_credential_rotations_no_credentials() {
+        shared::setup_test!();
+
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
+        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (_temp_file, kek) = create_temp_kek_file();
+
+        // Test with no provider instances
+        let result = process_credential_rotations_with_window(&repo, &tx, &kek, 20).await;
+
+        // Should succeed even with no credentials
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_broker_state_serialization() {
+        shared::setup_test!();
+
+        let broker_state = BrokerState {
+            id: "test-id".to_string(),
+            created_at: WrappedChronoDateTime::now(),
+            updated_at: WrappedChronoDateTime::now(),
+            provider_instance_id: "test-instance".to_string(),
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "oauth_auth_flow".to_string(),
+            metadata: Metadata::new(),
+            action: BrokerAction::Redirect {
+                url: "https://example.com/auth".to_string(),
+            },
+        };
+
+        // Test serialization
+        let json = serde_json::to_string(&broker_state).unwrap();
+        let deserialized: BrokerState = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(broker_state.id, deserialized.id);
+        assert_eq!(broker_state.provider_instance_id, deserialized.provider_instance_id);
+    }
+
+    #[tokio::test]
+    async fn test_credential_rotation_time_calculation() {
+        shared::setup_test!();
+
+        let now = WrappedChronoDateTime::now();
+
+        // Test rotation window calculation
+        let rotation_window_end = WrappedChronoDateTime::new(
+            now.get_inner()
+                .checked_add_signed(chrono::Duration::minutes(20))
+                .unwrap(),
+        );
+
+        // Verify that credentials expiring soon would be caught
+        let expiry_in_10_minutes = WrappedChronoDateTime::new(
+            now.get_inner()
+                .checked_add_signed(chrono::Duration::minutes(10))
+                .unwrap(),
+        );
+
+        let rotation_time = WrappedChronoDateTime::new(
+            expiry_in_10_minutes
+                .get_inner()
+                .checked_sub_signed(chrono::Duration::minutes(5))
+                .unwrap(),
+        );
+
+        // This credential should be rotated (rotation time is within window)
+        assert!(rotation_time.get_inner() <= rotation_window_end.get_inner());
+
+        // Test credential that doesn't need rotation yet
+        let expiry_in_2_hours = WrappedChronoDateTime::new(
+            now.get_inner()
+                .checked_add_signed(chrono::Duration::hours(2))
+                .unwrap(),
+        );
+
+        let rotation_time_later = WrappedChronoDateTime::new(
+            expiry_in_2_hours
+                .get_inner()
+                .checked_sub_signed(chrono::Duration::minutes(5))
+                .unwrap(),
+        );
+
+        // This credential should NOT be rotated yet
+        assert!(rotation_time_later.get_inner() > rotation_window_end.get_inner());
+    }
 }

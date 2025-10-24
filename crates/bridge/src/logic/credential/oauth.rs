@@ -1,14 +1,11 @@
 use async_trait::async_trait;
-use http::HeaderValue;
-use reqwest::Request;
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use shared::{
     error::CommonError,
     primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedSchema},
 };
-use std::collections::HashMap;
 
 use crate::logic::{
     schemars_make_password, BrokerAction, BrokerInput, BrokerOutcome, BrokerState, ConfigurationSchema, Credential, DecryptionService, EncryptedString, EncryptionService, Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike, ResourceServerCredentialSerialized, RotateableControllerUserCredentialLike, RotateableCredentialLike, StaticCredentialConfigurationLike, StaticProviderCredentialControllerLike, UserCredentialBrokerLike, UserCredentialLike, UserCredentialSerialized
@@ -279,15 +276,14 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
             serde_json::from_value(resource_server_cred.inner.value().into())?;
 
         // Parse static credential to get OAuth endpoints
-        // For now, we'll construct the authorization URL
-        // In a real implementation, you'd get this from the static credential
+        // Construct the authorization URL with offline access to get a refresh token
         let state_id = uuid::Uuid::new_v4().to_string();
         let auth_url = format!(
-            "{}?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}",
+            "{}?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}&access_type=offline&prompt=consent",
             self.static_credentials.auth_uri,
             urlencoding::encode(&config.client_id),
             urlencoding::encode(&config.redirect_uri),
-            self.static_credentials.scopes.join(" "),
+            urlencoding::encode(&self.static_credentials.scopes.join(" ")),
             state_id
         );
 
@@ -354,8 +350,6 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
             expires_in: i64,
             #[serde(default)]
             scope: String,
-            #[serde(default)]
-            id_token: Option<String>,
         }
 
         let token_data: TokenResponse = token_response
@@ -395,11 +389,19 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
             .map(|s| s.to_string())
             .collect();
 
+        // Check if we received a refresh token - this is critical for rotation
+        let refresh_token = token_data.refresh_token.ok_or_else(|| {
+            CommonError::Unknown(anyhow::anyhow!(
+                "OAuth provider did not return a refresh token. This credential cannot be rotated automatically. \
+                 Ensure the OAuth authorization includes 'access_type=offline' and 'prompt=consent' parameters."
+            ))
+        })?;
+
         // Encrypt the sensitive data
         let encrypted_code = encryption_service.encrypt_data(code).await?;
         let encrypted_access_token = encryption_service.encrypt_data(token_data.access_token).await?;
         let encrypted_refresh_token = encryption_service
-            .encrypt_data(token_data.refresh_token.unwrap_or_default())
+            .encrypt_data(refresh_token)
             .await?;
 
         let user_credential = Oauth2AuthorizationCodeFlowUserCredential {
@@ -430,39 +432,128 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
 impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
     async fn rotate_user_credential(
         &self,
-        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
-        _resource_server_cred: &ResourceServerCredentialSerialized,
-        user_cred: &UserCredentialSerialized,
         decryption_service: &DecryptionService,
         encryption_service: &EncryptionService,
-    ) -> Result<Credential<std::sync::Arc<dyn UserCredentialLike>>, CommonError> {
-        // // Deserialize the user credential
-        // let mut config: Oauth2AuthorizationCodeFlowUserCredential =
-        //     serde_json::from_value(user_cred.inner.value().into())?;
+        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        resource_server_cred: &ResourceServerCredentialSerialized,
+        user_cred: &UserCredentialSerialized,
+    ) -> Result<UserCredentialSerialized, CommonError> {
+        // Deserialize the user credential
+        let current_cred: Oauth2AuthorizationCodeFlowUserCredential =
+            serde_json::from_value(user_cred.value.clone().into())?;
 
-        // // TODO: Use the refresh token to get a new access token
-        // // This would involve making an HTTP request to the token endpoint
-        // // For now, we'll just extend the expiry time
+        // Decrypt the refresh token
+        let refresh_token = decryption_service.decrypt_data(current_cred.refresh_token.clone()).await?;
 
-        // let now = WrappedChronoDateTime::now();
-        // config.expiry_time = now
-        //     .get_inner()
-        //     .checked_add_signed(chrono::Duration::hours(1))
-        //     .map(WrappedChronoDateTime::new)
-        //     .unwrap_or(now);
+        // Check if refresh token is empty - if so, we cannot rotate
+        if refresh_token.is_empty() {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Cannot rotate user credential {} - no refresh token available. This credential must be re-authorized through the OAuth flow.",
+                user_cred.id
+            )));
+        }
 
-        // // Create a new credential with the refreshed token
-        // let rotated_credential = Credential {
-        //     inner: std::sync::Arc::new(config) as std::sync::Arc<dyn UserCredentialLike>,
-        //     metadata: user_cred.metadata.clone(),
-        //     id: user_cred.id.clone(),
-        //     created_at: user_cred.created_at.clone(),
-        //     updated_at: now,
-        // };
+        // Deserialize and decrypt the resource server credential
+        let resource_server_config: Oauth2AuthorizationCodeFlowResourceServerCredential =
+            serde_json::from_value(resource_server_cred.value.clone().into())?;
+        let client_secret = decryption_service.decrypt_data(resource_server_config.client_secret).await?;
 
-        // Ok(rotated_credential)
+        tracing::debug!(
+            "Rotating user credential - client_id: {}, token_uri: {}, refresh_token_len: {}",
+            resource_server_config.client_id,
+            self.static_credentials.token_uri,
+            refresh_token.len()
+        );
 
-        todo!()
+        // Use the refresh token to get a new access token
+        let client = reqwest::Client::new();
+        let token_response = client
+            .post(&self.static_credentials.token_uri)
+            .form(&[
+                ("grant_type", "refresh_token"),
+                ("refresh_token", &refresh_token),
+                ("client_id", &resource_server_config.client_id),
+                ("client_secret", &client_secret),
+            ])
+            .send()
+            .await
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Token refresh failed: {}", e)))?;
+
+        let token_status = token_response.status();
+        if !token_status.is_success() {
+            let error_text = token_response.text().await.unwrap_or_default();
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Token refresh failed with status {}: {}",
+                token_status,
+                error_text
+            )));
+        }
+
+        #[derive(Deserialize)]
+        struct TokenResponse {
+            access_token: String,
+            refresh_token: Option<String>,
+            expires_in: i64,
+            #[serde(default)]
+            scope: String,
+        }
+
+        let token_data: TokenResponse = token_response
+            .json()
+            .await
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {}", e)))?;
+
+        // Calculate new expiry time
+        let now = WrappedChronoDateTime::now();
+        let expiry = now
+            .get_inner()
+            .checked_add_signed(chrono::Duration::seconds(token_data.expires_in))
+            .map(WrappedChronoDateTime::new)
+            .unwrap_or(now);
+
+        // Parse scopes (use new scopes if provided, otherwise keep existing ones)
+        let scopes: Vec<String> = if !token_data.scope.is_empty() {
+            token_data.scope
+                .split_whitespace()
+                .map(|s| s.to_string())
+                .collect()
+        } else {
+            current_cred.scopes.clone()
+        };
+
+        // Encrypt the new tokens
+        let encrypted_access_token = encryption_service.encrypt_data(token_data.access_token).await?;
+        let encrypted_refresh_token = encryption_service
+            .encrypt_data(token_data.refresh_token.unwrap_or(refresh_token))
+            .await?;
+
+        // Create the updated credential
+        let updated_credential = Oauth2AuthorizationCodeFlowUserCredential {
+            code: current_cred.code.clone(), // Keep the original code
+            access_token: encrypted_access_token,
+            refresh_token: encrypted_refresh_token,
+            expiry_time: expiry,
+            sub: current_cred.sub.clone(),
+            scopes,
+            metadata: current_cred.metadata.clone(),
+        };
+
+        // Calculate next rotation time
+        let next_rotation_time = updated_credential.next_rotation_time();
+
+        // Create the serialized result
+        let serialized = UserCredentialSerialized {
+            id: user_cred.id.clone(),
+            type_id: user_cred.type_id.clone(),
+            metadata: updated_credential.metadata.clone(),
+            value: WrappedJsonValue::new(json!(updated_credential)),
+            created_at: user_cred.created_at.clone(),
+            updated_at: now,
+            next_rotation_time: Some(next_rotation_time),
+            data_encryption_key_id: user_cred.data_encryption_key_id.clone(),
+        };
+
+        Ok(serialized)
     }
 
     async fn next_user_credential_rotation_time(
@@ -470,24 +561,14 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
         _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
         _resource_server_cred: &ResourceServerCredentialSerialized,
         user_cred: &UserCredentialSerialized,
-        decryption_service: &DecryptionService,
-        encryption_service: &EncryptionService,
-    ) -> WrappedChronoDateTime {
-        // // Deserialize to get the rotateable credential
-        // if let Ok(config) = serde_json::from_value::<Oauth2AuthorizationCodeFlowUserCredential>(
-        //     user_cred.inner.value().into(),
-        // ) {
-        //     config.next_rotation_time()
-        // } else {
-        //     // Fallback: rotate in 1 hour
-        //     WrappedChronoDateTime::now()
-        //         .get_inner()
-        //         .checked_add_signed(chrono::Duration::hours(1))
-        //         .map(WrappedChronoDateTime::new)
-        //         .unwrap_or(WrappedChronoDateTime::now())
-        // }
-
-        todo!()
+        _decryption_service: &DecryptionService,
+        _encryption_service: &EncryptionService,
+    ) -> Result<WrappedChronoDateTime, CommonError> {
+        // Deserialize to get the rotateable credential
+        let config: Oauth2AuthorizationCodeFlowUserCredential =
+            serde_json::from_value(user_cred.value.clone().into())?;
+        
+        Ok(config.next_rotation_time())
     }
 }
 
@@ -713,39 +794,132 @@ impl ProviderCredentialControllerLike for Oauth2JwtBearerAssertionFlowController
 impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowController {
     async fn rotate_user_credential(
         &self,
-        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
-        _resource_server_cred: &ResourceServerCredentialSerialized,
-        user_cred: &UserCredentialSerialized,
         decryption_service: &DecryptionService,
         encryption_service: &EncryptionService,
-    ) -> Result<Credential<std::sync::Arc<dyn UserCredentialLike>>, CommonError> {
-        // let mut config: Oauth2JwtBearerAssertionFlowUserCredential =
-        //     serde_json::from_value(user_cred.inner.value().into())?;
+        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        resource_server_cred: &ResourceServerCredentialSerialized,
+        user_cred: &UserCredentialSerialized,
+    ) -> Result<UserCredentialSerialized, CommonError> {
+        // Deserialize the user credential
+        let current_cred: Oauth2JwtBearerAssertionFlowUserCredential =
+            serde_json::from_value(user_cred.value.clone().into())?;
 
-        // TODO: Generate a new JWT assertion and exchange it for a new access token
-        // This would involve:
-        // 1. Creating a new JWT assertion using the private key
-        // 2. Making an HTTP request to the token endpoint
-        // For now, we'll just extend the expiry time
+        // Deserialize and decrypt the resource server credential
+        let resource_server_config: Oauth2JwtBearerAssertionFlowResourceServerCredential =
+            serde_json::from_value(resource_server_cred.value.clone().into())?;
+        let private_key_pem = decryption_service.decrypt_data(resource_server_config.private_key).await?;
 
-        // let now = WrappedChronoDateTime::now();
-        // config.expiry_time = now
-        //     .get_inner()
-        //     .checked_add_signed(chrono::Duration::hours(1))
-        //     .map(WrappedChronoDateTime::new)
-        //     .unwrap_or(now);
+        // Generate JWT assertion
+        use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 
-        // let rotated_credential = Credential {
-        //     inner: std::sync::Arc::new(config) as std::sync::Arc<dyn UserCredentialLike>,
-        //     metadata: user_cred.metadata.clone(),
-        //     id: user_cred.id.clone(),
-        //     created_at: user_cred.created_at.clone(),
-        //     updated_at: now,
-        // };
+        #[derive(Serialize)]
+        struct Claims {
+            iss: String,
+            sub: String,
+            aud: String,
+            exp: i64,
+            iat: i64,
+        }
 
-        // Ok(rotated_credential)
+        let now = chrono::Utc::now().timestamp();
+        let claims = Claims {
+            iss: resource_server_config.client_id.clone(),
+            sub: current_cred.sub.clone(),
+            aud: resource_server_config.token_uri.clone(),
+            exp: now + 3600, // 1 hour from now
+            iat: now,
+        };
 
-        todo!()
+        let encoding_key = EncodingKey::from_rsa_pem(private_key_pem.as_bytes())
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse private key: {}", e)))?;
+
+        let header = Header::new(Algorithm::RS256);
+        let jwt = encode(&header, &claims, &encoding_key)
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to generate JWT: {}", e)))?;
+
+        // Exchange JWT for access token
+        let client = reqwest::Client::new();
+        let token_response = client
+            .post(&resource_server_config.token_uri)
+            .form(&[
+                ("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"),
+                ("assertion", &jwt),
+            ])
+            .send()
+            .await
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Token exchange failed: {}", e)))?;
+
+        let token_status = token_response.status();
+        if !token_status.is_success() {
+            let error_text = token_response.text().await.unwrap_or_default();
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Token exchange failed with status {}: {}",
+                token_status,
+                error_text
+            )));
+        }
+
+        #[derive(Deserialize)]
+        struct TokenResponse {
+            access_token: String,
+            expires_in: i64,
+            #[serde(default)]
+            scope: String,
+        }
+
+        let token_data: TokenResponse = token_response
+            .json()
+            .await
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {}", e)))?;
+
+        // Calculate new expiry time
+        let now_dt = WrappedChronoDateTime::now();
+        let expiry = now_dt
+            .get_inner()
+            .checked_add_signed(chrono::Duration::seconds(token_data.expires_in))
+            .map(WrappedChronoDateTime::new)
+            .unwrap_or(now_dt);
+
+        // Parse scopes (use new scopes if provided, otherwise keep existing ones)
+        let scopes: Vec<String> = if !token_data.scope.is_empty() {
+            token_data.scope
+                .split_whitespace()
+                .map(|s| s.to_string())
+                .collect()
+        } else {
+            current_cred.scopes.clone()
+        };
+
+        // Encrypt the new tokens
+        let encrypted_assertion = encryption_service.encrypt_data(jwt).await?;
+        let encrypted_access_token = encryption_service.encrypt_data(token_data.access_token).await?;
+
+        // Create the updated credential
+        let updated_credential = Oauth2JwtBearerAssertionFlowUserCredential {
+            assertion: encrypted_assertion,
+            access_token: encrypted_access_token,
+            expiry_time: expiry,
+            sub: current_cred.sub.clone(),
+            scopes,
+            metadata: current_cred.metadata.clone(),
+        };
+
+        // Calculate next rotation time
+        let next_rotation_time = updated_credential.next_rotation_time();
+
+        // Create the serialized result
+        let serialized = UserCredentialSerialized {
+            id: user_cred.id.clone(),
+            type_id: user_cred.type_id.clone(),
+            metadata: updated_credential.metadata.clone(),
+            value: WrappedJsonValue::new(json!(updated_credential)),
+            created_at: user_cred.created_at.clone(),
+            updated_at: now_dt,
+            next_rotation_time: Some(next_rotation_time),
+            data_encryption_key_id: user_cred.data_encryption_key_id.clone(),
+        };
+
+        Ok(serialized)
     }
 
     async fn next_user_credential_rotation_time(
@@ -753,9 +927,495 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
         _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
         _resource_server_cred: &ResourceServerCredentialSerialized,
         user_cred: &UserCredentialSerialized,
-        decryption_service: &DecryptionService,
-        encryption_service: &EncryptionService,
-    ) -> WrappedChronoDateTime {
-        todo!()
+        _decryption_service: &DecryptionService,
+        _encryption_service: &EncryptionService,
+    ) -> Result<WrappedChronoDateTime, CommonError> {
+        // Deserialize to get the rotateable credential
+        let config: Oauth2JwtBearerAssertionFlowUserCredential =
+            serde_json::from_value(user_cred.value.clone().into())?;
+
+        Ok(config.next_rotation_time())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::logic::encryption::{
+        create_data_encryption_key, get_crypto_service, get_decryption_service,
+        get_encryption_service, CreateDataEncryptionKeyParams, EnvelopeEncryptionKeyContents,
+    };
+    use shared::primitives::{SqlMigrationLoader, WrappedUuidV4};
+
+    fn create_temp_kek_file() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
+        use rand::RngCore;
+        let mut kek_bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut kek_bytes);
+
+        let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
+        std::fs::write(temp_file.path(), &kek_bytes).expect("Failed to write KEK to temp file");
+
+        let key_id = temp_file
+            .path()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("test-key")
+            .to_string();
+
+        let contents = EnvelopeEncryptionKeyContents::Local {
+            key_id,
+            key_bytes: kek_bytes.to_vec(),
+        };
+
+        (temp_file, contents)
+    }
+
+    #[tokio::test]
+    async fn test_oauth_authorization_code_flow_next_rotation_time() {
+        shared::setup_test!();
+
+        let now = WrappedChronoDateTime::now();
+        let expiry_time = WrappedChronoDateTime::new(
+            now.get_inner()
+                .checked_add_signed(chrono::Duration::hours(1))
+                .unwrap(),
+        );
+
+        let credential = Oauth2AuthorizationCodeFlowUserCredential {
+            code: EncryptedString("encrypted_code".to_string()),
+            access_token: EncryptedString("encrypted_token".to_string()),
+            refresh_token: EncryptedString("encrypted_refresh".to_string()),
+            expiry_time,
+            sub: "test-user".to_string(),
+            scopes: vec!["scope1".to_string(), "scope2".to_string()],
+            metadata: Metadata::new(),
+        };
+
+        let next_rotation = credential.next_rotation_time();
+
+        // Should be 5 minutes before expiry
+        let expected = WrappedChronoDateTime::new(
+            expiry_time
+                .get_inner()
+                .checked_sub_signed(chrono::Duration::minutes(5))
+                .unwrap(),
+        );
+
+        assert_eq!(next_rotation.get_inner(), expected.get_inner());
+    }
+
+    #[tokio::test]
+    async fn test_oauth_authorization_code_flow_rotate_user_credential() {
+        shared::setup_test!();
+
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
+        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (_temp_file, kek) = create_temp_kek_file();
+
+        // Create a data encryption key
+        let dek = create_data_encryption_key(
+            &kek,
+            &tx,
+            &repo,
+            CreateDataEncryptionKeyParams {
+                id: Some("test-dek".to_string()),
+                encrypted_data_envelope_key: None,
+            },
+            false,
+        )
+        .await
+        .unwrap();
+
+        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
+        let encryption_service = get_encryption_service(&crypto_service).unwrap();
+        let decryption_service = get_decryption_service(&crypto_service).unwrap();
+
+        // Create a controller
+        let controller = OauthAuthFlowController {
+            static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+                auth_uri: "https://example.com/auth".to_string(),
+                token_uri: "https://example.com/token".to_string(),
+                userinfo_uri: "https://example.com/userinfo".to_string(),
+                jwks_uri: "https://example.com/jwks".to_string(),
+                issuer: "https://example.com".to_string(),
+                scopes: vec!["scope1".to_string()],
+                metadata: Metadata::new(),
+            },
+        };
+
+        // Create encrypted resource server credential
+        let client_secret = "test-secret";
+        let encrypted_secret = encryption_service
+            .encrypt_data(client_secret.to_string())
+            .await
+            .unwrap();
+
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "oauth2_authorization_code_flow_resource_server".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(json!({
+                "client_id": "test-client-id",
+                "client_secret": encrypted_secret,
+                "redirect_uri": "https://example.com/callback",
+                "metadata": {}
+            })),
+            created_at: WrappedChronoDateTime::now(),
+            updated_at: WrappedChronoDateTime::now(),
+            next_rotation_time: None,
+            data_encryption_key_id: dek.id.clone(),
+        };
+
+        // Create encrypted user credential
+        let code = "test-code";
+        let access_token = "old-access-token";
+        let refresh_token = "test-refresh-token";
+
+        let encrypted_code = encryption_service.encrypt_data(code.to_string()).await.unwrap();
+        let encrypted_access = encryption_service
+            .encrypt_data(access_token.to_string())
+            .await
+            .unwrap();
+        let encrypted_refresh = encryption_service
+            .encrypt_data(refresh_token.to_string())
+            .await
+            .unwrap();
+
+        let expiry = WrappedChronoDateTime::new(
+            WrappedChronoDateTime::now()
+                .get_inner()
+                .checked_add_signed(chrono::Duration::minutes(30))
+                .unwrap(),
+        );
+
+        let user_cred = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "oauth2_authorization_code_flow_user".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(json!({
+                "code": encrypted_code,
+                "access_token": encrypted_access,
+                "refresh_token": encrypted_refresh,
+                "expiry_time": expiry,
+                "sub": "test-user",
+                "scopes": ["scope1", "scope2"],
+                "metadata": {}
+            })),
+            created_at: WrappedChronoDateTime::now(),
+            updated_at: WrappedChronoDateTime::now(),
+            next_rotation_time: Some(expiry),
+            data_encryption_key_id: dek.id.clone(),
+        };
+
+        // Note: This test would require mocking the HTTP requests to actually test rotation
+        // For now, we verify that the structure is correct
+        let static_creds = controller.static_credentials();
+
+        // Verify the controller can be used for rotation
+        assert!(controller
+            .as_rotateable_controller_user_credential()
+            .is_some());
+
+        // Verify next rotation time calculation
+        let next_rotation = controller
+            .next_user_credential_rotation_time(
+                &static_creds,
+                &resource_server_cred,
+                &user_cred,
+                &decryption_service,
+                &encryption_service,
+            )
+            .await
+            .unwrap();
+
+        // Should be 5 minutes before expiry
+        let expected = WrappedChronoDateTime::new(
+            expiry
+                .get_inner()
+                .checked_sub_signed(chrono::Duration::minutes(5))
+                .unwrap(),
+        );
+
+        assert_eq!(next_rotation.get_inner(), expected.get_inner());
+    }
+
+    #[tokio::test]
+    async fn test_oauth_jwt_bearer_assertion_flow_next_rotation_time() {
+        shared::setup_test!();
+
+        let now = WrappedChronoDateTime::now();
+        let expiry_time = WrappedChronoDateTime::new(
+            now.get_inner()
+                .checked_add_signed(chrono::Duration::hours(1))
+                .unwrap(),
+        );
+
+        let credential = Oauth2JwtBearerAssertionFlowUserCredential {
+            assertion: EncryptedString("encrypted_assertion".to_string()),
+            access_token: EncryptedString("encrypted_token".to_string()),
+            expiry_time,
+            sub: "test-user".to_string(),
+            scopes: vec!["scope1".to_string(), "scope2".to_string()],
+            metadata: Metadata::new(),
+        };
+
+        let next_rotation = credential.next_rotation_time();
+
+        // Should be 5 minutes before expiry
+        let expected = WrappedChronoDateTime::new(
+            expiry_time
+                .get_inner()
+                .checked_sub_signed(chrono::Duration::minutes(5))
+                .unwrap(),
+        );
+
+        assert_eq!(next_rotation.get_inner(), expected.get_inner());
+    }
+
+    #[tokio::test]
+    async fn test_encrypt_decrypt_oauth_resource_server_credentials() {
+        shared::setup_test!();
+
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
+        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (_temp_file, kek) = create_temp_kek_file();
+
+        let dek = create_data_encryption_key(
+            &kek,
+            &tx,
+            &repo,
+            CreateDataEncryptionKeyParams {
+                id: Some("test-dek".to_string()),
+                encrypted_data_envelope_key: None,
+            },
+            false,
+        )
+        .await
+        .unwrap();
+
+        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
+        let encryption_service = get_encryption_service(&crypto_service).unwrap();
+
+        let controller = OauthAuthFlowController {
+            static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+                auth_uri: "https://example.com/auth".to_string(),
+                token_uri: "https://example.com/token".to_string(),
+                userinfo_uri: "https://example.com/userinfo".to_string(),
+                jwks_uri: "https://example.com/jwks".to_string(),
+                issuer: "https://example.com".to_string(),
+                scopes: vec!["scope1".to_string()],
+                metadata: Metadata::new(),
+            },
+        };
+
+        // Test encrypting resource server credentials
+        let raw_config = WrappedJsonValue::new(json!({
+            "client_id": "test-client-id",
+            "client_secret": "plain-text-secret",
+            "redirect_uri": "https://example.com/callback",
+            "metadata": {}
+        }));
+
+        let encrypted = controller
+            .encrypt_resource_server_configuration(&encryption_service, raw_config)
+            .await
+            .unwrap();
+
+        let value = encrypted.value();
+        let config: Oauth2AuthorizationCodeFlowResourceServerCredential =
+            serde_json::from_value(value.into()).unwrap();
+
+        // Verify client_id is not encrypted
+        assert_eq!(config.client_id, "test-client-id");
+
+        // Verify client_secret is encrypted (should be different from plaintext)
+        assert_ne!(config.client_secret.0, "plain-text-secret");
+
+        // Verify it's base64 encoded
+        assert!(base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            &config.client_secret.0
+        )
+        .is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_encrypt_decrypt_oauth_user_credentials() {
+        shared::setup_test!();
+
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
+        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (_temp_file, kek) = create_temp_kek_file();
+
+        let dek = create_data_encryption_key(
+            &kek,
+            &tx,
+            &repo,
+            CreateDataEncryptionKeyParams {
+                id: Some("test-dek".to_string()),
+                encrypted_data_envelope_key: None,
+            },
+            false,
+        )
+        .await
+        .unwrap();
+
+        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
+        let encryption_service = get_encryption_service(&crypto_service).unwrap();
+        let decryption_service = get_decryption_service(&crypto_service).unwrap();
+
+        let controller = OauthAuthFlowController {
+            static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+                auth_uri: "https://example.com/auth".to_string(),
+                token_uri: "https://example.com/token".to_string(),
+                userinfo_uri: "https://example.com/userinfo".to_string(),
+                jwks_uri: "https://example.com/jwks".to_string(),
+                issuer: "https://example.com".to_string(),
+                scopes: vec!["scope1".to_string()],
+                metadata: Metadata::new(),
+            },
+        };
+
+        let expiry = WrappedChronoDateTime::now();
+
+        // Test encrypting user credentials
+        let raw_config = WrappedJsonValue::new(json!({
+            "code": "plain-code",
+            "access_token": "plain-access-token",
+            "refresh_token": "plain-refresh-token",
+            "expiry_time": expiry,
+            "sub": "test-user",
+            "scopes": ["scope1", "scope2"],
+            "metadata": {}
+        }));
+
+        let encrypted = controller
+            .encrypt_user_credential_configuration(&encryption_service, raw_config)
+            .await
+            .unwrap();
+
+        let value = encrypted.value();
+        let config: Oauth2AuthorizationCodeFlowUserCredential =
+            serde_json::from_value(value.clone().into()).unwrap();
+
+        // Verify all sensitive fields are encrypted
+        assert_ne!(config.code.0, "plain-code");
+        assert_ne!(config.access_token.0, "plain-access-token");
+        assert_ne!(config.refresh_token.0, "plain-refresh-token");
+
+        // Verify non-sensitive fields are preserved
+        assert_eq!(config.sub, "test-user");
+        assert_eq!(config.scopes, vec!["scope1", "scope2"]);
+
+        // Test decryption
+        let user_cred_serialized = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "oauth2_authorization_code_flow_user".to_string(),
+            metadata: Metadata::new(),
+            value: value.clone(),
+            created_at: WrappedChronoDateTime::now(),
+            updated_at: WrappedChronoDateTime::now(),
+            next_rotation_time: None,
+            data_encryption_key_id: dek.id.clone(),
+        };
+
+        let decrypted = controller
+            .decrypt_oauth_credentials(&decryption_service, &user_cred_serialized)
+            .await
+            .unwrap();
+
+        assert_eq!(decrypted.code, "plain-code");
+        assert_eq!(decrypted.access_token, "plain-access-token");
+        assert_eq!(decrypted.refresh_token, "plain-refresh-token");
+        assert_eq!(decrypted.sub, "test-user");
+        assert_eq!(decrypted.scopes, vec!["scope1", "scope2"]);
+    }
+
+    #[tokio::test]
+    async fn test_oauth_jwt_bearer_encrypt_decrypt_credentials() {
+        shared::setup_test!();
+
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
+        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (_temp_file, kek) = create_temp_kek_file();
+
+        let dek = create_data_encryption_key(
+            &kek,
+            &tx,
+            &repo,
+            CreateDataEncryptionKeyParams {
+                id: Some("test-dek".to_string()),
+                encrypted_data_envelope_key: None,
+            },
+            false,
+        )
+        .await
+        .unwrap();
+
+        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
+        let encryption_service = get_encryption_service(&crypto_service).unwrap();
+
+        let controller = Oauth2JwtBearerAssertionFlowController {
+            static_credentials: Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration {
+                auth_uri: "https://example.com/auth".to_string(),
+                token_uri: "https://example.com/token".to_string(),
+                userinfo_uri: "https://example.com/userinfo".to_string(),
+                jwks_uri: "https://example.com/jwks".to_string(),
+                issuer: "https://example.com".to_string(),
+                scopes: vec!["scope1".to_string()],
+                metadata: Metadata::new(),
+            },
+        };
+
+        // Test encrypting resource server credentials
+        let raw_config = WrappedJsonValue::new(json!({
+            "client_id": "test-client-id",
+            "private_key": "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----",
+            "token_uri": "https://example.com/token",
+            "metadata": {}
+        }));
+
+        let encrypted = controller
+            .encrypt_resource_server_configuration(&encryption_service, raw_config)
+            .await
+            .unwrap();
+
+        let value = encrypted.value();
+        let config: Oauth2JwtBearerAssertionFlowResourceServerCredential =
+            serde_json::from_value(value.into()).unwrap();
+
+        // Verify private_key is encrypted
+        assert_ne!(
+            config.private_key.0,
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"
+        );
     }
 }

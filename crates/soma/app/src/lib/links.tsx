@@ -4,6 +4,7 @@ export const LINKS = {
 	BRIDGE: () => `/bridge`,
 	BRIDGE_ENABLE_FUNCTIONS: () => `/bridge/enable-functions`,
 	BRIDGE_MANAGE_CREDENTIALS: () => `/bridge/manage-credentials`,
+	BRIDGE_MCP_INSPECTOR: () => `/bridge/mcp-inspector`,
 
 	// Enable Functions - Dynamic links with functionControllerId parameter
 	BRIDGE_ENABLE_FUNCTIONS_FUNCTION: (functionControllerId: string) =>

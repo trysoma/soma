@@ -464,14 +464,7 @@ function EnableFunctionsPage() {
 							{/* Data tables */}
 							<div className="space-y-4 relative">
 								{/* Loading overlay - shows when fetching new data */}
-								{isFetchingFunctions && !isLoadingFunctions && (
-									<div className="absolute top-0 right-0 z-10">
-										<div className="bg-blue-50 border border-blue-200 rounded px-3 py-1.5 text-xs text-blue-700 flex items-center gap-2">
-											<div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full" />
-											Updating...
-										</div>
-									</div>
-								)}
+								
 								<div className={`transition-opacity duration-200 ${isFetchingFunctions && !isLoadingFunctions ? 'opacity-60' : 'opacity-100'}`}>
 									<FunctionsTable
 										functions={displayedAvailableFunctions}

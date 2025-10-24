@@ -62,11 +62,6 @@ async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
         let cmd_res = match cli.command {
             Commands::Start(params) => commands::cmd_start(&subsys, params, &mut config).await,
             Commands::Codegen => commands::cmd_codegen(&subsys, &mut config).await,
-            // Commands::Bridge(bridge_cmd) => match bridge_cmd {
-            //     BridgeCommands::Init(params) => {
-            //         commands::cmd_bridge_init(&subsys, params, &mut config).await
-            //     }
-            // },
         };
 
         unwrap_and_error(cmd_res);

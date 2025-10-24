@@ -66,7 +66,8 @@ CREATE TABLE IF NOT EXISTS broker_state (
     provider_controller_type_id TEXT NOT NULL,
     credential_controller_type_id TEXT NOT NULL,
     metadata JSON NOT NULL,
-    action JSON NOT NULL,
+    action JSON NOT NULL
 
-    FOREIGN KEY (provider_instance_id) REFERENCES provider_instance(id) ON DELETE CASCADE
+    -- TODO: uncomment this when we have a way to delete broker states
+    -- FOREIGN KEY (provider_instance_id) REFERENCES provider_instance(id) ON DELETE CASCADE
 );

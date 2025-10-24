@@ -132,10 +132,13 @@ function RouteComponent() {
   }
 
   // Parse the JSON schema for function parameters
-  const rawSchema = func.parameters;
-  const schema = { ...rawSchema };
-  delete schema.$schema;
-  delete schema.title;
+  const schema = useMemo(() => {
+    const rawSchema = func.parameters;
+    const schema = { ...rawSchema };
+    delete schema.$schema;
+    delete schema.title;
+    return schema;
+  }, [func.parameters]);
 
   // Custom field template for consistent styling
   const CustomFieldTemplate = (props: any) => {
@@ -174,40 +177,44 @@ function RouteComponent() {
   };
 
   // Build UI schema to customize field rendering
-  const properties = (schema.properties as Record<string, any>) || {};
+  const uiSchema = useMemo(() => {
+    const properties = (schema.properties as Record<string, any>) || {};
 
-  const uiSchema: Record<string, unknown> = {
-    "ui:submitButtonOptions": {
-      submitText: isInvoking ? "Invoking..." : "Invoke Function",
-      norender: false,
-      props: {
-        disabled: isInvoking || !selectedProviderInstanceId,
+    const uiSchema: Record<string, unknown> = {
+      "ui:submitButtonOptions": {
+        submitText: isInvoking ? "Invoking..." : "Invoke Function",
+        norender: false,
+        props: {
+          disabled: isInvoking || !selectedProviderInstanceId,
+        },
       },
-    },
-    "ui:FieldTemplate": CustomFieldTemplate,
-    "ui:ObjectFieldTemplate": CustomObjectFieldTemplate,
-    "ui:TitleFieldTemplate": CustomTitleFieldTemplate,
-  };
-
-  // Add spacing and better styling for each field
-  Object.keys(properties).forEach((key) => {
-    const prop = properties[key];
-    const propFormat = prop.format as string | undefined;
-
-    uiSchema[key] = {
-      "ui:classNames": "mb-6",
-      ...(propFormat === "password" && {
-        "ui:widget": "password",
-        "ui:placeholder": "***"
-      }),
-      ...(prop.type === "object" && {
-        "ui:widget": "textarea",
-        "ui:options": {
-          rows: 5
-        }
-      })
+      "ui:FieldTemplate": CustomFieldTemplate,
+      "ui:ObjectFieldTemplate": CustomObjectFieldTemplate,
+      "ui:TitleFieldTemplate": CustomTitleFieldTemplate,
     };
-  });
+
+    // Add spacing and better styling for each field
+    Object.keys(properties).forEach((key) => {
+      const prop = properties[key];
+      const propFormat = prop.format as string | undefined;
+
+      uiSchema[key] = {
+        "ui:classNames": "mb-6",
+        ...(propFormat === "password" && {
+          "ui:widget": "password",
+          "ui:placeholder": "***"
+        }),
+        ...(prop.type === "object" && {
+          "ui:widget": "textarea",
+          "ui:options": {
+            rows: 5
+          }
+        })
+      };
+    });
+
+    return uiSchema;
+  }, [schema, isInvoking, selectedProviderInstanceId]);
 
   return (
     <div className="p-6 space-y-6">

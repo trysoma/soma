@@ -259,7 +259,7 @@ ORDER BY created_at DESC
 LIMIT CAST(sqlc.arg(page_size) AS INTEGER) + 1;
 
 -- name: get_provider_instances_grouped_by_function_controller_type_id :many
-SELECT 
+SELECT
     fi.function_controller_type_id,
     CAST(
         JSON_GROUP_ARRAY(
@@ -329,3 +329,98 @@ WHERE (
 )
 GROUP BY fi.function_controller_type_id
 ORDER BY fi.function_controller_type_id ASC;
+
+-- name: update_resource_server_credential :exec
+UPDATE resource_server_credential
+SET value = CASE WHEN CAST(sqlc.narg(value) AS JSON) IS NOT NULL
+    THEN sqlc.narg(value)
+    ELSE value
+    END,
+    metadata = CASE WHEN CAST(sqlc.narg(metadata) AS JSON) IS NOT NULL
+    THEN sqlc.narg(metadata)
+    ELSE metadata
+    END,
+    next_rotation_time = CASE WHEN CAST(sqlc.narg(next_rotation_time) AS DATETIME) IS NOT NULL
+    THEN sqlc.narg(next_rotation_time)
+    ELSE next_rotation_time
+    END,
+    updated_at = CASE WHEN CAST(sqlc.narg(updated_at) AS DATETIME) IS NOT NULL
+    THEN sqlc.narg(updated_at)
+    ELSE CURRENT_TIMESTAMP
+    END
+WHERE id = sqlc.arg(id);
+
+-- name: update_user_credential :exec
+UPDATE user_credential
+SET value = CASE WHEN CAST(sqlc.narg(value) AS JSON) IS NOT NULL
+    THEN sqlc.narg(value)
+    ELSE value
+    END,
+    metadata = CASE WHEN CAST(sqlc.narg(metadata) AS JSON) IS NOT NULL
+    THEN sqlc.narg(metadata)
+    ELSE metadata
+    END,
+    next_rotation_time = CASE WHEN CAST(sqlc.narg(next_rotation_time) AS DATETIME) IS NOT NULL
+    THEN sqlc.narg(next_rotation_time)
+    ELSE next_rotation_time
+    END,
+    updated_at = CASE WHEN CAST(sqlc.narg(updated_at) AS DATETIME) IS NOT NULL
+    THEN sqlc.narg(updated_at)
+    ELSE CURRENT_TIMESTAMP
+    END
+WHERE id = sqlc.arg(id);
+
+-- name: get_provider_instances_with_credentials :many
+SELECT
+    pi.id,
+    pi.display_name,
+    pi.provider_controller_type_id,
+    pi.credential_controller_type_id,
+    pi.status,
+    pi.return_on_successful_brokering,
+    pi.created_at,
+    pi.updated_at,
+    CAST(JSON_OBJECT(
+        'id', rsc.id,
+        'type_id', rsc.type_id,
+        'metadata', JSON(rsc.metadata),
+        'value', JSON(rsc.value),
+        'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.created_at),
+        'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.updated_at),
+        'next_rotation_time', CASE
+            WHEN rsc.next_rotation_time IS NOT NULL
+            THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time)
+            ELSE NULL END,
+        'data_encryption_key_id', rsc.data_encryption_key_id
+    ) AS TEXT) as resource_server_credential,
+    CAST(COALESCE(
+        CASE WHEN uc.id IS NOT NULL THEN
+            JSON_OBJECT(
+                'id', uc.id,
+                'type_id', uc.type_id,
+                'metadata', JSON(uc.metadata),
+                'value', JSON(uc.value),
+                'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.created_at),
+                'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.updated_at),
+                'next_rotation_time', CASE
+                    WHEN uc.next_rotation_time IS NOT NULL
+                    THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time)
+                    ELSE NULL END,
+                'data_encryption_key_id', uc.data_encryption_key_id
+            )
+        ELSE NULL END,
+    JSON('null')) AS TEXT) as user_credential
+FROM provider_instance pi
+INNER JOIN resource_server_credential rsc ON rsc.id = pi.resource_server_credential_id
+LEFT JOIN user_credential uc ON uc.id = pi.user_credential_id
+WHERE (pi.created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
+  AND (pi.status = sqlc.narg(status) OR sqlc.narg(status) IS NULL)
+  AND (
+    (rsc.next_rotation_time IS NOT NULL AND datetime(rsc.next_rotation_time) <= sqlc.narg(rotation_window_end))
+    OR
+    (uc.next_rotation_time IS NOT NULL AND datetime(uc.next_rotation_time) <= sqlc.narg(rotation_window_end))
+    OR
+    sqlc.narg(rotation_window_end) IS NULL
+  )
+ORDER BY pi.created_at DESC
+LIMIT CAST(sqlc.arg(page_size) AS INTEGER) + 1;

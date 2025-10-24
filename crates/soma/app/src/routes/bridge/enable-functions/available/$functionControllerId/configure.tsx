@@ -1,9 +1,8 @@
 "use client";
-import { createFileRoute, Outlet, Link, useLocation, useParams } from '@tanstack/react-router'
+import { createFileRoute, Outlet, Link, useLocation, useParams, useNavigate } from '@tanstack/react-router'
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import $api from '@/lib/api-client.client';
-import { useMemo } from "react";
-import { RouteComponent as NewRouteComponent } from './configure/new';
+import { useMemo, useEffect } from "react";
 
 export const Route = createFileRoute('/bridge/enable-functions/available/$functionControllerId/configure')({
   component: RouteComponent,
@@ -12,6 +11,7 @@ export const Route = createFileRoute('/bridge/enable-functions/available/$functi
 function RouteComponent() {
   const { functionControllerId } = useParams({ from: '/bridge/enable-functions/available/$functionControllerId/configure' });
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Query available providers
   const {
@@ -68,17 +68,18 @@ function RouteComponent() {
     return 'existing';
   };
 
+  // If no existing providers, redirect to new tab
+  useEffect(() => {
+    if (provider && !hasExistingProviders && !location.pathname.includes('/new')) {
+      navigate({
+        to: '/bridge/enable-functions/available/$functionControllerId/configure/new',
+        params: { functionControllerId },
+      });
+    }
+  }, [provider, hasExistingProviders, location.pathname, navigate, functionControllerId]);
+
   if (!provider) {
     return null;
-  }
-
-  // If no existing providers, redirect to new tab
-  if (!hasExistingProviders) {
-    return (
-      <div className="p-6 mt-0">
-        <NewRouteComponent />
-      </div>
-    );
   }
 
   return (

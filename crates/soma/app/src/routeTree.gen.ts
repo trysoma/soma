@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChatIndexRouteImport } from './routes/chat/index'
 import { Route as BridgeIndexRouteImport } from './routes/bridge/index'
 import { Route as A2aIndexRouteImport } from './routes/a2a/index'
+import { Route as BridgeMcpInspectorRouteImport } from './routes/bridge/mcp-inspector'
 import { Route as BridgeManageCredentialsRouteImport } from './routes/bridge/manage-credentials'
 import { Route as BridgeEnableFunctionsRouteImport } from './routes/bridge/enable-functions'
 import { Route as A2aChatIndexRouteImport } from './routes/a2a/chat/index'
@@ -61,6 +62,11 @@ const A2aIndexRoute = A2aIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => A2aRoute,
+} as any)
+const BridgeMcpInspectorRoute = BridgeMcpInspectorRouteImport.update({
+  id: '/mcp-inspector',
+  path: '/mcp-inspector',
+  getParentRoute: () => BridgeRoute,
 } as any)
 const BridgeManageCredentialsRoute = BridgeManageCredentialsRouteImport.update({
   id: '/manage-credentials',
@@ -181,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/bridge': typeof BridgeRouteWithChildren
   '/bridge/enable-functions': typeof BridgeEnableFunctionsRouteWithChildren
   '/bridge/manage-credentials': typeof BridgeManageCredentialsRouteWithChildren
+  '/bridge/mcp-inspector': typeof BridgeMcpInspectorRoute
   '/a2a/': typeof A2aIndexRoute
   '/bridge/': typeof BridgeIndexRoute
   '/chat': typeof ChatIndexRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bridge/enable-functions': typeof BridgeEnableFunctionsRouteWithChildren
   '/bridge/manage-credentials': typeof BridgeManageCredentialsRouteWithChildren
+  '/bridge/mcp-inspector': typeof BridgeMcpInspectorRoute
   '/a2a': typeof A2aIndexRoute
   '/bridge': typeof BridgeIndexRoute
   '/chat': typeof ChatIndexRoute
@@ -227,6 +235,7 @@ export interface FileRoutesById {
   '/bridge': typeof BridgeRouteWithChildren
   '/bridge/enable-functions': typeof BridgeEnableFunctionsRouteWithChildren
   '/bridge/manage-credentials': typeof BridgeManageCredentialsRouteWithChildren
+  '/bridge/mcp-inspector': typeof BridgeMcpInspectorRoute
   '/a2a/': typeof A2aIndexRoute
   '/bridge/': typeof BridgeIndexRoute
   '/chat/': typeof ChatIndexRoute
@@ -253,6 +262,7 @@ export interface FileRouteTypes {
     | '/bridge'
     | '/bridge/enable-functions'
     | '/bridge/manage-credentials'
+    | '/bridge/mcp-inspector'
     | '/a2a/'
     | '/bridge/'
     | '/chat'
@@ -275,6 +285,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bridge/enable-functions'
     | '/bridge/manage-credentials'
+    | '/bridge/mcp-inspector'
     | '/a2a'
     | '/bridge'
     | '/chat'
@@ -298,6 +309,7 @@ export interface FileRouteTypes {
     | '/bridge'
     | '/bridge/enable-functions'
     | '/bridge/manage-credentials'
+    | '/bridge/mcp-inspector'
     | '/a2a/'
     | '/bridge/'
     | '/chat/'
@@ -367,6 +379,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/a2a/'
       preLoaderRoute: typeof A2aIndexRouteImport
       parentRoute: typeof A2aRoute
+    }
+    '/bridge/mcp-inspector': {
+      id: '/bridge/mcp-inspector'
+      path: '/mcp-inspector'
+      fullPath: '/bridge/mcp-inspector'
+      preLoaderRoute: typeof BridgeMcpInspectorRouteImport
+      parentRoute: typeof BridgeRoute
     }
     '/bridge/manage-credentials': {
       id: '/bridge/manage-credentials'
@@ -596,12 +615,14 @@ const BridgeManageCredentialsRouteWithChildren =
 interface BridgeRouteChildren {
   BridgeEnableFunctionsRoute: typeof BridgeEnableFunctionsRouteWithChildren
   BridgeManageCredentialsRoute: typeof BridgeManageCredentialsRouteWithChildren
+  BridgeMcpInspectorRoute: typeof BridgeMcpInspectorRoute
   BridgeIndexRoute: typeof BridgeIndexRoute
 }
 
 const BridgeRouteChildren: BridgeRouteChildren = {
   BridgeEnableFunctionsRoute: BridgeEnableFunctionsRouteWithChildren,
   BridgeManageCredentialsRoute: BridgeManageCredentialsRouteWithChildren,
+  BridgeMcpInspectorRoute: BridgeMcpInspectorRoute,
   BridgeIndexRoute: BridgeIndexRoute,
 }
 

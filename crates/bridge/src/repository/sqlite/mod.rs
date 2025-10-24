@@ -9,14 +9,14 @@ use crate::logic::credential::{
 use crate::logic::encryption::{DataEncryptionKey, DataEncryptionKeyListItem};
 use crate::logic::instance::{
     FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
-    ProviderInstanceSerializedWithFunctions,
+    ProviderInstanceSerializedWithCredentials, ProviderInstanceSerializedWithFunctions,
 };
 use crate::repository::{
     CreateBrokerState, CreateDataEncryptionKey, CreateFunctionInstance, CreateProviderInstance,
     CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
 };
 use anyhow::Context;
-use shared::primitives::WrappedJsonValue;
+use shared::primitives::{WrappedChronoDateTime, WrappedJsonValue};
 use shared::{
     error::CommonError,
     primitives::{
@@ -765,6 +765,142 @@ impl ProviderRepositoryLike for Repository {
 
         Ok(items)
     }
+
+    async fn update_resource_server_credential(
+        &self,
+        id: &WrappedUuidV4,
+        value: Option<&WrappedJsonValue>,
+        metadata: Option<&crate::logic::Metadata>,
+        next_rotation_time: Option<&WrappedChronoDateTime>,
+        updated_at: Option<&WrappedChronoDateTime>,
+    ) -> Result<(), CommonError> {
+        let value_owned = value.cloned();
+        let metadata_owned = metadata.map(|m| {
+            WrappedJsonValue::new(serde_json::Value::Object(m.0.clone()))
+        });
+        let next_rotation_owned = next_rotation_time.cloned();
+        let updated_at_owned = updated_at.cloned();
+
+        let params = update_resource_server_credential_params {
+            id,
+            value: &value_owned,
+            metadata: &metadata_owned,
+            next_rotation_time: &next_rotation_owned,
+            updated_at: &updated_at_owned,
+        };
+
+        update_resource_server_credential(&self.conn, params)
+            .await
+            .context("Failed to update resource server credential")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        Ok(())
+    }
+
+    async fn update_user_credential(
+        &self,
+        id: &WrappedUuidV4,
+        value: Option<&WrappedJsonValue>,
+        metadata: Option<&crate::logic::Metadata>,
+        next_rotation_time: Option<&WrappedChronoDateTime>,
+        updated_at: Option<&WrappedChronoDateTime>,
+    ) -> Result<(), CommonError> {
+        let value_owned = value.cloned();
+        let metadata_owned = metadata.map(|m| {
+            WrappedJsonValue::new(serde_json::Value::Object(m.0.clone()))
+        });
+        let next_rotation_owned = next_rotation_time.cloned();
+        let updated_at_owned = updated_at.cloned();
+
+        let params = update_user_credential_params {
+            id,
+            value: &value_owned,
+            metadata: &metadata_owned,
+            next_rotation_time: &next_rotation_owned,
+            updated_at: &updated_at_owned,
+        };
+
+        update_user_credential(&self.conn, params)
+            .await
+            .context("Failed to update user credential")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        Ok(())
+    }
+
+    async fn list_provider_instances_with_credentials(
+        &self,
+        pagination: &PaginationRequest,
+        status: Option<&str>,
+        rotation_window_end: Option<&WrappedChronoDateTime>,
+    ) -> Result<PaginatedResponse<ProviderInstanceSerializedWithCredentials>, CommonError> {
+        // Decode the cursor from the pagination token
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
+                        .map_err(|e| CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let params: get_provider_instances_with_credentials_params<'_> = get_provider_instances_with_credentials_params {
+            cursor: &cursor_datetime,
+            status: &status.map(|s| s.to_string()),
+            rotation_window_end: &rotation_window_end.map(|c| c.clone()),
+            page_size: &pagination.page_size,
+        };
+
+        let rows = get_provider_instances_with_credentials(&self.conn, params)
+            .await
+            .context("Failed to get provider instances with credentials")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Vec<ProviderInstanceSerializedWithCredentials> = rows
+            .into_iter()
+            .map(|row| row.try_into())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Check if we have more items than requested
+        let has_more = items.len() > pagination.page_size as usize;
+        let items = if has_more {
+            items[..pagination.page_size as usize].to_vec()
+        } else {
+            items
+        };
+
+        let next_page_token = if has_more {
+            items.last().map(|item| item.provider_instance.created_at.to_string())
+        } else {
+            None
+        };
+
+        Ok(PaginatedResponse {
+            items,
+            next_page_token,
+        })
+    }
 }
 
 struct ManualGetProviderInstancesGroupedByFunctionControllerTypeIdParams<'a> {
@@ -887,14 +1023,15 @@ impl SqlMigrationLoader for Repository {
 mod tests {
     use super::*;
     use crate::logic::{
-        BrokerAction, BrokerState, DataEncryptionKey, EncryptedDataEncryptionKey,
+        DataEncryptionKey, EncryptedDataEncryptionKey,
         EnvelopeEncryptionKeyId, Metadata, ProviderInstanceSerialized,
-        ResourceServerCredentialSerialized, UserCredentialSerialized,
         instance::FunctionInstanceSerialized,
+        credential::BrokerAction,
     };
     use crate::repository::{
-        CreateBrokerState, CreateDataEncryptionKey, CreateFunctionInstance, CreateProviderInstance,
+        BrokerState, CreateBrokerState, CreateDataEncryptionKey, CreateFunctionInstance, CreateProviderInstance,
         CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
+        ResourceServerCredentialSerialized, UserCredentialSerialized,
     };
     use shared::primitives::{
         SqlMigrationLoader, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4,
@@ -2876,5 +3013,273 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result_empty.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_update_resource_server_credential() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+        let now = WrappedChronoDateTime::now();
+        let dek_id = create_test_dek(&repo, now).await;
+
+        // Create initial resource server credential
+        let initial_value = WrappedJsonValue::new(serde_json::json!({
+            "client_id": "initial-client-id",
+            "client_secret": "initial-secret"
+        }));
+        let initial_metadata = Metadata::new();
+        let initial_rotation_time = WrappedChronoDateTime::now();
+
+        let rsc_id = WrappedUuidV4::new();
+        let rsc = ResourceServerCredentialSerialized {
+            id: rsc_id.clone(),
+            type_id: "oauth2_client_credentials".to_string(),
+            metadata: initial_metadata.clone(),
+            value: initial_value.clone(),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: Some(initial_rotation_time),
+            data_encryption_key_id: dek_id.clone(),
+        };
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(rsc.clone()))
+            .await
+            .unwrap();
+
+        // Test 1: Update only value, other fields should remain unchanged
+        let new_value = WrappedJsonValue::new(serde_json::json!({
+            "client_id": "updated-client-id",
+            "client_secret": "updated-secret"
+        }));
+        repo.update_resource_server_credential(
+            &rsc_id,
+            Some(&new_value),
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let updated = repo.get_resource_server_credential_by_id(&rsc_id).await.unwrap().unwrap();
+        assert_eq!(updated.value, new_value, "Value should be updated");
+        assert_eq!(updated.metadata.0, initial_metadata.0, "Metadata should remain unchanged when None is passed");
+        assert_eq!(updated.next_rotation_time, Some(initial_rotation_time), "Rotation time should remain unchanged when None is passed");
+
+        // Test 2: Update only metadata, other fields should remain unchanged
+        let mut new_metadata_map = serde_json::Map::new();
+        new_metadata_map.insert("key".to_string(), serde_json::json!("value"));
+        let new_metadata = Metadata(new_metadata_map);
+
+        repo.update_resource_server_credential(
+            &rsc_id,
+            None,
+            Some(&new_metadata),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let updated = repo.get_resource_server_credential_by_id(&rsc_id).await.unwrap().unwrap();
+        assert_eq!(updated.value, new_value, "Value should remain unchanged when None is passed");
+        assert_eq!(updated.metadata.0, new_metadata.0, "Metadata should be updated");
+        assert_eq!(updated.next_rotation_time, Some(initial_rotation_time), "Rotation time should remain unchanged when None is passed");
+
+        // Test 3: Update only next_rotation_time, other fields should remain unchanged
+        let new_rotation_time = WrappedChronoDateTime::now();
+        repo.update_resource_server_credential(
+            &rsc_id,
+            None,
+            None,
+            Some(&new_rotation_time),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let updated = repo.get_resource_server_credential_by_id(&rsc_id).await.unwrap().unwrap();
+        assert_eq!(updated.value, new_value, "Value should remain unchanged when None is passed");
+        assert_eq!(updated.metadata.0, new_metadata.0, "Metadata should remain unchanged when None is passed");
+        assert!(updated.next_rotation_time.is_some(), "Rotation time should be updated");
+
+        // Test 4: Pass None for all optional fields, all should remain unchanged
+        let before_none_update = repo.get_resource_server_credential_by_id(&rsc_id).await.unwrap().unwrap();
+
+        repo.update_resource_server_credential(
+            &rsc_id,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let after_none_update = repo.get_resource_server_credential_by_id(&rsc_id).await.unwrap().unwrap();
+        assert_eq!(after_none_update.value, before_none_update.value, "Value should remain unchanged when None is passed");
+        assert_eq!(after_none_update.metadata.0, before_none_update.metadata.0, "Metadata should remain unchanged when None is passed");
+        assert_eq!(after_none_update.next_rotation_time, before_none_update.next_rotation_time, "Rotation time should remain unchanged when None is passed");
+
+        // Test 5: Update all fields at once
+        let final_value = WrappedJsonValue::new(serde_json::json!({
+            "client_id": "final-client-id",
+            "client_secret": "final-secret"
+        }));
+        let mut final_metadata_map = serde_json::Map::new();
+        final_metadata_map.insert("final".to_string(), serde_json::json!(true));
+        let final_metadata = Metadata(final_metadata_map);
+        let final_rotation_time = WrappedChronoDateTime::now();
+
+        repo.update_resource_server_credential(
+            &rsc_id,
+            Some(&final_value),
+            Some(&final_metadata),
+            Some(&final_rotation_time),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let updated = repo.get_resource_server_credential_by_id(&rsc_id).await.unwrap().unwrap();
+        assert_eq!(updated.value, final_value, "All fields should be updated");
+        assert_eq!(updated.metadata.0, final_metadata.0, "All fields should be updated");
+        assert!(updated.next_rotation_time.is_some(), "All fields should be updated");
+    }
+
+    #[tokio::test]
+    async fn test_update_user_credential() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+        let now = WrappedChronoDateTime::now();
+        let dek_id = create_test_dek(&repo, now).await;
+
+        // Create initial user credential
+        let initial_value = WrappedJsonValue::new(serde_json::json!({
+            "access_token": "initial-token",
+            "refresh_token": "initial-refresh"
+        }));
+        let mut initial_metadata_map = serde_json::Map::new();
+        initial_metadata_map.insert("initial_key".to_string(), serde_json::json!("initial_value"));
+        let initial_metadata = Metadata(initial_metadata_map);
+        let initial_rotation_time = WrappedChronoDateTime::now();
+
+        let uc_id = WrappedUuidV4::new();
+        let uc = UserCredentialSerialized {
+            id: uc_id.clone(),
+            type_id: "oauth2_authorization_code".to_string(),
+            metadata: initial_metadata.clone(),
+            value: initial_value.clone(),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: Some(initial_rotation_time),
+            data_encryption_key_id: dek_id.clone(),
+        };
+        repo.create_user_credential(&CreateUserCredential::from(uc.clone()))
+            .await
+            .unwrap();
+
+        // Test 1: Update only value, other fields should remain unchanged
+        let new_value = WrappedJsonValue::new(serde_json::json!({
+            "access_token": "updated-token",
+            "refresh_token": "updated-refresh"
+        }));
+        repo.update_user_credential(
+            &uc_id,
+            Some(&new_value),
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let updated = repo.get_user_credential_by_id(&uc_id).await.unwrap().unwrap();
+        assert_eq!(updated.value, new_value, "Value should be updated");
+        assert_eq!(updated.metadata.0, initial_metadata.0, "Metadata should remain unchanged when None is passed");
+        assert_eq!(updated.next_rotation_time, Some(initial_rotation_time), "Rotation time should remain unchanged when None is passed");
+
+        // Test 2: Update only metadata, other fields should remain unchanged
+        let mut new_metadata_map = serde_json::Map::new();
+        new_metadata_map.insert("new_key".to_string(), serde_json::json!("new_value"));
+        let new_metadata = Metadata(new_metadata_map);
+
+        repo.update_user_credential(
+            &uc_id,
+            None,
+            Some(&new_metadata),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let updated = repo.get_user_credential_by_id(&uc_id).await.unwrap().unwrap();
+        assert_eq!(updated.value, new_value, "Value should remain unchanged when None is passed");
+        assert_eq!(updated.metadata.0, new_metadata.0, "Metadata should be updated");
+        assert_eq!(updated.next_rotation_time, Some(initial_rotation_time), "Rotation time should remain unchanged when None is passed");
+
+        // Test 3: Update only next_rotation_time, other fields should remain unchanged
+        let new_rotation_time = WrappedChronoDateTime::now();
+        repo.update_user_credential(
+            &uc_id,
+            None,
+            None,
+            Some(&new_rotation_time),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let updated = repo.get_user_credential_by_id(&uc_id).await.unwrap().unwrap();
+        assert_eq!(updated.value, new_value, "Value should remain unchanged when None is passed");
+        assert_eq!(updated.metadata.0, new_metadata.0, "Metadata should remain unchanged when None is passed");
+        assert!(updated.next_rotation_time.is_some(), "Rotation time should be updated");
+
+        // Test 4: Update with None values (all should remain unchanged)
+        let before_none_update = repo.get_user_credential_by_id(&uc_id).await.unwrap().unwrap();
+
+        repo.update_user_credential(
+            &uc_id,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let after_none_update = repo.get_user_credential_by_id(&uc_id).await.unwrap().unwrap();
+        assert_eq!(after_none_update.value, before_none_update.value, "Value should remain unchanged when None is passed");
+        assert_eq!(after_none_update.metadata.0, before_none_update.metadata.0, "Metadata should remain unchanged when None is passed");
+        assert_eq!(after_none_update.next_rotation_time, before_none_update.next_rotation_time, "Rotation time should remain unchanged when None is passed");
+
+        // Test 5: Update all fields at once
+        let final_value = WrappedJsonValue::new(serde_json::json!({
+            "access_token": "final-token",
+            "refresh_token": "final-refresh"
+        }));
+        let mut final_metadata_map = serde_json::Map::new();
+        final_metadata_map.insert("final_key".to_string(), serde_json::json!("final_value"));
+        let final_metadata = Metadata(final_metadata_map);
+        let final_rotation_time = WrappedChronoDateTime::now();
+
+        repo.update_user_credential(
+            &uc_id,
+            Some(&final_value),
+            Some(&final_metadata),
+            Some(&final_rotation_time),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let updated = repo.get_user_credential_by_id(&uc_id).await.unwrap().unwrap();
+        assert_eq!(updated.value, final_value, "All fields should be updated");
+        assert_eq!(updated.metadata.0, final_metadata.0, "All fields should be updated");
+        assert!(updated.next_rotation_time.is_some(), "All fields should be updated");
     }
 }

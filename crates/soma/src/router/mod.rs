@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
-use bridge::logic::{CreateDataEncryptionKeyParams, EncryptedDataEncryptionKey};
+use bridge::logic::{CreateDataEncryptionKeyParams, EncryptedDataEncryptionKey, OnConfigChangeRx};
 use tower_http::cors::CorsLayer;
 use tracing::info;
 use url::Url;
@@ -53,6 +53,7 @@ pub(crate) struct InitRouterParams {
     pub db_connection: shared::libsql::Connection,
     pub on_bridge_config_change_tx: OnConfigChangeTx,
     pub envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+    pub bridge_repository: bridge::repository::Repository,
     pub mcp_sse_ping_interval: Duration,
 }
 
@@ -84,15 +85,16 @@ impl RouterParams {
         //     init_params.connection_manager.clone(),
         // );
 
-        let bridge_repository =
-            bridge::repository::Repository::new(init_params.db_connection.clone());
         let bridge_service = BridgeService::new(
-            bridge_repository.clone(),
+            init_params.bridge_repository.clone(),
             init_params.on_bridge_config_change_tx.clone(),
             init_params.envelope_encryption_key_contents.clone(),
             init_params.mcp_transport_tx,
             init_params.mcp_sse_ping_interval,
-        );
+        ).await?;
+
+
+
         // register_all_bridge_providers().await?;
         // info!("Bridge providers registered");
 

@@ -432,3 +432,48 @@ impl TryFrom<Row_get_provider_instances_grouped_by_function_controller_type_id> 
         })
     }
 }
+
+impl TryFrom<super::Row_get_provider_instances_with_credentials> for ProviderInstanceSerializedWithCredentials {
+    type Error = CommonError;
+
+    fn try_from(row: super::Row_get_provider_instances_with_credentials) -> Result<Self, Self::Error> {
+        // Parse resource server credential from JSON string
+        let resource_server_credential: ResourceServerCredentialSerialized =
+            serde_json::from_str(&row.resource_server_credential)
+                .map_err(|e| CommonError::Repository {
+                    msg: format!("Failed to parse resource_server_credential JSON: {}", e),
+                    source: Some(e.into()),
+                })?;
+
+        // Parse optional user credential from JSON string
+        let user_credential: Option<UserCredentialSerialized> =
+            if row.user_credential == "null" {
+                None
+            } else {
+                Some(serde_json::from_str(&row.user_credential)
+                    .map_err(|e| CommonError::Repository {
+                        msg: format!("Failed to parse user_credential JSON: {}", e),
+                        source: Some(e.into()),
+                    })?)
+            };
+
+        Ok(ProviderInstanceSerializedWithCredentials {
+            provider_instance: ProviderInstanceSerialized {
+                id: row.id,
+                display_name: row.display_name,
+                resource_server_credential_id: resource_server_credential.id.clone(),
+                user_credential_id: user_credential.as_ref().map(|uc| uc.id.clone()),
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+                provider_controller_type_id: row.provider_controller_type_id,
+                credential_controller_type_id: row.credential_controller_type_id,
+                status: row.status,
+                return_on_successful_brokering: row.return_on_successful_brokering.and_then(|v| {
+                    serde_json::from_value(v.into_inner()).ok()
+                }),
+            },
+            resource_server_credential,
+            user_credential,
+        })
+    }
+}

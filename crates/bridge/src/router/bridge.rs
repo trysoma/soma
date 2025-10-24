@@ -6,6 +6,7 @@ use http::request::Parts;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use shared::primitives::WrappedUuidV4;
+use tracing::info;
 use utoipa::{IntoParams, PartialSchema, ToSchema};
 use std::{io, string};
 use std::sync::Arc;
@@ -26,7 +27,7 @@ use rmcp::{
     },
 };
 use crate::logic::{
-    create_data_encryption_key, create_provider_instance, create_resource_server_credential, create_user_credential, delete_provider_instance, disable_function, enable_function, encrypt_resource_server_configuration, encrypt_user_credential_configuration, get_provider_instance, invoke_function, list_available_providers, list_data_encryption_keys, list_function_instances, list_provider_instances, list_provider_instances_grouped_by_function, resume_user_credential_brokering, start_user_credential_brokering, update_provider_instance, BrokerAction, BrokerInput, BrokerState, CreateDataEncryptionKeyParams, CreateDataEncryptionKeyResponse, CreateProviderInstanceParams, CreateProviderInstanceParamsInner, CreateProviderInstanceResponse, CreateResourceServerCredentialParams, CreateResourceServerCredentialParamsInner, CreateResourceServerCredentialResponse, CreateUserCredentialParams, CreateUserCredentialParamsInner, CreateUserCredentialResponse, CryptoService, DataEncryptionKey, DecryptionService, DisableFunctionParams, DisableFunctionParamsInner, DisableFunctionResponse, EnableFunctionParams, EnableFunctionParamsInner, EnableFunctionResponse, EncryptConfigurationParams, EncryptCredentialConfigurationParamsInner, EncryptedCredentialConfigurationResponse, EncryptionService, EnvelopeEncryptionKeyContents, EnvelopeEncryptionKeyId, GetProviderInstanceResponse, InvokeFunctionParams, InvokeFunctionParamsInner, InvokeFunctionResponse, ListAvailableProvidersResponse, ListDataEncryptionKeysResponse, ListFunctionInstancesParams, ListFunctionInstancesResponse, ListProviderInstancesGroupedByFunctionParams, ListProviderInstancesGroupedByFunctionResponse, ListProviderInstancesParams, ListProviderInstancesResponse, OnConfigChangeTx, ResumeUserCredentialBrokeringParams, StartUserCredentialBrokeringParams, StartUserCredentialBrokeringParamsInner, UpdateProviderInstanceParamsInner, UpdateProviderInstanceResponse, UserCredentialBrokeringResponse, UserCredentialSerialized, WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithFunctionInstanceId, WithProviderControllerTypeId, WithProviderInstanceId
+    create_data_encryption_key, create_provider_instance, create_resource_server_credential, create_user_credential, delete_provider_instance, disable_function, enable_function, encrypt_resource_server_configuration, encrypt_user_credential_configuration, get_provider_instance, invoke_function, list_available_providers, list_data_encryption_keys, list_function_instances, list_provider_instances, list_provider_instances_grouped_by_function, process_credential_rotation, process_credential_rotations_with_window, resume_user_credential_brokering, start_user_credential_brokering, update_provider_instance, BrokerAction, BrokerInput, BrokerState, CreateDataEncryptionKeyParams, CreateDataEncryptionKeyResponse, CreateProviderInstanceParams, CreateProviderInstanceParamsInner, CreateProviderInstanceResponse, CreateResourceServerCredentialParams, CreateResourceServerCredentialParamsInner, CreateResourceServerCredentialResponse, CreateUserCredentialParams, CreateUserCredentialParamsInner, CreateUserCredentialResponse, CryptoService, DataEncryptionKey, DecryptionService, DisableFunctionParams, DisableFunctionParamsInner, DisableFunctionResponse, EnableFunctionParams, EnableFunctionParamsInner, EnableFunctionResponse, EncryptConfigurationParams, EncryptCredentialConfigurationParamsInner, EncryptedCredentialConfigurationResponse, EncryptionService, EnvelopeEncryptionKeyContents, EnvelopeEncryptionKeyId, GetProviderInstanceResponse, InvokeFunctionParams, InvokeFunctionParamsInner, InvokeFunctionResponse, ListAvailableProvidersResponse, ListDataEncryptionKeysResponse, ListFunctionInstancesParams, ListFunctionInstancesResponse, ListProviderInstancesGroupedByFunctionParams, ListProviderInstancesGroupedByFunctionResponse, ListProviderInstancesParams, ListProviderInstancesResponse, OnConfigChangeTx, ResumeUserCredentialBrokeringParams, StartUserCredentialBrokeringParams, StartUserCredentialBrokeringParamsInner, UpdateProviderInstanceParamsInner, UpdateProviderInstanceResponse, UserCredentialBrokeringResponse, UserCredentialSerialized, WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithFunctionInstanceId, WithProviderControllerTypeId, WithProviderInstanceId
 };
 use crate::repository::Repository;
 use shared::{adapters::openapi::JsonResponse, error::CommonError, primitives::PaginationRequest};
@@ -826,20 +827,31 @@ impl BridgeServiceInner {
 pub struct BridgeService(pub Arc<BridgeServiceInner>);
 
 impl BridgeService {
-    pub fn new(
+    pub async fn new(
         repository: Repository,
         on_config_change_tx: OnConfigChangeTx,
         envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
         mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
         mcp_sse_ping_interval: Duration,
-    ) -> Self {
-        Self(Arc::new(BridgeServiceInner::new(
+    ) -> Result<Self, CommonError> {
+        // Run initial credential rotation check for expired and soon-to-expire credentials (30 min window)
+        info!("Running initial credential rotation check...");
+        process_credential_rotations_with_window(
+            &repository,
+            &on_config_change_tx,
+            &envelope_encryption_key_contents,
+            30,
+        )
+        .await?;
+        info!("Initial credential rotation check complete");
+
+        Ok(Self(Arc::new(BridgeServiceInner::new(
             repository,
             on_config_change_tx,
             envelope_encryption_key_contents,
             mcp_transport_tx,
             mcp_sse_ping_interval,
-        )))
+        ))))
     }
 
     pub fn repository(&self) -> &Repository {

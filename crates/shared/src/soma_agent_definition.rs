@@ -94,6 +94,11 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
         config: ProviderConfig,
     ) -> Result<(), CommonError>;
     async fn remove_provider(&self, provider_id: String) -> Result<(), CommonError>;
+    async fn update_provider(
+        &self,
+        provider_id: String,
+        config: ProviderConfig,
+    ) -> Result<(), CommonError>;
     async fn add_function_instance(
         &self,
         provider_controller_type_id: String,
@@ -268,6 +273,45 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             None => return Ok(()),
         };
         info!("Provider removed from bridge: {:?}", provider_id);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn update_provider(
+        &self,
+        provider_id: String,
+        config: ProviderConfig,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        let bridge = match &mut definition.bridge {
+            Some(bridge) => bridge,
+            None => return Err(CommonError::Unknown(anyhow::anyhow!("Bridge configuration not found"))),
+        };
+
+        let providers = match &mut bridge.providers {
+            Some(providers) => providers,
+            None => return Err(CommonError::Unknown(anyhow::anyhow!("Providers not found"))),
+        };
+
+        match providers.get_mut(&provider_id) {
+            Some(existing_config) => {
+                // Update the provider config, preserving functions if not provided in the update
+                if config.functions.is_some() {
+                    *existing_config = config;
+                } else {
+                    let functions = existing_config.functions.clone();
+                    *existing_config = config;
+                    existing_config.functions = functions;
+                }
+            }
+            None => {
+                // Provider doesn't exist, add it
+                providers.insert(provider_id.clone(), config);
+            }
+        };
+
+        info!("Provider updated in bridge: {:?}", provider_id);
         self.save(definition).await?;
         Ok(())
     }

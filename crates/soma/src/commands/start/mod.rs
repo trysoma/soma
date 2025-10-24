@@ -14,6 +14,7 @@ use bridge::logic::Metadata;
 use bridge::logic::no_auth::NoAuthStaticCredentialConfiguration;
 use bridge::logic::OnConfigChangeEvt;
 use bridge::logic::OnConfigChangeRx;
+use bridge::logic::OnConfigChangeTx;
 use bridge::logic::ResourceServerCredentialSerialized;
 use bridge::logic::StaticCredentialConfigurationLike;
 use bridge::logic::StaticProviderCredentialControllerLike;
@@ -44,6 +45,7 @@ use shared::libsql::{
 use shared::primitives::SqlMigrationLoader;
 use shared::primitives::WrappedJsonValue;
 use shared::primitives::WrappedSchema;
+use shared::soma_agent_definition::SomaAgentDefinitionLike;
 use tokio::process::Command;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle};
@@ -100,7 +102,7 @@ pub struct StartParams {
 async fn setup_repository(
     conn_string: Url,
     auth_token: Option<String>,
-) -> Result<(libsql::Database, shared::libsql::Connection, Repository), CommonError> {
+) -> Result<(libsql::Database, shared::libsql::Connection, Repository, bridge::repository::Repository), CommonError> {
     info!("starting metadata database");
 
     let migrations = Repository::load_sql_migrations();
@@ -112,7 +114,8 @@ async fn setup_repository(
     let (db, conn) = establish_db_connection(&auth_conn_string, Some(migrations)).await?;
 
     let repo = Repository::new(conn.clone());
-    Ok((db, conn, repo))
+    let bridge_repo = bridge::repository::Repository::new(conn.clone());
+    Ok((db, conn, repo, bridge_repo))
 }
 
 fn find_free_port(start: u16, end: u16) -> std::io::Result<u16> {
@@ -168,6 +171,7 @@ pub async fn cmd_start(
             "Local key encryption key is for getting started quickly. Please use a valid AWS KMS ARN for production."
         );
     }
+
     let src_dir = construct_src_dir_absolute(params.clone().src_dir)?;
     let path_to_soma_definition = src_dir.join("soma.yaml");
 
@@ -183,7 +187,7 @@ pub async fn cmd_start(
     let soma_definition = Arc::new(soma_definition);
 
     let connection_manager = ConnectionManager::new();
-    let (_db, _conn, repository) =
+    let (_db, conn, repository, bridge_repo) =
         setup_repository(params.db_conn_string.clone(), params.db_auth_token.clone()).await?;
 
 
@@ -257,6 +261,24 @@ pub async fn cmd_start(
     let file_change_tx_clone = file_change_tx.clone();
     let cli_config_clone = cli_config.clone();
     let envelope_encryption_key_contents_clone = envelope_encryption_key_contents.clone();
+    let (on_bridge_config_change_tx, on_bridge_config_change_rx) =
+        mpsc::channel::<OnConfigChangeEvt>(10);
+
+    // Sync bridge from soma definition
+    let soma_def = soma_definition.get_definition().await?;
+    crate::bridge_sync::sync_bridge(
+        &envelope_encryption_key_contents,
+        &on_bridge_config_change_tx,
+        &bridge_repo,
+        &soma_def,
+    )
+    .await?;
+    info!("Bridge synced from soma definition");
+
+    let on_bridge_config_change_tx_clone = on_bridge_config_change_tx.clone();
+    let bridge_repository_clone = bridge_repo.clone();
+    let soma_definition_clone = soma_definition.clone();
+    let conn_clone = conn.clone();
     subsys.start(SubsystemBuilder::new(
         "restartable-processes-on-config-change",
         move |subsys: SubsystemHandle| async move {
@@ -274,10 +296,12 @@ pub async fn cmd_start(
                     params,
                     connection_manager,
                     repository,
-                    db_connection: _conn,
-                    cli_config: cli_config_clone.clone(),
-                    soma_definition: soma_definition.clone(),
+                    db_connection: conn_clone,
+                    cli_config: cli_config_clone,
+                    soma_definition: soma_definition_clone,
                     envelope_encryption_key_contents: envelope_encryption_key_contents_clone,
+                    on_bridge_config_change_tx: on_bridge_config_change_tx_clone,
+                    bridge_repository: bridge_repository_clone,
                 }) => {
                     if let Err(e) = result {
                         error!("Restartable processes on config change stopped unexpectedly: {:?}", e);
@@ -287,6 +311,46 @@ pub async fn cmd_start(
                 }
             }
 
+            Ok::<(), CommonError>(())
+        },
+    ));
+
+    let soma_definition_clone = soma_definition.clone();
+    subsys.start(SubsystemBuilder::new(
+        "bridge-config-change-listener",
+        move |subsys: SubsystemHandle| async move {
+            tokio::select! {
+                _ = subsys.on_shutdown_requested() => {
+                    info!("system shutdown requested");
+                    info!("Bridge config change listener stopped");
+                }
+                result = watch_for_bridge_config_change(on_bridge_config_change_rx, soma_definition_clone) => {
+                    if let Err(e) = result {
+                        error!("Bridge config change watcher stopped unexpectedly: {:?}", e);
+                    }
+                    info!("Bridge config change watcher stopped");
+                    subsys.request_shutdown();
+                }
+            }
+
+            Ok::<(), CommonError>(())
+        },
+    ));
+
+
+    subsys.start(SubsystemBuilder::new(
+        "pubsub-event-processor",
+        move |subsys: SubsystemHandle| async move {
+            tokio::select! {
+                _ = subsys.on_shutdown_requested() => {
+                    info!("system shutdown requested");
+                },
+                _ = bridge::logic::credential_rotation_task(bridge_repo.clone(), envelope_encryption_key_contents.clone(), on_bridge_config_change_tx) => {
+                    
+                    info!("Bridge credential rotator stopped");
+                    subsys.request_shutdown();
+                }
+            }
             Ok::<(), CommonError>(())
         },
     ));
@@ -308,6 +372,8 @@ struct DevRestartableProcesses {
     cli_config: CliConfig,
     soma_definition: Arc<dyn shared::soma_agent_definition::SomaAgentDefinitionLike>,
     envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+    on_bridge_config_change_tx: OnConfigChangeTx,
+    bridge_repository: bridge::repository::Repository,
 }
 
 async fn start_dev_restartable_processes_on_config_change(
@@ -337,6 +403,8 @@ async fn start_dev_restartable_processes_on_config_change(
                             error!("Restartable processes stopped unexpectedly: {:?}", e);
                         }
                         info!("Processes exitted unexpectedly, something went wrong.");
+                        // Don't restart on unexpected exit - request global shutdown
+                        subsys.request_shutdown();
                         return Ok(());
                     }
                 };
@@ -344,8 +412,22 @@ async fn start_dev_restartable_processes_on_config_change(
                 Ok::<(), CommonError>(())
             },
         ));
-        restart_rx.await?;
+        match restart_rx.await {
+            Ok(_) => {
+                // Config changed, restart the processes
+                // Wait for the previous subsystem to fully terminate before starting a new one
+                // This prevents multiple instances from trying to bind to the same ports
+                subsys.wait_for_children().await;
+            }
+            Err(_) => {
+                // Sender was dropped without sending (subsystem exited unexpectedly)
+                // This means the subsystem already requested shutdown, so we break the loop
+                info!("Restart signal dropped, breaking restart loop");
+                break;
+            }
+        }
     }
+    Ok(())
 }
 
 async fn start_dev_restartable_processes(
@@ -364,6 +446,8 @@ async fn start_dev_restartable_processes(
         cli_config,
         soma_definition,
         envelope_encryption_key_contents,
+        on_bridge_config_change_tx,
+        bridge_repository,
     } = params;
 
     soma_definition.reload().await?;
@@ -371,21 +455,7 @@ async fn start_dev_restartable_processes(
     let params_clone = params.clone();
     let (mcp_transport_tx, mut mcp_transport_rx) = tokio::sync::mpsc::unbounded_channel();
     let restate_ingress_client = RestateIngressClient::new(params.restate_ingress_url.to_string());
-    let (on_bridge_config_change_tx, on_bridge_config_change_rx) =
-        mpsc::channel::<OnConfigChangeEvt>(10);
-
-    // Sync bridge from soma definition
-    let bridge_repository = bridge::repository::Repository::new(db_connection.clone());
-    let soma_def = soma_definition.get_definition().await?;
-    crate::bridge_sync::sync_bridge(
-        &envelope_encryption_key_contents,
-        &on_bridge_config_change_tx,
-        &bridge_repository,
-        &soma_def,
-    )
-    .await?;
-    info!("Bridge synced from soma definition");
-
+    
     let router_params = router::RouterParams::new(
         params.clone(),
         router::InitRouterParams {
@@ -399,6 +469,7 @@ async fn start_dev_restartable_processes(
             on_bridge_config_change_tx,
             envelope_encryption_key_contents: envelope_encryption_key_contents.clone(),
             mcp_sse_ping_interval: Duration::from_secs(10),
+            bridge_repository,
         },
     )
     .await?;
@@ -467,25 +538,7 @@ async fn start_dev_restartable_processes(
         },
     ));
 
-    let soma_definition_clone = soma_definition.clone();
-    subsys.start(SubsystemBuilder::new(
-        "bridge-config-change-listener",
-        move |subsys: SubsystemHandle| async move {
-            tokio::select! {
-                _ = subsys.on_shutdown_requested() => {
-                    info!("system shutdown requested");
-                    info!("Bridge config change listener stopped");
-                }
-                _ = watch_for_bridge_config_change(on_bridge_config_change_rx, soma_definition_clone) => {
-                    info!("Bridge config change watcher stopped");
-                    subsys.request_shutdown();
-                }
-            }
-
-            Ok::<(), CommonError>(())
-        },
-    ));
-
+    
     info!("Waiting for server to start, before starting runtime");
     on_server_started_rx.await?;
 
@@ -533,7 +586,11 @@ async fn start_dev_restartable_processes(
                     info!("system shutdown requested");
                     info!("Restate deployment shutdown complete");
                 }
-                _ = start_restate_deployment(params_clone, runtime_port_clone, soma_definition_clone) => {
+                result = start_restate_deployment(params_clone, runtime_port_clone, soma_definition_clone) => {
+                    if let Err(e) = result {
+                        error!("Restate deployment stopped unexpectedly: {:?}", e);
+                        subsys.request_shutdown();
+                    }
                     info!("Restate deployment completed");
                 }
             }
@@ -581,7 +638,8 @@ async fn watch_for_bridge_config_change(
                 );
 
                 // Only write to soma.yaml if the provider instance status is "active"
-                if provider_instance.provider_instance.status == "active" {
+                // TODO: we cant do the above because we need to save function isntances before oauth callback is received
+                // if provider_instance.provider_instance.status == "active" {
                     let user_credential = provider_instance.user_credential.as_ref().map(|uc| {
                         shared::soma_agent_definition::CredentialConfig {
                             id: uc.id.to_string(),
@@ -645,7 +703,77 @@ async fn watch_for_bridge_config_change(
                             },
                         )
                         .await?;
-                }
+                // }
+            }
+            OnConfigChangeEvt::ProviderInstanceUpdated(provider_instance) => {
+                info!(
+                    "Provider instance updated: {:?}",
+                    provider_instance.provider_instance.id
+                );
+
+                let user_credential = provider_instance.user_credential.as_ref().map(|uc| {
+                    shared::soma_agent_definition::CredentialConfig {
+                        id: uc.id.to_string(),
+                        type_id: uc.type_id.clone(),
+                        metadata: json!(uc.metadata.0.clone()),
+                        value: uc.value.get_inner().clone(),
+                        next_rotation_time: uc.next_rotation_time.map(|t| t.to_string()),
+                        data_encryption_key_id: uc.data_encryption_key_id.clone(),
+                    }
+                });
+
+                soma_definition
+                    .update_provider(
+                        provider_instance.provider_instance.id.clone(),
+                        shared::soma_agent_definition::ProviderConfig {
+                            provider_controller_type_id: provider_instance
+                                .provider_instance
+                                .provider_controller_type_id
+                                .clone(),
+                            credential_controller_type_id: provider_instance
+                                .provider_instance
+                                .credential_controller_type_id
+                                .clone(),
+                            display_name: provider_instance
+                                .provider_instance
+                                .display_name
+                                .clone(),
+                            resource_server_credential:
+                                shared::soma_agent_definition::CredentialConfig {
+                                    id: provider_instance
+                                        .resource_server_credential
+                                        .id
+                                        .to_string(),
+                                    type_id: provider_instance
+                                        .resource_server_credential
+                                        .type_id
+                                        .clone(),
+                                    metadata: json!(
+                                        provider_instance
+                                            .resource_server_credential
+                                            .metadata
+                                            .0
+                                            .clone()
+                                    ),
+                                    value: provider_instance
+                                        .resource_server_credential
+                                        .value
+                                        .get_inner()
+                                        .clone(),
+                                    next_rotation_time: provider_instance
+                                        .resource_server_credential
+                                        .next_rotation_time
+                                        .map(|t| t.to_string()),
+                                    data_encryption_key_id: provider_instance
+                                        .resource_server_credential
+                                        .data_encryption_key_id
+                                        .clone(),
+                                },
+                            user_credential,
+                            functions: None,
+                        },
+                    )
+                    .await?;
             }
             OnConfigChangeEvt::ProviderInstanceRemoved(provider_instance_id) => {
                 soma_definition
@@ -713,8 +841,6 @@ async fn watch_for_bridge_config_change(
             }
         }
     }
-
-    Ok(())
 }
 
 async fn start_restate_deployment(

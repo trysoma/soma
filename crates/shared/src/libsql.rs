@@ -57,6 +57,7 @@ macro_rules! execute_with_retry {
                         let err_str = err.to_string();
                         if err_str.contains("database is locked") || err_str.contains("SQLITE_BUSY")
                         {
+                            tracing::warn!("Database is locked, retrying... {:?}", err);
                             if _retries >= _max_retries {
                                 break Err(err);
                             }
@@ -67,6 +68,7 @@ macro_rules! execute_with_retry {
                             let delay_us = 10_000 * (1 << _retries.min(6));
                             tokio::time::sleep(std::time::Duration::from_micros(delay_us)).await;
                         } else {
+                            tracing::error!("Error executing with retry: {:?}", err);
                             break Err(err);
                         }
                     }

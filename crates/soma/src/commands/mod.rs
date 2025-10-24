@@ -11,10 +11,8 @@ use shared::{error::CommonError, node::override_path_env};
 use crate::utils::config::CliConfig;
 
 mod start;
-// mod bridge_init;
 
 pub use start::{StartParams, cmd_start};
-// pub use bridge_init::{BridgeInitParams, cmd_bridge_init};
 
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 

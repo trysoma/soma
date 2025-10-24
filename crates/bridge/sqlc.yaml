@@ -112,3 +112,7 @@ sql:
             - db_type: datetime
               column: data_encryption_key.updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # query parameters for rotation
+            - column: get_provider_instances_with_credentials.rotation_window_end
+              rust_type: "shared::primitives::WrappedChronoDateTime"

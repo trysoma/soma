@@ -12,6 +12,8 @@ use utoipa::{
 
 use crate::error::CommonError;
 
+pub type WrappedNodeId = String;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(transparent)]
 pub struct WrappedUuidV4(uuid::Uuid);

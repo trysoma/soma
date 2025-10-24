@@ -1,13 +1,13 @@
 use bridge::logic::{
     create_data_encryption_key, create_provider_instance, create_resource_server_credential,
-    create_user_credential, delete_data_encryption_key, delete_provider_instance,
-    disable_function, enable_function, list_data_encryption_keys, list_function_instances,
-    list_provider_instances, CreateDataEncryptionKeyParams, CreateProviderInstanceParamsInner,
+    create_user_credential, delete_data_encryption_key, delete_provider_instance, disable_function,
+    enable_function, list_data_encryption_keys, list_function_instances,
+    CreateDataEncryptionKeyParams, CreateProviderInstanceParamsInner,
     CreateResourceServerCredentialParams, CreateResourceServerCredentialParamsInner,
     CreateUserCredentialParams, CreateUserCredentialParamsInner, DisableFunctionParamsInner,
-    EnableFunctionParamsInner, EncryptedDataEncryptionKey, EnvelopeEncryptionKeyContents,
-    Metadata, OnConfigChangeTx, WithCredentialControllerTypeId, WithFunctionControllerTypeId,
-    WithProviderControllerTypeId, WithProviderInstanceId,
+    EnableFunctionParamsInner, EncryptedDataEncryptionKey, EnvelopeEncryptionKeyContents, Metadata,
+    OnConfigChangeTx, ProviderInstanceSerializedWithFunctions, WithCredentialControllerTypeId,
+    WithFunctionControllerTypeId, WithProviderControllerTypeId, WithProviderInstanceId,
 };
 use shared::{
     error::CommonError,
@@ -17,15 +17,15 @@ use shared::{
 
 /// Synchronizes the bridge database with the soma.yaml definition.
 ///
-/// This function:
-/// 1. Deletes all existing function instances
-/// 2. Deletes all existing provider instances
-/// 3. Deletes all existing user credentials
-/// 4. Deletes all existing resource server credentials
-/// 5. Deletes all existing data encryption keys
-/// 6. Creates data encryption keys from the soma definition
-/// 7. Creates provider instances from the soma definition
-/// 8. Creates function instances for each provider
+/// This function performs a smart sync that:
+/// 1. Syncs data encryption keys (adds missing, removes extra)
+/// 2. For each provider in soma.yaml:
+///    - Checks if provider instance exists in DB
+///    - If not, creates it with all credentials
+///    - If exists but credentials/config changed, recreates it
+///    - If exists and unchanged, preserves it (including runtime fields like return_on_successful_brokering)
+/// 3. Removes provider instances not in soma.yaml (only if status is "active")
+/// 4. Syncs function instances for each provider
 ///
 /// All operations are performed with `publish_on_change_evt: false` to prevent
 /// circular updates back to the soma.yaml file during sync.
@@ -35,137 +35,12 @@ pub async fn sync_bridge(
     repo: &impl bridge::repository::ProviderRepositoryLike,
     soma_definition: &SomaAgentDefinition,
 ) -> Result<(), CommonError> {
-    // 1. Delete all function instances
-    let function_instances_to_delete = {
-        let mut instances = Vec::new();
-        let mut next_page_token: Option<String> = None;
-        loop {
-            let pagination = PaginationRequest {
-                page_size: 100,
-                next_page_token: next_page_token.clone(),
-            };
-            let response = list_function_instances(
-                repo,
-                bridge::logic::ListFunctionInstancesParams {
-                    pagination,
-                    provider_instance_id: None,
-                },
-            )
-            .await?;
-            instances.extend(response.items);
-            if response.next_page_token.is_none() {
-                break;
-            }
-            next_page_token = response.next_page_token;
-        }
-        instances
-    };
+    use std::collections::{HashMap, HashSet};
 
-    for item in function_instances_to_delete {
-        disable_function(
-            on_config_change_tx,
-            repo,
-            WithProviderInstanceId {
-                provider_instance_id: item.provider_instance_id.clone(),
-                inner: WithFunctionControllerTypeId {
-                    function_controller_type_id: item.function_controller_type_id.clone(),
-                    inner: DisableFunctionParamsInner {},
-                },
-            },
-            false,
-        )
-        .await?;
-    }
-
-    // 2. Delete all provider instances
-    let provider_instances_to_delete = {
-        let mut instances = Vec::new();
-        let mut next_page_token: Option<String> = None;
-        loop {
-            let pagination = PaginationRequest {
-                page_size: 100,
-                next_page_token: next_page_token.clone(),
-            };
-            let response = list_provider_instances(
-                repo,
-                bridge::logic::ListProviderInstancesParams {
-                    pagination,
-                    status: None,
-                    provider_controller_type_id: None
-                },
-            )
-            .await?;
-            instances.extend(response.items);
-            if response.next_page_token.is_none() {
-                break;
-            }
-            next_page_token = response.next_page_token;
-        }
-        instances
-    };
-
-    for item in provider_instances_to_delete {
-        delete_provider_instance(
-            on_config_change_tx,
-            repo,
-            WithProviderInstanceId {
-                provider_instance_id: item.provider_instance.id.clone(),
-                inner: (),
-            },
-            false,
-        )
-        .await?;
-    }
-
-    // 3. Delete all user credentials
-    let user_credentials_to_delete = {
-        let mut credentials = Vec::new();
-        let mut next_page_token: Option<String> = None;
-        loop {
-            let pagination = PaginationRequest {
-                page_size: 100,
-                next_page_token: next_page_token.clone(),
-            };
-            let response = repo.list_user_credentials(&pagination).await?;
-            credentials.extend(response.items);
-            if response.next_page_token.is_none() {
-                break;
-            }
-            next_page_token = response.next_page_token;
-        }
-        credentials
-    };
-
-    for item in user_credentials_to_delete {
-        repo.delete_user_credential(&item.id).await?;
-    }
-
-    // 4. Delete all resource server credentials
-    let resource_server_credentials_to_delete = {
-        let mut credentials = Vec::new();
-        let mut next_page_token: Option<String> = None;
-        loop {
-            let pagination = PaginationRequest {
-                page_size: 100,
-                next_page_token: next_page_token.clone(),
-            };
-            let response = repo.list_resource_server_credentials(&pagination).await?;
-            credentials.extend(response.items);
-            if response.next_page_token.is_none() {
-                break;
-            }
-            next_page_token = response.next_page_token;
-        }
-        credentials
-    };
-
-    for item in resource_server_credentials_to_delete {
-        repo.delete_resource_server_credential(&item.id).await?;
-    }
-
-    // 5. Delete all data encryption keys
-    let data_encryption_keys_to_delete = {
-        let mut keys = Vec::new();
+    // 1. Sync data encryption keys
+    // Get all existing keys
+    let existing_keys = {
+        let mut keys = HashMap::new();
         let mut next_page_token: Option<String> = None;
         loop {
             let pagination = PaginationRequest {
@@ -173,7 +48,9 @@ pub async fn sync_bridge(
                 next_page_token: next_page_token.clone(),
             };
             let response = list_data_encryption_keys(repo, pagination).await?;
-            keys.extend(response.items);
+            for key in response.items {
+                keys.insert(key.id.clone(), key);
+            }
             if response.next_page_token.is_none() {
                 break;
             }
@@ -182,13 +59,24 @@ pub async fn sync_bridge(
         keys
     };
 
-    for item in data_encryption_keys_to_delete {
-        delete_data_encryption_key(on_config_change_tx, repo, item.id.clone(), false).await?;
+    // Get keys from soma definition
+    let yaml_keys: HashMap<String, _> = soma_definition
+        .bridge
+        .as_ref()
+        .and_then(|b| Some(&b.encryption.0))
+        .map(|enc| enc.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+        .unwrap_or_default();
+
+    // Delete keys not in yaml
+    for (key_id, _) in existing_keys.iter() {
+        if !yaml_keys.contains_key(key_id) {
+            delete_data_encryption_key(on_config_change_tx, repo, key_id.clone(), false).await?;
+        }
     }
 
-    // 6. Create encryption keys from soma definition
-    if let Some(bridge_config) = &soma_definition.bridge {
-        for (key_id, encryption_config) in &bridge_config.encryption.0 {
+    // Create/update keys from yaml
+    for (key_id, encryption_config) in &yaml_keys {
+        if !existing_keys.contains_key(key_id) {
             create_data_encryption_key(
                 key_encryption_key,
                 on_config_change_tx,
@@ -203,9 +91,38 @@ pub async fn sync_bridge(
             )
             .await?;
         }
+    }
 
-        // 7. Create provider instances from soma definition
+    // 2. Sync provider instances
+    if let Some(bridge_config) = &soma_definition.bridge {
         if let Some(providers) = &bridge_config.providers {
+            // Get all existing provider instances with credentials
+            let existing_providers: HashMap<String, ProviderInstanceSerializedWithFunctions> = {
+                let mut instances = HashMap::new();
+                let mut next_page_token: Option<String> = None;
+                loop {
+                    let pagination = PaginationRequest {
+                        page_size: 100,
+                        next_page_token: next_page_token.clone(),
+                    };
+                    // Use repository directly to get instances with credentials
+                    let response = repo
+                        .list_provider_instances(&pagination, None, None)
+                        .await?;
+                    for item in response.items {
+                        instances.insert(item.provider_instance.id.clone(), item);
+                    }
+                    if response.next_page_token.is_none() {
+                        break;
+                    }
+                    next_page_token = response.next_page_token;
+                }
+                instances
+            };
+
+            let yaml_provider_ids: HashSet<String> = providers.keys().cloned().collect();
+
+            // Process each provider from yaml
             for (provider_id, provider_config) in providers {
                 let provider_controller_type_id = &provider_config.provider_controller_type_id;
                 let credential_controller_type_id = &provider_config.credential_controller_type_id;
@@ -217,98 +134,207 @@ pub async fn sync_bridge(
                     credential_controller_type_id
                 );
 
-                // Create resource server credential
-                let resource_server_credential = create_resource_server_credential(
-                    repo,
-                    CreateResourceServerCredentialParams {
-                        provider_controller_type_id: provider_controller_type_id.clone(),
-                        inner: WithCredentialControllerTypeId {
-                            credential_controller_type_id: credential_controller_type_id.clone(),
-                            inner: CreateResourceServerCredentialParamsInner {
-                                data_encryption_key_id: provider_config
-                                    .resource_server_credential
-                                    .data_encryption_key_id
-                                    .clone(),
-                                resource_server_configuration: WrappedJsonValue::new(
-                                    provider_config.resource_server_credential.value.clone(),
-                                ),
-                                metadata: provider_config
-                                    .resource_server_credential
-                                    .metadata
-                                    .as_object()
-                                    .map(|m| Metadata(m.clone())),
+                // Check if provider exists and if it needs updating
+                let needs_recreate = if let Some(existing) = existing_providers.get(provider_id) {
+                    // Check if key fields changed
+                    let basic_fields_changed = existing.provider_instance.provider_controller_type_id != *provider_controller_type_id
+                        || existing.provider_instance.credential_controller_type_id != *credential_controller_type_id
+                        || existing.provider_instance.display_name != provider_config.display_name;
+                    
+                    // Compare resource server credentials (encrypted values, no decryption needed)
+                    let resource_cred_changed = 
+                        existing.resource_server_credential.value.get_inner() != &provider_config.resource_server_credential.value
+                        || existing.resource_server_credential.data_encryption_key_id != provider_config.resource_server_credential.data_encryption_key_id
+                        || serde_json::Value::Object(existing.resource_server_credential.metadata.0.clone()) != provider_config.resource_server_credential.metadata
+                        || existing.resource_server_credential.type_id != provider_config.resource_server_credential.type_id
+                        || existing.resource_server_credential.next_rotation_time.as_ref().map(|t| t.to_string()) != provider_config.resource_server_credential.next_rotation_time;
+                    
+                    // Compare user credentials (if either exists)
+                    let user_cred_changed = match (&existing.user_credential, &provider_config.user_credential) {
+                        (Some(existing_uc), Some(config_uc)) => {
+                            // Both exist, compare them
+                            existing_uc.value.get_inner() != &config_uc.value
+                                || existing_uc.data_encryption_key_id != config_uc.data_encryption_key_id
+                                || serde_json::Value::Object(existing_uc.metadata.0.clone()) != config_uc.metadata
+                                || existing_uc.type_id != config_uc.type_id
+                                || existing_uc.next_rotation_time.as_ref().map(|t| t.to_string()) != config_uc.next_rotation_time
+                        }
+                        (None, None) => false, // Both don't exist, no change
+                        _ => true, // One exists but not the other, needs recreate
+                    };
+                    
+                    basic_fields_changed || resource_cred_changed || user_cred_changed
+                } else {
+                    // Provider doesn't exist, needs creation
+                    true
+                };
+
+                if needs_recreate {
+                    // Delete existing provider if it exists
+                    if existing_providers.contains_key(provider_id) {
+                        tracing::info!("Provider '{}' configuration changed, recreating", provider_id);
+                        delete_provider_instance(
+                            on_config_change_tx,
+                            repo,
+                            WithProviderInstanceId {
+                                provider_instance_id: provider_id.clone(),
+                                inner: (),
+                            },
+                            false,
+                        )
+                        .await?;
+                    } else {
+                        tracing::info!("Creating new provider '{}'", provider_id);
+                    }
+
+                    // Create resource server credential
+                    let resource_server_credential = create_resource_server_credential(
+                        repo,
+                        CreateResourceServerCredentialParams {
+                            provider_controller_type_id: provider_controller_type_id.clone(),
+                            inner: WithCredentialControllerTypeId {
+                                credential_controller_type_id: credential_controller_type_id.clone(),
+                                inner: CreateResourceServerCredentialParamsInner {
+                                    data_encryption_key_id: provider_config
+                                        .resource_server_credential
+                                        .data_encryption_key_id
+                                        .clone(),
+                                    resource_server_configuration: WrappedJsonValue::new(
+                                        provider_config.resource_server_credential.value.clone(),
+                                    ),
+                                    metadata: provider_config
+                                        .resource_server_credential
+                                        .metadata
+                                        .as_object()
+                                        .map(|m| Metadata(m.clone())),
+                                },
                             },
                         },
-                    },
-                )
-                .await?;
+                    )
+                    .await?;
 
-                // Create user credential if provided
-                let user_credential =
-                    if let Some(user_cred_config) = &provider_config.user_credential {
-                        Some(
-                            create_user_credential(
-                                repo,
-                                CreateUserCredentialParams {
-                                    provider_controller_type_id: provider_controller_type_id
-                                        .clone(),
-                                    inner: WithCredentialControllerTypeId {
-                                        credential_controller_type_id:
-                                            credential_controller_type_id.clone(),
-                                        inner: CreateUserCredentialParamsInner {
-                                            data_encryption_key_id: user_cred_config
-                                                .data_encryption_key_id
-                                                .clone(),
-                                            user_credential_configuration: WrappedJsonValue::new(
-                                                user_cred_config.value.clone(),
-                                            ),
-                                            metadata: user_cred_config
-                                                .metadata
-                                                .as_object()
-                                                .map(|m| Metadata(m.clone())),
+                    // Create user credential if provided
+                    let user_credential =
+                        if let Some(user_cred_config) = &provider_config.user_credential {
+                            Some(
+                                create_user_credential(
+                                    repo,
+                                    CreateUserCredentialParams {
+                                        provider_controller_type_id: provider_controller_type_id
+                                            .clone(),
+                                        inner: WithCredentialControllerTypeId {
+                                            credential_controller_type_id:
+                                                credential_controller_type_id.clone(),
+                                            inner: CreateUserCredentialParamsInner {
+                                                data_encryption_key_id: user_cred_config
+                                                    .data_encryption_key_id
+                                                    .clone(),
+                                                user_credential_configuration: WrappedJsonValue::new(
+                                                    user_cred_config.value.clone(),
+                                                ),
+                                                metadata: user_cred_config
+                                                    .metadata
+                                                    .as_object()
+                                                    .map(|m| Metadata(m.clone())),
+                                            },
                                         },
                                     },
-                                },
+                                )
+                                .await?,
                             )
-                            .await?,
-                        )
-                    } else {
-                        None
-                    };
+                        } else {
+                            None
+                        };
 
-                // Create provider instance
-                create_provider_instance(
-                    on_config_change_tx,
-                    repo,
-                    WithProviderControllerTypeId {
-                        provider_controller_type_id: provider_controller_type_id.clone(),
-                        inner: WithCredentialControllerTypeId {
-                            credential_controller_type_id: credential_controller_type_id.clone(),
-                            inner: CreateProviderInstanceParamsInner {
-                                provider_instance_id: Some(provider_id.clone()),
-                                display_name: provider_config.display_name.clone(),
-                                resource_server_credential_id: resource_server_credential.id,
-                                user_credential_id: user_credential
-                                    .as_ref()
-                                    .map(|uc| uc.id.clone()),
-                                return_on_successful_brokering: None,
+                    // Create provider instance
+                    create_provider_instance(
+                        on_config_change_tx,
+                        repo,
+                        WithProviderControllerTypeId {
+                            provider_controller_type_id: provider_controller_type_id.clone(),
+                            inner: WithCredentialControllerTypeId {
+                                credential_controller_type_id: credential_controller_type_id.clone(),
+                                inner: CreateProviderInstanceParamsInner {
+                                    provider_instance_id: Some(provider_id.clone()),
+                                    display_name: provider_config.display_name.clone(),
+                                    resource_server_credential_id: resource_server_credential.id,
+                                    user_credential_id: user_credential
+                                        .as_ref()
+                                        .map(|uc| uc.id.clone()),
+                                    return_on_successful_brokering: None,
+                                },
                             },
                         },
-                    },
-                    false,
-                )
-                .await?;
+                        false,
+                    )
+                    .await?;
+                } else {
+                    tracing::info!("Provider '{}' unchanged, preserving", provider_id);
+                }
 
-                // 8. Create function instances for each provider
-                if let Some(functions) = &provider_config.functions {
-                    for function_controller_type_id in functions.iter() {
+                // Sync function instances for this provider
+                let existing_functions = {
+                    let mut instances = HashSet::new();
+                    let mut next_page_token: Option<String> = None;
+                    loop {
+                        let pagination = PaginationRequest {
+                            page_size: 100,
+                            next_page_token: next_page_token.clone(),
+                        };
+                        let response = list_function_instances(
+                            repo,
+                            bridge::logic::ListFunctionInstancesParams {
+                                pagination,
+                                provider_instance_id: Some(provider_id.clone()),
+                            },
+                        )
+                        .await?;
+                        for item in response.items {
+                            instances.insert(item.function_controller_type_id);
+                        }
+                        if response.next_page_token.is_none() {
+                            break;
+                        }
+                        next_page_token = response.next_page_token;
+                    }
+                    instances
+                };
+
+                let yaml_functions: HashSet<String> = provider_config
+                    .functions
+                    .as_ref()
+                    .map(|f| f.iter().cloned().collect())
+                    .unwrap_or_default();
+
+                // Disable functions not in yaml
+                for function_id in existing_functions.iter() {
+                    if !yaml_functions.contains(function_id) {
+                        disable_function(
+                            on_config_change_tx,
+                            repo,
+                            WithProviderInstanceId {
+                                provider_instance_id: provider_id.clone(),
+                                inner: WithFunctionControllerTypeId {
+                                    function_controller_type_id: function_id.clone(),
+                                    inner: DisableFunctionParamsInner {},
+                                },
+                            },
+                            false,
+                        )
+                        .await?;
+                    }
+                }
+
+                // Enable functions from yaml
+                for function_id in yaml_functions.iter() {
+                    if !existing_functions.contains(function_id) {
                         enable_function(
                             on_config_change_tx,
                             repo,
                             WithProviderInstanceId {
                                 provider_instance_id: provider_id.clone(),
                                 inner: WithFunctionControllerTypeId {
-                                    function_controller_type_id: function_controller_type_id.clone(),
+                                    function_controller_type_id: function_id.clone(),
                                     inner: EnableFunctionParamsInner {},
                                 },
                             },
@@ -316,6 +342,27 @@ pub async fn sync_bridge(
                         )
                         .await?;
                     }
+                }
+            }
+
+            // Delete provider instances not in yaml (only if status is "active")
+            for (provider_id, existing) in existing_providers.iter() {
+                if !yaml_provider_ids.contains(provider_id)
+                    && existing.provider_instance.status == "active" {
+                    tracing::info!(
+                        "Deleting provider '{}' not in yaml (status: active)",
+                        provider_id
+                    );
+                    delete_provider_instance(
+                        on_config_change_tx,
+                        repo,
+                        WithProviderInstanceId {
+                            provider_instance_id: provider_id.clone(),
+                            inner: (),
+                        },
+                        false,
+                    )
+                    .await?;
                 }
             }
         }

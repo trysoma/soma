@@ -328,4 +328,29 @@ pub trait ProviderRepositoryLike {
         &self,
         function_controller_type_ids: &[String],
     ) -> Result<Vec<ProviderInstancesGroupedByFunctionControllerTypeId>, CommonError>;
+
+    async fn update_resource_server_credential(
+        &self,
+        id: &WrappedUuidV4,
+        value: Option<&WrappedJsonValue>,
+        metadata: Option<&crate::logic::Metadata>,
+        next_rotation_time: Option<&WrappedChronoDateTime>,
+        updated_at: Option<&WrappedChronoDateTime>,
+    ) -> Result<(), CommonError>;
+
+    async fn update_user_credential(
+        &self,
+        id: &WrappedUuidV4,
+        value: Option<&WrappedJsonValue>,
+        metadata: Option<&crate::logic::Metadata>,
+        next_rotation_time: Option<&WrappedChronoDateTime>,
+        updated_at: Option<&WrappedChronoDateTime>,
+    ) -> Result<(), CommonError>;
+
+    async fn list_provider_instances_with_credentials(
+        &self,
+        pagination: &PaginationRequest,
+        status: Option<&str>,
+        rotation_window_end: Option<&WrappedChronoDateTime>,
+    ) -> Result<PaginatedResponse<ProviderInstanceSerializedWithCredentials>, CommonError>;
 }
