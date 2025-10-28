@@ -19,6 +19,7 @@ globset.workspace = true
 http.workspace = true
 libsql.workspace = true
 libsql_migration.workspace = true
+napi = {version = "3.0.0", features = ["serde-json", "tokio_rt"]}
 notify.workspace = true
 paste.workspace = true
 reqwest.workspace = true

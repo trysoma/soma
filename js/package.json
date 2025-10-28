@@ -1,0 +1,10 @@
+{
+	"name": "soma-js-sdk",
+	"private": true,
+	"workspaces": [
+		"packages/*"
+	],
+	"devDependencies": {
+		"@biomejs/biome": "2.2.5"
+	}
+}

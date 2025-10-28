@@ -141,29 +141,29 @@ pub async fn start_restate_deployment(
     // let service_uri = format!("http://127.0.0.1:{runtime_port}");
 
 
-    let admin_address = params.get_admin_address()?;
-    let admin_token = params.get_admin_token();
-    let private = params.get_private();
-    let insecure = params.get_insecure();
-    let force = params.get_force();
-    info!(
-        "Registering service {} with target {} with Restate admin at {}",
-        service_path, deployment_type, admin_address
-    );
-    // let definition = soma_definition.get_definition().await?;
-    restate::deploy::register_deployment(DeploymentRegistrationConfig {
-        admin_url: admin_address.to_string(),
-        // TODO: this should be the service path from the soma.yaml file
-        service_path: service_path.clone(),
-        deployment_type: deployment_type.clone(),
-        bearer_token: admin_token.clone(),
-        private,
-        insecure,
-        force,
-    })
-    .await?;
+    // let admin_address = params.get_admin_address()?;
+    // let admin_token = params.get_admin_token();
+    // let private = params.get_private();
+    // let insecure = params.get_insecure();
+    // let force = params.get_force();
+    // info!(
+    //     "Registering service {} with target {} with Restate admin at {}",
+    //     service_path, deployment_type, admin_address
+    // );
+    // // let definition = soma_definition.get_definition().await?;
+    // restate::deploy::register_deployment(DeploymentRegistrationConfig {
+    //     admin_url: admin_address.to_string(),
+    //     // TODO: this should be the service path from the soma.yaml file
+    //     service_path: service_path.clone(),
+    //     deployment_type: deployment_type.clone(),
+    //     bearer_token: admin_token.clone(),
+    //     private,
+    //     insecure,
+    //     force,
+    // })
+    // .await?;
 
-    info!("Restate deployment registration complete");
+    // info!("Restate deployment registration complete");
     Ok(())
 }
 

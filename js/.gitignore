@@ -1,0 +1,8 @@
+node_modules
+.genkit
+.firebase
+.a2a-tasks
+out
+build.tar.zst
+dist
+node-compile-cache/

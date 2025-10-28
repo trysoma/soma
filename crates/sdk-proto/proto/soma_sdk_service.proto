@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package soma_sdk_service;
+
+service SomaSdkService {
+  rpc Metadata(google.protobuf.Empty) returns (MetadataResponse);
+  rpc HealthCheck(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc InvokeFunction(InvokeFunctionRequest) returns (InvokeFunctionResponse);
+}
+
+message InvokeFunctionRequest {
+  string provider_controller_type_id = 1;
+  string function_controller_type_id = 2;
+  string credential_controller_type_id = 3;
+  string credentials = 4;
+  string parameters = 5;
+}
+
+message InvokeFunctionResponse {
+  oneof kind {
+    string data = 1;
+    Error error = 2;
+  }
+}
+
+message Error {
+  string message = 1;
+}
+
+message MetadataResponse {
+  repeated ProviderController bridge_providers = 1;
+}
+
+message ProviderController {
+  string type_id = 1;
+  string name = 2;
+  string documentation = 3;
+  repeated string categories = 4;
+  repeated FunctionController functions = 5;
+  repeated ProviderCredentialController credential_controllers = 6;
+}
+
+message ProviderCredentialController {
+  oneof kind {
+    NoAuth no_auth = 1;
+    ApiKey api_key = 2;
+    Oauth2AuthorizationCodeFlow oauth2 = 3;
+    Oauth2JwtBearerAssertionFlow oauth2_jwt_bearer_assertion_flow = 4;
+  }
+}
+
+message  Oauth2AuthorizationCodeFlow {
+  Oauth2AuthorizationCodeFlowStaticCredentialConfiguration static_credential_configuration = 1;
+}
+
+message Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+    string auth_uri = 1;
+    string token_uri = 2;
+    string userinfo_uri = 3;
+    string jwks_uri = 4;
+    string issuer = 5;
+    repeated string scopes = 6;
+    repeated Metadata metadata = 7;
+}
+
+message Metadata {
+  string key = 1;
+  string value = 2;
+}
+
+message Oauth2JwtBearerAssertionFlow {
+  Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration static_credential_configuration = 1;
+}
+
+message Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration {
+  string auth_uri = 1;
+  string token_uri = 2;
+  string userinfo_uri = 3;
+  string jwks_uri = 4;
+  string issuer = 5;
+  repeated string scopes = 6;
+  repeated Metadata metadata = 7;
+}
+
+message ApiKey {
+}
+
+message NoAuth {}
+
+message FunctionController {
+  string name = 1;
+  string description = 2;
+  string parameters = 3;
+  string output = 4;
+}

@@ -42,3 +42,4 @@ result
 var/
 root
 .cargo
+node_modules

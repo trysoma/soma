@@ -172,18 +172,18 @@ pub trait ProviderCredentialControllerLike: Send + Sync {
 
 #[async_trait]
 pub trait ProviderControllerLike: Send + Sync {
-    fn type_id(&self) -> &'static str;
-    fn documentation(&self) -> &'static str;
-    fn name(&self) -> &'static str;
-    fn categories(&self) -> Vec<&'static str>;
+    fn type_id(&self) -> String;
+    fn documentation(&self) -> String;
+    fn name(&self) -> String;
+    fn categories(&self) -> Vec<String>;
     fn functions(&self) -> Vec<Arc<dyn FunctionControllerLike>>;
     fn credential_controllers(&self) -> Vec<Arc<dyn ProviderCredentialControllerLike>>;
 }
 
 pub trait ProviderInstanceLike {
-    fn provider_controller_type_id(&self) -> &'static str;
-    fn type_id(&self) -> &'static str;
-    fn credential_controller_type_id(&self) -> &'static str;
+    fn provider_controller_type_id(&self) -> String;
+    fn type_id(&self) -> String;
+    fn credential_controller_type_id(&self) -> String;
 
     fn static_credential_value(&self) -> WrappedJsonValue;
     fn resource_server_credential_value(&self) -> WrappedJsonValue;
@@ -231,12 +231,12 @@ pub trait RotateableControllerUserCredentialLike {
 
 #[async_trait]
 pub trait FunctionControllerLike: Send + Sync {
-    fn type_id(&self) -> &'static str;
-    fn name(&self) -> &'static str;
-    fn documentation(&self) -> &'static str;
+    fn type_id(&self) -> String;
+    fn name(&self) -> String;
+    fn documentation(&self) -> String;
     fn parameters(&self) -> WrappedSchema;
     fn output(&self) -> WrappedSchema;
-    fn categories(&self) -> Vec<&'static str>;
+    fn categories(&self) -> Vec<String>;
     async fn invoke(
         &self,
         crypto_service: &DecryptionService,

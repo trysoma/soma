@@ -462,7 +462,7 @@ pub async fn list_provider_instances_grouped_by_function(
     for provider in providers.iter() {
         // Apply provider_controller_type_id filter if provided
         if let Some(ref filter_provider_type) = params.provider_controller_type_id {
-            if provider.type_id() != filter_provider_type {
+            if provider.type_id() != *filter_provider_type {
                 continue;
             }
         }
@@ -470,7 +470,7 @@ pub async fn list_provider_instances_grouped_by_function(
         for function in provider.functions() {
             // Apply function_category filter if provided
             if let Some(ref filter_category) = params.function_category {
-                if !function.categories().contains(&filter_category.as_str()) {
+                if !function.categories().contains(filter_category) {
                     continue;
                 }
             }
@@ -481,9 +481,9 @@ pub async fn list_provider_instances_grouped_by_function(
 
     // Sort by provider name (ascending), then by function name (ascending)
     function_configs.sort_by(|a, b| {
-        let provider_cmp = a.0.name().cmp(b.0.name());
+        let provider_cmp = a.0.name().cmp(&b.0.name());
         if provider_cmp == std::cmp::Ordering::Equal {
-            a.1.name().cmp(b.1.name())
+            a.1.name().cmp(&b.1.name())
         } else {
             provider_cmp
         }
@@ -540,7 +540,7 @@ pub async fn list_provider_instances_grouped_by_function(
         .iter()
         .map(|(provider, function)| {
             let provider_instances = provider_instances_map
-                .get(function.type_id())
+                .get(&function.type_id())
                 .cloned()
                 .unwrap_or_else(Vec::new);
 

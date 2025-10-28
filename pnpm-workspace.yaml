@@ -1,0 +1,4 @@
+packages:
+  - "crates/sdk-js"
+  - "js/packages/*"
+  - "js/examples/*"

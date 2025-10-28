@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::CommonError;
 use std::collections::HashMap;
 use std::process::Stdio;
 use tokio::{process::Command, sync::oneshot};
@@ -10,7 +10,7 @@ pub async fn run_child_process(
     mut kill_signal: Option<oneshot::Receiver<()>>,
     shutdown_complete: Option<oneshot::Sender<()>>,
     extra_env: Option<HashMap<String, String>>,
-) -> Result<()> {
+) -> Result<(), CommonError> {
     // Put child in its own process group so it doesn't receive SIGINT/SIGTERM directly
     // This allows the parent to handle signals and orchestrate graceful shutdown
     #[cfg(unix)]
@@ -41,13 +41,13 @@ pub async fn run_child_process(
         let status = child
             .wait()
             .await
-            .map_err(|e| anyhow::anyhow!("{process_name} wait error: {e}"))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("{process_name} wait error: {e}")))?;
 
         if !status.success() {
             error!("❌ {} exited with status: {:?}", process_name, status);
-            Err(anyhow::anyhow!(
+            Err(CommonError::Unknown(anyhow::anyhow!(
                 "{process_name} exited with status: {status:?}"
-            ))
+            )))
         } else {
             info!("✅ {} exited cleanly: {:?}", process_name, status);
             Ok(())

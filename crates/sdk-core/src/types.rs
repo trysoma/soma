@@ -1,0 +1,451 @@
+use futures::future::BoxFuture;
+use serde::{Deserialize, Serialize};
+use shared::error::CommonError;
+use std::sync::Arc;
+
+#[derive(Clone)]
+pub struct ProviderController {
+    pub type_id: String,
+    pub name: String,
+    pub documentation: String,
+    pub categories: Vec<String>,
+    pub functions: Vec<FunctionController>,
+    pub credential_controllers: Vec<ProviderCredentialController>,
+}
+
+#[derive(Clone)]
+pub struct FunctionController {
+    pub name: String,
+    pub description: String,
+    pub parameters: String,
+    pub output: String,
+    pub invoke: Arc<
+        dyn Fn(InvokeFunctionRequest) -> BoxFuture<'static, Result<InvokeFunctionResponse, CommonError>>
+            + Send
+            + Sync
+            + 'static,
+    >,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ProviderCredentialController {
+    NoAuth,
+    ApiKey,
+    Oauth2AuthorizationCodeFlow(Oauth2AuthorizationCodeFlowConfiguration),
+    Oauth2JwtBearerAssertionFlow(Oauth2JwtBearerAssertionFlowConfiguration),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Oauth2AuthorizationCodeFlowConfiguration {
+    pub static_credential_configuration: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Oauth2JwtBearerAssertionFlowConfiguration {
+    pub static_credential_configuration: Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration {
+    pub auth_uri: String,
+    pub token_uri: String,
+    pub userinfo_uri: String,
+    pub jwks_uri: String,
+    pub issuer: String,
+    pub scopes: Vec<String>,
+    pub metadata: Option<Vec<Metadata>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+    pub auth_uri: String,
+    pub token_uri: String,
+    pub userinfo_uri: String,
+    pub jwks_uri: String,
+    pub issuer: String,
+    pub scopes: Vec<String>,
+    pub metadata: Option<Vec<Metadata>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Metadata {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct InvokeFunctionRequest {
+    pub provider_controller_type_id: String,
+    pub function_controller_type_id: String,
+    pub credential_controller_type_id: String,
+    pub credentials: String,
+    pub parameters: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct InvokeFunctionResponse {
+    pub result: Result<String, String>,
+}
+
+pub struct MetadataResponse {
+    pub bridge_providers: Vec<ProviderController>,
+}
+
+// Conversions from proto types to our types using TryFrom
+
+// impl TryFrom<sdk_proto::ProviderController> for ProviderController {
+//     type Error = CommonError;
+
+//     fn try_from(proto: sdk_proto::ProviderController) -> Result<Self, Self::Error> {
+//         Ok(Self {
+//             type_id: proto.type_id,
+//             name: proto.name,
+//             documentation: proto.documentation,
+//             categories: proto.categories,
+//             functions: proto
+//                 .functions
+//                 .into_iter()
+//                 .map(TryInto::try_into)
+//                 .collect::<Result<Vec<_>, _>>()?,
+//             credential_controllers: proto
+//                 .credential_controllers
+//                 .into_iter()
+//                 .map(TryInto::try_into)
+//                 .collect::<Result<Vec<_>, _>>()?,
+//         })
+//     }
+// }
+
+impl From<ProviderController> for sdk_proto::ProviderController {
+    fn from(pc: ProviderController) -> Self {
+        Self {
+            type_id: pc.type_id,
+            name: pc.name,
+            documentation: pc.documentation,
+            categories: pc.categories,
+            functions: pc.functions.into_iter().map(Into::into).collect(),
+            credential_controllers: pc
+                .credential_controllers
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+        }
+    }
+}
+
+impl From<&ProviderController> for sdk_proto::ProviderController {
+    fn from(pc: &ProviderController) -> Self {
+        Self {
+            type_id: pc.type_id.clone(),
+            name: pc.name.clone(),
+            documentation: pc.documentation.clone(),
+            categories: pc.categories.clone(),
+            functions: pc.functions.iter().map(Into::into).collect(),
+            credential_controllers: pc
+                .credential_controllers
+                .iter()
+                .map(Into::into)
+                .collect(),
+        }
+    }
+}
+
+// impl TryFrom<sdk_proto::FunctionController> for FunctionController {
+//     type Error = CommonError;
+
+//     fn try_from(proto: sdk_proto::FunctionController) -> Result<Self, Self::Error> {
+//         Ok(Self {
+//             name: proto.name,
+//             description: proto.description,
+//             parameters: proto.parameters,
+//             output: proto.output,
+//         })
+//     }
+// }
+
+impl From<FunctionController> for sdk_proto::FunctionController {
+    fn from(fc: FunctionController) -> Self {
+        Self {
+            name: fc.name,
+            description: fc.description,
+            parameters: fc.parameters,
+            output: fc.output,
+        }
+    }
+}
+
+impl From<&FunctionController> for sdk_proto::FunctionController {
+    fn from(fc: &FunctionController) -> Self {
+        Self {
+            name: fc.name.clone(),
+            description: fc.description.clone(),
+            parameters: fc.parameters.clone(),
+            output: fc.output.clone(),
+        }
+    }
+}
+
+impl TryFrom<sdk_proto::ProviderCredentialController> for ProviderCredentialController {
+    type Error = CommonError;
+
+    fn try_from(proto: sdk_proto::ProviderCredentialController) -> Result<Self, Self::Error> {
+        use sdk_proto::provider_credential_controller::Kind;
+
+        match proto.kind {
+            Some(Kind::NoAuth(_)) => Ok(ProviderCredentialController::NoAuth),
+            Some(Kind::ApiKey(_)) => Ok(ProviderCredentialController::ApiKey),
+            Some(Kind::Oauth2(oauth2)) => {
+                let config = oauth2
+                    .static_credential_configuration
+                    .ok_or_else(|| CommonError::InvalidRequest {
+                        msg: "OAuth2 credential controller missing static_credential_configuration"
+                            .to_string(),
+                        source: None,
+                    })?;
+
+                Ok(ProviderCredentialController::Oauth2AuthorizationCodeFlow(
+                    Oauth2AuthorizationCodeFlowConfiguration {
+                        static_credential_configuration: config.try_into()?,
+                    },
+                ))
+            }
+            Some(Kind::Oauth2JwtBearerAssertionFlow(jwt)) => {
+                let config = jwt
+                    .static_credential_configuration
+                    .ok_or_else(|| CommonError::InvalidRequest {
+                        msg: "Oauth2JwtBearerAssertionFlow credential controller missing static_credential_configuration"
+                            .to_string(),
+                        source: None,
+                    })?;
+
+                Ok(ProviderCredentialController::Oauth2JwtBearerAssertionFlow(
+                    Oauth2JwtBearerAssertionFlowConfiguration {
+                        static_credential_configuration: config.try_into()?,
+                    },
+                ))
+            }
+            None => Err(CommonError::InvalidRequest {
+                msg: "ProviderCredentialController missing kind".to_string(),
+                source: None,
+            }),
+        }
+    }
+}
+
+impl From<ProviderCredentialController> for sdk_proto::ProviderCredentialController {
+    fn from(pcc: ProviderCredentialController) -> Self {
+        use sdk_proto::provider_credential_controller::Kind;
+
+        let kind = match pcc {
+            ProviderCredentialController::NoAuth => Some(Kind::NoAuth(sdk_proto::NoAuth {})),
+            ProviderCredentialController::ApiKey => Some(Kind::ApiKey(sdk_proto::ApiKey {})),
+            ProviderCredentialController::Oauth2AuthorizationCodeFlow(config) => {
+                Some(Kind::Oauth2(sdk_proto::Oauth2AuthorizationCodeFlow {
+                    static_credential_configuration: Some(
+                        config.static_credential_configuration.into(),
+                    ),
+                }))
+            }
+            ProviderCredentialController::Oauth2JwtBearerAssertionFlow(config) => {
+                Some(Kind::Oauth2JwtBearerAssertionFlow(
+                    sdk_proto::Oauth2JwtBearerAssertionFlow {
+                        static_credential_configuration: Some(
+                            config.static_credential_configuration.into(),
+                        ),
+                    },
+                ))
+            }
+        };
+
+        Self { kind }
+    }
+}
+
+impl From<&ProviderCredentialController> for sdk_proto::ProviderCredentialController {
+    fn from(pcc: &ProviderCredentialController) -> Self {
+        use sdk_proto::provider_credential_controller::Kind;
+
+        let kind = match pcc {
+            ProviderCredentialController::NoAuth => Some(Kind::NoAuth(sdk_proto::NoAuth {})),
+            ProviderCredentialController::ApiKey => Some(Kind::ApiKey(sdk_proto::ApiKey {})),
+            ProviderCredentialController::Oauth2AuthorizationCodeFlow(config) => {
+                Some(Kind::Oauth2(sdk_proto::Oauth2AuthorizationCodeFlow {
+                    static_credential_configuration: Some(
+                        config.static_credential_configuration.clone().into(),
+                    ),
+                }))
+            }
+            ProviderCredentialController::Oauth2JwtBearerAssertionFlow(config) => {
+                Some(Kind::Oauth2JwtBearerAssertionFlow(
+                    sdk_proto::Oauth2JwtBearerAssertionFlow {
+                        static_credential_configuration: Some(
+                            config.static_credential_configuration.clone().into(),
+                        ),
+                    },
+                ))
+            }
+        };
+
+        Self { kind }
+    }
+}
+
+impl TryFrom<sdk_proto::Oauth2AuthorizationCodeFlowStaticCredentialConfiguration>
+    for Oauth2AuthorizationCodeFlowStaticCredentialConfiguration
+{
+    type Error = CommonError;
+
+    fn try_from(
+        proto: sdk_proto::Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            auth_uri: proto.auth_uri,
+            token_uri: proto.token_uri,
+            userinfo_uri: proto.userinfo_uri,
+            jwks_uri: proto.jwks_uri,
+            issuer: proto.issuer,
+            scopes: proto.scopes,
+            metadata: if !proto.metadata.is_empty() {
+                Some(
+                    proto
+                        .metadata
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<Vec<_>, _>>()?,
+                )
+            } else {
+                None
+            },
+        })
+    }
+}
+
+impl TryFrom<sdk_proto::Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration>
+    for Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration
+{
+    type Error = CommonError;
+
+    fn try_from(
+        proto: sdk_proto::Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            auth_uri: proto.auth_uri,
+            token_uri: proto.token_uri,
+            userinfo_uri: proto.userinfo_uri,
+            jwks_uri: proto.jwks_uri,
+            issuer: proto.issuer,
+            scopes: proto.scopes,
+            metadata: if !proto.metadata.is_empty() {
+                Some(
+                    proto
+                        .metadata
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<Vec<_>, _>>()?,
+                )
+            } else {
+                None
+            },
+        })
+    }
+}
+
+impl From<Oauth2AuthorizationCodeFlowStaticCredentialConfiguration>
+    for sdk_proto::Oauth2AuthorizationCodeFlowStaticCredentialConfiguration
+{
+    fn from(config: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration) -> Self {
+        Self {
+            auth_uri: config.auth_uri,
+            token_uri: config.token_uri,
+            userinfo_uri: config.userinfo_uri,
+            jwks_uri: config.jwks_uri,
+            issuer: config.issuer,
+            scopes: config.scopes,
+            metadata: match config.metadata {
+                Some(m) => m.into_iter().map(Into::into).collect(),
+                None => vec![],
+            },
+        }
+    }
+}
+
+impl From<Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration>
+    for sdk_proto::Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration
+{
+    fn from(config: Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration) -> Self {
+        Self {
+            auth_uri: config.auth_uri,
+            token_uri: config.token_uri,
+            userinfo_uri: config.userinfo_uri,
+            jwks_uri: config.jwks_uri,
+            issuer: config.issuer,
+            scopes: config.scopes,
+            metadata: match config.metadata {
+                Some(m) => m.into_iter().map(Into::into).collect(),
+                None => vec![],
+            },
+        }
+    }
+}
+
+impl TryFrom<sdk_proto::Metadata> for Metadata {
+    type Error = CommonError;
+
+    fn try_from(proto: sdk_proto::Metadata) -> Result<Self, Self::Error> {
+        Ok(Self {
+            key: proto.key,
+            value: proto.value,
+        })
+    }
+}
+
+impl From<Metadata> for sdk_proto::Metadata {
+    fn from(m: Metadata) -> Self {
+        Self {
+            key: m.key,
+            value: m.value,
+        }
+    }
+}
+
+impl TryFrom<sdk_proto::InvokeFunctionRequest> for InvokeFunctionRequest {
+    type Error = CommonError;
+
+    fn try_from(proto: sdk_proto::InvokeFunctionRequest) -> Result<Self, Self::Error> {
+        Ok(Self {
+            provider_controller_type_id: proto.provider_controller_type_id,
+            function_controller_type_id: proto.function_controller_type_id,
+            credential_controller_type_id: proto.credential_controller_type_id,
+            credentials: proto.credentials,
+            parameters: proto.parameters,
+        })
+    }
+}
+
+impl From<InvokeFunctionResponse> for sdk_proto::InvokeFunctionResponse {
+    fn from(response: InvokeFunctionResponse) -> Self {
+        use sdk_proto::invoke_function_response::Kind;
+
+        let kind = match response.result {
+            Ok(data) => Some(Kind::Data(data)),
+            Err(error_msg) => Some(Kind::Error(sdk_proto::Error {
+                message: error_msg,
+            })),
+        };
+
+        Self { kind }
+    }
+}
+
+impl From<MetadataResponse> for sdk_proto::MetadataResponse {
+    fn from(response: MetadataResponse) -> Self {
+        Self {
+            bridge_providers: response
+                .bridge_providers
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+        }
+    }
+}

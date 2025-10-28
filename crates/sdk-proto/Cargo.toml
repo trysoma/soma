@@ -1,0 +1,22 @@
+[package]
+name = "sdk-proto"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+prost.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tonic.workspace = true
+tracing.workspace = true
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+
+[dev-dependencies]
+tracing-subscriber.workspace = true
+chrono.workspace = true
+
+[build-dependencies]
+prost-build.workspace = true
+tonic-build.workspace = true

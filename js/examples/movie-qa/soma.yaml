@@ -1,0 +1,67 @@
+project: danielblignaut
+agent: movieQA
+description: An agent that can answer questions about movies and actors using TMDB.
+name: Movie Agent
+version: 0.0.2
+bridge:
+  encryption:
+    default:
+      encrypted_data_encryption_key: j3Vt9ade5hI018/cwVhlc/T51lVYxLWAKcH0Ex4eM5dk8yHXUoM8tzKWeBQA4Zvzv77kHGkAAg1nVwHI
+      envelope_encryption_key_id:
+        type: local
+        key_id: /root/.config/soma/local-key.bin
+  providers:
+    fd97d188-88df-4b6c-af05-6edda528f90c:
+      provider_controller_type_id: soma
+      credential_controller_type_id: no_auth
+      display_name: d
+      resource_server_credential:
+        id: 4b2596aa-9799-4c9e-a406-24beb8fdab13
+        type_id: resource_server_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        data_encryption_key_id: default
+      user_credential:
+        id: d71125ea-df27-49e3-acc9-747e075cf749
+        type_id: user_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        data_encryption_key_id: default
+      functions:
+      - soma_get_task_timeline_items
+    24d16c63-066f-4e3b-af59-14964475066f:
+      provider_controller_type_id: google_mail
+      credential_controller_type_id: oauth_auth_flow
+      display_name: daniel@trysoma.ai
+      resource_server_credential:
+        id: c239f702-b8b9-4c38-9182-c1bad7044be2
+        type_id: oauth2_authorization_code_flow_resource_server
+        metadata: {}
+        value:
+          client_id: 643015773387-ejuoir75pqh020cslij6etc271bpn7r6.apps.googleusercontent.com
+          client_secret: fJcAivcLPn1X+B4zMqDhDmxCC7/s91373L1VyFJU10Go5QaHoEyHb5SBP3AoxZfuf2xcR9eky4AjIN4Xtve4
+          metadata: {}
+          redirect_uri: http://localhost:3000/api/bridge/v1/generic-oauth-callback
+        data_encryption_key_id: default
+      user_credential:
+        id: 2b67f3be-c3fc-41af-927b-d444e3deb04b
+        type_id: oauth2_authorization_code_flow_user
+        metadata: {}
+        value:
+          access_token: nBaYZdvM2wIxxY2WyoDkLrveNEILOy0bC2/iYaskTn65PHMUOT3fAPBtPw2nSeulmqWIidwhqbKEMzKtGy7O0HDEiAiyiituclMLNCSJv9QQz4AN0NszTH8yYoSFKN2HYbowZ5ueF7WGltYO022pRqTlPxb5X+caWVNoTQwiepOSsu5rGERP8dKagiM6TcAOwfH5ezqJ87yEnBVnD9GdzlvFrKMlPmUwtBn1RNv7gyt+UmliIxSiK7kUii/HHs4KxT529seUPBpnOtAbR8VASFFtBFfweoIF7+0DycU9mWUdRP3rxjf1kB85SCQbuG206XEO6TtESGNt2pojZN589/cX0h+9OKJorEtu42ZAz8nK/dgaqsd+hQZb
+          code: RUb55bslsU6//+GQzc0E2ikTOUgj7Qr1uR1Iv9UM/m0BoDPTZ9v2i57ErP5kLadofDIIP9b6GpQ7dDMAnCllVmRPwfOrIDYjWOMDEFJYdNdKg+7GruQqwyeIa72XTZ06sX4W2Ps=
+          expiry_time: 2025-10-24T16:21:28.572289460Z
+          metadata: {}
+          refresh_token: pnnyaX4yrIOAFv2y+ParGdvcRGeJ7xDWmo7hlirxAqk0dGOQu8J22rUjXDm8QrxNgazNz5sOo/NyAygOguUy7BZHuLHCEF1bS8b/lP17P2W5+HNo02142oHxRRviW0GrI4fzsp6d6lIntusUaJ7ps3MPI2hefhfeAagZd9um2HavDws=
+          scopes:
+          - https://www.googleapis.com/auth/gmail.readonly
+          - https://www.googleapis.com/auth/userinfo.email
+          - openid
+          - https://www.googleapis.com/auth/gmail.compose
+          - https://www.googleapis.com/auth/gmail.send
+          - https://www.googleapis.com/auth/userinfo.profile
+          sub: '107313083092903712383'
+        next_rotation_time: 2025-10-24T16:16:28.572289460+00:00
+        data_encryption_key_id: default

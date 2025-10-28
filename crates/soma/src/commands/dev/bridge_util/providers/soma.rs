@@ -37,19 +37,19 @@ impl SomaProviderController {
 
 #[async_trait]
 impl ProviderControllerLike for SomaProviderController {
-    fn type_id(&self) -> &'static str {
-        "soma"
+    fn type_id(&self) -> String {
+        "soma".to_string()
     }
 
-    fn documentation(&self) -> &'static str {
-        ""
+    fn documentation(&self) -> String {
+        "".to_string()
     }
 
-    fn name(&self) -> &'static str {
-        "Soma"
+    fn name(&self) -> String {
+        "Soma".to_string()
     }
 
-    fn categories(&self) -> Vec<&'static str> {
+    fn categories(&self) -> Vec<String> {
         vec![]
     }
 
@@ -81,14 +81,14 @@ impl GetTaskTimelineItemsFunctionController {
 
 #[async_trait]
 impl FunctionControllerLike for GetTaskTimelineItemsFunctionController {
-    fn type_id(&self) -> &'static str {
-        "soma_get_task_timeline_items"
+    fn type_id(&self) -> String {
+        "soma_get_task_timeline_items".to_string()
     }
-    fn name(&self) -> &'static str {
-        "Get task timeline items"
+    fn name(&self) -> String {
+        "Get task timeline items".to_string()
     }
-    fn documentation(&self) -> &'static str {
-        ""
+    fn documentation(&self) -> String {
+        "".to_string()
     }
     fn parameters(&self) -> WrappedSchema {
         WrappedSchema::new(schema_for!(GetTaskTimelineItemsRequest).into())
@@ -96,7 +96,7 @@ impl FunctionControllerLike for GetTaskTimelineItemsFunctionController {
     fn output(&self) -> WrappedSchema {
         WrappedSchema::new(schema_for!(GetTaskTimelineItemsResponse).into())
     }
-    fn categories(&self) -> Vec<&'static str> {
+    fn categories(&self) -> Vec<String> {
         vec![]
     }
 

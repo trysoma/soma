@@ -22,11 +22,11 @@ pub struct GoogleMailProviderController;
 
 #[async_trait]
 impl ProviderControllerLike for GoogleMailProviderController {
-    fn type_id(&self) -> &'static str {
-        "google_mail"
+    fn type_id(&self) -> String {
+        "google_mail".to_string()
     }
 
-    fn documentation(&self) -> &'static str {
+    fn documentation(&self) -> String {
         "lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 # lorem 2
@@ -40,15 +40,15 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 # lorem 5
 lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-"
+".to_string()
     }
 
-    fn name(&self) -> &'static str {
-        "Google Mail"
+    fn name(&self) -> String {
+        "Google Mail".to_string()
     }
 
-    fn categories(&self) -> Vec<&'static str> {
-        vec![CATEGORY_EMAIL]
+    fn categories(&self) -> Vec<String> {
+        vec![CATEGORY_EMAIL.to_string()]
     }
 
     fn functions(&self) -> Vec<Arc<dyn FunctionControllerLike>> {
@@ -112,15 +112,15 @@ struct SendEmailFunctionOutput {
 
 #[async_trait]
 impl FunctionControllerLike for SendEmailFunctionController {
-    fn type_id(&self) -> &'static str {
-        "google_mail_send_email"
+    fn type_id(&self) -> String {
+        "google_mail_send_email".to_string()
     }
-    fn name(&self) -> &'static str {
-        "Send an email"
+    fn name(&self) -> String {
+        "Send an email".to_string()
     }
-    fn documentation(&self) -> &'static str {
+    fn documentation(&self) -> String {
         "# Send an email
-        
+
 lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 # lorem 2
@@ -135,7 +135,7 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 # lorem 5
 lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
-        "
+        ".to_string()
     }
     fn parameters(&self) -> WrappedSchema {
         WrappedSchema::new(schema_for!(SendEmailFunctionParameters).into())
@@ -143,8 +143,8 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
     fn output(&self) -> WrappedSchema {
         WrappedSchema::new(schema_for!(SendEmailFunctionOutput).into())
     }
-    fn categories(&self) -> Vec<&'static str> {
-        vec![CATEGORY_EMAIL]
+    fn categories(&self) -> Vec<String> {
+        vec![CATEGORY_EMAIL.to_string()]
     }
 
     async fn invoke(

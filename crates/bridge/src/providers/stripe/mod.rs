@@ -27,20 +27,20 @@ pub struct StripeProviderController;
 
 #[async_trait]
 impl ProviderControllerLike for StripeProviderController {
-    fn type_id(&self) -> &'static str {
-        "stripe"
+    fn type_id(&self) -> String {
+        "stripe".to_string()
     }
 
-    fn documentation(&self) -> &'static str {
-        "stripe documentation"
+    fn documentation(&self) -> String {
+        "stripe documentation".to_string()
     }
 
-    fn name(&self) -> &'static str {
-        "Stripe"
+    fn name(&self) -> String {
+        "Stripe".to_string()
     }
 
-    fn categories(&self) -> Vec<&'static str> {
-        vec![CATEGORY_PAYMENTS]
+    fn categories(&self) -> Vec<String> {
+        vec![CATEGORY_PAYMENTS.to_string()]
     }
 
     fn functions(&self) -> Vec<Arc<dyn FunctionControllerLike>> {
@@ -70,15 +70,15 @@ struct ProcessRefundFunctionOutput {
 
 #[async_trait]
 impl FunctionControllerLike for ProcessRefundFunctionController {
-    fn type_id(&self) -> &'static str {
-        "stripe_process_refund"
+    fn type_id(&self) -> String {
+        "stripe_process_refund".to_string()
     }
-    fn name(&self) -> &'static str {
-        "Process a refund"
+    fn name(&self) -> String {
+        "Process a refund".to_string()
     }
-    fn documentation(&self) -> &'static str {
+    fn documentation(&self) -> String {
         "# Process a refund
-"
+".to_string()
     }
     fn parameters(&self) -> WrappedSchema {
         WrappedSchema::new(schema_for!(ProcessRefundFunctionParameters).into())
@@ -86,8 +86,8 @@ impl FunctionControllerLike for ProcessRefundFunctionController {
     fn output(&self) -> WrappedSchema {
         WrappedSchema::new(schema_for!(ProcessRefundFunctionOutput).into())
     }
-    fn categories(&self) -> Vec<&'static str> {
-        vec![CATEGORY_PAYMENTS]
+    fn categories(&self) -> Vec<String> {
+        vec![CATEGORY_PAYMENTS.to_string()]
     }
 
     async fn invoke(
