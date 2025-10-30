@@ -1,4 +1,4 @@
-use std::{path::PathBuf, pin::Pin};
+use std::{path::PathBuf, pin::Pin, future::Future};
 
 use shared::{error::CommonError, primitives::WrappedSchema};
 use tokio::sync::oneshot;
@@ -15,6 +15,7 @@ pub struct Function {
 
 pub struct ClientCtx {
     pub project_dir: PathBuf,
+    pub socket_path: String,
 }
 
 pub struct DevServerHandle {

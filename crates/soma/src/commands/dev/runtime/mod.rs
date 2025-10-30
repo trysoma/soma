@@ -1,5 +1,6 @@
 mod client;
 mod typescript;
+mod grpc_client;
 
 use std::collections::HashMap;
 use std::fs;
@@ -19,6 +20,11 @@ use crate::commands::dev::DevParams;
 use crate::utils::construct_src_dir_absolute;
 
 use super::project_file_watcher::FileChangeRx;
+use client::{ClientCtx, SdkClient};
+use typescript::Typescript;
+
+/// Default Unix socket path for the SDK gRPC server
+pub const DEFAULT_SOMA_SERVER_SOCK: &str = "/tmp/soma-sdk.sock";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Runtime {
@@ -72,6 +78,11 @@ fn validate_runtime_bun_v1_internal(src_dir: &Path) -> Result<bool, CommonError>
     Ok(true)
 }
 
+/// Check if the project uses Vite by looking for vite.config.ts
+fn is_vite_project(src_dir: &Path) -> bool {
+    src_dir.join("vite.config.ts").exists()
+}
+
 async fn build_runtime_bun_v1(_src_dir: PathBuf) -> Result<(), CommonError> {
     Ok(())
 }
@@ -113,6 +124,9 @@ pub fn files_to_ignore_bun_v1() -> Result<GlobSet, CommonError> {
 
     // Match node_modules anywhere in the path
     builder.add(Glob::new("**/node_modules/**")?);
+
+    // Ignore .soma build directory to prevent infinite restart loops
+    builder.add(Glob::new("**/.soma/**")?);
 
     Ok(builder.build()?)
 }
@@ -174,14 +188,56 @@ pub async fn start_dev_runtime<'a>(
         let (dev_shutdown_complete_tx, dev_shutdown_complete_rx) = oneshot::channel::<()>();
 
         let serve_fut = match runtime {
-            Runtime::BunV1 => build_runtime_bun_v1(project_dir.clone()).and_then(|_| {
-                start_runtime_bun_v1(
-                    project_dir.clone(),
-                    runtime_port,
-                    dev_kill_signal_rx,
-                    dev_shutdown_complete_tx,
-                )
-            }),
+            Runtime::BunV1 => {
+                // Check if this is a Vite-based project
+                if is_vite_project(&project_dir) {
+                    info!("Detected Vite project, using Vite dev server");
+
+                    // Use the Typescript SdkClient to start the vite dev server
+                    let typescript_client = Typescript::new();
+                    let ctx = ClientCtx {
+                        project_dir: project_dir.clone(),
+                        socket_path: DEFAULT_SOMA_SERVER_SOCK.to_string(),
+                    };
+
+                    async move {
+                        let socket_path = ctx.socket_path.clone();
+                        let dev_server_handle = typescript_client.start_dev_server(ctx).await?;
+
+                        // Test gRPC connection to verify the server is working
+                        let socket_path_clone = socket_path.clone();
+                        tokio::spawn(async move {
+                            if let Err(e) = grpc_client::test_grpc_connection(&socket_path_clone).await {
+                                tracing::error!("Failed to test gRPC connection: {:?}", e);
+                            }
+                        });
+
+                        // Wait for kill signal or server completion
+                        tokio::select! {
+                            _ = dev_kill_signal_rx => {
+                                info!("Kill signal received, shutting down vite dev server");
+                                let _ = dev_server_handle.kill_signal_tx.send(());
+                                let _ = dev_server_handle.shutdown_complete_rx.await;
+                                let _ = dev_shutdown_complete_tx.send(());
+                            }
+                            result = dev_server_handle.dev_server_fut => {
+                                result?;
+                            }
+                        }
+                        Ok::<(), CommonError>(())
+                    }.boxed()
+                } else {
+                    // Use traditional bun start
+                    build_runtime_bun_v1(project_dir.clone()).and_then(|_| {
+                        start_runtime_bun_v1(
+                            project_dir.clone(),
+                            runtime_port,
+                            dev_kill_signal_rx,
+                            dev_shutdown_complete_tx,
+                        )
+                    }).boxed()
+                }
+            }
         };
 
         let serve_fut = serve_fut.then(async |_| {
@@ -290,6 +346,8 @@ mod tests {
 
         assert!(globs.is_match("node_modules/foo/bar.js"));
         assert!(globs.is_match("src/node_modules/test.ts"));
+        assert!(globs.is_match(".soma/standalone.ts"));
+        assert!(globs.is_match(".soma/build/js/index.js"));
         assert!(!globs.is_match("src/index.ts"));
     }
 

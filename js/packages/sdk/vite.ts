@@ -159,9 +159,15 @@ ${agentImports.join('\n')}
 
 console.log("SDK server starting...");
 
-// Start gRPC server
+// Start gRPC server (don't await - it runs forever)
 const socketPath = process.env.SOMA_SERVER_SOCK || '/tmp/soma-sdk.sock';
-await startGrpcServer(socketPath);
+startGrpcServer(socketPath).catch(err => {
+  console.error('gRPC server error:', err);
+  process.exit(1);
+});
+
+// Wait a bit for server to initialize
+await new Promise(resolve => setTimeout(resolve, 100));
 console.log(\`gRPC server started on \${socketPath}\`);
 
 // Register all providers and functions
@@ -171,6 +177,9 @@ ${functionRegistrations.join('\n')}
 ${agentRegistrations.join('\n')}
 
 console.log("SDK server ready!");
+
+// Keep the process alive
+await new Promise(() => {});
 `
 }
 

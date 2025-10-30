@@ -6,8 +6,18 @@ package soma_sdk_service;
 
 service SomaSdkService {
   rpc Metadata(google.protobuf.Empty) returns (MetadataResponse);
+  rpc StreamMetadata(google.protobuf.Empty) returns (stream MetadataResponse);
   rpc HealthCheck(google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc InvokeFunction(InvokeFunctionRequest) returns (InvokeFunctionResponse);
+}
+
+message StreamMetadataResponse {
+  oneof kind {
+    ProviderController provider_added = 1;
+    ProviderController provider_removed = 2;
+    ProviderController provider_updated = 3;
+    Error error = 2;
+  }
 }
 
 message InvokeFunctionRequest {

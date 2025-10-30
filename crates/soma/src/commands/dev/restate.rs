@@ -114,7 +114,7 @@ pub async fn start_restate_server(
         .arg("--tracing-filter")
         .arg("warn")
         .arg("--base-dir")
-        .arg(params.project_dir.join(".soma").display().to_string())
+        .arg(params.project_dir.join(".soma/restate-data").display().to_string())
         .env("RESTATE__INGRESS__BIND_ADDRESS", format!("127.0.0.1:{}", params.ingress_port))
         .env("RESTATE__ADMIN__BIND_ADDRESS", format!("127.0.0.1:{}", params.admin_port))
         .env("RESTATE__ADVERTISED_ADDRESS", format!("127.0.0.1:{}", params.advertised_node_port));
