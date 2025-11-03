@@ -4,6 +4,13 @@ use shared::error::CommonError;
 use std::sync::Arc;
 
 #[derive(Clone)]
+pub struct Agent {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(Clone)]
 pub struct ProviderController {
     pub type_id: String,
     pub name: String,
@@ -90,6 +97,7 @@ pub struct InvokeFunctionResponse {
 
 pub struct MetadataResponse {
     pub bridge_providers: Vec<ProviderController>,
+    pub agents: Vec<Agent>,
 }
 
 // Conversions from proto types to our types using TryFrom
@@ -446,6 +454,18 @@ impl From<MetadataResponse> for sdk_proto::MetadataResponse {
                 .into_iter()
                 .map(Into::into)
                 .collect(),
+            agents: response.agents.into_iter().map(Into::into).collect(),
         }
     }
 }
+
+impl From<Agent> for sdk_proto::Agent {
+    fn from(agent: Agent) -> Self {
+        Self {
+            id: agent.id,
+            name: agent.name,
+            description: agent.description,
+        }
+    }
+}
+

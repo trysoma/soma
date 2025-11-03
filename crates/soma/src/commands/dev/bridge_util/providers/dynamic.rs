@@ -39,11 +39,11 @@ pub struct DynamicProviderController {
 }
 
 pub struct DynamicProviderControllerParams {
-    type_id: String,
-    name: String,
-    documentation: String,
-    categories: Vec<String>,
-    functions: Vec<DynamicFunctionControllerParams>,
+    pub type_id: String,
+    pub name: String,
+    pub documentation: String,
+    pub categories: Vec<String>,
+    pub functions: Vec<DynamicFunctionControllerParams>,
     // TODO: need to add credential controllers once it works, for now, just NoAuthController
     // credential_controllers: Vec<Arc<dyn ProviderCredentialControllerLike>>,
 }
@@ -91,6 +91,12 @@ impl ProviderControllerLike for DynamicProviderController {
     fn credential_controllers(&self) -> Vec<Arc<dyn ProviderCredentialControllerLike>> {
         self.credential_controllers.clone()
     }
+
+    fn metadata(&self) -> Metadata {
+        let mut metadata = Metadata::new();
+        metadata.0.insert("is_dynamic".to_string(), true.into());
+        metadata
+    }
 }
 
 impl DynamicProviderController {
@@ -99,8 +105,9 @@ impl DynamicProviderController {
     }
 }
 
-/// Function controller for getting task timeline items
+/// Function controller for SDK functions
 struct DynamicFunctionController {
+    provider_type_id: String,
     type_id: String,
     name: String,
     documentation: String,
@@ -110,17 +117,19 @@ struct DynamicFunctionController {
 }
 
 pub struct DynamicFunctionControllerParams {
-    type_id: String,
-    name: String,
-    documentation: String,
-    parameters: WrappedSchema,
-    output: WrappedSchema,
-    categories: Vec<String>,
+    pub provider_type_id: String,
+    pub type_id: String,
+    pub name: String,
+    pub documentation: String,
+    pub parameters: WrappedSchema,
+    pub output: WrappedSchema,
+    pub categories: Vec<String>,
 }
 
 impl DynamicFunctionController {
     pub fn new(params: DynamicFunctionControllerParams) -> Self {
         Self {
+            provider_type_id: params.provider_type_id,
             type_id: params.type_id,
             name: params.name,
             documentation: params.documentation,
@@ -220,39 +229,104 @@ impl FunctionControllerLike for DynamicFunctionController {
             )));
         };
 
-        // this would need to be implemented in JS, TS, or Python, etc.
-        // Parse the function parameters
-        // let params: GetTaskTimelineItemsRequest = serde_json::from_value(params.into())
-        //     .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid parameters: {}", e)))?;
+        // Make gRPC call to SDK server to invoke the function
+        use crate::commands::dev::runtime::grpc_client;
+        use crate::commands::dev::runtime::DEFAULT_SOMA_SERVER_SOCK;
 
-        // // Downcast to OAuth controller and decrypt credentials
-        // let cred_controller_type_id = credential_controller.type_id();
+        tracing::info!(
+            "Invoking SDK function: provider={}, function={}, credential_type={}",
+            self.provider_type_id,
+            self.type_id,
+            credential_controller.type_id()
+        );
 
-        // if cred_controller_type_id == NoAuthController::static_type_id() {
-        //     let _controller = credential_controller
-        //         .as_any()
-        //         .downcast_ref::<NoAuthController>()
-        //         .ok_or_else(|| {
-        //             CommonError::Unknown(anyhow::anyhow!(
-        //                 "Failed to downcast to NoAuthController"
-        //             ))
-        //         })?;
+        // Create gRPC client
+        let mut client = grpc_client::create_unix_socket_client(DEFAULT_SOMA_SERVER_SOCK)
+            .await
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to connect to SDK server: {}", e)))?;
 
-        // }  else {
-        //     return Err(CommonError::Unknown(anyhow::anyhow!(
-        //         "Unsupported credential controller type: {}",
-        //         cred_controller_type_id
-        //     )));
-        // };
+        let credentials_json = serde_json::to_string(&credentials)
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to serialize credentials: {}", e)))?;
+        let parameters_json = serde_json::to_string(params.get_inner())
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to serialize parameters: {}", e)))?;
 
-        // let res = get_task_timeline_items(
-        //     &self.repository,
-        //     params,
-        // )
-        // .await;
+        tracing::debug!(
+            "SDK function call details: credentials={}, parameters={}",
+            credentials_json,
+            parameters_json
+        );
 
-        // Ok(WrappedJsonValue::new(serde_json::json!(res)))
-        Ok(WrappedJsonValue::new(json!({})))
+        // Build InvokeFunctionRequest
+        let request = tonic::Request::new(sdk_proto::InvokeFunctionRequest {
+            provider_controller_type_id: self.provider_type_id.clone(),
+            function_controller_type_id: self.type_id.clone(),
+            credential_controller_type_id: credential_controller.type_id().to_string(),
+            credentials: credentials_json,
+            parameters: parameters_json,
+        });
+
+        // Call the SDK server
+        let response = client
+            .invoke_function(request)
+            .await
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("gRPC invoke_function failed: {}", e)))?;
+
+        let result = response.into_inner();
+
+        // Check the oneof kind field
+        match result.kind {
+            Some(sdk_proto::invoke_function_response::Kind::Error(error)) => {
+                tracing::error!(
+                    "SDK function execution error: provider={}, function={}, error={}",
+                    self.provider_type_id,
+                    self.type_id,
+                    error.message
+                );
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "SDK function '{}' in provider '{}' failed: {}",
+                    self.type_id,
+                    self.provider_type_id,
+                    error.message
+                )));
+            }
+            Some(sdk_proto::invoke_function_response::Kind::Data(data_str)) => {
+                tracing::debug!(
+                    "SDK function returned data: provider={}, function={}, data_length={}",
+                    self.provider_type_id,
+                    self.type_id,
+                    data_str.len()
+                );
+
+                let data_value: serde_json::Value = serde_json::from_str(&data_str)
+                    .map_err(|e| {
+                        tracing::error!(
+                            "Failed to parse SDK function result: provider={}, function={}, error={}, data={}",
+                            self.provider_type_id,
+                            self.type_id,
+                            e,
+                            data_str
+                        );
+                        CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to parse result from SDK function '{}': {}",
+                            self.type_id,
+                            e
+                        ))
+                    })?;
+
+                Ok(WrappedJsonValue::new(data_value))
+            }
+            None => {
+                tracing::error!(
+                    "SDK function returned neither data nor error: provider={}, function={}",
+                    self.provider_type_id,
+                    self.type_id
+                );
+                Err(CommonError::Unknown(anyhow::anyhow!(
+                    "SDK function '{}' returned no data or error",
+                    self.type_id
+                )))
+            }
+        }
     }
 }
 

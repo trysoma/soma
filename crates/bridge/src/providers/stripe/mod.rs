@@ -54,6 +54,10 @@ impl ProviderControllerLike for StripeProviderController {
             },
         })]
     }
+
+    fn metadata(&self) -> Metadata {
+        Metadata::new()
+    }
 }
 
 struct ProcessRefundFunctionController;

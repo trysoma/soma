@@ -142,7 +142,6 @@ pub async fn cmd_dev(
   let (prj_file_change_tx, prj_file_change_rx) = start_project_file_watcher_subsystem(
     subsys,
     &project_dir,
-    &runtime,
   )?;
 
   // Start bridge config change listener subsystem

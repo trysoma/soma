@@ -2,15 +2,18 @@ pub mod types;
 use arc_swap::ArcSwap;
 use once_cell::sync::Lazy;
 use shared::error::CommonError;
+use tracing_subscriber::EnvFilter;
 pub use types::*;
 
 use sdk_proto::soma_sdk_service_server::{SomaSdkService, SomaSdkServiceServer};
 use std::{path::PathBuf, sync::Arc};
+use tokio::sync::broadcast;
 use tonic::{transport::Server, Request, Response, Status};
 use tracing::info;
 
 pub struct GrpcService {
     providers: ArcSwap<Vec<ProviderController>>,
+    agents: ArcSwap<Vec<Agent>>,
 }
 
 #[tonic::async_trait]
@@ -23,8 +26,12 @@ impl SomaSdkService for GrpcService {
         let proto_providers: Vec<sdk_proto::ProviderController> =
             providers.iter().map(Into::into).collect();
 
+        let agents = self.agents.load();
+        let proto_agents: Vec<sdk_proto::Agent> = agents.iter().cloned().map(Into::into).collect();
+
         let response = sdk_proto::MetadataResponse {
             bridge_providers: proto_providers,
+            agents: proto_agents,
         };
 
         Ok(Response::new(response))
@@ -69,21 +76,31 @@ impl SomaSdkService for GrpcService {
                 ))
             })?;
 
+        info!("invoking function: {:?}", function.name);
+
         // Invoke the function (Arc keeps providers alive during the call)
         let result = (function.invoke)(req)
             .await
-            .map_err(|e| Status::internal(format!("Function invocation failed: {e}")))?;
+            .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
+
+        info!("invoke_function result: {:?}", result);
+
+        let result = result?;
 
         Ok(Response::new(result.into()))
     }
+
+
 }
 
 impl GrpcService {
-    pub fn new(providers: Vec<ProviderController>) -> Self {
+    pub fn new(providers: Vec<ProviderController>, agents: Vec<Agent>) -> Self {
         Self {
             providers: ArcSwap::from_pointee(providers),
+            agents: ArcSwap::from_pointee(agents),
         }
     }
+
 
     /// Add a new provider controller
     pub fn add_provider(&self, provider: ProviderController) {
@@ -175,6 +192,43 @@ impl GrpcService {
         updated
     }
 
+    /// Add a new agent
+    pub fn add_agent(&self, agent: Agent) -> bool {
+        let mut added = false;
+        self.agents.rcu(|current| {
+            let mut new_agents = (**current).clone();
+            new_agents.push(agent.clone());
+            added = true;
+            new_agents
+        });
+        added
+    }
+
+    /// Remove an agent by id
+    pub fn remove_agent(&self, id: &str) -> bool {
+        let mut removed = false;
+        self.agents.rcu(|current| {
+            let mut new_agents = (**current).clone();
+            new_agents.retain(|a| a.id != id);
+            new_agents
+        });
+        removed
+    }
+
+    /// Update an agent (removes old and inserts new)
+    pub fn update_agent(&self, agent: Agent) -> bool {
+        let mut updated = false;
+        self.agents.rcu(|current| {
+            let mut new_agents = (**current).clone();
+            if let Some(pos) = new_agents.iter().position(|a| a.id == agent.id) {
+                new_agents.remove(pos);
+                new_agents.push(agent.clone());
+                updated = true;
+            }
+            new_agents
+        });
+        updated
+    }
     /// Replace all providers
     pub fn set_providers(&self, providers: Vec<ProviderController>) {
         self.providers.store(Arc::new(providers));
@@ -187,7 +241,7 @@ impl GrpcService {
 }
 
 static GRPC_SERVICE: Lazy<GrpcService> = Lazy::new(|| {
-    GrpcService::new(vec![])
+    GrpcService::new(vec![], vec![])
 });
 
 /// Starts a gRPC server that handles function invocations over a Unix socket
@@ -202,6 +256,11 @@ pub async fn start_grpc_server(
     providers: Vec<ProviderController>,
     socket_path: PathBuf,
 ) -> Result<(), CommonError> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse().unwrap()))
+        .init();
+
+
     // Set the providers in the global service
     GRPC_SERVICE.set_providers(providers);
 
@@ -253,6 +312,7 @@ impl SomaSdkService for GrpcServiceWrapper {
     ) -> Result<Response<sdk_proto::InvokeFunctionResponse>, Status> {
         GRPC_SERVICE.invoke_function(request).await
     }
+
 }
 
 /// Get a reference to the global GRPC service for dynamic provider management

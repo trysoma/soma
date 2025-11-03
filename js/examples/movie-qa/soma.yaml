@@ -11,40 +11,6 @@ bridge:
         type: local
         key_id: /root/.config/soma/local-key.bin
   providers:
-    24d16c63-066f-4e3b-af59-14964475066f:
-      provider_controller_type_id: google_mail
-      credential_controller_type_id: oauth_auth_flow
-      display_name: daniel@trysoma.ai
-      resource_server_credential:
-        id: 113bf03d-aa2d-48c1-a222-7bde1eb332b5
-        type_id: oauth2_authorization_code_flow_resource_server
-        metadata: {}
-        value:
-          client_id: 643015773387-ejuoir75pqh020cslij6etc271bpn7r6.apps.googleusercontent.com
-          client_secret: fJcAivcLPn1X+B4zMqDhDmxCC7/s91373L1VyFJU10Go5QaHoEyHb5SBP3AoxZfuf2xcR9eky4AjIN4Xtve4
-          metadata: {}
-          redirect_uri: http://localhost:3000/api/bridge/v1/generic-oauth-callback
-        data_encryption_key_id: default
-      user_credential:
-        id: e99cf736-d457-444e-8a9b-01aa4cedbca5
-        type_id: oauth2_authorization_code_flow_user
-        metadata: {}
-        value:
-          access_token: Wiz1szJUXlfU2vOVtgYnXVeztnEplHa+Wg3WkZoeqFKp1nGAlT8NjoM0pevPJ6xW1wYfFPrkhN18aEUK/9yd4/Jcp9aNkhNN97CcvYvie0qg5v0En9JBCXV+GcARdAFVTPZpcCdHitloQMWPeDijUSpfj/dnwbIdaDBD+840Fskjt/MHqIm1t0G2QnNFttO4I2lzcMwZwt3VOPXmcBHmvq/l8rfm0Zzo9pyssVa6h4RBhneL7kGSiKHotikxgXfAqPQ5ACDXGSxdhPLociKmD1sftCz9JskOEgcnZ5+HE3hGHtCOeKpVX8bpjJzgpyBnZPXdei9pJxCYevntfHQkS8yJL5jGWz8bZgPgniREKBz0NfAph9zjE8F7
-          code: RUb55bslsU6//+GQzc0E2ikTOUgj7Qr1uR1Iv9UM/m0BoDPTZ9v2i57ErP5kLadofDIIP9b6GpQ7dDMAnCllVmRPwfOrIDYjWOMDEFJYdNdKg+7GruQqwyeIa72XTZ06sX4W2Ps=
-          expiry_time: 2025-10-28T23:40:06.807087281Z
-          metadata: {}
-          refresh_token: yD/+1kCtRaDh7qDlHgSUdYf8FwwXvKd5lEiiFG0nZKlUwHV6fHo6Lq3JV4LKFPYlZnXmNAWMl4d6/8Th0Jd/3PHrlv0kb4Y8KW0XuTJ/PmNGEsabipO8UUWjvzisi6olrKjSF4iOhriC5y364qaUEQ+qGZIccoxvAzq9GyXyzi2oVRc=
-          scopes:
-          - https://www.googleapis.com/auth/gmail.compose
-          - https://www.googleapis.com/auth/userinfo.email
-          - https://www.googleapis.com/auth/userinfo.profile
-          - https://www.googleapis.com/auth/gmail.readonly
-          - openid
-          - https://www.googleapis.com/auth/gmail.send
-          sub: '107313083092903712383'
-        next_rotation_time: 2025-10-28T23:35:06.807087281+00:00
-        data_encryption_key_id: default
     fd97d188-88df-4b6c-af05-6edda528f90c:
       provider_controller_type_id: soma
       credential_controller_type_id: no_auth
@@ -65,3 +31,76 @@ bridge:
         data_encryption_key_id: default
       functions:
       - soma_get_task_timeline_items
+    24d16c63-066f-4e3b-af59-14964475066f:
+      provider_controller_type_id: google_mail
+      credential_controller_type_id: oauth_auth_flow
+      display_name: daniel@trysoma.ai
+      resource_server_credential:
+        id: 0ef01cd0-80d3-4dd5-b279-33132e75872f
+        type_id: oauth2_authorization_code_flow_resource_server
+        metadata: {}
+        value:
+          client_id: 643015773387-ejuoir75pqh020cslij6etc271bpn7r6.apps.googleusercontent.com
+          client_secret: fJcAivcLPn1X+B4zMqDhDmxCC7/s91373L1VyFJU10Go5QaHoEyHb5SBP3AoxZfuf2xcR9eky4AjIN4Xtve4
+          metadata: {}
+          redirect_uri: http://localhost:3000/api/bridge/v1/generic-oauth-callback
+        data_encryption_key_id: default
+      user_credential:
+        id: 1ca5f8d5-b0b8-48d1-a42a-39caed3a1726
+        type_id: oauth2_authorization_code_flow_user
+        metadata: {}
+        value:
+          access_token: ikkM1nIEUE7Uwle1IPzdRn6gbJoHRsXy5AxyrCB9G9OKq6LaB+UX9ODHOwBz3FytyQc9+E9Dq2XTCvGA+jf8CHCPWAd0KR7mLSyv8DyWs8qeO5d5X/Ep+BwEB4V2e7fJOT3YbT1+/XwRI0GFd85CCDavuxnqbhOYMn8UWro/Gse0kIE/CFGJAQNhTxonY0EU1Dv1XE+L1Z2dcPGZE0ERO7QztM1zfxNQ8Kod4PHACnDDd/6u0DE270kzMjwT3M8hsYn37pnl8UUx/XjP+nfGUGki88k0LRpJP7ml1NI36+hXvniCK8IJfk/AXv3HWWzb0GUSPuiKefCrKdfQkSQe0vFfQln6GYCVTzhH+nTC2fn6g7Sxo4fKaSt0
+          code: RUb55bslsU6//+GQzc0E2ikTOUgj7Qr1uR1Iv9UM/m0BoDPTZ9v2i57ErP5kLadofDIIP9b6GpQ7dDMAnCllVmRPwfOrIDYjWOMDEFJYdNdKg+7GruQqwyeIa72XTZ06sX4W2Ps=
+          expiry_time: 2025-11-02T22:33:54.333091153Z
+          metadata: {}
+          refresh_token: dfLH+HQHtQdf/8DPNHi/+6hvBXvd1g+KoOhAONDmnM9q2F4NCjaEOWJzP3052JOkrLJ7xUNJ18lxjg/Kwzb5lxyOLt8328MxaVT0Tcl6JagdWaVCfRoX2ej1a7bqULUU7lq6yl4RoiVE5qj+ZhGMFw2MV4pk7sRDVEjYbLYUbCssI5M=
+          scopes:
+          - https://www.googleapis.com/auth/gmail.send
+          - https://www.googleapis.com/auth/gmail.compose
+          - https://www.googleapis.com/auth/userinfo.email
+          - openid
+          - https://www.googleapis.com/auth/gmail.readonly
+          - https://www.googleapis.com/auth/userinfo.profile
+          sub: '107313083092903712383'
+        next_rotation_time: 2025-11-02T22:28:54.333091153+00:00
+        data_encryption_key_id: default
+    ebc10ac7-7e8e-4927-9c05-f5643c63724a:
+      provider_controller_type_id: random-number
+      credential_controller_type_id: no_auth
+      display_name: none
+      resource_server_credential:
+        id: 01598f06-5644-42f7-bf2a-cb8fb329a071
+        type_id: resource_server_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        data_encryption_key_id: default
+      user_credential:
+        id: a9347b2a-e0c7-4b3e-8aeb-69855032f1cf
+        type_id: user_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        data_encryption_key_id: default
+      functions:
+      - random-number
+    558e2a85-6dfe-423c-b2f2-1305a8e7b4ab:
+      provider_controller_type_id: random-number
+      credential_controller_type_id: no_auth
+      display_name: test
+      resource_server_credential:
+        id: 055e838a-9503-4375-9e81-9df4ef87c6e5
+        type_id: resource_server_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        data_encryption_key_id: default
+      user_credential:
+        id: 486ca7d1-bc65-49ad-b3bc-dae596e39a89
+        type_id: user_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        data_encryption_key_id: default
+      functions: []

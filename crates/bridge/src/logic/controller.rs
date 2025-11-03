@@ -212,6 +212,51 @@ pub fn get_provider_controller(
     Ok(provider_controller)
 }
 
+/// Add a provider controller to the registry
+pub fn add_provider_controller_to_registry(
+    provider: Arc<dyn ProviderControllerLike>,
+) -> Result<(), CommonError> {
+    let mut registry = PROVIDER_REGISTRY
+        .write()
+        .map_err(|_e| CommonError::Unknown(anyhow::anyhow!("Poison error")))?;
+
+    // Check if provider already exists
+    if registry.iter().any(|p| p.type_id() == provider.type_id()) {
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Provider controller with type_id '{}' already exists",
+            provider.type_id()
+        )));
+    }
+
+    tracing::info!("Adding provider controller: {}", provider.type_id());
+    registry.push(provider);
+
+    Ok(())
+}
+
+/// Remove a provider controller from the registry by type_id
+pub fn remove_provider_controller_from_registry(
+    provider_controller_type_id: &str,
+) -> Result<(), CommonError> {
+    let mut registry = PROVIDER_REGISTRY
+        .write()
+        .map_err(|_e| CommonError::Unknown(anyhow::anyhow!("Poison error")))?;
+
+    let initial_len = registry.len();
+    registry.retain(|p| p.type_id() != provider_controller_type_id);
+
+    if registry.len() == initial_len {
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Provider controller with type_id '{}' not found",
+            provider_controller_type_id
+        )));
+    }
+
+    tracing::info!("Removed provider controller: {}", provider_controller_type_id);
+
+    Ok(())
+}
+
 pub fn get_credential_controller(
     provider_controller: &Arc<dyn ProviderControllerLike>,
     credential_controller_type_id: &str,

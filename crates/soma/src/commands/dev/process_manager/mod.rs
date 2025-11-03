@@ -5,7 +5,7 @@ mod server_subsystem;
 
 pub use deployment_subsystem::{start_deployment_subsystem, StartDeploymentSubsystemParams};
 pub use mcp_subsystem::{start_mcp_transport_processor_subsystem, StartMcpTransportProcessorParams};
-pub use runtime_subsystem::{start_runtime_subsystem, StartRuntimeSubsystemParams};
+pub use runtime_subsystem::{start_runtime_subsystem, start_watch_for_dev_runtime_reload_subsystem, StartRuntimeSubsystemParams, StartWatchForDevRuntimeReloadSubsystemParams};
 pub use server_subsystem::{start_axum_subsystem, StartAxumSubsystemParams};
 
 use std::path::PathBuf;
@@ -89,7 +89,7 @@ pub async fn start_dev_reloader_subsystem(
                 // Config changed, restart the processes
                 // Wait for the previous subsystem to fully terminate before starting a new one
                 // This prevents multiple instances from trying to bind to the same ports
-                subsys.wait_for_children().await;
+                // subsys.wait_for_children().await;
             }
             Err(_) => {
                 // Sender was dropped without sending (subsystem exited unexpectedly)
@@ -181,6 +181,15 @@ async fn reload_dev_processes(
             runtime: &runtime,
             runtime_port,
             file_change_tx: &prj_file_change_tx,
+        },
+    );
+
+    // Start SDK reload watcher subsystem
+    start_watch_for_dev_runtime_reload_subsystem(
+        subsys,
+        StartWatchForDevRuntimeReloadSubsystemParams {
+            restate_params: &restate_client_params,
+            runtime_port,
         },
     );
 

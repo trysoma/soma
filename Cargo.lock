@@ -4985,6 +4985,7 @@ dependencies = [
  "tokio-stream",
  "tonic 0.13.1",
  "tracing",
+ "tracing-subscriber",
  "workspace-hack",
 ]
 

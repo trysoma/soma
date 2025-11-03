@@ -8,10 +8,18 @@ export declare class InvokeFunctionRequest {
   parameters: string
 }
 
-export declare function addFunction(providerTypeId: string, functionMetadata: FunctionMetadata, invokeCallback: ((err: Error | null, arg: InvokeFunctionRequest) => InvokeFunctionResponse)): boolean
+export declare function addAgent(agent: Agent): boolean
+
+export declare function addFunction(providerTypeId: string, functionMetadata: FunctionMetadata, invokeCallback: ((err: Error | null, arg: InvokeFunctionRequest) => Promise<InvokeFunctionResponse>)): boolean
 
 /** Add a provider controller to the running server */
 export declare function addProvider(provider: ProviderController): void
+
+export interface Agent {
+  id: string
+  name: string
+  description: string
+}
 
 export interface FunctionController {
   name: string
@@ -88,6 +96,9 @@ export type ProviderCredentialController =
   | { type: 'Oauth2JwtBearerAssertionFlow', field0: Oauth2JwtBearerAssertionFlowConfiguration }
 
 /** Remove a function controller from a specific provider */
+export declare function removeAgent(id: string): boolean
+
+/** Remove a function controller from a specific provider */
 export declare function removeFunction(providerTypeId: string, functionName: string): boolean
 
 /** Remove a provider controller by type_id */
@@ -95,6 +106,9 @@ export declare function removeProvider(typeId: string): boolean
 
 /** Start the gRPC server on a Unix socket (without initial providers) */
 export declare function startGrpcServer(socketPath: string): Promise<void>
+
+/** Remove a function controller from a specific provider */
+export declare function updateAgent(agent: Agent): boolean
 
 /** Update a function controller (removes old and inserts new) */
 export declare function updateFunction(providerTypeId: string, functionMetadata: FunctionMetadata, invokeCallback: ((err: Error | null, arg: InvokeFunctionRequest) => InvokeFunctionResponse)): boolean

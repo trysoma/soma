@@ -1,6 +1,7 @@
-mod client;
+mod interface;
 mod typescript;
-mod grpc_client;
+pub mod grpc_client;
+pub mod sdk_provider_sync;
 
 use std::collections::HashMap;
 use std::fs;
@@ -11,16 +12,17 @@ use futures::{FutureExt, TryFutureExt, future};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot};
-use tracing::info;
+use tracing::{error, info};
 
 use shared::command::run_child_process;
 use shared::error::CommonError;
 
 use crate::commands::dev::DevParams;
+use crate::commands::dev::runtime::grpc_client::{create_unix_socket_client, establish_connection_with_retry, monitor_connection_health};
 use crate::utils::construct_src_dir_absolute;
 
 use super::project_file_watcher::FileChangeRx;
-use client::{ClientCtx, SdkClient};
+use interface::{ClientCtx, SdkClient};
 use typescript::Typescript;
 
 /// Default Unix socket path for the SDK gRPC server
@@ -28,7 +30,7 @@ pub const DEFAULT_SOMA_SERVER_SOCK: &str = "/tmp/soma-sdk.sock";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Runtime {
-    BunV1,
+    PnpmV1,
 }
 
 /// Determines which runtime to use based on the project structure
@@ -39,7 +41,7 @@ pub fn determine_runtime(params: &DevParams) -> Result<Option<Runtime>, CommonEr
 
 /// Determines runtime from a directory path (testable version)
 pub fn determine_runtime_from_dir(src_dir: &Path) -> Result<Option<Runtime>, CommonError> {
-    let possible_runtimes = vec![(Runtime::BunV1, validate_runtime_bun_v1)];
+    let possible_runtimes = vec![(Runtime::PnpmV1, validate_runtime_pnpm_v1)];
 
     let mut matched_runtimes = vec![];
 
@@ -59,12 +61,12 @@ pub fn determine_runtime_from_dir(src_dir: &Path) -> Result<Option<Runtime>, Com
     }
 }
 
-fn validate_runtime_bun_v1(src_dir: PathBuf) -> Result<bool, CommonError> {
-    validate_runtime_bun_v1_internal(&src_dir)
+fn validate_runtime_pnpm_v1(src_dir: PathBuf) -> Result<bool, CommonError> {
+    validate_runtime_pnpm_v1_internal(&src_dir)
 }
 
 /// Internal validation function (easier to test)
-fn validate_runtime_bun_v1_internal(src_dir: &Path) -> Result<bool, CommonError> {
+fn validate_runtime_pnpm_v1_internal(src_dir: &Path) -> Result<bool, CommonError> {
     let files_to_check = vec![
         "package.json",
         "index.ts",
@@ -83,33 +85,7 @@ fn is_vite_project(src_dir: &Path) -> bool {
     src_dir.join("vite.config.ts").exists()
 }
 
-async fn build_runtime_bun_v1(_src_dir: PathBuf) -> Result<(), CommonError> {
-    Ok(())
-}
-
-async fn start_runtime_bun_v1(
-    src_dir: PathBuf,
-    runtime_port: u16,
-    kill_signal: oneshot::Receiver<()>,
-    shutdown_complete: oneshot::Sender<()>,
-) -> Result<(), CommonError> {
-    let mut cmd = Command::new("bun");
-    cmd.arg("index.ts").current_dir(src_dir);
-    run_child_process(
-        "bun",
-        cmd,
-        Some(kill_signal),
-        Some(shutdown_complete),
-        Some(HashMap::from([
-            ("PORT".to_string(), runtime_port.to_string()),
-        ])),
-    )
-    .await?;
-
-    Ok(())
-}
-
-pub fn files_to_watch_bun_v1() -> Result<GlobSet, CommonError> {
+pub fn files_to_watch_pnpm_v1() -> Result<GlobSet, CommonError> {
     let mut builder = GlobSetBuilder::new();
 
     builder.add(Glob::new("**/*.ts")?);
@@ -119,7 +95,7 @@ pub fn files_to_watch_bun_v1() -> Result<GlobSet, CommonError> {
     Ok(builder.build()?)
 }
 
-pub fn files_to_ignore_bun_v1() -> Result<GlobSet, CommonError> {
+pub fn files_to_ignore_pnpm_v1() -> Result<GlobSet, CommonError> {
     let mut builder = GlobSetBuilder::new();
 
     // Match node_modules anywhere in the path
@@ -188,7 +164,7 @@ pub async fn start_dev_runtime<'a>(
         let (dev_shutdown_complete_tx, dev_shutdown_complete_rx) = oneshot::channel::<()>();
 
         let serve_fut = match runtime {
-            Runtime::BunV1 => {
+            Runtime::PnpmV1 => {
                 // Check if this is a Vite-based project
                 if is_vite_project(&project_dir) {
                     info!("Detected Vite project, using Vite dev server");
@@ -198,19 +174,11 @@ pub async fn start_dev_runtime<'a>(
                     let ctx = ClientCtx {
                         project_dir: project_dir.clone(),
                         socket_path: DEFAULT_SOMA_SERVER_SOCK.to_string(),
+                        restate_runtime_port: runtime_port,
                     };
 
                     async move {
-                        let socket_path = ctx.socket_path.clone();
                         let dev_server_handle = typescript_client.start_dev_server(ctx).await?;
-
-                        // Test gRPC connection to verify the server is working
-                        let socket_path_clone = socket_path.clone();
-                        tokio::spawn(async move {
-                            if let Err(e) = grpc_client::test_grpc_connection(&socket_path_clone).await {
-                                tracing::error!("Failed to test gRPC connection: {:?}", e);
-                            }
-                        });
 
                         // Wait for kill signal or server completion
                         tokio::select! {
@@ -227,16 +195,11 @@ pub async fn start_dev_runtime<'a>(
                         Ok::<(), CommonError>(())
                     }.boxed()
                 } else {
-                    // Use traditional bun start
-                    build_runtime_bun_v1(project_dir.clone()).and_then(|_| {
-                        start_runtime_bun_v1(
-                            project_dir.clone(),
-                            runtime_port,
-                            dev_kill_signal_rx,
-                            dev_shutdown_complete_tx,
-                        )
-                    }).boxed()
+                    return Err(CommonError::Unknown(anyhow::anyhow!("Invalid runtime. must use vite")));
                 }
+            },
+            _ => {
+                return Err(CommonError::Unknown(anyhow::anyhow!("Invalid runtime")));
             }
         };
 
@@ -269,6 +232,154 @@ pub async fn start_dev_runtime<'a>(
     Ok(())
 }
 
+
+/// Fetch metadata and sync providers to the bridge registry
+/// Returns the list of agents from the metadata response
+async fn fetch_and_sync_providers(
+    socket_path: &str,
+) -> Result<Vec<sdk_proto::Agent>, CommonError> {
+    let mut client = create_unix_socket_client(socket_path).await?;
+
+    let request = tonic::Request::new(());
+    let response = client
+        .metadata(request)
+        .await
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("gRPC call failed: {}", e)))?;
+
+    let metadata = response.into_inner();
+
+    info!("=== SDK Metadata ===");
+    info!("Provider count: {}", metadata.bridge_providers.len());
+
+    for (i, provider) in metadata.bridge_providers.iter().enumerate() {
+        info!("Provider {}: type_id={}, name={}", i + 1, provider.type_id, provider.name);
+        info!("  Function count: {}", provider.functions.len());
+
+        for (j, func) in provider.functions.iter().enumerate() {
+            info!("    Function {}: {}", j + 1, func.name);
+        }
+    }
+
+    info!("Agent count: {}", metadata.agents.len());
+    for (i, agent) in metadata.agents.iter().enumerate() {
+        info!("Agent {}: id={}, name={}", i + 1, agent.id, agent.name);
+    }
+
+    info!("=== End SDK Metadata ===");
+
+    // Sync providers to bridge registry
+    sdk_provider_sync::sync_providers_from_metadata(&metadata)?;
+
+    Ok(metadata.agents)
+}
+
+/// Register Restate deployments for all agents
+async fn register_agent_deployments(
+    agents: Vec<sdk_proto::Agent>,
+    restate_params: &super::restate::RestateServerParams,
+    runtime_port: u16,
+) -> Result<(), CommonError> {
+    use std::collections::HashMap;
+
+    info!("Registering {} agent deployment(s) with Restate", agents.len());
+
+    for agent in agents {
+        let service_uri = format!("http://127.0.0.1:{}", runtime_port);
+        let deployment_type = crate::utils::restate::deploy::DeploymentType::Http {
+            uri: service_uri.clone(),
+            additional_headers: HashMap::new(),
+        };
+
+        // Use the agent ID as the service path
+        let service_path = agent.id.clone();
+
+        info!("Registering agent '{}' at {}", agent.name, service_uri);
+
+        let admin_url = restate_params.get_admin_address()?;
+        let config = crate::utils::restate::deploy::DeploymentRegistrationConfig {
+            admin_url: admin_url.to_string(),
+            service_path: service_path.clone(),
+            deployment_type,
+            bearer_token: restate_params.get_admin_token(),
+            private: restate_params.get_private(),
+            insecure: restate_params.get_insecure(),
+            force: restate_params.get_force(),
+        };
+
+        match crate::utils::restate::deploy::register_deployment(config).await {
+            Ok(metadata) => {
+                info!("✓ Successfully registered agent '{}' (service: {})", agent.name, metadata.name);
+            }
+            Err(e) => {
+                error!("✗ Failed to register agent '{}': {:?}", agent.name, e);
+                // Continue with other agents even if one fails
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Watch for dev runtime reloads by monitoring the gRPC connection
+/// This function runs indefinitely, reconnecting when the server restarts
+/// and syncing providers on each reconnection
+pub async fn watch_for_dev_runtime_reload(
+    socket_path: &str,
+    restate_params: &super::restate::RestateServerParams,
+    runtime_port: u16,
+) -> Result<(), CommonError> {
+    use tokio::time::Duration;
+
+    info!("Starting dev runtime reload watcher for socket: {}", socket_path);
+    let mut ticker = tokio::time::interval(Duration::from_millis(500));
+
+    loop {
+        // Try to establish connection with timeout
+        let connection_result = tokio::time::timeout(
+            Duration::from_secs(10),
+            establish_connection_with_retry(socket_path)
+        ).await;
+
+        match connection_result {
+            Ok(Ok(_)) => {
+                info!("📡 Connected to SDK server, fetching metadata and syncing providers...");
+
+                // Fetch metadata and sync providers to bridge
+                match fetch_and_sync_providers(socket_path).await {
+                    Ok(agents) => {
+                        // Register Restate deployments for each agent
+                        if !agents.is_empty() {
+                            if let Err(e) = register_agent_deployments(agents, restate_params, runtime_port).await {
+                                error!("Failed to register agent deployments: {:?}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to fetch and sync providers: {:?}", e);
+                    }
+                }
+
+                // Monitor connection health - when it breaks, we'll reconnect
+                monitor_connection_health(socket_path).await;
+                info!("Connection lost, will reconnect...");
+            }
+            Ok(Err(e)) => {
+                error!("Failed to establish connection: {:?}", e);
+                return Err(e);
+            }
+            Err(_) => {
+                error!("Connection timeout after 10 seconds");
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Failed to connect to SDK server within 10 seconds"
+                )));
+            }
+        }
+
+        // Brief pause before reconnecting
+        ticker.tick().await;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -283,41 +394,41 @@ mod tests {
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
         fs::write(temp_dir.path().join("index.ts"), "console.log('test');").unwrap();
 
-        let result = validate_runtime_bun_v1_internal(temp_dir.path()).unwrap();
+        let result = validate_runtime_pnpm_v1_internal(temp_dir.path()).unwrap();
         assert!(result, "Should validate as BunV1 runtime");
     }
 
     #[test]
-    fn test_validate_runtime_bun_v1_missing_package_json() {
+    fn test_validate_runtime_pnpm_v1_missing_package_json() {
         let temp_dir = TempDir::new().unwrap();
 
         // Only create index.ts
         fs::write(temp_dir.path().join("index.ts"), "console.log('test');").unwrap();
 
-        let result = validate_runtime_bun_v1_internal(temp_dir.path()).unwrap();
+        let result = validate_runtime_pnpm_v1_internal(temp_dir.path()).unwrap();
         assert!(!result, "Should not validate without package.json");
     }
 
     #[test]
-    fn test_validate_runtime_bun_v1_missing_index_ts() {
+    fn test_validate_runtime_pnpm_v1_missing_index_ts() {
         let temp_dir = TempDir::new().unwrap();
 
         // Only create package.json
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
 
-        let result = validate_runtime_bun_v1_internal(temp_dir.path()).unwrap();
+        let result = validate_runtime_pnpm_v1_internal(temp_dir.path()).unwrap();
         assert!(!result, "Should not validate without index.ts");
     }
 
     #[test]
-    fn test_determine_runtime_from_dir_bun_v1() {
+    fn test_determine_runtime_from_dir_pnpm_v1() {
         let temp_dir = TempDir::new().unwrap();
 
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
         fs::write(temp_dir.path().join("index.ts"), "console.log('test');").unwrap();
 
         let runtime = determine_runtime_from_dir(temp_dir.path()).unwrap();
-        assert_eq!(runtime, Some(Runtime::BunV1));
+        assert_eq!(runtime, Some(Runtime::PnpmV1));
     }
 
     #[test]
@@ -329,52 +440,4 @@ mod tests {
         assert_eq!(runtime, None);
     }
 
-    #[test]
-    fn test_files_to_watch_bun_v1() {
-        let globs = files_to_watch_bun_v1().unwrap();
-
-        assert!(globs.is_match("src/index.ts"));
-        assert!(globs.is_match("package.json"));
-        assert!(globs.is_match("soma.yaml"));
-        assert!(globs.is_match("foo/bar/baz.ts"));
-        assert!(!globs.is_match("README.md"));
-    }
-
-    #[test]
-    fn test_files_to_ignore_bun_v1() {
-        let globs = files_to_ignore_bun_v1().unwrap();
-
-        assert!(globs.is_match("node_modules/foo/bar.js"));
-        assert!(globs.is_match("src/node_modules/test.ts"));
-        assert!(globs.is_match(".soma/standalone.ts"));
-        assert!(globs.is_match(".soma/build/js/index.js"));
-        assert!(!globs.is_match("src/index.ts"));
-    }
-
-    #[test]
-    fn test_collect_paths_to_watch() {
-        let temp_dir = TempDir::new().unwrap();
-
-        // Create a directory structure
-        fs::create_dir(temp_dir.path().join("src")).unwrap();
-        fs::create_dir(temp_dir.path().join("node_modules")).unwrap();
-
-        fs::write(temp_dir.path().join("package.json"), "{}").unwrap();
-        fs::write(temp_dir.path().join("src/index.ts"), "").unwrap();
-        fs::write(temp_dir.path().join("src/app.ts"), "").unwrap();
-        fs::write(temp_dir.path().join("node_modules/pkg.js"), "").unwrap();
-        fs::write(temp_dir.path().join("README.md"), "").unwrap();
-
-        let watch_globs = files_to_watch_bun_v1().unwrap();
-        let ignore_globs = files_to_ignore_bun_v1().unwrap();
-
-        let paths = collect_paths_to_watch(temp_dir.path(), &watch_globs, &ignore_globs);
-
-        // Should include package.json and .ts files, but not node_modules or README.md
-        assert!(paths.iter().any(|p| p.ends_with("package.json")));
-        assert!(paths.iter().any(|p| p.ends_with("index.ts")));
-        assert!(paths.iter().any(|p| p.ends_with("app.ts")));
-        assert!(!paths.iter().any(|p| p.to_string_lossy().contains("node_modules")));
-        assert!(!paths.iter().any(|p| p.ends_with("README.md")));
-    }
 }

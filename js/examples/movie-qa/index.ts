@@ -1,6 +1,5 @@
 import { createSomaAgent } from "@soma/sdk";
 import { MessagePartTypeEnum, MessageRole, TaskStatus } from "../../packages/api-client/dist";
-
 createSomaAgent({
 	handler: async ({ ctx: { restate, soma }, params: { task, timelineItem } }) => {
 		restate.console.info("Processing task update...", { text: timelineItem });

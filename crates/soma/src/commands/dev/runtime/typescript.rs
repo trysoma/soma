@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use tokio::process::Command;
 use tokio::sync::oneshot;
 
-use crate::commands::dev::runtime::client::{ClientCtx, DevServerHandle, SdkClient};
+use crate::commands::dev::runtime::interface::{ClientCtx, DevServerHandle, SdkClient};
 
 pub struct Typescript {}
 
@@ -31,6 +31,7 @@ impl SdkClient for Typescript {
         // Set the SOMA_SERVER_SOCK environment variable
         let env_vars = HashMap::from([
             ("SOMA_SERVER_SOCK".to_string(), ctx.socket_path),
+            ("RESTATE_RUNTIME_PORT".to_string(), ctx.restate_runtime_port.to_string()),
         ]);
 
         let dev_server_fut = shared::command::run_child_process("pnpm-dev-server", cmd, Some(kill_signal_rx), Some(shutdown_complete_tx), Some(env_vars));

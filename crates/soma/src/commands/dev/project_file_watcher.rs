@@ -1,9 +1,10 @@
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use futures::future;
-use globset::GlobSet;
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use notify::{EventKind, RecursiveMode};
 use notify_debouncer_full::{DebounceEventResult, new_debouncer};
 use tokio::sync::{broadcast, mpsc};
@@ -11,8 +12,6 @@ use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle};
 use tracing::{debug, error, info};
 
 use shared::error::CommonError;
-
-use super::runtime::{Runtime, collect_paths_to_watch, files_to_ignore_bun_v1, files_to_watch_bun_v1};
 
 #[derive(Debug, Clone)]
 pub struct FileChangeEvt {
@@ -22,16 +21,63 @@ pub struct FileChangeEvt {
 pub type FileChangeTx = broadcast::Sender<FileChangeEvt>;
 pub type FileChangeRx = broadcast::Receiver<FileChangeEvt>;
 
+fn files_to_watch_v1() -> Result<GlobSet, CommonError> {
+    let mut builder = GlobSetBuilder::new();
+
+    builder.add(Glob::new("soma.yaml")?);
+
+    Ok(builder.build()?)
+}
+
+fn files_to_ignore_v1() -> Result<GlobSet, CommonError> {
+    let mut builder = GlobSetBuilder::new();
+
+    Ok(builder.build()?)
+}
+
+
+fn collect_paths_to_watch(
+    root: &Path,
+    watch_globs: &GlobSet,
+    ignore_globs: &GlobSet,
+) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+
+    while let Some(path) = stack.pop() {
+        // Match against path relative to root for glob patterns
+        let relative_path = path.strip_prefix(root).unwrap_or(&path);
+
+        if ignore_globs.is_match(relative_path) {
+            continue;
+        }
+
+        if path.is_dir() {
+            // Push subdirs for recursive traversal
+            if let Ok(read_dir) = fs::read_dir(&path) {
+                for entry in read_dir.flatten() {
+                    stack.push(entry.path());
+                }
+            }
+        } else if watch_globs.is_match(relative_path) {
+            paths.push(path);
+        }
+    }
+
+    paths
+}
+
+
 /// Starts a file watcher that monitors the source directory for changes
 pub async fn start_dev_file_watcher(
     src_dir: &PathBuf,
-    runtime: &Runtime,
     file_change_tx: Arc<FileChangeTx>,
 ) -> Result<(), CommonError> {
-    let (files_to_watch, files_to_ignore) = match runtime {
-        Runtime::BunV1 => (files_to_watch_bun_v1()?, files_to_ignore_bun_v1()?),
-    };
+    
 
+    let files_to_watch = files_to_watch_v1()?;
+    let files_to_ignore = files_to_ignore_v1()?;
+    
     let (file_change_debounced_tx, mut file_change_debounced_rx) =
         mpsc::channel::<(Instant, Vec<notify::Event>)>(10);
 
@@ -143,7 +189,6 @@ pub fn is_soma_config_change(event: &FileChangeEvt) -> bool {
 pub fn start_project_file_watcher_subsystem(
     subsys: &SubsystemHandle,
     project_dir: &PathBuf,
-    runtime: &Runtime,
 ) -> Result<(Arc<FileChangeTx>, FileChangeRx), CommonError> {
     // Setup file change notification
     let (file_change_tx, file_change_rx) = tokio::sync::broadcast::channel::<FileChangeEvt>(10);
@@ -151,7 +196,6 @@ pub fn start_project_file_watcher_subsystem(
 
     let file_change_tx_clone = file_change_tx.clone();
     let project_dir_clone = project_dir.clone();
-    let runtime_clone = runtime.clone();
     subsys.start(SubsystemBuilder::new(
         "file-watcher",
         move |subsys: SubsystemHandle| async move {
@@ -160,7 +204,7 @@ pub fn start_project_file_watcher_subsystem(
                     info!("system shutdown requested");
                     info!("File watcher stopped");
                 }
-                result = start_dev_file_watcher(&project_dir_clone, &runtime_clone, file_change_tx_clone) => {
+                result = start_dev_file_watcher(&project_dir_clone, file_change_tx_clone) => {
                     if let Err(e) = result {
                         error!("File watcher stopped unexpectedly: {:?}", e);
                     }

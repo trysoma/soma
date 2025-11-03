@@ -16,18 +16,21 @@ export const providerController: ProviderController = {
     documentation: 'Generates a random number between two numbers',
     categories: ['random'],
     credentialControllers: [
+        // {
+        //     type: "Oauth2AuthorizationCodeFlow",
+        //     field0: {
+        //         staticCredentialConfiguration: {
+        //             authUri: 'https://random-number.com/auth',
+        //             tokenUri: 'https://random-number.com/token',
+        //             userinfoUri: 'https://random-number.com/userinfo',
+        //             jwksUri: 'https://random-number.com/jwks',
+        //             issuer: 'https://random-number.com',
+        //             scopes: ['openid', 'profile', 'email'],
+        //         },
+        //     }
+        // }
         {
-            type: "Oauth2AuthorizationCodeFlow",
-            field0: {
-                staticCredentialConfiguration: {
-                    authUri: 'https://random-number.com/auth',
-                    tokenUri: 'https://random-number.com/token',
-                    userinfoUri: 'https://random-number.com/userinfo',
-                    jwksUri: 'https://random-number.com/jwks',
-                    issuer: 'https://random-number.com',
-                    scopes: ['openid', 'profile', 'email'],
-                },
-            }
+            type: "NoAuth",
         }
     ],
 };

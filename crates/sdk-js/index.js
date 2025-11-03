@@ -573,10 +573,13 @@ if (!nativeBinding) {
 
 module.exports = nativeBinding
 module.exports.InvokeFunctionRequest = nativeBinding.InvokeFunctionRequest
+module.exports.addAgent = nativeBinding.addAgent
 module.exports.addFunction = nativeBinding.addFunction
 module.exports.addProvider = nativeBinding.addProvider
+module.exports.removeAgent = nativeBinding.removeAgent
 module.exports.removeFunction = nativeBinding.removeFunction
 module.exports.removeProvider = nativeBinding.removeProvider
 module.exports.startGrpcServer = nativeBinding.startGrpcServer
+module.exports.updateAgent = nativeBinding.updateAgent
 module.exports.updateFunction = nativeBinding.updateFunction
 module.exports.updateProvider = nativeBinding.updateProvider

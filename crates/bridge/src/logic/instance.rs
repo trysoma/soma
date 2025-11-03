@@ -21,26 +21,135 @@ use shared::{
         WrappedSchema, WrappedUuidV4,
     },
 };
+use tracing::info;
 use std::fs;
 use std::path::Path;
 use std::sync::RwLock;
-use utoipa::{IntoParams, ToSchema};
+use utoipa::{
+    IntoParams, ToSchema,
+    openapi::{Components, Content, HttpMethod, ObjectBuilder, OpenApi, Paths, Ref, RefOr, Required, Response, Type, path::Operation, request_body::RequestBody, schema::SchemaType},
+};
 
 use crate::{
     logic::{
-        OnConfigChangeEvt, OnConfigChangeTx, ProviderControllerLike, FunctionControllerLike,
+        FunctionControllerLike, OnConfigChangeEvt, OnConfigChangeTx, ProviderControllerLike,
         controller::{
-            FunctionControllerSerialized, ProviderControllerSerialized,
+            FunctionControllerSerialized, PROVIDER_REGISTRY, ProviderControllerSerialized,
             ProviderCredentialControllerSerialized, WithCredentialControllerTypeId,
             WithFunctionControllerTypeId, WithProviderControllerTypeId, get_credential_controller,
-            get_function_controller, get_provider_controller, PROVIDER_REGISTRY,
+            get_function_controller, get_provider_controller,
         },
         credential::{ResourceServerCredentialSerialized, UserCredentialSerialized},
         encryption::{EnvelopeEncryptionKeyContents, get_crypto_service, get_decryption_service},
     },
     providers::google_mail::GoogleMailProviderController,
     repository::ProviderRepositoryLike,
+    router::bridge::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY},
 };
+
+/// Sanitizes a display name to only contain alphanumeric characters and dashes.
+/// This is useful for creating valid OpenAPI operation IDs and other identifiers.
+fn sanitize_display_name(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else if c.is_whitespace() {
+                '-'
+            } else {
+                // Skip other special characters
+                '\0'
+            }
+        })
+        .filter(|&c| c != '\0')
+        .collect()
+}
+
+/// Converts a JSON Schema (from schemars) to OpenAPI 3.0 schema format.
+/// This extracts the schema content and moves $defs to a separate map.
+/// Returns (converted_schema, extracted_defs)
+fn convert_jsonschema_to_openapi(
+    json_schema: &serde_json::Value,
+    schema_name_prefix: &str,
+) -> Result<(serde_json::Value, Vec<(String, serde_json::Value)>), CommonError> {
+    let mut schema = json_schema.clone();
+    let mut extracted_defs = Vec::new();
+    let mut ref_updates = Vec::new();
+
+    // Remove the $schema field (not used in OpenAPI)
+    if let Some(obj) = schema.as_object_mut() {
+        obj.remove("$schema");
+
+        // Extract and move $defs to components
+        if let Some(defs) = obj.remove("$defs") {
+            if let Some(defs_obj) = defs.as_object() {
+                // Build a map of all definitions for reference resolution
+                for (def_name, def_schema) in defs_obj {
+                    let component_name = format!("{}_{}", schema_name_prefix, def_name);
+
+                    // Store reference updates to do later
+                    ref_updates.push((
+                        format!("#/$defs/{}", def_name),
+                        format!("#/components/schemas/{}", component_name),
+                    ));
+                }
+
+                // Now process each definition
+                for (def_name, def_schema) in defs_obj {
+                    let component_name = format!("{}_{}", schema_name_prefix, def_name);
+
+                    // Clone and clean the def schema
+                    let mut clean_def = def_schema.clone();
+                    if let Some(def_obj) = clean_def.as_object_mut() {
+                        def_obj.remove("$schema");
+                        def_obj.remove("title");
+                    }
+
+                    // Update references within this definition to point to components
+                    for (old_ref, new_ref) in &ref_updates {
+                        update_refs_in_schema(&mut clean_def, old_ref, new_ref);
+                    }
+
+                    extracted_defs.push((component_name.clone(), clean_def));
+                }
+            }
+        }
+
+        // Remove title field if it's redundant
+        obj.remove("title");
+    }
+
+    // Update all references in the main schema after we're done with the mutable borrow
+    for (old_ref, new_ref) in &ref_updates {
+        update_refs_in_schema(&mut schema, old_ref, new_ref);
+    }
+
+    Ok((schema, extracted_defs))
+}
+
+/// Recursively updates $ref values in a JSON schema
+fn update_refs_in_schema(value: &mut serde_json::Value, old_ref: &str, new_ref: &str) {
+    match value {
+        serde_json::Value::Object(map) => {
+            // Update $ref if it matches
+            if let Some(ref_val) = map.get_mut("$ref") {
+                if ref_val.as_str() == Some(old_ref) {
+                    *ref_val = serde_json::Value::String(new_ref.to_string());
+                }
+            }
+            // Recursively process all values
+            for v in map.values_mut() {
+                update_refs_in_schema(v, old_ref, new_ref);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                update_refs_in_schema(v, old_ref, new_ref);
+            }
+        }
+        _ => {}
+    }
+}
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct ProviderInstanceSerialized {
@@ -214,6 +323,160 @@ pub async fn list_function_instances(
         .list_function_instances(&params.pagination, params.provider_instance_id.as_deref())
         .await?;
     Ok(function_instances)
+}
+
+pub async fn get_function_instances_openapi_spec(
+    repo: &impl crate::repository::ProviderRepositoryLike,
+) -> Result<OpenApi, CommonError> {
+    fn get_openapi_path(
+        provider_instance_id: &String,
+        function_controller_type_id: &String,
+    ) -> String {
+        format!(
+            "{}/{}/{}/provider/{}/function/{}/invoke",
+            PATH_PREFIX,
+            SERVICE_ROUTE_KEY,
+            API_VERSION_1,
+            provider_instance_id,
+            function_controller_type_id
+        )
+    }
+
+    let mut paths = Paths::new();
+    let mut pagination = PaginationRequest {
+        page_size: 1000,
+        next_page_token: None,
+    };
+    let mut components = Components::builder()
+        .schema("Error", utoipa::openapi::ObjectBuilder::new()
+            .title(Some("Error"))
+            .property("message", RefOr::T(
+                utoipa::openapi::schema::Schema::Object(ObjectBuilder::new()
+                    .schema_type(SchemaType::Type(Type::String))
+                    .build()
+                )
+            ))
+    
+        );
+    loop {
+        let repo_resp = repo
+            .list_provider_instances(&pagination, None, None)
+            .await?;
+        for provider_instance in repo_resp.items {
+            let provider_controller = get_provider_controller(&provider_instance.provider_instance.provider_controller_type_id)?;
+            for function_instance in provider_instance.functions {
+                let function_controller = get_function_controller(&provider_controller, &function_instance.function_controller_type_id)?;
+
+                // Schema names for this function
+                let params_schema_name = format!("{}{}Params",
+                    provider_instance.provider_instance.provider_controller_type_id,
+                    function_instance.function_controller_type_id);
+                let response_schema_name = format!("{}{}Response",
+                    provider_instance.provider_instance.provider_controller_type_id,
+                    function_instance.function_controller_type_id);
+
+                // Convert params schema: schemars::Schema -> OpenAPI schema
+                let params_schema = function_controller.parameters();
+                let params_json_schema = params_schema.get_inner().as_value();
+                let (params_openapi_json, params_defs) = convert_jsonschema_to_openapi(
+                    params_json_schema,
+                    &params_schema_name,
+                )?;
+                info!("Params OpenAPI schema for {}: {}", params_schema_name, params_openapi_json);
+
+                // Deserialize JSON Value into utoipa Schema
+                let params_utoipa_schema: utoipa::openapi::schema::Schema = serde_json::from_value(params_openapi_json)
+                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize params schema: {}", e)))?;
+                components = components.schema(params_schema_name.clone(), params_utoipa_schema);
+
+                // Add extracted definitions to components
+                for (def_name, def_json) in params_defs {
+                    let def_utoipa_schema: utoipa::openapi::schema::Schema = serde_json::from_value(def_json)
+                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize def schema {}: {}", def_name, e)))?;
+                    components = components.schema(def_name, def_utoipa_schema);
+                }
+
+                // Convert response schema: schemars::Schema -> OpenAPI schema
+                let response_schema = function_controller.output();
+                let response_json_schema = response_schema.get_inner().as_value();
+                let (response_openapi_json, response_defs) = convert_jsonschema_to_openapi(
+                    response_json_schema,
+                    &response_schema_name,
+                )?;
+                info!("Response OpenAPI schema for {}: {}", response_schema_name, response_openapi_json);
+
+                // Deserialize JSON Value into utoipa Schema
+                let response_utoipa_schema: utoipa::openapi::schema::Schema = serde_json::from_value(response_openapi_json)
+                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize response schema: {}", e)))?;
+                components = components.schema(response_schema_name.clone(), response_utoipa_schema);
+
+                // Add extracted definitions to components
+                for (def_name, def_json) in response_defs {
+                    let def_utoipa_schema: utoipa::openapi::schema::Schema = serde_json::from_value(def_json)
+                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize def schema {}: {}", def_name, e)))?;
+                    components = components.schema(def_name, def_utoipa_schema);
+                }
+
+                paths.add_path_operation(
+                    get_openapi_path(
+                        &function_instance.provider_instance_id,
+                        &function_instance.function_controller_type_id,
+                    ),
+                    vec![HttpMethod::Post],
+                    Operation::builder()
+                        .description(Some(format!(
+                            "Invoke function {} on provider instance {}",
+                            function_instance.function_controller_type_id,
+                            function_instance.provider_instance_id
+                        )))
+                        .operation_id(Some(format!(
+                            "invoke-{}-{}",
+                            sanitize_display_name(&provider_instance.provider_instance.display_name),
+                            function_instance.function_controller_type_id
+                        )))
+                        .request_body(Some(
+                            RequestBody::builder()
+                                .required(Some(Required::True))
+                                .content("application/json", Content::builder()
+                                    .schema(Some(RefOr::Ref(Ref::from_schema_name(format!("{}{}Params", provider_instance.provider_instance.provider_controller_type_id, function_instance.function_controller_type_id)))))
+                                    .build())
+                                .build()
+                        ))
+                        .response("200", Response::builder()
+                            .description("Invoke function")
+                            .content("application/json", Content::builder()
+                                .schema(Some(RefOr::Ref(Ref::from_schema_name(format!("{}{}Response", provider_instance.provider_instance.provider_controller_type_id, function_instance.function_controller_type_id)))))
+                                .build())
+                            .build()
+                        )
+                        // TODO: map 500 to actual runtime error response
+                        .response("500", Response::builder()
+                            .description("Internal Server Error")
+                            .content("application/json", Content::builder()
+                                .schema(Some(RefOr::Ref(Ref::from_schema_name("Error"))))
+                                .build())
+                            .build()
+                        )
+                        .build(),
+                );
+            }
+        }
+        match repo_resp.next_page_token {
+            Some(next_page_token) => {
+                pagination.next_page_token = Some(next_page_token);
+            }
+            None => {
+                break;
+            }
+        }
+    }
+
+    let openapi_spec = OpenApi::builder()
+        .paths(paths)
+        .components(Some(components.build()))
+        .build();
+
+    return Ok(openapi_spec);
 }
 
 /// Enriches a function instance with its controller metadata
@@ -409,7 +672,6 @@ pub async fn update_provider_instance(
 pub type DeleteProviderInstanceParams = WithProviderInstanceId<()>;
 pub type DeleteProviderInstanceResponse = ();
 
-
 pub async fn delete_provider_instance(
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
@@ -445,7 +707,6 @@ pub struct ListProviderInstancesGroupedByFunctionParams {
 }
 pub type ListProviderInstancesGroupedByFunctionResponse = PaginatedResponse<FunctionInstanceConfig>;
 
-
 pub async fn list_provider_instances_grouped_by_function(
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListProviderInstancesGroupedByFunctionParams,
@@ -457,7 +718,10 @@ pub async fn list_provider_instances_grouped_by_function(
         .clone();
 
     // Create a vector of (provider_controller, function_controller) tuples, sorted by display names
-    let mut function_configs: Vec<(Arc<dyn ProviderControllerLike>, Arc<dyn FunctionControllerLike>)> = Vec::new();
+    let mut function_configs: Vec<(
+        Arc<dyn ProviderControllerLike>,
+        Arc<dyn FunctionControllerLike>,
+    )> = Vec::new();
 
     for provider in providers.iter() {
         // Apply provider_controller_type_id filter if provided
@@ -491,18 +755,21 @@ pub async fn list_provider_instances_grouped_by_function(
 
     // Apply pagination - decode the next_page_token as an offset
     let offset = if let Some(token) = &params.next_page_token {
-        let decoded_parts = shared::primitives::decode_pagination_token(token)
-            .map_err(|e| CommonError::Repository {
+        let decoded_parts = shared::primitives::decode_pagination_token(token).map_err(|e| {
+            CommonError::Repository {
                 msg: format!("Invalid pagination token: {}", e),
                 source: Some(e.into()),
-            })?;
+            }
+        })?;
         if decoded_parts.is_empty() {
             0
         } else {
-            decoded_parts[0].parse::<usize>().map_err(|e| CommonError::Repository {
-                msg: format!("Invalid offset in pagination token: {}", e),
-                source: Some(e.into()),
-            })?
+            decoded_parts[0]
+                .parse::<usize>()
+                .map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid offset in pagination token: {}", e),
+                    source: Some(e.into()),
+                })?
         }
     } else {
         0
@@ -525,12 +792,17 @@ pub async fn list_provider_instances_grouped_by_function(
         Vec::new()
     } else {
         // Call the repository method to get provider instances grouped by function controller type id
-        repo.get_provider_instances_grouped_by_function_controller_type_id(&function_controller_type_ids)
-            .await?
+        repo.get_provider_instances_grouped_by_function_controller_type_id(
+            &function_controller_type_ids,
+        )
+        .await?
     };
 
     // Create a HashMap for quick lookup of provider instances by function_controller_type_id
-    let provider_instances_map: std::collections::HashMap<String, Vec<ProviderInstanceSerializedWithCredentials>> = grouped_results
+    let provider_instances_map: std::collections::HashMap<
+        String,
+        Vec<ProviderInstanceSerializedWithCredentials>,
+    > = grouped_results
         .into_iter()
         .map(|group| (group.function_controller_type_id, group.provider_instances))
         .collect();
@@ -653,7 +925,10 @@ pub async fn enable_function(
     let now = WrappedChronoDateTime::now();
     let function_instance_serialized = FunctionInstanceSerialized {
         function_controller_type_id: params.inner.function_controller_type_id.clone(),
-        provider_controller_type_id: provider_instance.provider_instance.provider_controller_type_id.clone(),
+        provider_controller_type_id: provider_instance
+            .provider_instance
+            .provider_controller_type_id
+            .clone(),
         provider_instance_id: params.provider_instance_id.clone(),
         created_at: now,
         updated_at: now,
@@ -699,7 +974,9 @@ pub async fn invoke_function(
     let function_instance_with_credentials = repo
         .get_function_instance_with_credentials(
             &params.inner.function_controller_type_id,
-            &provider_instance.provider_instance.provider_controller_type_id,
+            &provider_instance
+                .provider_instance
+                .provider_controller_type_id,
             &params.provider_instance_id,
         )
         .await?
@@ -755,7 +1032,8 @@ pub async fn invoke_function(
 
 #[derive(Serialize, Deserialize, Clone, ToSchema, JsonSchema)]
 pub struct DisableFunctionParamsInner {}
-pub type DisableFunctionParams = WithProviderInstanceId<WithFunctionControllerTypeId<DisableFunctionParamsInner>>;
+pub type DisableFunctionParams =
+    WithProviderInstanceId<WithFunctionControllerTypeId<DisableFunctionParamsInner>>;
 pub type DisableFunctionResponse = ();
 
 pub async fn disable_function(
@@ -775,7 +1053,9 @@ pub async fn disable_function(
     // Delete from database
     repo.delete_function_instance(
         &params.inner.function_controller_type_id,
-        &provider_instance.provider_instance.provider_controller_type_id,
+        &provider_instance
+            .provider_instance
+            .provider_controller_type_id,
         &params.provider_instance_id,
     )
     .await?;
@@ -784,7 +1064,10 @@ pub async fn disable_function(
         on_config_change_tx
             .send(OnConfigChangeEvt::FunctionInstanceRemoved(
                 params.inner.function_controller_type_id.clone(),
-                provider_instance.provider_instance.provider_controller_type_id.clone(),
+                provider_instance
+                    .provider_instance
+                    .provider_controller_type_id
+                    .clone(),
                 params.provider_instance_id.clone(),
             ))
             .await?;
@@ -866,5 +1149,114 @@ mod tests {
         let response = result.unwrap();
         assert_eq!(response.items.len(), 0);
         assert!(response.next_page_token.is_none());
+    }
+
+    #[test]
+    fn test_sanitize_display_name() {
+        // Test basic alphanumeric and dash characters
+        assert_eq!(sanitize_display_name("my-provider-123"), "my-provider-123");
+
+        // Test whitespace replacement
+        assert_eq!(sanitize_display_name("my provider"), "my-provider");
+        assert_eq!(sanitize_display_name("my  provider"), "my--provider");
+
+        // Test special character removal
+        assert_eq!(sanitize_display_name("my@provider!"), "myprovider");
+        assert_eq!(sanitize_display_name("provider#1"), "provider1");
+
+        // Test mixed characters
+        assert_eq!(sanitize_display_name("My Provider #1!"), "My-Provider-1");
+        assert_eq!(sanitize_display_name("provider_name@2024"), "providername2024");
+
+        // Test edge cases
+        assert_eq!(sanitize_display_name(""), "");
+        assert_eq!(sanitize_display_name("---"), "---");
+        assert_eq!(sanitize_display_name("ABC123"), "ABC123");
+    }
+
+    #[test]
+    fn test_convert_jsonschema_to_openapi() {
+        // Test simple schema without $defs
+        let simple_schema = serde_json::json!({
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "title": "SimpleSchema",
+            "properties": {
+                "name": {"type": "string"}
+            }
+        });
+
+        let (converted, defs) = convert_jsonschema_to_openapi(&simple_schema, "Test").unwrap();
+        assert!(defs.is_empty());
+        assert_eq!(converted.get("$schema"), None); // Should be removed
+        assert_eq!(converted.get("title"), None); // Should be removed
+        assert_eq!(converted.get("type").and_then(|v| v.as_str()), Some("object"));
+
+        // Test schema with $defs
+        let schema_with_defs = serde_json::json!({
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "$defs": {
+                "Person": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"}
+                    }
+                }
+            },
+            "properties": {
+                "person": {"$ref": "#/$defs/Person"}
+            }
+        });
+
+        let (converted, defs) = convert_jsonschema_to_openapi(&schema_with_defs, "Test").unwrap();
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].0, "Test_Person");
+
+        // Check that $ref was updated in main schema
+        let person_ref = converted
+            .get("properties")
+            .and_then(|p| p.get("person"))
+            .and_then(|p| p.get("$ref"))
+            .and_then(|r| r.as_str());
+        assert_eq!(person_ref, Some("#/components/schemas/Test_Person"));
+
+        // Test schema with nested $defs (definitions referencing other definitions)
+        let schema_with_nested_defs = serde_json::json!({
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "$defs": {
+                "Address": {
+                    "type": "object",
+                    "properties": {
+                        "street": {"type": "string"}
+                    }
+                },
+                "Person": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "address": {"$ref": "#/$defs/Address"}
+                    }
+                }
+            },
+            "properties": {
+                "person": {"$ref": "#/$defs/Person"}
+            }
+        });
+
+        let (converted, defs) = convert_jsonschema_to_openapi(&schema_with_nested_defs, "Nested").unwrap();
+        assert_eq!(defs.len(), 2);
+
+        // Find the Person definition
+        let person_def = defs.iter().find(|(name, _)| name == "Nested_Person").unwrap();
+
+        // Check that the nested reference in Person was updated
+        let address_ref = person_def.1
+            .get("properties")
+            .and_then(|p| p.get("address"))
+            .and_then(|a| a.get("$ref"))
+            .and_then(|r| r.as_str());
+        assert_eq!(address_ref, Some("#/components/schemas/Nested_Address"));
     }
 }

@@ -1,15 +1,15 @@
 pub mod types;
 
 use napi::bindgen_prelude::*;
-use napi::threadsafe_function::ThreadsafeFunction;
+use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi_derive::napi;
 use shared::error::CommonError;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tracing::info;
 
 use sdk_core as core_types;
 use types as js_types;
-
 
 /// Start the gRPC server on a Unix socket (without initial providers)
 #[napi]
@@ -26,7 +26,6 @@ pub async fn start_grpc_server(socket_path: String) -> Result<()> {
 /// Add a provider controller to the running server
 #[napi]
 pub fn add_provider(provider: js_types::ProviderController) -> Result<()> {
-    
     // Convert credential controllers
     let credential_controllers: Vec<core_types::ProviderCredentialController> = provider
         .credential_controllers
@@ -215,7 +214,10 @@ pub struct FunctionMetadata {
 pub fn add_function(
     provider_type_id: String,
     function_metadata: FunctionMetadata,
-    invoke_callback: ThreadsafeFunction<js_types::InvokeFunctionRequest, js_types::InvokeFunctionResponse>,
+    invoke_callback: ThreadsafeFunction<
+        js_types::InvokeFunctionRequest,
+        Promise<js_types::InvokeFunctionResponse>,
+    >,
 ) -> Result<bool> {
     let invoke_fn = Arc::new(invoke_callback);
 
@@ -235,28 +237,40 @@ pub fn add_function(
                     parameters: req.parameters,
                 };
 
-                let result = invoke_fn.call_async(Ok(js_req)).await;
 
-                match result {
-                    Ok(js_response) => {
-                        if let Some(data) = js_response.data {
-                            Ok(core_types::InvokeFunctionResponse {
-                                result: Ok(data),
-                            })
-                        } else {
-                            Ok(core_types::InvokeFunctionResponse {
-                                result: Err(
-                                    js_response
-                                        .error
-                                        .unwrap_or_else(|| "Unknown error".to_string()),
-                                ),
-                            })
+                let result = invoke_fn
+                    .call_async(Ok(js_req))
+                    .await
+                    .map_err(|e| {
+                        core_types::InvokeFunctionResponse {
+                            result: Err(e.reason.clone()),
                         }
+                    })
+                    .unwrap()
+                    .await
+                    .map_err(|e| {
+                        core_types::InvokeFunctionResponse {
+                            result: Err(e.reason.clone()),
+                        }
+                    })
+                    .unwrap();
+
+                info!("invoke_fn result: {:?}", result);
+
+                Ok::<core_types::InvokeFunctionResponse, CommonError>(core_types::InvokeFunctionResponse { result: 
+                    if let Some(data) = result.data {
+                        Ok(data)
+                    } 
+                    else if let Some(error) = result.error {
+                        Err(error)
                     }
-                    Err(e) => Ok(core_types::InvokeFunctionResponse {
-                        result: Err(format!("JavaScript function error: {e}")),
-                    }),
-                }
+                    else {
+                        panic!("Invalid result: {:?}", result);
+                    }
+                
+                
+                 })
+
             })
         }),
     };
@@ -275,8 +289,12 @@ pub fn remove_function(provider_type_id: String, function_name: String) -> Resul
 pub fn update_function(
     provider_type_id: String,
     function_metadata: FunctionMetadata,
-    invoke_callback: ThreadsafeFunction<js_types::InvokeFunctionRequest, js_types::InvokeFunctionResponse>,
+    invoke_callback: ThreadsafeFunction<
+        js_types::InvokeFunctionRequest,
+        js_types::InvokeFunctionResponse,
+    >,
 ) -> Result<bool> {
+    info!("update_function: {:?}", function_metadata.name);
     let invoke_fn = Arc::new(invoke_callback);
 
     let core_function = core_types::FunctionController {
@@ -296,20 +314,17 @@ pub fn update_function(
                 };
 
                 let result = invoke_fn.call_async(Ok(js_req)).await;
+                info!("invoke_fn result: {:?}", result);
 
                 match result {
                     Ok(js_response) => {
                         if let Some(data) = js_response.data {
-                            Ok(core_types::InvokeFunctionResponse {
-                                result: Ok(data),
-                            })
+                            Ok(core_types::InvokeFunctionResponse { result: Ok(data) })
                         } else {
                             Ok(core_types::InvokeFunctionResponse {
-                                result: Err(
-                                    js_response
-                                        .error
-                                        .unwrap_or_else(|| "Unknown error".to_string()),
-                                ),
+                                result: Err(js_response
+                                    .error
+                                    .unwrap_or_else(|| "Unknown error".to_string())),
                             })
                         }
                     }
@@ -322,4 +337,35 @@ pub fn update_function(
     };
 
     Ok(core_types::get_grpc_service().update_function(&provider_type_id, core_function))
+}
+
+
+
+#[napi]
+pub fn add_agent(
+    agent: js_types::Agent,
+) -> Result<bool> {
+    let core_agent = core_types::Agent {
+        id: agent.id,
+        name: agent.name,
+        description: agent.description,
+    };
+    Ok(core_types::get_grpc_service().add_agent(core_agent))
+}
+
+/// Remove a function controller from a specific provider
+#[napi]
+pub fn remove_agent(id: String) -> Result<bool> {
+    Ok(core_types::get_grpc_service().remove_agent(&id))
+}
+
+/// Remove a function controller from a specific provider
+#[napi]
+pub fn update_agent(agent: js_types::Agent) -> Result<bool> {
+    let core_agent = core_types::Agent {
+        id: agent.id,
+        name: agent.name,
+        description: agent.description,
+    };
+    Ok(core_types::get_grpc_service().update_agent(core_agent))
 }

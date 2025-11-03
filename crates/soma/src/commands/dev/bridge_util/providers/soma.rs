@@ -66,6 +66,10 @@ impl ProviderControllerLike for SomaProviderController {
             },
         })]
     }
+
+    fn metadata(&self) -> Metadata {
+        Metadata::new()
+    }
 }
 
 /// Function controller for getting task timeline items

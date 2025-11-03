@@ -16,6 +16,7 @@
 	"dependencies": {
 		"@genkit-ai/googleai": "^1.8.0",
 		"@genkit-ai/vertexai": "^1.8.0",
+		"@restatedev/restate-sdk": "^1.9.0",
 		"@soma/api-client": "workspace:*",
 		"@soma/sdk": "workspace:*",
 		"genkit": "^1.8.0",

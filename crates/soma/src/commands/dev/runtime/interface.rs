@@ -13,9 +13,11 @@ pub struct Function {
     pub output_schema: WrappedSchema,
 }
 
+#[derive(Clone)]
 pub struct ClientCtx {
     pub project_dir: PathBuf,
     pub socket_path: String,
+    pub restate_runtime_port: u16,
 }
 
 pub struct DevServerHandle {

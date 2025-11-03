@@ -178,6 +178,7 @@ pub trait ProviderControllerLike: Send + Sync {
     fn categories(&self) -> Vec<String>;
     fn functions(&self) -> Vec<Arc<dyn FunctionControllerLike>>;
     fn credential_controllers(&self) -> Vec<Arc<dyn ProviderCredentialControllerLike>>;
+    fn metadata(&self) -> Metadata;
 }
 
 pub trait ProviderInstanceLike {

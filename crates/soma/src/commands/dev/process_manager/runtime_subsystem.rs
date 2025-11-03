@@ -8,13 +8,19 @@ use tracing::{error, info};
 use shared::error::CommonError;
 
 use crate::commands::dev::project_file_watcher::{FileChangeTx, FileChangeRx};
-use crate::commands::dev::runtime::{Runtime, start_dev_runtime, StartDevRuntimeParams};
+use crate::commands::dev::restate::RestateServerParams;
+use crate::commands::dev::runtime::{DEFAULT_SOMA_SERVER_SOCK, Runtime, StartDevRuntimeParams, start_dev_runtime, watch_for_dev_runtime_reload};
 
 pub struct StartRuntimeSubsystemParams<'a> {
     pub project_dir: &'a PathBuf,
     pub runtime: &'a Runtime,
     pub runtime_port: u16,
     pub file_change_tx: &'a Arc<FileChangeTx>,
+}
+
+pub struct StartWatchForDevRuntimeReloadSubsystemParams<'a> {
+    pub restate_params: &'a RestateServerParams,
+    pub runtime_port: u16,
 }
 
 /// Starts the runtime subsystem with hot reload support
@@ -36,7 +42,7 @@ pub fn start_runtime_subsystem(
         move |subsys: SubsystemHandle| async move {
             tokio::select! {
                 _ = subsys.on_shutdown_requested() => {
-                    info!("system shutdown requested");
+                    info!("Runtime subsystem shutdown requested");
                     // Ignore channel errors - child may have already exited
                     let _ = kill_runtime_signal_trigger.send(());
                     let _ = shutdown_runtime_complete_signal_receiver.await;
@@ -54,9 +60,43 @@ pub fn start_runtime_subsystem(
                 ) => {
                     if let Err(e) = result {
                         error!("Runtime stopped unexpectedly: {:?}", e);
+                        // Only request global shutdown if it was an unexpected error
+                        subsys.request_shutdown();
+                    } else {
+                        info!("Runtime stopped gracefully");
+                        // Don't request global shutdown - this might be a restart
                     }
-                    info!("Runtime stopped");
-                    subsys.request_shutdown();
+                }
+            }
+
+            Ok::<(), CommonError>(())
+        },
+    ));
+}
+
+/// Starts the SDK reload watcher subsystem
+/// This monitors the gRPC connection to the SDK server and logs reload events
+pub fn start_watch_for_dev_runtime_reload_subsystem(
+    subsys: &SubsystemHandle,
+    params: StartWatchForDevRuntimeReloadSubsystemParams,
+) {
+    let socket_path = DEFAULT_SOMA_SERVER_SOCK.to_string();
+    let restate_params = params.restate_params.clone();
+    let runtime_port = params.runtime_port;
+
+    subsys.start(SubsystemBuilder::new(
+        "sdk-reload-watcher",
+        move |subsys: SubsystemHandle| async move {
+            tokio::select! {
+                _ = subsys.on_shutdown_requested() => {
+                    info!("SDK reload watcher shutdown requested");
+                }
+                result = watch_for_dev_runtime_reload(&socket_path, &restate_params, runtime_port) => {
+                    if let Err(e) = result {
+                        // Don't request global shutdown - just log the error and exit gracefully
+                        // This allows the parent subsystem to restart without killing everything
+                        error!("SDK reload watcher stopped: {:?}", e);
+                    }
                 }
             }
 

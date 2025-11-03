@@ -24,3 +24,5 @@ export function createSomaFunction<InputType, OutputType>(
     },
   }
 }
+
+export * from './bridge-client'

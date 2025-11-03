@@ -6,18 +6,8 @@ package soma_sdk_service;
 
 service SomaSdkService {
   rpc Metadata(google.protobuf.Empty) returns (MetadataResponse);
-  rpc StreamMetadata(google.protobuf.Empty) returns (stream MetadataResponse);
   rpc HealthCheck(google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc InvokeFunction(InvokeFunctionRequest) returns (InvokeFunctionResponse);
-}
-
-message StreamMetadataResponse {
-  oneof kind {
-    ProviderController provider_added = 1;
-    ProviderController provider_removed = 2;
-    ProviderController provider_updated = 3;
-    Error error = 2;
-  }
 }
 
 message InvokeFunctionRequest {
@@ -41,6 +31,7 @@ message Error {
 
 message MetadataResponse {
   repeated ProviderController bridge_providers = 1;
+  repeated Agent agents = 2;
 }
 
 message ProviderController {
@@ -50,6 +41,12 @@ message ProviderController {
   repeated string categories = 4;
   repeated FunctionController functions = 5;
   repeated ProviderCredentialController credential_controllers = 6;
+}
+
+message Agent {
+  string id = 1;
+  string name = 3;
+  string description = 4;
 }
 
 message ProviderCredentialController {

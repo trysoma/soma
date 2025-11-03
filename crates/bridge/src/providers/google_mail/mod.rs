@@ -94,6 +94,10 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
             }),
         ]
     }
+
+    fn metadata(&self) -> Metadata {
+        Metadata::new()
+    }
 }
 
 struct SendEmailFunctionController;

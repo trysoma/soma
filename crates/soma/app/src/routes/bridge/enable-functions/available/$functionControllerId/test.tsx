@@ -83,6 +83,94 @@ function RouteComponent() {
   // Invoke function mutation
   const invokeMutation = $api.useMutation("post", "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke");
 
+  // Parse the JSON schema for function parameters
+  // This MUST be before any early returns to satisfy Rules of Hooks
+  const schema = useMemo(() => {
+    if (!func) return {};
+    const rawSchema = func.parameters;
+    const schema = { ...rawSchema };
+    delete schema.$schema;
+    delete schema.title;
+    return schema;
+  }, [func]);
+
+  // Build UI schema to customize field rendering
+  // This MUST also be before any early returns to satisfy Rules of Hooks
+  const uiSchema = useMemo(() => {
+    const properties = (schema.properties as Record<string, any>) || {};
+
+    // Custom field template for consistent styling
+    const CustomFieldTemplate = (props: any) => {
+      const { id, classNames, label, help, required, description, errors, children } = props;
+
+      return (
+        <div className={classNames}>
+          {label && (
+            <label htmlFor={id} className="block text-sm font-medium mb-2">
+              {label}
+              {required && <span className="text-red-600 ml-1">*</span>}
+            </label>
+          )}
+          {description && <p className="text-sm text-muted-foreground mb-2">{description}</p>}
+          {children}
+          {errors}
+          {help}
+        </div>
+      );
+    };
+
+    // Custom object field template to hide title and divider
+    const CustomObjectFieldTemplate = (props: any) => {
+      return (
+        <div>
+          {props.properties.map((element: any) => (
+            <div key={element.name}>{element.content}</div>
+          ))}
+        </div>
+      );
+    };
+
+    // Custom title field template to hide title completely
+    const CustomTitleFieldTemplate = () => {
+      return null;
+    };
+
+    const uiSchema: Record<string, unknown> = {
+      "ui:submitButtonOptions": {
+        submitText: isInvoking ? "Invoking..." : "Invoke Function",
+        norender: false,
+        props: {
+          disabled: isInvoking || !selectedProviderInstanceId,
+        },
+      },
+      "ui:FieldTemplate": CustomFieldTemplate,
+      "ui:ObjectFieldTemplate": CustomObjectFieldTemplate,
+      "ui:TitleFieldTemplate": CustomTitleFieldTemplate,
+    };
+
+    // Add spacing and better styling for each field
+    Object.keys(properties).forEach((key) => {
+      const prop = properties[key];
+      const propFormat = prop.format as string | undefined;
+
+      uiSchema[key] = {
+        "ui:classNames": "mb-6",
+        ...(propFormat === "password" && {
+          "ui:widget": "password",
+          "ui:placeholder": "***"
+        }),
+        ...(prop.type === "object" && {
+          "ui:widget": "textarea",
+          "ui:options": {
+            rows: 5
+          }
+        })
+      };
+    });
+
+    return uiSchema;
+  }, [schema, isInvoking, selectedProviderInstanceId]);
+
   const handleSubmit = async (data: { formData?: unknown }) => {
     if (!selectedProviderInstanceId) {
       setError("Please select a provider instance");
@@ -130,91 +218,6 @@ function RouteComponent() {
       </div>
     );
   }
-
-  // Parse the JSON schema for function parameters
-  const schema = useMemo(() => {
-    const rawSchema = func.parameters;
-    const schema = { ...rawSchema };
-    delete schema.$schema;
-    delete schema.title;
-    return schema;
-  }, [func.parameters]);
-
-  // Custom field template for consistent styling
-  const CustomFieldTemplate = (props: any) => {
-    const { id, classNames, label, help, required, description, errors, children } = props;
-
-    return (
-      <div className={classNames}>
-        {label && (
-          <label htmlFor={id} className="block text-sm font-medium mb-2">
-            {label}
-            {required && <span className="text-red-600 ml-1">*</span>}
-          </label>
-        )}
-        {description && <p className="text-sm text-muted-foreground mb-2">{description}</p>}
-        {children}
-        {errors}
-        {help}
-      </div>
-    );
-  };
-
-  // Custom object field template to hide title and divider
-  const CustomObjectFieldTemplate = (props: any) => {
-    return (
-      <div>
-        {props.properties.map((element: any) => (
-          <div key={element.name}>{element.content}</div>
-        ))}
-      </div>
-    );
-  };
-
-  // Custom title field template to hide title completely
-  const CustomTitleFieldTemplate = () => {
-    return null;
-  };
-
-  // Build UI schema to customize field rendering
-  const uiSchema = useMemo(() => {
-    const properties = (schema.properties as Record<string, any>) || {};
-
-    const uiSchema: Record<string, unknown> = {
-      "ui:submitButtonOptions": {
-        submitText: isInvoking ? "Invoking..." : "Invoke Function",
-        norender: false,
-        props: {
-          disabled: isInvoking || !selectedProviderInstanceId,
-        },
-      },
-      "ui:FieldTemplate": CustomFieldTemplate,
-      "ui:ObjectFieldTemplate": CustomObjectFieldTemplate,
-      "ui:TitleFieldTemplate": CustomTitleFieldTemplate,
-    };
-
-    // Add spacing and better styling for each field
-    Object.keys(properties).forEach((key) => {
-      const prop = properties[key];
-      const propFormat = prop.format as string | undefined;
-
-      uiSchema[key] = {
-        "ui:classNames": "mb-6",
-        ...(propFormat === "password" && {
-          "ui:widget": "password",
-          "ui:placeholder": "***"
-        }),
-        ...(prop.type === "object" && {
-          "ui:widget": "textarea",
-          "ui:options": {
-            rows: 5
-          }
-        })
-      };
-    });
-
-    return uiSchema;
-  }, [schema, isInvoking, selectedProviderInstanceId]);
 
   return (
     <div className="p-6 space-y-6">

@@ -3,7 +3,12 @@ use napi_derive::napi;
 
 pub type InvokeFunction = ThreadsafeFunction<InvokeFunctionRequest, InvokeFunctionResponse>;
 
-
+#[napi(object)]
+pub struct Agent {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+}
 
 #[napi(object)]
 pub struct ProviderController {
