@@ -102,7 +102,7 @@ impl FunctionControllerLike for ProcessRefundFunctionController {
         resource_server_credential: &ResourceServerCredentialSerialized,
         _user_credential: &UserCredentialSerialized,
         params: WrappedJsonValue,
-    ) -> Result<WrappedJsonValue, CommonError> {
+    ) -> Result<InvokeResult, CommonError> {
         // Parse the function parameters
         let refund_params: ProcessRefundFunctionParameters = serde_json::from_value(params.into())
             .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid parameters: {}", e)))?;
@@ -146,10 +146,9 @@ impl FunctionControllerLike for ProcessRefundFunctionController {
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Stripe API error: {}",
-                error_text
-            )));
+            return Ok(InvokeResult::Error(InvokeError {
+                message: error_text,
+            }));
         }
 
         // Parse the response
@@ -157,6 +156,6 @@ impl FunctionControllerLike for ProcessRefundFunctionController {
             CommonError::Unknown(anyhow::anyhow!("Failed to parse response: {}", e))
         })?;
 
-        Ok(WrappedJsonValue::new(stripe_response))
+        Ok(InvokeResult::Success(WrappedJsonValue::new(stripe_response)))
     }
 }

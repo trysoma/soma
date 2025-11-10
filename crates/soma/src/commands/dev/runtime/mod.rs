@@ -6,6 +6,7 @@ pub mod sdk_provider_sync;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use futures::{FutureExt, TryFutureExt, future};
@@ -21,7 +22,7 @@ use crate::commands::dev::DevParams;
 use crate::commands::dev::runtime::grpc_client::{create_unix_socket_client, establish_connection_with_retry, monitor_connection_health};
 use crate::utils::construct_src_dir_absolute;
 
-use super::project_file_watcher::FileChangeRx;
+use super::project_file_watcher::FileChangeTx;
 use interface::{ClientCtx, SdkClient};
 use typescript::Typescript;
 
@@ -62,11 +63,6 @@ pub fn determine_runtime_from_dir(src_dir: &Path) -> Result<Option<Runtime>, Com
 }
 
 fn validate_runtime_pnpm_v1(src_dir: PathBuf) -> Result<bool, CommonError> {
-    validate_runtime_pnpm_v1_internal(&src_dir)
-}
-
-/// Internal validation function (easier to test)
-fn validate_runtime_pnpm_v1_internal(src_dir: &Path) -> Result<bool, CommonError> {
     let files_to_check = vec![
         "package.json",
         "index.ts",
@@ -80,158 +76,53 @@ fn validate_runtime_pnpm_v1_internal(src_dir: &Path) -> Result<bool, CommonError
     Ok(true)
 }
 
+
 /// Check if the project uses Vite by looking for vite.config.ts
 fn is_vite_project(src_dir: &Path) -> bool {
     src_dir.join("vite.config.ts").exists()
 }
 
-pub fn files_to_watch_pnpm_v1() -> Result<GlobSet, CommonError> {
-    let mut builder = GlobSetBuilder::new();
 
-    builder.add(Glob::new("**/*.ts")?);
-    builder.add(Glob::new("package.json")?);
-    builder.add(Glob::new("soma.yaml")?);
-
-    Ok(builder.build()?)
-}
-
-pub fn files_to_ignore_pnpm_v1() -> Result<GlobSet, CommonError> {
-    let mut builder = GlobSetBuilder::new();
-
-    // Match node_modules anywhere in the path
-    builder.add(Glob::new("**/node_modules/**")?);
-
-    // Ignore .soma build directory to prevent infinite restart loops
-    builder.add(Glob::new("**/.soma/**")?);
-
-    Ok(builder.build()?)
-}
-
-pub fn collect_paths_to_watch(
-    root: &Path,
-    watch_globs: &GlobSet,
-    ignore_globs: &GlobSet,
-) -> Vec<PathBuf> {
-    let mut paths = Vec::new();
-    let mut stack = vec![root.to_path_buf()];
-
-    while let Some(path) = stack.pop() {
-        // Match against path relative to root for glob patterns
-        let relative_path = path.strip_prefix(root).unwrap_or(&path);
-
-        if ignore_globs.is_match(relative_path) {
-            continue;
-        }
-
-        if path.is_dir() {
-            // Push subdirs for recursive traversal
-            if let Ok(read_dir) = fs::read_dir(&path) {
-                for entry in read_dir.flatten() {
-                    stack.push(entry.path());
-                }
-            }
-        } else if watch_globs.is_match(relative_path) {
-            paths.push(path);
-        }
-    }
-
-    paths
-}
-
-pub struct StartDevRuntimeParams<'a> {
+pub struct StartDevRuntimeParams {
     pub project_dir: PathBuf,
     pub runtime: Runtime,
     pub runtime_port: u16,
-    pub file_change_signal: &'a mut FileChangeRx,
-    pub kill_signal: broadcast::Receiver<()>,
-    pub shutdown_complete_signal: oneshot::Sender<()>,
+    pub file_change_tx: Arc<FileChangeTx>,
+    pub kill_signal_rx: broadcast::Receiver<()>,
 }
 
 /// Starts the development runtime with hot reloading on file changes
-pub async fn start_dev_runtime<'a>(
-    params: StartDevRuntimeParams<'a>,
+pub async fn start_dev_runtime(
+    params: StartDevRuntimeParams,
 ) -> Result<(), CommonError> {
     let StartDevRuntimeParams {
         project_dir,
-        runtime,
+        runtime: _runtime,
         runtime_port,
-        file_change_signal,
-        mut kill_signal,
-        shutdown_complete_signal,
+        file_change_tx,
+        mut kill_signal_rx,
     } = params;
-    loop {
-        let (dev_kill_signal_tx, dev_kill_signal_rx) = oneshot::channel::<()>();
-        let (dev_shutdown_complete_tx, dev_shutdown_complete_rx) = oneshot::channel::<()>();
 
-        let serve_fut = match runtime {
-            Runtime::PnpmV1 => {
-                // Check if this is a Vite-based project
-                if is_vite_project(&project_dir) {
-                    info!("Detected Vite project, using Vite dev server");
+    let typescript_client = Typescript::new();
+    let ctx = ClientCtx {
+        project_dir: project_dir.clone(),
+        socket_path: DEFAULT_SOMA_SERVER_SOCK.to_string(),
+        restate_runtime_port: runtime_port,
+        file_change_tx: file_change_tx.clone(),
+        kill_signal_rx: kill_signal_rx.resubscribe(),
+    };
 
-                    // Use the Typescript SdkClient to start the vite dev server
-                    let typescript_client = Typescript::new();
-                    let ctx = ClientCtx {
-                        project_dir: project_dir.clone(),
-                        socket_path: DEFAULT_SOMA_SERVER_SOCK.to_string(),
-                        restate_runtime_port: runtime_port,
-                    };
-
-                    async move {
-                        let dev_server_handle = typescript_client.start_dev_server(ctx).await?;
-
-                        // Wait for kill signal or server completion
-                        tokio::select! {
-                            _ = dev_kill_signal_rx => {
-                                info!("Kill signal received, shutting down vite dev server");
-                                let _ = dev_server_handle.kill_signal_tx.send(());
-                                let _ = dev_server_handle.shutdown_complete_rx.await;
-                                let _ = dev_shutdown_complete_tx.send(());
-                            }
-                            result = dev_server_handle.dev_server_fut => {
-                                result?;
-                            }
-                        }
-                        Ok::<(), CommonError>(())
-                    }.boxed()
-                } else {
-                    return Err(CommonError::Unknown(anyhow::anyhow!("Invalid runtime. must use vite")));
-                }
-            },
-            _ => {
-                return Err(CommonError::Unknown(anyhow::anyhow!("Invalid runtime")));
-            }
-        };
-
-        let serve_fut = serve_fut.then(async |_| {
-            info!("Runtime stopped, awaiting file change to restart or complete shutdown (CTRL+C)");
-            future::pending::<()>().await;
-            Ok::<(), CommonError>(())
-        });
-
-        tokio::select! {
-            _ = file_change_signal.recv() => {
-                info!("File change detected");
-                let _ = dev_kill_signal_tx.send(());
-                // Ignore channel errors during restart - process may have already exited
-                let _ = dev_shutdown_complete_rx.await;
-                continue;
-            }
-            _ = serve_fut => {}
-            _ = kill_signal.recv() => {
-                info!("System kill signal received");
-                let _ = dev_kill_signal_tx.send(());
-                // Ignore channel errors during shutdown - process may have already exited
-                let _ = dev_shutdown_complete_rx.await;
-                let _ = shutdown_complete_signal.send(());
-                break;
-            }
-        }
+    if !is_vite_project(&project_dir) {
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Invalid runtime. Must use Vite"
+        )));
     }
+
+    info!("Detected Vite project, starting dev server...");
+    typescript_client.start_dev_server(ctx).await?;
 
     Ok(())
 }
-
 
 /// Fetch metadata and sync providers to the bridge registry
 /// Returns the list of agents from the metadata response
@@ -290,8 +181,8 @@ async fn register_agent_deployments(
             additional_headers: HashMap::new(),
         };
 
-        // Use the agent ID as the service path
-        let service_path = agent.id.clone();
+        // Use the project_id.agent_id format as the service path (matches Restate service name)
+        let service_path = format!("{}.{}", agent.project_id, agent.id);
 
         info!("Registering agent '{}' at {}", agent.name, service_uri);
 
@@ -320,24 +211,73 @@ async fn register_agent_deployments(
     Ok(())
 }
 
+pub struct SyncDevRuntimeChangesFromSdkServerParams {
+    pub socket_path: String,
+    pub restate_params: super::restate::RestateServerParams,
+    pub runtime_port: u16,
+    pub system_shutdown_signal_rx: broadcast::Receiver<()>,
+}
+
 /// Watch for dev runtime reloads by monitoring the gRPC connection
 /// This function runs indefinitely, reconnecting when the server restarts
 /// and syncing providers on each reconnection
-pub async fn watch_for_dev_runtime_reload(
-    socket_path: &str,
-    restate_params: &super::restate::RestateServerParams,
-    runtime_port: u16,
+pub async fn sync_dev_runtime_changes_from_sdk_server(
+    params: SyncDevRuntimeChangesFromSdkServerParams,
 ) -> Result<(), CommonError> {
-    use tokio::time::Duration;
+    let SyncDevRuntimeChangesFromSdkServerParams {
+        socket_path,
+        restate_params,
+        runtime_port,
+        mut system_shutdown_signal_rx,
+    } = params;
 
+
+    let (sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger, sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_receiver) = oneshot::channel::<CommonError>();
+    let (system_shutdown_signal_tx_clone, system_shutdown_signal_rx_clone_receiver) = tokio::sync::oneshot::channel::<()>();
+    tokio::spawn(async move {
+        tokio::select! {
+            _ = system_shutdown_signal_rx_clone_receiver => {
+            }
+            _ = internal_sync_dev_runtime_changes_from_sdk_server_loop(socket_path, restate_params, runtime_port, sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger) => {
+            }
+        }
+    });
+
+    tokio::select! {
+        _ = system_shutdown_signal_rx.recv() => {
+            info!("SDK reload watcher shutdown requested");
+            let _ = system_shutdown_signal_tx_clone.send(());
+
+            return Ok(());
+        }
+        result = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_receiver => {
+            match result {
+                Ok(err) => {
+                    return Err(err);
+                }
+                Err(e) => {
+                    error!("SDK channel closed unexpectedly: {:?}", e);
+                    return Err(CommonError::Unknown(anyhow::anyhow!("SDK channel closed unexpectedly: {:?}", e)));
+                }
+            }
+        }
+    }
+}
+
+pub async fn internal_sync_dev_runtime_changes_from_sdk_server_loop(
+    socket_path: String,
+    restate_params: super::restate::RestateServerParams,
+    runtime_port: u16,
+    sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger: oneshot::Sender<CommonError>,
+) {
     info!("Starting dev runtime reload watcher for socket: {}", socket_path);
     let mut ticker = tokio::time::interval(Duration::from_millis(500));
-
+    
     loop {
         // Try to establish connection with timeout
         let connection_result = tokio::time::timeout(
             Duration::from_secs(10),
-            establish_connection_with_retry(socket_path)
+            establish_connection_with_retry(&socket_path)
         ).await;
 
         match connection_result {
@@ -345,11 +285,11 @@ pub async fn watch_for_dev_runtime_reload(
                 info!("📡 Connected to SDK server, fetching metadata and syncing providers...");
 
                 // Fetch metadata and sync providers to bridge
-                match fetch_and_sync_providers(socket_path).await {
+                match fetch_and_sync_providers(&socket_path).await {
                     Ok(agents) => {
                         // Register Restate deployments for each agent
                         if !agents.is_empty() {
-                            if let Err(e) = register_agent_deployments(agents, restate_params, runtime_port).await {
+                            if let Err(e) = register_agent_deployments(agents, &restate_params, runtime_port).await {
                                 error!("Failed to register agent deployments: {:?}", e);
                             }
                         }
@@ -360,18 +300,20 @@ pub async fn watch_for_dev_runtime_reload(
                 }
 
                 // Monitor connection health - when it breaks, we'll reconnect
-                monitor_connection_health(socket_path).await;
+                monitor_connection_health(&socket_path).await;
                 info!("Connection lost, will reconnect...");
             }
             Ok(Err(e)) => {
                 error!("Failed to establish connection: {:?}", e);
-                return Err(e);
+                let err = CommonError::Unknown(anyhow::anyhow!("Failed to establish connection: {:?}", e));
+                let _ = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger.send(err);
+                return
             }
             Err(_) => {
                 error!("Connection timeout after 10 seconds");
-                return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "Failed to connect to SDK server within 10 seconds"
-                )));
+                let err = CommonError::Unknown(anyhow::anyhow!("Failed to connect to SDK server within 10 seconds"));
+                let _ = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger.send(err);
+                return
             }
         }
 
@@ -394,7 +336,7 @@ mod tests {
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
         fs::write(temp_dir.path().join("index.ts"), "console.log('test');").unwrap();
 
-        let result = validate_runtime_pnpm_v1_internal(temp_dir.path()).unwrap();
+        let result = validate_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
         assert!(result, "Should validate as BunV1 runtime");
     }
 
@@ -405,7 +347,7 @@ mod tests {
         // Only create index.ts
         fs::write(temp_dir.path().join("index.ts"), "console.log('test');").unwrap();
 
-        let result = validate_runtime_pnpm_v1_internal(temp_dir.path()).unwrap();
+        let result = validate_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
         assert!(!result, "Should not validate without package.json");
     }
 
@@ -416,7 +358,7 @@ mod tests {
         // Only create package.json
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
 
-        let result = validate_runtime_pnpm_v1_internal(temp_dir.path()).unwrap();
+        let result = validate_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
         assert!(!result, "Should not validate without index.ts");
     }
 

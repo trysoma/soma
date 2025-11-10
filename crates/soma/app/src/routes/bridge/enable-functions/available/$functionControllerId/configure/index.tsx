@@ -1,18 +1,13 @@
-import { createFileRoute, useLocation, useParams } from '@tanstack/react-router'
-import { RouteComponent as NewRouteComponent } from './new';
-import { RouteComponent as ExistingRouteComponent } from './existing';
+import { createFileRoute, useLocation, useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo } from 'react';
 import $api from '@/lib/api-client.client';
+import { LINKS } from '@/lib/links';
 
-export const Route = createFileRoute(
-  '/bridge/enable-functions/available/$functionControllerId/configure/',
-)({
-  component: RouteComponent,
-})
 
 const RouteComponent = () => {
   const { functionControllerId } = useParams({ from: '/bridge/enable-functions/available/$functionControllerId/configure' });
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Query available providers
   const {
@@ -63,8 +58,16 @@ const RouteComponent = () => {
   const hasExistingProviders = existingProviderInstances.length > 0;
   
   if(!hasExistingProviders) {
-    return <NewRouteComponent />;
+    navigate({ to: LINKS.BRIDGE_ENABLE_FUNCTIONS_CONFIGURE_NEW(functionControllerId) });
+    return null;
   }
 
-  return <ExistingRouteComponent />;
+  navigate({ to: LINKS.BRIDGE_ENABLE_FUNCTIONS_CONFIGURE_EXISTING(functionControllerId) });
+  return null;
 }
+
+export const Route = createFileRoute(
+  '/bridge/enable-functions/available/$functionControllerId/configure/',
+)({
+  component: RouteComponent,
+})

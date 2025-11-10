@@ -159,7 +159,7 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
         _resource_server_credential: &ResourceServerCredentialSerialized,
         user_credential: &UserCredentialSerialized,
         params: WrappedJsonValue,
-    ) -> Result<WrappedJsonValue, CommonError> {
+    ) -> Result<InvokeResult, CommonError> {
         // Parse the function parameters
         let email_params: SendEmailFunctionParameters = serde_json::from_value(params.into())
             .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid parameters: {}", e)))?;
@@ -221,10 +221,9 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
         // Check if the request was successful
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Gmail API error: {}",
-                error_text
-            )));
+            return Ok(InvokeResult::Error(InvokeError {
+                message: error_text,
+            }));
         }
 
         // Parse the response
@@ -240,8 +239,8 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
             .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("No message ID in response")))?
             .to_string();
 
-        Ok(WrappedJsonValue::new(serde_json::json!({
+        Ok(InvokeResult::Success(WrappedJsonValue::new(serde_json::json!({
             "message_id": message_id
-        })))
+        }))))
     }
 }

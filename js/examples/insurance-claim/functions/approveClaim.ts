@@ -1,20 +1,12 @@
-import z from 'zod'
 import { createSomaFunction } from '@soma/sdk/bridge';
 import type { ProviderController } from '@soma/sdk';
-
-const inputSchema = z.object({
-	min: z.number(),
-	max: z.number(),
-});
-const outputSchema = z.object({
-	randomNumber: z.number(),
-});
-
+import { assessmentSchema } from '../agents';
+import z from 'zod';
 export const providerController: ProviderController = {
-    typeId: 'random-number',
-    name: 'Random Number',
-    documentation: 'Generates a random number between two numbers',
-    categories: ['random'],
+    typeId: 'approve-claim',
+    name: 'Approve Claim',
+    documentation: 'Approve a claim',
+    categories: [],
     credentialControllers: [
         // {
         //     type: "Oauth2AuthorizationCodeFlow",
@@ -36,15 +28,18 @@ export const providerController: ProviderController = {
 };
 
 export default createSomaFunction({
-    inputSchema,
-    outputSchema,
+    inputSchema: assessmentSchema,
+    outputSchema: z.object({
+        approved: z.boolean(),
+    }),
     providerController,
     functionController: {
-        name: 'random-number',
-        description: 'Generates a random number between two numbers',
+        name: 'approve-claim',
+        description: 'Approve a claim',
     },
-    handler: async ({min, max})=> {
-        const randomNumber = Math.floor(Math.random() * (max - min + 1)) + min;
-        return { randomNumber };    
+    handler: async ({claim})=> {
+        console.log('Claim', claim);
+        // perform an async action here to approve the claim
+        return { approved: true };    
     },
 });

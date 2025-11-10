@@ -1,3 +1,4 @@
+use a2a_rs::types::TaskStatusUpdateEvent;
 use dashmap::DashMap;
 use futures::stream::{self, StreamExt};
 use libsql::FromValue;
@@ -516,6 +517,7 @@ pub type UpdateTaskStatusResponse = ();
 pub async fn update_task_status(
     repository: &Repository,
     connection_manager: &ConnectionManager,
+    event_queue: Option<a2a_rs::events::EventQueue>,
     request: WithTaskId<UpdateTaskStatusRequest>,
 ) -> Result<UpdateTaskStatusResponse, CommonError> {
     let task = repository.get_task_by_id(&request.task_id).await?;
@@ -577,7 +579,7 @@ pub async fn update_task_status(
         .await?;
     connection_manager
         .message_to_connections(
-            request.task_id,
+            request.task_id.clone(),
             a2a_rs::events::Event::TaskStatusUpdate(a2a_rs::types::TaskStatusUpdateEvent {
                 context_id: task.task.context_id.to_string(),
                 final_: match request.inner.status {
@@ -590,7 +592,7 @@ pub async fn update_task_status(
                 kind: "status-update".to_string(),
                 metadata: task.task.metadata.0.clone(),
                 status: a2a_rs::types::TaskStatus {
-                    message: message.map(|message| message.message.into()),
+                    message: message.clone().map(|message| message.message.into()),
                     state: request.inner.status.clone().into(),
                     timestamp: Some(now.to_string()),
                 },
@@ -598,6 +600,26 @@ pub async fn update_task_status(
             }),
         )
         .await?;
+    if let Some(event_queue) = event_queue {
+        event_queue.enqueue_event(a2a_rs::events::Event::TaskStatusUpdate(TaskStatusUpdateEvent {
+            context_id: task.task.context_id.to_string(),
+            final_: match request.inner.status {
+                TaskStatus::Completed
+                | TaskStatus::Failed
+                | TaskStatus::Canceled
+                | TaskStatus::Rejected => true,
+                _ => false,
+            },
+            kind: "status-update".to_string(),
+            metadata: task.task.metadata.0.clone(),
+            status: a2a_rs::types::TaskStatus {
+                message: message.map(|message| message.message.into()),
+                state: request.inner.status.clone().into(),
+                timestamp: Some(now.to_string()),
+            },
+            task_id: request.task_id.to_string(),
+        })).await?;
+    }
     Ok(())
 }
 
@@ -832,7 +854,7 @@ mod tests {
             },
         };
 
-        let result = update_task_status(&repo, &connection_manager, request).await;
+        let result = update_task_status(&repo, &connection_manager, None, request).await;
         assert!(result.is_ok());
 
         // Verify status was updated
@@ -864,7 +886,7 @@ mod tests {
             },
         };
 
-        let result = update_task_status(&repo, &connection_manager, request).await;
+        let result = update_task_status(&repo, &connection_manager, None, request).await;
         assert!(result.is_ok());
 
         // Verify status was updated with message
@@ -891,7 +913,7 @@ mod tests {
             },
         };
 
-        let result = update_task_status(&repo, &connection_manager, request).await;
+        let result = update_task_status(&repo, &connection_manager, None, request).await;
         assert!(result.is_err());
 
         match result {
@@ -1051,7 +1073,7 @@ mod tests {
                 message: None,
             },
         };
-        update_task_status(&repo, &connection_manager, status_request)
+        update_task_status(&repo, &connection_manager, None, status_request)
             .await
             .unwrap();
 
@@ -1111,7 +1133,7 @@ mod tests {
                 message: None,
             },
         };
-        update_task_status(&repo, &connection_manager, status_request)
+        update_task_status(&repo, &connection_manager, None, status_request)
             .await
             .unwrap();
 

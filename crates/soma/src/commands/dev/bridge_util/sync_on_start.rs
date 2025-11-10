@@ -410,10 +410,6 @@ mod tests {
         // Create empty soma definition
         let soma_def = YamlSomaAgentDefinition {
             cached_definition: Arc::new(Mutex::new(SomaAgentDefinition {
-                project: "test-project".to_string(),
-                agent: "test-agent".to_string(),
-                description: "Test agent".to_string(),
-                name: "test".to_string(),
                 version: "1.0.0".to_string(),
                 bridge: None,
             })),
@@ -469,10 +465,6 @@ mod tests {
 
         let soma_def_provider = YamlSomaAgentDefinition {
             cached_definition: Arc::new(Mutex::new(SomaAgentDefinition {
-                project: "test-project".to_string(),
-                agent: "test-agent".to_string(),
-                description: "Test agent".to_string(),
-                name: "test".to_string(),
                 version: "1.0.0".to_string(),
                 bridge: Some(shared::soma_agent_definition::BridgeConfig {
                     encryption: shared::soma_agent_definition::BridgeEncryptionConfig(encryption_map),
@@ -547,10 +539,6 @@ mod tests {
         // Sync with empty definition
         let soma_def_provider = YamlSomaAgentDefinition {
             cached_definition: Arc::new(Mutex::new(SomaAgentDefinition {
-                project: "test-project".to_string(),
-                agent: "test-agent".to_string(),
-                description: "Test agent".to_string(),
-                name: "test".to_string(),
                 version: "1.0.0".to_string(),
                 bridge: Some(shared::soma_agent_definition::BridgeConfig {
                     encryption: shared::soma_agent_definition::BridgeEncryptionConfig(

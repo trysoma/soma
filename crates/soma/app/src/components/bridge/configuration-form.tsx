@@ -27,6 +27,8 @@ import type { components } from "@/@types/openapi";
 import { Check, Link, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/main";
+import { invalidateDataByControllerTypeId, invalidateFunctionInstancesData } from "@/lib/query-cache";
+import { invalidateDataByProviderInstanceId } from "@/lib/query-cache";
 type ProviderController = components["schemas"]["ProviderControllerSerialized"];
 type CredentialController = components["schemas"]["ProviderCredentialControllerSerialized"];
 type ResourceServerCredential = components["schemas"]["ResourceServerCredentialSerialized"];
@@ -99,7 +101,6 @@ export const LinkProviderInstancesTable = ({
 	const {
 		data: functionInstancesData,
 		isLoading: isLoadingFunctionInstances,
-		refetch: refetchFunctionInstances,
 	} = $api.useQuery("get", "/api/bridge/v1/function-instances", {
 		params: {
 			query: {
@@ -135,9 +136,9 @@ export const LinkProviderInstancesTable = ({
 				},
 				body: {},
 			});
-			queryClient.invalidateQueries({ queryKey: ["get", "/api/bridge/v1/provider/grouped-by-function"] });
-
-			await refetchFunctionInstances();
+			invalidateDataByControllerTypeId(queryClient, provider.type_id);
+			invalidateDataByProviderInstanceId(queryClient, providerInstanceId);
+			invalidateFunctionInstancesData(queryClient	);
 			onSuccess?.();
 		} catch (error) {
 			console.error("Failed to enable function:", error);
@@ -160,9 +161,9 @@ export const LinkProviderInstancesTable = ({
 				},
 				body: undefined,
 			});
-			queryClient.invalidateQueries({ queryKey: ["get", "/api/bridge/v1/provider/grouped-by-function"], exact: false });
-
-			await refetchFunctionInstances();
+			invalidateDataByControllerTypeId(queryClient, provider.type_id);
+			invalidateDataByProviderInstanceId(queryClient, providerInstanceId);
+			invalidateFunctionInstancesData(queryClient);
 			onSuccess?.();
 		} catch (error) {
 			console.error("Failed to disable function:", error);
@@ -705,7 +706,9 @@ const ResourceServerConfigurationForm = ({
 				}
 			}
 
-			// Success - no redirect needed
+			// Success - invalidate queries to refresh UI
+			invalidateDataByControllerTypeId(queryClient, providerTypeId);
+			invalidateFunctionInstancesData(queryClient);
 			setIsSubmitting(false);
 			onSuccess?.();
 

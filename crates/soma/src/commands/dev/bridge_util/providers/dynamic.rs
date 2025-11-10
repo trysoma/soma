@@ -3,6 +3,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use bridge::logic::DecryptionService;
 use bridge::logic::FunctionControllerLike;
+use bridge::logic::InvokeError;
+use bridge::logic::InvokeResult;
 use bridge::logic::Metadata;
 use bridge::logic::PROVIDER_REGISTRY;
 use bridge::logic::ProviderControllerLike;
@@ -169,7 +171,7 @@ impl FunctionControllerLike for DynamicFunctionController {
         resource_server_credential: &ResourceServerCredentialSerialized,
         user_credential: &UserCredentialSerialized,
         params: WrappedJsonValue,
-    ) -> Result<WrappedJsonValue, CommonError> {
+    ) -> Result<InvokeResult, CommonError> {
         let cred_controller_type_id = credential_controller.type_id();
 
         let credentials = if cred_controller_type_id == OauthAuthFlowController::static_type_id() {
@@ -282,12 +284,9 @@ impl FunctionControllerLike for DynamicFunctionController {
                     self.type_id,
                     error.message
                 );
-                return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "SDK function '{}' in provider '{}' failed: {}",
-                    self.type_id,
-                    self.provider_type_id,
-                    error.message
-                )));
+                return Ok(InvokeResult::Error(InvokeError {
+                    message: error.message,
+                }));
             }
             Some(sdk_proto::invoke_function_response::Kind::Data(data_str)) => {
                 tracing::debug!(
@@ -313,7 +312,7 @@ impl FunctionControllerLike for DynamicFunctionController {
                         ))
                     })?;
 
-                Ok(WrappedJsonValue::new(data_value))
+                Ok(InvokeResult::Success(WrappedJsonValue::new(data_value)))
             }
             None => {
                 tracing::error!(

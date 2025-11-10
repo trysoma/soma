@@ -32,15 +32,12 @@ use utoipa::{
 
 use crate::{
     logic::{
-        FunctionControllerLike, OnConfigChangeEvt, OnConfigChangeTx, ProviderControllerLike,
-        controller::{
+        FunctionControllerLike, InvokeResult, OnConfigChangeEvt, OnConfigChangeTx, ProviderControllerLike, controller::{
             FunctionControllerSerialized, PROVIDER_REGISTRY, ProviderControllerSerialized,
             ProviderCredentialControllerSerialized, WithCredentialControllerTypeId,
             WithFunctionControllerTypeId, WithProviderControllerTypeId, get_credential_controller,
             get_function_controller, get_provider_controller,
-        },
-        credential::{ResourceServerCredentialSerialized, UserCredentialSerialized},
-        encryption::{EnvelopeEncryptionKeyContents, get_crypto_service, get_decryption_service},
+        }, credential::{ResourceServerCredentialSerialized, UserCredentialSerialized}, encryption::{EnvelopeEncryptionKeyContents, get_crypto_service, get_decryption_service}
     },
     providers::google_mail::GoogleMailProviderController,
     repository::ProviderRepositoryLike,
@@ -956,7 +953,7 @@ pub struct InvokeFunctionParamsInner {
 }
 pub type InvokeFunctionParams =
     WithProviderInstanceId<WithFunctionInstanceId<InvokeFunctionParamsInner>>;
-pub type InvokeFunctionResponse = WrappedJsonValue;
+pub type InvokeFunctionResponse = InvokeResult;
 
 pub async fn invoke_function(
     repo: &crate::repository::Repository,

@@ -70,7 +70,7 @@ function RouteComponent() {
 
   // If no existing providers, redirect to new tab
   useEffect(() => {
-    if (provider && !hasExistingProviders && !location.pathname.includes('/new')) {
+    if (location.pathname.includes('/configure') && provider && !hasExistingProviders && !location.pathname.includes('/new')) {
       navigate({
         to: '/bridge/enable-functions/available/$functionControllerId/configure/new',
         params: { functionControllerId },
@@ -86,7 +86,7 @@ function RouteComponent() {
     <div className="p-6 mt-0">
       <Tabs value={getCurrentTab()} className="space-y-4">
         <TabsList className="grid w-fit grid-cols-2">
-          <TabsTrigger value="existing" asChild>
+          <TabsTrigger value="existing" asChild className={hasExistingProviders ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} disabled={!hasExistingProviders}>
             <Link
               to="/bridge/enable-functions/available/$functionControllerId/configure/existing"
               params={{ functionControllerId }}

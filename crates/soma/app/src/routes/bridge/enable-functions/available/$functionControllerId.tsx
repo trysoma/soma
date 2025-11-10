@@ -47,7 +47,7 @@ function RouteComponent() {
     if (!availableProviders?.items) return { func: null, provider: null };
 
     let foundFunc: AvailableFunction | null = null;
-    let foundProvider: any = null;
+    let foundProvider: components["schemas"]["ProviderControllerSerialized"] | null = null;
 
     for (const prov of availableProviders.items) {
       const fn = prov.functions.find((f) => f.type_id === functionControllerId);

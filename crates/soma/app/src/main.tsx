@@ -8,6 +8,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 await loadConfig()
 export const queryClient = new QueryClient()
+declare global {
+  interface Window {
+    __TANSTACK_QUERY_CLIENT__:
+      import("@tanstack/query-core").QueryClient;
+  }
+}
+
+// @ts-ignore
+window.__TANSTACK_QUERY_CLIENT__ = queryClient;
 
 // Render the app
 const rootElement = document.getElementById('app')

@@ -6,6 +6,7 @@ pub type InvokeFunction = ThreadsafeFunction<InvokeFunctionRequest, InvokeFuncti
 #[napi(object)]
 pub struct Agent {
     pub id: String,
+    pub project_id: String,
     pub name: String,
     pub description: String,
 }
@@ -86,7 +87,13 @@ pub struct InvokeFunctionRequest {
 
 #[derive(Debug, Clone)]
 #[napi(object)]
+pub struct InvokeError {
+    pub message: String,
+}
+
+#[derive(Debug, Clone)]
+#[napi(object)]
 pub struct InvokeFunctionResponse {
     pub data: Option<String>,
-    pub error: Option<String>,
+    pub error: Option<InvokeError>,
 }

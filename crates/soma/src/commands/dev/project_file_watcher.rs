@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -8,7 +9,6 @@ use globset::{Glob, GlobSet, GlobSetBuilder};
 use notify::{EventKind, RecursiveMode};
 use notify_debouncer_full::{DebounceEventResult, new_debouncer};
 use tokio::sync::{broadcast, mpsc};
-use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle};
 use tracing::{debug, error, info};
 
 use shared::error::CommonError;
@@ -70,7 +70,7 @@ fn collect_paths_to_watch(
 
 /// Starts a file watcher that monitors the source directory for changes
 pub async fn start_dev_file_watcher(
-    src_dir: &PathBuf,
+    src_dir: PathBuf,
     file_change_tx: Arc<FileChangeTx>,
 ) -> Result<(), CommonError> {
     
@@ -186,38 +186,16 @@ pub fn is_soma_config_change(event: &FileChangeEvt) -> bool {
 
 
 /// Starts the file watcher subsystem
-pub fn start_project_file_watcher_subsystem(
-    subsys: &SubsystemHandle,
-    project_dir: &PathBuf,
-) -> Result<(Arc<FileChangeTx>, FileChangeRx), CommonError> {
+pub fn start_project_file_watcher(
+    project_dir: PathBuf,
+) -> Result<(Arc<FileChangeTx>, FileChangeRx, impl Future<Output = Result<(), CommonError>> + Send), CommonError> {
     // Setup file change notification
     let (file_change_tx, file_change_rx) = tokio::sync::broadcast::channel::<FileChangeEvt>(10);
     let file_change_tx = Arc::new(file_change_tx);
 
     let file_change_tx_clone = file_change_tx.clone();
-    let project_dir_clone = project_dir.clone();
-    subsys.start(SubsystemBuilder::new(
-        "file-watcher",
-        move |subsys: SubsystemHandle| async move {
-            tokio::select! {
-                _ = subsys.on_shutdown_requested() => {
-                    info!("system shutdown requested");
-                    info!("File watcher stopped");
-                }
-                result = start_dev_file_watcher(&project_dir_clone, file_change_tx_clone) => {
-                    if let Err(e) = result {
-                        error!("File watcher stopped unexpectedly: {:?}", e);
-                    }
-                    info!("File watcher stopped");
-                    subsys.request_shutdown();
-                }
-            }
-
-            Ok::<(), CommonError>(())
-        },
-    ));
-
-    Ok((file_change_tx, file_change_rx))
+    let file_watcher_fut = start_dev_file_watcher(project_dir, file_change_tx_clone);
+    Ok((file_change_tx, file_change_rx, file_watcher_fut))
 }
 
 

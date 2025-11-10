@@ -17,6 +17,7 @@ export declare function addProvider(provider: ProviderController): void
 
 export interface Agent {
   id: string
+  projectId: string
   name: string
   description: string
 }
@@ -43,9 +44,13 @@ export interface FunctionMetadata {
   output: string
 }
 
+export interface InvokeError {
+  message: string
+}
+
 export interface InvokeFunctionResponse {
   data?: string
-  error?: string
+  error?: InvokeError
 }
 
 export interface Metadata {

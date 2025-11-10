@@ -3,6 +3,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use bridge::logic::DecryptionService;
 use bridge::logic::FunctionControllerLike;
+use bridge::logic::InvokeError;
+use bridge::logic::InvokeResult;
 use bridge::logic::Metadata;
 use bridge::logic::no_auth::NoAuthStaticCredentialConfiguration;
 use bridge::logic::ResourceServerCredentialSerialized;
@@ -112,7 +114,7 @@ impl FunctionControllerLike for GetTaskTimelineItemsFunctionController {
         _resource_server_credential: &ResourceServerCredentialSerialized,
         _user_credential: &UserCredentialSerialized,
         params: WrappedJsonValue,
-    ) -> Result<WrappedJsonValue, CommonError> {
+    ) -> Result<InvokeResult, CommonError> {
         // Parse the function parameters
         let params: GetTaskTimelineItemsRequest = serde_json::from_value(params.into())
             .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid parameters: {}", e)))?;
@@ -143,6 +145,12 @@ impl FunctionControllerLike for GetTaskTimelineItemsFunctionController {
         )
         .await;
 
-        Ok(WrappedJsonValue::new(serde_json::json!(res)))
+        match res {
+            Ok(res) => Ok(InvokeResult::Success(WrappedJsonValue::new(serde_json::json!(res)))),
+            Err(e) => Ok(InvokeResult::Error(InvokeError {
+                message: e.to_string(),
+            })),
+        }
+
     }
 }

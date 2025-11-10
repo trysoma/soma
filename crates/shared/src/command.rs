@@ -1,14 +1,14 @@
 use crate::error::CommonError;
 use std::collections::HashMap;
 use std::process::Stdio;
-use tokio::{process::Command, sync::oneshot};
+use tokio::{process::Command, sync::{broadcast, oneshot}};
 use tracing::{error, info};
 
 pub async fn run_child_process(
     process_name: &str,
     mut process: Command,
-    mut kill_signal: Option<oneshot::Receiver<()>>,
-    shutdown_complete: Option<oneshot::Sender<()>>,
+    mut kill_signal: Option<broadcast::Receiver<()>>,
+    // shutdown_complete: Option<oneshot::Sender<()>>,
     extra_env: Option<HashMap<String, String>>,
 ) -> Result<(), CommonError> {
     // Put child in its own process group so it doesn't receive SIGINT/SIGTERM directly
@@ -21,6 +21,7 @@ pub async fn run_child_process(
     }
 
     let process = process
+        .stdin(Stdio::null()) // Prevent readline/TTY errors when process is killed
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .kill_on_drop(true);
@@ -37,62 +38,101 @@ pub async fn run_child_process(
 
     info!("🚀 Started {} (pid={:?})", process_name, child.id());
 
-    let status_fut = async {
-        let status = child
-            .wait()
-            .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("{process_name} wait error: {e}")))?;
-
-        if !status.success() {
-            error!("❌ {} exited with status: {:?}", process_name, status);
-            Err(CommonError::Unknown(anyhow::anyhow!(
-                "{process_name} exited with status: {status:?}"
-            )))
-        } else {
-            info!("✅ {} exited cleanly: {:?}", process_name, status);
-            Ok(())
-        }
-    };
-
     // Move sender into the select! so both branches can access it by cloning Option
-    let mut shutdown_sender = shutdown_complete;
+    // let mut shutdown_sender = shutdown_complete;
 
-    match kill_signal.as_mut() {
-        Some(rx) => {
-            tokio::select! {
-                biased;
+    let (status_tx, status_rx) = oneshot::channel::<Result<(), CommonError>>();
 
-                _ = rx => {
-                    info!("🔪 Kill signal received for {}", process_name);
+    match kill_signal {
+        Some(mut kill_signal_rx) => {
+
+            let process_name_clone = process_name.to_string();
+
+            tokio::spawn(async move {
+                let _ = kill_signal_rx.recv().await;
+                info!("🔪 Kill signal received for {}", process_name_clone);
+
+                // Kill the entire process group to ensure child processes are terminated
+                #[cfg(unix)]
+                if let Some(pid) = child.id() {
+                    use nix::sys::signal::{kill, Signal};
+                    use nix::unistd::Pid;
+
+                    // Send SIGTERM to the entire process group (negative PID)
+                    let pgid = Pid::from_raw(-(pid as i32));
+                    info!("🔪 Sending SIGTERM to process group {}", pid);
+                    let _ = kill(pgid, Signal::SIGTERM);
+
+                    // Wait a bit for graceful shutdown
+                    let wait_result = tokio::time::timeout(
+                        std::time::Duration::from_secs(30),
+                        child.wait(),
+                    ).await;
+            
+                    match wait_result {
+                        Ok(Ok(status)) => {
+                            info!("🛑 {} exited with {:?}", process_name_clone, status);
+                            // Since we sent SIGTERM ourselves, any exit should be treated as clean
+                            // The process may exit with a non-zero code when terminated by SIGTERM,
+                            // but that's expected behavior when we intentionally kill it
+                            info!("✅ {} terminated cleanly by SIGTERM", process_name_clone);
+                        }
+                        Ok(Err(err)) => {
+                            error!("❌ Failed to wait for {}: {:?}", process_name_clone, err);
+                            let _ =status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
+                                "{process_name_clone} exited with error: {err:?}"
+                            ))));
+                            return
+                        }
+                        Err(_) => {
+                            // Timeout expired — escalate to SIGKILL
+                            info!("⏰ Timeout waiting for {}, sending SIGKILL", process_name_clone);
+                            let _ = kill(pgid, Signal::SIGKILL);
+            
+                            match child.wait().await {
+                                Ok(status) => info!("🧨 {} killed: {:?}", process_name_clone, status),
+                                Err(err) => {
+                                    error!("❌ Failed to reap {}: {:?}", process_name_clone, err);
+                                    let _ =status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
+                                        "{process_name_clone} exited with error: {err:?}"
+                                    ))));
+                                    return
+                                },
+                            }
+                        }
+                    }
+                }
+
+                #[cfg(not(unix))]
+                {
                     let _ = child.kill().await;
-                    let _ = child.wait().await;
-                    info!("🛑 {} terminated", process_name);
-
-                    if let Some(tx) = shutdown_sender.take() {
-                        let _ = tx.send(());
+                    match child.wait().await {
+                        Ok(status) => info!("🛑 {} terminated: {:?}", process_name_clone, status),
+                        Err(err) => {
+                            error!("❌ Failed to wait for {}: {:?}", process_name_clone, err);
+                            let _ =status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
+                                "{process_name_clone} exited with error: {err:?}"
+                            ))));
+                            return
+                        },
                     }
-
-                    Ok(())
                 }
 
-                result = status_fut => {
-                    if let Some(tx) = shutdown_sender.take() {
-                        let _ = tx.send(());
-                    }
+                let _ = status_tx.send(Ok(()));
+            });
 
-                    result
-                }
-            }
         }
 
-        None => {
-            let result = status_fut.await;
-
-            if let Some(tx) = shutdown_sender.take() {
-                let _ = tx.send(());
-            }
-
-            result
-        }
+        None => {}
     }
+
+    let result = status_rx.await;
+
+    match result {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(e)) => Err(e),
+        Err(_) => Err(CommonError::Unknown(anyhow::anyhow!("Failed to get status"))),
+    }
+
+
 }

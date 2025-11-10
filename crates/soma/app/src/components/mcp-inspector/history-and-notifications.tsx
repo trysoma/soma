@@ -63,10 +63,21 @@ export function HistoryAndNotifications({
                 .reverse()
                 .map((item, index) => {
                   const actualIndex = requestHistory.length - 1 - index
+                  // Check if response has an error
+                  let isErrorResponse = false
+                  if (item.response) {
+                    try {
+                      const parsedResponse = JSON.parse(item.response)
+                      isErrorResponse = parsedResponse.error !== undefined
+                    } catch {
+                      // If parsing fails, treat as error
+                      isErrorResponse = true
+                    }
+                  }
                   return (
                     <li
                       key={index}
-                      className="text-sm bg-secondary py-2 px-3 rounded"
+                      className="text-sm bg-white border rounded-lg py-2 px-3 shadow-sm"
                     >
                       <div
                         className="flex justify-between items-center cursor-pointer"
@@ -81,13 +92,21 @@ export function HistoryAndNotifications({
                       {expandedRequests[actualIndex] && (
                         <>
                           <div className="mt-2">
-                            <span className="font-semibold text-blue-600">Request:</span>
-                            <JsonView data={item.request} />
+                            <span className="text-blue-600">Request:</span>
+                            <div className="mt-1">
+                              <JsonView data={item.request} className="border-blue-500 bg-blue-50" />
+                            </div>
                           </div>
                           {item.response && (
                             <div className="mt-2">
-                              <span className="font-semibold text-green-600">Response:</span>
-                              <JsonView data={item.response} />
+                              <span className={isErrorResponse ? "text-red-600" : "text-green-600"}>Response:</span>
+                              <div className="mt-1">
+                                <JsonView 
+                                  data={item.response} 
+                                  className={isErrorResponse ? "border-red-500 bg-red-50" : "border-green-500 bg-green-50"}
+                                  isError={isErrorResponse}
+                                />
+                              </div>
                             </div>
                           )}
                         </>

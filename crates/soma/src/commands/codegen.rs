@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::process::Stdio;
 
 use tokio::process::Command;
-use tokio_graceful_shutdown::SubsystemHandle;
 use tracing::{error, info};
 
 use crate::{router};
@@ -12,7 +11,7 @@ use crate::utils::config::CliConfig;
 
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub async fn cmd_codegen(_subsys: &SubsystemHandle, config: &mut CliConfig) -> Result<(), CommonError> {
+pub async fn cmd_codegen(config: &mut CliConfig) -> Result<(), CommonError> {
     codegen().await
 }
 

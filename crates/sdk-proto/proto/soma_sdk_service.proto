@@ -21,11 +21,11 @@ message InvokeFunctionRequest {
 message InvokeFunctionResponse {
   oneof kind {
     string data = 1;
-    Error error = 2;
+    InvokeError error = 2;
   }
 }
 
-message Error {
+message InvokeError {
   string message = 1;
 }
 
@@ -45,6 +45,7 @@ message ProviderController {
 
 message Agent {
   string id = 1;
+  string project_id = 2;
   string name = 3;
   string description = 4;
 }

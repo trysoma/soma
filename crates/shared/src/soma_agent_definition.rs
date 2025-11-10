@@ -4,7 +4,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, MutexGuard};
 use tracing::info;
-use url::Url;
 use utoipa::ToSchema;
 
 use crate::error::CommonError;
@@ -13,10 +12,6 @@ use async_trait::async_trait;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct SomaAgentDefinition {
-    pub project: String,
-    pub agent: String,
-    pub description: String,
-    pub name: String,
     pub version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bridge: Option<BridgeConfig>,

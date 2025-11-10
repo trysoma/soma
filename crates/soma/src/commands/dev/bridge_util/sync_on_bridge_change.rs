@@ -1,9 +1,9 @@
 use std::sync::Arc;
+use std::future::Future;
 
 use bridge::logic::{EnvelopeEncryptionKeyContents, OnConfigChangeEvt, OnConfigChangeRx, OnConfigChangeTx};
 use serde_json::json;
 use tokio::sync::mpsc;
-use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle};
 use tracing::{error, info};
 
 use shared::error::CommonError;
@@ -12,7 +12,7 @@ use shared::soma_agent_definition::SomaAgentDefinitionLike;
 /// Watches for bridge configuration changes and updates soma.yaml accordingly
 pub async fn sync_on_bridge_change(
     mut on_bridge_config_change_rx: OnConfigChangeRx,
-    soma_definition: &Arc<dyn SomaAgentDefinitionLike>,
+    soma_definition: Arc<dyn SomaAgentDefinitionLike>,
 ) -> Result<(), CommonError> {
     loop {
         let event = match on_bridge_config_change_rx.recv().await {
@@ -237,34 +237,13 @@ pub async fn sync_on_bridge_change(
 }
 
 /// Starts the bridge config change listener subsystem
-pub fn start_sync_on_bridge_change_subsystem(
-    subsys: &SubsystemHandle,
-    soma_definition: &Arc<dyn SomaAgentDefinitionLike>,
-)-> Result<OnConfigChangeTx, CommonError> {
+pub fn start_sync_on_bridge_change(
+    soma_definition: Arc<dyn SomaAgentDefinitionLike>,
+)-> Result<(OnConfigChangeTx, impl Future<Output = Result<(), CommonError>> + Send), CommonError> {
     let (on_bridge_config_change_tx, on_bridge_config_change_rx) = mpsc::channel(10);
 
-    let soma_definition_clone = soma_definition.clone();
-    subsys.start(SubsystemBuilder::new(
-        "sync-on-bridge-change",
-        move |subsys: SubsystemHandle| async move {
-            tokio::select! {
-                _ = subsys.on_shutdown_requested() => {
-                    info!("system shutdown requested");
-                    info!("Bridge config change listener stopped");
-                }
-                result = sync_on_bridge_change(on_bridge_config_change_rx, &soma_definition_clone) => {
-                    if let Err(e) = result {
-                        error!("Bridge config change watcher stopped unexpectedly: {:?}", e);
-                    }
-                    info!("Bridge config change watcher stopped");
-                    subsys.request_shutdown();
-                }
-            }
+    let sync_on_bridge_change_fut = sync_on_bridge_change(on_bridge_config_change_rx, soma_definition);
 
-            Ok::<(), CommonError>(())
-        },
-    ));
-
-    Ok(on_bridge_config_change_tx)
+    Ok((on_bridge_config_change_tx, sync_on_bridge_change_fut))
 }
 

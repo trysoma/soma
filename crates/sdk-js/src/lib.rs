@@ -11,6 +11,8 @@ use tracing::info;
 use sdk_core as core_types;
 use types as js_types;
 
+use crate::types::InvokeError;
+
 /// Start the gRPC server on a Unix socket (without initial providers)
 #[napi]
 pub async fn start_grpc_server(socket_path: String) -> Result<()> {
@@ -243,14 +245,18 @@ pub fn add_function(
                     .await
                     .map_err(|e| {
                         core_types::InvokeFunctionResponse {
-                            result: Err(e.reason.clone()),
+                            result: Err(core_types::InvokeError {
+                                message: e.reason.clone(),
+                            }),
                         }
                     })
                     .unwrap()
                     .await
                     .map_err(|e| {
                         core_types::InvokeFunctionResponse {
-                            result: Err(e.reason.clone()),
+                            result: Err(core_types::InvokeError {
+                                message: e.reason.clone(),
+                            }),
                         }
                     })
                     .unwrap();
@@ -262,10 +268,14 @@ pub fn add_function(
                         Ok(data)
                     } 
                     else if let Some(error) = result.error {
-                        Err(error)
+                        Err(core_types::InvokeError {
+                            message: error.message,
+                        })
                     }
                     else {
-                        panic!("Invalid result: {:?}", result);
+                        Err(core_types::InvokeError {
+                            message: "JS result must contain .data or .error".to_string(),
+                        })
                     }
                 
                 
@@ -320,16 +330,24 @@ pub fn update_function(
                     Ok(js_response) => {
                         if let Some(data) = js_response.data {
                             Ok(core_types::InvokeFunctionResponse { result: Ok(data) })
+                        } else if let Some(error) = js_response.error {
+                            Ok(core_types::InvokeFunctionResponse {
+                                result: Err(core_types::InvokeError {
+                                    message: error.message,
+                                }),
+                            })
                         } else {
                             Ok(core_types::InvokeFunctionResponse {
-                                result: Err(js_response
-                                    .error
-                                    .unwrap_or_else(|| "Unknown error".to_string())),
+                                result: Err(core_types::InvokeError {
+                                    message: "JS result must contain .data or .error".to_string(),
+                                }),
                             })
                         }
                     }
                     Err(e) => Ok(core_types::InvokeFunctionResponse {
-                        result: Err(format!("JavaScript function error: {e}")),
+                        result: Err(core_types::InvokeError {
+                            message: format!("JavaScript function error: {e}"),
+                        }),
                     }),
                 }
             })
@@ -347,6 +365,7 @@ pub fn add_agent(
 ) -> Result<bool> {
     let core_agent = core_types::Agent {
         id: agent.id,
+        project_id: agent.project_id,
         name: agent.name,
         description: agent.description,
     };
@@ -364,6 +383,7 @@ pub fn remove_agent(id: String) -> Result<bool> {
 pub fn update_agent(agent: js_types::Agent) -> Result<bool> {
     let core_agent = core_types::Agent {
         id: agent.id,
+        project_id: agent.project_id,
         name: agent.name,
         description: agent.description,
     };

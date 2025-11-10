@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::collections::HashMap;
 
 use tokio::process::Command;
@@ -15,7 +14,9 @@ impl Typescript {
 }
 
 impl SdkClient for Typescript {
-    async fn start_dev_server(&self, ctx: ClientCtx) -> Result<DevServerHandle, shared::error::CommonError> {
+    async fn start_dev_server(&self, ctx: ClientCtx) -> Result<(), shared::error::CommonError> {
+        // Note: ctx.file_change_tx is available but intentionally unused here.
+        // Vite handles HMR automatically, so we don't need to manually handle file changes.
 
         let mut cmd = Command::new("pnpm");
 
@@ -25,8 +26,6 @@ impl SdkClient for Typescript {
             .arg("dev")
             .current_dir(ctx.project_dir.clone());
 
-        let (kill_signal_tx, kill_signal_rx) = tokio::sync::oneshot::channel::<()>();
-        let (shutdown_complete_tx, shutdown_complete_rx) = tokio::sync::oneshot::channel::<()>();
 
         // Set the SOMA_SERVER_SOCK environment variable
         let env_vars = HashMap::from([
@@ -34,13 +33,9 @@ impl SdkClient for Typescript {
             ("RESTATE_RUNTIME_PORT".to_string(), ctx.restate_runtime_port.to_string()),
         ]);
 
-        let dev_server_fut = shared::command::run_child_process("pnpm-dev-server", cmd, Some(kill_signal_rx), Some(shutdown_complete_tx), Some(env_vars));
+        shared::command::run_child_process("pnpm-dev-server", cmd, Some(ctx.kill_signal_rx), Some(env_vars)).await?;
 
-        Ok(DevServerHandle {
-            kill_signal_tx,
-            shutdown_complete_rx,
-            dev_server_fut: Box::pin(dev_server_fut),
-        })
+        Ok(())
     }
 
     async fn build(&self, ctx: ClientCtx) -> Result<(), shared::error::CommonError> {
@@ -49,7 +44,7 @@ impl SdkClient for Typescript {
             .arg("vite")
             .arg("build")
             .current_dir(ctx.project_dir.clone());
-        shared::command::run_child_process("pnpm-build", cmd, None, None, None).await?;
+        shared::command::run_child_process("pnpm-build", cmd, None, None,).await?;
         Ok(())
     }
 

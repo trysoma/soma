@@ -46,6 +46,8 @@ pub struct StartAxumServerParams {
     pub host: String,
     pub port: u16,
     pub routers: router::Routers,
+    pub system_shutdown_signal_rx: tokio::sync::broadcast::Receiver<()>,
+
 }
 
 /// Starts the Axum server
@@ -59,6 +61,7 @@ pub async fn start_axum_server(
     ),
     CommonError,
 > {
+    let mut system_shutdown_signal_rx = params.system_shutdown_signal_rx;
     let port = find_free_port(params.port, params.port + 100)?;
     let addr: SocketAddr = format!("{}:{}", params.host, port)
         .parse()
@@ -70,12 +73,37 @@ pub async fn start_axum_server(
     let router = router::initiate_routers(params.routers)?;
     info!("Router initiated");
     let handle = axum_server::Handle::new();
-    let handle_clone = handle.clone();
+
+    #[cfg(debug_assertions)]
+    use crate::commands::dev::server::{start_vite_dev_server, stop_vite_dev_server};
+    #[cfg(debug_assertions)]
+    let _vite_scope_guard = start_vite_dev_server();
+    
     let server_fut = axum_server::bind(addr)
-        .handle(handle)
+        .handle(handle.clone())
         .serve(router.into_make_service());
+
+    let handle_clone = handle.clone();
+
+    tokio::spawn(async move {
+        let _ = system_shutdown_signal_rx.recv().await;
+
+        info!("Shutting down axum server");
+        #[cfg(debug_assertions)]
+        {
+            drop(_vite_scope_guard);
+            if let Err(e) = stop_vite_dev_server().await {
+                use tracing::error;
+
+                error!("Failed to stop vite dev server: {:?}", e);
+            }
+        }
+        handle_clone.shutdown();
+        info!("Axum server shut down");
+    });
+    
     info!("Server bound");
-    Ok((server_fut, handle_clone, addr))
+    Ok((server_fut, handle, addr))
 }
 
 /// Starts the Vite dev server (debug builds only)

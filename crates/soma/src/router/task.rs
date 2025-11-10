@@ -162,6 +162,7 @@ async fn route_update_task_status(
     let res = update_task_status(
         &ctx.repository,
         &ctx.connection_manager,
+        None,
         WithTaskId {
             task_id,
             inner: request,

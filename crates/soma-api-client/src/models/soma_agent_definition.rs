@@ -13,28 +13,16 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SomaAgentDefinition {
-    #[serde(rename = "agent")]
-    pub agent: String,
     #[serde(rename = "bridge", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
     pub bridge: Option<Option<Box<models::BridgeConfig>>>,
-    #[serde(rename = "description")]
-    pub description: String,
-    #[serde(rename = "name")]
-    pub name: String,
-    #[serde(rename = "project")]
-    pub project: String,
     #[serde(rename = "version")]
     pub version: String,
 }
 
 impl SomaAgentDefinition {
-    pub fn new(agent: String, description: String, name: String, project: String, version: String) -> SomaAgentDefinition {
+    pub fn new(version: String) -> SomaAgentDefinition {
         SomaAgentDefinition {
-            agent,
             bridge: None,
-            description,
-            name,
-            project,
             version,
         }
     }

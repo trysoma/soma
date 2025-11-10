@@ -139,6 +139,7 @@ impl McpService {
         let res = update_task_status(
             &self.0.repository,
             &self.0.connection_manager,
+            None,
             WithTaskId {
                 task_id: ext_data.task_id,
                 inner: params.0.into(),

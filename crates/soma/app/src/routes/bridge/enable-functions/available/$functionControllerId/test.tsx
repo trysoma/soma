@@ -268,16 +268,54 @@ function RouteComponent() {
       )}
 
       {/* Response Display */}
-      {responseData !== null && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium">Response</h3>
-          <div className="p-4 border rounded-lg bg-muted/50">
-            <pre className="text-xs overflow-auto max-h-[400px] whitespace-pre-wrap">
-              {JSON.stringify(responseData, null, 2)}
-            </pre>
+      {responseData !== null && (() => {
+        const isSuccess = responseData?.type === "success";
+        const isError = responseData?.type === "error";
+        
+        // Parse error message if it's a JSON string
+        let displayContent: any = responseData;
+        if (isError && responseData?.message) {
+          try {
+            // Try to parse the message as JSON (it might be a JSON string)
+            const parsed = JSON.parse(responseData.message);
+            displayContent = parsed;
+          } catch {
+            // If parsing fails, use the message as-is
+            displayContent = { message: responseData.message };
+          }
+        } else if (isSuccess) {
+          // For success, remove the "type" field and show the rest (WrappedJsonValue is transparent)
+          const { type: _, ...rest } = responseData;
+          displayContent = Object.keys(rest).length > 0 ? rest : responseData;
+        }
+
+        const borderColor = isSuccess 
+          ? "border-green-500" 
+          : isError 
+            ? "border-destructive" 
+            : "border-destructive";
+        const bgColor = isSuccess 
+          ? "bg-green-50" 
+          : isError 
+            ? "bg-destructive/10" 
+            : "bg-destructive/10";
+        const textColor = isSuccess 
+          ? "text-green-800" 
+          : isError 
+            ? "text-destructive" 
+            : "text-destructive";
+
+        return (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">Response</h3>
+            <div className={`p-4 border ${borderColor} ${bgColor} rounded-lg`}>
+              <pre className={`text-xs overflow-auto max-h-[400px] whitespace-pre-wrap ${textColor}`}>
+                {JSON.stringify(displayContent, null, 2)}
+              </pre>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

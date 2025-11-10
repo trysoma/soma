@@ -1,12 +1,12 @@
 // TAKEN FROM https://github.com/restatedev/restate/blob/main/cli/src/clients/admin_client.rs
 
-use anyhow::bail;
 use http::StatusCode;
 use restate_admin_rest_model::version::{AdminApiVersion, VersionInformation};
 // use restate_cli_util::{CliContext, c_warn};
 use restate_types::SemanticRestateVersion;
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use shared::error::CommonError;
+use std::collections::HashMap;
 use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, info, warn};
@@ -16,7 +16,7 @@ use url::Url;
 // use crate::cli_env::CliEnv;
 use super::admin_interface::AdminClientInterface;
 
-use super::errors::ApiError;
+use super::errors::{ApiError, ApiErrorBody};
 
 /// Min/max supported admin API versions
 pub const MIN_ADMIN_API_VERSION: AdminApiVersion = AdminApiVersion::V2;
@@ -254,7 +254,9 @@ impl AdminClient {
     where
         B: Serialize,
     {
-        self.prepare(method, path).json(&body)
+        self.prepare(method, path)
+            .header("Accept", "application/json")
+            .json(&body)
     }
 
     /// Execute a request and return the response as a lazy Envelope.
@@ -289,6 +291,99 @@ impl AdminClient {
         debug!("Response from {} ({})", path, resp.status());
         Ok(resp.into())
     }
+
+    /// Get state from Restate using SQL API
+    pub async fn get_state(&self, service: &str, key: &str) -> Result<HashMap<String, String>, Error> {
+        // Use Restate SQL API to query state
+        let query = format!(
+            "SELECT key, value_utf8, value FROM state WHERE service_name = '{}' AND service_key = '{}'",
+            service.replace("'", "''"), // Escape single quotes
+            key.replace("'", "''")
+        );
+        
+        // Use versioned URL for the query endpoint
+        let query_url = self.versioned_url(["query"]);
+        
+        info!("Querying state via SQL API: {}", query_url);
+        info!("Query: {}", query);
+        
+        #[derive(Serialize, Debug)]
+        struct SqlQueryRequest {
+            query: String,
+        }
+        
+        let envelope: Envelope<SqlQueryResponse> = self.run_with_body(
+            reqwest::Method::POST,
+            query_url.clone(),
+            SqlQueryRequest { query },
+        ).await?;
+        
+        // Check status code first before consuming the envelope
+        let status = envelope.status_code();
+        let url = envelope.url().clone();
+        
+        // Get the raw response text
+        let raw_body = envelope.into_text().await?;
+        
+        // Handle non-success status codes
+        if !status.is_success() {
+            info!("Response from {} ({})", url, status);
+            info!("  {}", raw_body);
+            // Try to parse as ApiError body
+            let error_body = serde_json::from_str::<ApiErrorBody>(&raw_body)
+                .unwrap_or_else(|_| ApiErrorBody {
+                    restate_code: None,
+                    message: raw_body.clone(),
+                });
+            return Err(Error::Api(Box::new(ApiError {
+                http_status_code: status,
+                url,
+                body: error_body,
+            })));
+        }
+        
+        // Handle empty responses (when query returns no rows)
+        if raw_body.trim().is_empty() {
+            warn!("Empty response from SQL query, returning empty state map");
+            return Ok(HashMap::new());
+        }
+        
+        // Parse the JSON response
+        let response: SqlQueryResponse = match serde_json::from_str(&raw_body) {
+            Ok(r) => r,
+            Err(e) => {
+                warn!("Failed to parse SQL query response: {}. Raw body: {}", e, raw_body);
+                return Err(Error::Serialization(e));
+            }
+        };
+        
+        // Convert rows to HashMap, parsing JSON strings from value_utf8
+        let state_map: HashMap<String, String> = response.rows
+            .into_iter()
+            .map(|row| {
+                // Parse the JSON-encoded string to get the actual value
+                // value_utf8 contains a JSON string like "\"actual_value\"", so we need to deserialize it
+                let parsed_value: String = serde_json::from_str(&row.value_utf8)
+                    .unwrap_or_else(|_| row.value_utf8.clone()); // Fallback to original if parsing fails
+                (row.key, parsed_value)
+            })
+            .collect();
+        
+        // Return the value for the requested state_key
+        Ok(state_map)
+    }
+}
+
+#[derive(Deserialize)]
+struct SqlQueryRow {
+    key: String,
+    value_utf8: String,
+    value: String,
+}
+
+#[derive(Deserialize)]
+struct SqlQueryResponse {
+    rows: Vec<SqlQueryRow>,
 }
 
 // Ensure that AdminClient is Send + Sync. Compiler will fail if it's not.

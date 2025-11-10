@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { LINKS } from "@/lib/links";
 import $api from '@/lib/api-client.client';
 import { useState } from "react";
+import { invalidateDataByProviderInstanceId } from '@/lib/query-cache';
+import { queryClient } from '@/main';
 
 export const Route = createFileRoute('/bridge/manage-credentials/$providerInstanceId/delete')({
   component: RouteComponent,
@@ -35,12 +37,6 @@ function RouteComponent() {
   const handleDelete = async () => {
     if (!instance) return;
 
-    const confirmMessage = `Are you sure you want to delete "${instance.display_name}"? This action cannot be undone and will disable all functions using these credentials.`;
-
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
     setIsDeleting(true);
 
     try {
@@ -51,7 +47,7 @@ function RouteComponent() {
           },
         },
       });
-
+      invalidateDataByProviderInstanceId(queryClient, providerInstanceId);
       // Redirect to manage credentials page on success
       navigate({ to: LINKS.BRIDGE_MANAGE_CREDENTIALS() });
     } catch (error) {

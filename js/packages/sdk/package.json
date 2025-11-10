@@ -16,6 +16,10 @@
 			"import": "./dist/agent.js",
 			"types": "./dist/agent.d.ts"
 		},
+		"./patterns": {
+			"import": "./dist/patterns.js",
+			"types": "./dist/patterns.d.ts"
+		},
 		"./vite": {
 			"import": "./dist/vite.js",
 			"types": "./dist/vite.d.ts"

@@ -6,6 +6,7 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct Agent {
     pub id: String,
+    pub project_id: String,
     pub name: String,
     pub description: String,
 }
@@ -91,8 +92,13 @@ pub struct InvokeFunctionRequest {
 }
 
 #[derive(Debug, Clone)]
+pub struct InvokeError {
+    pub message: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct InvokeFunctionResponse {
-    pub result: Result<String, String>,
+    pub result: Result<String, InvokeError>,
 }
 
 pub struct MetadataResponse {
@@ -431,15 +437,21 @@ impl TryFrom<sdk_proto::InvokeFunctionRequest> for InvokeFunctionRequest {
     }
 }
 
+impl From<InvokeError> for sdk_proto::InvokeError {
+    fn from(error: InvokeError) -> Self {
+        Self {
+            message: error.message,
+        }
+    }
+}
+
 impl From<InvokeFunctionResponse> for sdk_proto::InvokeFunctionResponse {
     fn from(response: InvokeFunctionResponse) -> Self {
         use sdk_proto::invoke_function_response::Kind;
 
         let kind = match response.result {
             Ok(data) => Some(Kind::Data(data)),
-            Err(error_msg) => Some(Kind::Error(sdk_proto::Error {
-                message: error_msg,
-            })),
+            Err(error) => Some(Kind::Error(error.into())),
         };
 
         Self { kind }
@@ -463,6 +475,7 @@ impl From<Agent> for sdk_proto::Agent {
     fn from(agent: Agent) -> Self {
         Self {
             id: agent.id,
+            project_id: agent.project_id,
             name: agent.name,
             description: agent.description,
         }

@@ -3,8 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use tokio::process::Command;
-use tokio::sync::oneshot;
-use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle};
+use tokio::sync::{broadcast, oneshot};
 use tracing::{error, info};
 use url::Url;
 
@@ -97,39 +96,9 @@ impl RestateServerParams {
     }
 }
 
-/// Starts the Restate server process
-pub async fn start_restate_server(
-    kill_signal: oneshot::Receiver<()>,
-    shutdown_complete: oneshot::Sender<()>,
-    params: RestateServerLocalParams,
-) -> Result<(), CommonError> {
-    
-
-
-
-    let mut cmd = Command::new("restate-server");
-    
-    cmd.arg("--log-filter")
-        .arg("warn")
-        .arg("--tracing-filter")
-        .arg("warn")
-        .arg("--base-dir")
-        .arg(params.project_dir.join(".soma/restate-data").display().to_string())
-        .env("RESTATE__INGRESS__BIND_ADDRESS", format!("127.0.0.1:{}", params.ingress_port))
-        .env("RESTATE__ADMIN__BIND_ADDRESS", format!("127.0.0.1:{}", params.admin_port))
-        .env("RESTATE__ADVERTISED_ADDRESS", format!("127.0.0.1:{}", params.advertised_node_port));
-    run_child_process(
-        "restate-server",
-        cmd,
-        Some(kill_signal),
-        Some(shutdown_complete),
-        None,
-    )
-    .await?;
-    Ok(())
-}
 
 /// Registers the deployment with Restate
+/// TODO: this should be moved to the deployment subsystem and run on metadata response to register all agents in the metadata response
 pub async fn start_restate_deployment(
     params: &RestateServerParams,
     deployment_type: restate::deploy::DeploymentType,
@@ -168,22 +137,22 @@ pub async fn start_restate_deployment(
 }
 
 /// Starts the Restate server subsystem
-pub async fn start_restate_subsystem(subsys: &SubsystemHandle, params: RestateServerParams) -> Result<(), CommonError> {
+pub async fn start_restate_server(params: RestateServerParams, kill_signal_rx: tokio::sync::broadcast::Receiver<()>) -> Result<(), CommonError> {
 
     match params {
         RestateServerParams::Local(params) => {
             info!("Starting Restate server locally");
-            start_restate_server_local(subsys, params).await
+            start_restate_server_local(params, kill_signal_rx).await
         }
         RestateServerParams::Remote(params) => {
             info!("Restate is running remotely, checking health and client can connect...");
-            start_restate_server_remote(subsys, params).await
+            start_restate_server_remote(params).await
         }
     }
 }
 
 
-async fn start_restate_server_local(subsys: &SubsystemHandle, params: RestateServerLocalParams) -> Result<(), CommonError> {
+async fn start_restate_server_local(params: RestateServerLocalParams, kill_signal_rx: tokio::sync::broadcast::Receiver<()>) -> Result<(), CommonError> {
 
     if is_port_in_use(params.ingress_port).await? {
         return Err(CommonError::Unknown(anyhow::anyhow!("Restate ingress address is in use (127.0.0.1:{})", params.ingress_port)));
@@ -195,34 +164,31 @@ async fn start_restate_server_local(subsys: &SubsystemHandle, params: RestateSer
         return Err(CommonError::Unknown(anyhow::anyhow!("Restate advertised node address is in use (127.0.0.1:{})", params.advertised_node_port)));
     }
 
-    let (kill_restate_signal_trigger, kill_restate_signal_receiver) = oneshot::channel::<()>();
-    let (shutdown_complete_restate_signal_trigger, shutdown_complete_restate_signal_receiver) =
-        oneshot::channel::<()>();
-    subsys.start(SubsystemBuilder::new(
-        "restate",
-        move |subsys: SubsystemHandle| async move {
-            tokio::select! {
-                _ = subsys.on_shutdown_requested() => {
-                    info!("Shutting down restate");
-                    let _ = kill_restate_signal_trigger.send(());
-                    // Ignore channel errors - child may have already exited
-                    let _ = shutdown_complete_restate_signal_receiver.await;
-                },
-                result = start_restate_server(kill_restate_signal_receiver, shutdown_complete_restate_signal_trigger, params) => {
-                    if let Err(e) = result {
-                        error!("Restate server stopped unexpectedly: {:?}", e);
-                    }
-                    info!("Restate server stopped");
-                    subsys.request_shutdown();
-                }
-            }
-            Ok::<(), CommonError>(())
-        },
-    ));
+
+
+
+    let mut cmd = Command::new("restate-server");
+    
+    cmd.arg("--log-filter")
+        .arg("warn")
+        .arg("--tracing-filter")
+        .arg("warn")
+        .arg("--base-dir")
+        .arg(params.project_dir.join(".soma/restate-data").display().to_string())
+        .env("RESTATE__INGRESS__BIND_ADDRESS", format!("127.0.0.1:{}", params.ingress_port))
+        .env("RESTATE__ADMIN__BIND_ADDRESS", format!("127.0.0.1:{}", params.admin_port))
+        .env("RESTATE__ADVERTISED_ADDRESS", format!("127.0.0.1:{}", params.advertised_node_port));
+    let result =run_child_process(
+        "restate-server",
+        cmd,
+        Some(kill_signal_rx),
+        None,
+    )
+    .await?;
     Ok(())
 }
 
-async fn start_restate_server_remote(subsys: &SubsystemHandle, params: RestateServerRemoteParams) -> Result<(), CommonError> {
+async fn start_restate_server_remote(params: RestateServerRemoteParams) -> Result<(), CommonError> {
     // TODO: should just perform a curl request to the admin address / ingress address to check health and client can connect.
     
     Ok(())

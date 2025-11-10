@@ -13,10 +13,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     logic::{
-        FunctionControllerLike, InvokeFunctionParams, InvokeFunctionParamsInner,
-        ListFunctionInstancesParams, ListProviderInstancesGroupedByFunctionParams,
-        PROVIDER_REGISTRY, ProviderControllerLike, WithFunctionInstanceId, invoke_function,
-        list_function_instances, list_provider_instances_grouped_by_function,
+        FunctionControllerLike, InvokeFunctionParams, InvokeFunctionParamsInner, InvokeResult, ListFunctionInstancesParams, ListProviderInstancesGroupedByFunctionParams, PROVIDER_REGISTRY, ProviderControllerLike, WithFunctionInstanceId, invoke_function, list_function_instances, list_provider_instances_grouped_by_function
     },
     repository::ProviderRepositoryLike,
     router::bridge::BridgeService,
@@ -198,12 +195,23 @@ impl ServerHandler for BridgeService {
     
 
         match function_instance {
-            Ok(response) => Ok(rmcp::model::CallToolResult {
-                content: vec![],
-                structured_content: Some(response.into_inner()),
-                is_error: None,
-                meta: None,
-            }),
+            Ok(invoke_response) => {
+                match invoke_response {
+                    InvokeResult::Success(response) => Ok(rmcp::model::CallToolResult {
+                        content: vec![],
+                        structured_content: Some(response.into_inner()),
+                        is_error: None,
+                        meta: None,
+                    }),
+                    InvokeResult::Error(error) => Ok(rmcp::model::CallToolResult::error(vec![Annotated::new(
+                        RawContent::Text(RawTextContent {
+                            text: error.message,
+                            meta: None,
+                        }),
+                        Some(Annotations::default()),
+                    )])),
+                }
+            },
             Err(e) => Ok(rmcp::model::CallToolResult::error(vec![Annotated::new(
                 RawContent::Text(RawTextContent {
                     text: e.to_string(),

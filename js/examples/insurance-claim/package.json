@@ -4,7 +4,7 @@
 	"main": "dist/index.js",
 	"type": "module",
 	"devDependencies": {
-		"@types/node": "^22.13.14",
+		"@types/node": "^22.18.12",
 		"tsx": "^4.19.3",
 		"typescript": "^5.8.2",
 		"vite": "^7.1.12"
@@ -14,11 +14,14 @@
 		"build": "tsc"
 	},
 	"dependencies": {
+		"@ai-sdk/openai": "^2.0.64",
 		"@genkit-ai/googleai": "^1.8.0",
 		"@genkit-ai/vertexai": "^1.8.0",
 		"@restatedev/restate-sdk": "^1.9.0",
+		"@restatedev/vercel-ai-middleware": "^0.2.0",
 		"@soma/api-client": "workspace:*",
 		"@soma/sdk": "workspace:*",
+		"ai": "^5.0.89",
 		"genkit": "^1.8.0",
 		"zod": "^4.1.12"
 	},

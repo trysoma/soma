@@ -6,4 +6,4 @@ out
 build.tar.zst
 dist
 node-compile-cache/
-.soma
+.env

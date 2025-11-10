@@ -230,6 +230,18 @@ pub trait RotateableControllerUserCredentialLike {
     ) -> Result<WrappedChronoDateTime, CommonError>;
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema,)]
+pub struct InvokeError {
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum InvokeResult {
+    Success(WrappedJsonValue),
+    Error(InvokeError),
+}
+
 #[async_trait]
 pub trait FunctionControllerLike: Send + Sync {
     fn type_id(&self) -> String;
@@ -246,5 +258,5 @@ pub trait FunctionControllerLike: Send + Sync {
         resource_server_credential: &ResourceServerCredentialSerialized,
         user_credential: &UserCredentialSerialized,
         params: WrappedJsonValue,
-    ) -> Result<WrappedJsonValue, CommonError>;
+    ) -> Result<InvokeResult, CommonError>;
 }

@@ -660,47 +660,30 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
             console.log('Current stream taskId:', a2aTaskStream.current?.taskId);
             console.log('Selected taskId:', selectedIds.taskId);
 
-            // Use sendMessageStream if:
-            // 1. No active stream exists, OR
-            // 2. The taskId has changed (including null -> some taskId or some taskId -> null)
-            const needsNewStream = !a2aTaskStream.current || a2aTaskStream.current.taskId !== selectedIds.taskId;
+            // Always use sendMessageStream to ensure we receive the response stream
+            // Even if there's an existing resubscribeTask stream, sendMessageStream will
+            // create a new stream that includes the response to this message
+            console.log('Sending message with sendMessageStream...');
 
-            if (needsNewStream) {
-                console.log('Creating new stream with sendMessageStream...');
+            // Clean up existing stream before creating a new one
+            await unsubscribeTaskStream();
 
-                let resGenerator = a2aClient.current.sendMessageStream({
-                    message: {
-                        contextId: selectedIds.contextId ?? undefined,
-                        taskId: selectedIds.taskId ?? undefined,
-                        kind: 'message',
-                        messageId: v4(),
-                        parts: [{
-                            kind: 'text',
-                            text: message
-                        }],
-                        role: 'user'
-                    },
-                });
-                console.log('Processing task stream...');
-                await processTaskStream(resGenerator, selectedIds.taskId);
-                console.log('Task stream processing complete');
-            }
-            else {
-                console.log('Using existing stream with sendMessage...');
-                await a2aClient.current.sendMessage({
-                    message: {
-                        contextId: selectedIds.contextId ?? undefined,
-                        taskId: selectedIds.taskId ?? undefined,
-                        kind: 'message',
-                        messageId: v4(),
-                        parts: [{
-                            kind: 'text',
-                            text: message
-                        }],
-                        role: 'user'
-                    },
-                });
-            }
+            let resGenerator = a2aClient.current.sendMessageStream({
+                message: {
+                    contextId: selectedIds.contextId ?? undefined,
+                    taskId: selectedIds.taskId ?? undefined,
+                    kind: 'message',
+                    messageId: v4(),
+                    parts: [{
+                        kind: 'text',
+                        text: message
+                    }],
+                    role: 'user'
+                },
+            });
+            console.log('Processing task stream...');
+            await processTaskStream(resGenerator, selectedIds.taskId);
+            console.log('Task stream processing complete');
 
         } catch (error) {
             console.error('Failed to send message', error);

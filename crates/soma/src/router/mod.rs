@@ -12,6 +12,7 @@ use utoipa::openapi::OpenApi;
 use crate::router::mcp::McpService;
 use crate::router::task::TaskService;
 use crate::utils::construct_src_dir_absolute;
+use crate::utils::restate::admin_client::AdminClient;
 use crate::utils::restate::invoke::RestateIngressClient;
 use crate::{
     commands::dev::DevParams,
@@ -53,6 +54,7 @@ pub(crate) struct InitRouterParams {
     pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub runtime_port: u16,
     pub restate_ingress_client: RestateIngressClient,
+    pub restate_admin_client: AdminClient,
     pub db_connection: shared::libsql::Connection,
     pub on_bridge_config_change_tx: OnConfigChangeTx,
     pub envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
@@ -73,6 +75,7 @@ impl Routers {
             init_params.repository.clone(),
             init_params.runtime_port,
             init_params.restate_ingress_client.clone(),
+            init_params.restate_admin_client.clone(),
         ));
         let task_service = Arc::new(TaskService::new(
             init_params.connection_manager.clone(),

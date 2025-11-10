@@ -23,12 +23,12 @@ interface CreateSomaAgentParams<T> {
     agentId: string
     name: string
     description: string
-    handlers: {
-        [key: string]: (params: HandlerParams<T>) => Promise<void>;
-    };
+    entrypoint: (params: HandlerParams<T>) => Promise<void>
 }
 
-export const createSomaAgent = <T>(params: CreateSomaAgentParams<T>) => {
+export type SomaAgent<T> = CreateSomaAgentParams<T>
+
+export const createSomaAgent = <T>(params: CreateSomaAgentParams<T>): SomaAgent<T> => {
     return {
         ...params,
     }

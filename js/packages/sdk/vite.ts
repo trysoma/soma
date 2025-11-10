@@ -189,15 +189,25 @@ function generateStandaloneServer(baseDir: string, isDev: boolean = false): stri
   }`)
   }
 
-  // Generate imports for agents (TODO: registration)
+  // Generate imports and registrations for agents
   let agentIndex = 0
   for (const [name, path] of Object.entries(agentFiles)) {
     const varName = `agent${agentIndex++}`
     const importPath = isDev ? path : `./agents/${name}.js`
     agentImports.push(`import ${varName} from '${importPath}';`)
     agentRegistrations.push(`
-  // TODO: Register agent: ${name}
-  // addAgent(await ${varName});`)
+  // Register agent: ${name}
+  {
+    const agent = await ${varName};
+    if (agent.agentId && agent.projectId && agent.name && agent.description) {
+      addAgent({
+        id: agent.agentId,
+        projectId: agent.projectId,
+        name: agent.name,
+        description: agent.description,
+      });
+    }
+  }`)
   }
 
   // Generate the Restate agent services array
@@ -205,14 +215,20 @@ function generateStandaloneServer(baseDir: string, isDev: boolean = false): stri
   for (let i = 0; i < agentIndex; i++) {
     const varName = `agent${i}`
     restateServices.push(`    restate.object({
-      name: ${varName}.agentId,
-      handlers: Object.fromEntries(Object.entries(${varName}.handlers).map(([key, value]) => [key, wrapHandler(value, ${varName})])),
+      name: \`\${${varName}.projectId}.\${${varName}.agentId}\`,
+      handlers: Object.fromEntries([
+        ['entrypoint', wrapHandler(${varName}.entrypoint, ${varName})],
+        // ...Object.entries(${varName}.handlers).map(([key, value]) => [key, wrapHandler(value, ${varName})])
+      ]),
     })`)
   }
 
+  const hasAgents = agentIndex > 0
+
   return `// Auto-generated standalone server
-import { addFunction, addProvider, startGrpcServer } from '@soma/sdk';
+import { addFunction, addProvider, addAgent, startGrpcServer } from '@soma/sdk';
 import * as restate from '@restatedev/restate-sdk';
+import * as http2 from 'http2';
 
 ${functionImports.join('\n')}
 ${agentImports.join('\n')}
@@ -237,8 +253,8 @@ ${functionRegistrations.join('\n')}
 ${agentRegistrations.join('\n')}
 
 console.log("SDK server ready!");
-
-import { HandlerParams } from "@soma/sdk/agent";
+${hasAgents ? `
+import { HandlerParams, SomaAgent } from "@soma/sdk/agent";
 import { Configuration as BridgeConfiguration } from '@soma/sdk/bridge';
 import { DefaultApi, Configuration as SomaConfiguration } from '@soma/api-client';
 
@@ -249,7 +265,7 @@ interface RestateInput {
 
 type RestateHandler = (ctx: restate.ObjectContext, input: RestateInput) => Promise<void>;
 type SomaHandler<T> = (params: HandlerParams<T>) => Promise<void>;
-const wrapHandler = (handler: SomaHandler<any>, agent: any): RestateHandler => {
+const wrapHandler = <T>(handler: SomaHandler<T>, agent: SomaAgent<T>): RestateHandler => {
   return async (ctx, input) => {
     const bridge = agent.generatedBridgeClient(process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000');
     const soma = new DefaultApi(new SomaConfiguration({
@@ -265,12 +281,75 @@ const wrapHandler = (handler: SomaHandler<any>, agent: any): RestateHandler => {
   };
 }
 
-await restate.serve({
+const restatePort = parseInt(process.env.RESTATE_RUNTIME_PORT || process.env.RESTATE_PORT || '9080');
+console.log(\`Starting Restate server on port \${restatePort}...\`);
+
+// Create HTTP/2 server with Restate endpoint handler
+const http2Handler = restate.createEndpointHandler({
   services: [
 ${restateServices.join(',\n')}
-  ]
+  ],
+});
+const httpServer = http2.createServer(http2Handler);
+
+// Handle graceful shutdown
+let isShuttingDown = false;
+const shutdown = async () => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log('\\nShutting down Restate server...');
+  return new Promise<void>((resolve) => {
+    httpServer.close(() => {
+      console.log('Restate server closed');
+      resolve();
+    });
+    // Force close after 5 seconds if graceful shutdown doesn't complete
+    setTimeout(() => {
+      console.log('Forcing Restate server shutdown...');
+      resolve();
+    }, 5000);
+  });
+};
+
+process.on('SIGINT', async () => {
+  await shutdown();
+  // Don't call process.exit() - let the parent process manager handle shutdown
+});
+process.on('SIGTERM', async () => {
+  await shutdown();
+  // Don't call process.exit() - let the parent process manager handle shutdown
+});
+process.on('SIGHUP', async () => {
+  await shutdown();
+  // Don't call process.exit() - let the parent process manager handle shutdown
 });
 
+// Handle server errors (must be set before listen)
+httpServer.on('error', (err: Error) => {
+  if ((err as any).code === 'EADDRINUSE') {
+    console.error(\`Port \${restatePort} is already in use. Please stop the existing server or use a different port.\`);
+  } else {
+    console.error('Restate server error:', err);
+  }
+  process.exit(1);
+});
+
+// Start the server
+httpServer.listen(restatePort, () => {
+  console.log(\`Restate server listening on port \${restatePort}\`);
+});
+` : `
+// No agents defined, skipping Restate server startup
+// Handle graceful shutdown for gRPC server only
+process.on('SIGINT', () => {
+  console.log('\\nShutting down...');
+  // Don't call process.exit() - let the parent process manager handle shutdown
+});
+process.on('SIGTERM', () => {
+  console.log('\\nShutting down...');
+  // Don't call process.exit() - let the parent process manager handle shutdown
+});
+`}
 // Keep the process alive
 await new Promise(() => {});
 `
@@ -295,6 +374,9 @@ function bridgeClientPlugin(baseDir: string): Plugin {
     console.log('Generating Bridge client from OpenAPI spec...')
 
     return new Promise<void>((resolvePromise, reject) => {
+      const stdoutChunks: Buffer[] = []
+      const stderrChunks: Buffer[] = []
+
       const child = spawn(
         'npx',
         [
@@ -314,11 +396,19 @@ function bridgeClientPlugin(baseDir: string): Plugin {
           outputDir,
         ],
         {
-          stdio: 'inherit',
+          stdio: ['pipe', 'pipe', 'pipe'],
           cwd: baseDir,
           shell: true,
         }
       )
+
+      child.stdout?.on('data', (chunk) => {
+        stdoutChunks.push(chunk)
+      })
+
+      child.stderr?.on('data', (chunk) => {
+        stderrChunks.push(chunk)
+      })
 
       child.on('error', (err) => {
         console.error('Failed to generate Bridge client:', err)
@@ -332,8 +422,21 @@ function bridgeClientPlugin(baseDir: string): Plugin {
           console.log('Bridge client generated successfully!')
           resolvePromise()
         } else {
+          const stdout = Buffer.concat(stdoutChunks).toString()
+          const stderr = Buffer.concat(stderrChunks).toString()
+          
           const error = new Error(`openapi-generator-cli exited with code ${code}`)
           console.error(error.message)
+          
+          if (stdout) {
+            console.error('STDOUT:')
+            console.error(stdout)
+          }
+          if (stderr) {
+            console.error('STDERR:')
+            console.error(stderr)
+          }
+          
           reject(error)
         }
       })

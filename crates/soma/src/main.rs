@@ -7,15 +7,11 @@ mod router;
 mod utils;
 mod vite;
 
-use std::time::Duration;
-
 use clap::{Parser, Subcommand};
 use soma::unwrap_and_error;
-use tokio_graceful_shutdown::{SubsystemHandle, Toplevel, errors::GracefulShutdownError};
 use tracing::error;
 
 use crate::{commands::dev::DevParams, utils::config::get_or_init_cli_config};
-use shared::error::{CommonError, DynError};
 
 
 
@@ -42,33 +38,20 @@ pub enum Commands {
 
 
 async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
-    Toplevel::new(async move |subsys: SubsystemHandle| {
-        let mut config = get_or_init_cli_config()
-            .await
-            .inspect_err(|e| {
-                error!("Failed to get or init CLI config: {:?}", e);
-            })
-            .unwrap();
+    let mut config = get_or_init_cli_config()
+        .await
+        .inspect_err(|e| {
+            error!("Failed to get or init CLI config: {:?}", e);
+        })
+        .unwrap();
 
-        let cmd_res = match cli.command {
-            Commands::Dev(params) => commands::cmd_dev(&subsys, params, &mut config).await,
-            Commands::Codegen => commands::cmd_codegen(&subsys, &mut config).await,
-        };
+    let cmd_res = match cli.command {
+        Commands::Dev(params) => commands::cmd_dev(params, &mut config).await,
+        Commands::Codegen => commands::cmd_codegen(&mut config).await,
+    };
 
-        unwrap_and_error(cmd_res);
-
-        subsys.request_shutdown();
-    })
-    .catch_signals()
-    .handle_shutdown_requests(Duration::from_millis(30_000))
-    .await
-    .map_err(|err: GracefulShutdownError<DynError>| {
-        let sub_errs = err.get_subsystem_errors();
-        for sub_err in sub_errs {
-            error!("error: {:?}", sub_err);
-        }
-        anyhow::anyhow!(err)
-    })
+    unwrap_and_error(cmd_res);
+    Ok(())
 }
 
 #[tokio::main]

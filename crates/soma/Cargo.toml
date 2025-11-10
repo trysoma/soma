@@ -31,7 +31,6 @@ serde_yaml.workspace = true
 shared.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tokio-graceful-shutdown.workspace = true
 tower.workspace = true
 tower-http.workspace = true
 tracing.workspace = true
