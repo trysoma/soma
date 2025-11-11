@@ -6,7 +6,6 @@ use bridge::logic::FunctionControllerLike;
 use bridge::logic::InvokeError;
 use bridge::logic::InvokeResult;
 use bridge::logic::Metadata;
-use bridge::logic::PROVIDER_REGISTRY;
 use bridge::logic::ProviderControllerLike;
 use bridge::logic::ProviderCredentialControllerLike;
 use bridge::logic::ResourceServerCredentialSerialized;
@@ -18,17 +17,12 @@ use bridge::logic::no_auth::NoAuthController;
 use bridge::logic::no_auth::NoAuthStaticCredentialConfiguration;
 use bridge::logic::oauth::Oauth2JwtBearerAssertionFlowController;
 use bridge::logic::oauth::OauthAuthFlowController;
-use schemars::schema_for;
 use serde_json::json;
 use shared::primitives::WrappedJsonValue;
 use shared::primitives::WrappedSchema;
 
 use shared::error::CommonError;
 
-use crate::logic::GetTaskTimelineItemsRequest;
-use crate::logic::GetTaskTimelineItemsResponse;
-use crate::logic::get_task_timeline_items;
-use crate::repository::Repository;
 
 /// Soma provider controller that provides soma-specific functions
 pub struct DynamicProviderController {
@@ -226,8 +220,7 @@ impl FunctionControllerLike for DynamicFunctionController {
             json!({})
         } else {
             return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Unsupported credential controller type for dynamic function: {}",
-                cred_controller_type_id
+                "Unsupported credential controller type for dynamic function: {cred_controller_type_id}"
             )));
         };
 
@@ -245,12 +238,12 @@ impl FunctionControllerLike for DynamicFunctionController {
         // Create gRPC client
         let mut client = grpc_client::create_unix_socket_client(DEFAULT_SOMA_SERVER_SOCK)
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to connect to SDK server: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to connect to SDK server: {e}")))?;
 
         let credentials_json = serde_json::to_string(&credentials)
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to serialize credentials: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to serialize credentials: {e}")))?;
         let parameters_json = serde_json::to_string(params.get_inner())
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to serialize parameters: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to serialize parameters: {e}")))?;
 
         tracing::debug!(
             "SDK function call details: credentials={}, parameters={}",
@@ -271,7 +264,7 @@ impl FunctionControllerLike for DynamicFunctionController {
         let response = client
             .invoke_function(request)
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("gRPC invoke_function failed: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("gRPC invoke_function failed: {e}")))?;
 
         let result = response.into_inner();
 

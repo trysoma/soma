@@ -29,7 +29,7 @@ fn deserialize_functions(json_value: &str) -> Result<Vec<FunctionInstanceSeriali
     }
 
     serde_json::from_str(json_value).map_err(|e| CommonError::Repository {
-        msg: format!("Failed to deserialize functions JSON: {}", e),
+        msg: format!("Failed to deserialize functions JSON: {e}"),
         source: Some(e.into()),
     })
 }
@@ -44,7 +44,7 @@ fn deserialize_resource_server_credential(json_value: &str) -> Result<ResourceSe
     }
 
     serde_json::from_str(json_value).map_err(|e| CommonError::Repository {
-        msg: format!("Failed to deserialize resource server credential JSON: {}", e),
+        msg: format!("Failed to deserialize resource server credential JSON: {e}"),
         source: Some(e.into()),
     })
 }
@@ -56,7 +56,7 @@ fn deserialize_user_credential(json_value: &str) -> Result<Option<UserCredential
     }
 
     let cred: UserCredentialSerialized = serde_json::from_str(json_value).map_err(|e| CommonError::Repository {
-        msg: format!("Failed to deserialize user credential JSON: {}", e),
+        msg: format!("Failed to deserialize user credential JSON: {e}"),
         source: Some(e.into()),
     })?;
     Ok(Some(cred))
@@ -133,8 +133,7 @@ impl TryFrom<Row_get_provider_instance_by_id> for ProviderInstanceSerialized {
     fn try_from(row: Row_get_provider_instance_by_id) -> Result<Self, Self::Error> {
         let return_on_successful_brokering = row.return_on_successful_brokering
             .as_ref()
-            .map(|v| serde_json::from_value(v.get_inner().clone()).ok())
-            .flatten();
+            .and_then(|v| serde_json::from_value(v.get_inner().clone()).ok());
 
         Ok(ProviderInstanceSerialized {
             id: row.id,
@@ -156,8 +155,7 @@ impl TryFrom<Row_get_provider_instances> for ProviderInstanceSerializedWithFunct
     fn try_from(row: Row_get_provider_instances) -> Result<Self, Self::Error> {
         let return_on_successful_brokering = row.return_on_successful_brokering
             .as_ref()
-            .map(|v| serde_json::from_value(v.get_inner().clone()).ok())
-            .flatten();
+            .and_then(|v| serde_json::from_value(v.get_inner().clone()).ok());
 
         let provider_instance = ProviderInstanceSerialized {
             id: row.id,
@@ -190,8 +188,7 @@ impl TryFrom<Row_get_provider_instance_by_id> for ProviderInstanceSerializedWith
     fn try_from(row: Row_get_provider_instance_by_id) -> Result<Self, Self::Error> {
         let return_on_successful_brokering = row.return_on_successful_brokering
             .as_ref()
-            .map(|v| serde_json::from_value(v.get_inner().clone()).ok())
-            .flatten();
+            .and_then(|v| serde_json::from_value(v.get_inner().clone()).ok());
 
         let provider_instance = ProviderInstanceSerialized {
             id: row.id,
@@ -254,8 +251,7 @@ impl TryFrom<Row_get_function_instance_with_credentials> for FunctionInstanceSer
     fn try_from(row: Row_get_function_instance_with_credentials) -> Result<Self, Self::Error> {
         let provider_return_on_successful_brokering = row.provider_instance_return_on_successful_brokering
             .as_ref()
-            .map(|v| serde_json::from_value(v.get_inner().clone()).ok())
-            .flatten();
+            .and_then(|v| serde_json::from_value(v.get_inner().clone()).ok());
 
         let user_credential = match row.user_credential_id {
             Some(id) => {
@@ -353,7 +349,7 @@ impl TryFrom<Row_get_provider_instances_grouped_by_function_controller_type_id> 
         // Parse the JSON array of provider instances
         let provider_instances_json: Vec<ProviderInstanceFromGroupedQuery> = serde_json::from_str(&row.provider_instances)
             .map_err(|e| CommonError::Repository {
-                msg: format!("Failed to deserialize provider_instances JSON: {}", e),
+                msg: format!("Failed to deserialize provider_instances JSON: {e}"),
                 source: Some(e.into()),
             })?;
 
@@ -375,7 +371,7 @@ impl TryFrom<Row_get_provider_instances_grouped_by_function_controller_type_id> 
                 let resource_server_credential: ResourceServerCredentialSerialized =
                     serde_json::from_value(pi_json.resource_server_credential)
                         .map_err(|e| CommonError::Repository {
-                            msg: format!("Failed to deserialize resource_server_credential: {}", e),
+                            msg: format!("Failed to deserialize resource_server_credential: {e}"),
                             source: Some(e.into()),
                         })?;
 
@@ -385,7 +381,7 @@ impl TryFrom<Row_get_provider_instances_grouped_by_function_controller_type_id> 
                 } else {
                     Some(serde_json::from_value(pi_json.user_credential)
                         .map_err(|e| CommonError::Repository {
-                            msg: format!("Failed to deserialize user_credential: {}", e),
+                            msg: format!("Failed to deserialize user_credential: {e}"),
                             source: Some(e.into()),
                         })?)
                 };
@@ -397,13 +393,13 @@ impl TryFrom<Row_get_provider_instances_grouped_by_function_controller_type_id> 
                 // Parse timestamps
                 let created_at = shared::primitives::WrappedChronoDateTime::try_from(pi_json.created_at.as_str())
                     .map_err(|e| CommonError::Repository {
-                        msg: format!("Failed to parse created_at: {}", e),
+                        msg: format!("Failed to parse created_at: {e}"),
                         source: Some(e.into()),
                     })?;
 
                 let updated_at = shared::primitives::WrappedChronoDateTime::try_from(pi_json.updated_at.as_str())
                     .map_err(|e| CommonError::Repository {
-                        msg: format!("Failed to parse updated_at: {}", e),
+                        msg: format!("Failed to parse updated_at: {e}"),
                         source: Some(e.into()),
                     })?;
 
@@ -441,7 +437,7 @@ impl TryFrom<super::Row_get_provider_instances_with_credentials> for ProviderIns
         let resource_server_credential: ResourceServerCredentialSerialized =
             serde_json::from_str(&row.resource_server_credential)
                 .map_err(|e| CommonError::Repository {
-                    msg: format!("Failed to parse resource_server_credential JSON: {}", e),
+                    msg: format!("Failed to parse resource_server_credential JSON: {e}"),
                     source: Some(e.into()),
                 })?;
 
@@ -452,7 +448,7 @@ impl TryFrom<super::Row_get_provider_instances_with_credentials> for ProviderIns
             } else {
                 Some(serde_json::from_str(&row.user_credential)
                     .map_err(|e| CommonError::Repository {
-                        msg: format!("Failed to parse user_credential JSON: {}", e),
+                        msg: format!("Failed to parse user_credential JSON: {e}"),
                         source: Some(e.into()),
                     })?)
             };

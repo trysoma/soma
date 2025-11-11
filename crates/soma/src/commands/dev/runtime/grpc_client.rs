@@ -4,7 +4,7 @@ use hyper_util::rt::TokioIo;
 use tokio::net::UnixStream;
 use tonic::transport::{Endpoint, Uri};
 use tower::service_fn;
-use tracing::{info, error};
+use tracing::info;
 
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use shared::error::CommonError;
@@ -18,7 +18,7 @@ pub async fn create_unix_socket_client(
 
     // Create a channel that connects to the Unix socket
     let channel = Endpoint::try_from("http://[::]:50051")
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create endpoint: {}", e)))?
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create endpoint: {e}")))?
         .connect_with_connector(service_fn(move |_: Uri| {
             let socket_path = socket_path.clone();
             async move {
@@ -27,7 +27,7 @@ pub async fn create_unix_socket_client(
             }
         }))
         .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to connect to Unix socket: {}", e)))?;
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to connect to Unix socket: {e}")))?;
 
     Ok(SomaSdkServiceClient::new(channel))
 }
@@ -49,9 +49,7 @@ pub async fn establish_connection_with_retry(socket_path: &str) -> Result<(), Co
             attempts += 1;
             if attempts >= max_attempts {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "Socket file does not exist after {} attempts: {}",
-                    max_attempts,
-                    socket_path
+                    "Socket file does not exist after {max_attempts} attempts: {socket_path}"
                 )));
             }
             continue;
@@ -67,9 +65,7 @@ pub async fn establish_connection_with_retry(socket_path: &str) -> Result<(), Co
                 attempts += 1;
                 if attempts >= max_attempts {
                     return Err(CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to connect after {} attempts: {}",
-                        max_attempts,
-                        e
+                        "Failed to connect after {max_attempts} attempts: {e}"
                     )));
                 }
             }

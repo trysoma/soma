@@ -7,7 +7,7 @@ use tracing::{error, info};
 pub async fn run_child_process(
     process_name: &str,
     mut process: Command,
-    mut kill_signal: Option<broadcast::Receiver<()>>,
+    kill_signal: Option<broadcast::Receiver<()>>,
     // shutdown_complete: Option<oneshot::Sender<()>>,
     extra_env: Option<HashMap<String, String>>,
 ) -> Result<(), CommonError> {
@@ -43,87 +43,83 @@ pub async fn run_child_process(
 
     let (status_tx, status_rx) = oneshot::channel::<Result<(), CommonError>>();
 
-    match kill_signal {
-        Some(mut kill_signal_rx) => {
+    if let Some(mut kill_signal_rx) = kill_signal {
 
-            let process_name_clone = process_name.to_string();
+        let process_name_clone = process_name.to_string();
 
-            tokio::spawn(async move {
-                let _ = kill_signal_rx.recv().await;
-                info!("🔪 Kill signal received for {}", process_name_clone);
+        tokio::spawn(async move {
+            let _ = kill_signal_rx.recv().await;
+            info!("🔪 Kill signal received for {}", process_name_clone);
 
-                // Kill the entire process group to ensure child processes are terminated
-                #[cfg(unix)]
-                if let Some(pid) = child.id() {
-                    use nix::sys::signal::{kill, Signal};
-                    use nix::unistd::Pid;
+            // Kill the entire process group to ensure child processes are terminated
+            #[cfg(unix)]
+            if let Some(pid) = child.id() {
+                use nix::sys::signal::{kill, Signal};
+                use nix::unistd::Pid;
 
-                    // Send SIGTERM to the entire process group (negative PID)
-                    let pgid = Pid::from_raw(-(pid as i32));
-                    info!("🔪 Sending SIGTERM to process group {}", pid);
-                    let _ = kill(pgid, Signal::SIGTERM);
+                // Send SIGTERM to the entire process group (negative PID)
+                let pgid = Pid::from_raw(-(pid as i32));
+                info!("🔪 Sending SIGTERM to process group {}", pid);
+                let _ = kill(pgid, Signal::SIGTERM);
 
-                    // Wait a bit for graceful shutdown
-                    let wait_result = tokio::time::timeout(
-                        std::time::Duration::from_secs(30),
-                        child.wait(),
-                    ).await;
-            
-                    match wait_result {
-                        Ok(Ok(status)) => {
-                            info!("🛑 {} exited with {:?}", process_name_clone, status);
-                            // Since we sent SIGTERM ourselves, any exit should be treated as clean
-                            // The process may exit with a non-zero code when terminated by SIGTERM,
-                            // but that's expected behavior when we intentionally kill it
-                            info!("✅ {} terminated cleanly by SIGTERM", process_name_clone);
-                        }
-                        Ok(Err(err)) => {
-                            error!("❌ Failed to wait for {}: {:?}", process_name_clone, err);
-                            let _ =status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
-                                "{process_name_clone} exited with error: {err:?}"
-                            ))));
-                            return
-                        }
-                        Err(_) => {
-                            // Timeout expired — escalate to SIGKILL
-                            info!("⏰ Timeout waiting for {}, sending SIGKILL", process_name_clone);
-                            let _ = kill(pgid, Signal::SIGKILL);
-            
-                            match child.wait().await {
-                                Ok(status) => info!("🧨 {} killed: {:?}", process_name_clone, status),
-                                Err(err) => {
-                                    error!("❌ Failed to reap {}: {:?}", process_name_clone, err);
-                                    let _ =status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
-                                        "{process_name_clone} exited with error: {err:?}"
-                                    ))));
-                                    return
-                                },
-                            }
+                // Wait a bit for graceful shutdown
+                let wait_result = tokio::time::timeout(
+                    std::time::Duration::from_secs(30),
+                    child.wait(),
+                ).await;
+        
+                match wait_result {
+                    Ok(Ok(status)) => {
+                        info!("🛑 {} exited with {:?}", process_name_clone, status);
+                        // Since we sent SIGTERM ourselves, any exit should be treated as clean
+                        // The process may exit with a non-zero code when terminated by SIGTERM,
+                        // but that's expected behavior when we intentionally kill it
+                        info!("✅ {} terminated cleanly by SIGTERM", process_name_clone);
+                    }
+                    Ok(Err(err)) => {
+                        error!("❌ Failed to wait for {}: {:?}", process_name_clone, err);
+                        let _ =status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
+                            "{process_name_clone} exited with error: {err:?}"
+                        ))));
+                        return
+                    }
+                    Err(_) => {
+                        // Timeout expired — escalate to SIGKILL
+                        info!("⏰ Timeout waiting for {}, sending SIGKILL", process_name_clone);
+                        let _ = kill(pgid, Signal::SIGKILL);
+        
+                        match child.wait().await {
+                            Ok(status) => info!("🧨 {} killed: {:?}", process_name_clone, status),
+                            Err(err) => {
+                                error!("❌ Failed to reap {}: {:?}", process_name_clone, err);
+                                let _ =status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
+                                    "{process_name_clone} exited with error: {err:?}"
+                                ))));
+                                return
+                            },
                         }
                     }
                 }
+            }
 
-                #[cfg(not(unix))]
-                {
-                    let _ = child.kill().await;
-                    match child.wait().await {
-                        Ok(status) => info!("🛑 {} terminated: {:?}", process_name_clone, status),
-                        Err(err) => {
-                            error!("❌ Failed to wait for {}: {:?}", process_name_clone, err);
-                            let _ =status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
-                                "{process_name_clone} exited with error: {err:?}"
-                            ))));
-                            return
-                        },
-                    }
+            #[cfg(not(unix))]
+            {
+                let _ = child.kill().await;
+                match child.wait().await {
+                    Ok(status) => info!("🛑 {} terminated: {:?}", process_name_clone, status),
+                    Err(err) => {
+                        error!("❌ Failed to wait for {}: {:?}", process_name_clone, err);
+                        let _ =status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
+                            "{process_name_clone} exited with error: {err:?}"
+                        ))));
+                        return
+                    },
                 }
+            }
 
-                let _ = status_tx.send(Ok(()));
-            });
+            let _ = status_tx.send(Ok(()));
+        });
 
-        }
-
-        None => {}
     }
 
     let result = status_rx.await;

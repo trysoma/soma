@@ -1,31 +1,19 @@
 
 
 
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
-use aes_gcm::{
-    Aes256Gcm, Nonce,
-    aead::{Aead, KeyInit, OsRng},
-};
-use async_trait::async_trait;
-use base64::Engine;
-use enum_dispatch::enum_dispatch;
+use aes_gcm::aead::KeyInit;
 use once_cell::sync::Lazy;
-use rand::RngCore;
-use reqwest::Request;
-use schemars::{JsonSchema, Schema};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use serde_json::json;
-use sha2::{Digest, Sha256};
+use serde::{Deserialize, Serialize};
+use sha2::Digest;
 use shared::{
     error::CommonError,
     primitives::{
-        PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
-        WrappedSchema, WrappedUuidV4,
+        PaginatedResponse, PaginationRequest,
+        WrappedSchema,
     },
 };
-use std::fs;
-use std::path::Path;
 use std::sync::RwLock;
 use utoipa::ToSchema;
 
@@ -247,8 +235,7 @@ pub fn remove_provider_controller_from_registry(
 
     if registry.len() == initial_len {
         return Err(CommonError::Unknown(anyhow::anyhow!(
-            "Provider controller with type_id '{}' not found",
-            provider_controller_type_id
+            "Provider controller with type_id '{provider_controller_type_id}' not found"
         )));
     }
 
@@ -297,7 +284,7 @@ pub struct WithFunctionControllerTypeId<T> {
 
 pub async fn register_all_bridge_providers() -> Result<(), CommonError> {
     let mut registry = PROVIDER_REGISTRY.write().map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to write provider registry: {}", e))
+        CommonError::Unknown(anyhow::anyhow!("Failed to write provider registry: {e}"))
     })?;
     registry.push(Arc::new(GoogleMailProviderController));
     registry.push(Arc::new(StripeProviderController));

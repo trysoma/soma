@@ -1,6 +1,5 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -9,7 +8,7 @@ use globset::{Glob, GlobSet, GlobSetBuilder};
 use notify::{EventKind, RecursiveMode};
 use notify_debouncer_full::{DebounceEventResult, new_debouncer};
 use tokio::sync::{broadcast, mpsc};
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 use shared::error::CommonError;
 
@@ -30,7 +29,7 @@ fn files_to_watch_v1() -> Result<GlobSet, CommonError> {
 }
 
 fn files_to_ignore_v1() -> Result<GlobSet, CommonError> {
-    let mut builder = GlobSetBuilder::new();
+    let builder = GlobSetBuilder::new();
 
     Ok(builder.build()?)
 }

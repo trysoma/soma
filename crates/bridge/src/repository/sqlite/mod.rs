@@ -271,12 +271,9 @@ impl ProviderRepositoryLike for Repository {
             provider_controller_type_id: &params.provider_controller_type_id,
             credential_controller_type_id: &params.credential_controller_type_id,
             status: &params.status,
-            return_on_successful_brokering: &match &params.return_on_successful_brokering {
-                Some(v) => Some(WrappedJsonValue::new(
+            return_on_successful_brokering: &params.return_on_successful_brokering.as_ref().map(|v| WrappedJsonValue::new(
                     serde_json::to_value(v).ok().unwrap_or_default(),
                 )),
-                None => None,
-            },
         };
 
         create_provider_instance(&self.conn, sqlc_params)
@@ -744,7 +741,7 @@ impl ProviderRepositoryLike for Repository {
         tracing::info!("ids_json: {}", ids_json);
 
         let sqlc_params = ManualGetProviderInstancesGroupedByFunctionControllerTypeIdParams {
-            function_controller_type_ids: &Some(function_controller_type_ids.to_vec().into()),
+            function_controller_type_ids: &Some(function_controller_type_ids.to_vec()),
         };
 
         let rows = manual_get_provider_instances_grouped_by_function_controller_type_id(
@@ -865,7 +862,7 @@ impl ProviderRepositoryLike for Repository {
         let params: get_provider_instances_with_credentials_params<'_> = get_provider_instances_with_credentials_params {
             cursor: &cursor_datetime,
             status: &status.map(|s| s.to_string()),
-            rotation_window_end: &rotation_window_end.map(|c| c.clone()),
+            rotation_window_end: &rotation_window_end.copied(),
             page_size: &pagination.page_size,
         };
 
@@ -916,14 +913,14 @@ async fn manual_get_provider_instances_grouped_by_function_controller_type_id(
             format!(
                 "WHERE fi.function_controller_type_id IN ({})",
                 ids.iter()
-                    .map(|id| format!("'{}'", id))
+                    .map(|id| format!("'{id}'"))
                     .collect::<Vec<String>>()
                     .join(", ")
             )
         }
         None => "".to_string(),
     };
-    let mut stmt = conn
+    let stmt = conn
         .prepare(
             format!(
                 r#"SELECT 

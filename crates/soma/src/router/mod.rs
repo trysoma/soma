@@ -3,31 +3,23 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
-use bridge::logic::{CreateDataEncryptionKeyParams, EncryptedDataEncryptionKey, OnConfigChangeRx};
 use tower_http::cors::CorsLayer;
-use tracing::info;
 use url::Url;
 use utoipa::openapi::OpenApi;
 
-use crate::router::mcp::McpService;
 use crate::router::task::TaskService;
-use crate::utils::construct_src_dir_absolute;
 use crate::utils::restate::admin_client::AdminClient;
 use crate::utils::restate::invoke::RestateIngressClient;
-use crate::{
-    commands::dev::DevParams,
-    router::{a2a::Agent2AgentService, frontend::FrontendService},
-};
+use crate::router::{a2a::Agent2AgentService, frontend::FrontendService};
 use crate::{logic::ConnectionManager, repository::Repository};
 use bridge::{
     logic::{
-        EnvelopeEncryptionKeyContents, OnConfigChangeTx, create_data_encryption_key,
-        register_all_bridge_providers,
+        EnvelopeEncryptionKeyContents, OnConfigChangeTx,
     },
     router::bridge::{BridgeService, create_router as create_bridge_router},
 };
 use shared::error::CommonError;
-use shared::soma_agent_definition::{SomaAgentDefinition, SomaAgentDefinitionLike};
+use shared::soma_agent_definition::SomaAgentDefinitionLike;
 
 pub(crate) mod a2a;
 pub(crate) mod frontend;

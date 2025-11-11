@@ -8,7 +8,7 @@ use axum::{
         sse::{Event, KeepAlive},
     },
 };
-use http::{HeaderMap, StatusCode, request::Parts};
+use http::{StatusCode, request::Parts};
 use rmcp::{
     RoleServer, ServerHandler,
     handler::server::{tool::ToolRouter, wrapper::Parameters},

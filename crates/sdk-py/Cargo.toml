@@ -9,7 +9,7 @@ name = "sdk_py"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.23", features = ["extension-module", "abi3-py38"] }
+pyo3.workspace = true
 sdk-core.workspace = true
 sdk-proto.workspace = true
 tokio.workspace = true

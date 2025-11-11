@@ -2,17 +2,15 @@ use crate::logic::credential::{ResourceServerCredentialSerialized, StaticCredent
 use crate::logic::encryption::DecryptionService;
 use crate::logic::FunctionControllerLike;
 use crate::logic::*;
-use crate::logic::controller::{CATEGORY_EMAIL, PROVIDER_REGISTRY};
+use crate::logic::controller::CATEGORY_EMAIL;
 use crate::logic::credential::oauth::{
     Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
     Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration,
 };
 use crate::logic::credential::oauth::{Oauth2JwtBearerAssertionFlowController, OauthAuthFlowController};
-use crate::providers::*;
 use async_trait::async_trait;
 use base64::Engine;
-use bridge_macros::define_provider;
-use schemars::{JsonSchema, SchemaGenerator, schema_for};
+use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
 use shared::primitives::{WrappedJsonValue, WrappedSchema};
@@ -142,10 +140,10 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
         ".to_string()
     }
     fn parameters(&self) -> WrappedSchema {
-        WrappedSchema::new(schema_for!(SendEmailFunctionParameters).into())
+        WrappedSchema::new(schema_for!(SendEmailFunctionParameters))
     }
     fn output(&self) -> WrappedSchema {
-        WrappedSchema::new(schema_for!(SendEmailFunctionOutput).into())
+        WrappedSchema::new(schema_for!(SendEmailFunctionOutput))
     }
     fn categories(&self) -> Vec<String> {
         vec![CATEGORY_EMAIL.to_string()]
@@ -162,7 +160,7 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
     ) -> Result<InvokeResult, CommonError> {
         // Parse the function parameters
         let email_params: SendEmailFunctionParameters = serde_json::from_value(params.into())
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid parameters: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid parameters: {e}")))?;
 
         // Downcast to OAuth controller and decrypt credentials
         let cred_controller_type_id = credential_controller.type_id();
@@ -185,8 +183,7 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
             controller.decrypt_oauth_credentials(crypto_service, user_credential).await?
         } else {
             return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Unsupported credential controller type: {}",
-                cred_controller_type_id
+                "Unsupported credential controller type: {cred_controller_type_id}"
             )));
         };
 
@@ -216,7 +213,7 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
             .json(&request_body)
             .send()
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("HTTP request failed: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("HTTP request failed: {e}")))?;
 
         // Check if the request was successful
         if !response.status().is_success() {
@@ -230,7 +227,7 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
         let gmail_response: serde_json::Value = response
             .json()
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse response: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse response: {e}")))?;
 
         // Extract the message ID from the response
         let message_id = gmail_response

@@ -1,27 +1,18 @@
 use std::future::Future;
 use std::net::{SocketAddr, TcpListener};
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
 
-use bridge::logic::{EnvelopeEncryptionKeyContents, OnConfigChangeTx};
-use shared::soma_agent_definition::SomaAgentDefinitionLike;
 use tracing::info;
 
 use shared::error::CommonError;
 
-use crate::logic::ConnectionManager;
-use crate::repository::Repository;
 use crate::router;
-use crate::utils::config::CliConfig;
-use crate::utils::restate::invoke::RestateIngressClient;
 use crate::vite::{Assets, wait_for_vite_dev_server_shutdown};
 
-use super::DevParams;
 
 /// Finds a free port in the given range
 pub fn find_free_port(start: u16, end: u16) -> std::io::Result<u16> {
-    find_free_port_with_bind(start, end, |addr| TcpListener::bind(addr))
+    find_free_port_with_bind(start, end, TcpListener::bind)
 }
 
 /// Internal implementation that accepts a custom bind function for testing

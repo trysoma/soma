@@ -13,9 +13,8 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     logic::{
-        FunctionControllerLike, InvokeFunctionParams, InvokeFunctionParamsInner, InvokeResult, ListFunctionInstancesParams, ListProviderInstancesGroupedByFunctionParams, PROVIDER_REGISTRY, ProviderControllerLike, WithFunctionInstanceId, invoke_function, list_function_instances, list_provider_instances_grouped_by_function
+        FunctionControllerLike, InvokeFunctionParams, InvokeFunctionParamsInner, InvokeResult, ListFunctionInstancesParams, PROVIDER_REGISTRY, ProviderControllerLike, WithFunctionInstanceId, invoke_function, list_function_instances
     },
-    repository::ProviderRepositoryLike,
     router::bridge::BridgeService,
 };
 

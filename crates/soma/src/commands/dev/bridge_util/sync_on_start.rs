@@ -7,7 +7,7 @@ use bridge::logic::{
 use shared::{
     error::CommonError,
     primitives::{PaginationRequest, WrappedJsonValue},
-    soma_agent_definition::{SomaAgentDefinition, SomaAgentDefinitionLike},
+    soma_agent_definition::SomaAgentDefinitionLike,
 };
 use tracing::info;
 use crate::commands::dev::bridge_util::providers::soma::SomaProviderController;
@@ -68,8 +68,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
     // Get keys from soma definition
     let yaml_keys: HashMap<String, _> = soma_definition
         .bridge
-        .as_ref()
-        .and_then(|b| Some(&b.encryption.0))
+        .as_ref().map(|b| &b.encryption.0)
         .map(|enc| enc.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
         .unwrap_or_default();
 

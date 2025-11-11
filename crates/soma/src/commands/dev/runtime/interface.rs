@@ -1,7 +1,6 @@
 use std::{path::PathBuf, pin::Pin, future::Future, sync::Arc};
 
 use shared::{error::CommonError, primitives::WrappedSchema};
-use tokio::sync::oneshot;
 
 use crate::commands::dev::project_file_watcher::FileChangeTx;
 

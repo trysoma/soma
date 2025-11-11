@@ -37,7 +37,7 @@ tracing.workspace = true
 tonic.workspace = true
 hyper.workspace = true
 hyper-util.workspace = true
-sdk-proto = { path = "../sdk-proto" }
+sdk-proto.workspace = true
 url.workspace = true
 utoipa.workspace = true
 utoipa-axum.workspace = true
@@ -59,7 +59,7 @@ tokio-stream.workspace = true
 tokio-util.workspace = true
 urlencoding.workspace = true
 shared-macros.workspace = true
-dirs = "6.0.0"
+dirs.workspace = true
 
 [dev-dependencies]
-tempfile = "3.8"
+tempfile.workspace = true

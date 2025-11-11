@@ -5,32 +5,20 @@ pub mod instance;
 pub mod credential;
 pub mod mcp;
 
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
-use aes_gcm::{
-    Aes256Gcm, Nonce,
-    aead::{Aead, KeyInit, OsRng},
-};
+use aes_gcm::aead::KeyInit;
 use async_trait::async_trait;
-use base64::Engine;
-use enum_dispatch::enum_dispatch;
-use once_cell::sync::Lazy;
-use rand::RngCore;
-use reqwest::Request;
-use schemars::{JsonSchema, Schema};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use serde_json::json;
-use sha2::{Digest, Sha256};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use sha2::Digest;
 use shared::{
     error::CommonError,
     primitives::{
-        PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
-        WrappedSchema, WrappedUuidV4,
+        WrappedChronoDateTime, WrappedJsonValue,
+        WrappedSchema,
     },
 };
-use std::fs;
-use std::path::Path;
-use std::sync::RwLock;
 use utoipa::ToSchema;
 
 // Metadata must be defined before pub use statements so submodules can import it
@@ -101,11 +89,7 @@ pub use credential::*;
 pub use encryption::*;
 pub use instance::*;
 
-use crate::{
-    logic::instance::{FunctionInstanceSerialized, ProviderInstanceSerializedWithCredentials}, providers::google_mail::GoogleMailProviderController, repository::ProviderRepositoryLike
-};
-use encryption::*;
-use credential::*;
+use crate::logic::instance::{FunctionInstanceSerialized, ProviderInstanceSerializedWithCredentials};
 
 // on change events
 

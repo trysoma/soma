@@ -15,7 +15,6 @@ use bridge::logic::ProviderCredentialControllerLike;
 use bridge::logic::UserCredentialSerialized;
 use bridge::logic::no_auth::NoAuthController;
 use schemars::schema_for;
-use serde_json::json;
 use shared::primitives::WrappedJsonValue;
 use shared::primitives::WrappedSchema;
 
@@ -97,10 +96,10 @@ impl FunctionControllerLike for GetTaskTimelineItemsFunctionController {
         "".to_string()
     }
     fn parameters(&self) -> WrappedSchema {
-        WrappedSchema::new(schema_for!(GetTaskTimelineItemsRequest).into())
+        WrappedSchema::new(schema_for!(GetTaskTimelineItemsRequest))
     }
     fn output(&self) -> WrappedSchema {
-        WrappedSchema::new(schema_for!(GetTaskTimelineItemsResponse).into())
+        WrappedSchema::new(schema_for!(GetTaskTimelineItemsResponse))
     }
     fn categories(&self) -> Vec<String> {
         vec![]
@@ -117,7 +116,7 @@ impl FunctionControllerLike for GetTaskTimelineItemsFunctionController {
     ) -> Result<InvokeResult, CommonError> {
         // Parse the function parameters
         let params: GetTaskTimelineItemsRequest = serde_json::from_value(params.into())
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid parameters: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid parameters: {e}")))?;
 
         // Downcast to OAuth controller and decrypt credentials
         let cred_controller_type_id = credential_controller.type_id();
@@ -134,8 +133,7 @@ impl FunctionControllerLike for GetTaskTimelineItemsFunctionController {
 
         }  else {
             return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Unsupported credential controller type: {}",
-                cred_controller_type_id
+                "Unsupported credential controller type: {cred_controller_type_id}"
             )));
         };
 

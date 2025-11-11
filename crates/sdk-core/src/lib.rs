@@ -7,7 +7,6 @@ pub use types::*;
 
 use sdk_proto::soma_sdk_service_server::{SomaSdkService, SomaSdkServiceServer};
 use std::{path::PathBuf, sync::Arc};
-use tokio::sync::broadcast;
 use tonic::{transport::Server, Request, Response, Status};
 use tracing::info;
 
@@ -206,7 +205,7 @@ impl GrpcService {
 
     /// Remove an agent by id
     pub fn remove_agent(&self, id: &str) -> bool {
-        let mut removed = false;
+        let removed = false;
         self.agents.rcu(|current| {
             let mut new_agents = (**current).clone();
             new_agents.retain(|a| a.id != id);

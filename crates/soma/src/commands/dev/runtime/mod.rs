@@ -3,19 +3,14 @@ mod typescript;
 pub mod grpc_client;
 pub mod sdk_provider_sync;
 
-use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use futures::{FutureExt, TryFutureExt, future};
-use globset::{Glob, GlobSet, GlobSetBuilder};
-use tokio::process::Command;
+use futures::TryFutureExt;
 use tokio::sync::{broadcast, oneshot};
 use tracing::{error, info};
 
-use shared::command::run_child_process;
 use shared::error::CommonError;
 
 use crate::commands::dev::DevParams;
@@ -100,7 +95,7 @@ pub async fn start_dev_runtime(
         runtime: _runtime,
         runtime_port,
         file_change_tx,
-        mut kill_signal_rx,
+        kill_signal_rx,
     } = params;
 
     let typescript_client = Typescript::new();
@@ -135,7 +130,7 @@ async fn fetch_and_sync_providers(
     let response = client
         .metadata(request)
         .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("gRPC call failed: {}", e)))?;
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("gRPC call failed: {e}")))?;
 
     let metadata = response.into_inner();
 
@@ -175,7 +170,7 @@ async fn register_agent_deployments(
     info!("Registering {} agent deployment(s) with Restate", agents.len());
 
     for agent in agents {
-        let service_uri = format!("http://127.0.0.1:{}", runtime_port);
+        let service_uri = format!("http://127.0.0.1:{runtime_port}");
         let deployment_type = crate::utils::restate::deploy::DeploymentType::Http {
             uri: service_uri.clone(),
             additional_headers: HashMap::new(),
@@ -253,11 +248,11 @@ pub async fn sync_dev_runtime_changes_from_sdk_server(
         result = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_receiver => {
             match result {
                 Ok(err) => {
-                    return Err(err);
+                    Err(err)
                 }
                 Err(e) => {
                     error!("SDK channel closed unexpectedly: {:?}", e);
-                    return Err(CommonError::Unknown(anyhow::anyhow!("SDK channel closed unexpectedly: {:?}", e)));
+                    Err(CommonError::Unknown(anyhow::anyhow!("SDK channel closed unexpectedly: {e:?}")))
                 }
             }
         }
@@ -305,7 +300,7 @@ pub async fn internal_sync_dev_runtime_changes_from_sdk_server_loop(
             }
             Ok(Err(e)) => {
                 error!("Failed to establish connection: {:?}", e);
-                let err = CommonError::Unknown(anyhow::anyhow!("Failed to establish connection: {:?}", e));
+                let err = CommonError::Unknown(anyhow::anyhow!("Failed to establish connection: {e:?}"));
                 let _ = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger.send(err);
                 return
             }

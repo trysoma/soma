@@ -3,37 +3,26 @@ pub mod api_key;
 pub mod no_auth;
 pub mod oauth;
 
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
-use aes_gcm::{
-    Aes256Gcm, Nonce,
-    aead::{Aead, KeyInit, OsRng},
-};
+use aes_gcm::aead::KeyInit;
 use async_trait::async_trait;
-use base64::Engine;
-use enum_dispatch::enum_dispatch;
-use once_cell::sync::Lazy;
-use rand::RngCore;
-use reqwest::Request;
-use schemars::{JsonSchema, Schema};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sha2::Digest;
 use shared::{
     error::CommonError,
     primitives::{
-        PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
+        PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
         WrappedSchema, WrappedUuidV4,
     },
 };
 use tracing::info;
-use std::fs;
-use std::path::Path;
-use std::sync::RwLock;
 use utoipa::ToSchema;
 
 use crate::{
-    logic::{controller::{get_credential_controller, get_provider_controller, WithCredentialControllerTypeId, WithProviderControllerTypeId}, encryption::{get_crypto_service, get_decryption_service, get_encryption_service, DecryptionService, EncryptedString, EncryptionService, EnvelopeEncryptionKeyContents}, instance::{ProviderInstanceSerialized, ProviderInstanceSerializedWithCredentials, ReturnAddress}, Metadata, OnConfigChangeEvt, OnConfigChangeTx, ProviderControllerLike, ProviderCredentialControllerLike}, providers::google_mail::GoogleMailProviderController, repository::ProviderRepositoryLike
+    logic::{controller::{get_credential_controller, get_provider_controller, WithCredentialControllerTypeId, WithProviderControllerTypeId}, encryption::{get_crypto_service, get_decryption_service, get_encryption_service, DecryptionService, EncryptionService, EnvelopeEncryptionKeyContents}, instance::{ProviderInstanceSerialized, ProviderInstanceSerializedWithCredentials, ReturnAddress}, Metadata, OnConfigChangeEvt, OnConfigChangeTx, ProviderControllerLike, ProviderCredentialControllerLike}, repository::ProviderRepositoryLike
 };
 
 pub fn schemars_make_password(schema: &mut schemars::Schema) {
@@ -242,13 +231,7 @@ pub async fn create_resource_server_credential(
         core_metadata.0.extend(metadata.0);
     }
 
-    let next_rotation_time = if let Some(resource_server_credential) =
-        resource_server_credential.as_rotateable_credential()
-    {
-        Some(resource_server_credential.next_rotation_time())
-    } else {
-        None
-    };
+    let next_rotation_time = resource_server_credential.as_rotateable_credential().map(|resource_server_credential| resource_server_credential.next_rotation_time());
 
     let now = WrappedChronoDateTime::now();
     let resource_server_credential_serialized = ResourceServerCredentialSerialized {
@@ -258,7 +241,7 @@ pub async fn create_resource_server_credential(
         value: resource_server_credential.value(),
         created_at: now,
         updated_at: now,
-        next_rotation_time: next_rotation_time,
+        next_rotation_time,
         data_encryption_key_id: params.inner.inner.data_encryption_key_id,
     };
 
@@ -304,11 +287,7 @@ pub async fn create_user_credential(
     }
 
     let next_rotation_time =
-        if let Some(user_credential) = user_credential.as_rotateable_credential() {
-            Some(user_credential.next_rotation_time())
-        } else {
-            None
-        };
+        user_credential.as_rotateable_credential().map(|user_credential| user_credential.next_rotation_time());
 
     let now = WrappedChronoDateTime::now();
     let user_credential_serialized = UserCredentialSerialized {
@@ -318,7 +297,7 @@ pub async fn create_user_credential(
         value: user_credential.value(),
         created_at: now,
         updated_at: now,
-        next_rotation_time: next_rotation_time,
+        next_rotation_time,
         data_encryption_key_id: params.inner.inner.data_encryption_key_id,
     };
 
@@ -376,7 +355,7 @@ async fn process_broker_outcome(
                     inner: WithCredentialControllerTypeId {
                         credential_controller_type_id: credential_controller.type_id().to_string(),
                         inner: CreateUserCredentialParamsInner {
-                            data_encryption_key_id: data_encryption_key_id,
+                            data_encryption_key_id,
                             user_credential_configuration: user_credential.value(),
                             metadata: Some(metadata.clone()),
                         },
@@ -505,8 +484,8 @@ pub async fn start_user_credential_brokering(
     let (inner, metadata) = credential_controller
         .from_serialized_resource_server_configuration(resource_server_cred.value)?;
     let resource_server_cred = Credential {
-        inner: inner,
-        metadata: metadata,
+        inner,
+        metadata,
         id: resource_server_cred.id,
         created_at: resource_server_cred.created_at,
         updated_at: resource_server_cred.updated_at,

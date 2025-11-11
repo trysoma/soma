@@ -69,7 +69,7 @@ async fn codegen() -> Result<(), CommonError> {
             "rust",
             "-o",
             rust_api_client_dir.display().to_string().as_str(),
-            format!("--additional-properties=packageName=soma-api-client,packageVersion={}", APP_VERSION).as_str(),
+            format!("--additional-properties=packageName=soma-api-client,packageVersion={APP_VERSION}").as_str(),
         ])
         .current_dir(frontend_assets_dir.clone())
         .stderr(Stdio::inherit())

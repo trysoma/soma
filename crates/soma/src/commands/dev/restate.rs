@@ -1,22 +1,16 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use tokio::process::Command;
-use tokio::sync::{broadcast, oneshot};
-use tracing::{error, info};
+use tracing::info;
 use url::Url;
 
 use shared::command::run_child_process;
 use shared::error::CommonError;
-use shared::soma_agent_definition::SomaAgentDefinitionLike;
 
 use crate::utils::restate::admin_client::AdminClient;
 use crate::utils::restate::invoke::RestateIngressClient;
 use crate::utils::{is_port_in_use, restate};
-use crate::utils::restate::deploy::DeploymentRegistrationConfig;
 
-use super::DevParams;
 
 #[derive(Clone)]
 pub struct RestateServerLocalParams {
@@ -171,7 +165,7 @@ async fn start_restate_server_local(params: RestateServerLocalParams, kill_signa
         if restate_data_dir.exists() {
             info!("Cleaning Restate data directory: {}", restate_data_dir.display());
             std::fs::remove_dir_all(&restate_data_dir)
-                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to delete Restate data directory: {}", e)))?;
+                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to delete Restate data directory: {e}")))?;
             info!("Restate data directory deleted successfully");
         } else {
             info!("Restate data directory does not exist, skipping clean");
@@ -189,7 +183,7 @@ async fn start_restate_server_local(params: RestateServerLocalParams, kill_signa
         .env("RESTATE__INGRESS__BIND_ADDRESS", format!("127.0.0.1:{}", params.ingress_port))
         .env("RESTATE__ADMIN__BIND_ADDRESS", format!("127.0.0.1:{}", params.admin_port))
         .env("RESTATE__ADVERTISED_ADDRESS", format!("127.0.0.1:{}", params.advertised_node_port));
-    let result =run_child_process(
+    run_child_process(
         "restate-server",
         cmd,
         Some(kill_signal_rx),

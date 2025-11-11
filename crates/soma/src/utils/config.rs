@@ -109,7 +109,7 @@ pub async fn ensure_user_is_set(config: &CliConfigInner) -> Result<CliUser, Comm
     match config.cloud.user.clone() {
         Some(user) => Ok(user),
         None => {
-            return Err(CommonError::Unknown(anyhow::anyhow!(
+            Err(CommonError::Unknown(anyhow::anyhow!(
                 "You are not signed in. Please sign in using 'soma auth sign-in'"
             )))
         }
