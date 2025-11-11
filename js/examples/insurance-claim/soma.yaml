@@ -1,38 +1,13 @@
 version: 0.0.2
 bridge:
-  encryption:
-    default:
-      encrypted_data_encryption_key: zdqtuW1+fMutPIc6Nr+UDa/ZBsZ+XtD511hD3/9fxNtS8Ka9Po6MR74u4Z2FfEzsjAqbZoKlDbwITfrm
-      envelope_encryption_key_id:
-        type: local
-        key_id: /root/.config/soma/local-key.bin
+  encryption: {}
   providers:
-    9826a43f-ecda-43ce-bb8d-22799fa371de:
-      provider_controller_type_id: approve-claim
-      credential_controller_type_id: no_auth
-      display_name: internal bot
-      resource_server_credential:
-        id: cc05e9c8-a9f0-47cd-81a3-f098624e39fd
-        type_id: resource_server_no_auth
-        metadata: {}
-        value:
-          metadata: {}
-        data_encryption_key_id: default
-      user_credential:
-        id: 408f9db4-4d17-43cf-8872-8a00cf470414
-        type_id: user_no_auth
-        metadata: {}
-        value:
-          metadata: {}
-        data_encryption_key_id: default
-      functions:
-      - approve-claim
     ca808fb1-43b5-40bd-be87-d3729ec497c8:
       provider_controller_type_id: google_mail
       credential_controller_type_id: oauth_auth_flow
       display_name: daniel@trysoma.ai
       resource_server_credential:
-        id: 6016ebe5-163b-4ff3-b6d6-430fd72d48a6
+        id: b2e81499-16a6-46a0-adf2-bdf80f7b610b
         type_id: oauth2_authorization_code_flow_resource_server
         metadata: {}
         value:
@@ -42,22 +17,22 @@ bridge:
           redirect_uri: http://localhost:3000/api/bridge/v1/generic-oauth-callback
         data_encryption_key_id: default
       user_credential:
-        id: 63883c61-8f56-40b1-9f7d-96b9818040c9
+        id: b9d6f3f3-04b9-4efd-ab8e-203349faeab4
         type_id: oauth2_authorization_code_flow_user
         metadata: {}
         value:
-          access_token: Ti3tPJuXVojcfixH/Cs6Pjw1bQr/oWLMrFMZKftph5BPVoIO0pu1Ft70YC5puVF0v/fqrJeIKHGElkZq2i2nS6vzeoCDFUU6k8aV3cj9PYwOeRvfT9wk/QfsMLvgGksy+KJg8Wjpoc4efIDzXCWN/jp6kx4VhNH9GvETS+ft1CG7vVaJrtW/bXyuytLKvbdz/PIfH8j3NMtcSL96NkZgYFk9RyQWKJNTR29OZC/SQGsv4SbnPJa6BNJtlSg5z2urn01v80QsBDGMHq1r4Imb0bPOJvFlZPBtuQqp1ijfqOuzP61xdSt7iz109l2eAuyRAWVAOQPtaLG9t4sXegw1PAXfEyZrVcHgbULP/kDlSzlowdfCEVWfwjI=
+          access_token: rW1RdwW/jUgRnWU4o6eI+Si015oY1gq+kXL3DHhVgVfyZDW+0JkJrMorq9EazwmTypsDIKIO+3fSYA9jsLTVEUgulUtYVe9+wyuWkeq9c0VuFKVOijyMz0rXCg7omAEkR4Gri8kbWmIW+6crgD+cBRcKWoo53O7F1a2O6jSnZXXBp7PyB3PaxgT6WrykDF17eWTX+L9+KZWtjJnrXF7OQKLlOZEngJ8I/AEFYjZDcak29rZDdDqS3ysSluzTDcHmF07bJwhLZ9vrrsGu091eapbr1G9pk+5TMDbeRZM9bwfxIDl6WhVy/S68dUYGjN8xWnMRu0egT9ZKLVx7KyX6NB/cT+Tu/CI72Ljb4AgZoabOaHcXi1u87q4o
           code: TAtAWBoJftXfpBTbiLdAUtkp29vjCbE9J+a9bitU56tn5hHlv9rDoT1TrvAjGk019QvCAtecaLy3p8CFUBCkh3NDq2FRN6aEvcH6qFU+0SFiEStQIDdYQR87TXeqehPQiB0D6yg=
-          expiry_time: 2025-11-10T20:24:14.497319656Z
+          expiry_time: 2025-11-11T06:42:30.779837889Z
           metadata: {}
-          refresh_token: qeWzvYI2fnt70C+jfSinz+9/FioyIgCi8I95C4L3WsbzqnS+HTBncY9Ei+Ayswl4WEkxpfaM01mOZwWoGtEGawAA2240yIu0zrWR4fP/4/zkV8X+j1K5uCVlkH2YtGKXrvxagAZf/lGkoX0lZkxcxrvMPc0juJIf85x+VbVpWuijwWQ=
+          refresh_token: RDsKQF48xSIsJqKFQk6kGx1cdyujwJpJRdMTfwK/rtQOUe+H8deLHImEft/WMGAzPZcpb+MUh5FBafKc1l5WRiDFcZnudyCStUF7ojd2ersaH/cMdnx0MGnsTvZWGg3GesvMQvwnDEad64pYWcNmvyLONP5aCzQzOP2PDAEYBKzMorg=
           scopes:
-          - https://www.googleapis.com/auth/gmail.readonly
-          - openid
-          - https://www.googleapis.com/auth/userinfo.email
+          - https://www.googleapis.com/auth/userinfo.profile
           - https://www.googleapis.com/auth/gmail.compose
           - https://www.googleapis.com/auth/gmail.send
-          - https://www.googleapis.com/auth/userinfo.profile
+          - openid
+          - https://www.googleapis.com/auth/gmail.readonly
+          - https://www.googleapis.com/auth/userinfo.email
           sub: '107313083092903712383'
-        next_rotation_time: 2025-11-10T20:19:14.497319656+00:00
+        next_rotation_time: 2025-11-11T06:37:30.779837889+00:00
         data_encryption_key_id: default

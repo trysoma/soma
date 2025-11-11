@@ -89,6 +89,11 @@ pub struct DevParams {
     help = "The type of key encryption key to use. Valid values are 'local' or a valid AWS KMS ARN (arn:aws:kms:region:account-id:key/key-id)."
   )]
   pub key_encryption_key: Option<String>,
+  #[arg(
+    long,
+    help = "Delete the Restate data directory before starting (only applies to local Restate instances)"
+  )]
+  pub clean: bool,
 }
 
 
@@ -100,6 +105,28 @@ pub async fn cmd_dev(
 
   let (system_shutdown_signal_trigger, _system_shutdown_signal_receiver) = broadcast::channel::<()>(1);
   let project_dir = construct_src_dir_absolute(params.clone().src_dir)?;
+
+  // Resolve relative db_conn_string paths relative to project_dir
+  let db_conn_string = if params.db_conn_string.as_str().starts_with("libsql://./") {
+    // Extract the path portion after libsql://./
+    let url_str = params.db_conn_string.as_str();
+    let path_with_query = url_str.strip_prefix("libsql://./").unwrap_or("");
+    let (path_part, _query_part) = path_with_query.split_once('?').unwrap_or((path_with_query, ""));
+    
+    // Resolve relative path to absolute path relative to project_dir
+    let absolute_path = project_dir.join(path_part);
+    
+    // Reconstruct the URL with absolute path
+    let mut resolved_url = params.db_conn_string.clone();
+    // Remove the leading ./ from the path and set the absolute path
+    // URL paths typically start with /, so we need to ensure the format is correct
+    let path_str = absolute_path.to_string_lossy();
+    // For libsql URLs, we can set the path directly
+    resolved_url.set_path(&path_str);
+    resolved_url
+  } else {
+    params.db_conn_string.clone()
+  };
 
   // Determine runtime and find free port
   let runtime = match determine_runtime(&params) {
@@ -117,12 +144,13 @@ pub async fn cmd_dev(
 
   // Setup database and repositories
   let connection_manager = ConnectionManager::new();
+  
   let (
     _db,
     conn,
     repository,
     bridge_repo,
-  ) = setup_repository(&params.db_conn_string,  &params.db_auth_token).await?;
+  ) = setup_repository(&db_conn_string,  &params.db_auth_token).await?;
 
  
   // Start Restate server subsystem
@@ -133,6 +161,7 @@ pub async fn cmd_dev(
       ingress_port: 8080,
       admin_port: 9070,
       advertised_node_port: 5122,
+      clean: params.clean,
     }),
   };
   let restate_kill_signal_rx = system_shutdown_signal_trigger.subscribe();

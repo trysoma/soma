@@ -1,6 +1,6 @@
 import { defineConfig, Plugin, ViteDevServer } from 'vite'
 import { resolve } from 'node:path'
-import { readdirSync, statSync, existsSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readdirSync, statSync, existsSync, writeFileSync, mkdirSync, rmSync, renameSync } from 'node:fs'
 import { join, relative, parse } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { spawn, ChildProcess } from 'node:child_process'
@@ -257,6 +257,7 @@ ${hasAgents ? `
 import { HandlerParams, SomaAgent } from "@soma/sdk/agent";
 import { Configuration as BridgeConfiguration } from '@soma/sdk/bridge';
 import { DefaultApi, Configuration as SomaConfiguration } from '@soma/api-client';
+import * as net from 'net';
 
 interface RestateInput {
   taskId: string;
@@ -283,6 +284,49 @@ const wrapHandler = <T>(handler: SomaHandler<T>, agent: SomaAgent<T>): RestateHa
 
 const restatePort = parseInt(process.env.RESTATE_RUNTIME_PORT || process.env.RESTATE_PORT || '9080');
 console.log(\`Starting Restate server on port \${restatePort}...\`);
+
+// Wait for port to become available (in case previous instance is shutting down from HMR)
+const checkPortAvailable = (port: number): Promise<boolean> => {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.listen(port, () => {
+      server.once('close', () => resolve(true));
+      server.close();
+    });
+    server.on('error', () => resolve(false));
+  });
+};
+
+// Wait for port to become available with exponential backoff
+const waitForPortAvailable = async (port: number, maxWaitSeconds: number = 30): Promise<void> => {
+  const startTime = Date.now();
+  let attempt = 0;
+  
+  while (Date.now() - startTime < maxWaitSeconds * 1000) {
+    const available = await checkPortAvailable(port);
+    if (available) {
+      if (attempt > 0) {
+        console.log(\`Port \${port} is now available after waiting for previous instance to shut down.\`);
+      }
+      return;
+    }
+    
+    // Exponential backoff: 100ms, 200ms, 400ms, 800ms, then cap at 1s
+    const delayMs = Math.min(100 * Math.pow(2, attempt), 1000);
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+    attempt++;
+  }
+  
+  throw new Error(\`Port \${port} did not become available within \${maxWaitSeconds} seconds. Please check if another process is using the port.\`);
+};
+
+// Wait for port to be available before starting (handles HMR shutdown gracefully)
+try {
+  await waitForPortAvailable(restatePort);
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
 
 // Create HTTP/2 server with Restate endpoint handler
 const http2Handler = restate.createEndpointHandler({
@@ -367,9 +411,15 @@ function bridgeClientPlugin(baseDir: string): Plugin {
     isGenerating = true
 
     const outputDir = resolve(baseDir, '.soma/bridge-client')
+    const tempOutputDir = resolve(baseDir, '.soma/bridge-client-tmp')
 
-    // Ensure output directory exists
-    mkdirSync(outputDir, { recursive: true })
+    // Clean up any existing temp directory
+    if (existsSync(tempOutputDir)) {
+      rmSync(tempOutputDir, { recursive: true, force: true })
+    }
+
+    // Ensure temp output directory exists
+    mkdirSync(tempOutputDir, { recursive: true })
 
     console.log('Generating Bridge client from OpenAPI spec...')
 
@@ -393,7 +443,7 @@ function bridgeClientPlugin(baseDir: string): Plugin {
           'supportsES6=true',
           '--ignore-file-override=./node_modules/@soma/sdk/openapi-template/.openapi-generator-ignore',
           '-o',
-          outputDir,
+          tempOutputDir,
         ],
         {
           stdio: ['pipe', 'pipe', 'pipe'],
@@ -412,6 +462,10 @@ function bridgeClientPlugin(baseDir: string): Plugin {
 
       child.on('error', (err) => {
         console.error('Failed to generate Bridge client:', err)
+        // Clean up temp directory on error
+        if (existsSync(tempOutputDir)) {
+          rmSync(tempOutputDir, { recursive: true, force: true })
+        }
         isGenerating = false
         reject(err)
       })
@@ -419,9 +473,30 @@ function bridgeClientPlugin(baseDir: string): Plugin {
       child.on('exit', (code) => {
         isGenerating = false
         if (code === 0) {
-          console.log('Bridge client generated successfully!')
-          resolvePromise()
+          try {
+            // Delete old bridge-client directory
+            if (existsSync(outputDir)) {
+              rmSync(outputDir, { recursive: true, force: true })
+            }
+            
+            // Move temp directory to final location
+            renameSync(tempOutputDir, outputDir)
+            
+            console.log('Bridge client generated successfully!')
+            resolvePromise()
+          } catch (err) {
+            // Clean up temp directory if rename fails
+            if (existsSync(tempOutputDir)) {
+              rmSync(tempOutputDir, { recursive: true, force: true })
+            }
+            reject(err)
+          }
         } else {
+          // Clean up temp directory on failure
+          if (existsSync(tempOutputDir)) {
+            rmSync(tempOutputDir, { recursive: true, force: true })
+          }
+          
           const stdout = Buffer.concat(stdoutChunks).toString()
           const stderr = Buffer.concat(stderrChunks).toString()
           
