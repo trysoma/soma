@@ -23,7 +23,7 @@ pub fn construct_src_dir_absolute(src_dir: Option<PathBuf>) -> Result<PathBuf, C
     Ok(src_dir)
 }
 
-
+#[allow(dead_code)]
 pub fn get_api_config() -> Result<soma_api_client::apis::configuration::Configuration, CommonError> {
     // let user = ensure_user_is_set(config)?;
     let headers = http::HeaderMap::new();

@@ -7,11 +7,9 @@ pub mod mcp;
 
 use std::sync::Arc;
 
-use aes_gcm::aead::KeyInit;
 use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sha2::Digest;
 use shared::{
     error::CommonError,
     primitives::{
@@ -88,8 +86,6 @@ pub use controller::*;
 pub use credential::*;
 pub use encryption::*;
 pub use instance::*;
-
-use crate::logic::instance::{FunctionInstanceSerialized, ProviderInstanceSerializedWithCredentials};
 
 // on change events
 

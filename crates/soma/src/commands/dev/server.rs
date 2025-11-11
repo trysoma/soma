@@ -33,6 +33,7 @@ where
 }
 
 pub struct StartAxumServerParams {
+    #[allow(dead_code)]
     pub project_dir: PathBuf,
     pub host: String,
     pub port: u16,

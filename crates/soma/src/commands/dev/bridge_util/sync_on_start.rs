@@ -425,8 +425,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use bridge::logic::EnvelopeEncryptionKeyId;
-    use shared::{primitives::SqlMigrationLoader, soma_agent_definition::YamlSomaAgentDefinition};
+    use shared::{primitives::SqlMigrationLoader, soma_agent_definition::{SomaAgentDefinition, YamlSomaAgentDefinition}};
     use tokio::sync::Mutex;
 
     #[tokio::test]

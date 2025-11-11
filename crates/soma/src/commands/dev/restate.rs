@@ -64,29 +64,29 @@ impl RestateServerParams {
 
     pub fn get_admin_token(&self) -> Option<String> {
         match self {
-            RestateServerParams::Local(params) => None,
+            RestateServerParams::Local(_params) => None,
             RestateServerParams::Remote(params) => params.admin_token.clone(),
         }
     }
 
     pub fn get_private(&self) -> bool {
         match self {
-            RestateServerParams::Local(params) => false,
-            RestateServerParams::Remote(params) => false,
+            RestateServerParams::Local(_params) => false,
+            RestateServerParams::Remote(_params) => false,
         }
     }
 
     pub fn get_insecure(&self) -> bool {
         match self {
-            RestateServerParams::Local(params) => true,
-            RestateServerParams::Remote(params) => false,
+            RestateServerParams::Local(_params) => true,
+            RestateServerParams::Remote(_params) => false,
         }
     }
 
     pub fn get_force(&self) -> bool {
         match self {
-            RestateServerParams::Local(params) => true,
-            RestateServerParams::Remote(params) => true,
+            RestateServerParams::Local(_params) => true,
+            RestateServerParams::Remote(_params) => true,
         }
     }
 }
@@ -94,10 +94,11 @@ impl RestateServerParams {
 
 /// Registers the deployment with Restate
 /// TODO: this should be moved to the deployment subsystem and run on metadata response to register all agents in the metadata response
+#[allow(dead_code)]
 pub async fn start_restate_deployment(
-    params: &RestateServerParams,
-    deployment_type: restate::deploy::DeploymentType,
-    service_path: String,
+    _params: &RestateServerParams,
+    _deployment_type: restate::deploy::DeploymentType,
+    _service_path: String,
 ) -> Result<(), CommonError> {
     info!("Starting Restate deployment registration");
 
@@ -193,8 +194,8 @@ async fn start_restate_server_local(params: RestateServerLocalParams, kill_signa
     Ok(())
 }
 
-async fn start_restate_server_remote(params: RestateServerRemoteParams) -> Result<(), CommonError> {
+async fn start_restate_server_remote(_params: RestateServerRemoteParams) -> Result<(), CommonError> {
     // TODO: should just perform a curl request to the admin address / ingress address to check health and client can connect.
-    
+
     Ok(())
 }

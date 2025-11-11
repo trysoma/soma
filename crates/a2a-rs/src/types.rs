@@ -1,3 +1,5 @@
+#![allow(irrefutable_let_patterns)]
+
 use axum::{Json, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 use utoipa::{PartialSchema, ToSchema};

@@ -79,6 +79,7 @@ struct GetTaskTimelineItemsFunctionController {
 }
 
 impl GetTaskTimelineItemsFunctionController {
+    #[allow(dead_code)]
     pub fn new(repository: Repository) -> Self {
         Self { repository }
     }

@@ -1,5 +1,4 @@
 
-
 #[allow(unused)]
 use serde::{Serialize, Deserialize};
   pub struct create_resource_server_credential_params<'a> {

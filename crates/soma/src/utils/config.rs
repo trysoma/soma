@@ -35,6 +35,7 @@ impl CliConfig {
 }
 
 impl CliConfig {
+    #[allow(dead_code)]
     pub async fn update_dev_server_url(&self, url: String) -> Result<&Self, CommonError> {
         let mut config = self.0.lock().await;
         config.dev_server = Some(DevServerConfig {
@@ -52,6 +53,7 @@ impl CliConfig {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn get_config(&self) -> Result<CliConfigInner, CommonError> {
         let config = self.0.lock().await;
         Ok(config.clone())
@@ -105,6 +107,7 @@ pub async fn get_or_init_cli_config() -> Result<CliConfig, CommonError> {
 }
 
 
+#[allow(dead_code)]
 pub async fn ensure_user_is_set(config: &CliConfigInner) -> Result<CliUser, CommonError> {
     match config.cloud.user.clone() {
         Some(user) => Ok(user),
@@ -116,6 +119,7 @@ pub async fn ensure_user_is_set(config: &CliConfigInner) -> Result<CliUser, Comm
     }
 }
 
+#[allow(dead_code)]
 pub async fn get_cloud_api_config(
     config: &CliConfig,
 ) -> Result<soma_api_client::apis::configuration::Configuration, CommonError> {
@@ -139,6 +143,7 @@ pub async fn get_cloud_api_config(
     Ok(client)
 }
 
+#[allow(dead_code)]
 pub async fn get_dev_server_api_config(config: &CliConfig) -> Result<soma_api_client::apis::configuration::Configuration, CommonError> {
     let config = config.get_config().await?;
     let dev_server = match config.dev_server.clone() {

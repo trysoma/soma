@@ -43,12 +43,14 @@ pub const PATH_PREFIX: &str = "/api";
 pub const SERVICE_ROUTE_KEY: &str = "mcp";
 pub const API_VERSION_1: &str = "v1";
 
+#[allow(dead_code)]
 pub fn create_router() -> OpenApiRouter<McpService> {
     OpenApiRouter::new()
         .routes(routes!(mcp_sse))
         .routes(routes!(mcp_message))
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct McpServiceInstanceExt {
     pub task_id: WrappedUuidV4,
@@ -57,11 +59,16 @@ pub struct McpServiceInstanceExt {
 #[derive(Clone)]
 pub struct McpServiceInner {
     mcp_tool_router: ToolRouter<McpService>,
+    #[allow(dead_code)]
     mcp_sessions: rmcp::transport::sse_server::TxStore,
+    #[allow(dead_code)]
     mcp_transport_tx:
         tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
+    #[allow(dead_code)]
     mcp_sse_ping_interval: Duration,
+    #[allow(dead_code)]
     repository: Repository,
+    #[allow(dead_code)]
     connection_manager: ConnectionManager,
 }
 
@@ -69,6 +76,7 @@ pub struct McpServiceInner {
 pub struct McpService(pub Arc<McpServiceInner>);
 
 impl McpService {
+    #[allow(dead_code)]
     pub fn new(
         mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<
             rmcp::transport::sse_server::SseServerTransport,
@@ -193,11 +201,12 @@ impl ServerHandler for McpService {
     ),
     operation_id = "listen-to-mcp-sse",
 )]
+#[allow(dead_code)]
 async fn mcp_sse(
     State(app): State<McpService>,
     nested_path: Option<Extension<NestedPath>>,
     parts: Parts,
-    Path(task_id): Path<WrappedUuidV4>,
+    Path(_task_id): Path<WrappedUuidV4>,
 ) -> impl IntoResponse {
     // taken from rmcp sse_handler source code.
     let session = session_id();
@@ -294,6 +303,7 @@ impl PartialSchema for WrappedClientJsonRpcMessage {
     ),
     operation_id = "trigger-mcp-message",
 )]
+#[allow(dead_code)]
 async fn mcp_message(
     State(app): State<McpService>,
     Query(PostEventQuery { session_id }): Query<PostEventQuery>,

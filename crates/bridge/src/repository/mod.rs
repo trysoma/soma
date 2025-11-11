@@ -182,6 +182,7 @@ pub struct ProviderInstancesGroupedByFunctionControllerTypeId {
 }
 
 // Repository trait
+#[allow(async_fn_in_trait)]
 pub trait ProviderRepositoryLike {
     async fn create_resource_server_credential(
         &self,

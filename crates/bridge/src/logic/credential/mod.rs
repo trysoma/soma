@@ -5,12 +5,10 @@ pub mod oauth;
 
 use std::sync::Arc;
 
-use aes_gcm::aead::KeyInit;
 use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::Digest;
 use shared::{
     error::CommonError,
     primitives::{
@@ -855,7 +853,7 @@ async fn rotate_user_credential(
 mod tests {
     use super::*;
     use crate::logic::encryption::{
-        create_data_encryption_key, get_crypto_service, get_decryption_service,
+        create_data_encryption_key, get_crypto_service,
         get_encryption_service, CreateDataEncryptionKeyParams, EnvelopeEncryptionKeyContents,
     };
     use crate::logic::credential::oauth::{
@@ -863,9 +861,9 @@ mod tests {
         Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
         Oauth2AuthorizationCodeFlowUserCredential, OauthAuthFlowController,
     };
-    use crate::logic::StaticProviderCredentialControllerLike;
-    use crate::logic::instance::ProviderInstanceSerialized;
-    use shared::primitives::{SqlMigrationLoader, WrappedUuidV4};
+    
+    
+    use shared::primitives::SqlMigrationLoader;
 
     fn create_temp_kek_file() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
         use rand::RngCore;

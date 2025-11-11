@@ -76,11 +76,14 @@ async fn route_definition(
 }
 
 pub(crate) struct Agent2AgentService {
+    #[allow(dead_code)]
     src_dir: PathBuf,
     soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     host: Url,
     request_handler: Arc<dyn RequestHandler + Send + Sync>,
+    #[allow(dead_code)]
     runtime_port: u16,
+    #[allow(dead_code)]
     repository: Repository,
 }
 
@@ -176,6 +179,7 @@ impl A2aServiceLike for Agent2AgentService {
 
 struct ProxiedAgent {
     connection_manager: ConnectionManager,
+    #[allow(dead_code)]
     soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     repository: Repository,
     restate_ingress_client: RestateIngressClient,

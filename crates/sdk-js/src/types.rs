@@ -1,4 +1,4 @@
-use napi::{bindgen_prelude::*, threadsafe_function::ThreadsafeFunction};
+use napi::threadsafe_function::ThreadsafeFunction;
 use napi_derive::napi;
 
 pub type InvokeFunction = ThreadsafeFunction<InvokeFunctionRequest, InvokeFunctionResponse>;

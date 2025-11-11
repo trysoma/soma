@@ -47,6 +47,7 @@ pub(crate) struct InitRouterParams {
     pub runtime_port: u16,
     pub restate_ingress_client: RestateIngressClient,
     pub restate_admin_client: AdminClient,
+    #[allow(dead_code)]
     pub db_connection: shared::libsql::Connection,
     pub on_bridge_config_change_tx: OnConfigChangeTx,
     pub envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
@@ -158,6 +159,7 @@ pub(crate) fn initiate_routers(routers: Routers) -> Result<Router, CommonError> 
     Ok(router)
 }
 
+#[allow(dead_code)]
 pub(crate) fn generate_openapi_spec() -> OpenApi {
     let (_, mut spec) = frontend::create_router().split_for_parts();
     let (_, agent_spec) = a2a::create_router().split_for_parts();

@@ -53,8 +53,8 @@ where
 impl ServerHandler for BridgeService {
     async fn list_tools(
         &self,
-        request: Option<rmcp::model::PaginatedRequestParam>,
-        context: rmcp::service::RequestContext<rmcp::RoleServer>,
+        _request: Option<rmcp::model::PaginatedRequestParam>,
+        _context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<rmcp::model::ListToolsResult, rmcp::ErrorData> {
         // TODO: could use request.unwrap().cursor to get the next page token
         let function_instances = list_function_instances(
@@ -164,13 +164,13 @@ impl ServerHandler for BridgeService {
     async fn call_tool(
         &self,
         request: rmcp::model::CallToolRequestParam,
-        context: rmcp::service::RequestContext<rmcp::RoleServer>,
+        _context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::ErrorData> {
         let id_arr = request.name.split('.').collect::<Vec<&str>>();
         if id_arr.len() != 3 {
             return Err(rmcp::ErrorData::invalid_request("Invalid tool name", None));
         }
-        let provider_controller_type_id = id_arr[0].to_string();
+        let _provider_controller_type_id = id_arr[0].to_string();
         let function_controller_type_id = id_arr[1].to_string();
         let provider_instance_id = id_arr[2].to_string();
         let function_instance = invoke_function(

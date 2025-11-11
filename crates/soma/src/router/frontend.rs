@@ -55,6 +55,8 @@ const ROUTES_JSON: &[u8] = include_bytes!(concat!(
 
 #[cfg(not(debug_assertions))]
 pub fn create_router() -> OpenApiRouter<Arc<FrontendService>> {
+    use crate::vite::Assets;
+
     let vite = ViteServe::new(Assets::boxed());
 
     #[derive(Debug, Deserialize, Serialize, ToSchema)]

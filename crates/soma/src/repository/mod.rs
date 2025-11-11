@@ -150,6 +150,7 @@ pub trait TaskRepositoryLike {
         id: &WrappedUuidV4,
     ) -> Result<Option<TaskWithDetails>, CommonError>;
     async fn insert_message(&self, params: &CreateMessage) -> Result<(), CommonError>;
+    #[allow(dead_code)]
     async fn get_messages_by_task_id(
         &self,
         task_id: &WrappedUuidV4,

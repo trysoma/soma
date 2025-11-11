@@ -9,7 +9,6 @@ use base64::Engine;
 use rand::RngCore;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sha2::Digest;
 use shared::{
     error::CommonError,
     primitives::{
@@ -160,7 +159,7 @@ impl CryptoService {
     ) -> Result<Self, CommonError> {
         let mut envelop_key_match = false;
 
-        if let EnvelopeEncryptionKeyContents::Local { key_id, key_bytes } =
+        if let EnvelopeEncryptionKeyContents::Local { key_id, key_bytes: _ } =
             &envelope_encryption_key_contents
             && let EnvelopeEncryptionKeyId::Local {
                 key_id: data_encryption_key_id,

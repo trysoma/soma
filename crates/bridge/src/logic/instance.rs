@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
-use aes_gcm::aead::KeyInit;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sha2::Digest;
 use shared::{
     error::CommonError,
     primitives::{
@@ -66,7 +64,7 @@ fn convert_jsonschema_to_openapi(
         if let Some(defs) = obj.remove("$defs") {
             if let Some(defs_obj) = defs.as_object() {
                 // Build a map of all definitions for reference resolution
-                for (def_name, def_schema) in defs_obj {
+                for (def_name, _def_schema) in defs_obj {
                     let component_name = format!("{schema_name_prefix}_{def_name}");
 
                     // Store reference updates to do later

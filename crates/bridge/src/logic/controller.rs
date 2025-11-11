@@ -3,10 +3,8 @@
 
 use std::sync::Arc;
 
-use aes_gcm::aead::KeyInit;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use sha2::Digest;
 use shared::{
     error::CommonError,
     primitives::{

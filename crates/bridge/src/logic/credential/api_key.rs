@@ -166,7 +166,7 @@ impl ProviderCredentialControllerLike for ApiKeyController {
 
     async fn encrypt_user_credential_configuration(
         &self,
-        crypto_service: &EncryptionService,
+        _crypto_service: &EncryptionService,
         raw_user_credential_configuration: WrappedJsonValue,
     ) -> Result<Box<dyn UserCredentialLike>, CommonError> {
         // Parse the raw configuration

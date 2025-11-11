@@ -166,6 +166,7 @@ pub async fn start_dev_file_watcher(
 }
 
 /// Waits for soma.yaml configuration changes
+#[allow(dead_code)]
 pub async fn on_soma_config_change(file_change_rx: &mut FileChangeRx) -> Result<bool, CommonError> {
     loop {
         let event = file_change_rx.recv().await?;
@@ -176,6 +177,7 @@ pub async fn on_soma_config_change(file_change_rx: &mut FileChangeRx) -> Result<
 }
 
 /// Checks if a file change event contains soma.yaml changes (testable)
+#[allow(dead_code)]
 pub fn is_soma_config_change(event: &FileChangeEvt) -> bool {
     event
         .changes

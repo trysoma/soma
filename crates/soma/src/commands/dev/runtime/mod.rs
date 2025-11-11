@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::TryFutureExt;
 use tokio::sync::{broadcast, oneshot};
 use tracing::{error, info};
 
@@ -329,32 +328,32 @@ mod tests {
 
         // Create required files
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
-        fs::write(temp_dir.path().join("index.ts"), "console.log('test');").unwrap();
+        fs::write(temp_dir.path().join("vite.config.ts"), "export default {}").unwrap();
 
         let result = validate_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
-        assert!(result, "Should validate as BunV1 runtime");
+        assert!(result, "Should validate as PnpmV1 runtime");
     }
 
     #[test]
     fn test_validate_runtime_pnpm_v1_missing_package_json() {
         let temp_dir = TempDir::new().unwrap();
 
-        // Only create index.ts
-        fs::write(temp_dir.path().join("index.ts"), "console.log('test');").unwrap();
+        // Only create vite.config.ts
+        fs::write(temp_dir.path().join("vite.config.ts"), "export default {}").unwrap();
 
         let result = validate_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
         assert!(!result, "Should not validate without package.json");
     }
 
     #[test]
-    fn test_validate_runtime_pnpm_v1_missing_index_ts() {
+    fn test_validate_runtime_pnpm_v1_missing_vite_config() {
         let temp_dir = TempDir::new().unwrap();
 
         // Only create package.json
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
 
         let result = validate_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
-        assert!(!result, "Should not validate without index.ts");
+        assert!(!result, "Should not validate without vite.config.ts");
     }
 
     #[test]
@@ -362,7 +361,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
 
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
-        fs::write(temp_dir.path().join("index.ts"), "console.log('test');").unwrap();
+        fs::write(temp_dir.path().join("vite.config.ts"), "export default {}").unwrap();
 
         let runtime = determine_runtime_from_dir(temp_dir.path()).unwrap();
         assert_eq!(runtime, Some(Runtime::PnpmV1));
