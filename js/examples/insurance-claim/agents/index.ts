@@ -1,5 +1,5 @@
 import { createSomaAgent, patterns } from "@soma/sdk";
-import { DefaultApi as BridgeApi, generatedBridgeClient } from './../.soma/bridge-client'
+// import { DefaultApi as BridgeApi, generatedBridgeClient } from './../.soma/bridge-client'
 import { CreateMessageRequest, CreateMessageResponse, MessagePartTypeEnum, MessageRole, DefaultApi as SomaApi, TaskStatus, TaskTimelineItem } from '@soma/api-client'
 import { z } from "zod";
 import { LanguageModel, LanguageModelMiddleware, ModelMessage, streamText, tool, wrapLanguageModel } from "ai";
@@ -38,7 +38,7 @@ interface ProcessClaimInput {
 }
 
 const handlers = {
-	discoverClaim: patterns.chat<BridgeApi, DiscoverClaimInput, Assessment>(async ({ ctx, bridge, soma, history, input: { model }, onGoalAchieved, sendMessage }) => {
+	discoverClaim: patterns.chat<any, DiscoverClaimInput, Assessment>(async ({ ctx, bridge, soma, history, input: { model }, onGoalAchieved, sendMessage }) => {
 		const messages = convertToAiSdkMessages(history);
 
 		ctx.console.log("Messages", messages);
@@ -77,7 +77,7 @@ const handlers = {
 			role: MessageRole.Agent,
 		});
 	}),
-	processClaim: patterns.workflow<BridgeApi, ProcessClaimInput, void>(async ({ ctx, bridge, soma, history, input: { assessment }, sendMessage }) => {
+	processClaim: patterns.workflow<any, ProcessClaimInput, void>(async ({ ctx, bridge, soma, history, input: { assessment }, sendMessage }) => {
 		ctx.console.log("Assessment", assessment);
 
 
@@ -92,24 +92,30 @@ const handlers = {
 			role: MessageRole.Agent,
 		});
 
-		await bridge.invokeDanieltrysomaaiGoogleMailSendEmail({
-			googleMailgoogleMailSendEmailParams: {
-				body: "Your claim has been processed. Please find the results attached.",
-				subject: "Insurance Claim Processed",
-				to: assessment.claim.email
-			},
-		});
 
-		await bridge.invokeInternalBotApproveClaim({
-			approveClaimapproveClaimParams: {
-				claim: assessment.claim,
-			}
-		})
+		await ctx.run(async () => await bridge.invokeDanieltrysomaaiGoogleMailSendEmail({
+			googleMailgoogleMailSendEmailParamsWrapper: {
+				params: {
+					body: "Your claim has been processed. Please find the results attached.",
+					subject: "Insurance Claim Processed",
+					to: assessment.claim.email || ""
+				}
+			},
+		}));
+		
+
+		await ctx.run(async () => await bridge.invokeInternalBotApproveClaim({
+			approveClaimapproveClaimParamsWrapper: {
+				params: {
+					claim: assessment.claim,
+				}
+			},
+		}));
 
 	}),
 };
+let generatedBridgeClient = undefined as any;
 export default createSomaAgent({
-	// @ts-ignore
 	generatedBridgeClient,
 	projectId: "danielblignaut",
 	agentId: "insuranceClaimsAgent",

@@ -65,7 +65,7 @@ pub fn determine_runtime_from_dir(src_dir: &Path) -> Result<Option<Runtime>, Com
 fn validate_runtime_pnpm_v1(src_dir: PathBuf) -> Result<bool, CommonError> {
     let files_to_check = vec![
         "package.json",
-        "index.ts",
+        "vite.config.ts",
     ];
     for file in files_to_check {
         let file_path = src_dir.join(file);

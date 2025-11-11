@@ -1,1 +1,38 @@
 version: 0.0.2
+bridge:
+  encryption: {}
+  providers:
+    ca808fb1-43b5-40bd-be87-d3729ec497c8:
+      provider_controller_type_id: google_mail
+      credential_controller_type_id: oauth_auth_flow
+      display_name: daniel@trysoma.ai
+      resource_server_credential:
+        id: b2e81499-16a6-46a0-adf2-bdf80f7b610b
+        type_id: oauth2_authorization_code_flow_resource_server
+        metadata: {}
+        value:
+          client_id: 643015773387-ejuoir75pqh020cslij6etc271bpn7r6.apps.googleusercontent.com
+          client_secret: r2OXAivqgRm0ObdvN0VW7aecbDMbTpI3hfQ80jkcEtf98AjmWfR9/Sguu81SV0PcWlpJN3y+w2hysOFA1B7m
+          metadata: {}
+          redirect_uri: http://localhost:3000/api/bridge/v1/generic-oauth-callback
+        data_encryption_key_id: default
+      user_credential:
+        id: b9d6f3f3-04b9-4efd-ab8e-203349faeab4
+        type_id: oauth2_authorization_code_flow_user
+        metadata: {}
+        value:
+          access_token: rW1RdwW/jUgRnWU4o6eI+Si015oY1gq+kXL3DHhVgVfyZDW+0JkJrMorq9EazwmTypsDIKIO+3fSYA9jsLTVEUgulUtYVe9+wyuWkeq9c0VuFKVOijyMz0rXCg7omAEkR4Gri8kbWmIW+6crgD+cBRcKWoo53O7F1a2O6jSnZXXBp7PyB3PaxgT6WrykDF17eWTX+L9+KZWtjJnrXF7OQKLlOZEngJ8I/AEFYjZDcak29rZDdDqS3ysSluzTDcHmF07bJwhLZ9vrrsGu091eapbr1G9pk+5TMDbeRZM9bwfxIDl6WhVy/S68dUYGjN8xWnMRu0egT9ZKLVx7KyX6NB/cT+Tu/CI72Ljb4AgZoabOaHcXi1u87q4o
+          code: TAtAWBoJftXfpBTbiLdAUtkp29vjCbE9J+a9bitU56tn5hHlv9rDoT1TrvAjGk019QvCAtecaLy3p8CFUBCkh3NDq2FRN6aEvcH6qFU+0SFiEStQIDdYQR87TXeqehPQiB0D6yg=
+          expiry_time: 2025-11-11T06:42:30.779837889Z
+          metadata: {}
+          refresh_token: RDsKQF48xSIsJqKFQk6kGx1cdyujwJpJRdMTfwK/rtQOUe+H8deLHImEft/WMGAzPZcpb+MUh5FBafKc1l5WRiDFcZnudyCStUF7ojd2ersaH/cMdnx0MGnsTvZWGg3GesvMQvwnDEad64pYWcNmvyLONP5aCzQzOP2PDAEYBKzMorg=
+          scopes:
+          - https://www.googleapis.com/auth/userinfo.profile
+          - https://www.googleapis.com/auth/gmail.compose
+          - https://www.googleapis.com/auth/gmail.send
+          - openid
+          - https://www.googleapis.com/auth/gmail.readonly
+          - https://www.googleapis.com/auth/userinfo.email
+          sub: '107313083092903712383'
+        next_rotation_time: 2025-11-11T06:37:30.779837889+00:00
+        data_encryption_key_id: default

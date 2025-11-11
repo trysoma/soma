@@ -371,6 +371,8 @@ pub async fn get_function_instances_openapi_spec(
                 let response_schema_name = format!("{}{}Response",
                     provider_instance.provider_instance.provider_controller_type_id,
                     function_instance.function_controller_type_id);
+                // Wrapper schema name that matches InvokeFunctionParamsInner structure
+                let wrapper_schema_name = format!("{}Wrapper", params_schema_name);
 
                 // Convert params schema: schemars::Schema -> OpenAPI schema
                 let params_schema = function_controller.parameters();
@@ -392,6 +394,18 @@ pub async fn get_function_instances_openapi_spec(
                         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize def schema {}: {}", def_name, e)))?;
                     components = components.schema(def_name, def_utoipa_schema);
                 }
+
+                // Create wrapper schema that matches InvokeFunctionParamsInner structure
+                // This wraps the params in a "params" field as expected by the API
+                let wrapper_schema = utoipa::openapi::ObjectBuilder::new()
+                    .title(Some(&wrapper_schema_name))
+                    .property(
+                        "params",
+                        RefOr::Ref(Ref::from_schema_name(&params_schema_name))
+                    )
+                    .required("params")
+                    .build();
+                components = components.schema(wrapper_schema_name.clone(), wrapper_schema);
 
                 // Convert response schema: schemars::Schema -> OpenAPI schema
                 let response_schema = function_controller.output();
@@ -435,7 +449,7 @@ pub async fn get_function_instances_openapi_spec(
                             RequestBody::builder()
                                 .required(Some(Required::True))
                                 .content("application/json", Content::builder()
-                                    .schema(Some(RefOr::Ref(Ref::from_schema_name(format!("{}{}Params", provider_instance.provider_instance.provider_controller_type_id, function_instance.function_controller_type_id)))))
+                                    .schema(Some(RefOr::Ref(Ref::from_schema_name(&wrapper_schema_name))))
                                     .build())
                                 .build()
                         ))

@@ -70,10 +70,10 @@ pub async fn register_deployment(config: DeploymentRegistrationConfig) -> Result
     wait_for_healthy_admin(&config).await?;
 
     // For HTTP deployments, also check if the service endpoint is healthy
-    // TODO: do we need to worry about health endpoint for our actual service?
-    // if let DeploymentType::Http { uri, .. } = &config.deployment_type {
-    //     wait_for_healthy_http_service(uri).await?;
-    // }
+    // This prevents Restate from trying to discover endpoints before the service is ready
+    if let DeploymentType::Http { uri, .. } = &config.deployment_type {
+        wait_for_healthy_http_service(uri).await?;
+    }
 
     // Register the deployment with retry
     let service_metadata = register_deployment_with_retry(&config).await?;
@@ -92,61 +92,97 @@ pub async fn register_deployment(config: DeploymentRegistrationConfig) -> Result
 }
 
 /// Wait for an HTTP service endpoint to be healthy with exponential backoff
+/// This is a lightweight check - we just verify the service is listening and can accept connections.
+/// Since the SDK server uses HTTP/2, we use a TCP connection check which works regardless of HTTP version.
+/// Restate will handle the actual endpoint discovery after registration.
 async fn wait_for_healthy_http_service(uri: &str) -> Result<()> {
-    const MAX_HEALTH_CHECK_ATTEMPTS: u32 = 10;
-    const INITIAL_BACKOFF_MS: u64 = 1000;
+    const MAX_HEALTH_CHECK_ATTEMPTS: u32 = 5;
+    const INITIAL_BACKOFF_MS: u64 = 500;
+    const CONNECT_TIMEOUT_SECS: u64 = 2;
 
-    info!("Checking health of HTTP service at {}", uri);
+    debug!("Checking if HTTP service at {} is accepting connections", uri);
 
-    // Create a simple HTTP client for health checks
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .map_err(|e| anyhow!("Failed to create HTTP client: {e}"))?;
+    // Parse the URI to extract host and port
+    let url = Url::parse(uri)
+        .map_err(|e| anyhow!("Invalid URI '{uri}': {e}"))?;
+    
+    let host = url.host_str()
+        .ok_or_else(|| anyhow!("URI '{uri}' has no host"))?;
+    let port = url.port()
+        .or_else(|| {
+            // Default ports based on scheme
+            match url.scheme() {
+                "http" => Some(80),
+                "https" => Some(443),
+                _ => None,
+            }
+        })
+        .ok_or_else(|| anyhow!("Could not determine port for URI '{uri}'"))?;
 
     for attempt in 0..MAX_HEALTH_CHECK_ATTEMPTS {
-        // Try to connect to the service endpoint
-        // We'll try a simple GET request to the root path
-        match client.get(uri).send().await {
-            Ok(response) => {
-                // Accept any HTTP response (including 404, 500, etc.) as long as we can connect
-                // This means the service is up and listening
-                // Restate will handle the actual endpoint discovery
-                let status = response.status();
-                if status.is_client_error() || status.is_server_error() {
-                    info!(
-                        "HTTP service at {} is responding (status: {}). Note: {} responses are normal - Restate will discover the correct endpoints",
-                        uri, status, status
-                    );
-                } else {
-                    info!("HTTP service at {} is responding (status: {})", uri, status);
-                }
+        // Use a TCP connection check - this works for HTTP/1.1, HTTP/2, or any protocol
+        match tokio::time::timeout(
+            Duration::from_secs(CONNECT_TIMEOUT_SECS),
+            tokio::net::TcpStream::connect((host, port)),
+        ).await {
+            Ok(Ok(_stream)) => {
+                // Successfully connected - the service is listening
+                debug!("HTTP service at {} is accepting connections", uri);
                 return Ok(());
             }
-            Err(e) => {
-                warn!(
-                    "HTTP service health check failed (attempt {}/{}): {}",
-                    attempt + 1,
-                    MAX_HEALTH_CHECK_ATTEMPTS,
-                    e
-                );
-
-                // Check if it's a connection error (service not up) vs other errors
+            Ok(Err(e)) => {
+                // Connection failed
                 if attempt < MAX_HEALTH_CHECK_ATTEMPTS - 1 {
-                    let backoff_ms = INITIAL_BACKOFF_MS * 2u64.pow(attempt);
+                    debug!(
+                        "HTTP service not ready yet (attempt {}/{}): {}. Will retry...",
+                        attempt + 1,
+                        MAX_HEALTH_CHECK_ATTEMPTS,
+                        e
+                    );
+                    let backoff_ms = INITIAL_BACKOFF_MS * 2u64.pow(attempt.min(3)); // Cap at 4 seconds
                     debug!(
                         "Waiting {}ms before next HTTP service health check attempt",
                         backoff_ms
                     );
                     sleep(Duration::from_millis(backoff_ms)).await;
+                } else {
+                    warn!(
+                        "HTTP service at {} not ready after {} attempts, but proceeding with registration. Restate will retry discovery if needed.",
+                        uri,
+                        MAX_HEALTH_CHECK_ATTEMPTS
+                    );
+                    return Ok(()); // Allow registration to proceed
+                }
+            }
+            Err(_) => {
+                // Timeout
+                if attempt < MAX_HEALTH_CHECK_ATTEMPTS - 1 {
+                    debug!(
+                        "HTTP service connection timeout (attempt {}/{}). Will retry...",
+                        attempt + 1,
+                        MAX_HEALTH_CHECK_ATTEMPTS
+                    );
+                    let backoff_ms = INITIAL_BACKOFF_MS * 2u64.pow(attempt.min(3)); // Cap at 4 seconds
+                    debug!(
+                        "Waiting {}ms before next HTTP service health check attempt",
+                        backoff_ms
+                    );
+                    sleep(Duration::from_millis(backoff_ms)).await;
+                } else {
+                    warn!(
+                        "HTTP service at {} not ready after {} attempts (timeout), but proceeding with registration. Restate will retry discovery if needed.",
+                        uri,
+                        MAX_HEALTH_CHECK_ATTEMPTS
+                    );
+                    return Ok(()); // Allow registration to proceed
                 }
             }
         }
     }
 
-    Err(anyhow!(
-        "HTTP service at {uri} did not become healthy after {MAX_HEALTH_CHECK_ATTEMPTS} attempts"
-    ))
+    // Should not reach here, but if we do, allow registration to proceed
+    warn!("HTTP service health check completed with issues, but proceeding with registration");
+    Ok(())
 }
 
 /// Wait for the Restate admin endpoint to be healthy with exponential backoff

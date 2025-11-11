@@ -73,14 +73,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
         .map(|enc| enc.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
         .unwrap_or_default();
 
-    // Delete keys not in yaml
-    for (key_id, _) in existing_keys.iter() {
-        if !yaml_keys.contains_key(key_id) {
-            delete_data_encryption_key(on_config_change_tx, bridge_repo, key_id.clone(), false).await?;
-        }
-    }
-
-    // Create/update keys from yaml
+    // Create/update keys from yaml (but don't delete yet - wait until after providers are synced)
     for (key_id, encryption_config) in &yaml_keys {
         if !existing_keys.contains_key(key_id) {
             create_data_encryption_key(
@@ -374,6 +367,54 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
         }
     }
 
+    // 3. Delete unused data encryption keys (after providers are synced, so credentials are cleaned up)
+    // Get all credentials to check which keys are still in use
+    let keys_in_use: HashSet<String> = {
+        let mut in_use = HashSet::new();
+        
+        // Check resource server credentials
+        let mut next_page_token: Option<String> = None;
+        loop {
+            let pagination = PaginationRequest {
+                page_size: 100,
+                next_page_token: next_page_token.clone(),
+            };
+            let response = bridge_repo.list_resource_server_credentials(&pagination).await?;
+            for cred in response.items {
+                in_use.insert(cred.data_encryption_key_id);
+            }
+            if response.next_page_token.is_none() {
+                break;
+            }
+            next_page_token = response.next_page_token;
+        }
+        
+        // Check user credentials
+        let mut next_page_token: Option<String> = None;
+        loop {
+            let pagination = PaginationRequest {
+                page_size: 100,
+                next_page_token: next_page_token.clone(),
+            };
+            let response = bridge_repo.list_user_credentials(&pagination).await?;
+            for cred in response.items {
+                in_use.insert(cred.data_encryption_key_id);
+            }
+            if response.next_page_token.is_none() {
+                break;
+            }
+            next_page_token = response.next_page_token;
+        }
+        
+        in_use
+    };
+
+    // Delete keys not in yaml and not in use by any credentials
+    for (key_id, _) in existing_keys.iter() {
+        if !yaml_keys.contains_key(key_id) && !keys_in_use.contains(key_id) {
+            delete_data_encryption_key(on_config_change_tx, bridge_repo, key_id.clone(), false).await?;
+        }
+    }
 
     info!("Bridge synced from soma definition");
 

@@ -278,11 +278,24 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         config: ProviderConfig,
     ) -> Result<(), CommonError> {
         let mut definition = self.cached_definition.lock().await;
-
+        
+        // Create bridge configuration if it doesn't exist (same as add_provider)
+        if definition.bridge.is_none() {
+            definition.bridge = Some(BridgeConfig {
+                encryption: BridgeEncryptionConfig(HashMap::new()),
+                providers: Some(HashMap::new()),
+            });
+        }
+        
         let bridge = match &mut definition.bridge {
             Some(bridge) => bridge,
             None => return Err(CommonError::Unknown(anyhow::anyhow!("Bridge configuration not found"))),
         };
+
+        // Create providers HashMap if it doesn't exist
+        if bridge.providers.is_none() {
+            bridge.providers = Some(HashMap::new());
+        }
 
         let providers = match &mut bridge.providers {
             Some(providers) => providers,

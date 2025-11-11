@@ -24,6 +24,7 @@ pub struct RestateServerLocalParams {
     pub ingress_port: u16,
     pub admin_port: u16,
     pub advertised_node_port: u16,
+    pub clean: bool,
 }
 
 #[derive(Clone)]
@@ -164,8 +165,18 @@ async fn start_restate_server_local(params: RestateServerLocalParams, kill_signa
         return Err(CommonError::Unknown(anyhow::anyhow!("Restate advertised node address is in use (127.0.0.1:{})", params.advertised_node_port)));
     }
 
-
-
+    // Delete Restate data directory if --clean flag is set
+    if params.clean {
+        let restate_data_dir = params.project_dir.join(".soma/restate-data");
+        if restate_data_dir.exists() {
+            info!("Cleaning Restate data directory: {}", restate_data_dir.display());
+            std::fs::remove_dir_all(&restate_data_dir)
+                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to delete Restate data directory: {}", e)))?;
+            info!("Restate data directory deleted successfully");
+        } else {
+            info!("Restate data directory does not exist, skipping clean");
+        }
+    }
 
     let mut cmd = Command::new("restate-server");
     
