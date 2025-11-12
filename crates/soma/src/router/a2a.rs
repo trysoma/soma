@@ -4,7 +4,6 @@ use a2a_rs::events::InMemoryQueueManager;
 use a2a_rs::service::A2aServiceLike;
 use a2a_rs::tasks::base_push_notification_sender::BasePushNotificationSenderBuilder;
 use a2a_rs::tasks::in_memory_push_notification_config_store::InMemoryPushNotificationConfigStoreBuilder;
-use a2a_rs::types::TaskStatusUpdateEvent;
 use a2a_rs::{
     adapters::jsonrpc::axum::create_router as create_a2a_router,
     agent_execution::{agent_executor::AgentExecutor, context::RequestContext},
@@ -37,7 +36,7 @@ use crate::a2a::RepositoryTaskStore;
 use crate::logic::{
     self, ConnectionManager, CreateMessageRequest, UpdateTaskStatusRequest, WithTaskId, update_task_status
 };
-use crate::repository::{CreateTask, Repository, TaskRepositoryLike, UpdateTaskStatus};
+use crate::repository::{CreateTask, Repository, TaskRepositoryLike};
 use crate::utils::restate::admin_client::AdminClient;
 use crate::utils::restate::invoke::{
     RestateIngressClient, construct_initial_object_id,
@@ -77,11 +76,14 @@ async fn route_definition(
 }
 
 pub(crate) struct Agent2AgentService {
+    #[allow(dead_code)]
     src_dir: PathBuf,
     soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     host: Url,
     request_handler: Arc<dyn RequestHandler + Send + Sync>,
+    #[allow(dead_code)]
     runtime_port: u16,
+    #[allow(dead_code)]
     repository: Repository,
 }
 
@@ -177,6 +179,7 @@ impl A2aServiceLike for Agent2AgentService {
 
 struct ProxiedAgent {
     connection_manager: ConnectionManager,
+    #[allow(dead_code)]
     soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     repository: Repository,
     restate_ingress_client: RestateIngressClient,
@@ -373,7 +376,7 @@ impl AgentExecutor for ProxiedAgent {
                 .ok_or_else(|| {
                     CommonError::Unknown(anyhow::anyhow!("No agents registered"))
                 })?;
-            let service_name = format!("{}.{}", project_id, agent_id);
+            let service_name = format!("{project_id}.{agent_id}");
             let object_id = construct_initial_object_id(&task.id);
 
             

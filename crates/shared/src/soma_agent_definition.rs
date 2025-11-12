@@ -186,7 +186,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             key_id.clone(),
             EncryptionConfiguration {
                 encrypted_data_encryption_key: key,
-                envelope_encryption_key_id: envelope_encryption_key_id,
+                envelope_encryption_key_id,
             },
         );
         info!("Data encryption key added to bridge: {:?}", key_id);

@@ -2,11 +2,11 @@ version: "2"
 plugins:
   - name: sqlc-gen-from-template
     process:
-      cmd: "./../../sqlc-gen-from-template"
+      cmd: "sqlc-gen-from-template"
 sql:
   - engine: "sqlite"
-    schema: "./migrations"
-    queries: "./queries"
+    schema: "./dbs/bridge/schema.sql"
+    queries: "./dbs/bridge/queries"
     codegen:
       - out: "src/repository/sqlite"
         plugin: "sqlc-gen-from-template"

@@ -1,17 +1,14 @@
 use async_trait::async_trait;
-use http::HeaderValue;
-use reqwest::Request;
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use shared::{
     error::CommonError,
-    primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedSchema},
+    primitives::{WrappedJsonValue, WrappedSchema},
 };
-use std::collections::HashMap;
 
 use crate::logic::{
-    schemars_make_password, BrokerAction, BrokerInput, BrokerOutcome, BrokerState, ConfigurationSchema, Credential, DecryptionService, EncryptedString, EncryptionService, Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike, ResourceServerCredentialSerialized, RotateableControllerUserCredentialLike, RotateableCredentialLike, StaticCredentialConfigurationLike, StaticProviderCredentialControllerLike, UserCredentialBrokerLike, UserCredentialLike, UserCredentialSerialized
+    ConfigurationSchema, EncryptionService, Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike, StaticCredentialConfigurationLike, StaticProviderCredentialControllerLike, UserCredentialLike
 };
 
 // ============================================================================
@@ -117,10 +114,10 @@ impl ProviderCredentialControllerLike for NoAuthController {
     fn configuration_schema(&self) -> ConfigurationSchema {
         ConfigurationSchema {
             resource_server: WrappedSchema::new(
-                schema_for!(NoAuthResourceServerCredential).into(),
+                schema_for!(NoAuthResourceServerCredential),
             ),
             user_credential: WrappedSchema::new(
-                schema_for!(NoAuthUserCredential).into(),
+                schema_for!(NoAuthUserCredential),
             ),
         }
     }
@@ -131,7 +128,7 @@ impl ProviderCredentialControllerLike for NoAuthController {
         raw_resource_server_configuration: WrappedJsonValue,
     ) -> Result<Box<dyn ResourceServerCredentialLike>, CommonError> {
         // Parse the raw configuration
-        let mut config: NoAuthResourceServerCredential =
+        let config: NoAuthResourceServerCredential =
             serde_json::from_value(raw_resource_server_configuration.into())?;
 
         Ok(Box::new(config))
@@ -143,7 +140,7 @@ impl ProviderCredentialControllerLike for NoAuthController {
         raw_user_credential_configuration: WrappedJsonValue,
     ) -> Result<Box<dyn UserCredentialLike>, CommonError> {
         // Parse the raw configuration
-        let mut config: NoAuthUserCredential =
+        let config: NoAuthUserCredential =
             serde_json::from_value(raw_user_credential_configuration.into())?;
 
         // Encrypt sensitive fields

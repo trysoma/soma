@@ -1,0 +1,16 @@
+{
+	"compileOnSave": true,
+	"include": ["**/*.ts"],
+	"exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.spec.ts", "vitest.config.ts"],
+	"compilerOptions": {
+	  "module": "es2022",
+	  "moduleResolution": "node",
+	  "noImplicitReturns": true,
+	  "outDir": "dist",
+	  "sourceMap": true,
+	  "strict": true,
+	  "target": "es2022",
+	  "skipLibCheck": true,
+	  "esModuleInterop": true
+	}
+  }

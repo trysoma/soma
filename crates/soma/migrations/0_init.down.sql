@@ -1,3 +1,0 @@
-DROP TABLE IF EXISTS task_timeline;
-DROP TABLE IF EXISTS message;
-DROP TABLE IF EXISTS task;

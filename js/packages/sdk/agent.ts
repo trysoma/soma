@@ -1,9 +1,8 @@
 // import { Artifact, Message, TaskStatus } from "@a2a-js/sdk";
 import * as restate from "@restatedev/restate-sdk";
 import { DefaultApi } from "@soma/api-client";
-import { BaseAPI, Configuration as BridgeConfiguration } from './bridge';
 
-export interface HandlerParams<T> {
+export interface HandlerParams {
     taskId: string;
     contextId: string;
     // TODO: add support for artifacts
@@ -14,21 +13,19 @@ export interface HandlerParams<T> {
     // status: TaskStatus['state']
     ctx: restate.ObjectContext;
     soma: DefaultApi
-    bridge: T
 }
 
-interface CreateSomaAgentParams<T> {
-    generatedBridgeClient: (basePath: string) => T
+interface CreateSomaAgentParams {
     projectId: string
     agentId: string
     name: string
     description: string
-    entrypoint: (params: HandlerParams<T>) => Promise<void>
+    entrypoint: (params: HandlerParams) => Promise<void>
 }
 
-export type SomaAgent<T> = CreateSomaAgentParams<T>
+export type SomaAgent = CreateSomaAgentParams
 
-export const createSomaAgent = <T>(params: CreateSomaAgentParams<T>): SomaAgent<T> => {
+export const createSomaAgent = (params: CreateSomaAgentParams): SomaAgent => {
     return {
         ...params,
     }

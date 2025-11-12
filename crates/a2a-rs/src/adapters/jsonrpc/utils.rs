@@ -87,7 +87,7 @@ use std::fmt::Debug;
 
 use axum::{
     Json,
-    response::{IntoResponse, Redirect, Response},
+    response::{IntoResponse, Response},
 };
 use http::StatusCode;
 use tracing::error;

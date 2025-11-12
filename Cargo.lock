@@ -4639,6 +4639,7 @@ dependencies = [
 [[package]]
 name = "rmcp"
 version = "0.7.0"
+source = "git+https://github.com/trysoma/modelcontextprotocol-rust-sdk?rev=6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c#6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c"
 dependencies = [
  "axum 0.8.6",
  "base64 0.22.1",
@@ -4668,6 +4669,7 @@ dependencies = [
 [[package]]
 name = "rmcp-macros"
 version = "0.7.0"
+source = "git+https://github.com/trysoma/modelcontextprotocol-rust-sdk?rev=6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c#6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c"
 dependencies = [
  "darling 0.21.3",
  "proc-macro2",
@@ -5162,17 +5164,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_repr"
-version = "0.1.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.106",
-]
-
-[[package]]
 name = "serde_spanned"
 version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5459,7 +5450,6 @@ dependencies = [
  "serde_yaml",
  "shared",
  "shared-macros",
- "soma-api-client",
  "tempfile",
  "thiserror 2.0.17",
  "tokio",
@@ -5477,19 +5467,6 @@ dependencies = [
  "vite-rs",
  "vite-rs-axum-0-8",
  "workspace-hack",
-]
-
-[[package]]
-name = "soma-api-client"
-version = "0.0.1"
-dependencies = [
- "reqwest",
- "serde",
- "serde_json",
- "serde_repr",
- "serde_with",
- "url",
- "uuid",
 ]
 
 [[package]]
@@ -7032,31 +7009,38 @@ version = "0.1.0"
 dependencies = [
  "ahash",
  "aho-corasick",
+ "axum 0.8.6",
+ "axum-core 0.5.5",
  "bitflags 2.9.4",
  "byteorder",
  "bytes",
+ "cc",
  "chrono",
+ "crossbeam-utils",
  "crypto-common 0.1.6",
- "darling 0.21.3",
- "darling_core 0.21.3",
  "digest 0.10.7",
  "either",
  "enumset",
  "futures-channel",
  "futures-core",
  "futures-sink",
+ "futures-task",
  "futures-util",
  "getrandom 0.2.16",
  "getrandom 0.3.3",
  "hashbrown 0.14.5",
  "hyper 1.6.0",
+ "hyper-rustls 0.27.7",
  "hyper-util",
  "idna",
  "indexmap 2.11.4",
  "libc",
  "log",
- "memchr",
+ "mime_guess",
  "mio",
+ "napi",
+ "num-bigint",
+ "num-integer",
  "num-traits",
  "percent-encoding",
  "phf_shared",
@@ -7067,6 +7051,7 @@ dependencies = [
  "quote",
  "rand 0.8.5",
  "rand_core 0.6.4",
+ "regex",
  "regex-automata",
  "regex-syntax",
  "reqwest",
@@ -7077,9 +7062,11 @@ dependencies = [
  "serde",
  "serde_core",
  "serde_json",
+ "serde_with",
  "sha2 0.10.9",
  "smallvec",
  "syn 2.0.106",
+ "sync_wrapper 1.0.2",
  "tokio",
  "tokio-rustls 0.26.4",
  "tokio-stream",
@@ -7093,6 +7080,7 @@ dependencies = [
  "uncased",
  "uuid",
  "vite-rs-dev-server",
+ "zeroize",
 ]
 
 [[package]]

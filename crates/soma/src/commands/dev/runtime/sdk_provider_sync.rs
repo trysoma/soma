@@ -114,11 +114,11 @@ fn register_provider_from_proto(
 /// Parse JSON schema string into WrappedSchema
 fn parse_schema_string(schema_str: &str) -> Result<WrappedSchema, CommonError> {
     let schema_value: serde_json::Value = serde_json::from_str(schema_str)
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse schema: {}", e)))?;
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse schema: {e}")))?;
 
     // Convert JSON Value to schemars::Schema
     let schema: schemars::Schema = serde_json::from_value(schema_value)
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to convert to Schema: {}", e)))?;
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to convert to Schema: {e}")))?;
 
     Ok(WrappedSchema::new(schema))
 }

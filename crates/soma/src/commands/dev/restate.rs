@@ -1,22 +1,16 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use tokio::process::Command;
-use tokio::sync::{broadcast, oneshot};
-use tracing::{error, info};
+use tracing::info;
 use url::Url;
 
 use shared::command::run_child_process;
 use shared::error::CommonError;
-use shared::soma_agent_definition::SomaAgentDefinitionLike;
 
 use crate::utils::restate::admin_client::AdminClient;
 use crate::utils::restate::invoke::RestateIngressClient;
 use crate::utils::{is_port_in_use, restate};
-use crate::utils::restate::deploy::DeploymentRegistrationConfig;
 
-use super::DevParams;
 
 #[derive(Clone)]
 pub struct RestateServerLocalParams {
@@ -70,29 +64,29 @@ impl RestateServerParams {
 
     pub fn get_admin_token(&self) -> Option<String> {
         match self {
-            RestateServerParams::Local(params) => None,
+            RestateServerParams::Local(_params) => None,
             RestateServerParams::Remote(params) => params.admin_token.clone(),
         }
     }
 
     pub fn get_private(&self) -> bool {
         match self {
-            RestateServerParams::Local(params) => false,
-            RestateServerParams::Remote(params) => false,
+            RestateServerParams::Local(_params) => false,
+            RestateServerParams::Remote(_params) => false,
         }
     }
 
     pub fn get_insecure(&self) -> bool {
         match self {
-            RestateServerParams::Local(params) => true,
-            RestateServerParams::Remote(params) => false,
+            RestateServerParams::Local(_params) => true,
+            RestateServerParams::Remote(_params) => false,
         }
     }
 
     pub fn get_force(&self) -> bool {
         match self {
-            RestateServerParams::Local(params) => true,
-            RestateServerParams::Remote(params) => true,
+            RestateServerParams::Local(_params) => true,
+            RestateServerParams::Remote(_params) => true,
         }
     }
 }
@@ -100,10 +94,11 @@ impl RestateServerParams {
 
 /// Registers the deployment with Restate
 /// TODO: this should be moved to the deployment subsystem and run on metadata response to register all agents in the metadata response
+#[allow(dead_code)]
 pub async fn start_restate_deployment(
-    params: &RestateServerParams,
-    deployment_type: restate::deploy::DeploymentType,
-    service_path: String,
+    _params: &RestateServerParams,
+    _deployment_type: restate::deploy::DeploymentType,
+    _service_path: String,
 ) -> Result<(), CommonError> {
     info!("Starting Restate deployment registration");
 
@@ -171,7 +166,7 @@ async fn start_restate_server_local(params: RestateServerLocalParams, kill_signa
         if restate_data_dir.exists() {
             info!("Cleaning Restate data directory: {}", restate_data_dir.display());
             std::fs::remove_dir_all(&restate_data_dir)
-                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to delete Restate data directory: {}", e)))?;
+                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to delete Restate data directory: {e}")))?;
             info!("Restate data directory deleted successfully");
         } else {
             info!("Restate data directory does not exist, skipping clean");
@@ -189,7 +184,7 @@ async fn start_restate_server_local(params: RestateServerLocalParams, kill_signa
         .env("RESTATE__INGRESS__BIND_ADDRESS", format!("127.0.0.1:{}", params.ingress_port))
         .env("RESTATE__ADMIN__BIND_ADDRESS", format!("127.0.0.1:{}", params.admin_port))
         .env("RESTATE__ADVERTISED_ADDRESS", format!("127.0.0.1:{}", params.advertised_node_port));
-    let result =run_child_process(
+    run_child_process(
         "restate-server",
         cmd,
         Some(kill_signal_rx),
@@ -199,8 +194,8 @@ async fn start_restate_server_local(params: RestateServerLocalParams, kill_signa
     Ok(())
 }
 
-async fn start_restate_server_remote(params: RestateServerRemoteParams) -> Result<(), CommonError> {
+async fn start_restate_server_remote(_params: RestateServerRemoteParams) -> Result<(), CommonError> {
     // TODO: should just perform a curl request to the admin address / ingress address to check health and client can connect.
-    
+
     Ok(())
 }

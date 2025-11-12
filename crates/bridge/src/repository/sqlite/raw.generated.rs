@@ -1,5 +1,4 @@
 
-
 #[allow(unused)]
 use serde::{Serialize, Deserialize};
   pub struct create_resource_server_credential_params<'a> {
@@ -42,20 +41,20 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <crate::logic::Metadata as TryInto<libsql::Value>>::try_into(params.metadata.clone())
-                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                  .map_err(libsql::Error::ToSqlConversionFailure)?
             ,
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.value.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              match params.next_rotation_time.clone() {
+              match *params.next_rotation_time {
                 Some(value) => {
-                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value)
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
                 },
                 None => libsql::Value::Null,
@@ -150,20 +149,20 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <crate::logic::Metadata as TryInto<libsql::Value>>::try_into(params.metadata.clone())
-                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                  .map_err(libsql::Error::ToSqlConversionFailure)?
             ,
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.value.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              match params.next_rotation_time.clone() {
+              match *params.next_rotation_time {
                 Some(value) => {
-                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value)
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
                 },
                 None => libsql::Value::Null,
@@ -275,11 +274,11 @@ WHERE id = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_user_credentials_params<'_>
   ) -> Result<Vec<Row_get_user_credentials>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
+      let stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
 FROM user_credential WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
+      let mut rows = stmt.query(libsql::params![(*params.cursor),(*params.page_size),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -322,11 +321,11 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_resource_server_credentials_params<'_>
   ) -> Result<Vec<Row_get_resource_server_credentials>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
+      let stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
 FROM resource_server_credential WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
+      let mut rows = stmt.query(libsql::params![(*params.cursor),(*params.page_size),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -400,10 +399,10 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
                 None => libsql::Value::Null,
               }
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <String as TryInto<libsql::Value>>::try_into(params.provider_controller_type_id.clone())
@@ -629,10 +628,10 @@ VALUES (?, ?, ?, ?, ?)"#, libsql::params![
               <String as TryInto<libsql::Value>>::try_into(params.provider_instance_id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
     ]).await
@@ -745,10 +744,10 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
               <String as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <String as TryInto<libsql::Value>>::try_into(params.provider_instance_id.clone())
@@ -761,7 +760,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <crate::logic::Metadata as TryInto<libsql::Value>>::try_into(params.metadata.clone())
-                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                  .map_err(libsql::Error::ToSqlConversionFailure)?
             ,
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.action.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
@@ -986,15 +985,15 @@ VALUES (?, ?, ?, ?, ?)"#, libsql::params![
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <crate::logic::encryption::EnvelopeEncryptionKeyId as TryInto<libsql::Value>>::try_into(params.envelope_encryption_key_id.clone())
-                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                  .map_err(libsql::Error::ToSqlConversionFailure)?
             ,
               <crate::logic::encryption::EncryptedDataEncryptionKey as TryInto<libsql::Value>>::try_into(params.encryption_key.clone())
+                  .map_err(libsql::Error::ToSqlConversionFailure)?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
-                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
-            ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
     ]).await
@@ -1074,11 +1073,11 @@ WHERE id = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_data_encryption_keys_params<'_>
   ) -> Result<Vec<Row_get_data_encryption_keys>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, created_at, updated_at
 FROM data_encryption_key WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
+      let mut rows = stmt.query(libsql::params![(*params.cursor),(*params.page_size),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -1128,7 +1127,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_provider_instances_params<'_>
   ) -> Result<Vec<Row_get_provider_instances>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT
+      let stmt = conn.prepare(r#"SELECT
     pi.id,
     pi.display_name,
     pi.resource_server_credential_id,
@@ -1189,7 +1188,7 @@ WHERE (pi.created_at < ?1 OR ?1 IS NULL)
   AND (CAST(pi.provider_controller_type_id = ?3 AS TEXT) OR ?3 IS NULL)
 ORDER BY pi.created_at DESC
 LIMIT CAST(?4 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.status.clone(),params.provider_controller_type_id.clone(),params.page_size.clone(),]).await?;
+      let mut rows = stmt.query(libsql::params![(*params.cursor),params.status.clone(),params.provider_controller_type_id.clone(),(*params.page_size),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -1237,13 +1236,13 @@ LIMIT CAST(?4 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_function_instances_params<'_>
   ) -> Result<Vec<Row_get_function_instances>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT function_controller_type_id, provider_controller_type_id, provider_instance_id, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT function_controller_type_id, provider_controller_type_id, provider_instance_id, created_at, updated_at
 FROM function_instance
 WHERE (created_at < ?1 OR ?1 IS NULL)
   AND (CAST(provider_instance_id = ?2 AS TEXT) OR ?2 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.provider_instance_id.clone(),params.page_size.clone(),]).await?;
+      let mut rows = stmt.query(libsql::params![(*params.cursor),params.provider_instance_id.clone(),(*params.page_size),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -1274,7 +1273,7 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_provider_instances_grouped_by_function_controller_type_id_params<'_>
   ) -> Result<Vec<Row_get_provider_instances_grouped_by_function_controller_type_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT
+      let stmt = conn.prepare(r#"SELECT
     fi.function_controller_type_id,
     CAST(
         JSON_GROUP_ARRAY(
@@ -1412,17 +1411,17 @@ WHERE id = ?5"#, libsql::params![
                 None => libsql::Value::Null,
               }
             ,
-              match params.next_rotation_time.clone() {
+              match *params.next_rotation_time {
                 Some(value) => {
-                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value)
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
                 },
                 None => libsql::Value::Null,
               }
             ,
-              match params.updated_at.clone() {
+              match *params.updated_at {
                 Some(value) => {
-                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value)
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
                 },
                 None => libsql::Value::Null,
@@ -1489,17 +1488,17 @@ WHERE id = ?5"#, libsql::params![
                 None => libsql::Value::Null,
               }
             ,
-              match params.next_rotation_time.clone() {
+              match *params.next_rotation_time {
                 Some(value) => {
-                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value)
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
                 },
                 None => libsql::Value::Null,
               }
             ,
-              match params.updated_at.clone() {
+              match *params.updated_at {
                 Some(value) => {
-                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value)
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
                 },
                 None => libsql::Value::Null,
@@ -1543,7 +1542,7 @@ WHERE id = ?5"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_provider_instances_with_credentials_params<'_>
   ) -> Result<Vec<Row_get_provider_instances_with_credentials>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT
+      let stmt = conn.prepare(r#"SELECT
     pi.id,
     pi.display_name,
     pi.provider_controller_type_id,
@@ -1596,7 +1595,7 @@ WHERE (pi.created_at < ?1 OR ?1 IS NULL)
   )
 ORDER BY pi.created_at DESC
 LIMIT CAST(?4 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.status.clone(),params.rotation_window_end.clone(),params.page_size.clone(),]).await?;
+      let mut rows = stmt.query(libsql::params![(*params.cursor),params.status.clone(),(*params.rotation_window_end),(*params.page_size),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {

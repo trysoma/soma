@@ -31,7 +31,6 @@ interface AgentMetadata {
   name?: string
   description?: string
   handlers?: string[]
-  generatedBridgeClient?: unknown
   error?: string
   [key: string]: unknown
 }
@@ -268,13 +267,11 @@ type RestateHandler = (ctx: restate.ObjectContext, input: RestateInput) => Promi
 type SomaHandler<T> = (params: HandlerParams<T>) => Promise<void>;
 const wrapHandler = <T>(handler: SomaHandler<T>, agent: SomaAgent<T>): RestateHandler => {
   return async (ctx, input) => {
-    const bridge = agent.generatedBridgeClient(process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000');
     const soma = new DefaultApi(new SomaConfiguration({
       basePath: process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000',
     }));
     await handler({
       ctx,
-      bridge,
       soma,
       taskId: input.taskId,
       contextId: input.contextId,

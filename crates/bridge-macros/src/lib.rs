@@ -183,7 +183,7 @@ pub fn define_provider(input: TokenStream) -> TokenStream {
     let flow_names: Vec<_> = flows.iter().map(|f| &f.flow_name).collect();
 
     // Default scopes
-    let scope_vec = default_scopes.iter().map(|s| quote! { #s.to_string() });
+    let _scope_vec = default_scopes.iter().map(|s| quote! { #s.to_string() });
 
     // save_* match arms
     let match_arms_resource = flow_names.iter().map(|f| quote! {

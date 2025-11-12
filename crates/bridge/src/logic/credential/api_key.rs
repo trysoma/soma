@@ -1,17 +1,14 @@
 use async_trait::async_trait;
-use http::HeaderValue;
-use reqwest::Request;
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use shared::{
     error::CommonError,
-    primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedSchema},
+    primitives::{WrappedJsonValue, WrappedSchema},
 };
-use std::collections::HashMap;
 
 use crate::logic::{
-    schemars_make_password, BrokerAction, BrokerInput, BrokerOutcome, BrokerState, ConfigurationSchema, Credential, DecryptionService, EncryptedString, EncryptionService, Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike, ResourceServerCredentialSerialized, RotateableControllerUserCredentialLike, RotateableCredentialLike, StaticCredentialConfigurationLike, StaticProviderCredentialControllerLike, UserCredentialBrokerLike, UserCredentialLike, UserCredentialSerialized
+    schemars_make_password, ConfigurationSchema, DecryptionService, EncryptedString, EncryptionService, Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike, ResourceServerCredentialSerialized, StaticCredentialConfigurationLike, StaticProviderCredentialControllerLike, UserCredentialLike
 };
 
 // ============================================================================
@@ -143,10 +140,10 @@ impl ProviderCredentialControllerLike for ApiKeyController {
     fn configuration_schema(&self) -> ConfigurationSchema {
         ConfigurationSchema {
             resource_server: WrappedSchema::new(
-                schema_for!(ApiKeyResourceServerCredential).into(),
+                schema_for!(ApiKeyResourceServerCredential),
             ),
             user_credential: WrappedSchema::new(
-                schema_for!(ApiKeyUserCredential).into(),
+                schema_for!(ApiKeyUserCredential),
             ),
         }
     }
@@ -169,11 +166,11 @@ impl ProviderCredentialControllerLike for ApiKeyController {
 
     async fn encrypt_user_credential_configuration(
         &self,
-        crypto_service: &EncryptionService,
+        _crypto_service: &EncryptionService,
         raw_user_credential_configuration: WrappedJsonValue,
     ) -> Result<Box<dyn UserCredentialLike>, CommonError> {
         // Parse the raw configuration
-        let mut config: ApiKeyUserCredential =
+        let config: ApiKeyUserCredential =
             serde_json::from_value(raw_user_credential_configuration.into())?;
 
         Ok(Box::new(config))

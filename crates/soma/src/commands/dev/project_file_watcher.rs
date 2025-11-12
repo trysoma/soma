@@ -1,6 +1,5 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -9,7 +8,7 @@ use globset::{Glob, GlobSet, GlobSetBuilder};
 use notify::{EventKind, RecursiveMode};
 use notify_debouncer_full::{DebounceEventResult, new_debouncer};
 use tokio::sync::{broadcast, mpsc};
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 use shared::error::CommonError;
 
@@ -30,7 +29,7 @@ fn files_to_watch_v1() -> Result<GlobSet, CommonError> {
 }
 
 fn files_to_ignore_v1() -> Result<GlobSet, CommonError> {
-    let mut builder = GlobSetBuilder::new();
+    let builder = GlobSetBuilder::new();
 
     Ok(builder.build()?)
 }
@@ -167,6 +166,7 @@ pub async fn start_dev_file_watcher(
 }
 
 /// Waits for soma.yaml configuration changes
+#[allow(dead_code)]
 pub async fn on_soma_config_change(file_change_rx: &mut FileChangeRx) -> Result<bool, CommonError> {
     loop {
         let event = file_change_rx.recv().await?;
@@ -177,6 +177,7 @@ pub async fn on_soma_config_change(file_change_rx: &mut FileChangeRx) -> Result<
 }
 
 /// Checks if a file change event contains soma.yaml changes (testable)
+#[allow(dead_code)]
 pub fn is_soma_config_change(event: &FileChangeEvt) -> bool {
     event
         .changes

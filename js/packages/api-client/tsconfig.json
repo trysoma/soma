@@ -5,12 +5,16 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "outDir": "dist",
+    "skipLibCheck": true,
     "typeRoots": [
       "node_modules/@types"
     ]
   },
   "exclude": [
     "dist",
-    "node_modules"
+    "node_modules",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "vitest.config.ts"
   ]
 }

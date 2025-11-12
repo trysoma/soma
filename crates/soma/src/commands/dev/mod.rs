@@ -253,7 +253,7 @@ pub async fn cmd_dev(
       let response = client
         .metadata(request)
         .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to get SDK metadata: {}", e)))?;
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to get SDK metadata: {e}")))?;
       let metadata = response.into_inner();
       sync_providers_from_metadata(&metadata)?;
       info!("SDK providers synced successfully");
@@ -364,7 +364,7 @@ pub async fn cmd_dev(
   tokio::spawn(async move {
     let res = start_mcp_connection_manager(StartMcpConnectionManagerParams {
       bridge_service: bridge_service_clone,
-      mcp_transport_rx: mcp_transport_rx,
+      mcp_transport_rx,
       system_shutdown_signal_rx: mcp_system_shutdown_signal_rx,
     }).await;
     match res {
@@ -610,8 +610,7 @@ fn setup_encryption_key(key_encryption_key: Option<String>) -> Result<EnvelopeEn
           }
         } else {
           return Err(CommonError::Unknown(anyhow::anyhow!(
-            "Invalid AWS KMS ARN: {}",
-            key_encryption_key
+            "Invalid AWS KMS ARN: {key_encryption_key}"
           )));
         }
       }

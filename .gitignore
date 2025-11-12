@@ -44,4 +44,7 @@ root
 .cargo
 node_modules
 .env
-.soma
+# Test coverage
+coverage/
+.coverage-tmp/
+.cargo/config.toml.tmp

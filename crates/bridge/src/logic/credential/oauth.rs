@@ -180,10 +180,10 @@ impl ProviderCredentialControllerLike for OauthAuthFlowController {
     fn configuration_schema(&self) -> ConfigurationSchema {
         ConfigurationSchema {
             resource_server: WrappedSchema::new(
-                schema_for!(Oauth2AuthorizationCodeFlowResourceServerCredential).into(),
+                schema_for!(Oauth2AuthorizationCodeFlowResourceServerCredential),
             ),
             user_credential: WrappedSchema::new(
-                schema_for!(Oauth2AuthorizationCodeFlowUserCredential).into(),
+                schema_for!(Oauth2AuthorizationCodeFlowUserCredential),
             ),
         }
     }
@@ -292,7 +292,7 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
         // We need to wait for the callback with the authorization code
         let outcome = BrokerOutcome::Continue {
             state_metadata: config.metadata.clone(),
-            state_id: state_id,
+            state_id,
         };
 
         Ok((action, outcome))
@@ -331,15 +331,13 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
             ])
             .send()
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Token exchange failed: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Token exchange failed: {e}")))?;
 
         let token_status = token_response.status();
         if !token_status.is_success() {
             let error_text = token_response.text().await.unwrap_or_default();
             return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Token exchange failed with status {}: {}",
-                token_status,
-                error_text
+                "Token exchange failed with status {token_status}: {error_text}"
             )));
         }
 
@@ -355,7 +353,7 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
         let token_data: TokenResponse = token_response
             .json()
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {e}")))?;
 
         // Fetch user info to get the subject ID
         let userinfo_response = client
@@ -363,7 +361,7 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
             .bearer_auth(&token_data.access_token)
             .send()
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Userinfo request failed: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Userinfo request failed: {e}")))?;
 
         #[derive(Deserialize)]
         struct UserinfoResponse {
@@ -373,7 +371,7 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
         let userinfo: UserinfoResponse = userinfo_response
             .json()
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse userinfo response: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse userinfo response: {e}")))?;
 
         // Calculate expiry time
         let now = WrappedChronoDateTime::now();
@@ -477,15 +475,13 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
             ])
             .send()
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Token refresh failed: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Token refresh failed: {e}")))?;
 
         let token_status = token_response.status();
         if !token_status.is_success() {
             let error_text = token_response.text().await.unwrap_or_default();
             return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Token refresh failed with status {}: {}",
-                token_status,
-                error_text
+                "Token refresh failed with status {token_status}: {error_text}"
             )));
         }
 
@@ -501,7 +497,7 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
         let token_data: TokenResponse = token_response
             .json()
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {e}")))?;
 
         // Calculate new expiry time
         let now = WrappedChronoDateTime::now();
@@ -547,7 +543,7 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
             type_id: user_cred.type_id.clone(),
             metadata: updated_credential.metadata.clone(),
             value: WrappedJsonValue::new(json!(updated_credential)),
-            created_at: user_cred.created_at.clone(),
+            created_at: user_cred.created_at,
             updated_at: now,
             next_rotation_time: Some(next_rotation_time),
             data_encryption_key_id: user_cred.data_encryption_key_id.clone(),
@@ -713,10 +709,10 @@ impl ProviderCredentialControllerLike for Oauth2JwtBearerAssertionFlowController
     fn configuration_schema(&self) -> ConfigurationSchema {
         ConfigurationSchema {
             resource_server: WrappedSchema::new(
-                schema_for!(Oauth2JwtBearerAssertionFlowResourceServerCredential).into(),
+                schema_for!(Oauth2JwtBearerAssertionFlowResourceServerCredential),
             ),
             user_credential: WrappedSchema::new(
-                schema_for!(Oauth2JwtBearerAssertionFlowUserCredential).into(),
+                schema_for!(Oauth2JwtBearerAssertionFlowUserCredential),
             ),
         }
     }
@@ -831,11 +827,11 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
         };
 
         let encoding_key = EncodingKey::from_rsa_pem(private_key_pem.as_bytes())
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse private key: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse private key: {e}")))?;
 
         let header = Header::new(Algorithm::RS256);
         let jwt = encode(&header, &claims, &encoding_key)
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to generate JWT: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to generate JWT: {e}")))?;
 
         // Exchange JWT for access token
         let client = reqwest::Client::new();
@@ -847,15 +843,13 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
             ])
             .send()
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Token exchange failed: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Token exchange failed: {e}")))?;
 
         let token_status = token_response.status();
         if !token_status.is_success() {
             let error_text = token_response.text().await.unwrap_or_default();
             return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Token exchange failed with status {}: {}",
-                token_status,
-                error_text
+                "Token exchange failed with status {token_status}: {error_text}"
             )));
         }
 
@@ -870,7 +864,7 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
         let token_data: TokenResponse = token_response
             .json()
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {e}")))?;
 
         // Calculate new expiry time
         let now_dt = WrappedChronoDateTime::now();
@@ -913,7 +907,7 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
             type_id: user_cred.type_id.clone(),
             metadata: updated_credential.metadata.clone(),
             value: WrappedJsonValue::new(json!(updated_credential)),
-            created_at: user_cred.created_at.clone(),
+            created_at: user_cred.created_at,
             updated_at: now_dt,
             next_rotation_time: Some(next_rotation_time),
             data_encryption_key_id: user_cred.data_encryption_key_id.clone(),
@@ -953,7 +947,7 @@ mod tests {
         rand::thread_rng().fill_bytes(&mut kek_bytes);
 
         let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
-        std::fs::write(temp_file.path(), &kek_bytes).expect("Failed to write KEK to temp file");
+        std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
 
         let key_id = temp_file
             .path()

@@ -1,30 +1,20 @@
 
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 use aes_gcm::{
     Aes256Gcm, Nonce,
     aead::{Aead, KeyInit, OsRng},
 };
-use async_trait::async_trait;
 use base64::Engine;
-use enum_dispatch::enum_dispatch;
-use once_cell::sync::Lazy;
 use rand::RngCore;
-use reqwest::Request;
-use schemars::{JsonSchema, Schema};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use serde_json::json;
-use sha2::{Digest, Sha256};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use shared::{
     error::CommonError,
     primitives::{
         PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
-        WrappedSchema, WrappedUuidV4,
     },
 };
-use std::fs;
-use std::path::Path;
-use std::sync::RwLock;
 use utoipa::ToSchema;
 
 use crate::logic::{controller::{get_credential_controller, get_provider_controller, WithCredentialControllerTypeId, WithProviderControllerTypeId}, OnConfigChangeEvt, OnConfigChangeTx};
@@ -169,7 +159,7 @@ impl CryptoService {
     ) -> Result<Self, CommonError> {
         let mut envelop_key_match = false;
 
-        if let EnvelopeEncryptionKeyContents::Local { key_id, key_bytes } =
+        if let EnvelopeEncryptionKeyContents::Local { key_id, key_bytes: _ } =
             &envelope_encryption_key_contents
             && let EnvelopeEncryptionKeyId::Local {
                 key_id: data_encryption_key_id,
@@ -240,7 +230,7 @@ impl EncryptionService {
         // Encrypt the data
         let ciphertext = cipher
             .encrypt(nonce, data.as_bytes())
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Encryption failed: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Encryption failed: {e}")))?;
 
         // Prepend the nonce to the ciphertext: [nonce (12 bytes) | ciphertext]
         let mut result = Vec::with_capacity(nonce_bytes.len() + ciphertext.len());
@@ -269,7 +259,7 @@ impl DecryptionService {
         // Base64 decode the input
         let encrypted_data =
             base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &data.0).map_err(
-                |e| CommonError::Unknown(anyhow::anyhow!("Failed to decode base64: {}", e)),
+                |e| CommonError::Unknown(anyhow::anyhow!("Failed to decode base64: {e}")),
             )?;
 
         // Ensure we have at least the nonce (12 bytes)
@@ -301,11 +291,11 @@ impl DecryptionService {
         // Decrypt the ciphertext
         let plaintext = cipher
             .decrypt(nonce, ciphertext)
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Decryption failed: {}", e)))?;
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Decryption failed: {e}")))?;
 
         // Convert to UTF-8 string
         let result = String::from_utf8(plaintext).map_err(|e| {
-            CommonError::Unknown(anyhow::anyhow!("Invalid UTF-8 in decrypted data: {}", e))
+            CommonError::Unknown(anyhow::anyhow!("Invalid UTF-8 in decrypted data: {e}"))
         })?;
 
         Ok(result)
@@ -387,8 +377,7 @@ pub async fn encrypt_data_envelope_key(
                 .await
                 .map_err(|e| {
                     CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to encrypt data envelope key with AWS KMS: {}",
-                        e
+                        "Failed to encrypt data envelope key with AWS KMS: {e}"
                     ))
                 })?;
 
@@ -419,7 +408,7 @@ pub async fn encrypt_data_envelope_key(
                 )));
             }
 
-            let key = aes_gcm::Key::<Aes256Gcm>::from_slice(&key_bytes);
+            let key = aes_gcm::Key::<Aes256Gcm>::from_slice(key_bytes);
             let cipher = Aes256Gcm::new(key);
 
             let mut nonce_bytes = [0u8; 12];
@@ -429,7 +418,7 @@ pub async fn encrypt_data_envelope_key(
             let ciphertext = cipher
                 .encrypt(nonce, data_envelope_key.as_bytes())
                 .map_err(|e| {
-                    CommonError::Unknown(anyhow::anyhow!("Local envelope encryption failed: {}", e))
+                    CommonError::Unknown(anyhow::anyhow!("Local envelope encryption failed: {e}"))
                 })?;
 
             // Combine nonce + ciphertext
@@ -456,8 +445,7 @@ pub async fn decrypt_data_envelope_key(
             )
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!(
-                    "Failed to decode base64 encrypted data envelope key: {}",
-                    e
+                    "Failed to decode base64 encrypted data envelope key: {e}"
                 ))
             })?;
 
@@ -474,8 +462,7 @@ pub async fn decrypt_data_envelope_key(
                 .await
                 .map_err(|e| {
                     CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to decrypt data envelope key with AWS KMS: {}",
-                        e
+                        "Failed to decrypt data envelope key with AWS KMS: {e}"
                     ))
                 })?;
 
@@ -501,15 +488,14 @@ pub async fn decrypt_data_envelope_key(
                 )));
             }
 
-            let key = aes_gcm::Key::<Aes256Gcm>::from_slice(&key_bytes);
+            let key = aes_gcm::Key::<Aes256Gcm>::from_slice(key_bytes);
             let cipher = Aes256Gcm::new(key);
 
             let encrypted_data = base64::engine::general_purpose::STANDARD
                 .decode(&encrypted_data_envelope_key.0)
                 .map_err(|e| {
                     CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to decode base64 encrypted DEK: {}",
-                        e
+                        "Failed to decode base64 encrypted DEK: {e}"
                     ))
                 })?;
 
@@ -523,7 +509,7 @@ pub async fn decrypt_data_envelope_key(
             let ciphertext = &encrypted_data[12..];
 
             let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|e| {
-                CommonError::Unknown(anyhow::anyhow!("Local DEK decryption failed: {}", e))
+                CommonError::Unknown(anyhow::anyhow!("Local DEK decryption failed: {e}"))
             })?;
 
             Ok(DecryptedDataEnvelopeKey(plaintext))
@@ -566,8 +552,7 @@ pub async fn create_data_encryption_key(
                     .await
                     .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(
-                            "Failed to generate data key with AWS KMS: {}",
-                            e
+                            "Failed to generate data key with AWS KMS: {e}"
                         ))
                     })?;
 
@@ -601,7 +586,7 @@ pub async fn create_data_encryption_key(
                     aead::{Aead, KeyInit, OsRng},
                 };
 
-                let key = aes_gcm::Key::<Aes256Gcm>::from_slice(&key_bytes);
+                let key = aes_gcm::Key::<Aes256Gcm>::from_slice(key_bytes);
                 let cipher = Aes256Gcm::new(key);
 
                 let mut nonce_bytes = [0u8; 12];
@@ -609,7 +594,7 @@ pub async fn create_data_encryption_key(
                 let nonce = Nonce::from_slice(&nonce_bytes);
 
                 let ciphertext = cipher.encrypt(nonce, dek.as_slice()).map_err(|e| {
-                    CommonError::Unknown(anyhow::anyhow!("Failed to encrypt DEK locally: {}", e))
+                    CommonError::Unknown(anyhow::anyhow!("Failed to encrypt DEK locally: {e}"))
                 })?;
 
                 let mut combined = Vec::with_capacity(12 + ciphertext.len());
@@ -682,7 +667,7 @@ pub async fn get_crypto_service(
     data_encryption_key_id: &String,
 ) -> Result<CryptoService, CommonError> {
     let data_encryption_key = repo
-        .get_data_encryption_key_by_id(&data_encryption_key_id)
+        .get_data_encryption_key_by_id(data_encryption_key_id)
         .await?;
 
     let data_encryption_key = match data_encryption_key {
@@ -887,8 +872,7 @@ mod tests {
             assert_eq!(
                 decrypted.0,
                 test_data.as_bytes(),
-                "Roundtrip should preserve data for: {}",
-                test_data
+                "Roundtrip should preserve data for: {test_data}"
             );
         }
     }
@@ -1124,7 +1108,7 @@ mod tests {
             let encrypted = encryption_service
                 .encrypt_data(test_data.to_string())
                 .await
-                .expect(&format!("Encryption should succeed for: {}", test_data));
+                .unwrap_or_else(|_| panic!("Encryption should succeed for: {test_data}"));
 
             // Verify encrypted is different from plaintext
             assert_ne!(
@@ -1144,7 +1128,7 @@ mod tests {
             let decrypted = decryption_service
                 .decrypt_data(encrypted)
                 .await
-                .expect(&format!("Decryption should succeed for: {}", test_data));
+                .unwrap_or_else(|_| panic!("Decryption should succeed for: {test_data}"));
 
             // Verify roundtrip
             assert_eq!(
@@ -1206,7 +1190,7 @@ mod tests {
 
         // Test with too short data (less than nonce size)
         let short_data =
-            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &[0u8; 5]);
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, [0u8; 5]);
         let result = decryption_service
             .decrypt_data(EncryptedString(short_data))
             .await;
@@ -1304,7 +1288,7 @@ mod tests {
         rand::thread_rng().fill_bytes(&mut kek_bytes);
 
         let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
-        std::fs::write(temp_file.path(), &kek_bytes).expect("Failed to write KEK to temp file");
+        std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
 
         let key_id = temp_file
             .path()
@@ -1414,8 +1398,7 @@ mod tests {
             assert_eq!(
                 decrypted.0,
                 test_data.as_bytes(),
-                "Roundtrip should preserve data for: {}",
-                test_data
+                "Roundtrip should preserve data for: {test_data}"
             );
         }
     }
@@ -1626,7 +1609,7 @@ mod tests {
             let encrypted = encryption_service
                 .encrypt_data(test_data.to_string())
                 .await
-                .expect(&format!("Encryption should succeed for: {}", test_data));
+                .unwrap_or_else(|_| panic!("Encryption should succeed for: {test_data}"));
 
             // Verify encrypted is different from plaintext
             assert_ne!(
@@ -1638,7 +1621,7 @@ mod tests {
             let decrypted = decryption_service
                 .decrypt_data(encrypted)
                 .await
-                .expect(&format!("Decryption should succeed for: {}", test_data));
+                .unwrap_or_else(|_| panic!("Decryption should succeed for: {test_data}"));
 
             // Verify roundtrip
             assert_eq!(decrypted, test_data, "Roundtrip should preserve data");

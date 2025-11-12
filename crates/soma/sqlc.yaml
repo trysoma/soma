@@ -5,8 +5,8 @@ plugins:
       cmd: "./../../sqlc-gen-from-template"
 sql:
   - engine: "sqlite"
-    schema: "./migrations"
-    queries: "./queries"
+    schema: "./dbs/soma/schema.sql"
+    queries: "./dbs/soma/queries"
     codegen:
       - out: "src/repository/sqlite"
         plugin: "sqlc-gen-from-template"

@@ -1,30 +1,14 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
-use aes_gcm::{
-    Aes256Gcm, Nonce,
-    aead::{Aead, KeyInit, OsRng},
-};
-use async_trait::async_trait;
-use base64::Engine;
-use enum_dispatch::enum_dispatch;
-use once_cell::sync::Lazy;
-use rand::RngCore;
-use reqwest::Request;
-use schemars::{JsonSchema, Schema};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use serde_json::json;
-use sha2::{Digest, Sha256};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use shared::{
     error::CommonError,
     primitives::{
-        PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
-        WrappedSchema, WrappedUuidV4,
+        PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4,
     },
 };
 use tracing::info;
-use std::fs;
-use std::path::Path;
-use std::sync::RwLock;
 use utoipa::{
     IntoParams, ToSchema,
     openapi::{Components, Content, HttpMethod, ObjectBuilder, OpenApi, Paths, Ref, RefOr, Required, Response, Type, path::Operation, request_body::RequestBody, schema::SchemaType},
@@ -39,7 +23,6 @@ use crate::{
             get_function_controller, get_provider_controller,
         }, credential::{ResourceServerCredentialSerialized, UserCredentialSerialized}, encryption::{EnvelopeEncryptionKeyContents, get_crypto_service, get_decryption_service}
     },
-    providers::google_mail::GoogleMailProviderController,
     repository::ProviderRepositoryLike,
     router::bridge::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY},
 };
@@ -81,19 +64,19 @@ fn convert_jsonschema_to_openapi(
         if let Some(defs) = obj.remove("$defs") {
             if let Some(defs_obj) = defs.as_object() {
                 // Build a map of all definitions for reference resolution
-                for (def_name, def_schema) in defs_obj {
-                    let component_name = format!("{}_{}", schema_name_prefix, def_name);
+                for (def_name, _def_schema) in defs_obj {
+                    let component_name = format!("{schema_name_prefix}_{def_name}");
 
                     // Store reference updates to do later
                     ref_updates.push((
-                        format!("#/$defs/{}", def_name),
-                        format!("#/components/schemas/{}", component_name),
+                        format!("#/$defs/{def_name}"),
+                        format!("#/components/schemas/{component_name}"),
                     ));
                 }
 
                 // Now process each definition
                 for (def_name, def_schema) in defs_obj {
-                    let component_name = format!("{}_{}", schema_name_prefix, def_name);
+                    let component_name = format!("{schema_name_prefix}_{def_name}");
 
                     // Clone and clean the def schema
                     let mut clean_def = def_schema.clone();
@@ -330,12 +313,7 @@ pub async fn get_function_instances_openapi_spec(
         function_controller_type_id: &String,
     ) -> String {
         format!(
-            "{}/{}/{}/provider/{}/function/{}/invoke",
-            PATH_PREFIX,
-            SERVICE_ROUTE_KEY,
-            API_VERSION_1,
-            provider_instance_id,
-            function_controller_type_id
+            "{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke"
         )
     }
 
@@ -372,7 +350,7 @@ pub async fn get_function_instances_openapi_spec(
                     provider_instance.provider_instance.provider_controller_type_id,
                     function_instance.function_controller_type_id);
                 // Wrapper schema name that matches InvokeFunctionParamsInner structure
-                let wrapper_schema_name = format!("{}Wrapper", params_schema_name);
+                let wrapper_schema_name = format!("{params_schema_name}Wrapper");
 
                 // Convert params schema: schemars::Schema -> OpenAPI schema
                 let params_schema = function_controller.parameters();
@@ -385,13 +363,13 @@ pub async fn get_function_instances_openapi_spec(
 
                 // Deserialize JSON Value into utoipa Schema
                 let params_utoipa_schema: utoipa::openapi::schema::Schema = serde_json::from_value(params_openapi_json)
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize params schema: {}", e)))?;
+                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize params schema: {e}")))?;
                 components = components.schema(params_schema_name.clone(), params_utoipa_schema);
 
                 // Add extracted definitions to components
                 for (def_name, def_json) in params_defs {
                     let def_utoipa_schema: utoipa::openapi::schema::Schema = serde_json::from_value(def_json)
-                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize def schema {}: {}", def_name, e)))?;
+                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize def schema {def_name}: {e}")))?;
                     components = components.schema(def_name, def_utoipa_schema);
                 }
 
@@ -418,13 +396,13 @@ pub async fn get_function_instances_openapi_spec(
 
                 // Deserialize JSON Value into utoipa Schema
                 let response_utoipa_schema: utoipa::openapi::schema::Schema = serde_json::from_value(response_openapi_json)
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize response schema: {}", e)))?;
+                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize response schema: {e}")))?;
                 components = components.schema(response_schema_name.clone(), response_utoipa_schema);
 
                 // Add extracted definitions to components
                 for (def_name, def_json) in response_defs {
                     let def_utoipa_schema: utoipa::openapi::schema::Schema = serde_json::from_value(def_json)
-                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize def schema {}: {}", def_name, e)))?;
+                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize def schema {def_name}: {e}")))?;
                     components = components.schema(def_name, def_utoipa_schema);
                 }
 
@@ -487,7 +465,7 @@ pub async fn get_function_instances_openapi_spec(
         .components(Some(components.build()))
         .build();
 
-    return Ok(openapi_spec);
+    Ok(openapi_spec)
 }
 
 /// Enriches a function instance with its controller metadata
@@ -768,7 +746,7 @@ pub async fn list_provider_instances_grouped_by_function(
     let offset = if let Some(token) = &params.next_page_token {
         let decoded_parts = shared::primitives::decode_pagination_token(token).map_err(|e| {
             CommonError::Repository {
-                msg: format!("Invalid pagination token: {}", e),
+                msg: format!("Invalid pagination token: {e}"),
                 source: Some(e.into()),
             }
         })?;
@@ -778,7 +756,7 @@ pub async fn list_provider_instances_grouped_by_function(
             decoded_parts[0]
                 .parse::<usize>()
                 .map_err(|e| CommonError::Repository {
-                    msg: format!("Invalid offset in pagination token: {}", e),
+                    msg: format!("Invalid offset in pagination token: {e}"),
                     source: Some(e.into()),
                 })?
         }
@@ -884,7 +862,7 @@ pub async fn get_provider_instance(
     let functions = enrich_function_instances(provider_instance.functions, &provider_controller)?;
 
     let provider_instance_with_everything = ProviderInstanceSerializedWithEverything {
-        functions: functions,
+        functions,
         controller: provider_controller.as_ref().into(),
         credential_controller: credential_controller_serialized,
         instance_data: ProviderInstanceSerializedWithCredentials {

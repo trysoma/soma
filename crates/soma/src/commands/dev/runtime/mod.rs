@@ -3,19 +3,13 @@ mod typescript;
 pub mod grpc_client;
 pub mod sdk_provider_sync;
 
-use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use futures::{FutureExt, TryFutureExt, future};
-use globset::{Glob, GlobSet, GlobSetBuilder};
-use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot};
 use tracing::{error, info};
 
-use shared::command::run_child_process;
 use shared::error::CommonError;
 
 use crate::commands::dev::DevParams;
@@ -100,7 +94,7 @@ pub async fn start_dev_runtime(
         runtime: _runtime,
         runtime_port,
         file_change_tx,
-        mut kill_signal_rx,
+        kill_signal_rx,
     } = params;
 
     let typescript_client = Typescript::new();
@@ -135,7 +129,7 @@ async fn fetch_and_sync_providers(
     let response = client
         .metadata(request)
         .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("gRPC call failed: {}", e)))?;
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("gRPC call failed: {e}")))?;
 
     let metadata = response.into_inner();
 
@@ -175,7 +169,7 @@ async fn register_agent_deployments(
     info!("Registering {} agent deployment(s) with Restate", agents.len());
 
     for agent in agents {
-        let service_uri = format!("http://127.0.0.1:{}", runtime_port);
+        let service_uri = format!("http://127.0.0.1:{runtime_port}");
         let deployment_type = crate::utils::restate::deploy::DeploymentType::Http {
             uri: service_uri.clone(),
             additional_headers: HashMap::new(),
@@ -253,11 +247,11 @@ pub async fn sync_dev_runtime_changes_from_sdk_server(
         result = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_receiver => {
             match result {
                 Ok(err) => {
-                    return Err(err);
+                    Err(err)
                 }
                 Err(e) => {
                     error!("SDK channel closed unexpectedly: {:?}", e);
-                    return Err(CommonError::Unknown(anyhow::anyhow!("SDK channel closed unexpectedly: {:?}", e)));
+                    Err(CommonError::Unknown(anyhow::anyhow!("SDK channel closed unexpectedly: {e:?}")))
                 }
             }
         }
@@ -305,7 +299,7 @@ pub async fn internal_sync_dev_runtime_changes_from_sdk_server_loop(
             }
             Ok(Err(e)) => {
                 error!("Failed to establish connection: {:?}", e);
-                let err = CommonError::Unknown(anyhow::anyhow!("Failed to establish connection: {:?}", e));
+                let err = CommonError::Unknown(anyhow::anyhow!("Failed to establish connection: {e:?}"));
                 let _ = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger.send(err);
                 return
             }
@@ -334,32 +328,32 @@ mod tests {
 
         // Create required files
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
-        fs::write(temp_dir.path().join("index.ts"), "console.log('test');").unwrap();
+        fs::write(temp_dir.path().join("vite.config.ts"), "export default {}").unwrap();
 
         let result = validate_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
-        assert!(result, "Should validate as BunV1 runtime");
+        assert!(result, "Should validate as PnpmV1 runtime");
     }
 
     #[test]
     fn test_validate_runtime_pnpm_v1_missing_package_json() {
         let temp_dir = TempDir::new().unwrap();
 
-        // Only create index.ts
-        fs::write(temp_dir.path().join("index.ts"), "console.log('test');").unwrap();
+        // Only create vite.config.ts
+        fs::write(temp_dir.path().join("vite.config.ts"), "export default {}").unwrap();
 
         let result = validate_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
         assert!(!result, "Should not validate without package.json");
     }
 
     #[test]
-    fn test_validate_runtime_pnpm_v1_missing_index_ts() {
+    fn test_validate_runtime_pnpm_v1_missing_vite_config() {
         let temp_dir = TempDir::new().unwrap();
 
         // Only create package.json
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
 
         let result = validate_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
-        assert!(!result, "Should not validate without index.ts");
+        assert!(!result, "Should not validate without vite.config.ts");
     }
 
     #[test]
@@ -367,7 +361,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
 
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
-        fs::write(temp_dir.path().join("index.ts"), "console.log('test');").unwrap();
+        fs::write(temp_dir.path().join("vite.config.ts"), "export default {}").unwrap();
 
         let runtime = determine_runtime_from_dir(temp_dir.path()).unwrap();
         assert_eq!(runtime, Some(Runtime::PnpmV1));

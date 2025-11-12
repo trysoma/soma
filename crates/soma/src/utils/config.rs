@@ -35,6 +35,7 @@ impl CliConfig {
 }
 
 impl CliConfig {
+    #[allow(dead_code)]
     pub async fn update_dev_server_url(&self, url: String) -> Result<&Self, CommonError> {
         let mut config = self.0.lock().await;
         config.dev_server = Some(DevServerConfig {
@@ -52,6 +53,7 @@ impl CliConfig {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn get_config(&self) -> Result<CliConfigInner, CommonError> {
         let config = self.0.lock().await;
         Ok(config.clone())
@@ -105,58 +107,16 @@ pub async fn get_or_init_cli_config() -> Result<CliConfig, CommonError> {
 }
 
 
+#[allow(dead_code)]
 pub async fn ensure_user_is_set(config: &CliConfigInner) -> Result<CliUser, CommonError> {
     match config.cloud.user.clone() {
         Some(user) => Ok(user),
         None => {
-            return Err(CommonError::Unknown(anyhow::anyhow!(
+            Err(CommonError::Unknown(anyhow::anyhow!(
                 "You are not signed in. Please sign in using 'soma auth sign-in'"
             )))
         }
     }
 }
 
-pub async fn get_cloud_api_config(
-    config: &CliConfig,
-) -> Result<soma_api_client::apis::configuration::Configuration, CommonError> {
-    let config = config.get_config().await?;
-    let user = ensure_user_is_set(&config).await?;
-    let mut headers = http::HeaderMap::new();
-    headers.insert(
-        "authorization",
-        format!("Bearer {}", user.jwt).parse().unwrap(),
-    );
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .build()?;
-    let client = soma_api_client::apis::configuration::Configuration {
-        base_path: config.cloud.base_api_url.clone(),
-        bearer_access_token: Some(user.jwt),
-        client,
-        ..Default::default()
-    };
-    info!("API config: {:?}", client);
-    Ok(client)
-}
-
-pub async fn get_dev_server_api_config(config: &CliConfig) -> Result<soma_api_client::apis::configuration::Configuration, CommonError> {
-    let config = config.get_config().await?;
-    let dev_server = match config.dev_server.clone() {
-        Some(dev_server) => dev_server,
-        None => {
-            return Err(CommonError::Unknown(anyhow::anyhow!("No dev server config found")));
-        }
-    };
-
-    let client = reqwest::Client::builder()
-        .build()?;
-    let client = soma_api_client::apis::configuration::Configuration {
-        base_path: dev_server.base_api_url.clone(),
-        client,
-        ..Default::default()
-    };
-    info!("API config: {:?}", client);
-    Ok(client)
-
-}
 

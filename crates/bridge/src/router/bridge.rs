@@ -1,34 +1,26 @@
 use axum::response::sse::{Event, KeepAlive};
-use axum::{debug_handler, Extension};
+use axum::Extension;
 use axum::extract::{Json, NestedPath, Path, Query, State};
 use axum::response::{IntoResponse, Response, Sse};
 use http::request::Parts;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
-use shared::primitives::WrappedUuidV4;
 use tracing::info;
 use utoipa::openapi::OpenApi;
 use utoipa::{IntoParams, PartialSchema, ToSchema};
-use std::{io, string};
+use std::io;
 use std::sync::Arc;
 use std::time::Duration;
 use utoipa_axum::{router::OpenApiRouter, routes};
 use rmcp::{
-    RoleServer, ServerHandler,
-    handler::server::{tool::ToolRouter, wrapper::Parameters},
-    model::{
-        CallToolRequestParam, CallToolResult, ClientJsonRpcMessage, ErrorData, ListToolsResult,
-        PaginatedRequestParam, ServerCapabilities, ServerInfo,
-    },
-    service::RequestContext,
-    tool, tool_router,
+    model::ClientJsonRpcMessage,
     transport::{
         common::server_side_http::session_id,
         sse_server::{PostEventQuery, SseServerTransport},
     },
 };
 use crate::logic::{
-    BrokerAction, BrokerInput, BrokerState, CreateDataEncryptionKeyParams, CreateDataEncryptionKeyResponse, CreateProviderInstanceParams, CreateProviderInstanceParamsInner, CreateProviderInstanceResponse, CreateResourceServerCredentialParams, CreateResourceServerCredentialParamsInner, CreateResourceServerCredentialResponse, CreateUserCredentialParams, CreateUserCredentialParamsInner, CreateUserCredentialResponse, CryptoService, DataEncryptionKey, DecryptionService, DisableFunctionParams, DisableFunctionParamsInner, DisableFunctionResponse, EnableFunctionParams, EnableFunctionParamsInner, EnableFunctionResponse, EncryptConfigurationParams, EncryptCredentialConfigurationParamsInner, EncryptedCredentialConfigurationResponse, EncryptionService, EnvelopeEncryptionKeyContents, EnvelopeEncryptionKeyId, GetProviderInstanceResponse, InvokeFunctionParams, InvokeFunctionParamsInner, InvokeFunctionResponse, ListAvailableProvidersResponse, ListDataEncryptionKeysResponse, ListFunctionInstancesParams, ListFunctionInstancesResponse, ListProviderInstancesGroupedByFunctionParams, ListProviderInstancesGroupedByFunctionResponse, ListProviderInstancesParams, ListProviderInstancesResponse, OnConfigChangeTx, ResumeUserCredentialBrokeringParams, StartUserCredentialBrokeringParams, StartUserCredentialBrokeringParamsInner, UpdateProviderInstanceParamsInner, UpdateProviderInstanceResponse, UserCredentialBrokeringResponse, UserCredentialSerialized, WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithFunctionInstanceId, WithProviderControllerTypeId, WithProviderInstanceId, create_data_encryption_key, create_provider_instance, create_resource_server_credential, create_user_credential, delete_provider_instance, disable_function, enable_function, encrypt_resource_server_configuration, encrypt_user_credential_configuration, get_function_instances_openapi_spec, get_provider_instance, invoke_function, list_available_providers, list_data_encryption_keys, list_function_instances, list_provider_instances, list_provider_instances_grouped_by_function, process_credential_rotation, process_credential_rotations_with_window, resume_user_credential_brokering, start_user_credential_brokering, update_provider_instance
+    BrokerAction, BrokerInput, CreateDataEncryptionKeyParams, CreateDataEncryptionKeyResponse, CreateProviderInstanceParamsInner, CreateProviderInstanceResponse, CreateResourceServerCredentialParamsInner, CreateResourceServerCredentialResponse, CreateUserCredentialParamsInner, CreateUserCredentialResponse, DisableFunctionParamsInner, DisableFunctionResponse, EnableFunctionParamsInner, EnableFunctionResponse, EncryptCredentialConfigurationParamsInner, EncryptedCredentialConfigurationResponse, EnvelopeEncryptionKeyContents, GetProviderInstanceResponse, InvokeFunctionParamsInner, InvokeFunctionResponse, ListAvailableProvidersResponse, ListDataEncryptionKeysResponse, ListFunctionInstancesParams, ListFunctionInstancesResponse, ListProviderInstancesGroupedByFunctionParams, ListProviderInstancesGroupedByFunctionResponse, ListProviderInstancesParams, ListProviderInstancesResponse, OnConfigChangeTx, ResumeUserCredentialBrokeringParams, StartUserCredentialBrokeringParamsInner, UpdateProviderInstanceParamsInner, UpdateProviderInstanceResponse, UserCredentialBrokeringResponse, UserCredentialSerialized, WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithFunctionInstanceId, WithProviderControllerTypeId, WithProviderInstanceId, create_data_encryption_key, create_provider_instance, create_resource_server_credential, create_user_credential, delete_provider_instance, disable_function, enable_function, encrypt_resource_server_configuration, encrypt_user_credential_configuration, get_function_instances_openapi_spec, get_provider_instance, invoke_function, list_available_providers, list_data_encryption_keys, list_function_instances, list_provider_instances, list_provider_instances_grouped_by_function, process_credential_rotations_with_window, resume_user_credential_brokering, start_user_credential_brokering, update_provider_instance
 };
 use crate::repository::Repository;
 use shared::{adapters::openapi::JsonResponse, error::CommonError, primitives::PaginationRequest};
@@ -466,7 +458,7 @@ async fn route_start_user_credential_brokering(
     )
     .await;
 
-    return JsonResponse::from(res);
+    JsonResponse::from(res)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -503,9 +495,7 @@ async fn generic_oauth_callback(
             .error_description
             .unwrap_or_else(|| "No description provided".to_string());
         return respond_err!(CommonError::Unknown(anyhow::anyhow!(
-            "OAuth error: {} - {}",
-            error,
-            error_desc
+            "OAuth error: {error} - {error_desc}"
         )));
     }
 
@@ -544,7 +534,7 @@ async fn generic_oauth_callback(
     )
     .await;
 
-    return handle_user_credential_brokering_response(res).into_response();
+    handle_user_credential_brokering_response(res).into_response()
 }
 
 // ============================================================================

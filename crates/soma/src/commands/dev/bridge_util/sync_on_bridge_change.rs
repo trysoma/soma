@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use std::future::Future;
 
-use bridge::logic::{EnvelopeEncryptionKeyContents, OnConfigChangeEvt, OnConfigChangeRx, OnConfigChangeTx};
+use bridge::logic::{OnConfigChangeEvt, OnConfigChangeRx, OnConfigChangeTx};
 use serde_json::json;
 use tokio::sync::mpsc;
-use tracing::{error, info};
+use tracing::info;
 
 use shared::error::CommonError;
 use shared::soma_agent_definition::SomaAgentDefinitionLike;

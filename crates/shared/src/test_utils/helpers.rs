@@ -1,6 +1,6 @@
 
 use std::{
-    sync::{Arc, Once},
+    sync::Once,
     time::Duration,
 };
 

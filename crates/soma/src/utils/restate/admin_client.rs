@@ -223,11 +223,11 @@ impl AdminClient {
                 version_information.ingress_endpoint.map(|u| u.to_string());
             Ok(client)
         } else {
-            return Err(CommonError::Unknown(anyhow::anyhow!(
+            Err(CommonError::Unknown(anyhow::anyhow!(
                 "The CLI is not compatible with the Restate server '{}'. Please update the CLI to match the Restate server version '{}'.",
                 client.base_url,
                 version_information.version
-            )));
+            )))
         }
     }
 

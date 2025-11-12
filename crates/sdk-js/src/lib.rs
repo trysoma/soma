@@ -1,7 +1,7 @@
 pub mod types;
 
 use napi::bindgen_prelude::*;
-use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
+use napi::threadsafe_function::ThreadsafeFunction;
 use napi_derive::napi;
 use shared::error::CommonError;
 use std::path::PathBuf;
@@ -11,7 +11,6 @@ use tracing::info;
 use sdk_core as core_types;
 use types as js_types;
 
-use crate::types::InvokeError;
 
 /// Start the gRPC server on a Unix socket (without initial providers)
 #[napi]

@@ -1,6 +1,6 @@
 use bridge::{logic::mcp::handle_mcp_transport, router::bridge::BridgeService};
 use shared::error::CommonError;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 use tracing::{error, info};
 pub struct StartMcpConnectionManagerParams {
     pub bridge_service: BridgeService,

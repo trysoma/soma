@@ -49,7 +49,8 @@ tokio = { version = "1.43.0", default-features = false, features = [
 ] }
 
 ## HTTP/Web frameworks
-rmcp = { path = "./../forks/modelcontextprotocol-rust-sdk/crates/rmcp", features = ["transport-sse-server"] }
+#soma branch
+rmcp = { git = "https://github.com/trysoma/modelcontextprotocol-rust-sdk", rev = "6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c",features = ["transport-sse-server"] }
 rustls = "0.23.31"
 rustls-pemfile = "2.2.0"
 axum = { version = "0.8.6", features = ["macros", "multipart"] }
@@ -133,6 +134,25 @@ aes-gcm = "0.10"
 rand = "0.8"
 zeroize = { version = "1.8", features = ["derive"] }
 
+## Additional dependencies
+arc-swap = "1.7.1"
+convert_case = "0.8.0"
+cron_tab = { version = "0.2.11", features = ["async"] }
+ctor = "0.6.0"
+dirs = "6.0.0"
+enum_dispatch = "0.3.13"
+jsonwebtoken = "9"
+napi = { version = "3.0.0", features = ["serde-json", "tokio_rt"] }
+napi-build = "2"
+napi-derive = "3.0.0"
+nix = { version = "0.29", features = ["signal", "process"] }
+once_cell = "1.21.3"
+proc-macro2 = "1"
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py38"] }
+pyo3-build-config = "0.23.5"
+serde_repr = "^0.1"
+serde_with = { version = "^3.8", default-features = false, features = ["base64", "std", "macros"] }
+sha2 = "0.10.9"
 
 ## internal crates
 a2a-rs = { path = "./crates/a2a-rs" }
@@ -143,7 +163,6 @@ bridge = { path = "./crates/bridge" }
 bridge-macros = { path = "./crates/bridge-macros" }
 sdk-core = { path = "./crates/sdk-core" }
 sdk-proto = { path = "./crates/sdk-proto" }
-soma-api-client = { path = "./crates/soma-api-client" }
 
 [profile.release]
 opt-level = 3

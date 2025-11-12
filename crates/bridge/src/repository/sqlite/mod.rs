@@ -1,4 +1,5 @@
 #![allow(non_camel_case_types)]
+#![allow(dead_code)]
 mod raw_impl;
 
 include!("raw.generated.rs");
@@ -24,7 +25,7 @@ use shared::{
         decode_pagination_token,
     },
 };
-use shared_macros::load_sql_migrations;
+use shared_macros::load_atlas_sql_migrations;
 use std::collections::BTreeMap;
 
 #[derive(Clone)]
@@ -271,12 +272,9 @@ impl ProviderRepositoryLike for Repository {
             provider_controller_type_id: &params.provider_controller_type_id,
             credential_controller_type_id: &params.credential_controller_type_id,
             status: &params.status,
-            return_on_successful_brokering: &match &params.return_on_successful_brokering {
-                Some(v) => Some(WrappedJsonValue::new(
+            return_on_successful_brokering: &params.return_on_successful_brokering.as_ref().map(|v| WrappedJsonValue::new(
                     serde_json::to_value(v).ok().unwrap_or_default(),
                 )),
-                None => None,
-            },
         };
 
         create_provider_instance(&self.conn, sqlc_params)
@@ -744,7 +742,7 @@ impl ProviderRepositoryLike for Repository {
         tracing::info!("ids_json: {}", ids_json);
 
         let sqlc_params = ManualGetProviderInstancesGroupedByFunctionControllerTypeIdParams {
-            function_controller_type_ids: &Some(function_controller_type_ids.to_vec().into()),
+            function_controller_type_ids: &Some(function_controller_type_ids.to_vec()),
         };
 
         let rows = manual_get_provider_instances_grouped_by_function_controller_type_id(
@@ -865,7 +863,7 @@ impl ProviderRepositoryLike for Repository {
         let params: get_provider_instances_with_credentials_params<'_> = get_provider_instances_with_credentials_params {
             cursor: &cursor_datetime,
             status: &status.map(|s| s.to_string()),
-            rotation_window_end: &rotation_window_end.map(|c| c.clone()),
+            rotation_window_end: &rotation_window_end.copied(),
             page_size: &pagination.page_size,
         };
 
@@ -916,14 +914,14 @@ async fn manual_get_provider_instances_grouped_by_function_controller_type_id(
             format!(
                 "WHERE fi.function_controller_type_id IN ({})",
                 ids.iter()
-                    .map(|id| format!("'{}'", id))
+                    .map(|id| format!("'{id}'"))
                     .collect::<Vec<String>>()
                     .join(", ")
             )
         }
         None => "".to_string(),
     };
-    let mut stmt = conn
+    let stmt = conn
         .prepare(
             format!(
                 r#"SELECT 
@@ -1015,7 +1013,7 @@ ORDER BY fi.function_controller_type_id ASC"#,
 
 impl SqlMigrationLoader for Repository {
     fn load_sql_migrations() -> BTreeMap<&'static str, BTreeMap<&'static str, &'static str>> {
-        load_sql_migrations!("migrations")
+        load_atlas_sql_migrations!("dbs/bridge/migrations")
     }
 }
 
@@ -1934,13 +1932,12 @@ mod tests {
 
         for i in 0..3 {
             let dek = DataEncryptionKey {
-                id: format!("dek-{}", i),
+                id: format!("dek-{i}"),
                 envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
-                    arn: format!("arn:aws:kms:us-east-1:123456789012:key/key-{}", i),
+                    arn: format!("arn:aws:kms:us-east-1:123456789012:key/key-{i}"),
                 },
                 encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(format!(
-                    "encrypted_key_{}",
-                    i
+                    "encrypted_key_{i}"
                 )),
                 created_at: now,
                 updated_at: now,
@@ -1989,13 +1986,12 @@ mod tests {
 
             let now = WrappedChronoDateTime::now();
             let dek = DataEncryptionKey {
-                id: format!("dek-{}", i),
+                id: format!("dek-{i}"),
                 envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
-                    arn: format!("arn:aws:kms:us-east-1:123456789012:key/key-{}", i),
+                    arn: format!("arn:aws:kms:us-east-1:123456789012:key/key-{i}"),
                 },
                 encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(format!(
-                    "encrypted_key_{}",
-                    i
+                    "encrypted_key_{i}"
                 )),
                 created_at: now,
                 updated_at: now,
@@ -2448,8 +2444,8 @@ mod tests {
             encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
                 "test-encrypted-key".to_string(),
             ),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
         };
         repo.create_data_encryption_key(&dek).await.unwrap();
 
@@ -2460,8 +2456,8 @@ mod tests {
             type_id: "test_type".to_string(),
             metadata: crate::logic::Metadata::new(),
             value: shared::primitives::WrappedJsonValue::new(serde_json::json!({"test": "value"})),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             next_rotation_time: None,
             data_encryption_key_id: "test-dek".to_string(),
         };
@@ -2475,8 +2471,8 @@ mod tests {
             type_id: "test_type".to_string(),
             metadata: crate::logic::Metadata::new(),
             value: shared::primitives::WrappedJsonValue::new(serde_json::json!({"test": "value"})),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             next_rotation_time: None,
             data_encryption_key_id: "test-dek".to_string(),
         };
@@ -2490,8 +2486,8 @@ mod tests {
             display_name: "Active Provider".to_string(),
             resource_server_credential_id: rsc_id_1,
             user_credential_id: None,
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             provider_controller_type_id: "test_provider".to_string(),
             credential_controller_type_id: "test_credential".to_string(),
             status: "active".to_string(),
@@ -2504,8 +2500,8 @@ mod tests {
             display_name: "Disabled Provider".to_string(),
             resource_server_credential_id: rsc_id_2,
             user_credential_id: None,
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             provider_controller_type_id: "test_provider".to_string(),
             credential_controller_type_id: "test_credential".to_string(),
             status: "disabled".to_string(),
@@ -2566,8 +2562,8 @@ mod tests {
             encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
                 "test-encrypted-key".to_string(),
             ),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
         };
         repo.create_data_encryption_key(&dek).await.unwrap();
 
@@ -2578,8 +2574,8 @@ mod tests {
             type_id: "test_type".to_string(),
             metadata: crate::logic::Metadata::new(),
             value: shared::primitives::WrappedJsonValue::new(serde_json::json!({"test": "value"})),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             next_rotation_time: None,
             data_encryption_key_id: "test-dek".to_string(),
         };
@@ -2593,8 +2589,8 @@ mod tests {
             type_id: "test_type".to_string(),
             metadata: crate::logic::Metadata::new(),
             value: shared::primitives::WrappedJsonValue::new(serde_json::json!({"test": "value"})),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             next_rotation_time: None,
             data_encryption_key_id: "test-dek".to_string(),
         };
@@ -2608,8 +2604,8 @@ mod tests {
             display_name: "Provider 1".to_string(),
             resource_server_credential_id: rsc_id_1,
             user_credential_id: None,
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             provider_controller_type_id: "test_provider".to_string(),
             credential_controller_type_id: "test_credential".to_string(),
             status: "active".to_string(),
@@ -2622,8 +2618,8 @@ mod tests {
             display_name: "Provider 2".to_string(),
             resource_server_credential_id: rsc_id_2,
             user_credential_id: None,
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             provider_controller_type_id: "test_provider".to_string(),
             credential_controller_type_id: "test_credential".to_string(),
             status: "active".to_string(),
@@ -2636,8 +2632,8 @@ mod tests {
             function_controller_type_id: "test_function_1".to_string(),
             provider_controller_type_id: "test_provider".to_string(),
             provider_instance_id: "pi-1".to_string(),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
         };
         repo.create_function_instance(&fi_params_1).await.unwrap();
 
@@ -2645,8 +2641,8 @@ mod tests {
             function_controller_type_id: "test_function_2".to_string(),
             provider_controller_type_id: "test_provider".to_string(),
             provider_instance_id: "pi-1".to_string(),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
         };
         repo.create_function_instance(&fi_params_2).await.unwrap();
 
@@ -2654,8 +2650,8 @@ mod tests {
             function_controller_type_id: "test_function_3".to_string(),
             provider_controller_type_id: "test_provider".to_string(),
             provider_instance_id: "pi-2".to_string(),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
         };
         repo.create_function_instance(&fi_params_3).await.unwrap();
 
@@ -2714,8 +2710,8 @@ mod tests {
             encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
                 "test-encrypted-key".to_string(),
             ),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
         };
         repo.create_data_encryption_key(&dek).await.unwrap();
 
@@ -2726,8 +2722,8 @@ mod tests {
             type_id: "test_type".to_string(),
             metadata: crate::logic::Metadata::new(),
             value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             next_rotation_time: None,
             data_encryption_key_id: "test-dek".to_string(),
         };
@@ -2741,8 +2737,8 @@ mod tests {
             type_id: "test_type".to_string(),
             metadata: crate::logic::Metadata::new(),
             value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             next_rotation_time: None,
             data_encryption_key_id: "test-dek".to_string(),
         };
@@ -2756,8 +2752,8 @@ mod tests {
             type_id: "test_type".to_string(),
             metadata: crate::logic::Metadata::new(),
             value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             next_rotation_time: None,
             data_encryption_key_id: "test-dek".to_string(),
         };
@@ -2771,8 +2767,8 @@ mod tests {
             display_name: "Provider 1".to_string(),
             resource_server_credential_id: rsc_id_1.clone(),
             user_credential_id: None,
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             provider_controller_type_id: "github".to_string(),
             credential_controller_type_id: "test_cred".to_string(),
             status: "active".to_string(),
@@ -2785,8 +2781,8 @@ mod tests {
             display_name: "Provider 2".to_string(),
             resource_server_credential_id: rsc_id_2.clone(),
             user_credential_id: None,
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             provider_controller_type_id: "gitlab".to_string(),
             credential_controller_type_id: "test_cred".to_string(),
             status: "active".to_string(),
@@ -2799,8 +2795,8 @@ mod tests {
             display_name: "Provider 3".to_string(),
             resource_server_credential_id: rsc_id_3.clone(),
             user_credential_id: None,
-            created_at: now.clone(),
-            updated_at: now.clone(),
+            created_at: now,
+            updated_at: now,
             provider_controller_type_id: "github".to_string(),
             credential_controller_type_id: "test_cred".to_string(),
             status: "active".to_string(),
