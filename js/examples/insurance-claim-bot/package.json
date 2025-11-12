@@ -7,11 +7,16 @@
 		"@types/node": "^22.18.12",
 		"tsx": "^4.19.3",
 		"typescript": "^5.8.2",
-		"vite": "^7.1.12"
+		"vite": "^7.1.12",
+		"vitest": "^4.0.8"
 	},
 	"scripts": {
 		"run": "node run index.ts",
-		"build": "tsc"
+		"build": "tsc",
+		"lint": "tsc --noEmit",
+		"lint:fix": "tsc --noEmit",
+		"test": "vitest run",
+		"test:coverage": "vitest run --coverage"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^2.0.64",

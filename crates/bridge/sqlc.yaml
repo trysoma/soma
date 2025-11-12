@@ -2,7 +2,7 @@ version: "2"
 plugins:
   - name: sqlc-gen-from-template
     process:
-      cmd: "./../../sqlc-gen-from-template"
+      cmd: "sqlc-gen-from-template"
 sql:
   - engine: "sqlite"
     schema: "./dbs/bridge/schema.sql"

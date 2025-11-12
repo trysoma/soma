@@ -1,5 +1,4 @@
 import { createSomaAgent, patterns } from "@soma/sdk";
-// import { DefaultApi as BridgeApi, generatedBridgeClient } from './../.soma/bridge-client'
 import { CreateMessageRequest, CreateMessageResponse, MessagePartTypeEnum, MessageRole, DefaultApi as SomaApi, TaskStatus, TaskTimelineItem } from '@soma/api-client'
 import { z } from "zod";
 import { LanguageModel, LanguageModelMiddleware, ModelMessage, streamText, tool, wrapLanguageModel } from "ai";
@@ -8,6 +7,7 @@ import { durableCalls } from "@restatedev/vercel-ai-middleware";
 import { ObjectContext, RestatePromise, } from "@restatedev/restate-sdk";
 import { Message } from "../../../packages/api-client/dist/models/Message";
 import { convertToAiSdkMessages } from "../utils";
+// import { bridge } from "./../.soma/bridge-client";
 /////
 
 const InsuranceClaimSchema = z.object({
@@ -38,7 +38,7 @@ interface ProcessClaimInput {
 }
 
 const handlers = {
-	discoverClaim: patterns.chat<any, DiscoverClaimInput, Assessment>(async ({ ctx, bridge, soma, history, input: { model }, onGoalAchieved, sendMessage }) => {
+	discoverClaim: patterns.chat<DiscoverClaimInput, Assessment>(async ({ ctx, soma, history, input: { model }, onGoalAchieved, sendMessage }) => {
 		const messages = convertToAiSdkMessages(history);
 
 		ctx.console.log("Messages", messages);
@@ -77,9 +77,9 @@ const handlers = {
 			role: MessageRole.Agent,
 		});
 	}),
-	processClaim: patterns.workflow<any, ProcessClaimInput, void>(async ({ ctx, bridge, soma, history, input: { assessment }, sendMessage }) => {
+	processClaim: patterns.workflow<ProcessClaimInput, void>(async ({ ctx, soma, history, input: { assessment }, sendMessage }) => {
 		ctx.console.log("Assessment", assessment);
-
+		// const b = bridge();
 
 		await sendMessage({
 			metadata: {},
@@ -93,35 +93,33 @@ const handlers = {
 		});
 
 
-		await ctx.run(async () => await bridge.invokeDanieltrysomaaiGoogleMailSendEmail({
-			googleMailgoogleMailSendEmailParamsWrapper: {
-				params: {
-					body: "Your claim has been processed. Please find the results attached.",
-					subject: "Insurance Claim Processed",
-					to: assessment.claim.email || ""
-				}
-			},
-		}));
+		// await ctx.run(async () => await b.invokeDanieltrysomaaiGoogleMailSendEmail({
+		// 	googleMailgoogleMailSendEmailParamsWrapper: {
+		// 		params: {
+		// 			body: "Your claim has been processed. Please find the results attached.",
+		// 			subject: "Insurance Claim Processed",
+		// 			to: assessment.claim.email || ""
+		// 		}
+		// 	},
+		// }));
 		
 
-		await ctx.run(async () => await bridge.invokeInternalBotApproveClaim({
-			approveClaimapproveClaimParamsWrapper: {
-				params: {
-					claim: assessment.claim,
-				}
-			},
-		}));
+		// await ctx.run(async () => await b.invokeInternalBotApproveClaim({
+		// 	approveClaimapproveClaimParamsWrapper: {
+		// 		params: {
+		// 			claim: assessment.claim,
+		// 		}
+		// 	},
+		// }));
 
 	}),
 };
-let generatedBridgeClient = undefined as any;
 export default createSomaAgent({
-	generatedBridgeClient,
 	projectId: "danielblignaut",
 	agentId: "insuranceClaimsAgent",
 	name: "Insurance Claims Agent",
 	description: "An agent that can process insurance claims.",
-	entrypoint: async ({ ctx, soma, bridge, taskId, contextId }) => {
+	entrypoint: async ({ ctx, soma, taskId, contextId }) => {
 		const model = wrapLanguageModel({
 			model: openai("gpt-4o"),
 			middleware: durableCalls(ctx, { maxRetryAttempts: 3 }),
@@ -130,7 +128,6 @@ export default createSomaAgent({
 		ctx.console.log("Discovering claim...");
 		const assessment = await handlers.discoverClaim({
 			ctx,
-			bridge,
 			input: { model },
 			taskId,
 			soma,
@@ -139,7 +136,6 @@ export default createSomaAgent({
 
 		await handlers.processClaim({
 			ctx,
-			bridge,
 			input: { assessment },
 			taskId,
 			soma,

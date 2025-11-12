@@ -65,7 +65,7 @@ use serde::{Serialize, Deserialize};
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.parts.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
     ]).await
@@ -97,10 +97,10 @@ use serde::{Serialize, Deserialize};
       conn: &shared::libsql::Connection
       ,params: get_messages_by_task_id_params<'_>
   ) -> Result<Vec<Row_get_messages_by_task_id>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, task_id, reference_task_ids, role, metadata, parts, created_at FROM message WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
+      let mut stmt = conn.prepare(r#"SELECT id, task_id, reference_task_ids, role, metadata, parts, created_at FROM message WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.task_id.clone(),(*params.cursor),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.task_id.clone(),params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -171,16 +171,16 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
               <crate::repository::TaskStatus as TryInto<libsql::Value>>::try_into(params.status.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.status_timestamp)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.status_timestamp.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.metadata.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
     ]).await
@@ -219,10 +219,10 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
                 None => libsql::Value::Null,
               }
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.status_timestamp)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.status_timestamp.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
@@ -277,7 +277,7 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.event_payload.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
     ]).await
@@ -307,10 +307,10 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_tasks_params<'_>
   ) -> Result<Vec<Row_get_tasks>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
+      let mut stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![(*params.cursor),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -347,10 +347,10 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_unique_contexts_params<'_>
   ) -> Result<Vec<Row_get_unique_contexts>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT DISTINCT context_id, created_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
+      let mut stmt = conn.prepare(r#"SELECT DISTINCT context_id, created_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![(*params.cursor),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -390,10 +390,10 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_tasks_by_context_id_params<'_>
   ) -> Result<Vec<Row_get_tasks_by_context_id>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE context_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
+      let mut stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE context_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.context_id.clone(),(*params.cursor),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.context_id.clone(),params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -436,10 +436,10 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_task_timeline_items_params<'_>
   ) -> Result<Vec<Row_get_task_timeline_items>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, task_id, event_update_type, event_payload, created_at FROM task_timeline WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
+      let mut stmt = conn.prepare(r#"SELECT id, task_id, event_update_type, event_payload, created_at FROM task_timeline WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.task_id.clone(),(*params.cursor),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.task_id.clone(),params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {

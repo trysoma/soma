@@ -1,0 +1,11 @@
+[build]
+# Disable sccache for cross-compilation
+
+# Override linker settings from .cargo/config.toml for cross-compilation
+[target.aarch64-unknown-linux-gnu]
+
+[target.x86_64-apple-darwin]
+
+[target.aarch64-apple-darwin]
+
+[target.x86_64-pc-windows-gnu]

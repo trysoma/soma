@@ -1,10 +1,3 @@
--- atlas:txtar
-
--- checks.sql --
--- Ensure tables don't exist before creating them
-SELECT NOT EXISTS(SELECT name FROM sqlite_master WHERE type='table' AND name='data_encryption_key');
-
--- migration.sql --
 CREATE TABLE IF NOT EXISTS data_encryption_key (
     id TEXT PRIMARY KEY,
     envelope_encryption_key_id JSON NOT NULL,
@@ -78,11 +71,3 @@ CREATE TABLE IF NOT EXISTS broker_state (
     -- TODO: uncomment this when we have a way to delete broker states
     -- FOREIGN KEY (provider_instance_id) REFERENCES provider_instance(id) ON DELETE CASCADE
 );
-
--- down.sql --
-DROP TABLE IF EXISTS broker_state;
-DROP TABLE IF EXISTS function_instance;
-DROP TABLE IF EXISTS provider_instance;
-DROP TABLE IF EXISTS user_credential;
-DROP TABLE IF EXISTS resource_server_credential;
-DROP TABLE IF EXISTS data_encryption_key;

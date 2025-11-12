@@ -1,10 +1,3 @@
--- -- atlas:txtar
-
--- -- checks.sql --
--- -- Ensure tables don't exist before creating them
--- SELECT NOT EXISTS(SELECT name FROM sqlite_master WHERE type='table' AND name='task');
-
--- -- migration.sql --
 CREATE TABLE IF NOT EXISTS task (
     id TEXT PRIMARY KEY,
     context_id TEXT NOT NULL,
@@ -37,8 +30,3 @@ CREATE TABLE IF NOT EXISTS message (
     parts JSON NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
--- -- down.sql --
--- DROP TABLE IF EXISTS task_timeline;
--- DROP TABLE IF EXISTS message;
--- DROP TABLE IF EXISTS task;

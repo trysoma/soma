@@ -4,6 +4,12 @@
 	"workspaces": [
 		"packages/*"
 	],
+	"scripts": {
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"test": "echo 'Run tests in individual packages'",
+		"build": "pnpm --filter './packages/*' run build"
+	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.5"
 	}

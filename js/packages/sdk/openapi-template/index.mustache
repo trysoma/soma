@@ -18,6 +18,6 @@ export * from './models/index{{importFileExtension}}';
 
 import { Configuration } from '@soma/sdk/bridge';
 import { DefaultApi } from './apis/DefaultApi';
-export const generatedBridgeClient = (basePath: string)=> new DefaultApi(new Configuration({
-    basePath,
+export const bridge = ()=> new DefaultApi(new Configuration({
+    basePath: process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000',
 }));

@@ -1013,7 +1013,7 @@ ORDER BY fi.function_controller_type_id ASC"#,
 
 impl SqlMigrationLoader for Repository {
     fn load_sql_migrations() -> BTreeMap<&'static str, BTreeMap<&'static str, &'static str>> {
-        load_atlas_sql_migrations!("migrations")
+        load_atlas_sql_migrations!("dbs/bridge/migrations")
     }
 }
 
