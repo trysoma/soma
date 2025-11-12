@@ -161,6 +161,12 @@ lint-js: ## Run JS/TS linters
 	pnpm -r --workspace-concurrency=1 run lint
 	@echo "✓ JS linters passed"
 
+lint-db: ## Run database linters
+	@echo "Running database linters..."
+	atlas migrate lint --env soma --git-base main
+	atlas migrate lint --env bridge --git-base main
+	@echo "✓ Database linters passed"
+
 lint-fix: lint-fix-rs lint-fix-js ## Run all linters with auto-fix (Rust + JS)
 
 lint-fix-rs: ## Run Rust linters with auto-fix

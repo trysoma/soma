@@ -54,7 +54,6 @@ notify.workspace = true
 notify-debouncer-full.workspace = true
 restate-sdk.workspace = true
 schemars.workspace = true
-soma-api-client.workspace = true
 tokio-stream.workspace = true
 tokio-util.workspace = true
 urlencoding.workspace = true

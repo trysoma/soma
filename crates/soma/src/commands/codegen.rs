@@ -59,40 +59,5 @@ async fn codegen() -> Result<(), CommonError> {
         panic!("Failed to generate openapi client");
     }
 
-    let rust_api_client_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
-        .join("../soma-api-client");
-
-        let rs_generator_output = Command::new("npx")
-        .args([
-            "--yes",
-            "@openapitools/openapi-generator-cli@latest",
-            "generate",
-            "-i",
-            &openapi_client_path_str,
-            "-g",
-            "rust",
-            "-o",
-            rust_api_client_dir.display().to_string().as_str(),
-            format!("--additional-properties=packageName=soma-api-client,packageVersion={APP_VERSION}").as_str(),
-        ])
-        .current_dir(frontend_assets_dir.clone())
-        .stderr(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stdin(Stdio::null())
-        .output()
-        .await
-        .inspect_err(|e| {
-            error!("error: {:?}", e);
-        })
-        .unwrap();
-
-    shared::build_helpers::print_command_output(
-        &rs_generator_output.status,
-        &rs_generator_output,
-    );
-    if !rs_generator_output.status.success() {
-        panic!("Failed to generate openapi client");
-    }
-
     Ok(())
 }

@@ -9,7 +9,7 @@ Before you begin, ensure you have the following installed:
 * [Node.js](https://nodejs.org/) ([GitHub](https://github.com/nodejs/node))
 * [PNPM](https://pnpm.io/) ([GitHub](https://github.com/pnpm/pnpm))
 * [Docker](https://www.docker.com/) ([GitHub](https://github.com/moby/moby)) (for local development)
-* [Atlas](https://atlasgo.io/) ([GitHub](https://github.com/ariga/atlas)) (for database migrations)
+* [Atlas](https://atlasgo.io/) ([GitHub](https://github.com/ariga/atlas)) (for database migrations) (ensure you install community version: ```curl -sSf https://atlasgo.sh | sh -s -- --community -y```)
 
 ## Development
 

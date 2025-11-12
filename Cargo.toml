@@ -163,7 +163,6 @@ bridge = { path = "./crates/bridge" }
 bridge-macros = { path = "./crates/bridge-macros" }
 sdk-core = { path = "./crates/sdk-core" }
 sdk-proto = { path = "./crates/sdk-proto" }
-soma-api-client = { path = "./crates/soma-api-client" }
 
 [profile.release]
 opt-level = 3

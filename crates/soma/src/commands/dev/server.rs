@@ -182,10 +182,10 @@ mod tests {
     fn test_find_free_port_integration() {
         // This is an integration test that actually binds to a port
         let port = find_free_port(50000, 50100).unwrap();
-        assert!(port >= 50000 && port <= 50100);
+        assert!((50000..=50100).contains(&port));
 
         // Verify we can actually bind to the port
-        let listener = TcpListener::bind(format!("127.0.0.1:{}", port));
+        let listener = TcpListener::bind(format!("127.0.0.1:{port}"));
         assert!(listener.is_ok());
     }
 }

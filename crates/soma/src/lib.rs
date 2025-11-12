@@ -1,3 +1,12 @@
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::needless_return)]
+#![allow(clippy::ptr_arg)]
+#![allow(clippy::inherent_to_string)]
+#![allow(clippy::match_like_matches_macro)]
+#![allow(clippy::unnecessary_fallible_conversions)]
+#![allow(unused_variables)]
+
 mod a2a;
 mod commands;
 mod logic;

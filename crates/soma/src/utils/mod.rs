@@ -7,7 +7,6 @@ use std::path::PathBuf;
 
 use shared::error::CommonError;
 use tokio::net::TcpListener;
-use tracing::info;
 
 
 pub fn construct_src_dir_absolute(src_dir: Option<PathBuf>) -> Result<PathBuf, CommonError> {
@@ -23,24 +22,6 @@ pub fn construct_src_dir_absolute(src_dir: Option<PathBuf>) -> Result<PathBuf, C
     Ok(src_dir)
 }
 
-#[allow(dead_code)]
-pub fn get_api_config() -> Result<soma_api_client::apis::configuration::Configuration, CommonError> {
-    // let user = ensure_user_is_set(config)?;
-    let headers = http::HeaderMap::new();
-    // headers.insert("authorization", format!("Bearer {}", user.jwt).parse().unwrap());
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .build()?;
-    let client = soma_api_client::apis::configuration::Configuration {
-        base_path: "http://localhost:3000".to_string(),
-        // base_path: config.base_api_url.clone(),
-        // bearer_access_token: Some(user.jwt),
-        client,
-        ..Default::default()
-    };
-    info!("API config: {:?}", client);
-    Ok(client)
-}
 
 pub async fn is_port_in_use(port: u16) -> Result<bool, CommonError> {
     match TcpListener::bind(("127.0.0.1", port)).await {
