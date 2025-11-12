@@ -947,7 +947,7 @@ mod tests {
         rand::thread_rng().fill_bytes(&mut kek_bytes);
 
         let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
-        std::fs::write(temp_file.path(), &kek_bytes).expect("Failed to write KEK to temp file");
+        std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
 
         let key_id = temp_file
             .path()

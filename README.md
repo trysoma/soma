@@ -28,58 +28,23 @@ From here, you can start developing locally. If you would like to develop and te
 make dev-insurance-bot
 ```
 
-### variables
-
-Update the .env.example and .env.local file for variables to get loaded locally.
-TODO: how to insert secrets + env vars for deployments as well as any secrets that we need locally
-
 ### Database development
 
 Suggested workflow:
 
 ```bash
-# create a new migration for the internal database
-make db-internal-create-migration NAME=update-user-table
-#if you get errors about atlas hash, you may need to run
-make db-internal-hash
-# modify the migration in ./app/dbs/internal/migrations/xxx.sql
-# create an sqlc queries in ./app/dbs/internal/queries/xxx.sql
-# modify ./sqlc.yaml if needed to add any custom column mappings, etc.
-make db-generate-py-models
-#now import your generated python code from ./app/dbs/internal/generated
+# edit either bridge or soma schema.sql file (e.g. crates/soma/dbs/soma/schema.sql)
+make db-bridge-generate-migration NAME=migration_name # or make db-soma-generate-migration NAME=migration_name 
+make db-bridge-generate-hash # or db-soma-generate-hash
 ```
-Database migrations run via atlas CLI and run on start of the FastAPI server.
-
-
-### Retool database (for Retool development)
-
-To enable local Retool development, apply the Retool schema to the local Docker Postgres instance (`postgres-retool` on port 5433):
-
-```bash
-# ensure Docker services are running
-docker-compose up
-
-# apply the Retool schema to the local retool database
-make db-retool-apply
-```
-
-Creating and maintaining Retool migrations:
-
-```bash
-# create a new migration for the retool database
-make db-retool-create-migration NAME=initial-seed
-
-# if you see errors about migration hash, update it
-make db-retool-hash
-```
+Database migrations run via Rust server on startup
 
 
 ### API development
 
-1. Add or edit a route in ./app/routes/v1/xxx.py, ensure it's included / imported in ./app/routes/v1/_\_init__.py
-2. Run FastAPI (or if already running, just let hot reload run)
-3. on FastAPI startup / hot reload, we generate the swagger / OpenAPI definition in ./openapi.json if you want to review
-4. on FastAPI startup / hot reload, we generate the updated typescript types and react API client in ./frontend/src/@types/openapi.d.ts but you can use the client which is strongly typed in @/lib/api-client (fetch client for browser or node) or @/lib/api-client.client (react hooks client side client)
+1. Add or edit axum routes
+2. Re-build and Restart the rust server (e.g. ```make dev-insurance-bot```)
+3. As part of the ```build.rs``` of the soma crate, we generate a root openapi.json file and generate typescript API client in ```crates/soma/app/src/@types/openapi.d.ts```
 
 ### Commit checks
 

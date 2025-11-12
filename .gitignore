@@ -44,8 +44,6 @@ root
 .cargo
 node_modules
 .env
-.soma
-!.soma/bridge-client
 # Test coverage
 coverage/
 .coverage-tmp/

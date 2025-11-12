@@ -113,13 +113,12 @@ pub fn load_atlas_sql_migrations(input: TokenStream) -> TokenStream {
 
         if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
             let contents = fs::read_to_string(&path)
-                .unwrap_or_else(|e| panic!("Failed to read migration file {}: {}", file_name, e));
+                .unwrap_or_else(|e| panic!("Failed to read migration file {file_name}: {e}"));
 
             // Check if this is an Atlas format migration
             if !contents.starts_with("-- atlas:txtar") {
                 panic!(
-                    "Migration file '{}' must start with '-- atlas:txtar' header",
-                    file_name
+                    "Migration file '{file_name}' must start with '-- atlas:txtar' header"
                 );
             }
 
@@ -137,8 +136,8 @@ pub fn load_atlas_sql_migrations(input: TokenStream) -> TokenStream {
 
             // Generate .up.sql and .down.sql filenames
             let base_name = file_name.trim_end_matches(".sql");
-            let up_filename = format!("{}.up.sql", base_name);
-            let down_filename = format!("{}.down.sql", base_name);
+            let up_filename = format!("{base_name}.up.sql");
+            let down_filename = format!("{base_name}.down.sql");
 
             if let Some(backend) = matched_backend {
                 backend_map
@@ -243,16 +242,14 @@ fn parse_atlas_txtar(contents: &str, filename: &str) -> (String, String) {
     // Validate required sections
     let migration_sql = sections.get("migration.sql")
         .unwrap_or_else(|| panic!(
-            "Migration file '{}' must contain '-- migration.sql --' section",
-            filename
+            "Migration file '{filename}' must contain '-- migration.sql --' section"
         ))
         .trim()
         .to_string();
 
     let down_sql = sections.get("down.sql")
         .unwrap_or_else(|| panic!(
-            "Migration file '{}' must contain '-- down.sql --' section",
-            filename
+            "Migration file '{filename}' must contain '-- down.sql --' section"
         ))
         .trim()
         .to_string();

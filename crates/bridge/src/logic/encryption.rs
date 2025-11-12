@@ -872,8 +872,7 @@ mod tests {
             assert_eq!(
                 decrypted.0,
                 test_data.as_bytes(),
-                "Roundtrip should preserve data for: {}",
-                test_data
+                "Roundtrip should preserve data for: {test_data}"
             );
         }
     }
@@ -1109,7 +1108,7 @@ mod tests {
             let encrypted = encryption_service
                 .encrypt_data(test_data.to_string())
                 .await
-                .expect(&format!("Encryption should succeed for: {}", test_data));
+                .unwrap_or_else(|_| panic!("Encryption should succeed for: {test_data}"));
 
             // Verify encrypted is different from plaintext
             assert_ne!(
@@ -1129,7 +1128,7 @@ mod tests {
             let decrypted = decryption_service
                 .decrypt_data(encrypted)
                 .await
-                .expect(&format!("Decryption should succeed for: {}", test_data));
+                .unwrap_or_else(|_| panic!("Decryption should succeed for: {test_data}"));
 
             // Verify roundtrip
             assert_eq!(
@@ -1191,7 +1190,7 @@ mod tests {
 
         // Test with too short data (less than nonce size)
         let short_data =
-            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &[0u8; 5]);
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, [0u8; 5]);
         let result = decryption_service
             .decrypt_data(EncryptedString(short_data))
             .await;
@@ -1289,7 +1288,7 @@ mod tests {
         rand::thread_rng().fill_bytes(&mut kek_bytes);
 
         let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
-        std::fs::write(temp_file.path(), &kek_bytes).expect("Failed to write KEK to temp file");
+        std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
 
         let key_id = temp_file
             .path()
@@ -1399,8 +1398,7 @@ mod tests {
             assert_eq!(
                 decrypted.0,
                 test_data.as_bytes(),
-                "Roundtrip should preserve data for: {}",
-                test_data
+                "Roundtrip should preserve data for: {test_data}"
             );
         }
     }
@@ -1611,7 +1609,7 @@ mod tests {
             let encrypted = encryption_service
                 .encrypt_data(test_data.to_string())
                 .await
-                .expect(&format!("Encryption should succeed for: {}", test_data));
+                .unwrap_or_else(|_| panic!("Encryption should succeed for: {test_data}"));
 
             // Verify encrypted is different from plaintext
             assert_ne!(
@@ -1623,7 +1621,7 @@ mod tests {
             let decrypted = decryption_service
                 .decrypt_data(encrypted)
                 .await
-                .expect(&format!("Decryption should succeed for: {}", test_data));
+                .unwrap_or_else(|_| panic!("Decryption should succeed for: {test_data}"));
 
             // Verify roundtrip
             assert_eq!(decrypted, test_data, "Roundtrip should preserve data");

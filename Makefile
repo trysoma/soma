@@ -231,7 +231,12 @@ db-soma-generate-hash: ## Update soma database migration hash
 # Development Commands
 # ============================================================================
 
-dev-insurance-bot: ## Start the insurance bot
+dev-insurance-claim-bot: ## Start the insurance claim bot
+	@if [ -z "$$OPENAI_API_KEY" ]; then \
+		echo "Error: OPENAI_API_KEY environment variable is not set"; \
+		echo "Please set it with: export OPENAI_API_KEY=your-api-key"; \
+		exit 1; \
+	fi
 	@echo "Starting insurance bot..."
 	cargo run --bin soma -- dev --src-dir ./js/examples/insurance-claim-bot --clean
 	@echo "✓ Insurance bot started"
