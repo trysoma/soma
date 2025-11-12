@@ -9,16 +9,12 @@ use crate::{router};
 use shared::{error::CommonError, node::override_path_env};
 use crate::utils::config::CliConfig;
 
-#[allow(dead_code)]
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// These are used via main.rs through commands module re-exports
-#[allow(dead_code)]
 pub async fn cmd_codegen(_config: &mut CliConfig) -> Result<(), CommonError> {
     codegen().await
 }
 
-#[allow(dead_code)]
 async fn codegen() -> Result<(), CommonError> {
     info!("generating openapi spec in /openapi.json");
     let frontend_assets_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?).join("./app");
