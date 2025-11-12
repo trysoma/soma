@@ -344,6 +344,8 @@ impl From<MessageRole> for a2a_rs::types::MessageRole {
     }
 }
 
+#[allow(clippy::inherent_to_string)]
+#[allow(clippy::to_string_trait_impl)]
 impl ToString for MessageRole {
     fn to_string(&self) -> String {
         match self {
