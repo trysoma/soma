@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 pub mod dev;
 pub mod codegen;

@@ -1,4 +1,3 @@
-#![allow(clippy::all)]
 pub mod adapters;
 pub mod agent_execution;
 pub mod errors;
