@@ -276,8 +276,10 @@ impl DefaultRequestHandler {
         result_aggregator: &ResultAggregator,
     ) -> Result<(), A2aServerError> {
         if let (Some(push_sender), Some(result)) =
-            (&self.push_sender, result_aggregator.current_result().await) && let AggregatedResult::Task(task) = result {
-                push_sender.send_notification(&task).await?;
+            (&self.push_sender, result_aggregator.current_result().await)
+            && let AggregatedResult::Task(task) = result
+        {
+            push_sender.send_notification(&task).await?;
         }
         Ok(())
     }

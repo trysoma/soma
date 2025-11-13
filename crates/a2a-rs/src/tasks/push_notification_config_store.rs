@@ -13,10 +13,7 @@ pub trait PushNotificationConfigStore: Send + Sync {
     ) -> Result<(), A2aServerError>;
 
     ///Retrieves the push notification configuration for a task
-    async fn get_info(
-        &self,
-        task_id: &str,
-    ) -> Result<Vec<PushNotificationConfig>, A2aServerError>;
+    async fn get_info(&self, task_id: &str) -> Result<Vec<PushNotificationConfig>, A2aServerError>;
 
     ///Deletes the push notification configuration for a task
     async fn delete_info(

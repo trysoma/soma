@@ -12,72 +12,79 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { DataEncryptionKeyListItem } from './DataEncryptionKeyListItem';
+import type { DataEncryptionKeyListItem } from "./DataEncryptionKeyListItem";
 import {
-    DataEncryptionKeyListItemFromJSON,
-    DataEncryptionKeyListItemFromJSONTyped,
-    DataEncryptionKeyListItemToJSON,
-    DataEncryptionKeyListItemToJSONTyped,
-} from './DataEncryptionKeyListItem';
+	DataEncryptionKeyListItemFromJSON,
+	DataEncryptionKeyListItemToJSON,
+} from "./DataEncryptionKeyListItem";
 
 /**
- * 
+ *
  * @export
  * @interface DataEncryptionKeyListItemPaginatedResponse
  */
 export interface DataEncryptionKeyListItemPaginatedResponse {
-    /**
-     * 
-     * @type {Array<DataEncryptionKeyListItem>}
-     * @memberof DataEncryptionKeyListItemPaginatedResponse
-     */
-    items: Array<DataEncryptionKeyListItem>;
-    /**
-     * 
-     * @type {string}
-     * @memberof DataEncryptionKeyListItemPaginatedResponse
-     */
-    nextPageToken: string;
+	/**
+	 *
+	 * @type {Array<DataEncryptionKeyListItem>}
+	 * @memberof DataEncryptionKeyListItemPaginatedResponse
+	 */
+	items: Array<DataEncryptionKeyListItem>;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof DataEncryptionKeyListItemPaginatedResponse
+	 */
+	nextPageToken: string;
 }
 
 /**
  * Check if a given object implements the DataEncryptionKeyListItemPaginatedResponse interface.
  */
-export function instanceOfDataEncryptionKeyListItemPaginatedResponse(value: object): value is DataEncryptionKeyListItemPaginatedResponse {
-    if (!('items' in value) || value['items'] === undefined) return false;
-    if (!('nextPageToken' in value) || value['nextPageToken'] === undefined) return false;
-    return true;
+export function instanceOfDataEncryptionKeyListItemPaginatedResponse(
+	value: object,
+): value is DataEncryptionKeyListItemPaginatedResponse {
+	if (!("items" in value) || value.items === undefined) return false;
+	if (!("nextPageToken" in value) || value.nextPageToken === undefined)
+		return false;
+	return true;
 }
 
-export function DataEncryptionKeyListItemPaginatedResponseFromJSON(json: any): DataEncryptionKeyListItemPaginatedResponse {
-    return DataEncryptionKeyListItemPaginatedResponseFromJSONTyped(json, false);
+export function DataEncryptionKeyListItemPaginatedResponseFromJSON(
+	json: any,
+): DataEncryptionKeyListItemPaginatedResponse {
+	return DataEncryptionKeyListItemPaginatedResponseFromJSONTyped(json, false);
 }
 
-export function DataEncryptionKeyListItemPaginatedResponseFromJSONTyped(json: any, ignoreDiscriminator: boolean): DataEncryptionKeyListItemPaginatedResponse {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'items': ((json['items'] as Array<any>).map(DataEncryptionKeyListItemFromJSON)),
-        'nextPageToken': json['next_page_token'],
-    };
+export function DataEncryptionKeyListItemPaginatedResponseFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): DataEncryptionKeyListItemPaginatedResponse {
+	if (json == null) {
+		return json;
+	}
+	return {
+		items: (json.items as Array<any>).map(DataEncryptionKeyListItemFromJSON),
+		nextPageToken: json.next_page_token,
+	};
 }
 
-export function DataEncryptionKeyListItemPaginatedResponseToJSON(json: any): DataEncryptionKeyListItemPaginatedResponse {
-    return DataEncryptionKeyListItemPaginatedResponseToJSONTyped(json, false);
+export function DataEncryptionKeyListItemPaginatedResponseToJSON(
+	json: any,
+): DataEncryptionKeyListItemPaginatedResponse {
+	return DataEncryptionKeyListItemPaginatedResponseToJSONTyped(json, false);
 }
 
-export function DataEncryptionKeyListItemPaginatedResponseToJSONTyped(value?: DataEncryptionKeyListItemPaginatedResponse | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function DataEncryptionKeyListItemPaginatedResponseToJSONTyped(
+	value?: DataEncryptionKeyListItemPaginatedResponse | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'items': ((value['items'] as Array<any>).map(DataEncryptionKeyListItemToJSON)),
-        'next_page_token': value['nextPageToken'],
-    };
+	return {
+		items: (value.items as Array<any>).map(DataEncryptionKeyListItemToJSON),
+		next_page_token: value.nextPageToken,
+	};
 }
-

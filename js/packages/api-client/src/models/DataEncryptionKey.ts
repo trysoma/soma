@@ -12,99 +12,113 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { EnvelopeEncryptionKeyId } from './EnvelopeEncryptionKeyId';
+import type { EnvelopeEncryptionKeyId } from "./EnvelopeEncryptionKeyId";
 import {
-    EnvelopeEncryptionKeyIdFromJSON,
-    EnvelopeEncryptionKeyIdFromJSONTyped,
-    EnvelopeEncryptionKeyIdToJSON,
-    EnvelopeEncryptionKeyIdToJSONTyped,
-} from './EnvelopeEncryptionKeyId';
+	EnvelopeEncryptionKeyIdFromJSON,
+	EnvelopeEncryptionKeyIdToJSON,
+} from "./EnvelopeEncryptionKeyId";
 
 /**
- * 
+ *
  * @export
  * @interface DataEncryptionKey
  */
 export interface DataEncryptionKey {
-    /**
-     * 
-     * @type {Date}
-     * @memberof DataEncryptionKey
-     */
-    createdAt: Date;
-    /**
-     * 
-     * @type {string}
-     * @memberof DataEncryptionKey
-     */
-    encryptedDataEncryptionKey: string;
-    /**
-     * 
-     * @type {EnvelopeEncryptionKeyId}
-     * @memberof DataEncryptionKey
-     */
-    envelopeEncryptionKeyId: EnvelopeEncryptionKeyId;
-    /**
-     * 
-     * @type {string}
-     * @memberof DataEncryptionKey
-     */
-    id: string;
-    /**
-     * 
-     * @type {Date}
-     * @memberof DataEncryptionKey
-     */
-    updatedAt: Date;
+	/**
+	 *
+	 * @type {Date}
+	 * @memberof DataEncryptionKey
+	 */
+	createdAt: Date;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof DataEncryptionKey
+	 */
+	encryptedDataEncryptionKey: string;
+	/**
+	 *
+	 * @type {EnvelopeEncryptionKeyId}
+	 * @memberof DataEncryptionKey
+	 */
+	envelopeEncryptionKeyId: EnvelopeEncryptionKeyId;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof DataEncryptionKey
+	 */
+	id: string;
+	/**
+	 *
+	 * @type {Date}
+	 * @memberof DataEncryptionKey
+	 */
+	updatedAt: Date;
 }
 
 /**
  * Check if a given object implements the DataEncryptionKey interface.
  */
-export function instanceOfDataEncryptionKey(value: object): value is DataEncryptionKey {
-    if (!('createdAt' in value) || value['createdAt'] === undefined) return false;
-    if (!('encryptedDataEncryptionKey' in value) || value['encryptedDataEncryptionKey'] === undefined) return false;
-    if (!('envelopeEncryptionKeyId' in value) || value['envelopeEncryptionKeyId'] === undefined) return false;
-    if (!('id' in value) || value['id'] === undefined) return false;
-    if (!('updatedAt' in value) || value['updatedAt'] === undefined) return false;
-    return true;
+export function instanceOfDataEncryptionKey(
+	value: object,
+): value is DataEncryptionKey {
+	if (!("createdAt" in value) || value.createdAt === undefined) return false;
+	if (
+		!("encryptedDataEncryptionKey" in value) ||
+		value.encryptedDataEncryptionKey === undefined
+	)
+		return false;
+	if (
+		!("envelopeEncryptionKeyId" in value) ||
+		value.envelopeEncryptionKeyId === undefined
+	)
+		return false;
+	if (!("id" in value) || value.id === undefined) return false;
+	if (!("updatedAt" in value) || value.updatedAt === undefined) return false;
+	return true;
 }
 
 export function DataEncryptionKeyFromJSON(json: any): DataEncryptionKey {
-    return DataEncryptionKeyFromJSONTyped(json, false);
+	return DataEncryptionKeyFromJSONTyped(json, false);
 }
 
-export function DataEncryptionKeyFromJSONTyped(json: any, ignoreDiscriminator: boolean): DataEncryptionKey {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'createdAt': (new Date(json['created_at'])),
-        'encryptedDataEncryptionKey': json['encrypted_data_encryption_key'],
-        'envelopeEncryptionKeyId': EnvelopeEncryptionKeyIdFromJSON(json['envelope_encryption_key_id']),
-        'id': json['id'],
-        'updatedAt': (new Date(json['updated_at'])),
-    };
+export function DataEncryptionKeyFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): DataEncryptionKey {
+	if (json == null) {
+		return json;
+	}
+	return {
+		createdAt: new Date(json.created_at),
+		encryptedDataEncryptionKey: json.encrypted_data_encryption_key,
+		envelopeEncryptionKeyId: EnvelopeEncryptionKeyIdFromJSON(
+			json.envelope_encryption_key_id,
+		),
+		id: json.id,
+		updatedAt: new Date(json.updated_at),
+	};
 }
 
 export function DataEncryptionKeyToJSON(json: any): DataEncryptionKey {
-    return DataEncryptionKeyToJSONTyped(json, false);
+	return DataEncryptionKeyToJSONTyped(json, false);
 }
 
-export function DataEncryptionKeyToJSONTyped(value?: DataEncryptionKey | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function DataEncryptionKeyToJSONTyped(
+	value?: DataEncryptionKey | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'created_at': ((value['createdAt']).toISOString()),
-        'encrypted_data_encryption_key': value['encryptedDataEncryptionKey'],
-        'envelope_encryption_key_id': EnvelopeEncryptionKeyIdToJSON(value['envelopeEncryptionKeyId']),
-        'id': value['id'],
-        'updated_at': ((value['updatedAt']).toISOString()),
-    };
+	return {
+		created_at: value.createdAt.toISOString(),
+		encrypted_data_encryption_key: value.encryptedDataEncryptionKey,
+		envelope_encryption_key_id: EnvelopeEncryptionKeyIdToJSON(
+			value.envelopeEncryptionKeyId,
+		),
+		id: value.id,
+		updated_at: value.updatedAt.toISOString(),
+	};
 }
-

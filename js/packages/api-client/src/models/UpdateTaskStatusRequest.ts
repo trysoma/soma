@@ -12,80 +12,82 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { TaskStatus } from './TaskStatus';
+import type { CreateMessageRequest } from "./CreateMessageRequest";
 import {
-    TaskStatusFromJSON,
-    TaskStatusFromJSONTyped,
-    TaskStatusToJSON,
-    TaskStatusToJSONTyped,
-} from './TaskStatus';
-import type { CreateMessageRequest } from './CreateMessageRequest';
-import {
-    CreateMessageRequestFromJSON,
-    CreateMessageRequestFromJSONTyped,
-    CreateMessageRequestToJSON,
-    CreateMessageRequestToJSONTyped,
-} from './CreateMessageRequest';
+	CreateMessageRequestFromJSON,
+	CreateMessageRequestToJSON,
+} from "./CreateMessageRequest";
+import type { TaskStatus } from "./TaskStatus";
+import { TaskStatusFromJSON, TaskStatusToJSON } from "./TaskStatus";
 
 /**
- * 
+ *
  * @export
  * @interface UpdateTaskStatusRequest
  */
 export interface UpdateTaskStatusRequest {
-    /**
-     * 
-     * @type {CreateMessageRequest}
-     * @memberof UpdateTaskStatusRequest
-     */
-    message?: CreateMessageRequest | null;
-    /**
-     * 
-     * @type {TaskStatus}
-     * @memberof UpdateTaskStatusRequest
-     */
-    status: TaskStatus;
+	/**
+	 *
+	 * @type {CreateMessageRequest}
+	 * @memberof UpdateTaskStatusRequest
+	 */
+	message?: CreateMessageRequest | null;
+	/**
+	 *
+	 * @type {TaskStatus}
+	 * @memberof UpdateTaskStatusRequest
+	 */
+	status: TaskStatus;
 }
-
-
 
 /**
  * Check if a given object implements the UpdateTaskStatusRequest interface.
  */
-export function instanceOfUpdateTaskStatusRequest(value: object): value is UpdateTaskStatusRequest {
-    if (!('status' in value) || value['status'] === undefined) return false;
-    return true;
+export function instanceOfUpdateTaskStatusRequest(
+	value: object,
+): value is UpdateTaskStatusRequest {
+	if (!("status" in value) || value.status === undefined) return false;
+	return true;
 }
 
-export function UpdateTaskStatusRequestFromJSON(json: any): UpdateTaskStatusRequest {
-    return UpdateTaskStatusRequestFromJSONTyped(json, false);
+export function UpdateTaskStatusRequestFromJSON(
+	json: any,
+): UpdateTaskStatusRequest {
+	return UpdateTaskStatusRequestFromJSONTyped(json, false);
 }
 
-export function UpdateTaskStatusRequestFromJSONTyped(json: any, ignoreDiscriminator: boolean): UpdateTaskStatusRequest {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'message': json['message'] == null ? undefined : CreateMessageRequestFromJSON(json['message']),
-        'status': TaskStatusFromJSON(json['status']),
-    };
+export function UpdateTaskStatusRequestFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): UpdateTaskStatusRequest {
+	if (json == null) {
+		return json;
+	}
+	return {
+		message:
+			json.message == null
+				? undefined
+				: CreateMessageRequestFromJSON(json.message),
+		status: TaskStatusFromJSON(json.status),
+	};
 }
 
-export function UpdateTaskStatusRequestToJSON(json: any): UpdateTaskStatusRequest {
-    return UpdateTaskStatusRequestToJSONTyped(json, false);
+export function UpdateTaskStatusRequestToJSON(
+	json: any,
+): UpdateTaskStatusRequest {
+	return UpdateTaskStatusRequestToJSONTyped(json, false);
 }
 
-export function UpdateTaskStatusRequestToJSONTyped(value?: UpdateTaskStatusRequest | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function UpdateTaskStatusRequestToJSONTyped(
+	value?: UpdateTaskStatusRequest | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'message': CreateMessageRequestToJSON(value['message']),
-        'status': TaskStatusToJSON(value['status']),
-    };
+	return {
+		message: CreateMessageRequestToJSON(value.message),
+		status: TaskStatusToJSON(value.status),
+	};
 }
-

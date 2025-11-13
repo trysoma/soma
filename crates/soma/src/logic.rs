@@ -334,10 +334,14 @@ pub enum MessageRole {
 
 impl fmt::Display for MessageRole {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            MessageRole::User => "user",
-            MessageRole::Agent => "agent",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                MessageRole::User => "user",
+                MessageRole::Agent => "agent",
+            }
+        )
     }
 }
 
@@ -349,7 +353,6 @@ impl From<MessageRole> for a2a_rs::types::MessageRole {
         }
     }
 }
-
 
 impl TryFrom<String> for MessageRole {
     type Error = CommonError;
@@ -582,7 +585,13 @@ pub async fn update_task_status(
             request.task_id.clone(),
             a2a_rs::events::Event::TaskStatusUpdate(a2a_rs::types::TaskStatusUpdateEvent {
                 context_id: task.task.context_id.to_string(),
-                final_: matches!(request.inner.status, TaskStatus::Completed | TaskStatus::Failed | TaskStatus::Canceled | TaskStatus::Rejected),
+                final_: matches!(
+                    request.inner.status,
+                    TaskStatus::Completed
+                        | TaskStatus::Failed
+                        | TaskStatus::Canceled
+                        | TaskStatus::Rejected
+                ),
                 kind: "status-update".to_string(),
                 metadata: task.task.metadata.0.clone(),
                 status: a2a_rs::types::TaskStatus {
@@ -599,10 +608,13 @@ pub async fn update_task_status(
             .enqueue_event(a2a_rs::events::Event::TaskStatusUpdate(
                 TaskStatusUpdateEvent {
                     context_id: task.task.context_id.to_string(),
-                    final_: matches!(request.inner.status, TaskStatus::Completed
-                        | TaskStatus::Failed
-                        | TaskStatus::Canceled
-                        | TaskStatus::Rejected),
+                    final_: matches!(
+                        request.inner.status,
+                        TaskStatus::Completed
+                            | TaskStatus::Failed
+                            | TaskStatus::Canceled
+                            | TaskStatus::Rejected
+                    ),
                     kind: "status-update".to_string(),
                     metadata: task.task.metadata.0.clone(),
                     status: a2a_rs::types::TaskStatus {

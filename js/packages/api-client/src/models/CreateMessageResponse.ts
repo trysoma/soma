@@ -12,79 +12,79 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { Message } from './Message';
+import type { Message } from "./Message";
+import { MessageFromJSON, MessageToJSON } from "./Message";
+import type { TaskTimelineItem } from "./TaskTimelineItem";
 import {
-    MessageFromJSON,
-    MessageFromJSONTyped,
-    MessageToJSON,
-    MessageToJSONTyped,
-} from './Message';
-import type { TaskTimelineItem } from './TaskTimelineItem';
-import {
-    TaskTimelineItemFromJSON,
-    TaskTimelineItemFromJSONTyped,
-    TaskTimelineItemToJSON,
-    TaskTimelineItemToJSONTyped,
-} from './TaskTimelineItem';
+	TaskTimelineItemFromJSON,
+	TaskTimelineItemToJSON,
+} from "./TaskTimelineItem";
 
 /**
- * 
+ *
  * @export
  * @interface CreateMessageResponse
  */
 export interface CreateMessageResponse {
-    /**
-     * 
-     * @type {Message}
-     * @memberof CreateMessageResponse
-     */
-    message: Message;
-    /**
-     * 
-     * @type {TaskTimelineItem}
-     * @memberof CreateMessageResponse
-     */
-    timelineItem: TaskTimelineItem;
+	/**
+	 *
+	 * @type {Message}
+	 * @memberof CreateMessageResponse
+	 */
+	message: Message;
+	/**
+	 *
+	 * @type {TaskTimelineItem}
+	 * @memberof CreateMessageResponse
+	 */
+	timelineItem: TaskTimelineItem;
 }
 
 /**
  * Check if a given object implements the CreateMessageResponse interface.
  */
-export function instanceOfCreateMessageResponse(value: object): value is CreateMessageResponse {
-    if (!('message' in value) || value['message'] === undefined) return false;
-    if (!('timelineItem' in value) || value['timelineItem'] === undefined) return false;
-    return true;
+export function instanceOfCreateMessageResponse(
+	value: object,
+): value is CreateMessageResponse {
+	if (!("message" in value) || value.message === undefined) return false;
+	if (!("timelineItem" in value) || value.timelineItem === undefined)
+		return false;
+	return true;
 }
 
-export function CreateMessageResponseFromJSON(json: any): CreateMessageResponse {
-    return CreateMessageResponseFromJSONTyped(json, false);
+export function CreateMessageResponseFromJSON(
+	json: any,
+): CreateMessageResponse {
+	return CreateMessageResponseFromJSONTyped(json, false);
 }
 
-export function CreateMessageResponseFromJSONTyped(json: any, ignoreDiscriminator: boolean): CreateMessageResponse {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'message': MessageFromJSON(json['message']),
-        'timelineItem': TaskTimelineItemFromJSON(json['timeline_item']),
-    };
+export function CreateMessageResponseFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): CreateMessageResponse {
+	if (json == null) {
+		return json;
+	}
+	return {
+		message: MessageFromJSON(json.message),
+		timelineItem: TaskTimelineItemFromJSON(json.timeline_item),
+	};
 }
 
 export function CreateMessageResponseToJSON(json: any): CreateMessageResponse {
-    return CreateMessageResponseToJSONTyped(json, false);
+	return CreateMessageResponseToJSONTyped(json, false);
 }
 
-export function CreateMessageResponseToJSONTyped(value?: CreateMessageResponse | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function CreateMessageResponseToJSONTyped(
+	value?: CreateMessageResponse | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'message': MessageToJSON(value['message']),
-        'timeline_item': TaskTimelineItemToJSON(value['timelineItem']),
-    };
+	return {
+		message: MessageToJSON(value.message),
+		timeline_item: TaskTimelineItemToJSON(value.timelineItem),
+	};
 }
-

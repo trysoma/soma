@@ -1,7 +1,0 @@
-package.json
-tsconfig.esm.json
-tsconfig.json
-README.md
-.npmignore
-.gitignore
-runtime.ts

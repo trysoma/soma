@@ -118,11 +118,10 @@ test-coverage: ## Run tests with coverage and generate merged report
 	@rm -rf coverage .coverage-tmp
 	@mkdir -p .coverage-tmp coverage
 	@echo "Running Rust tests with coverage..."
-	cargo llvm-cov --all-features --workspace --exclude sdk-py --lcov --output-path .coverage-tmp/rust.lcov
+	cargo llvm-cov nextest --all-features --workspace  --lcov --output-path .coverage-tmp/rust.lcov
 	@echo "✓ Rust coverage generated"
 	@echo "Running JS tests with coverage..."
-	cd js && pnpm -r --workspace-concurrency=1 --filter './packages/*' --filter '@soma/sdk-core' run test:coverage
-	cd crates/soma/app && pnpm test:coverage
+	pnpm -r --workspace-concurrency=1 --filter './js/packages/*' --filter './crates/sdk-js' run test:coverage
 	@echo "✓ JS coverage generated"
 	@echo "Collecting JS coverage reports..."
 	@find . -name 'lcov.info' -type f -not -path './coverage/*' -not -path './node_modules/*' -not -path './js/examples/*' | while read file; do \

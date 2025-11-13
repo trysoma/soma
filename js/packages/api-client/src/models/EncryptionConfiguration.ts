@@ -12,72 +12,90 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { EnvelopeEncryptionKeyId } from './EnvelopeEncryptionKeyId';
+import type { EnvelopeEncryptionKeyId } from "./EnvelopeEncryptionKeyId";
 import {
-    EnvelopeEncryptionKeyIdFromJSON,
-    EnvelopeEncryptionKeyIdFromJSONTyped,
-    EnvelopeEncryptionKeyIdToJSON,
-    EnvelopeEncryptionKeyIdToJSONTyped,
-} from './EnvelopeEncryptionKeyId';
+	EnvelopeEncryptionKeyIdFromJSON,
+	EnvelopeEncryptionKeyIdToJSON,
+} from "./EnvelopeEncryptionKeyId";
 
 /**
- * 
+ *
  * @export
  * @interface EncryptionConfiguration
  */
 export interface EncryptionConfiguration {
-    /**
-     * 
-     * @type {string}
-     * @memberof EncryptionConfiguration
-     */
-    encryptedDataEncryptionKey: string;
-    /**
-     * 
-     * @type {EnvelopeEncryptionKeyId}
-     * @memberof EncryptionConfiguration
-     */
-    envelopeEncryptionKeyId: EnvelopeEncryptionKeyId;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof EncryptionConfiguration
+	 */
+	encryptedDataEncryptionKey: string;
+	/**
+	 *
+	 * @type {EnvelopeEncryptionKeyId}
+	 * @memberof EncryptionConfiguration
+	 */
+	envelopeEncryptionKeyId: EnvelopeEncryptionKeyId;
 }
 
 /**
  * Check if a given object implements the EncryptionConfiguration interface.
  */
-export function instanceOfEncryptionConfiguration(value: object): value is EncryptionConfiguration {
-    if (!('encryptedDataEncryptionKey' in value) || value['encryptedDataEncryptionKey'] === undefined) return false;
-    if (!('envelopeEncryptionKeyId' in value) || value['envelopeEncryptionKeyId'] === undefined) return false;
-    return true;
+export function instanceOfEncryptionConfiguration(
+	value: object,
+): value is EncryptionConfiguration {
+	if (
+		!("encryptedDataEncryptionKey" in value) ||
+		value.encryptedDataEncryptionKey === undefined
+	)
+		return false;
+	if (
+		!("envelopeEncryptionKeyId" in value) ||
+		value.envelopeEncryptionKeyId === undefined
+	)
+		return false;
+	return true;
 }
 
-export function EncryptionConfigurationFromJSON(json: any): EncryptionConfiguration {
-    return EncryptionConfigurationFromJSONTyped(json, false);
+export function EncryptionConfigurationFromJSON(
+	json: any,
+): EncryptionConfiguration {
+	return EncryptionConfigurationFromJSONTyped(json, false);
 }
 
-export function EncryptionConfigurationFromJSONTyped(json: any, ignoreDiscriminator: boolean): EncryptionConfiguration {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'encryptedDataEncryptionKey': json['encryptedDataEncryptionKey'],
-        'envelopeEncryptionKeyId': EnvelopeEncryptionKeyIdFromJSON(json['envelopeEncryptionKeyId']),
-    };
+export function EncryptionConfigurationFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): EncryptionConfiguration {
+	if (json == null) {
+		return json;
+	}
+	return {
+		encryptedDataEncryptionKey: json.encryptedDataEncryptionKey,
+		envelopeEncryptionKeyId: EnvelopeEncryptionKeyIdFromJSON(
+			json.envelopeEncryptionKeyId,
+		),
+	};
 }
 
-export function EncryptionConfigurationToJSON(json: any): EncryptionConfiguration {
-    return EncryptionConfigurationToJSONTyped(json, false);
+export function EncryptionConfigurationToJSON(
+	json: any,
+): EncryptionConfiguration {
+	return EncryptionConfigurationToJSONTyped(json, false);
 }
 
-export function EncryptionConfigurationToJSONTyped(value?: EncryptionConfiguration | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function EncryptionConfigurationToJSONTyped(
+	value?: EncryptionConfiguration | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'encryptedDataEncryptionKey': value['encryptedDataEncryptionKey'],
-        'envelopeEncryptionKeyId': EnvelopeEncryptionKeyIdToJSON(value['envelopeEncryptionKeyId']),
-    };
+	return {
+		encryptedDataEncryptionKey: value.encryptedDataEncryptionKey,
+		envelopeEncryptionKeyId: EnvelopeEncryptionKeyIdToJSON(
+			value.envelopeEncryptionKeyId,
+		),
+	};
 }
-

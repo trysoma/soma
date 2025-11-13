@@ -12,72 +12,74 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { Task } from './Task';
-import {
-    TaskFromJSON,
-    TaskFromJSONTyped,
-    TaskToJSON,
-    TaskToJSONTyped,
-} from './Task';
+import type { Task } from "./Task";
+import { TaskFromJSON, TaskToJSON } from "./Task";
 
 /**
- * 
+ *
  * @export
  * @interface TaskPaginatedResponse
  */
 export interface TaskPaginatedResponse {
-    /**
-     * 
-     * @type {Array<Task>}
-     * @memberof TaskPaginatedResponse
-     */
-    items: Array<Task>;
-    /**
-     * 
-     * @type {string}
-     * @memberof TaskPaginatedResponse
-     */
-    nextPageToken: string;
+	/**
+	 *
+	 * @type {Array<Task>}
+	 * @memberof TaskPaginatedResponse
+	 */
+	items: Array<Task>;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof TaskPaginatedResponse
+	 */
+	nextPageToken: string;
 }
 
 /**
  * Check if a given object implements the TaskPaginatedResponse interface.
  */
-export function instanceOfTaskPaginatedResponse(value: object): value is TaskPaginatedResponse {
-    if (!('items' in value) || value['items'] === undefined) return false;
-    if (!('nextPageToken' in value) || value['nextPageToken'] === undefined) return false;
-    return true;
+export function instanceOfTaskPaginatedResponse(
+	value: object,
+): value is TaskPaginatedResponse {
+	if (!("items" in value) || value.items === undefined) return false;
+	if (!("nextPageToken" in value) || value.nextPageToken === undefined)
+		return false;
+	return true;
 }
 
-export function TaskPaginatedResponseFromJSON(json: any): TaskPaginatedResponse {
-    return TaskPaginatedResponseFromJSONTyped(json, false);
+export function TaskPaginatedResponseFromJSON(
+	json: any,
+): TaskPaginatedResponse {
+	return TaskPaginatedResponseFromJSONTyped(json, false);
 }
 
-export function TaskPaginatedResponseFromJSONTyped(json: any, ignoreDiscriminator: boolean): TaskPaginatedResponse {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'items': ((json['items'] as Array<any>).map(TaskFromJSON)),
-        'nextPageToken': json['next_page_token'],
-    };
+export function TaskPaginatedResponseFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): TaskPaginatedResponse {
+	if (json == null) {
+		return json;
+	}
+	return {
+		items: (json.items as Array<any>).map(TaskFromJSON),
+		nextPageToken: json.next_page_token,
+	};
 }
 
 export function TaskPaginatedResponseToJSON(json: any): TaskPaginatedResponse {
-    return TaskPaginatedResponseToJSONTyped(json, false);
+	return TaskPaginatedResponseToJSONTyped(json, false);
 }
 
-export function TaskPaginatedResponseToJSONTyped(value?: TaskPaginatedResponse | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function TaskPaginatedResponseToJSONTyped(
+	value?: TaskPaginatedResponse | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'items': ((value['items'] as Array<any>).map(TaskToJSON)),
-        'next_page_token': value['nextPageToken'],
-    };
+	return {
+		items: (value.items as Array<any>).map(TaskToJSON),
+		next_page_token: value.nextPageToken,
+	};
 }
-

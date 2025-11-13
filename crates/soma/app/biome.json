@@ -1,5 +1,6 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.2.2/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.2.5/schema.json",
+	"extends": ["../../../biome.json"],
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -9,27 +10,16 @@
 		"ignoreUnknown": true
 	},
 	"formatter": {
-		"enabled": true,
-		"indentStyle": "tab",
 		"indentWidth": 2
 	},
 	"linter": {
-		"enabled": true,
 		"rules": {
-			"recommended": true,
 			"suspicious": {
 				"noUnknownAtRules": "off"
 			}
 		},
 		"domains": {
 			"react": "recommended"
-		}
-	},
-	"assist": {
-		"actions": {
-			"source": {
-				"organizeImports": "on"
-			}
 		}
 	}
 }

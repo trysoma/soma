@@ -12,54 +12,58 @@
  * Do not edit the class manually.
  */
 
-import type { BrokerActionOneOf } from './BrokerActionOneOf';
+import type { BrokerActionOneOf } from "./BrokerActionOneOf";
 import {
-    instanceOfBrokerActionOneOf,
-    BrokerActionOneOfFromJSON,
-    BrokerActionOneOfFromJSONTyped,
-    BrokerActionOneOfToJSON,
-} from './BrokerActionOneOf';
+	BrokerActionOneOfFromJSONTyped,
+	BrokerActionOneOfToJSON,
+	instanceOfBrokerActionOneOf,
+} from "./BrokerActionOneOf";
 
 /**
  * @type BrokerAction
- * 
+ *
  * @export
  */
 export type BrokerAction = BrokerActionOneOf | string;
 
 export function BrokerActionFromJSON(json: any): BrokerAction {
-    return BrokerActionFromJSONTyped(json, false);
+	return BrokerActionFromJSONTyped(json, false);
 }
 
-export function BrokerActionFromJSONTyped(json: any, ignoreDiscriminator: boolean): BrokerAction {
-    if (json == null) {
-        return json;
-    }
-    if (typeof json !== 'object') {
-        return json;
-    }
-    if (instanceOfBrokerActionOneOf(json)) {
-        return BrokerActionOneOfFromJSONTyped(json, true);
-    }
+export function BrokerActionFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): BrokerAction {
+	if (json == null) {
+		return json;
+	}
+	if (typeof json !== "object") {
+		return json;
+	}
+	if (instanceOfBrokerActionOneOf(json)) {
+		return BrokerActionOneOfFromJSONTyped(json, true);
+	}
 
-    return {} as any;
+	return {} as any;
 }
 
 export function BrokerActionToJSON(json: any): any {
-    return BrokerActionToJSONTyped(json, false);
+	return BrokerActionToJSONTyped(json, false);
 }
 
-export function BrokerActionToJSONTyped(value?: BrokerAction | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
-    if (typeof value !== 'object') {
-        return value;
-    }
-    if (instanceOfBrokerActionOneOf(value)) {
-        return BrokerActionOneOfToJSON(value as BrokerActionOneOf);
-    }
+export function BrokerActionToJSONTyped(
+	value?: BrokerAction | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
+	if (typeof value !== "object") {
+		return value;
+	}
+	if (instanceOfBrokerActionOneOf(value)) {
+		return BrokerActionOneOfToJSON(value as BrokerActionOneOf);
+	}
 
-    return {};
+	return {};
 }
-

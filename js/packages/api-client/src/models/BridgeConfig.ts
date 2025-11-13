@@ -12,63 +12,64 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { EncryptionConfiguration } from './EncryptionConfiguration';
+import { mapValues } from "../runtime";
+import type { EncryptionConfiguration } from "./EncryptionConfiguration";
 import {
-    EncryptionConfigurationFromJSON,
-    EncryptionConfigurationFromJSONTyped,
-    EncryptionConfigurationToJSON,
-    EncryptionConfigurationToJSONTyped,
-} from './EncryptionConfiguration';
+	EncryptionConfigurationFromJSON,
+	EncryptionConfigurationToJSON,
+} from "./EncryptionConfiguration";
 
 /**
- * 
+ *
  * @export
  * @interface BridgeConfig
  */
 export interface BridgeConfig {
-    /**
-     * 
-     * @type {{ [key: string]: EncryptionConfiguration; }}
-     * @memberof BridgeConfig
-     */
-    encryption: { [key: string]: EncryptionConfiguration; };
+	/**
+	 *
+	 * @type {{ [key: string]: EncryptionConfiguration; }}
+	 * @memberof BridgeConfig
+	 */
+	encryption: { [key: string]: EncryptionConfiguration };
 }
 
 /**
  * Check if a given object implements the BridgeConfig interface.
  */
 export function instanceOfBridgeConfig(value: object): value is BridgeConfig {
-    if (!('encryption' in value) || value['encryption'] === undefined) return false;
-    return true;
+	if (!("encryption" in value) || value.encryption === undefined) return false;
+	return true;
 }
 
 export function BridgeConfigFromJSON(json: any): BridgeConfig {
-    return BridgeConfigFromJSONTyped(json, false);
+	return BridgeConfigFromJSONTyped(json, false);
 }
 
-export function BridgeConfigFromJSONTyped(json: any, ignoreDiscriminator: boolean): BridgeConfig {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'encryption': (mapValues(json['encryption'], EncryptionConfigurationFromJSON)),
-    };
+export function BridgeConfigFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): BridgeConfig {
+	if (json == null) {
+		return json;
+	}
+	return {
+		encryption: mapValues(json.encryption, EncryptionConfigurationFromJSON),
+	};
 }
 
 export function BridgeConfigToJSON(json: any): BridgeConfig {
-    return BridgeConfigToJSONTyped(json, false);
+	return BridgeConfigToJSONTyped(json, false);
 }
 
-export function BridgeConfigToJSONTyped(value?: BridgeConfig | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function BridgeConfigToJSONTyped(
+	value?: BridgeConfig | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'encryption': (mapValues(value['encryption'], EncryptionConfigurationToJSON)),
-    };
+	return {
+		encryption: mapValues(value.encryption, EncryptionConfigurationToJSON),
+	};
 }
-

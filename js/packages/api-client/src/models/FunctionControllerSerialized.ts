@@ -12,100 +12,109 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface FunctionControllerSerialized
  */
 export interface FunctionControllerSerialized {
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof FunctionControllerSerialized
-     */
-    categories: Array<string>;
-    /**
-     * 
-     * @type {string}
-     * @memberof FunctionControllerSerialized
-     */
-    documentation: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof FunctionControllerSerialized
-     */
-    name: string;
-    /**
-     * 
-     * @type {{ [key: string]: any; }}
-     * @memberof FunctionControllerSerialized
-     */
-    output: { [key: string]: any; };
-    /**
-     * 
-     * @type {{ [key: string]: any; }}
-     * @memberof FunctionControllerSerialized
-     */
-    parameters: { [key: string]: any; };
-    /**
-     * 
-     * @type {string}
-     * @memberof FunctionControllerSerialized
-     */
-    typeId: string;
+	/**
+	 *
+	 * @type {Array<string>}
+	 * @memberof FunctionControllerSerialized
+	 */
+	categories: Array<string>;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof FunctionControllerSerialized
+	 */
+	documentation: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof FunctionControllerSerialized
+	 */
+	name: string;
+	/**
+	 *
+	 * @type {{ [key: string]: any; }}
+	 * @memberof FunctionControllerSerialized
+	 */
+	output: { [key: string]: any };
+	/**
+	 *
+	 * @type {{ [key: string]: any; }}
+	 * @memberof FunctionControllerSerialized
+	 */
+	parameters: { [key: string]: any };
+	/**
+	 *
+	 * @type {string}
+	 * @memberof FunctionControllerSerialized
+	 */
+	typeId: string;
 }
 
 /**
  * Check if a given object implements the FunctionControllerSerialized interface.
  */
-export function instanceOfFunctionControllerSerialized(value: object): value is FunctionControllerSerialized {
-    if (!('categories' in value) || value['categories'] === undefined) return false;
-    if (!('documentation' in value) || value['documentation'] === undefined) return false;
-    if (!('name' in value) || value['name'] === undefined) return false;
-    if (!('output' in value) || value['output'] === undefined) return false;
-    if (!('parameters' in value) || value['parameters'] === undefined) return false;
-    if (!('typeId' in value) || value['typeId'] === undefined) return false;
-    return true;
+export function instanceOfFunctionControllerSerialized(
+	value: object,
+): value is FunctionControllerSerialized {
+	if (!("categories" in value) || value.categories === undefined) return false;
+	if (!("documentation" in value) || value.documentation === undefined)
+		return false;
+	if (!("name" in value) || value.name === undefined) return false;
+	if (!("output" in value) || value.output === undefined) return false;
+	if (!("parameters" in value) || value.parameters === undefined) return false;
+	if (!("typeId" in value) || value.typeId === undefined) return false;
+	return true;
 }
 
-export function FunctionControllerSerializedFromJSON(json: any): FunctionControllerSerialized {
-    return FunctionControllerSerializedFromJSONTyped(json, false);
+export function FunctionControllerSerializedFromJSON(
+	json: any,
+): FunctionControllerSerialized {
+	return FunctionControllerSerializedFromJSONTyped(json, false);
 }
 
-export function FunctionControllerSerializedFromJSONTyped(json: any, ignoreDiscriminator: boolean): FunctionControllerSerialized {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'categories': json['categories'],
-        'documentation': json['documentation'],
-        'name': json['name'],
-        'output': json['output'],
-        'parameters': json['parameters'],
-        'typeId': json['type_id'],
-    };
+export function FunctionControllerSerializedFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): FunctionControllerSerialized {
+	if (json == null) {
+		return json;
+	}
+	return {
+		categories: json.categories,
+		documentation: json.documentation,
+		name: json.name,
+		output: json.output,
+		parameters: json.parameters,
+		typeId: json.type_id,
+	};
 }
 
-export function FunctionControllerSerializedToJSON(json: any): FunctionControllerSerialized {
-    return FunctionControllerSerializedToJSONTyped(json, false);
+export function FunctionControllerSerializedToJSON(
+	json: any,
+): FunctionControllerSerialized {
+	return FunctionControllerSerializedToJSONTyped(json, false);
 }
 
-export function FunctionControllerSerializedToJSONTyped(value?: FunctionControllerSerialized | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function FunctionControllerSerializedToJSONTyped(
+	value?: FunctionControllerSerialized | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'categories': value['categories'],
-        'documentation': value['documentation'],
-        'name': value['name'],
-        'output': value['output'],
-        'parameters': value['parameters'],
-        'type_id': value['typeId'],
-    };
+	return {
+		categories: value.categories,
+		documentation: value.documentation,
+		name: value.name,
+		output: value.output,
+		parameters: value.parameters,
+		type_id: value.typeId,
+	};
 }
-

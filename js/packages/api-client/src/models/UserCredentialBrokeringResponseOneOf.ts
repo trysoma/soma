@@ -12,145 +12,159 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { BrokerAction } from './BrokerAction';
-import {
-    BrokerActionFromJSON,
-    BrokerActionFromJSONTyped,
-    BrokerActionToJSON,
-    BrokerActionToJSONTyped,
-} from './BrokerAction';
+import type { BrokerAction } from "./BrokerAction";
+import { BrokerActionFromJSON, BrokerActionToJSON } from "./BrokerAction";
 
 /**
- * 
+ *
  * @export
  * @interface UserCredentialBrokeringResponseOneOf
  */
 export interface UserCredentialBrokeringResponseOneOf {
-    /**
-     * 
-     * @type {BrokerAction}
-     * @memberof UserCredentialBrokeringResponseOneOf
-     */
-    action: BrokerAction;
-    /**
-     * 
-     * @type {Date}
-     * @memberof UserCredentialBrokeringResponseOneOf
-     */
-    createdAt: Date;
-    /**
-     * 
-     * @type {string}
-     * @memberof UserCredentialBrokeringResponseOneOf
-     */
-    credentialControllerTypeId: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof UserCredentialBrokeringResponseOneOf
-     */
-    id: string;
-    /**
-     * 
-     * @type {{ [key: string]: any; }}
-     * @memberof UserCredentialBrokeringResponseOneOf
-     */
-    metadata: { [key: string]: any; };
-    /**
-     * 
-     * @type {string}
-     * @memberof UserCredentialBrokeringResponseOneOf
-     */
-    providerControllerTypeId: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof UserCredentialBrokeringResponseOneOf
-     */
-    resourceServerCredId: string;
-    /**
-     * 
-     * @type {Date}
-     * @memberof UserCredentialBrokeringResponseOneOf
-     */
-    updatedAt: Date;
-    /**
-     * 
-     * @type {string}
-     * @memberof UserCredentialBrokeringResponseOneOf
-     */
-    type: UserCredentialBrokeringResponseOneOfTypeEnum;
+	/**
+	 *
+	 * @type {BrokerAction}
+	 * @memberof UserCredentialBrokeringResponseOneOf
+	 */
+	action: BrokerAction;
+	/**
+	 *
+	 * @type {Date}
+	 * @memberof UserCredentialBrokeringResponseOneOf
+	 */
+	createdAt: Date;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof UserCredentialBrokeringResponseOneOf
+	 */
+	credentialControllerTypeId: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof UserCredentialBrokeringResponseOneOf
+	 */
+	id: string;
+	/**
+	 *
+	 * @type {{ [key: string]: any; }}
+	 * @memberof UserCredentialBrokeringResponseOneOf
+	 */
+	metadata: { [key: string]: any };
+	/**
+	 *
+	 * @type {string}
+	 * @memberof UserCredentialBrokeringResponseOneOf
+	 */
+	providerControllerTypeId: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof UserCredentialBrokeringResponseOneOf
+	 */
+	resourceServerCredId: string;
+	/**
+	 *
+	 * @type {Date}
+	 * @memberof UserCredentialBrokeringResponseOneOf
+	 */
+	updatedAt: Date;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof UserCredentialBrokeringResponseOneOf
+	 */
+	type: UserCredentialBrokeringResponseOneOfTypeEnum;
 }
-
 
 /**
  * @export
  */
 export const UserCredentialBrokeringResponseOneOfTypeEnum = {
-    BrokerState: 'broker_state'
+	BrokerState: "broker_state",
 } as const;
-export type UserCredentialBrokeringResponseOneOfTypeEnum = typeof UserCredentialBrokeringResponseOneOfTypeEnum[keyof typeof UserCredentialBrokeringResponseOneOfTypeEnum];
-
+export type UserCredentialBrokeringResponseOneOfTypeEnum =
+	(typeof UserCredentialBrokeringResponseOneOfTypeEnum)[keyof typeof UserCredentialBrokeringResponseOneOfTypeEnum];
 
 /**
  * Check if a given object implements the UserCredentialBrokeringResponseOneOf interface.
  */
-export function instanceOfUserCredentialBrokeringResponseOneOf(value: object): value is UserCredentialBrokeringResponseOneOf {
-    if (!('action' in value) || value['action'] === undefined) return false;
-    if (!('createdAt' in value) || value['createdAt'] === undefined) return false;
-    if (!('credentialControllerTypeId' in value) || value['credentialControllerTypeId'] === undefined) return false;
-    if (!('id' in value) || value['id'] === undefined) return false;
-    if (!('metadata' in value) || value['metadata'] === undefined) return false;
-    if (!('providerControllerTypeId' in value) || value['providerControllerTypeId'] === undefined) return false;
-    if (!('resourceServerCredId' in value) || value['resourceServerCredId'] === undefined) return false;
-    if (!('updatedAt' in value) || value['updatedAt'] === undefined) return false;
-    if (!('type' in value) || value['type'] === undefined) return false;
-    return true;
+export function instanceOfUserCredentialBrokeringResponseOneOf(
+	value: object,
+): value is UserCredentialBrokeringResponseOneOf {
+	if (!("action" in value) || value.action === undefined) return false;
+	if (!("createdAt" in value) || value.createdAt === undefined) return false;
+	if (
+		!("credentialControllerTypeId" in value) ||
+		value.credentialControllerTypeId === undefined
+	)
+		return false;
+	if (!("id" in value) || value.id === undefined) return false;
+	if (!("metadata" in value) || value.metadata === undefined) return false;
+	if (
+		!("providerControllerTypeId" in value) ||
+		value.providerControllerTypeId === undefined
+	)
+		return false;
+	if (
+		!("resourceServerCredId" in value) ||
+		value.resourceServerCredId === undefined
+	)
+		return false;
+	if (!("updatedAt" in value) || value.updatedAt === undefined) return false;
+	if (!("type" in value) || value.type === undefined) return false;
+	return true;
 }
 
-export function UserCredentialBrokeringResponseOneOfFromJSON(json: any): UserCredentialBrokeringResponseOneOf {
-    return UserCredentialBrokeringResponseOneOfFromJSONTyped(json, false);
+export function UserCredentialBrokeringResponseOneOfFromJSON(
+	json: any,
+): UserCredentialBrokeringResponseOneOf {
+	return UserCredentialBrokeringResponseOneOfFromJSONTyped(json, false);
 }
 
-export function UserCredentialBrokeringResponseOneOfFromJSONTyped(json: any, ignoreDiscriminator: boolean): UserCredentialBrokeringResponseOneOf {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'action': BrokerActionFromJSON(json['action']),
-        'createdAt': (new Date(json['created_at'])),
-        'credentialControllerTypeId': json['credential_controller_type_id'],
-        'id': json['id'],
-        'metadata': json['metadata'],
-        'providerControllerTypeId': json['provider_controller_type_id'],
-        'resourceServerCredId': json['resource_server_cred_id'],
-        'updatedAt': (new Date(json['updated_at'])),
-        'type': json['type'],
-    };
+export function UserCredentialBrokeringResponseOneOfFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): UserCredentialBrokeringResponseOneOf {
+	if (json == null) {
+		return json;
+	}
+	return {
+		action: BrokerActionFromJSON(json.action),
+		createdAt: new Date(json.created_at),
+		credentialControllerTypeId: json.credential_controller_type_id,
+		id: json.id,
+		metadata: json.metadata,
+		providerControllerTypeId: json.provider_controller_type_id,
+		resourceServerCredId: json.resource_server_cred_id,
+		updatedAt: new Date(json.updated_at),
+		type: json.type,
+	};
 }
 
-export function UserCredentialBrokeringResponseOneOfToJSON(json: any): UserCredentialBrokeringResponseOneOf {
-    return UserCredentialBrokeringResponseOneOfToJSONTyped(json, false);
+export function UserCredentialBrokeringResponseOneOfToJSON(
+	json: any,
+): UserCredentialBrokeringResponseOneOf {
+	return UserCredentialBrokeringResponseOneOfToJSONTyped(json, false);
 }
 
-export function UserCredentialBrokeringResponseOneOfToJSONTyped(value?: UserCredentialBrokeringResponseOneOf | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function UserCredentialBrokeringResponseOneOfToJSONTyped(
+	value?: UserCredentialBrokeringResponseOneOf | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'action': BrokerActionToJSON(value['action']),
-        'created_at': ((value['createdAt']).toISOString()),
-        'credential_controller_type_id': value['credentialControllerTypeId'],
-        'id': value['id'],
-        'metadata': value['metadata'],
-        'provider_controller_type_id': value['providerControllerTypeId'],
-        'resource_server_cred_id': value['resourceServerCredId'],
-        'updated_at': ((value['updatedAt']).toISOString()),
-        'type': value['type'],
-    };
+	return {
+		action: BrokerActionToJSON(value.action),
+		created_at: value.createdAt.toISOString(),
+		credential_controller_type_id: value.credentialControllerTypeId,
+		id: value.id,
+		metadata: value.metadata,
+		provider_controller_type_id: value.providerControllerTypeId,
+		resource_server_cred_id: value.resourceServerCredId,
+		updated_at: value.updatedAt.toISOString(),
+		type: value.type,
+	};
 }
-

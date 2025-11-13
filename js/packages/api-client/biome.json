@@ -1,0 +1,22 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.2.5/schema.json",
+	"extends": ["../../../biome.json"],
+	"files": {
+		"ignoreUnknown": false,
+		"includes": ["**", "!dist", "!node_modules", "!coverage", "!target", "!tmp"]
+	},
+	"overrides": [
+		{
+			"includes": ["**"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noExplicitAny": "off",
+						"noShadowRestrictedNames": "off",
+						"useIterableCallbackReturn": "off"
+					}
+				}
+			}
+		}
+	]
+}

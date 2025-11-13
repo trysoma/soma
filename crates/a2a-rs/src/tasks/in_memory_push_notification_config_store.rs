@@ -50,10 +50,7 @@ impl PushNotificationConfigStore for InMemoryPushNotificationConfigStore {
         Ok(())
     }
 
-    async fn get_info(
-        &self,
-        task_id: &str,
-    ) -> Result<Vec<PushNotificationConfig>, A2aServerError> {
+    async fn get_info(&self, task_id: &str) -> Result<Vec<PushNotificationConfig>, A2aServerError> {
         debug!(
             "Attempting to get push notification configs for task: {}",
             task_id

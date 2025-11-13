@@ -12,72 +12,82 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { ProviderControllerSerialized } from './ProviderControllerSerialized';
+import type { ProviderControllerSerialized } from "./ProviderControllerSerialized";
 import {
-    ProviderControllerSerializedFromJSON,
-    ProviderControllerSerializedFromJSONTyped,
-    ProviderControllerSerializedToJSON,
-    ProviderControllerSerializedToJSONTyped,
-} from './ProviderControllerSerialized';
+	ProviderControllerSerializedFromJSON,
+	ProviderControllerSerializedToJSON,
+} from "./ProviderControllerSerialized";
 
 /**
- * 
+ *
  * @export
  * @interface ProviderControllerSerializedPaginatedResponse
  */
 export interface ProviderControllerSerializedPaginatedResponse {
-    /**
-     * 
-     * @type {Array<ProviderControllerSerialized>}
-     * @memberof ProviderControllerSerializedPaginatedResponse
-     */
-    items: Array<ProviderControllerSerialized>;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProviderControllerSerializedPaginatedResponse
-     */
-    nextPageToken: string;
+	/**
+	 *
+	 * @type {Array<ProviderControllerSerialized>}
+	 * @memberof ProviderControllerSerializedPaginatedResponse
+	 */
+	items: Array<ProviderControllerSerialized>;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof ProviderControllerSerializedPaginatedResponse
+	 */
+	nextPageToken: string;
 }
 
 /**
  * Check if a given object implements the ProviderControllerSerializedPaginatedResponse interface.
  */
-export function instanceOfProviderControllerSerializedPaginatedResponse(value: object): value is ProviderControllerSerializedPaginatedResponse {
-    if (!('items' in value) || value['items'] === undefined) return false;
-    if (!('nextPageToken' in value) || value['nextPageToken'] === undefined) return false;
-    return true;
+export function instanceOfProviderControllerSerializedPaginatedResponse(
+	value: object,
+): value is ProviderControllerSerializedPaginatedResponse {
+	if (!("items" in value) || value.items === undefined) return false;
+	if (!("nextPageToken" in value) || value.nextPageToken === undefined)
+		return false;
+	return true;
 }
 
-export function ProviderControllerSerializedPaginatedResponseFromJSON(json: any): ProviderControllerSerializedPaginatedResponse {
-    return ProviderControllerSerializedPaginatedResponseFromJSONTyped(json, false);
+export function ProviderControllerSerializedPaginatedResponseFromJSON(
+	json: any,
+): ProviderControllerSerializedPaginatedResponse {
+	return ProviderControllerSerializedPaginatedResponseFromJSONTyped(
+		json,
+		false,
+	);
 }
 
-export function ProviderControllerSerializedPaginatedResponseFromJSONTyped(json: any, ignoreDiscriminator: boolean): ProviderControllerSerializedPaginatedResponse {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'items': ((json['items'] as Array<any>).map(ProviderControllerSerializedFromJSON)),
-        'nextPageToken': json['next_page_token'],
-    };
+export function ProviderControllerSerializedPaginatedResponseFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): ProviderControllerSerializedPaginatedResponse {
+	if (json == null) {
+		return json;
+	}
+	return {
+		items: (json.items as Array<any>).map(ProviderControllerSerializedFromJSON),
+		nextPageToken: json.next_page_token,
+	};
 }
 
-export function ProviderControllerSerializedPaginatedResponseToJSON(json: any): ProviderControllerSerializedPaginatedResponse {
-    return ProviderControllerSerializedPaginatedResponseToJSONTyped(json, false);
+export function ProviderControllerSerializedPaginatedResponseToJSON(
+	json: any,
+): ProviderControllerSerializedPaginatedResponse {
+	return ProviderControllerSerializedPaginatedResponseToJSONTyped(json, false);
 }
 
-export function ProviderControllerSerializedPaginatedResponseToJSONTyped(value?: ProviderControllerSerializedPaginatedResponse | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function ProviderControllerSerializedPaginatedResponseToJSONTyped(
+	value?: ProviderControllerSerializedPaginatedResponse | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'items': ((value['items'] as Array<any>).map(ProviderControllerSerializedToJSON)),
-        'next_page_token': value['nextPageToken'],
-    };
+	return {
+		items: (value.items as Array<any>).map(ProviderControllerSerializedToJSON),
+		next_page_token: value.nextPageToken,
+	};
 }
-

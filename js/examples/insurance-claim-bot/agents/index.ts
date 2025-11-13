@@ -1,12 +1,11 @@
-import { createSomaAgent, patterns } from "@soma/sdk";
-import { CreateMessageRequest, CreateMessageResponse, MessagePartTypeEnum, MessageRole, DefaultApi as SomaApi, TaskStatus, TaskTimelineItem } from '@soma/api-client'
-import { z } from "zod";
-import { LanguageModel, LanguageModelMiddleware, ModelMessage, streamText, tool, wrapLanguageModel } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { durableCalls } from "@restatedev/vercel-ai-middleware";
-import { ObjectContext, RestatePromise, } from "@restatedev/restate-sdk";
-import { Message } from "../../../packages/api-client/dist/models/Message";
+import { MessagePartTypeEnum, MessageRole, TaskStatus } from "@soma/api-client";
+import { createSomaAgent, patterns } from "@soma/sdk";
+import { type LanguageModel, streamText, tool, wrapLanguageModel } from "ai";
+import { z } from "zod";
 import { convertToAiSdkMessages } from "../utils";
+
 // import { bridge } from "./../.soma/bridge-client";
 /////
 
@@ -18,108 +17,126 @@ const InsuranceClaimSchema = z.object({
 	email: z.string().nonoptional().optional(),
 });
 
-type InsuranceClaim = z.infer<typeof InsuranceClaimSchema>;
+// type InsuranceClaim = z.infer<typeof InsuranceClaimSchema>;
 export const assessmentSchema = z.object({
 	claim: InsuranceClaimSchema,
 });
 
-type Assessment = z.infer<typeof assessmentSchema>
+type Assessment = z.infer<typeof assessmentSchema>;
 
-interface BaseHandlerInput {
-	model: LanguageModel
-}
+// interface BaseHandlerInput {
+// 	model: LanguageModel;
+// }
 
 interface DiscoverClaimInput {
-	model: LanguageModel
+	model: LanguageModel;
 }
 
 interface ProcessClaimInput {
-	assessment: Assessment
+	assessment: Assessment;
 }
 
 const handlers = {
-	discoverClaim: patterns.chat<DiscoverClaimInput, Assessment>(async ({ ctx, soma, history, input: { model }, onGoalAchieved, sendMessage }) => {
-		const messages = convertToAiSdkMessages(history);
+	discoverClaim: patterns.chat<DiscoverClaimInput, Assessment>(
+		async ({
+			ctx,
+			soma: _soma,
+			history,
+			input: { model },
+			onGoalAchieved,
+			sendMessage,
+		}) => {
+			const messages = convertToAiSdkMessages(history);
 
-		ctx.console.log("Messages", messages);
+			ctx.console.log("Messages", messages);
 
-		const stream = streamText({
-			model,
-			messages,
-			//   abortSignal,
-			tools: {
-				decodeClaim: tool({
-					description: "Decode a claim into a structured object. ",
-					inputSchema: assessmentSchema,
-					execute: (input) => onGoalAchieved(input)
-				}),
+			const stream = streamText({
+				model,
+				messages,
+				//   abortSignal,
+				tools: {
+					decodeClaim: tool({
+						description: "Decode a claim into a structured object. ",
+						inputSchema: assessmentSchema,
+						execute: (input) => onGoalAchieved(input),
+					}),
+				},
+			});
+			let agentOutput = "";
+
+			for await (const evt of stream.fullStream) {
+				if (evt.type === "text-delta") {
+					process.stdout.write(evt.text);
+					agentOutput += evt.text;
+					// messages.push({ role: "assistant", content: agentOutput });
+					// stream output back to user
+				}
 			}
-		});
-		let agentOutput = "";
 
-		for await (const evt of stream.fullStream) {
-			if (evt.type === "text-delta") {
-				process.stdout.write(evt.text);
-				agentOutput += evt.text;
-				// messages.push({ role: "assistant", content: agentOutput });
-				// stream output back to user 
-			}
-		}
-
-		await sendMessage({
-			metadata: {},
-			parts: [{
-				text: agentOutput,
+			await sendMessage({
 				metadata: {},
-				type: MessagePartTypeEnum.TextPart,
-			}],
-			referenceTaskIds: [],
-			role: MessageRole.Agent,
-		});
-	}),
-	processClaim: patterns.workflow<ProcessClaimInput, void>(async ({ ctx, soma, history, input: { assessment }, sendMessage }) => {
-		ctx.console.log("Assessment", assessment);
-		// const b = bridge();
+				parts: [
+					{
+						text: agentOutput,
+						metadata: {},
+						type: MessagePartTypeEnum.TextPart,
+					},
+				],
+				referenceTaskIds: [],
+				role: MessageRole.Agent,
+			});
+		},
+	),
+	processClaim: patterns.workflow<ProcessClaimInput, void>(
+		async ({
+			ctx,
+			soma: _soma,
+			history: _history,
+			input: { assessment },
+			sendMessage,
+		}) => {
+			ctx.console.log("Assessment", assessment);
+			// const b = bridge();
 
-		await sendMessage({
-			metadata: {},
-			parts: [{
-				text: "Please wait while we process your claim... You should receive an email with the results shortly.",
+			await sendMessage({
 				metadata: {},
-				type: MessagePartTypeEnum.TextPart,
-			}],
-			referenceTaskIds: [],
-			role: MessageRole.Agent,
-		});
+				parts: [
+					{
+						text: "Please wait while we process your claim... You should receive an email with the results shortly.",
+						metadata: {},
+						type: MessagePartTypeEnum.TextPart,
+					},
+				],
+				referenceTaskIds: [],
+				role: MessageRole.Agent,
+			});
 
+			// await ctx.run(async () => await b.invokeDanieltrysomaaiGoogleMailSendEmail({
+			// 	googleMailgoogleMailSendEmailParamsWrapper: {
+			// 		params: {
+			// 			body: "Your claim has been processed. Please find the results attached.",
+			// 			subject: "Insurance Claim Processed",
+			// 			to: assessment.claim.email || ""
+			// 		}
+			// 	},
+			// }));
 
-		// await ctx.run(async () => await b.invokeDanieltrysomaaiGoogleMailSendEmail({
-		// 	googleMailgoogleMailSendEmailParamsWrapper: {
-		// 		params: {
-		// 			body: "Your claim has been processed. Please find the results attached.",
-		// 			subject: "Insurance Claim Processed",
-		// 			to: assessment.claim.email || ""
-		// 		}
-		// 	},
-		// }));
-		
-
-		// await ctx.run(async () => await b.invokeInternalBotApproveClaim({
-		// 	approveClaimapproveClaimParamsWrapper: {
-		// 		params: {
-		// 			claim: assessment.claim,
-		// 		}
-		// 	},
-		// }));
-
-	}),
+			// await ctx.run(async () => await b.invokeInternalBotApproveClaim({
+			// 	approveClaimapproveClaimParamsWrapper: {
+			// 		params: {
+			// 			claim: assessment.claim,
+			// 		}
+			// 	},
+			// }));
+		},
+	),
 };
 export default createSomaAgent({
 	projectId: "danielblignaut",
 	agentId: "insuranceClaimsAgent",
 	name: "Insurance Claims Agent",
 	description: "An agent that can process insurance claims.",
-	entrypoint: async ({ ctx, soma, taskId, contextId }) => {
+	entrypoint: async ({ ctx, soma, taskId, contextId: _contextId }) => {
 		const model = wrapLanguageModel({
 			model: openai("gpt-4o"),
 			middleware: durableCalls(ctx, { maxRetryAttempts: 3 }),
@@ -131,7 +148,7 @@ export default createSomaAgent({
 			input: { model },
 			taskId,
 			soma,
-			firstTurn: 'agent',
+			firstTurn: "agent",
 		});
 
 		await handlers.processClaim({
@@ -140,25 +157,27 @@ export default createSomaAgent({
 			taskId,
 			soma,
 			interruptable: false,
-		})
+		});
 
-		await ctx.run(() => soma.updateTaskStatus({
-			taskId,
-			updateTaskStatusRequest: {
-				status: TaskStatus.Completed,
-				message: {
-					metadata: {},
-					parts: [{
+		await ctx.run(() =>
+			soma.updateTaskStatus({
+				taskId,
+				updateTaskStatusRequest: {
+					status: TaskStatus.Completed,
+					message: {
 						metadata: {},
-						type: MessagePartTypeEnum.TextPart,
-						text: "Claim processed",
-					}],
-					referenceTaskIds: [],
-					role: "agent"
+						parts: [
+							{
+								metadata: {},
+								type: MessagePartTypeEnum.TextPart,
+								text: "Claim processed",
+							},
+						],
+						referenceTaskIds: [],
+						role: "agent",
+					},
 				},
-			},
-		}));
-
+			}),
+		);
 	},
 });
-

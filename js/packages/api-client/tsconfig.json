@@ -1,20 +1,18 @@
 {
-  "compilerOptions": {
-    "declaration": true,
-    "target": "es6",
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "outDir": "dist",
-    "skipLibCheck": true,
-    "typeRoots": [
-      "node_modules/@types"
-    ]
-  },
-  "exclude": [
-    "dist",
-    "node_modules",
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "vitest.config.ts"
-  ]
+	"compilerOptions": {
+		"declaration": true,
+		"target": "es2022",
+		"module": "commonjs",
+		"moduleResolution": "node",
+		"outDir": "dist",
+		"skipLibCheck": true,
+		"typeRoots": ["node_modules/@types"]
+	},
+	"exclude": [
+		"dist",
+		"node_modules",
+		"**/*.test.ts",
+		"**/*.spec.ts",
+		"vitest.config.ts"
+	]
 }

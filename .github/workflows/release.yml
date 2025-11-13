@@ -1,0 +1,49 @@
+# Example workflow for creating releases with changie-release
+# This workflow runs when VERSION or CHANGELOG.md files are updated (typically after changelog PR is merged)
+
+name: Create Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'VERSION'
+      - 'CHANGELOG.md'
+
+permissions:
+  contents: write  # Required for creating releases and tags
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      release-url: ${{ steps.release.outputs.release-url }}
+      skipped: ${{ steps.release.outputs.skipped }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for release notes
+          token: ${{ secrets.FARO_ENGINEERING_BOT_PAT }}  # Use bot PAT for pushing tags
+          
+
+      - name: Create release
+        id: release
+        uses: faro-engineering/github-actions/changie-release@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          bot-token: ${{ secrets.FARO_ENGINEERING_BOT_PAT }}
+
+
+      - name: Print release info
+        if: steps.release.outputs.skipped != 'true'
+        run: |
+          echo "✅ Release created successfully!"
+          echo "Version: ${{ steps.release.outputs.version }}"
+          echo "URL: ${{ steps.release.outputs.release-url }}"
+
+      - name: Print skip message
+        if: steps.release.outputs.skipped == 'true'
+        run: |
+          echo "⏭️ Release skipped - tag already exists"

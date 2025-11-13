@@ -677,9 +677,7 @@ fn setup_encryption_key(
 }
 
 /// Loads the soma definition from the source directory
-fn load_soma_definition(
-    src_dir: &Path,
-) -> Result<Arc<dyn SomaAgentDefinitionLike>, CommonError> {
+fn load_soma_definition(src_dir: &Path) -> Result<Arc<dyn SomaAgentDefinitionLike>, CommonError> {
     let path_to_soma_definition = src_dir.join("soma.yaml");
 
     if !path_to_soma_definition.exists() {

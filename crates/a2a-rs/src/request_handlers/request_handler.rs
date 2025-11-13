@@ -12,7 +12,11 @@ use crate::{
     },
 };
 
-type TaskSubscriptionStream = Pin<Box<dyn Stream<Item = Result<SendStreamingMessageSuccessResponseResult, A2aServerError>> + Send>>;
+type TaskSubscriptionStream = Pin<
+    Box<
+        dyn Stream<Item = Result<SendStreamingMessageSuccessResponseResult, A2aServerError>> + Send,
+    >,
+>;
 
 /// A2A request handler interface.
 ///
@@ -83,10 +87,7 @@ pub trait RequestHandler {
     async fn on_message_send_stream(
         &self,
         _params: MessageSendParams,
-    ) -> Result<
-        TaskSubscriptionStream,
-        A2aServerError,
-    >;
+    ) -> Result<TaskSubscriptionStream, A2aServerError>;
 
     /// Handles the 'tasks/pushNotificationConfig/set' method.
     ///
@@ -141,10 +142,7 @@ pub trait RequestHandler {
     fn on_resubscribe_to_task(
         &self,
         _params: TaskIdParams,
-    ) -> Result<
-        TaskSubscriptionStream,
-        A2aServerError,
-    >;
+    ) -> Result<TaskSubscriptionStream, A2aServerError>;
 
     /// Handles the 'tasks/pushNotificationConfig/list' method.
     ///

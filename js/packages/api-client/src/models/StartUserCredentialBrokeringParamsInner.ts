@@ -12,55 +12,67 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface StartUserCredentialBrokeringParamsInner
  */
 export interface StartUserCredentialBrokeringParamsInner {
-    /**
-     * 
-     * @type {string}
-     * @memberof StartUserCredentialBrokeringParamsInner
-     */
-    resourceServerCredId: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof StartUserCredentialBrokeringParamsInner
+	 */
+	resourceServerCredId: string;
 }
 
 /**
  * Check if a given object implements the StartUserCredentialBrokeringParamsInner interface.
  */
-export function instanceOfStartUserCredentialBrokeringParamsInner(value: object): value is StartUserCredentialBrokeringParamsInner {
-    if (!('resourceServerCredId' in value) || value['resourceServerCredId'] === undefined) return false;
-    return true;
+export function instanceOfStartUserCredentialBrokeringParamsInner(
+	value: object,
+): value is StartUserCredentialBrokeringParamsInner {
+	if (
+		!("resourceServerCredId" in value) ||
+		value.resourceServerCredId === undefined
+	)
+		return false;
+	return true;
 }
 
-export function StartUserCredentialBrokeringParamsInnerFromJSON(json: any): StartUserCredentialBrokeringParamsInner {
-    return StartUserCredentialBrokeringParamsInnerFromJSONTyped(json, false);
+export function StartUserCredentialBrokeringParamsInnerFromJSON(
+	json: any,
+): StartUserCredentialBrokeringParamsInner {
+	return StartUserCredentialBrokeringParamsInnerFromJSONTyped(json, false);
 }
 
-export function StartUserCredentialBrokeringParamsInnerFromJSONTyped(json: any, ignoreDiscriminator: boolean): StartUserCredentialBrokeringParamsInner {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'resourceServerCredId': json['resource_server_cred_id'],
-    };
+export function StartUserCredentialBrokeringParamsInnerFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): StartUserCredentialBrokeringParamsInner {
+	if (json == null) {
+		return json;
+	}
+	return {
+		resourceServerCredId: json.resource_server_cred_id,
+	};
 }
 
-export function StartUserCredentialBrokeringParamsInnerToJSON(json: any): StartUserCredentialBrokeringParamsInner {
-    return StartUserCredentialBrokeringParamsInnerToJSONTyped(json, false);
+export function StartUserCredentialBrokeringParamsInnerToJSON(
+	json: any,
+): StartUserCredentialBrokeringParamsInner {
+	return StartUserCredentialBrokeringParamsInnerToJSONTyped(json, false);
 }
 
-export function StartUserCredentialBrokeringParamsInnerToJSONTyped(value?: StartUserCredentialBrokeringParamsInner | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function StartUserCredentialBrokeringParamsInnerToJSONTyped(
+	value?: StartUserCredentialBrokeringParamsInner | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'resource_server_cred_id': value['resourceServerCredId'],
-    };
+	return {
+		resource_server_cred_id: value.resourceServerCredId,
+	};
 }
-

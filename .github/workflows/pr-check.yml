@@ -1,0 +1,426 @@
+name: PR Checks
+
+on:
+  - pull_request
+permissions:
+  pull-requests: write
+  contents: read
+  id-token: write
+
+jobs:
+  db-quality:
+    name: Database quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Fetch main branch
+        run: |
+          git fetch origin main
+          git branch main origin/main 2>/dev/null || git checkout -b main origin/main 2>/dev/null || true
+
+      - name: Install Atlas CLI
+        run: |
+          curl -sSf https://atlasgo.sh | sh -s -- --community -y
+          echo "$HOME/.atlas/bin" >> $GITHUB_PATH
+
+      - name: Validate Soma database migrations for breaking changes
+        id: lint-soma
+        if: always()
+        run: |
+          lint_output=$(atlas migrate lint --env soma --git-base main 2>&1) || lint_exit=$?
+          echo "lint_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$lint_output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          if [ -n "${lint_exit:-}" ]; then
+            echo "$lint_output"
+            exit $lint_exit
+          fi
+
+      - name: Comment Soma database migration lint results on PR
+        uses: thollander/actions-comment-pull-request@v3
+        if: always()
+        with:
+          mode: upsert
+          message: |
+            Soma Database Migration Lint Report:
+            ```
+            ${{ steps.lint-soma.outputs.lint_output }}
+            ```
+
+      - name: Validate Bridge database migrations for breaking changes
+        id: lint-bridge
+        if: always()
+        run: |
+          lint_output=$(atlas migrate lint --env bridge --git-base main 2>&1) || lint_exit=$?
+          echo "lint_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$lint_output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          if [ -n "${lint_exit:-}" ]; then
+            echo "$lint_output"
+            exit $lint_exit
+          fi
+
+      - name: Comment Bridge database migration lint results on PR
+        uses: thollander/actions-comment-pull-request@v3
+        if: always()
+        with:
+          mode: upsert
+          message: |
+            Bridge Database Migration Lint Report:
+            ```
+            ${{ steps.lint-bridge.outputs.lint_output }}
+            ```
+
+  api-quality:
+    name: API quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download OpenAPI spec from main via API
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github.v3.raw" \
+                -o ./openapi-main.json \
+                https://api.github.com/repos/${{ github.repository }}/contents/openapi.json?ref=main
+
+      - name: Setup OpenAPI Spec diff action
+        uses: oasdiff/oasdiff-action/diff@main
+        id: diff
+        with:
+          base: ./openapi-main.json
+          revision: ./openapi.json
+
+      - name: Running OpenAPI Spec diff action
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          mode: upsert
+          message: |
+            OpenAPI Spec diff report:
+            ```
+            ${{ steps.diff.outputs.diff }}
+            ```
+
+      - name: Running OpenAPI Spec breaking changes check
+        id: breaking
+        uses: oasdiff/oasdiff-action/breaking@main
+        with:
+          base: ./openapi-main.json
+          revision: ./openapi.json
+          fail-on: ERR
+
+      - name: Comment Breaking changes on PR
+        uses: thollander/actions-comment-pull-request@v3
+        if: always()
+        with:
+          mode: upsert
+          message: |
+            OpenAPI Spec Breaking changes report:
+            ```
+            ${{ steps.breaking.outputs.breaking }}
+            ```
+
+      # TODO: add API changelog generation action at some point
+        
+  rust-quality:
+    name: Rust quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: actions/setup-rust@v4
+        with:
+          rust-version: 1.88.0
+
+      - name: Install cargo deps
+        run: |
+          cargo install --locked cargo-nextest
+
+
+      
+
+      #node is needed as we compile the frontend of soma into the soma crate
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      
+
+      - name: Run cargo clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run cargo fmt
+        run: cargo fmt --all -- --check
+
+      - name: Run cargo nextest
+        run: cargo llvm-cov nextest --all-features --workspace  --lcov --output-path .coverage-tmp/rust.lcov
+
+      - name: Upload Rust coverage LCOV
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rust-coverage-lcov
+          path: .coverage-tmp/rust.lcov
+          retention-days: 7
+
+  ts-quality:
+    name: TypeScript quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Run frontend tests with coverage
+        working-directory: frontend
+        run: pnpm test -- --coverage
+
+      - name: Upload frontend coverage HTML
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage-html
+          path: frontend/coverage/
+          retention-days: 7
+
+      - name: Upload frontend coverage LCOV
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage-lcov
+          path: frontend/coverage/lcov.info
+          retention-days: 7
+
+  coverage-report:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [python-quality, ts-quality]
+    permissions:
+      contents: read
+      pull-requests: write
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.FARO_ENGINEERING_BOT_PAT }}
+
+      - name: Configure git credentials
+        run: |
+          git config --global credential.helper store
+          echo "https://${{ secrets.FARO_ENGINEERING_BOT_PAT }}@github.com" > ~/.git-credentials
+
+      - name: Fetch main branch
+        run: |
+          git fetch origin main:main || git fetch origin main
+
+      - name: Download Python coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-coverage-lcov
+          path: ./coverage/python/
+
+      - name: Download frontend coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage-lcov
+          path: ./coverage/frontend/
+
+      - name: Download Python coverage HTML artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-coverage-html
+          path: ./coverage/html/python/
+
+      - name: Download frontend coverage HTML artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage-html
+          path: ./coverage/html/frontend/
+
+      - name: Setup Node.js for lcov-merger
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install lcov-merger
+        run: npm install -g lcov-merger
+
+      - name: Install lcov tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lcov bc
+
+      - name: Merge coverage reports
+        id: merge-coverage
+        run: |
+          mkdir -p ./coverage/merged
+          
+          # Merge LCOV files
+          if [ -f ./coverage/python/coverage.lcov ] && [ -f ./coverage/frontend/lcov.info ]; then
+            lcov-merger ./coverage/python/coverage.lcov ./coverage/frontend/lcov.info > ./coverage/merged/coverage.lcov
+          elif [ -f ./coverage/python/coverage.lcov ]; then
+            cp ./coverage/python/coverage.lcov ./coverage/merged/coverage.lcov
+          elif [ -f ./coverage/frontend/lcov.info ]; then
+            cp ./coverage/frontend/lcov.info ./coverage/merged/coverage.lcov
+          else
+            echo "No coverage files found"
+            exit 1
+          fi
+          
+          # Parse coverage metrics from merged LCOV
+          coverage_summary=$(lcov --summary ./coverage/merged/coverage.lcov 2>&1 | grep -E "lines|functions|branches" | head -3)
+          echo "coverage_summary<<EOF" >> $GITHUB_OUTPUT
+          echo "$coverage_summary" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Extract percentages
+          lines_coverage=$(echo "$coverage_summary" | grep "lines" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
+          functions_coverage=$(echo "$coverage_summary" | grep "functions" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
+          branches_coverage=$(echo "$coverage_summary" | grep "branches" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
+          
+          echo "lines_coverage=$lines_coverage" >> $GITHUB_OUTPUT
+          echo "functions_coverage=$functions_coverage" >> $GITHUB_OUTPUT
+          echo "branches_coverage=$branches_coverage" >> $GITHUB_OUTPUT
+
+      - name: Get coverage from main branch
+        id: main-coverage
+        run: |
+          git checkout main || true
+          
+          # Try to get coverage from main branch artifacts or previous run
+          # For now, we'll set empty values and calculate diff later
+          echo "main_lines=" >> $GITHUB_OUTPUT
+          echo "main_functions=" >> $GITHUB_OUTPUT
+          echo "main_branches=" >> $GITHUB_OUTPUT
+          
+          git checkout ${{ github.head_ref }} || git checkout - || true
+
+      - name: Calculate coverage changes
+        id: coverage-diff
+        run: |
+          current_lines="${{ steps.merge-coverage.outputs.lines_coverage }}"
+          current_functions="${{ steps.merge-coverage.outputs.functions_coverage }}"
+          current_branches="${{ steps.merge-coverage.outputs.branches_coverage }}"
+          
+          main_lines="${{ steps.main-coverage.outputs.main_lines }}"
+          main_functions="${{ steps.main-coverage.outputs.main_functions }}"
+          main_branches="${{ steps.main-coverage.outputs.main_branches }}"
+          
+          if [ -n "$main_lines" ] && [ "$main_lines" != "0" ] && [ "$main_lines" != "" ]; then
+            lines_diff=$(echo "scale=2; $current_lines - $main_lines" | bc)
+            functions_diff=$(echo "scale=2; $current_functions - $main_functions" | bc)
+            branches_diff=$(echo "scale=2; $current_branches - $main_branches" | bc)
+            
+            # Format with + sign for positive values
+            if (( $(echo "$lines_diff > 0" | bc -l) )); then
+              lines_diff_formatted="+$lines_diff"
+            else
+              lines_diff_formatted="$lines_diff"
+            fi
+            
+            if (( $(echo "$functions_diff > 0" | bc -l) )); then
+              functions_diff_formatted="+$functions_diff"
+            else
+              functions_diff_formatted="$functions_diff"
+            fi
+            
+            if (( $(echo "$branches_diff > 0" | bc -l) )); then
+              branches_diff_formatted="+$branches_diff"
+            else
+              branches_diff_formatted="$branches_diff"
+            fi
+          else
+            lines_diff_formatted="N/A"
+            functions_diff_formatted="N/A"
+            branches_diff_formatted="N/A"
+          fi
+          
+          echo "lines_diff=$lines_diff_formatted" >> $GITHUB_OUTPUT
+          echo "functions_diff=$functions_diff_formatted" >> $GITHUB_OUTPUT
+          echo "branches_diff=$branches_diff_formatted" >> $GITHUB_OUTPUT
+
+      - name: Upload merged coverage HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-coverage-html
+          path: ./coverage/html/
+          retention-days: 7
+
+      - name: Upload merged coverage LCOV
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-coverage-lcov
+          path: ./coverage/merged/coverage.lcov
+          retention-days: 7
+
+      - name: Comment coverage report on PR
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          mode: upsert
+          message: |
+            ## 📊 Coverage Report
+            
+            ### Overall Coverage Metrics
+            
+            | Metric | Current | Change |
+            |--------|---------|--------|
+            | **Lines** | ${{ steps.merge-coverage.outputs.lines_coverage }}% | ${{ steps.coverage-diff.outputs.lines_diff }}% |
+            | **Functions** | ${{ steps.merge-coverage.outputs.functions_coverage }}% | ${{ steps.coverage-diff.outputs.functions_diff }}% |
+            | **Branches** | ${{ steps.merge-coverage.outputs.branches_coverage }}% | ${{ steps.coverage-diff.outputs.branches_diff }}% |
+            
+            ### Coverage Details
+            ```
+            ${{ steps.merge-coverage.outputs.coverage_summary }}
+            ```
+            
+            ### 📁 Coverage Reports
+            
+            Download the HTML coverage reports from the workflow artifacts:
+            - [View Coverage Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - Python Coverage: `python-coverage-html` artifact
+            - Frontend Coverage: `frontend-coverage-html` artifact
+            - Merged Coverage LCOV: `merged-coverage-lcov` artifact

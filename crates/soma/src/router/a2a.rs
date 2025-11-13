@@ -95,9 +95,7 @@ pub struct Agent2AgentServiceParams {
 }
 
 impl Agent2AgentService {
-    pub fn new(
-        params: Agent2AgentServiceParams,
-    ) -> Self {
+    pub fn new(params: Agent2AgentServiceParams) -> Self {
         let Agent2AgentServiceParams {
             src_dir,
             soma_definition,
@@ -201,11 +199,7 @@ struct ProxiedAgent {
 }
 
 impl AgentExecutor for ProxiedAgent {
-    fn execute(
-        &self,
-        context: RequestContext,
-        event_queue: EventQueue,
-    ) -> BoxedFuture {
+    fn execute(&self, context: RequestContext, event_queue: EventQueue) -> BoxedFuture {
         Box::pin(async move {
             let context_id = match context.context_id() {
                 Some(context_id) => context_id.to_string(),
