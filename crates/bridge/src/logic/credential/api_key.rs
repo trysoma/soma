@@ -116,8 +116,8 @@ impl StaticProviderCredentialControllerLike for ApiKeyController {
 
 #[async_trait]
 impl ProviderCredentialControllerLike for ApiKeyController {
-    fn static_credentials(&self) -> Box<dyn StaticCredentialConfigurationLike> {
-        Box::new(self.static_credentials.clone())
+    fn static_credentials(&self) -> &dyn StaticCredentialConfigurationLike {
+        &self.static_credentials
     }
 
     fn type_id(&self) -> &'static str {

@@ -5,7 +5,7 @@ use libsql::FromValue;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{str::FromStr, sync::Arc};
+use std::{fmt, str::FromStr, sync::Arc};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::info;
 use utoipa::ToSchema;
@@ -332,6 +332,15 @@ pub enum MessageRole {
     Agent,
 }
 
+impl fmt::Display for MessageRole {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            MessageRole::User => "user",
+            MessageRole::Agent => "agent",
+        })
+    }
+}
+
 impl From<MessageRole> for a2a_rs::types::MessageRole {
     fn from(value: MessageRole) -> Self {
         match value {
@@ -341,14 +350,6 @@ impl From<MessageRole> for a2a_rs::types::MessageRole {
     }
 }
 
-impl ToString for MessageRole {
-    fn to_string(&self) -> String {
-        match self {
-            MessageRole::User => "user".to_string(),
-            MessageRole::Agent => "agent".to_string(),
-        }
-    }
-}
 
 impl TryFrom<String> for MessageRole {
     type Error = CommonError;
@@ -581,13 +582,7 @@ pub async fn update_task_status(
             request.task_id.clone(),
             a2a_rs::events::Event::TaskStatusUpdate(a2a_rs::types::TaskStatusUpdateEvent {
                 context_id: task.task.context_id.to_string(),
-                final_: match request.inner.status {
-                    TaskStatus::Completed
-                    | TaskStatus::Failed
-                    | TaskStatus::Canceled
-                    | TaskStatus::Rejected => true,
-                    _ => false,
-                },
+                final_: matches!(request.inner.status, TaskStatus::Completed | TaskStatus::Failed | TaskStatus::Canceled | TaskStatus::Rejected),
                 kind: "status-update".to_string(),
                 metadata: task.task.metadata.0.clone(),
                 status: a2a_rs::types::TaskStatus {
@@ -604,13 +599,10 @@ pub async fn update_task_status(
             .enqueue_event(a2a_rs::events::Event::TaskStatusUpdate(
                 TaskStatusUpdateEvent {
                     context_id: task.task.context_id.to_string(),
-                    final_: match request.inner.status {
-                        TaskStatus::Completed
+                    final_: matches!(request.inner.status, TaskStatus::Completed
                         | TaskStatus::Failed
                         | TaskStatus::Canceled
-                        | TaskStatus::Rejected => true,
-                        _ => false,
-                    },
+                        | TaskStatus::Rejected),
                     kind: "status-update".to_string(),
                     metadata: task.task.metadata.0.clone(),
                     status: a2a_rs::types::TaskStatus {

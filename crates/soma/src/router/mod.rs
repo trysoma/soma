@@ -7,6 +7,7 @@ use tower_http::cors::CorsLayer;
 use url::Url;
 use utoipa::openapi::OpenApi;
 
+use crate::router::a2a::Agent2AgentServiceParams;
 use crate::router::task::TaskService;
 use crate::router::{a2a::Agent2AgentService, frontend::FrontendService};
 use crate::utils::restate::admin_client::AdminClient;
@@ -55,16 +56,16 @@ pub(crate) struct InitRouterParams {
 
 impl Routers {
     pub async fn new(init_params: InitRouterParams) -> Result<Self, CommonError> {
-        let agent_service = Arc::new(Agent2AgentService::new(
-            init_params.project_dir.clone(),
-            init_params.soma_definition.clone(),
-            Url::parse(format!("http://{}:{}", init_params.host, init_params.port).as_str())?,
-            init_params.connection_manager.clone(),
-            init_params.repository.clone(),
-            init_params.runtime_port,
-            init_params.restate_ingress_client.clone(),
-            init_params.restate_admin_client.clone(),
-        ));
+        let agent_service = Arc::new(Agent2AgentService::new(Agent2AgentServiceParams {
+            src_dir: init_params.project_dir.clone(),
+            soma_definition: init_params.soma_definition.clone(),
+            host: Url::parse(format!("http://{}:{}", init_params.host, init_params.port).as_str())?,
+            connection_manager: init_params.connection_manager.clone(),
+            repository: init_params.repository.clone(),
+            runtime_port: init_params.runtime_port,
+            restate_ingress_client: init_params.restate_ingress_client.clone(),
+            restate_admin_client: init_params.restate_admin_client.clone(),
+        }));
         let task_service = Arc::new(TaskService::new(
             init_params.connection_manager.clone(),
             init_params.repository.clone(),

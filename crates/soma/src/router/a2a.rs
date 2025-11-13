@@ -1,4 +1,5 @@
 use a2a_rs::agent_execution::SimpleRequestContextBuilder;
+use a2a_rs::agent_execution::agent_executor::BoxedFuture;
 use a2a_rs::errors::A2aServerError;
 use a2a_rs::events::InMemoryQueueManager;
 use a2a_rs::service::A2aServiceLike;
@@ -82,17 +83,31 @@ pub(crate) struct Agent2AgentService {
     repository: Repository,
 }
 
+pub struct Agent2AgentServiceParams {
+    pub src_dir: PathBuf,
+    pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
+    pub host: Url,
+    pub connection_manager: ConnectionManager,
+    pub repository: Repository,
+    pub runtime_port: u16,
+    pub restate_ingress_client: RestateIngressClient,
+    pub restate_admin_client: AdminClient,
+}
+
 impl Agent2AgentService {
     pub fn new(
-        src_dir: PathBuf,
-        soma_definition: Arc<dyn SomaAgentDefinitionLike>,
-        host: Url,
-        connection_manager: ConnectionManager,
-        repository: Repository,
-        runtime_port: u16,
-        restate_ingress_client: RestateIngressClient,
-        restate_admin_client: AdminClient,
+        params: Agent2AgentServiceParams,
     ) -> Self {
+        let Agent2AgentServiceParams {
+            src_dir,
+            soma_definition,
+            host,
+            connection_manager,
+            repository,
+            runtime_port,
+            restate_ingress_client,
+            restate_admin_client,
+        } = params;
         // Create the agent executor
         let agent_executor = Arc::new(ProxiedAgent {
             connection_manager,
@@ -186,17 +201,11 @@ struct ProxiedAgent {
 }
 
 impl AgentExecutor for ProxiedAgent {
-    fn execute<'a>(
-        &'a self,
+    fn execute(
+        &self,
         context: RequestContext,
         event_queue: EventQueue,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>>
-                + Send
-                + 'a,
-        >,
-    > {
+    ) -> BoxedFuture {
         Box::pin(async move {
             let context_id = match context.context_id() {
                 Some(context_id) => context_id.to_string(),

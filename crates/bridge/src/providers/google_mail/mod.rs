@@ -155,7 +155,7 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
         &self,
         crypto_service: &DecryptionService,
         credential_controller: &Arc<dyn ProviderCredentialControllerLike>,
-        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _static_credentials: &dyn StaticCredentialConfigurationLike,
         _resource_server_credential: &ResourceServerCredentialSerialized,
         user_credential: &UserCredentialSerialized,
         params: WrappedJsonValue,

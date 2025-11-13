@@ -110,7 +110,7 @@ impl FunctionControllerLike for GetTaskTimelineItemsFunctionController {
         &self,
         _crypto_service: &DecryptionService,
         credential_controller: &Arc<dyn ProviderCredentialControllerLike>,
-        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _static_credentials: &dyn StaticCredentialConfigurationLike,
         _resource_server_credential: &ResourceServerCredentialSerialized,
         _user_credential: &UserCredentialSerialized,
         params: WrappedJsonValue,

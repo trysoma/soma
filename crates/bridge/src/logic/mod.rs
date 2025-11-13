@@ -108,7 +108,7 @@ pub trait ProviderCredentialControllerLike: Send + Sync {
     fn documentation(&self) -> &'static str;
     fn name(&self) -> &'static str;
     fn configuration_schema(&self) -> ConfigurationSchema;
-    fn static_credentials(&self) -> Box<dyn StaticCredentialConfigurationLike>;
+    fn static_credentials(&self) -> &dyn StaticCredentialConfigurationLike;
     fn as_any(&self) -> &dyn std::any::Any;
     fn as_rotateable_controller_resource_server_credential(
         &self,
@@ -136,10 +136,13 @@ pub trait ProviderCredentialControllerLike: Send + Sync {
     ) -> Result<Box<dyn UserCredentialLike>, CommonError>;
 
     // NOTE: serialized values are always already encrypted
+    #[allow(clippy::wrong_self_convention)]
     fn from_serialized_resource_server_configuration(
         &self,
         raw_resource_server_configuration: WrappedJsonValue,
     ) -> Result<(Box<dyn ResourceServerCredentialLike>, Metadata), CommonError>;
+
+    #[allow(clippy::wrong_self_convention)]
     fn from_serialized_user_credential_configuration(
         &self,
         raw_user_credential_configuration: WrappedJsonValue,
@@ -173,14 +176,14 @@ pub trait RotateableControllerResourceServerCredentialLike {
         &self,
         decryption_service: &DecryptionService,
         encryption_service: &EncryptionService,
-        static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        static_credentials: &dyn StaticCredentialConfigurationLike,
         resource_server_cred: &ResourceServerCredentialSerialized,
     ) -> Result<ResourceServerCredentialSerialized, CommonError>;
     fn next_resource_server_credential_rotation_time(
         &self,
         decryption_service: &DecryptionService,
         encryption_service: &EncryptionService,
-        static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        static_credentials: &dyn StaticCredentialConfigurationLike,
         resource_server_cred: &ResourceServerCredentialSerialized,
     ) -> Result<WrappedChronoDateTime, CommonError>;
 }
@@ -191,13 +194,13 @@ pub trait RotateableControllerUserCredentialLike {
         &self,
         decryption_service: &DecryptionService,
         encryption_service: &EncryptionService,
-        static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        static_credentials: &dyn StaticCredentialConfigurationLike,
         resource_server_cred: &ResourceServerCredentialSerialized,
         user_cred: &UserCredentialSerialized,
     ) -> Result<UserCredentialSerialized, CommonError>;
     async fn next_user_credential_rotation_time(
         &self,
-        static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        static_credentials: &dyn StaticCredentialConfigurationLike,
         resource_server_cred: &ResourceServerCredentialSerialized,
         user_cred: &UserCredentialSerialized,
         decryption_service: &DecryptionService,
@@ -229,7 +232,7 @@ pub trait FunctionControllerLike: Send + Sync {
         &self,
         crypto_service: &DecryptionService,
         credential_controller: &Arc<dyn ProviderCredentialControllerLike>,
-        static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        static_credentials: &dyn StaticCredentialConfigurationLike,
         resource_server_credential: &ResourceServerCredentialSerialized,
         user_credential: &UserCredentialSerialized,
         params: WrappedJsonValue,

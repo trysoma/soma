@@ -12,6 +12,8 @@ use crate::{
     },
 };
 
+type TaskSubscriptionStream = Pin<Box<dyn Stream<Item = Result<SendStreamingMessageSuccessResponseResult, A2aServerError>> + Send>>;
+
 /// A2A request handler interface.
 ///
 /// This interface defines the methods that an A2A server implementation must
@@ -82,12 +84,7 @@ pub trait RequestHandler {
         &self,
         _params: MessageSendParams,
     ) -> Result<
-        Pin<
-            Box<
-                dyn Stream<Item = Result<SendStreamingMessageSuccessResponseResult, A2aServerError>>
-                    + Send,
-            >,
-        >,
+        TaskSubscriptionStream,
         A2aServerError,
     >;
 
@@ -145,12 +142,7 @@ pub trait RequestHandler {
         &self,
         _params: TaskIdParams,
     ) -> Result<
-        Pin<
-            Box<
-                dyn Stream<Item = Result<SendStreamingMessageSuccessResponseResult, A2aServerError>>
-                    + Send,
-            >,
-        >,
+        TaskSubscriptionStream,
         A2aServerError,
     >;
 

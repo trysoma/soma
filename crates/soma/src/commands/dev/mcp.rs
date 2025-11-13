@@ -8,6 +8,7 @@ pub struct StartMcpConnectionManagerParams {
     pub system_shutdown_signal_rx: tokio::sync::broadcast::Receiver<()>,
 }
 
+#[allow(clippy::needless_return)]
 pub async fn start_mcp_connection_manager(
     params: StartMcpConnectionManagerParams,
 ) -> Result<(), CommonError> {

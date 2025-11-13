@@ -3,6 +3,8 @@ use std::pin::Pin;
 
 use crate::{agent_execution::context::RequestContext, events::event_queue::EventQueue};
 
+pub type BoxedFuture<'a> = Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>> + Send + 'a>>;
+
 /// Agent Executor interface.
 ///
 /// Implementations of this interface contain the core logic of the agent,
@@ -19,13 +21,7 @@ pub trait AgentExecutor: Send + Sync {
         &'a self,
         context: RequestContext,
         event_queue: EventQueue,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>>
-                + Send
-                + 'a,
-        >,
-    >;
+    ) -> BoxedFuture<'a>;
 
     /// Request the agent to cancel an ongoing task.
     ///
@@ -36,11 +32,5 @@ pub trait AgentExecutor: Send + Sync {
         &'a self,
         context: RequestContext,
         event_queue: EventQueue,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>>
-                + Send
-                + 'a,
-        >,
-    >;
+    ) -> BoxedFuture<'a>;
 }

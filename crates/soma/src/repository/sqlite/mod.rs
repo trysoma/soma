@@ -1,7 +1,12 @@
 #![allow(non_camel_case_types)]
 mod raw_impl;
 
-include!("raw.generated.rs");
+#[allow(clippy::all)]
+mod generated {
+    include!("raw.generated.rs");
+}
+
+pub use generated::*;
 
 use crate::logic::TaskWithDetails;
 use crate::repository::{
@@ -1977,7 +1982,7 @@ mod tests {
 
         // The timestamp should be from the 101st message (index 100)
         // which is the message that triggers pagination
-        let message_101_created_at = task_with_details.messages.get(99).unwrap().created_at;
+        let _message_101_created_at = task_with_details.messages.get(99).unwrap().created_at;
 
         // The token should represent a timestamp that can be used for pagination
         assert!(parsed.unwrap().timestamp() > 0);

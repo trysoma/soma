@@ -219,6 +219,7 @@ pub struct SyncDevRuntimeChangesFromSdkServerParams {
 /// Watch for dev runtime reloads by monitoring the gRPC connection
 /// This function runs indefinitely, reconnecting when the server restarts
 /// and syncing providers on each reconnection
+#[allow(clippy::needless_return)]
 pub async fn sync_dev_runtime_changes_from_sdk_server(
     params: SyncDevRuntimeChangesFromSdkServerParams,
 ) -> Result<(), CommonError> {

@@ -317,7 +317,7 @@ mod tests {
         let result = list_available_providers(pagination).await;
         assert!(result.is_ok());
 
-        let response = result.unwrap();
+        let _response = result.unwrap();
         // Should have at least the registered providers
         // Should return a valid paginated response (may be empty during isolated tests)
         // Just verify the structure is correct

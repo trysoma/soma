@@ -669,7 +669,7 @@ pub async fn delete_data_encryption_key(
 pub async fn get_crypto_service(
     envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
     repo: &impl crate::repository::ProviderRepositoryLike,
-    data_encryption_key_id: &String,
+    data_encryption_key_id: &str,
 ) -> Result<CryptoService, CommonError> {
     let data_encryption_key = repo
         .get_data_encryption_key_by_id(data_encryption_key_id)

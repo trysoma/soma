@@ -818,7 +818,7 @@ async fn rotate_resource_server_credential(
         .rotate_resource_server_credential(
             &decryption_service,
             &encryption_service,
-            &credential_controller.static_credentials(),
+            credential_controller.static_credentials(),
             resource_server_cred,
         )
         .await?;
@@ -884,7 +884,7 @@ async fn rotate_user_credential(
         .rotate_user_credential(
             &decryption_service,
             &encryption_service,
-            &credential_controller.static_credentials(),
+            credential_controller.static_credentials(),
             resource_server_cred,
             user_cred,
         )

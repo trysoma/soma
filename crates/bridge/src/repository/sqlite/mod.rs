@@ -2,7 +2,12 @@
 #![allow(dead_code)]
 mod raw_impl;
 
-include!("raw.generated.rs");
+#[allow(clippy::all)]
+pub mod generated {
+    include!("raw.generated.rs");
+}
+
+pub use generated::*;
 
 use crate::logic::credential::{
     BrokerState, ResourceServerCredentialSerialized, UserCredentialSerialized,

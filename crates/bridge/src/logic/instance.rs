@@ -1077,7 +1077,7 @@ pub async fn invoke_function(
         .invoke(
             &decryption_service,
             &credential_controller,
-            &static_credentials,
+            static_credentials,
             &function_instance_with_credentials.resource_server_credential,
             &function_instance_with_credentials.user_credential,
             params.inner.inner.params,
@@ -1307,7 +1307,7 @@ mod tests {
             }
         });
 
-        let (converted, defs) =
+        let (_converted, defs) =
             convert_jsonschema_to_openapi(&schema_with_nested_defs, "Nested").unwrap();
         assert_eq!(defs.len(), 2);
 

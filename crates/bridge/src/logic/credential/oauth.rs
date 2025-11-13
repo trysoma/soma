@@ -169,8 +169,8 @@ impl StaticProviderCredentialControllerLike for OauthAuthFlowController {
 
 #[async_trait]
 impl ProviderCredentialControllerLike for OauthAuthFlowController {
-    fn static_credentials(&self) -> Box<dyn StaticCredentialConfigurationLike> {
-        Box::new(self.static_credentials.clone())
+    fn static_credentials(&self) -> &dyn StaticCredentialConfigurationLike {
+        &self.static_credentials
     }
 
     fn type_id(&self) -> &'static str {
@@ -440,7 +440,7 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
         &self,
         decryption_service: &DecryptionService,
         encryption_service: &EncryptionService,
-        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _static_credentials: &dyn StaticCredentialConfigurationLike,
         resource_server_cred: &ResourceServerCredentialSerialized,
         user_cred: &UserCredentialSerialized,
     ) -> Result<UserCredentialSerialized, CommonError> {
@@ -568,7 +568,7 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
 
     async fn next_user_credential_rotation_time(
         &self,
-        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _static_credentials: &dyn StaticCredentialConfigurationLike,
         _resource_server_cred: &ResourceServerCredentialSerialized,
         user_cred: &UserCredentialSerialized,
         _decryption_service: &DecryptionService,
@@ -707,8 +707,8 @@ impl StaticProviderCredentialControllerLike for Oauth2JwtBearerAssertionFlowCont
 
 #[async_trait]
 impl ProviderCredentialControllerLike for Oauth2JwtBearerAssertionFlowController {
-    fn static_credentials(&self) -> Box<dyn StaticCredentialConfigurationLike> {
-        Box::new(self.static_credentials.clone())
+    fn static_credentials(&self) -> &dyn StaticCredentialConfigurationLike {
+        &self.static_credentials
     }
 
     fn type_id(&self) -> &'static str {
@@ -809,7 +809,7 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
         &self,
         decryption_service: &DecryptionService,
         encryption_service: &EncryptionService,
-        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _static_credentials: &dyn StaticCredentialConfigurationLike,
         resource_server_cred: &ResourceServerCredentialSerialized,
         user_cred: &UserCredentialSerialized,
     ) -> Result<UserCredentialSerialized, CommonError> {
@@ -940,7 +940,7 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
 
     async fn next_user_credential_rotation_time(
         &self,
-        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _static_credentials: &dyn StaticCredentialConfigurationLike,
         _resource_server_cred: &ResourceServerCredentialSerialized,
         user_cred: &UserCredentialSerialized,
         _decryption_service: &DecryptionService,
@@ -1147,7 +1147,7 @@ mod tests {
         // Verify next rotation time calculation
         let next_rotation = controller
             .next_user_credential_rotation_time(
-                &static_creds,
+                static_creds,
                 &resource_server_cred,
                 &user_cred,
                 &decryption_service,

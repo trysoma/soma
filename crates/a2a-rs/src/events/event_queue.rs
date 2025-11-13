@@ -51,6 +51,7 @@ impl EventQueue {
     }
 
     /// Creates a new EventQueue with default max size.
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Self {
         Self::new(DEFAULT_MAX_QUEUE_SIZE)
     }

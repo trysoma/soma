@@ -181,7 +181,10 @@ pub fn is_soma_config_change(event: &FileChangeEvt) -> bool {
         .any(|change| change.paths.iter().any(|path| path.ends_with("soma.yaml")))
 }
 
+
 /// Starts the file watcher subsystem
+// Rust doesnt allow opaque type in "type" definitions so we must disable clippy for this
+#[allow(clippy::type_complexity)]
 pub fn start_project_file_watcher(
     project_dir: PathBuf,
 ) -> Result<

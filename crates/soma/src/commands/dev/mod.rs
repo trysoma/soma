@@ -6,6 +6,7 @@ mod restate;
 pub mod runtime;
 mod server;
 
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -677,7 +678,7 @@ fn setup_encryption_key(
 
 /// Loads the soma definition from the source directory
 fn load_soma_definition(
-    src_dir: &PathBuf,
+    src_dir: &Path,
 ) -> Result<Arc<dyn SomaAgentDefinitionLike>, CommonError> {
     let path_to_soma_definition = src_dir.join("soma.yaml");
 

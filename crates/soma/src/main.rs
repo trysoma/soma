@@ -8,12 +8,22 @@ mod utils;
 mod vite;
 
 use clap::{Parser, Subcommand};
-use soma::unwrap_and_error;
+use shared::error::CommonError;
 use tracing::error;
 
 use crate::{commands::dev::DevParams, utils::config::get_or_init_cli_config};
 
 pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub fn unwrap_and_error<T>(cmd: Result<T, CommonError>) -> T {
+    match cmd {
+        Ok(value) => value,
+        Err(e) => {
+            error!("Error: {:?}", &e);
+            panic!("Error: {:?}", &e);
+        }
+    }
+}
 
 #[derive(Parser)]
 pub struct Cli {
@@ -21,6 +31,7 @@ pub struct Cli {
     command: Commands,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand)]
 pub enum Commands {
     Dev(DevParams),
