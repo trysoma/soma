@@ -1,9 +1,8 @@
 
 [package]
-authors = ["LongYinan <lynweklm@gmail.com>"]
-edition = "2021"
 name = "sdk-js"
-version = "0.0.0"
+version.workspace = true
+edition.workspace = true
 
 [lib]
 crate-type = ["cdylib"]

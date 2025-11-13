@@ -1,5 +1,6 @@
 pub mod config;
 pub(crate) mod restate;
+pub(crate) mod restate_binary;
 pub(crate) mod soma_agent_definition;
 
 use std::path::PathBuf;

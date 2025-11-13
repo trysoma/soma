@@ -10,6 +10,7 @@ use shared::error::CommonError;
 use crate::utils::restate::admin_client::AdminClient;
 use crate::utils::restate::invoke::RestateIngressClient;
 use crate::utils::{is_port_in_use, restate};
+use crate::utils::restate_binary;
 
 #[derive(Clone)]
 pub struct RestateServerLocalParams {
@@ -193,7 +194,11 @@ async fn start_restate_server_local(
         }
     }
 
-    let mut cmd = Command::new("restate-server");
+    // Ensure restate-server binary is available (use system binary or bundled one)
+    let restate_binary_path = restate_binary::ensure_restate_binary()?;
+    info!("Using restate-server binary: {}", restate_binary_path);
+
+    let mut cmd = Command::new(&restate_binary_path);
 
     cmd.arg("--log-filter")
         .arg("warn")
