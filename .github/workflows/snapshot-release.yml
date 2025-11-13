@@ -1,0 +1,282 @@
+name: Snapshot Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease-label:
+        description: 'Prerelease label'
+        required: true
+        type: choice
+        options:
+          - snapshot
+          - rc
+      revision:
+        description: 'Branch or tag to release from'
+        required: true
+        type: string
+        default: 'main'
+      semantic-version:
+        description: 'Semantic version (leave empty to auto-calculate from changie)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  snapshot-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.calculate-version.outputs.version }}
+      release-url: ${{ steps.create-release.outputs.upload_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+          token: ${{ secrets.TRY_SOMA_BOT_TOKEN }}
+
+      - name: Setup Changie
+        uses: miniscruff/changie-action@v2.1.0
+        with:
+          version: latest
+
+      - name: Calculate base version
+        id: base-version
+        run: |
+          if [ -n "${{ inputs.semantic-version }}" ]; then
+            BASE_VERSION="${{ inputs.semantic-version }}"
+            echo "Using provided version: $BASE_VERSION"
+          else
+            echo "Calculating next version from changie..."
+            BASE_VERSION=$(changie next auto)
+            if [ $? -ne 0 ] || [ -z "$BASE_VERSION" ]; then
+              echo "Error: Failed to calculate next version from changie"
+              exit 1
+            fi
+            echo "Calculated version: $BASE_VERSION"
+          fi
+          echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Calculate prerelease increment
+        id: calculate-increment
+        run: |
+          BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
+          LABEL="${{ inputs.prerelease-label }}"
+
+          echo "Finding existing prerelease tags for $BASE_VERSION-$LABEL-*"
+
+          # Get all tags matching the pattern
+          EXISTING_TAGS=$(git tag -l "${BASE_VERSION}-${LABEL}-*" | sort -V)
+
+          if [ -z "$EXISTING_TAGS" ]; then
+            echo "No existing tags found, starting at 0"
+            INCREMENT=0
+          else
+            echo "Found existing tags:"
+            echo "$EXISTING_TAGS"
+
+            # Extract the highest increment number
+            HIGHEST=$(echo "$EXISTING_TAGS" | sed "s/${BASE_VERSION}-${LABEL}-//" | sort -n | tail -1)
+            INCREMENT=$((HIGHEST + 1))
+            echo "Highest increment found: $HIGHEST, using: $INCREMENT"
+          fi
+
+          echo "increment=$INCREMENT" >> $GITHUB_OUTPUT
+
+      - name: Calculate full version
+        id: calculate-version
+        run: |
+          BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
+          LABEL="${{ inputs.prerelease-label }}"
+          INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
+
+          FULL_VERSION="v${BASE_VERSION}-${LABEL}-${INCREMENT}"
+          echo "Full version: $FULL_VERSION"
+          echo "version=$FULL_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create prerelease changelog
+        run: |
+          VERSION="${{ steps.calculate-version.outputs.version }}"
+          LABEL="${{ inputs.prerelease-label }}"
+          INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
+
+          echo "Creating changelog for prerelease: $VERSION"
+          changie batch "$VERSION" --prerelease "${LABEL}-${INCREMENT}" --move-dir=prerelease
+          changie merge
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.88.0
+          profile: minimal
+
+      - name: Update Cargo.lock
+        run: |
+          echo "Updating Cargo.lock for version ${{ steps.calculate-version.outputs.version }}"
+          cargo update --workspace
+
+      - name: Commit changelog and version changes
+        run: |
+          VERSION="${{ steps.calculate-version.outputs.version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add .
+          git commit -m "chore: prepare release $VERSION" || echo "No changes to commit"
+
+      - name: Create and push tag
+        run: |
+          VERSION="${{ steps.calculate-version.outputs.version }}"
+
+          echo "Creating tag: v$VERSION"
+          git tag -a "v$VERSION" -m "Release $VERSION"
+          git push origin "v$VERSION"
+
+      - name: Create GitHub Release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.calculate-version.outputs.version }}
+          release_name: ${{ steps.calculate-version.outputs.version }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: true
+
+  build-binaries:
+    name: Build Rust binaries
+    needs: snapshot-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: soma
+            asset_name: soma-linux-x86_64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact_name: soma
+            asset_name: soma-linux-aarch64
+            use_cross: true
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: soma
+            asset_name: soma-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: soma
+            asset_name: soma-macos-aarch64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: soma.exe
+            asset_name: soma-windows-x86_64.exe
+    env:
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+      CARGO_PROFILE_RELEASE_LTO: true
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: v${{ needs.snapshot-release.outputs.version }}
+          submodules: recursive
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.use_cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Setup pnpm (for frontend build)
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js (for frontend build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install pnpm dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build binary
+        run: |
+          if [ "${{ matrix.use_cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }} --bin soma --locked
+          else
+            cargo build --release --target ${{ matrix.target }} --bin soma --locked
+          fi
+        shell: bash
+
+      - name: Strip binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
+      - name: Upload binary to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.snapshot-release.outputs.release-url }}
+          asset_path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          asset_content_type: application/octet-stream
+
+  publish-npm:
+    name: Publish to npm
+    needs: snapshot-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: v${{ needs.snapshot-release.outputs.version }}
+          submodules: recursive
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Rust (for sdk-core build)
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.88.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm -r run build
+
+      - name: Publish prerelease to npm
+        run: npm publish -ws --access public --tag ${{ inputs.prerelease-label }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
