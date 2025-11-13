@@ -152,6 +152,12 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    env:
+      # Disable incremental compilation for faster from-scratch builds
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+      CARGO_PROFILE_RELEASE_LTO: true
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -184,7 +190,7 @@ jobs:
           tool: cargo-llvm-cov,cargo-nextest
 
       - name: Run cargo clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
 
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
@@ -192,7 +198,7 @@ jobs:
       - name: Run cargo nextest with coverage
         run: |
           mkdir -p .coverage-tmp
-          cargo llvm-cov nextest --all-features --workspace --lcov --output-path .coverage-tmp/rust.lcov
+          cargo llvm-cov nextest --all-features --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov
 
       - name: Upload Rust coverage LCOV
         uses: actions/upload-artifact@v4
@@ -423,7 +429,7 @@ jobs:
         run: |
           if [ -f ./coverage/merged/coverage.lcov ]; then
             mkdir -p ./coverage/html
-            genhtml ./coverage/merged/coverage.lcov --output-directory ./coverage/html --ignore-errors source,range --prefix $(pwd)
+            genhtml ./coverage/merged/coverage.lcov --output-directory ./coverage/html --ignore-errors source --prefix $(pwd)
             echo "✓ HTML report generated at ./coverage/html/index.html"
           fi
 

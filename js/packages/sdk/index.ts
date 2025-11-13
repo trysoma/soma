@@ -6,7 +6,7 @@
 //   DefaultApi,
 //   DefaultConfig,
 //   TaskTimelineItem
-// } from "@soma/api-client";
+// } from "@trysoma/api-client";
 // import z from "zod";
 
 // const DEFAULT_BASE_URL = "http://localhost:3000";
@@ -101,7 +101,7 @@
 //   });
 
 // }
-export * from "@soma/sdk-core";
+export * from "@trysoma/sdk-core";
 export * from "./agent";
 export * from "./bridge";
 export * from "./patterns";

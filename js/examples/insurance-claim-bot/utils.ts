@@ -1,4 +1,4 @@
-import type { TaskTimelineItem } from "@soma/api-client/dist/models/TaskTimelineItem";
+import type { TaskTimelineItem } from "@trysoma/api-client/dist/models/TaskTimelineItem";
 import type { ModelMessage } from "ai";
 
 export const convertToAiSdkMessages = (messages: TaskTimelineItem[]) => {

@@ -1,8 +1,13 @@
 {
-	"name": "@soma/sdk",
+	"name": "@trysoma/sdk",
+	"version": "0.0.0",
 	"main": "./dist/index.js",
 	"type": "module",
 	"module": "./dist/index.js",
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org/",
+		"access": "public"
+	},
 	"exports": {
 		".": {
 			"import": "./dist/index.js",
@@ -42,8 +47,8 @@
 		"@a2a-js/sdk": "^0.3.4",
 		"@openapitools/openapi-generator-cli": "^2.15.3",
 		"@restatedev/restate-sdk": "^1.9.0",
-		"@soma/api-client": "workspace:*",
-		"@soma/sdk-core": "workspace:*",
+		"@trysoma/api-client": "workspace:*",
+		"@trysoma/sdk-core": "workspace:*",
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {

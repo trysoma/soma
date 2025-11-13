@@ -4,7 +4,7 @@ import type {
 	CreateMessageResponse,
 	DefaultApi,
 	TaskTimelineItem,
-} from "@soma/api-client";
+} from "@trysoma/api-client";
 
 export type FirstTurn = "user" | "agent";
 

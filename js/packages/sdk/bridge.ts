@@ -1,4 +1,4 @@
-import type { FunctionController, ProviderController } from "@soma/sdk-core";
+import type { FunctionController, ProviderController } from "@trysoma/sdk-core";
 import z from "zod";
 
 interface CreateSomaFunctionParams<InputType, OutputType> {

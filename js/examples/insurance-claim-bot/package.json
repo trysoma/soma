@@ -26,8 +26,8 @@
 		"@genkit-ai/vertexai": "^1.8.0",
 		"@restatedev/restate-sdk": "^1.9.0",
 		"@restatedev/vercel-ai-middleware": "^0.2.0",
-		"@soma/api-client": "workspace:*",
-		"@soma/sdk": "workspace:*",
+		"@trysoma/api-client": "workspace:*",
+		"@trysoma/sdk": "workspace:*",
 		"ai": "^5.0.89",
 		"genkit": "^1.8.0",
 		"zod": "^4.1.12"

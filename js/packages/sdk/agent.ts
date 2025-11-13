@@ -1,6 +1,6 @@
 // import { Artifact, Message, TaskStatus } from "@a2a-js/sdk";
 import type * as restate from "@restatedev/restate-sdk";
-import type { DefaultApi } from "@soma/api-client";
+import type { DefaultApi } from "@trysoma/api-client";
 
 export interface HandlerParams {
 	taskId: string;

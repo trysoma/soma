@@ -1,5 +1,5 @@
-import type { ProviderController } from "@soma/sdk";
-import { createSomaFunction } from "@soma/sdk/bridge";
+import type { ProviderController } from "@trysoma/sdk";
+import { createSomaFunction } from "@trysoma/sdk/bridge";
 import z from "zod";
 import { assessmentSchema } from "../agents";
 export const providerController: ProviderController = {

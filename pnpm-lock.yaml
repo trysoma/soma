@@ -77,10 +77,10 @@ importers:
       '@restatedev/vercel-ai-middleware':
         specifier: ^0.2.0
         version: 0.2.0(@restatedev/restate-sdk@1.9.0)(ai@5.0.89(zod@4.1.12))(superjson@2.2.5)
-      '@soma/api-client':
+      '@trysoma/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
-      '@soma/sdk':
+      '@trysoma/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
       ai:
@@ -135,10 +135,10 @@ importers:
       '@restatedev/restate-sdk':
         specifier: ^1.9.0
         version: 1.9.0
-      '@soma/api-client':
+      '@trysoma/api-client':
         specifier: workspace:*
         version: link:../api-client
-      '@soma/sdk-core':
+      '@trysoma/sdk-core':
         specifier: workspace:*
         version: link:../../../crates/sdk-js
       typescript:

@@ -245,7 +245,7 @@ function generateStandaloneServer(
 	const hasAgents = agentIndex > 0;
 
 	return `// Auto-generated standalone server
-import { addFunction, addProvider, addAgent, startGrpcServer } from '@soma/sdk';
+import { addFunction, addProvider, addAgent, startGrpcServer } from '@trysoma/sdk';
 import * as restate from '@restatedev/restate-sdk';
 import * as http2 from 'http2';
 
@@ -275,9 +275,9 @@ console.log("SDK server ready!");
 ${
 	hasAgents
 		? `
-import { HandlerParams, SomaAgent } from "@soma/sdk/agent";
-import { Configuration as BridgeConfiguration } from '@soma/sdk/bridge';
-import { DefaultApi, Configuration as SomaConfiguration } from '@soma/api-client';
+import { HandlerParams, SomaAgent } from "@trysoma/sdk/agent";
+import { Configuration as BridgeConfiguration } from '@trysoma/sdk/bridge';
+import { DefaultApi, Configuration as SomaConfiguration } from '@trysoma/api-client';
 import * as net from 'net';
 
 interface RestateInput {
@@ -457,12 +457,12 @@ function bridgeClientPlugin(baseDir: string): Plugin {
 					"-i",
 					"http://localhost:3000/api/bridge/v1/function-instances/openapi.json",
 					// "-t",
-					// "./node_modules/@soma/sdk/openapi-template",
+					// "./node_modules/@trysoma/sdk/openapi-template",
 					"-g",
 					"typescript-fetch",
 					"--additional-properties",
 					"supportsES6=true",
-					"--ignore-file-override=./node_modules/@soma/sdk/openapi-template/.openapi-generator-ignore",
+					"--ignore-file-override=./node_modules/@trysoma/sdk/openapi-template/.openapi-generator-ignore",
 					"-o",
 					tempOutputDir,
 				],

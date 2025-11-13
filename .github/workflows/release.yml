@@ -47,3 +47,146 @@ jobs:
         if: steps.release.outputs.skipped == 'true'
         run: |
           echo "⏭️ Release skipped - tag already exists"
+
+  build-binaries:
+    name: Build Rust binaries
+    needs: release
+    if: needs.release.outputs.skipped != 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: soma
+            asset_name: soma-linux-x86_64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact_name: soma
+            asset_name: soma-linux-aarch64
+            use_cross: true
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: soma
+            asset_name: soma-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: soma
+            asset_name: soma-macos-aarch64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: soma.exe
+            asset_name: soma-windows-x86_64.exe
+    env:
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+      CARGO_PROFILE_RELEASE_LTO: true
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.use_cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Setup Node.js (for frontend build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install pnpm dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build binary
+        run: |
+          if [ "${{ matrix.use_cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }} --bin soma --locked
+          else
+            cargo build --release --target ${{ matrix.target }} --bin soma --locked
+          fi
+        shell: bash
+
+      - name: Strip binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
+      - name: Upload binary to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.release-url }}
+          asset_path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          asset_content_type: application/octet-stream
+
+  publish-npm:
+    name: Publish to npm
+    needs: release
+    if: needs.release.outputs.skipped != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for npm provenance
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Rust (for sdk-core build)
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm -r --filter './js/packages/*' run build
+
+      - name: Update workspace versions
+        run: |
+          VERSION="${{ needs.release.outputs.version }}"
+          # Update version in all workspace packages
+          for pkg in js/packages/*/package.json; do
+            node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('$pkg')); p.version='$VERSION'; fs.writeFileSync('$pkg', JSON.stringify(p, null, '\t')+'\n');"
+          done
+
+      - name: Publish packages to npm
+        run: |
+          # Publish workspace packages in order (dependencies first)
+          pnpm publish -r --filter './js/packages/*' --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

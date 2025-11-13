@@ -1,1 +1,1 @@
-npx openapi-generator-cli generate -i /root/soma-oss/openapi.json -g typescript-fetch -o ./ --additional-properties="supportsES6=true,npmName=@soma/api-client,npmVersion=0.0.0"
+npx openapi-generator-cli generate -i /root/soma-oss/openapi.json -g typescript-fetch -o ./ --additional-properties="supportsES6=true,npmName=@trysoma/api-client,npmVersion=0.0.0"
