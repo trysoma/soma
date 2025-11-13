@@ -52,7 +52,7 @@ jobs:
         if: always()
         with:
           mode: upsert
-          comment_tag: soma-db-quality
+          comment-tag: soma-db-quality
           message: |
             Soma Database Migration Lint Report:
             ```
@@ -80,7 +80,7 @@ jobs:
         if: always()
         with:
           mode: upsert
-          comment_tag: bridge-db-quality
+          comment-tag: bridge-db-quality
           message: |
             Bridge Database Migration Lint Report:
             ```
@@ -117,7 +117,7 @@ jobs:
         uses: thollander/actions-comment-pull-request@v3
         with:
           mode: upsert
-          comment_tag: api-quality
+          comment-tag: api-quality
           message: |
             OpenAPI Spec diff report:
             ```
@@ -137,7 +137,7 @@ jobs:
         if: always()
         with:
           mode: upsert
-          comment_tag: api-spec-diff
+          comment-tag: api-spec-diff
           message: |
             OpenAPI Spec Breaking changes report:
             ```
@@ -399,18 +399,66 @@ jobs:
           echo "functions_coverage=$functions_coverage" >> $GITHUB_OUTPUT
           echo "branches_coverage=$branches_coverage" >> $GITHUB_OUTPUT
 
+      - name: Get latest main branch workflow run
+        id: get-main-run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Get the latest successful workflow run on main branch
+          latest_run=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${{ github.repository }}/actions/workflows/main-coverage.yml/runs?branch=main&status=success&per_page=1" \
+            --jq '.workflow_runs[0].id')
+
+          if [ -z "$latest_run" ] || [ "$latest_run" = "null" ]; then
+            echo "⚠ No successful main coverage workflow run found"
+            echo "run_id=" >> $GITHUB_OUTPUT
+          else
+            echo "✓ Found latest main coverage run: $latest_run"
+            echo "run_id=$latest_run" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download main branch coverage metrics
+        if: steps.get-main-run.outputs.run_id != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p .coverage-main
+
+          # Download the artifact from the main branch run
+          gh run download ${{ steps.get-main-run.outputs.run_id }} \
+            --name main-coverage-metrics \
+            --dir .coverage-main
+
+          if [ -f .coverage-main/main-coverage.json ]; then
+            echo "✓ Successfully downloaded main branch coverage metrics"
+            cat .coverage-main/main-coverage.json
+          else
+            echo "⚠ Failed to download coverage metrics"
+          fi
+
       - name: Get coverage from main branch
         id: main-coverage
         run: |
-          git checkout main || true
-          
-          # Try to get coverage from main branch artifacts or previous run
-          # For now, we'll set empty values and calculate diff later
-          echo "main_lines=" >> $GITHUB_OUTPUT
-          echo "main_functions=" >> $GITHUB_OUTPUT
-          echo "main_branches=" >> $GITHUB_OUTPUT
-          
-          git checkout ${{ github.head_ref }} || git checkout - || true
+          if [ -f .coverage-main/main-coverage.json ]; then
+            echo "✓ Found coverage metrics from main branch"
+            cat .coverage-main/main-coverage.json
+
+            main_lines=$(jq -r '.lines' .coverage-main/main-coverage.json)
+            main_functions=$(jq -r '.functions' .coverage-main/main-coverage.json)
+            main_branches=$(jq -r '.branches' .coverage-main/main-coverage.json)
+
+            echo "main_lines=$main_lines" >> $GITHUB_OUTPUT
+            echo "main_functions=$main_functions" >> $GITHUB_OUTPUT
+            echo "main_branches=$main_branches" >> $GITHUB_OUTPUT
+          else
+            echo "⚠ No coverage metrics found from main branch"
+            echo "main_lines=" >> $GITHUB_OUTPUT
+            echo "main_functions=" >> $GITHUB_OUTPUT
+            echo "main_branches=" >> $GITHUB_OUTPUT
+          fi
 
       - name: Calculate coverage changes
         id: coverage-diff
@@ -418,40 +466,39 @@ jobs:
           current_lines="${{ steps.merge-coverage.outputs.lines_coverage }}"
           current_functions="${{ steps.merge-coverage.outputs.functions_coverage }}"
           current_branches="${{ steps.merge-coverage.outputs.branches_coverage }}"
-          
+
           main_lines="${{ steps.main-coverage.outputs.main_lines }}"
           main_functions="${{ steps.main-coverage.outputs.main_functions }}"
           main_branches="${{ steps.main-coverage.outputs.main_branches }}"
-          
-          if [ -n "$main_lines" ] && [ "$main_lines" != "0" ] && [ "$main_lines" != "" ]; then
-            lines_diff=$(echo "scale=2; $current_lines - $main_lines" | bc)
-            functions_diff=$(echo "scale=2; $current_functions - $main_functions" | bc)
-            branches_diff=$(echo "scale=2; $current_branches - $main_branches" | bc)
-            
+
+          # Function to calculate and format diff
+          calculate_diff() {
+            local current=$1
+            local main=$2
+
+            # Check if main coverage exists and is valid
+            if [ -z "$main" ] || [ "$main" = "null" ] || [ "$main" = "0" ]; then
+              echo "N/A"
+              return
+            fi
+
+            # Calculate diff
+            local diff=$(echo "scale=2; $current - $main" | bc)
+
             # Format with + sign for positive values
-            if (( $(echo "$lines_diff > 0" | bc -l) )); then
-              lines_diff_formatted="+$lines_diff"
+            if (( $(echo "$diff > 0" | bc -l) )); then
+              echo "+${diff}%"
+            elif (( $(echo "$diff < 0" | bc -l) )); then
+              echo "${diff}%"
             else
-              lines_diff_formatted="$lines_diff"
+              echo "0%"
             fi
-            
-            if (( $(echo "$functions_diff > 0" | bc -l) )); then
-              functions_diff_formatted="+$functions_diff"
-            else
-              functions_diff_formatted="$functions_diff"
-            fi
-            
-            if (( $(echo "$branches_diff > 0" | bc -l) )); then
-              branches_diff_formatted="+$branches_diff"
-            else
-              branches_diff_formatted="$branches_diff"
-            fi
-          else
-            lines_diff_formatted="N/A"
-            functions_diff_formatted="N/A"
-            branches_diff_formatted="N/A"
-          fi
-          
+          }
+
+          lines_diff_formatted=$(calculate_diff "$current_lines" "$main_lines")
+          functions_diff_formatted=$(calculate_diff "$current_functions" "$main_functions")
+          branches_diff_formatted=$(calculate_diff "$current_branches" "$main_branches")
+
           echo "lines_diff=$lines_diff_formatted" >> $GITHUB_OUTPUT
           echo "functions_diff=$functions_diff_formatted" >> $GITHUB_OUTPUT
           echo "branches_diff=$branches_diff_formatted" >> $GITHUB_OUTPUT
@@ -496,12 +543,47 @@ jobs:
           verbose: true
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Comment coverage report on PR
+      - name: Comment coverage report on PR (no main baseline)
         uses: thollander/actions-comment-pull-request@v3
-        if: always()
+        if: always() && steps.main-coverage.outputs.main_lines == ''
         with:
           mode: upsert
-          comment_tag: coverage
+          comment-tag: coverage
+          message: |
+            ## 📊 Coverage Report
+
+            ### Overall Coverage Metrics
+
+            | Metric | Current |
+            |--------|---------|
+            | **Lines** | ${{ steps.merge-coverage.outputs.lines_coverage }}% |
+            | **Functions** | ${{ steps.merge-coverage.outputs.functions_coverage }}% |
+            | **Branches** | ${{ steps.merge-coverage.outputs.branches_coverage }}% |
+
+            > ℹ️ No baseline coverage found from main branch yet. Coverage comparison will be available once the main branch workflow completes.
+
+            ### Coverage Details
+            ```
+            ${{ steps.merge-coverage.outputs.coverage_summary }}
+            ```
+
+            ### 📁 Coverage Reports
+
+            Download the HTML coverage reports from the workflow artifacts:
+            - [View Coverage Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - Rust Coverage: `rust-coverage-lcov` artifact
+            - JS Coverage: `js-coverage-lcov` artifact
+            - Merged Coverage HTML: `merged-coverage-html` artifact
+            - Merged Coverage LCOV: `merged-coverage-lcov` artifact
+
+            Coverage has also been uploaded to [Codecov](https://codecov.io/gh/${{ github.repository }})
+
+      - name: Comment coverage report on PR (with comparison)
+        uses: thollander/actions-comment-pull-request@v3
+        if: always() && steps.main-coverage.outputs.main_lines != ''
+        with:
+          mode: upsert
+          comment-tag: coverage
           message: |
             ## 📊 Coverage Report
 
@@ -509,9 +591,9 @@ jobs:
 
             | Metric | Current | Change |
             |--------|---------|--------|
-            | **Lines** | ${{ steps.merge-coverage.outputs.lines_coverage }}% | ${{ steps.coverage-diff.outputs.lines_diff }}% |
-            | **Functions** | ${{ steps.merge-coverage.outputs.functions_coverage }}% | ${{ steps.coverage-diff.outputs.functions_diff }}% |
-            | **Branches** | ${{ steps.merge-coverage.outputs.branches_coverage }}% | ${{ steps.coverage-diff.outputs.branches_diff }}% |
+            | **Lines** | ${{ steps.merge-coverage.outputs.lines_coverage }}% | ${{ steps.coverage-diff.outputs.lines_diff }} |
+            | **Functions** | ${{ steps.merge-coverage.outputs.functions_coverage }}% | ${{ steps.coverage-diff.outputs.functions_diff }} |
+            | **Branches** | ${{ steps.merge-coverage.outputs.branches_coverage }}% | ${{ steps.coverage-diff.outputs.branches_diff }} |
 
             ### Coverage Details
             ```

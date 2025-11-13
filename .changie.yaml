@@ -31,27 +31,9 @@ newlines:
 envPrefix: CHANGIE_
 
 replacements:
-  - path: crates/a2a-rs/Cargo.toml
-    find: 'version = ".*"'
-    replace: 'version = "{{.VersionNoPrefix}}"'
-  - path: crates/sdk-core/Cargo.toml
-    find: 'version = ".*"'
-    replace: 'version = "{{.VersionNoPrefix}}"'
-  - path: crates/sdk-js/Cargo.toml
-    find: 'version = ".*"'
-    replace: 'version = "{{.VersionNoPrefix}}"'
   - path: crates/sdk-js/package.json
     find: '	"version": ".*",'
     replace: '  "version": "{{.VersionNoPrefix}}",'
-  - path: crates/sdk-proto/Cargo.toml
-    find: 'version = ".*"'
-    replace: 'version = "{{.VersionNoPrefix}}"'
-  - path: crates/sdk-py/Cargo.toml
-    find: 'version = ".*"'
-    replace: 'version = "{{.VersionNoPrefix}}"'
-  - path: crates/soma/Cargo.toml
-    find: 'version = ".*"'
-    replace: 'version = "{{.VersionNoPrefix}}"'
   - path: crates/soma/app/package.json
     find: '	"version": ".*",'
     replace: '  "version": "{{.VersionNoPrefix}}",'
@@ -61,18 +43,9 @@ replacements:
   - path: js/packages/sdk/package.json
     find: '	"version": ".*",'
     replace: '  "version": "{{.VersionNoPrefix}}",'
-  - path: VERSION_SOMA
+  - path: VERSION
     find: '.*'
     replace: '{{.VersionNoPrefix}}'
-  - path: crates/bridge/Cargo.toml
-    find: 'version = ".*"'
-    replace: 'version = "{{.VersionNoPrefix}}"'
-  - path: crates/bridge-macros/Cargo.toml
-    find: 'version = ".*"'
-    replace: 'version = "{{.VersionNoPrefix}}"'
-  - path: crates/shared/Cargo.toml
-    find: 'version = ".*"'
-    replace: 'version = "{{.VersionNoPrefix}}"'
-  - path: crates/shared-macros/Cargo.toml
+  - path: Cargo.toml
     find: 'version = ".*"'
     replace: 'version = "{{.VersionNoPrefix}}"'
