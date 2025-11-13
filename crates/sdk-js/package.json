@@ -1,6 +1,10 @@
 {
   "name": "@trysoma/sdk-core",
-  "version": "1.0.0",
+  "version": "0.0.0",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
   "description": "Template project for writing node package with napi-rs",
   "main": "index.js",
   "repository": {
@@ -33,10 +37,6 @@
   },
   "engines": {
     "node": ">= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0"
-  },
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
-    "access": "public"
   },
   "scripts": {
     "artifacts": "napi artifacts",

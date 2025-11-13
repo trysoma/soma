@@ -1,6 +1,10 @@
 {
 	"name": "@trysoma/api-client",
 	"version": "0.0.0",
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org/",
+		"access": "public"
+	},
 	"description": "OpenAPI client for @trysoma/api-client",
 	"author": "OpenAPI-Generator",
 	"repository": {
