@@ -279,13 +279,22 @@ jobs:
           echo "=== Coverage files in .coverage-tmp ==="
           ls -la .coverage-tmp/
 
+      - name: Debug coverage directory
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Contents of .coverage-tmp:"
+          ls -la .coverage-tmp/ || echo "Directory doesn't exist"
+          echo "Finding lcov files:"
+          find .coverage-tmp -name "*.lcov" -type f || echo "No lcov files found"
+
       - name: Upload JS coverage artifacts
         uses: actions/upload-artifact@v4
         with:
           name: js-coverage-lcov
-          path: .coverage-tmp/*.lcov
+          path: .coverage-tmp/
           retention-days: 7
           if-no-files-found: error
+          include-hidden-files: true
 
   coverage-report:
     name: Coverage Report
