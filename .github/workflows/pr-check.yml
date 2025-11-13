@@ -283,7 +283,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: js-coverage-lcov
-          path: .coverage-tmp/
+          path: .coverage-tmp/*.lcov
           retention-days: 7
           if-no-files-found: error
 
