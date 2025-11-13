@@ -303,7 +303,10 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    if: always()
+    # Only run if both test jobs pass
+    if: |
+      needs.rust-quality.result == 'success' &&
+      needs.ts-quality.result == 'success'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -316,6 +319,7 @@ jobs:
 
       - name: Download Rust coverage artifacts
         uses: actions/download-artifact@v4
+        if: needs.rust-quality.result == 'success'
         continue-on-error: true
         with:
           name: rust-coverage-lcov
@@ -323,6 +327,7 @@ jobs:
 
       - name: Download JS coverage artifacts
         uses: actions/download-artifact@v4
+        if: needs.ts-quality.result == 'success'
         continue-on-error: true
         with:
           name: js-coverage-lcov
@@ -381,8 +386,39 @@ jobs:
             npx lcov-result-merger $lcov_files ./coverage/merged/coverage.lcov
             echo "✓ Coverage merge completed"
 
+            # Verify merged file exists and has content
+            if [ ! -f ./coverage/merged/coverage.lcov ]; then
+              echo "❌ ERROR: Merged coverage file was not created!"
+              echo "coverage_summary=Merge failed - no output file" >> $GITHUB_OUTPUT
+              echo "lines_coverage=0" >> $GITHUB_OUTPUT
+              echo "functions_coverage=0" >> $GITHUB_OUTPUT
+              echo "branches_coverage=0" >> $GITHUB_OUTPUT
+              echo "has_coverage=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            echo "=== Merged coverage file info ==="
+            ls -lh ./coverage/merged/coverage.lcov
+            echo "First 10 lines:"
+            head -10 ./coverage/merged/coverage.lcov || echo "Could not read file"
+
             # Parse coverage metrics from merged LCOV
-            coverage_summary=$(lcov --summary ./coverage/merged/coverage.lcov 2>&1 | grep -E "lines|functions|branches" | head -3)
+            echo "=== Generating coverage summary ==="
+            coverage_summary=$(lcov --summary ./coverage/merged/coverage.lcov 2>&1 | grep -E "lines|functions|branches" | head -3 || echo "")
+
+            if [ -z "$coverage_summary" ]; then
+              echo "⚠ WARNING: lcov --summary produced no output"
+              echo "coverage_summary=No summary available" >> $GITHUB_OUTPUT
+              echo "lines_coverage=0" >> $GITHUB_OUTPUT
+              echo "functions_coverage=0" >> $GITHUB_OUTPUT
+              echo "branches_coverage=0" >> $GITHUB_OUTPUT
+              echo "has_coverage=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            echo "Coverage summary:"
+            echo "$coverage_summary"
+
             echo "coverage_summary<<EOF" >> $GITHUB_OUTPUT
             echo "$coverage_summary" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
@@ -391,6 +427,11 @@ jobs:
             lines_coverage=$(echo "$coverage_summary" | grep "lines" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
             functions_coverage=$(echo "$coverage_summary" | grep "functions" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
             branches_coverage=$(echo "$coverage_summary" | grep "branches" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
+
+            echo "Extracted coverage:"
+            echo "  Lines: $lines_coverage%"
+            echo "  Functions: $functions_coverage%"
+            echo "  Branches: $branches_coverage%"
 
             echo "lines_coverage=$lines_coverage" >> $GITHUB_OUTPUT
             echo "functions_coverage=$functions_coverage" >> $GITHUB_OUTPUT
