@@ -8,7 +8,7 @@ import type {
 
 export type FirstTurn = "user" | "agent";
 
-export interface WrappedChatHandlerParams<Input, Output> {
+export interface WrappedChatHandlerParams<Input, _Output> {
 	ctx: ObjectContext;
 	soma: DefaultApi;
 	input: Input;
@@ -26,14 +26,6 @@ export interface ChatHandlerParams<Input, Output> {
 		message: CreateMessageRequest,
 	) => RestatePromise<CreateMessageResponse>;
 }
-
-type NewInput =
-	| {
-			type: "new_input";
-	  }
-	| {
-			type: "timeout";
-	  };
 
 type Goal<Output> =
 	| {
@@ -116,7 +108,7 @@ export const chat = <Input, Output>(
 	};
 };
 
-export interface WorkflowHandlerParams<Input, Output> {
+export interface WorkflowHandlerParams<Input, _Output> {
 	ctx: ObjectContext;
 	soma: DefaultApi;
 	history: TaskTimelineItem[];
@@ -127,7 +119,7 @@ export interface WorkflowHandlerParams<Input, Output> {
 	interruptable: boolean;
 }
 
-export interface WrappedWorkflowHandlerParams<Input, Output> {
+export interface WrappedWorkflowHandlerParams<Input, _Output> {
 	ctx: ObjectContext;
 	soma: DefaultApi;
 	input: Input;
