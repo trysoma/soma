@@ -100,6 +100,43 @@ jobs:
           echo "Full version: $FULL_VERSION"
           echo "version=$FULL_VERSION" >> $GITHUB_OUTPUT
 
+      - name: Restore previous prerelease changes
+        run: |
+          BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
+          LABEL="${{ inputs.prerelease-label }}"
+          INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
+
+          # If this is not the first increment (i > 0), restore previous changes
+          if [ "$INCREMENT" -gt 0 ]; then
+            PREV_INCREMENT=$((INCREMENT - 1))
+            PREV_VERSION="${BASE_VERSION}-${LABEL}-${PREV_INCREMENT}"
+
+            echo "Restoring changes from previous version: $PREV_VERSION"
+
+            # Check if the previous tag exists
+            if git rev-parse "$PREV_VERSION" >/dev/null 2>&1; then
+              # Get all .changes files from the previous tag
+              CHANGES_FILES=$(git ls-tree -r --name-only "$PREV_VERSION" .changes/ | grep -E "\.changes/${BASE_VERSION}-${LABEL}-.*\.md$" || true)
+
+              if [ -n "$CHANGES_FILES" ]; then
+                echo "Found previous changes files:"
+                echo "$CHANGES_FILES"
+
+                # Restore each file from the previous tag
+                for file in $CHANGES_FILES; do
+                  echo "Restoring: $file"
+                  git checkout "$PREV_VERSION" -- "$file" || echo "Could not restore $file"
+                done
+              else
+                echo "No previous changes files found in $PREV_VERSION"
+              fi
+            else
+              echo "Warning: Previous tag $PREV_VERSION not found"
+            fi
+          else
+            echo "This is the first increment (0), no previous changes to restore"
+          fi
+
       - name: Create prerelease changelog
         run: |
           VERSION="${{ steps.calculate-version.outputs.version }}"
