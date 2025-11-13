@@ -177,17 +177,4 @@ jobs:
       - name: Build packages
         run: pnpm -r run build
 
-      - name: Update workspace versions
-        run: |
-          VERSION="${{ needs.release.outputs.version }}"
-          # Update version in all workspace packages
-          for pkg in js/packages/*/package.json; do
-            node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('$pkg')); p.version='$VERSION'; fs.writeFileSync('$pkg', JSON.stringify(p, null, '\t')+'\n');"
-          done
-
-      - name: Publish packages to npm
-        run: |
-          # Publish workspace packages in order (dependencies first)
-          pnpm publish -r --filter './js/packages/*' --access public --no-git-checks --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish -ws --access public

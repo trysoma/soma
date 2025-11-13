@@ -90,11 +90,5 @@
     "trailingComma": "all",
     "singleQuote": true,
     "arrowParens": "always"
-  },
-  "optionalDependencies": {
-    "@trysoma/sdk-core-darwin-x64": "0.0.0",
-    "@trysoma/sdk-core-linux-x64-gnu": "0.0.0",
-    "@trysoma/sdk-core-linux-arm64-gnu": "0.0.0",
-    "@trysoma/sdk-core-darwin-arm64": "0.0.0"
   }
 }
