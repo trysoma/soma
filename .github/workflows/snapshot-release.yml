@@ -48,6 +48,9 @@ jobs:
         run: |
           if [ -n "${{ inputs.semantic-version }}" ]; then
             BASE_VERSION="${{ inputs.semantic-version }}"
+            if [[ ! "$BASE_VERSION" =~ ^v ]]; then
+              BASE_VERSION="v$BASE_VERSION"
+            fi
             echo "Using provided version: $BASE_VERSION"
           else
             echo "Calculating next version from changie..."
@@ -93,7 +96,7 @@ jobs:
           LABEL="${{ inputs.prerelease-label }}"
           INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
 
-          FULL_VERSION="v${BASE_VERSION}-${LABEL}-${INCREMENT}"
+          FULL_VERSION="${BASE_VERSION}-${LABEL}-${INCREMENT}"
           echo "Full version: $FULL_VERSION"
           echo "version=$FULL_VERSION" >> $GITHUB_OUTPUT
 
