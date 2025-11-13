@@ -1,6 +1,10 @@
 import { openai } from "@ai-sdk/openai";
 import { durableCalls } from "@restatedev/vercel-ai-middleware";
-import { MessagePartTypeEnum, MessageRole, TaskStatus } from "@trysoma/api-client";
+import {
+	MessagePartTypeEnum,
+	MessageRole,
+	TaskStatus,
+} from "@trysoma/api-client";
 import { createSomaAgent, patterns } from "@trysoma/sdk";
 import { type LanguageModel, streamText, tool, wrapLanguageModel } from "ai";
 import { z } from "zod";
