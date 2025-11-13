@@ -7,21 +7,23 @@ versionFormat: '## {{.Version}} - {{.Time.Format "2006-01-02"}}'
 kindFormat: '### {{.Kind}}'
 changeFormat: '* {{.Body}}'
 kinds:
-    - label: Added (Major, breaking API changes)
+    - label: Added BREAKING (Major, changes to existing API contracts)
       auto: major
     - label: Added (Minor, new features)
       auto: minor
-    - label: Changed (Minor, changes to existing functionality)
+    - label: Changed BREAKING (Major, changes to existing API contracts)
+      auto: major
+    - label: Changed (Minor, changes to existing functionality without breaking API changes)
       auto: minor
     - label: Fixed (Patch, bug fixes)
       auto: patch
-    - label: Removed (Major, breaking API changes)
-      auto: major
-    - label: Removed (Minor, changes to existing functionality)
-      auto: minor
-    - label: Removed (Patch, bug fixes)
+    - label: Patch (Other, non-breaking changes)
       auto: patch
-    - label: CI, Docs, Test
+    - label: Removed BREAKING (Major, changes to existing API contracts)
+      auto: major
+    - label: Removed (Minor, removes existing functionality without breaking API contracts)
+      auto: minor
+    - label: CI, Docs, Test, Internal
       auto: none
       
 newlines:
