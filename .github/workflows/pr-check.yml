@@ -162,6 +162,8 @@ jobs:
           profile: minimal
           components: rustfmt,clippy
 
+      - uses: Swatinem/rust-cache@v2
+
       - name: Install cargo-llvm-cov and cargo-nextest
         uses: taiki-e/install-action@v2
         with:
@@ -242,7 +244,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    if: always()
+    if: success()
     steps:
       - name: Checkout
         uses: actions/checkout@v5
