@@ -132,8 +132,8 @@ jobs:
         run: |
           VERSION="${{ steps.calculate-version.outputs.version }}"
 
-          echo "Creating tag: v$VERSION"
-          git tag -a "v$VERSION" -m "Release $VERSION"
+          echo "Creating tag: $VERSION"
+          git tag -a "$VERSION" -m "Release $VERSION"
           git push origin "v$VERSION"
 
       - name: Create GitHub Release
