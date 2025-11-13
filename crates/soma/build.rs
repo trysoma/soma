@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 
 const RESTATE_VERSION: &str = "v1.5.3";
@@ -56,7 +57,7 @@ fn main() {
     }
 }
 
-fn download_restate_binary(crate_dir: &PathBuf) {
+fn download_restate_binary(crate_dir: &Path) {
     let target = env::var("TARGET").unwrap();
 
     // Map Rust target triples to restate binary names
@@ -66,15 +67,16 @@ fn download_restate_binary(crate_dir: &PathBuf) {
         "x86_64-apple-darwin" => "x86_64-apple-darwin",
         "aarch64-apple-darwin" => "aarch64-apple-darwin",
         _ => {
-            println!("cargo:warning=Unsupported target: {}, skipping restate-server download", target);
+            println!(
+                "cargo:warning=Unsupported target: {target}, skipping restate-server download"
+            );
             return;
         }
     };
 
-    let binary_name = format!("restate-server-{}.tar.xz", restate_target);
+    let binary_name = format!("restate-server-{restate_target}.tar.xz");
     let download_url = format!(
-        "https://github.com/restatedev/restate/releases/download/{}/{}",
-        RESTATE_VERSION, binary_name
+        "https://github.com/restatedev/restate/releases/download/{RESTATE_VERSION}/{binary_name}"
     );
 
     let bin_dir = crate_dir.join("bin");
@@ -88,12 +90,15 @@ fn download_restate_binary(crate_dir: &PathBuf) {
 
     // Check if binary already exists
     if extracted_binary.exists() {
-        println!("cargo:warning=restate-server binary already exists at {:?}", extracted_binary);
-        println!("cargo:rustc-env=RESTATE_BINARY_PATH={}", extracted_binary.display());
+        println!("cargo:warning=restate-server binary already exists at {extracted_binary:?}");
+        println!(
+            "cargo:rustc-env=RESTATE_BINARY_PATH={}",
+            extracted_binary.display()
+        );
         return;
     }
 
-    println!("cargo:warning=Downloading restate-server from {}", download_url);
+    println!("cargo:warning=Downloading restate-server from {download_url}");
 
     // Download the archive
     let output = std::process::Command::new("curl")
@@ -108,12 +113,14 @@ fn download_restate_binary(crate_dir: &PathBuf) {
             println!("cargo:warning=Successfully downloaded restate-server archive");
         }
         Ok(output) => {
-            println!("cargo:warning=Failed to download restate-server: {:?}",
-                String::from_utf8_lossy(&output.stderr));
+            println!(
+                "cargo:warning=Failed to download restate-server: {:?}",
+                String::from_utf8_lossy(&output.stderr)
+            );
             return;
         }
         Err(e) => {
-            println!("cargo:warning=Failed to execute curl: {}", e);
+            println!("cargo:warning=Failed to execute curl: {e}");
             return;
         }
     }
@@ -139,21 +146,23 @@ fn download_restate_binary(crate_dir: &PathBuf) {
 
             // The tar archive contains a subdirectory like restate-server-x86_64-unknown-linux-musl/
             // We need to find the binary inside and move it to the target_bin_dir
-            let archive_prefix = format!("restate-server-{}", restate_target);
+            let archive_prefix = format!("restate-server-{restate_target}");
             let extracted_subdir = temp_extract_dir.join(&archive_prefix);
             let binary_in_subdir = extracted_subdir.join("restate-server");
 
             if binary_in_subdir.exists() {
                 // Move the binary to the target directory
                 if let Err(e) = fs::copy(&binary_in_subdir, &extracted_binary) {
-                    println!("cargo:warning=Failed to copy binary: {:?}", e);
+                    println!("cargo:warning=Failed to copy binary: {e:?}");
                     let _ = fs::remove_dir_all(&temp_extract_dir);
                     return;
                 }
                 // Clean up temp directory
                 let _ = fs::remove_dir_all(&temp_extract_dir);
             } else {
-                println!("cargo:warning=Binary not found in expected location: {:?}", binary_in_subdir);
+                println!(
+                    "cargo:warning=Binary not found in expected location: {binary_in_subdir:?}"
+                );
                 let _ = fs::remove_dir_all(&temp_extract_dir);
                 return;
             }
@@ -170,15 +179,20 @@ fn download_restate_binary(crate_dir: &PathBuf) {
             }
 
             println!("cargo:warning=Successfully installed restate-server binary");
-            println!("cargo:rustc-env=RESTATE_BINARY_PATH={}", extracted_binary.display());
+            println!(
+                "cargo:rustc-env=RESTATE_BINARY_PATH={}",
+                extracted_binary.display()
+            );
         }
         Ok(output) => {
-            println!("cargo:warning=Failed to extract restate-server: {:?}",
-                String::from_utf8_lossy(&output.stderr));
+            println!(
+                "cargo:warning=Failed to extract restate-server: {:?}",
+                String::from_utf8_lossy(&output.stderr)
+            );
             let _ = fs::remove_dir_all(&temp_extract_dir);
         }
         Err(e) => {
-            println!("cargo:warning=Failed to execute tar: {}", e);
+            println!("cargo:warning=Failed to execute tar: {e}");
             let _ = fs::remove_dir_all(&temp_extract_dir);
         }
     }

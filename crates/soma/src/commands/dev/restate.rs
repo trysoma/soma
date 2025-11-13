@@ -9,8 +9,8 @@ use shared::error::CommonError;
 
 use crate::utils::restate::admin_client::AdminClient;
 use crate::utils::restate::invoke::RestateIngressClient;
-use crate::utils::{is_port_in_use, restate};
 use crate::utils::restate_binary;
+use crate::utils::{is_port_in_use, restate};
 
 #[derive(Clone)]
 pub struct RestateServerLocalParams {

@@ -1,7 +1,7 @@
-use std::fs;
-use std::path::PathBuf;
 use anyhow::Context;
 use shared::error::CommonError;
+use std::fs;
+use std::path::PathBuf;
 
 /// The embedded restate-server binary for the current platform
 /// This is included at compile time from the binary downloaded during build
@@ -94,8 +94,7 @@ pub fn install_bundled_restate() -> Result<PathBuf, CommonError> {
     tracing::info!("Installing bundled restate-server to {:?}", binary_path);
 
     // Write the embedded binary to the file
-    fs::write(&binary_path, binary_data)
-        .context("Failed to write restate-server binary")?;
+    fs::write(&binary_path, binary_data).context("Failed to write restate-server binary")?;
 
     // Make the binary executable (Unix only)
     #[cfg(unix)]
