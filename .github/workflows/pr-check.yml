@@ -36,6 +36,9 @@ jobs:
         if: always()
         run: |
           lint_output=$(atlas migrate lint --env soma --git-base main 2>&1) || lint_exit=$?
+          if [ -z "$lint_output" ]; then
+            lint_output="SUCCESS: checksums match, no breaking changes"
+          fi
           echo "lint_output<<EOF" >> $GITHUB_OUTPUT
           echo "$lint_output" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -60,6 +63,9 @@ jobs:
         if: always()
         run: |
           lint_output=$(atlas migrate lint --env bridge --git-base main 2>&1) || lint_exit=$?
+          if [ -z "$lint_output" ]; then
+            lint_output="SUCCESS: checksums match, no breaking changes"
+          fi
           echo "lint_output<<EOF" >> $GITHUB_OUTPUT
           echo "$lint_output" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -145,10 +151,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Rust
-        uses: actions/setup-rust@v4
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          rust-version: 1.88.0
+          toolchain: 1.88.0
+          profile: minimal
+          components: rustfmt,clippy
 
       # Node is needed as we compile the frontend of soma into the soma crate
       - name: Setup Node.js

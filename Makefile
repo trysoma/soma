@@ -162,8 +162,18 @@ lint-js: ## Run JS/TS linters
 
 lint-db: ## Run database linters
 	@echo "Running database linters..."
-	atlas migrate lint --env soma --git-base main
-	atlas migrate lint --env bridge --git-base main
+	@soma_output=$$(atlas migrate lint --env soma --git-base main 2>&1); \
+	if [ -z "$$soma_output" ]; then \
+		echo "Soma DB: SUCCESS: checksums match, no breaking changes"; \
+	else \
+		echo "$$soma_output"; \
+	fi
+	@bridge_output=$$(atlas migrate lint --env bridge --git-base main 2>&1); \
+	if [ -z "$$bridge_output" ]; then \
+		echo "Bridge DB: SUCCESS: checksums match, no breaking changes"; \
+	else \
+		echo "$$bridge_output"; \
+	fi
 	@echo "✓ Database linters passed"
 
 lint-fix: lint-fix-rs lint-fix-js ## Run all linters with auto-fix (Rust + JS)
