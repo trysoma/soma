@@ -35,19 +35,19 @@ envPrefix: CHANGIE_
 replacements:
   - path: crates/sdk-js/package.json
     find: '	"version": ".*",'
-    replace: '  "version": "{{.VersionNoPrefix}}",'
+    replace: '	"version": "{{.VersionNoPrefix}}",'
   - path: crates/soma/app/package.json
     find: '	"version": ".*",'
-    replace: '  "version": "{{.VersionNoPrefix}}",'
+    replace: '	"version": "{{.VersionNoPrefix}}",'
   - path: js/packages/api-client/package.json
     find: '	"version": ".*",'
-    replace: '  "version": "{{.VersionNoPrefix}}",'
+    replace: '	"version": "{{.VersionNoPrefix}}",'
   - path: js/packages/sdk/package.json
     find: '	"version": ".*",'
-    replace: '  "version": "{{.VersionNoPrefix}}",'
+    replace: '	"version": "{{.VersionNoPrefix}}",'
   - path: VERSION
     find: '.*'
     replace: '{{.VersionNoPrefix}}'
   - path: Cargo.toml
-    find: 'version = ".*"'
+    find: 'version = ".*" # CHANGIE MANAGED'
     replace: 'version = "{{.VersionNoPrefix}}"'
