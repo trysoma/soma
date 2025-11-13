@@ -319,16 +319,12 @@ jobs:
 
       - name: Download Rust coverage artifacts
         uses: actions/download-artifact@v4
-        if: needs.rust-quality.result == 'success'
-        continue-on-error: true
         with:
           name: rust-coverage-lcov
           path: ./coverage/rust/
 
       - name: Download JS coverage artifacts
         uses: actions/download-artifact@v4
-        if: needs.ts-quality.result == 'success'
-        continue-on-error: true
         with:
           name: js-coverage-lcov
           path: ./coverage/js/
@@ -342,7 +338,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y lcov bc
-          npm install -g lcov-result-merger
 
       - name: Merge coverage reports
         id: merge-coverage
@@ -383,13 +378,41 @@ jobs:
           # Merge LCOV files or set defaults
           if [ -n "$lcov_files" ]; then
             echo "=== Merging coverage files: $lcov_files ==="
-            npx lcov-result-merger $lcov_files ./coverage/merged/coverage.lcov
-            echo "✓ Coverage merge completed"
+
+            # Build lcov arguments dynamically
+            lcov_args=""
+            for file in $lcov_files; do
+              lcov_args="$lcov_args -a $file"
+            done
+
+            echo "Running: lcov $lcov_args -o ./coverage/merged/coverage.lcov"
+
+            # Merge with lcov (handles mixed llvm/istanbul formats correctly)
+            set +e
+            lcov $lcov_args -o ./coverage/merged/coverage.lcov 2>&1
+            merge_exit=$?
+            set -e
+
+            if [ $merge_exit -ne 0 ]; then
+              echo "⚠ WARNING: lcov merge exited with code $merge_exit, but may have produced output"
+            else
+              echo "✓ Coverage merge with lcov completed successfully"
+            fi
 
             # Verify merged file exists and has content
             if [ ! -f ./coverage/merged/coverage.lcov ]; then
               echo "❌ ERROR: Merged coverage file was not created!"
               echo "coverage_summary=Merge failed - no output file" >> $GITHUB_OUTPUT
+              echo "lines_coverage=0" >> $GITHUB_OUTPUT
+              echo "functions_coverage=0" >> $GITHUB_OUTPUT
+              echo "branches_coverage=0" >> $GITHUB_OUTPUT
+              echo "has_coverage=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            if [ ! -s ./coverage/merged/coverage.lcov ]; then
+              echo "❌ ERROR: Merged coverage file is empty!"
+              echo "coverage_summary=Merge failed - empty output file" >> $GITHUB_OUTPUT
               echo "lines_coverage=0" >> $GITHUB_OUTPUT
               echo "functions_coverage=0" >> $GITHUB_OUTPUT
               echo "branches_coverage=0" >> $GITHUB_OUTPUT
