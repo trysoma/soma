@@ -202,11 +202,11 @@ jobs:
 
       - name: Upload Rust coverage LCOV
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: rust-coverage-lcov
           path: .coverage-tmp/rust.lcov
           retention-days: 7
+          if-no-files-found: error
 
   ts-quality:
     name: TypeScript quality
@@ -245,36 +245,47 @@ jobs:
       - name: Collect JS coverage reports
         if: always()
         run: |
-          echo "Searching for lcov.info files..."
+          echo "=== Searching for lcov.info files ==="
           find . -name 'lcov.info' -type f -not -path './coverage/*' -not -path './node_modules/*' -not -path './js/examples/*' || echo "No lcov.info files found"
 
-          echo "Collecting coverage files..."
+          echo ""
+          echo "=== Collecting coverage files ==="
+          mkdir -p .coverage-tmp
           count=0
-          find . -name 'lcov.info' -type f -not -path './coverage/*' -not -path './node_modules/*' -not -path './js/examples/*' | while read file; do
+
+          # Use process substitution instead of pipe to avoid subshell
+          while IFS= read -r file; do
             dir=$(dirname "$file")
             pkgdir=$(dirname "$dir")
             name=$(echo "$pkgdir" | sed 's/^\.\///' | sed 's/\//-/g')
-            echo "Processing: $file -> .coverage-tmp/js-$name.lcov"
-            sed "s|^SF:|SF:$pkgdir/|g" "$file" > ".coverage-tmp/js-$name.lcov"
-            count=$((count + 1))
-          done
+            output_file=".coverage-tmp/js-$name.lcov"
+            echo "✓ Processing: $file -> $output_file"
 
+            # Adjust paths in the lcov file to be relative to repo root
+            sed "s|^SF:|SF:$pkgdir/|g" "$file" > "$output_file"
+            count=$((count + 1))
+          done < <(find . -name 'lcov.info' -type f -not -path './coverage/*' -not -path './node_modules/*' -not -path './js/examples/*')
+
+          echo ""
           if [ "$count" -eq 0 ]; then
-            echo "No coverage files generated. Creating empty marker file."
-            echo "# No JS coverage generated" > .coverage-tmp/.no-coverage
+            echo "❌ ERROR: No coverage files found!"
+            echo "Expected to find lcov.info files in JS packages but none were generated."
+            exit 1
+          else
+            echo "✓ Successfully collected $count coverage file(s)"
           fi
 
-          echo "Coverage files created:"
-          ls -la .coverage-tmp/ || echo "No coverage files found"
+          echo ""
+          echo "=== Coverage files in .coverage-tmp ==="
+          ls -la .coverage-tmp/
 
       - name: Upload JS coverage artifacts
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: js-coverage-lcov
           path: .coverage-tmp/
           retention-days: 7
-          if-no-files-found: warn
+          if-no-files-found: error
 
   coverage-report:
     name: Coverage Report
@@ -283,7 +294,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    if: success()
+    if: always()
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -296,14 +307,12 @@ jobs:
 
       - name: Download Rust coverage artifacts
         uses: actions/download-artifact@v4
-        continue-on-error: true
         with:
           name: rust-coverage-lcov
           path: ./coverage/rust/
 
       - name: Download JS coverage artifacts
         uses: actions/download-artifact@v4
-        continue-on-error: true
         with:
           name: js-coverage-lcov
           path: ./coverage/js/
@@ -324,32 +333,46 @@ jobs:
         run: |
           mkdir -p ./coverage/merged
 
+          # Debug: Show what was downloaded
+          echo "=== Downloaded artifacts structure ==="
+          ls -laR ./coverage/ || echo "No coverage directory found"
+
           # Collect all LCOV files
           lcov_files=""
           if [ -f ./coverage/rust/rust.lcov ]; then
+            echo "✓ Found Rust coverage: ./coverage/rust/rust.lcov"
             lcov_files="$lcov_files ./coverage/rust/rust.lcov"
+          else
+            echo "✗ Rust coverage not found at ./coverage/rust/rust.lcov"
           fi
 
           # Add all JS coverage files
           if [ -d ./coverage/js ]; then
+            echo "✓ JS coverage directory exists"
             for file in ./coverage/js/js-*.lcov; do
               if [ -f "$file" ]; then
+                echo "✓ Found JS coverage: $file"
                 lcov_files="$lcov_files $file"
               fi
             done
+
+            # Check for .no-coverage marker
+            if [ -f ./coverage/js/.no-coverage ]; then
+              echo "⚠ Found .no-coverage marker - no JS coverage was generated"
+            fi
+          else
+            echo "✗ JS coverage directory not found at ./coverage/js"
           fi
 
           # Merge LCOV files
           if [ -n "$lcov_files" ]; then
-            echo "Merging coverage files: $lcov_files"
-            npx lcov-result-merger "$lcov_files" ./coverage/merged/coverage.lcov
+            echo "=== Merging coverage files: $lcov_files ==="
+            npx lcov-result-merger $lcov_files ./coverage/merged/coverage.lcov
+            echo "✓ Coverage merge completed"
           else
-            echo "No coverage files found"
-            echo "coverage_summary=No coverage data available" >> $GITHUB_OUTPUT
-            echo "lines_coverage=0" >> $GITHUB_OUTPUT
-            echo "functions_coverage=0" >> $GITHUB_OUTPUT
-            echo "branches_coverage=0" >> $GITHUB_OUTPUT
-            exit 0
+            echo "❌ ERROR: No coverage files found to merge!"
+            echo "Expected to find coverage files from Rust and JS jobs but none were found."
+            exit 1
           fi
 
           # Parse coverage metrics from merged LCOV
@@ -427,10 +450,16 @@ jobs:
       - name: Generate HTML coverage report
         if: always()
         run: |
-          if [ -f ./coverage/merged/coverage.lcov ]; then
-            mkdir -p ./coverage/html
-            genhtml ./coverage/merged/coverage.lcov --output-directory ./coverage/html --ignore-errors source --prefix $(pwd)
-            echo "✓ HTML report generated at ./coverage/html/index.html"
+          if [ -f ./coverage/merged/coverage.lcov ] && [ -s ./coverage/merged/coverage.lcov ]; then
+            if grep -q "^SF:" ./coverage/merged/coverage.lcov; then
+              mkdir -p ./coverage/html
+              genhtml ./coverage/merged/coverage.lcov --output-directory ./coverage/html --ignore-errors source --prefix $(pwd)
+              echo "✓ HTML report generated at ./coverage/html/index.html"
+            else
+              echo "⚠ Coverage file exists but contains no valid coverage records"
+            fi
+          else
+            echo "⚠ No coverage data available for HTML report generation"
           fi
 
       - name: Upload merged coverage HTML
