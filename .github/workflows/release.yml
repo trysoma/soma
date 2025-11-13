@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write  # Required for creating releases and tags
+  id-token: write
 
 jobs:
   release:
@@ -174,7 +175,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build packages
-        run: pnpm -r --filter './js/packages/*' run build
+        run: pnpm -r run build
 
       - name: Update workspace versions
         run: |
