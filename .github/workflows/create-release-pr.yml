@@ -11,13 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Use bot PAT to allow pushing to protected branches
-          token: ${{ secrets.FARO_ENGINEERING_BOT_PAT }}
+          token: ${{ secrets.TRY_SOMA_BOT_TOKEN }}
 
       - name: Create release PR
-        uses: faro-engineering/github-actions/changie-create-pr@v1
+        uses: trysoma/github-actions/changie-create-pr@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          bot-token: ${{ secrets.FARO_ENGINEERING_BOT_PAT }}
+          bot-token: ${{ secrets.TRY_SOMA_BOT_TOKEN }}

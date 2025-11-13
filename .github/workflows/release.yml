@@ -22,18 +22,18 @@ jobs:
       skipped: ${{ steps.release.outputs.skipped }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0  # Full history needed for release notes
-          token: ${{ secrets.FARO_ENGINEERING_BOT_PAT }}  # Use bot PAT for pushing tags
+          token: ${{ secrets.TRY_SOMA_BOT_TOKEN }}  # Use bot PAT for pushing tags
           
 
       - name: Create release
         id: release
-        uses: faro-engineering/github-actions/changie-release@v1
+        uses: trysoma/github-actions/changie-release@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          bot-token: ${{ secrets.FARO_ENGINEERING_BOT_PAT }}
+          bot-token: ${{ secrets.TRY_SOMA_BOT_TOKEN }}
 
 
       - name: Print release info
