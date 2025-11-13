@@ -158,19 +158,6 @@ jobs:
           profile: minimal
           components: rustfmt,clippy
 
-      # Node is needed as we compile the frontend of soma into the soma crate
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Install pnpm dependencies
         run: pnpm install --frozen-lockfile
 
