@@ -13,7 +13,9 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     logic::{
-        FunctionControllerLike, InvokeFunctionParams, InvokeFunctionParamsInner, InvokeResult, ListFunctionInstancesParams, PROVIDER_REGISTRY, ProviderControllerLike, WithFunctionInstanceId, invoke_function, list_function_instances
+        FunctionControllerLike, InvokeFunctionParams, InvokeFunctionParamsInner, InvokeResult,
+        ListFunctionInstancesParams, PROVIDER_REGISTRY, ProviderControllerLike,
+        WithFunctionInstanceId, invoke_function, list_function_instances,
     },
     router::bridge::BridgeService,
 };
@@ -122,7 +124,8 @@ impl ServerHandler for BridgeService {
                         provider_controller.type_id(),
                         function_controller.type_id(),
                         fi.provider_instance_id
-                    ).into(),
+                    )
+                    .into(),
                     title: Some(function_controller.name().to_string()),
                     description: Some(function_controller.documentation().to_string().into()),
                     input_schema: match function_controller.parameters().get_inner().as_object() {
@@ -191,24 +194,23 @@ impl ServerHandler for BridgeService {
         )
         .await
         .inspect_err(|e| tracing::error!("Error invoking function: {:?}", e));
-    
 
         match function_instance {
-            Ok(invoke_response) => {
-                match invoke_response {
-                    InvokeResult::Success(response) => Ok(rmcp::model::CallToolResult {
-                        content: vec![],
-                        structured_content: Some(response.into_inner()),
-                        is_error: None,
-                        meta: None,
-                    }),
-                    InvokeResult::Error(error) => Ok(rmcp::model::CallToolResult::error(vec![Annotated::new(
+            Ok(invoke_response) => match invoke_response {
+                InvokeResult::Success(response) => Ok(rmcp::model::CallToolResult {
+                    content: vec![],
+                    structured_content: Some(response.into_inner()),
+                    is_error: None,
+                    meta: None,
+                }),
+                InvokeResult::Error(error) => {
+                    Ok(rmcp::model::CallToolResult::error(vec![Annotated::new(
                         RawContent::Text(RawTextContent {
                             text: error.message,
                             meta: None,
                         }),
                         Some(Annotations::default()),
-                    )])),
+                    )]))
                 }
             },
             Err(e) => Ok(rmcp::model::CallToolResult::error(vec![Annotated::new(

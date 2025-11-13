@@ -109,10 +109,7 @@ impl TryFrom<Message> for CreateMessage {
             role: message.role,
             metadata: WrappedJsonValue::new(serde_json::to_value(message.metadata)?),
             parts: WrappedJsonValue::new(serde_json::to_value(
-                message
-                    .parts
-                    .into_iter()
-                    .collect::<Vec<MessagePart>>(),
+                message.parts.into_iter().collect::<Vec<MessagePart>>(),
             )?),
             created_at: message.created_at,
         })

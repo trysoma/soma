@@ -1,4 +1,3 @@
-
 pub mod api_key;
 pub mod no_auth;
 pub mod oauth;
@@ -12,21 +11,37 @@ use serde_json::Value;
 use shared::{
     error::CommonError,
     primitives::{
-        PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
-        WrappedSchema, WrappedUuidV4,
+        PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedSchema, WrappedUuidV4,
     },
 };
 use tracing::info;
 use utoipa::ToSchema;
 
 use crate::{
-    logic::{controller::{get_credential_controller, get_provider_controller, WithCredentialControllerTypeId, WithProviderControllerTypeId}, encryption::{get_crypto_service, get_decryption_service, get_encryption_service, DecryptionService, EncryptionService, EnvelopeEncryptionKeyContents}, instance::{ProviderInstanceSerialized, ProviderInstanceSerializedWithCredentials, ReturnAddress}, Metadata, OnConfigChangeEvt, OnConfigChangeTx, ProviderControllerLike, ProviderCredentialControllerLike}, repository::ProviderRepositoryLike
+    logic::{
+        Metadata, OnConfigChangeEvt, OnConfigChangeTx, ProviderControllerLike,
+        ProviderCredentialControllerLike,
+        controller::{
+            WithCredentialControllerTypeId, WithProviderControllerTypeId,
+            get_credential_controller, get_provider_controller,
+        },
+        encryption::{
+            DecryptionService, EncryptionService, EnvelopeEncryptionKeyContents,
+            get_crypto_service, get_decryption_service, get_encryption_service,
+        },
+        instance::{
+            ProviderInstanceSerialized, ProviderInstanceSerializedWithCredentials, ReturnAddress,
+        },
+    },
+    repository::ProviderRepositoryLike,
 };
 
 pub fn schemars_make_password(schema: &mut schemars::Schema) {
-    schema.insert(String::from("format"), Value::String("password".to_string()));
+    schema.insert(
+        String::from("format"),
+        Value::String("password".to_string()),
+    );
 }
-
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Credential<T> {
@@ -51,10 +66,6 @@ pub trait StaticCredentialConfigurationLike: Send + Sync {
     }
 }
 
-
-
-
-
 // pub type StaticCredential = Credential<Arc<dyn StaticCredentialConfigurationLike>>;
 
 // Resource server credentials
@@ -69,8 +80,6 @@ pub trait ResourceServerCredentialLike: Send + Sync {
 
 pub type ResourceServerCredential = Credential<Arc<dyn ResourceServerCredentialLike>>;
 
-
-
 // user credentials
 
 pub trait UserCredentialLike: Send + Sync {
@@ -83,9 +92,7 @@ pub trait UserCredentialLike: Send + Sync {
 
 pub type UserCredential = Credential<Arc<dyn UserCredentialLike>>;
 
-
 // User credentials
-
 
 // Brokering user credentials
 
@@ -150,7 +157,6 @@ pub struct ConfigurationSchema {
     pub user_credential: WrappedSchema,
 }
 
-
 #[derive(Serialize, Deserialize, ToSchema, Clone)]
 pub struct StaticCredentialSerialized {
     // not UUID as some ID's will be deterministic
@@ -195,8 +201,6 @@ pub struct UserCredentialSerialized {
     pub data_encryption_key_id: String,
 }
 
-
-
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct CreateResourceServerCredentialParamsInner {
     // NOTE: serialized values are always already encrypted, only encrypt_provider_configuration accepts raw values
@@ -229,7 +233,9 @@ pub async fn create_resource_server_credential(
         core_metadata.0.extend(metadata.0);
     }
 
-    let next_rotation_time = resource_server_credential.as_rotateable_credential().map(|resource_server_credential| resource_server_credential.next_rotation_time());
+    let next_rotation_time = resource_server_credential
+        .as_rotateable_credential()
+        .map(|resource_server_credential| resource_server_credential.next_rotation_time());
 
     let now = WrappedChronoDateTime::now();
     let resource_server_credential_serialized = ResourceServerCredentialSerialized {
@@ -284,8 +290,9 @@ pub async fn create_user_credential(
         core_metadata.0.extend(metadata.0);
     }
 
-    let next_rotation_time =
-        user_credential.as_rotateable_credential().map(|user_credential| user_credential.next_rotation_time());
+    let next_rotation_time = user_credential
+        .as_rotateable_credential()
+        .map(|user_credential| user_credential.next_rotation_time());
 
     let now = WrappedChronoDateTime::now();
     let user_credential_serialized = UserCredentialSerialized {
@@ -307,9 +314,6 @@ pub async fn create_user_credential(
 
     Ok(user_credential_serialized)
 }
-
-
-
 
 async fn process_broker_outcome(
     on_config_change_tx: &OnConfigChangeTx,
@@ -334,7 +338,9 @@ async fn process_broker_outcome(
             //     )))?;
 
             let resource_server_cred = repo
-                .get_resource_server_credential_by_id(&provider_instance.resource_server_credential_id)
+                .get_resource_server_credential_by_id(
+                    &provider_instance.resource_server_credential_id,
+                )
                 .await?;
 
             let resource_server_cred = match resource_server_cred {
@@ -373,12 +379,22 @@ async fn process_broker_outcome(
             let updated_provider_instance = repo
                 .get_provider_instance_by_id(&provider_instance.id)
                 .await?
-                .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("Provider instance not found after update")))?;
+                .ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!(
+                        "Provider instance not found after update"
+                    ))
+                })?;
 
             let resource_server_cred = repo
-                .get_resource_server_credential_by_id(&updated_provider_instance.provider_instance.resource_server_credential_id)
+                .get_resource_server_credential_by_id(
+                    &updated_provider_instance
+                        .provider_instance
+                        .resource_server_credential_id,
+                )
                 .await?
-                .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("Resource server credential not found")))?;
+                .ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("Resource server credential not found"))
+                })?;
 
             let provider_instance_with_creds = ProviderInstanceSerializedWithCredentials {
                 provider_instance: updated_provider_instance.provider_instance,
@@ -403,7 +419,10 @@ async fn process_broker_outcome(
 
             UserCredentialBrokeringResponse::UserCredential(user_credential)
         }
-        BrokerOutcome::Continue { state_metadata, state_id } => {
+        BrokerOutcome::Continue {
+            state_metadata,
+            state_id,
+        } => {
             let broker_state = BrokerState {
                 id: state_id,
                 created_at: WrappedChronoDateTime::now(),
@@ -473,7 +492,11 @@ pub async fn start_user_credential_brokering(
 
     // Fetch resource server credential from database
     let resource_server_cred = repo
-        .get_resource_server_credential_by_id(&provider_instance.provider_instance.resource_server_credential_id)
+        .get_resource_server_credential_by_id(
+            &provider_instance
+                .provider_instance
+                .resource_server_credential_id,
+        )
         .await?
         .ok_or(CommonError::Unknown(anyhow::anyhow!(
             "Resource server credential not found"
@@ -546,7 +569,11 @@ pub async fn resume_user_credential_brokering(
             "Provider instance not found"
         )))?;
     let resource_server_cred = repo
-        .get_resource_server_credential_by_id(&provider_instance.provider_instance.resource_server_credential_id)
+        .get_resource_server_credential_by_id(
+            &provider_instance
+                .provider_instance
+                .resource_server_credential_id,
+        )
         .await?
         .ok_or(CommonError::Unknown(anyhow::anyhow!(
             "Resource server credential not found for provider instance"
@@ -561,7 +588,13 @@ pub async fn resume_user_credential_brokering(
     let encryption_service = get_encryption_service(&crypto_service)?;
     let decryption_service = get_decryption_service(&crypto_service)?;
     let (action, outcome) = user_credential_broker
-        .resume(&decryption_service, &encryption_service, &broker_state, params.input, &resource_server_cred)
+        .resume(
+            &decryption_service,
+            &encryption_service,
+            &broker_state,
+            params.input,
+            &resource_server_cred,
+        )
         .await?;
 
     let response = process_broker_outcome(
@@ -588,11 +621,11 @@ pub async fn credential_rotation_task(
     repo: impl ProviderRepositoryLike,
     envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
     on_config_change_tx: OnConfigChangeTx,
-)  {
-    use tokio::time::{interval, Duration};
+) {
+    use tokio::time::{Duration, interval};
 
     let mut timer = interval(Duration::from_secs(10 * 60)); // 10 minutes
-    
+
     loop {
         timer.tick().await;
 
@@ -603,15 +636,15 @@ pub async fn credential_rotation_task(
             &on_config_change_tx,
             &envelope_encryption_key_contents,
             20,
-        ).await {
+        )
+        .await
+        {
             tracing::error!("Error processing credential rotations: {:?}", e);
         }
 
         tracing::info!("Completed credential rotation check");
     }
 }
-
-
 
 pub async fn process_credential_rotations_with_window(
     repo: &impl ProviderRepositoryLike,
@@ -624,34 +657,48 @@ pub async fn process_credential_rotations_with_window(
     let rotation_window_end: WrappedChronoDateTime = WrappedChronoDateTime::new(
         now.get_inner()
             .checked_add_signed(chrono::Duration::minutes(window_minutes))
-            .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("Failed to calculate rotation window")))?,
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to calculate rotation window"))
+            })?,
     );
     let mut next_page_token: Option<String> = None;
-    
-    loop {
 
-        let provider_instances = repo.list_provider_instances_with_credentials(
-            &PaginationRequest {
-                page_size: 1000,
-                next_page_token,
-            },
-            None,
-            Some(&rotation_window_end),
-        ).await?;
-        info!("Provider instances with credentials: {:?}", provider_instances.items.len());
+    loop {
+        let provider_instances = repo
+            .list_provider_instances_with_credentials(
+                &PaginationRequest {
+                    page_size: 1000,
+                    next_page_token,
+                },
+                None,
+                Some(&rotation_window_end),
+            )
+            .await?;
+        info!(
+            "Provider instances with credentials: {:?}",
+            provider_instances.items.len()
+        );
         next_page_token = provider_instances.next_page_token.clone();
-        
-        let refresh_fut = provider_instances.items.iter().map(async |pi| {
-            info!("Processing credential rotation for provider instance: {:?}", pi.provider_instance.id);
-            process_credential_rotation(
-                repo,
-                on_config_change_tx,
-                envelope_encryption_key_contents,
-                pi,
-                &rotation_window_end,
-                true,
-            ).await
-        }).collect::<Vec<_>>();
+
+        let refresh_fut = provider_instances
+            .items
+            .iter()
+            .map(async |pi| {
+                info!(
+                    "Processing credential rotation for provider instance: {:?}",
+                    pi.provider_instance.id
+                );
+                process_credential_rotation(
+                    repo,
+                    on_config_change_tx,
+                    envelope_encryption_key_contents,
+                    pi,
+                    &rotation_window_end,
+                    true,
+                )
+                .await
+            })
+            .collect::<Vec<_>>();
 
         futures::future::try_join_all(refresh_fut).await?;
 
@@ -674,55 +721,61 @@ pub async fn process_credential_rotation(
     let mut user_cred_rotated = false;
 
     // Rotate resource server credential if needed
-    let resource_server_cred_rotation_result = match pi.resource_server_credential.next_rotation_time {
-        Some(next_rotation_time) => {
-            if next_rotation_time.get_inner() <= rotation_window_end.get_inner() {
-                resource_server_rotated = true;
-                rotate_resource_server_credential(
-                    repo,
-                    envelope_encryption_key_contents,
-                    &pi.provider_instance,
-                    &pi.resource_server_credential,
-                ).await?
-            } else {
-                pi.resource_server_credential.clone()
+    let resource_server_cred_rotation_result =
+        match pi.resource_server_credential.next_rotation_time {
+            Some(next_rotation_time) => {
+                if next_rotation_time.get_inner() <= rotation_window_end.get_inner() {
+                    resource_server_rotated = true;
+                    rotate_resource_server_credential(
+                        repo,
+                        envelope_encryption_key_contents,
+                        &pi.provider_instance,
+                        &pi.resource_server_credential,
+                    )
+                    .await?
+                } else {
+                    pi.resource_server_credential.clone()
+                }
             }
-        }
-        None => pi.resource_server_credential.clone(),
-    };
+            None => pi.resource_server_credential.clone(),
+        };
 
     // Rotate user credential if needed
     let user_cred_rotation_result = match &pi.user_credential {
-        Some(user_cred) => {
-            match user_cred.next_rotation_time {
-                Some(next_rotation_time) => {
-                    if next_rotation_time.get_inner() <= rotation_window_end.get_inner() {
-                        user_cred_rotated = true;
-                        Some(rotate_user_credential(
+        Some(user_cred) => match user_cred.next_rotation_time {
+            Some(next_rotation_time) => {
+                if next_rotation_time.get_inner() <= rotation_window_end.get_inner() {
+                    user_cred_rotated = true;
+                    Some(
+                        rotate_user_credential(
                             repo,
                             envelope_encryption_key_contents,
                             &pi.provider_instance,
                             &resource_server_cred_rotation_result,
                             user_cred,
-                        ).await?)
-                    }
-                    else {
-                        Some(user_cred.clone())
-                    }
+                        )
+                        .await?,
+                    )
+                } else {
+                    Some(user_cred.clone())
                 }
-                None => Some(user_cred.clone()),
             }
+            None => Some(user_cred.clone()),
         },
         None => None,
     };
 
     // Only send update event if something was actually rotated
     if publish_update && (resource_server_rotated || user_cred_rotated) {
-        on_config_change_tx.send(OnConfigChangeEvt::ProviderInstanceUpdated(ProviderInstanceSerializedWithCredentials {
-            provider_instance: pi.provider_instance.clone(),
-            resource_server_credential: resource_server_cred_rotation_result,
-            user_credential: user_cred_rotation_result,
-        })).await?;
+        on_config_change_tx
+            .send(OnConfigChangeEvt::ProviderInstanceUpdated(
+                ProviderInstanceSerializedWithCredentials {
+                    provider_instance: pi.provider_instance.clone(),
+                    resource_server_credential: resource_server_cred_rotation_result,
+                    user_credential: user_cred_rotation_result,
+                },
+            ))
+            .await?;
     }
 
     Ok::<(), CommonError>(())
@@ -742,14 +795,16 @@ async fn rotate_resource_server_credential(
     .await?;
     let encryption_service = get_encryption_service(&crypto_service)?;
     let decryption_service = get_decryption_service(&crypto_service)?;
-    
-    let provider_controller = get_provider_controller(&provider_instance.provider_controller_type_id)?;
+
+    let provider_controller =
+        get_provider_controller(&provider_instance.provider_controller_type_id)?;
     let credential_controller = get_credential_controller(
         &provider_controller,
         &provider_instance.credential_controller_type_id,
     )?;
-    let rotateable_controller = credential_controller.as_rotateable_controller_resource_server_credential();
-    
+    let rotateable_controller =
+        credential_controller.as_rotateable_controller_resource_server_credential();
+
     let rotateable_controller = match rotateable_controller {
         Some(rotateable_controller) => rotateable_controller,
         None => {
@@ -758,13 +813,15 @@ async fn rotate_resource_server_credential(
             )));
         }
     };
-    
-    let rotated_credential = rotateable_controller.rotate_resource_server_credential(
-        &decryption_service,
-        &encryption_service,
-        &credential_controller.static_credentials(),
-        resource_server_cred,
-    ).await?;
+
+    let rotated_credential = rotateable_controller
+        .rotate_resource_server_credential(
+            &decryption_service,
+            &encryption_service,
+            &credential_controller.static_credentials(),
+            resource_server_cred,
+        )
+        .await?;
     // id: &WrappedUuidV4,
     // value: Option<&WrappedJsonValue>,
     // metadata: Option<&crate::logic::Metadata>,
@@ -776,17 +833,18 @@ async fn rotate_resource_server_credential(
         Some(&rotated_credential.metadata),
         Some(&match rotated_credential.next_rotation_time {
             Some(next_rotation_time) => next_rotation_time,
-            None => return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Resource server credential has no next rotation time"
-            ))),
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Resource server credential has no next rotation time"
+                )));
+            }
         }),
         Some(&WrappedChronoDateTime::now()),
-    ).await?;
+    )
+    .await?;
 
     Ok(rotated_credential)
 }
-
-
 
 async fn rotate_user_credential(
     repo: &impl ProviderRepositoryLike,
@@ -804,14 +862,15 @@ async fn rotate_user_credential(
     .await?;
     let encryption_service = get_encryption_service(&crypto_service)?;
     let decryption_service = get_decryption_service(&crypto_service)?;
-    
-    let provider_controller = get_provider_controller(&provider_instance.provider_controller_type_id)?;
+
+    let provider_controller =
+        get_provider_controller(&provider_instance.provider_controller_type_id)?;
     let credential_controller = get_credential_controller(
         &provider_controller,
         &provider_instance.credential_controller_type_id,
     )?;
     let rotateable_controller = credential_controller.as_rotateable_controller_user_credential();
-    
+
     let rotateable_controller = match rotateable_controller {
         Some(rotateable_controller) => rotateable_controller,
         None => {
@@ -820,14 +879,16 @@ async fn rotate_user_credential(
             )));
         }
     };
-    
-    let rotated_credential = rotateable_controller.rotate_user_credential(
-        &decryption_service,
-        &encryption_service,
-        &credential_controller.static_credentials(),
-        resource_server_cred,
-        user_cred,
-    ).await?;
+
+    let rotated_credential = rotateable_controller
+        .rotate_user_credential(
+            &decryption_service,
+            &encryption_service,
+            &credential_controller.static_credentials(),
+            resource_server_cred,
+            user_cred,
+        )
+        .await?;
     // id: &WrappedUuidV4,
     // value: Option<&WrappedJsonValue>,
     // metadata: Option<&crate::logic::Metadata>,
@@ -839,12 +900,15 @@ async fn rotate_user_credential(
         Some(&rotated_credential.metadata),
         Some(&match rotated_credential.next_rotation_time {
             Some(next_rotation_time) => next_rotation_time,
-            None => return Err(CommonError::Unknown(anyhow::anyhow!(
-                "User credential has no next rotation time"
-            ))),
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "User credential has no next rotation time"
+                )));
+            }
         }),
         Some(&WrappedChronoDateTime::now()),
-    ).await?;
+    )
+    .await?;
 
     Ok(rotated_credential)
 }
@@ -852,17 +916,16 @@ async fn rotate_user_credential(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::logic::encryption::{
-        create_data_encryption_key, get_crypto_service,
-        get_encryption_service, CreateDataEncryptionKeyParams, EnvelopeEncryptionKeyContents,
-    };
     use crate::logic::credential::oauth::{
         Oauth2AuthorizationCodeFlowResourceServerCredential,
         Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
         Oauth2AuthorizationCodeFlowUserCredential, OauthAuthFlowController,
     };
-    
-    
+    use crate::logic::encryption::{
+        CreateDataEncryptionKeyParams, EnvelopeEncryptionKeyContents, create_data_encryption_key,
+        get_crypto_service, get_encryption_service,
+    };
+
     use shared::primitives::SqlMigrationLoader;
 
     fn create_temp_kek_file() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
@@ -958,11 +1021,13 @@ mod tests {
         assert_ne!(deserialized.client_secret.0, "plain-text-secret");
 
         // Verify it's base64 encoded
-        assert!(base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            &deserialized.client_secret.0
-        )
-        .is_ok());
+        assert!(
+            base64::Engine::decode(
+                &base64::engine::general_purpose::STANDARD,
+                &deserialized.client_secret.0
+            )
+            .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -1101,7 +1166,10 @@ mod tests {
         let deserialized: BrokerState = serde_json::from_str(&json).unwrap();
 
         assert_eq!(broker_state.id, deserialized.id);
-        assert_eq!(broker_state.provider_instance_id, deserialized.provider_instance_id);
+        assert_eq!(
+            broker_state.provider_instance_id,
+            deserialized.provider_instance_id
+        );
     }
 
     #[tokio::test]

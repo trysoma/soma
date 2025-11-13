@@ -1,8 +1,7 @@
-
 pub mod controller;
+pub mod credential;
 pub mod encryption;
 pub mod instance;
-pub mod credential;
 pub mod mcp;
 
 use std::sync::Arc;
@@ -12,10 +11,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shared::{
     error::CommonError,
-    primitives::{
-        WrappedChronoDateTime, WrappedJsonValue,
-        WrappedSchema,
-    },
+    primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedSchema},
 };
 use utoipa::ToSchema;
 
@@ -186,7 +182,6 @@ pub trait RotateableControllerResourceServerCredentialLike {
         encryption_service: &EncryptionService,
         static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
         resource_server_cred: &ResourceServerCredentialSerialized,
-        
     ) -> Result<WrappedChronoDateTime, CommonError>;
 }
 
@@ -210,7 +205,7 @@ pub trait RotateableControllerUserCredentialLike {
     ) -> Result<WrappedChronoDateTime, CommonError>;
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, ToSchema,)]
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
 pub struct InvokeError {
     pub message: String,
 }

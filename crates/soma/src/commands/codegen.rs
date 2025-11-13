@@ -5,11 +5,9 @@ use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{error, info};
 
-use crate::{router};
-use shared::{error::CommonError, node::override_path_env};
+use crate::router;
 use crate::utils::config::CliConfig;
-
-pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+use shared::{error::CommonError, node::override_path_env};
 
 pub async fn cmd_codegen(_config: &mut CliConfig) -> Result<(), CommonError> {
     codegen().await

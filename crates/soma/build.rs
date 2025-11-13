@@ -15,7 +15,7 @@ fn main() {
         println!("cargo:warning=Debug build, skipping pnpm steps");
         return;
     }
-    
+
     // Skip npm/pnpm commands in Nix builds (no network access)
     // Only run npm commands in non-Nix environments
     let install_result = std::process::Command::new("pnpm")

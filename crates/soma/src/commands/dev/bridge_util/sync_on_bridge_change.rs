@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::future::Future;
+use std::sync::Arc;
 
 use bridge::logic::{OnConfigChangeEvt, OnConfigChangeRx, OnConfigChangeTx};
 use serde_json::json;
@@ -56,16 +56,10 @@ pub async fn sync_on_bridge_change(
                                 .provider_instance
                                 .credential_controller_type_id
                                 .clone(),
-                            display_name: provider_instance
-                                .provider_instance
-                                .display_name
-                                .clone(),
+                            display_name: provider_instance.provider_instance.display_name.clone(),
                             resource_server_credential:
                                 shared::soma_agent_definition::CredentialConfig {
-                                    id: provider_instance
-                                        .resource_server_credential
-                                        .id
-                                        .to_string(),
+                                    id: provider_instance.resource_server_credential.id.to_string(),
                                     type_id: provider_instance
                                         .resource_server_credential
                                         .type_id
@@ -127,16 +121,10 @@ pub async fn sync_on_bridge_change(
                                 .provider_instance
                                 .credential_controller_type_id
                                 .clone(),
-                            display_name: provider_instance
-                                .provider_instance
-                                .display_name
-                                .clone(),
+                            display_name: provider_instance.provider_instance.display_name.clone(),
                             resource_server_credential:
                                 shared::soma_agent_definition::CredentialConfig {
-                                    id: provider_instance
-                                        .resource_server_credential
-                                        .id
-                                        .to_string(),
+                                    id: provider_instance.resource_server_credential.id.to_string(),
                                     type_id: provider_instance
                                         .resource_server_credential
                                         .type_id
@@ -239,11 +227,17 @@ pub async fn sync_on_bridge_change(
 /// Starts the bridge config change listener subsystem
 pub fn start_sync_on_bridge_change(
     soma_definition: Arc<dyn SomaAgentDefinitionLike>,
-)-> Result<(OnConfigChangeTx, impl Future<Output = Result<(), CommonError>> + Send), CommonError> {
+) -> Result<
+    (
+        OnConfigChangeTx,
+        impl Future<Output = Result<(), CommonError>> + Send,
+    ),
+    CommonError,
+> {
     let (on_bridge_config_change_tx, on_bridge_config_change_rx) = mpsc::channel(10);
 
-    let sync_on_bridge_change_fut = sync_on_bridge_change(on_bridge_config_change_rx, soma_definition);
+    let sync_on_bridge_change_fut =
+        sync_on_bridge_change(on_bridge_config_change_rx, soma_definition);
 
     Ok((on_bridge_config_change_tx, sync_on_bridge_change_fut))
 }
-

@@ -13,10 +13,7 @@ use utoipa::ToSchema;
 use crate::repository::{Repository, TaskRepositoryLike, UpdateTaskStatus};
 use shared::{
     error::CommonError,
-    primitives::{
-        PaginatedResponse, PaginationRequest, WrappedChronoDateTime,
-        WrappedUuidV4,
-    },
+    primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedUuidV4},
 };
 
 #[derive(Debug, Clone)]
@@ -344,8 +341,6 @@ impl From<MessageRole> for a2a_rs::types::MessageRole {
     }
 }
 
-#[allow(clippy::inherent_to_string)]
-#[allow(clippy::to_string_trait_impl)]
 impl ToString for MessageRole {
     fn to_string(&self) -> String {
         match self {
@@ -605,24 +600,28 @@ pub async fn update_task_status(
         )
         .await?;
     if let Some(event_queue) = event_queue {
-        event_queue.enqueue_event(a2a_rs::events::Event::TaskStatusUpdate(TaskStatusUpdateEvent {
-            context_id: task.task.context_id.to_string(),
-            final_: match request.inner.status {
-                TaskStatus::Completed
-                | TaskStatus::Failed
-                | TaskStatus::Canceled
-                | TaskStatus::Rejected => true,
-                _ => false,
-            },
-            kind: "status-update".to_string(),
-            metadata: task.task.metadata.0.clone(),
-            status: a2a_rs::types::TaskStatus {
-                message: message.map(|message| message.message.into()),
-                state: request.inner.status.clone().into(),
-                timestamp: Some(now.to_string()),
-            },
-            task_id: request.task_id.to_string(),
-        })).await?;
+        event_queue
+            .enqueue_event(a2a_rs::events::Event::TaskStatusUpdate(
+                TaskStatusUpdateEvent {
+                    context_id: task.task.context_id.to_string(),
+                    final_: match request.inner.status {
+                        TaskStatus::Completed
+                        | TaskStatus::Failed
+                        | TaskStatus::Canceled
+                        | TaskStatus::Rejected => true,
+                        _ => false,
+                    },
+                    kind: "status-update".to_string(),
+                    metadata: task.task.metadata.0.clone(),
+                    status: a2a_rs::types::TaskStatus {
+                        message: message.map(|message| message.message.into()),
+                        state: request.inner.status.clone().into(),
+                        timestamp: Some(now.to_string()),
+                    },
+                    task_id: request.task_id.to_string(),
+                },
+            ))
+            .await?;
     }
     Ok(())
 }
@@ -734,8 +733,8 @@ mod tests {
             Repository::load_sql_migrations(),
             bridge::repository::Repository::load_sql_migrations(),
         ])
-            .await
-            .unwrap();
+        .await
+        .unwrap();
         Repository::new(conn)
     }
 

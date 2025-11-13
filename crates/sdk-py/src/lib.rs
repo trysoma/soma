@@ -67,19 +67,15 @@ fn start_sdk_server(socket_path: String) -> PyResult<()> {
 
     // Start the gRPC server in a new tokio runtime
     let runtime = tokio::runtime::Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create runtime: {e}"
-        ))
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create runtime: {e}"))
     })?;
 
     runtime.block_on(async move {
-        start_grpc_server(providers, path)
-            .await
-            .map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                    "Failed to start server: {e}"
-                ))
-            })
+        start_grpc_server(providers, path).await.map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to start server: {e}"
+            ))
+        })
     })
 }
 

@@ -1,4 +1,3 @@
-
 mod a2a;
 mod commands;
 mod logic;
@@ -13,8 +12,6 @@ use soma::unwrap_and_error;
 use tracing::error;
 
 use crate::{commands::dev::DevParams, utils::config::get_or_init_cli_config};
-
-
 
 pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -37,7 +34,6 @@ pub enum Commands {
 //     Init(commands::BridgeInitParams),
 // }
 
-
 async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
     let mut config = get_or_init_cli_config()
         .await
@@ -47,8 +43,8 @@ async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
         .unwrap();
 
     let cmd_res = match cli.command {
-        Commands::Dev(params) => commands::cmd_dev(params, &mut config).await,
-        Commands::Codegen => commands::cmd_codegen(&mut config).await,
+        Commands::Dev(params) => commands::dev::cmd_dev(params, &mut config).await,
+        Commands::Codegen => commands::codegen::cmd_codegen(&mut config).await,
     };
 
     unwrap_and_error(cmd_res);

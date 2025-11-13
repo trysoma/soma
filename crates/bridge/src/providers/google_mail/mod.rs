@@ -1,13 +1,17 @@
-use crate::logic::credential::{ResourceServerCredentialSerialized, StaticCredentialConfigurationLike, UserCredentialSerialized};
-use crate::logic::encryption::DecryptionService;
 use crate::logic::FunctionControllerLike;
-use crate::logic::*;
 use crate::logic::controller::CATEGORY_EMAIL;
 use crate::logic::credential::oauth::{
     Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
     Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration,
 };
-use crate::logic::credential::oauth::{Oauth2JwtBearerAssertionFlowController, OauthAuthFlowController};
+use crate::logic::credential::oauth::{
+    Oauth2JwtBearerAssertionFlowController, OauthAuthFlowController,
+};
+use crate::logic::credential::{
+    ResourceServerCredentialSerialized, StaticCredentialConfigurationLike, UserCredentialSerialized,
+};
+use crate::logic::encryption::DecryptionService;
+use crate::logic::*;
 use async_trait::async_trait;
 use base64::Engine;
 use schemars::{JsonSchema, schema_for};
@@ -50,9 +54,7 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
     }
 
     fn functions(&self) -> Vec<Arc<dyn FunctionControllerLike>> {
-        vec![
-            Arc::new(SendEmailFunctionController),
-        ]
+        vec![Arc::new(SendEmailFunctionController)]
     }
 
     fn credential_controllers(&self) -> Vec<Arc<dyn ProviderCredentialControllerLike>> {
@@ -164,23 +166,33 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
         // Downcast to OAuth controller and decrypt credentials
         let cred_controller_type_id = credential_controller.type_id();
-        
+
         let credentials = if cred_controller_type_id == OauthAuthFlowController::static_type_id() {
             let controller = credential_controller
                 .as_any()
                 .downcast_ref::<OauthAuthFlowController>()
-                .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!(
-                    "Failed to downcast to OauthAuthFlowController"
-                )))?;
-            controller.decrypt_oauth_credentials(crypto_service, user_credential).await?
-        } else if cred_controller_type_id == Oauth2JwtBearerAssertionFlowController::static_type_id() {
+                .ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to downcast to OauthAuthFlowController"
+                    ))
+                })?;
+            controller
+                .decrypt_oauth_credentials(crypto_service, user_credential)
+                .await?
+        } else if cred_controller_type_id
+            == Oauth2JwtBearerAssertionFlowController::static_type_id()
+        {
             let controller = credential_controller
                 .as_any()
                 .downcast_ref::<Oauth2JwtBearerAssertionFlowController>()
-                .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!(
-                    "Failed to downcast to Oauth2JwtBearerAssertionFlowController"
-                )))?;
-            controller.decrypt_oauth_credentials(crypto_service, user_credential).await?
+                .ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to downcast to Oauth2JwtBearerAssertionFlowController"
+                    ))
+                })?;
+            controller
+                .decrypt_oauth_credentials(crypto_service, user_credential)
+                .await?
         } else {
             return Err(CommonError::Unknown(anyhow::anyhow!(
                 "Unsupported credential controller type: {cred_controller_type_id}"
@@ -190,14 +202,12 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
         // Build the email in RFC2822 format
         let email_content = format!(
             "To: {}\r\nSubject: {}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{}",
-            email_params.to,
-            email_params.subject,
-            email_params.body
+            email_params.to, email_params.subject, email_params.body
         );
 
         // Base64url encode the email
-        let encoded_email = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(email_content.as_bytes());
+        let encoded_email =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(email_content.as_bytes());
 
         // Prepare the Gmail API request body
         let request_body = serde_json::json!({
@@ -208,7 +218,10 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
         let client = reqwest::Client::new();
         let response = client
             .post("https://gmail.googleapis.com/gmail/v1/users/me/messages/send")
-            .header("Authorization", format!("Bearer {}", credentials.access_token))
+            .header(
+                "Authorization",
+                format!("Bearer {}", credentials.access_token),
+            )
             .header("Content-Type", "application/json")
             .json(&request_body)
             .send()
@@ -217,7 +230,10 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
         // Check if the request was successful
         if !response.status().is_success() {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             return Ok(InvokeResult::Error(InvokeError {
                 message: error_text,
             }));
@@ -236,8 +252,10 @@ lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
             .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("No message ID in response")))?
             .to_string();
 
-        Ok(InvokeResult::Success(WrappedJsonValue::new(serde_json::json!({
-            "message_id": message_id
-        }))))
+        Ok(InvokeResult::Success(WrappedJsonValue::new(
+            serde_json::json!({
+                "message_id": message_id
+            }),
+        )))
     }
 }

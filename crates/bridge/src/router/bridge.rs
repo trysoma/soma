@@ -1,17 +1,35 @@
-use axum::response::sse::{Event, KeepAlive};
+use crate::logic::{
+    BrokerAction, BrokerInput, CreateDataEncryptionKeyParams, CreateDataEncryptionKeyResponse,
+    CreateProviderInstanceParamsInner, CreateProviderInstanceResponse,
+    CreateResourceServerCredentialParamsInner, CreateResourceServerCredentialResponse,
+    CreateUserCredentialParamsInner, CreateUserCredentialResponse, DisableFunctionParamsInner,
+    DisableFunctionResponse, EnableFunctionParamsInner, EnableFunctionResponse,
+    EncryptCredentialConfigurationParamsInner, EncryptedCredentialConfigurationResponse,
+    EnvelopeEncryptionKeyContents, GetProviderInstanceResponse, InvokeFunctionParamsInner,
+    InvokeFunctionResponse, ListAvailableProvidersResponse, ListDataEncryptionKeysResponse,
+    ListFunctionInstancesParams, ListFunctionInstancesResponse,
+    ListProviderInstancesGroupedByFunctionParams, ListProviderInstancesGroupedByFunctionResponse,
+    ListProviderInstancesParams, ListProviderInstancesResponse, OnConfigChangeTx,
+    ResumeUserCredentialBrokeringParams, StartUserCredentialBrokeringParamsInner,
+    UpdateProviderInstanceParamsInner, UpdateProviderInstanceResponse,
+    UserCredentialBrokeringResponse, UserCredentialSerialized, WithCredentialControllerTypeId,
+    WithFunctionControllerTypeId, WithFunctionInstanceId, WithProviderControllerTypeId,
+    WithProviderInstanceId, create_data_encryption_key, create_provider_instance,
+    create_resource_server_credential, create_user_credential, delete_provider_instance,
+    disable_function, enable_function, encrypt_resource_server_configuration,
+    encrypt_user_credential_configuration, get_function_instances_openapi_spec,
+    get_provider_instance, invoke_function, list_available_providers, list_data_encryption_keys,
+    list_function_instances, list_provider_instances, list_provider_instances_grouped_by_function,
+    process_credential_rotations_with_window, resume_user_credential_brokering,
+    start_user_credential_brokering, update_provider_instance,
+};
+use crate::repository::Repository;
 use axum::Extension;
 use axum::extract::{Json, NestedPath, Path, Query, State};
+use axum::response::sse::{Event, KeepAlive};
 use axum::response::{IntoResponse, Response, Sse};
-use http::request::Parts;
 use http::StatusCode;
-use serde::{Deserialize, Serialize};
-use tracing::info;
-use utoipa::openapi::OpenApi;
-use utoipa::{IntoParams, PartialSchema, ToSchema};
-use std::io;
-use std::sync::Arc;
-use std::time::Duration;
-use utoipa_axum::{router::OpenApiRouter, routes};
+use http::request::Parts;
 use rmcp::{
     model::ClientJsonRpcMessage,
     transport::{
@@ -19,11 +37,15 @@ use rmcp::{
         sse_server::{PostEventQuery, SseServerTransport},
     },
 };
-use crate::logic::{
-    BrokerAction, BrokerInput, CreateDataEncryptionKeyParams, CreateDataEncryptionKeyResponse, CreateProviderInstanceParamsInner, CreateProviderInstanceResponse, CreateResourceServerCredentialParamsInner, CreateResourceServerCredentialResponse, CreateUserCredentialParamsInner, CreateUserCredentialResponse, DisableFunctionParamsInner, DisableFunctionResponse, EnableFunctionParamsInner, EnableFunctionResponse, EncryptCredentialConfigurationParamsInner, EncryptedCredentialConfigurationResponse, EnvelopeEncryptionKeyContents, GetProviderInstanceResponse, InvokeFunctionParamsInner, InvokeFunctionResponse, ListAvailableProvidersResponse, ListDataEncryptionKeysResponse, ListFunctionInstancesParams, ListFunctionInstancesResponse, ListProviderInstancesGroupedByFunctionParams, ListProviderInstancesGroupedByFunctionResponse, ListProviderInstancesParams, ListProviderInstancesResponse, OnConfigChangeTx, ResumeUserCredentialBrokeringParams, StartUserCredentialBrokeringParamsInner, UpdateProviderInstanceParamsInner, UpdateProviderInstanceResponse, UserCredentialBrokeringResponse, UserCredentialSerialized, WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithFunctionInstanceId, WithProviderControllerTypeId, WithProviderInstanceId, create_data_encryption_key, create_provider_instance, create_resource_server_credential, create_user_credential, delete_provider_instance, disable_function, enable_function, encrypt_resource_server_configuration, encrypt_user_credential_configuration, get_function_instances_openapi_spec, get_provider_instance, invoke_function, list_available_providers, list_data_encryption_keys, list_function_instances, list_provider_instances, list_provider_instances_grouped_by_function, process_credential_rotations_with_window, resume_user_credential_brokering, start_user_credential_brokering, update_provider_instance
-};
-use crate::repository::Repository;
+use serde::{Deserialize, Serialize};
 use shared::{adapters::openapi::JsonResponse, error::CommonError, primitives::PaginationRequest};
+use std::io;
+use std::sync::Arc;
+use std::time::Duration;
+use tracing::info;
+use utoipa::openapi::OpenApi;
+use utoipa::{IntoParams, PartialSchema, ToSchema};
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 pub const PATH_PREFIX: &str = "/api";
 pub const API_VERSION_1: &str = "v1";
@@ -59,7 +81,6 @@ pub fn create_router() -> OpenApiRouter<BridgeService> {
         .routes(routes!(route_invoke_function))
         .routes(routes!(route_list_function_instances))
         .routes(routes!(route_get_function_instances_openapi_spec))
-
         // mcp endpoints
         .routes(routes!(mcp_sse))
         .routes(routes!(mcp_message))
@@ -153,7 +174,6 @@ async fn route_update_provider_instance(
     .await;
     JsonResponse::from(res)
 }
-
 
 #[utoipa::path(
     get,
@@ -679,7 +699,7 @@ async fn route_invoke_function(
 #[derive(Serialize, Deserialize, Debug, ToSchema, IntoParams)]
 #[into_params(style = Form, parameter_in = Query)]
 struct ListProviderInstancesQuery {
-     // TODO: utoipa doesnt support flattening yet https://github.com/juhaku/utoipa/pull/1426
+    // TODO: utoipa doesnt support flattening yet https://github.com/juhaku/utoipa/pull/1426
     pub page_size: i64,
     pub next_page_token: Option<String>,
     pub status: Option<String>,
@@ -735,14 +755,9 @@ async fn route_list_provider_instances_grouped_by_function(
     State(ctx): State<BridgeService>,
     Query(query): Query<ListProviderInstancesGroupedByFunctionParams>,
 ) -> JsonResponse<ListProviderInstancesGroupedByFunctionResponse, CommonError> {
-    let res = list_provider_instances_grouped_by_function(
-        ctx.repository(),
-        query
-    )
-    .await;
+    let res = list_provider_instances_grouped_by_function(ctx.repository(), query).await;
     JsonResponse::from(res)
 }
-
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, IntoParams)]
 #[into_params(style = Form, parameter_in = Query)]
@@ -783,7 +798,6 @@ async fn route_list_function_instances(
     JsonResponse::from(res)
 }
 
-
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/function-instances/openapi.json", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
@@ -797,8 +811,7 @@ async fn route_list_function_instances(
 async fn route_get_function_instances_openapi_spec(
     State(ctx): State<BridgeService>,
 ) -> JsonResponse<OpenApi, CommonError> {
-    let res = get_function_instances_openapi_spec(ctx.repository())
-    .await;
+    let res = get_function_instances_openapi_spec(ctx.repository()).await;
     JsonResponse::from(res)
 }
 
@@ -821,7 +834,9 @@ impl BridgeServiceInner {
         repository: Repository,
         on_config_change_tx: OnConfigChangeTx,
         envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
-        mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
+        mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<
+            rmcp::transport::sse_server::SseServerTransport,
+        >,
         mcp_sse_ping_interval: Duration,
     ) -> Self {
         Self {
@@ -843,7 +858,9 @@ impl BridgeService {
         repository: Repository,
         on_config_change_tx: OnConfigChangeTx,
         envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
-        mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
+        mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<
+            rmcp::transport::sse_server::SseServerTransport,
+        >,
         mcp_sse_ping_interval: Duration,
     ) -> Result<Self, CommonError> {
         // Run initial credential rotation check for expired and soon-to-expire credentials (30 min window)
@@ -878,7 +895,9 @@ impl BridgeService {
         &self.0.envelope_encryption_key_contents
     }
 
-    pub fn mcp_transport_tx(&self) -> &tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport> {
+    pub fn mcp_transport_tx(
+        &self,
+    ) -> &tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport> {
         &self.0.mcp_transport_tx
     }
 
@@ -889,9 +908,7 @@ impl BridgeService {
     pub fn mcp_sessions(&self) -> &rmcp::transport::sse_server::TxStore {
         &self.0.mcp_sessions
     }
-
 }
-
 
 #[utoipa::path(
     get,

@@ -220,7 +220,7 @@ impl DefaultRequestHandler {
                 .execute(request_context_for_agent, queue_clone.clone())
                 .await
             {
-                let error_msg = format!("{:?}", e);
+                let error_msg = format!("{e:?}");
                 // Check if this is a connection closed error (happens during server shutdown)
                 if error_msg.contains("connection closed before message completed") {
                     tracing::warn!(

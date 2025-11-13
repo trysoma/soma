@@ -28,7 +28,9 @@ pub struct FunctionController {
     pub parameters: String,
     pub output: String,
     pub invoke: Arc<
-        dyn Fn(InvokeFunctionRequest) -> BoxFuture<'static, Result<InvokeFunctionResponse, CommonError>>
+        dyn Fn(
+                InvokeFunctionRequest,
+            ) -> BoxFuture<'static, Result<InvokeFunctionResponse, CommonError>>
             + Send
             + Sync
             + 'static,
@@ -156,11 +158,7 @@ impl From<&ProviderController> for sdk_proto::ProviderController {
             documentation: pc.documentation.clone(),
             categories: pc.categories.clone(),
             functions: pc.functions.iter().map(Into::into).collect(),
-            credential_controllers: pc
-                .credential_controllers
-                .iter()
-                .map(Into::into)
-                .collect(),
+            credential_controllers: pc.credential_controllers.iter().map(Into::into).collect(),
         }
     }
 }
@@ -210,13 +208,13 @@ impl TryFrom<sdk_proto::ProviderCredentialController> for ProviderCredentialCont
             Some(Kind::NoAuth(_)) => Ok(ProviderCredentialController::NoAuth),
             Some(Kind::ApiKey(_)) => Ok(ProviderCredentialController::ApiKey),
             Some(Kind::Oauth2(oauth2)) => {
-                let config = oauth2
-                    .static_credential_configuration
-                    .ok_or_else(|| CommonError::InvalidRequest {
+                let config = oauth2.static_credential_configuration.ok_or_else(|| {
+                    CommonError::InvalidRequest {
                         msg: "OAuth2 credential controller missing static_credential_configuration"
                             .to_string(),
                         source: None,
-                    })?;
+                    }
+                })?;
 
                 Ok(ProviderCredentialController::Oauth2AuthorizationCodeFlow(
                     Oauth2AuthorizationCodeFlowConfiguration {
@@ -261,15 +259,13 @@ impl From<ProviderCredentialController> for sdk_proto::ProviderCredentialControl
                     ),
                 }))
             }
-            ProviderCredentialController::Oauth2JwtBearerAssertionFlow(config) => {
-                Some(Kind::Oauth2JwtBearerAssertionFlow(
-                    sdk_proto::Oauth2JwtBearerAssertionFlow {
-                        static_credential_configuration: Some(
-                            config.static_credential_configuration.into(),
-                        ),
-                    },
-                ))
-            }
+            ProviderCredentialController::Oauth2JwtBearerAssertionFlow(config) => Some(
+                Kind::Oauth2JwtBearerAssertionFlow(sdk_proto::Oauth2JwtBearerAssertionFlow {
+                    static_credential_configuration: Some(
+                        config.static_credential_configuration.into(),
+                    ),
+                }),
+            ),
         };
 
         Self { kind }
@@ -290,15 +286,13 @@ impl From<&ProviderCredentialController> for sdk_proto::ProviderCredentialContro
                     ),
                 }))
             }
-            ProviderCredentialController::Oauth2JwtBearerAssertionFlow(config) => {
-                Some(Kind::Oauth2JwtBearerAssertionFlow(
-                    sdk_proto::Oauth2JwtBearerAssertionFlow {
-                        static_credential_configuration: Some(
-                            config.static_credential_configuration.clone().into(),
-                        ),
-                    },
-                ))
-            }
+            ProviderCredentialController::Oauth2JwtBearerAssertionFlow(config) => Some(
+                Kind::Oauth2JwtBearerAssertionFlow(sdk_proto::Oauth2JwtBearerAssertionFlow {
+                    static_credential_configuration: Some(
+                        config.static_credential_configuration.clone().into(),
+                    ),
+                }),
+            ),
         };
 
         Self { kind }
@@ -481,4 +475,3 @@ impl From<Agent> for sdk_proto::Agent {
         }
     }
 }
-

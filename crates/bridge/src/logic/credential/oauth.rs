@@ -8,13 +8,18 @@ use shared::{
 };
 
 use crate::logic::{
-    schemars_make_password, BrokerAction, BrokerInput, BrokerOutcome, BrokerState, ConfigurationSchema, Credential, DecryptionService, EncryptedString, EncryptionService, Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike, ResourceServerCredentialSerialized, RotateableControllerUserCredentialLike, RotateableCredentialLike, StaticCredentialConfigurationLike, StaticProviderCredentialControllerLike, UserCredentialBrokerLike, UserCredentialLike, UserCredentialSerialized
+    BrokerAction, BrokerInput, BrokerOutcome, BrokerState, ConfigurationSchema, Credential,
+    DecryptionService, EncryptedString, EncryptionService, Metadata,
+    ProviderCredentialControllerLike, ResourceServerCredentialLike,
+    ResourceServerCredentialSerialized, RotateableControllerUserCredentialLike,
+    RotateableCredentialLike, StaticCredentialConfigurationLike,
+    StaticProviderCredentialControllerLike, UserCredentialBrokerLike, UserCredentialLike,
+    UserCredentialSerialized, schemars_make_password,
 };
 
 // ============================================================================
 // Static Credential Configuration
 // ============================================================================
-
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
@@ -81,7 +86,6 @@ pub struct Oauth2AuthorizationCodeFlowUserCredential {
     pub metadata: Metadata,
 }
 
-
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct DecryptedOauthCredentials {
     #[schemars(transform = schemars_make_password)]
@@ -132,17 +136,21 @@ pub struct OauthAuthFlowController {
 const STATIC_TYPE_ID_OAUTH_AUTH_FLOW: &str = "oauth_auth_flow";
 
 impl OauthAuthFlowController {
-
     pub async fn decrypt_oauth_credentials(
         &self,
         crypto_service: &DecryptionService,
         user_credential: &UserCredentialSerialized,
     ) -> Result<DecryptedOauthCredentials, CommonError> {
-        let typed_creds: Oauth2AuthorizationCodeFlowUserCredential = serde_json::from_value(user_credential.value.clone().into())?;
+        let typed_creds: Oauth2AuthorizationCodeFlowUserCredential =
+            serde_json::from_value(user_credential.value.clone().into())?;
         let decrypted_creds: DecryptedOauthCredentials = DecryptedOauthCredentials {
             code: crypto_service.decrypt_data(typed_creds.code).await?,
-            access_token: crypto_service.decrypt_data(typed_creds.access_token).await?,
-            refresh_token: crypto_service.decrypt_data(typed_creds.refresh_token).await?,
+            access_token: crypto_service
+                .decrypt_data(typed_creds.access_token)
+                .await?,
+            refresh_token: crypto_service
+                .decrypt_data(typed_creds.refresh_token)
+                .await?,
             expiry_time: typed_creds.expiry_time,
             sub: typed_creds.sub,
             scopes: typed_creds.scopes,
@@ -179,12 +187,12 @@ impl ProviderCredentialControllerLike for OauthAuthFlowController {
 
     fn configuration_schema(&self) -> ConfigurationSchema {
         ConfigurationSchema {
-            resource_server: WrappedSchema::new(
-                schema_for!(Oauth2AuthorizationCodeFlowResourceServerCredential),
-            ),
-            user_credential: WrappedSchema::new(
-                schema_for!(Oauth2AuthorizationCodeFlowUserCredential),
-            ),
+            resource_server: WrappedSchema::new(schema_for!(
+                Oauth2AuthorizationCodeFlowResourceServerCredential
+            )),
+            user_credential: WrappedSchema::new(schema_for!(
+                Oauth2AuthorizationCodeFlowUserCredential
+            )),
         }
     }
 
@@ -244,7 +252,6 @@ impl ProviderCredentialControllerLike for OauthAuthFlowController {
         let metadata = config.metadata.clone();
         Ok((Box::new(config), metadata))
     }
-
 
     fn as_rotateable_controller_user_credential(
         &self,
@@ -312,11 +319,13 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
             BrokerInput::Oauth2AuthorizationCodeFlowWithPkce { code, .. } => code,
         };
 
-
         // Deserialize and decrypt the resource server credential
-        let config: Oauth2AuthorizationCodeFlowResourceServerCredential = serde_json::from_value(resource_server_cred.value.clone().into())?;
-        
-        let client_secret = decryption_service.decrypt_data(config.client_secret).await?;
+        let config: Oauth2AuthorizationCodeFlowResourceServerCredential =
+            serde_json::from_value(resource_server_cred.value.clone().into())?;
+
+        let client_secret = decryption_service
+            .decrypt_data(config.client_secret)
+            .await?;
 
         // Exchange authorization code for access token
         let client = reqwest::Client::new();
@@ -350,10 +359,9 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
             scope: String,
         }
 
-        let token_data: TokenResponse = token_response
-            .json()
-            .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {e}")))?;
+        let token_data: TokenResponse = token_response.json().await.map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {e}"))
+        })?;
 
         // Fetch user info to get the subject ID
         let userinfo_response = client
@@ -368,10 +376,9 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
             sub: String,
         }
 
-        let userinfo: UserinfoResponse = userinfo_response
-            .json()
-            .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse userinfo response: {e}")))?;
+        let userinfo: UserinfoResponse = userinfo_response.json().await.map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to parse userinfo response: {e}"))
+        })?;
 
         // Calculate expiry time
         let now = WrappedChronoDateTime::now();
@@ -382,7 +389,8 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
             .unwrap_or(now);
 
         // Parse scopes
-        let scopes: Vec<String> = token_data.scope
+        let scopes: Vec<String> = token_data
+            .scope
             .split_whitespace()
             .map(|s| s.to_string())
             .collect();
@@ -397,10 +405,10 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
 
         // Encrypt the sensitive data
         let encrypted_code = encryption_service.encrypt_data(code).await?;
-        let encrypted_access_token = encryption_service.encrypt_data(token_data.access_token).await?;
-        let encrypted_refresh_token = encryption_service
-            .encrypt_data(refresh_token)
+        let encrypted_access_token = encryption_service
+            .encrypt_data(token_data.access_token)
             .await?;
+        let encrypted_refresh_token = encryption_service.encrypt_data(refresh_token).await?;
 
         let user_credential = Oauth2AuthorizationCodeFlowUserCredential {
             code: encrypted_code,
@@ -441,7 +449,9 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
             serde_json::from_value(user_cred.value.clone().into())?;
 
         // Decrypt the refresh token
-        let refresh_token = decryption_service.decrypt_data(current_cred.refresh_token.clone()).await?;
+        let refresh_token = decryption_service
+            .decrypt_data(current_cred.refresh_token.clone())
+            .await?;
 
         // Check if refresh token is empty - if so, we cannot rotate
         if refresh_token.is_empty() {
@@ -454,7 +464,9 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
         // Deserialize and decrypt the resource server credential
         let resource_server_config: Oauth2AuthorizationCodeFlowResourceServerCredential =
             serde_json::from_value(resource_server_cred.value.clone().into())?;
-        let client_secret = decryption_service.decrypt_data(resource_server_config.client_secret).await?;
+        let client_secret = decryption_service
+            .decrypt_data(resource_server_config.client_secret)
+            .await?;
 
         tracing::debug!(
             "Rotating user credential - client_id: {}, token_uri: {}, refresh_token_len: {}",
@@ -494,10 +506,9 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
             scope: String,
         }
 
-        let token_data: TokenResponse = token_response
-            .json()
-            .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {e}")))?;
+        let token_data: TokenResponse = token_response.json().await.map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {e}"))
+        })?;
 
         // Calculate new expiry time
         let now = WrappedChronoDateTime::now();
@@ -509,7 +520,8 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
 
         // Parse scopes (use new scopes if provided, otherwise keep existing ones)
         let scopes: Vec<String> = if !token_data.scope.is_empty() {
-            token_data.scope
+            token_data
+                .scope
                 .split_whitespace()
                 .map(|s| s.to_string())
                 .collect()
@@ -518,7 +530,9 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
         };
 
         // Encrypt the new tokens
-        let encrypted_access_token = encryption_service.encrypt_data(token_data.access_token).await?;
+        let encrypted_access_token = encryption_service
+            .encrypt_data(token_data.access_token)
+            .await?;
         let encrypted_refresh_token = encryption_service
             .encrypt_data(token_data.refresh_token.unwrap_or(refresh_token))
             .await?;
@@ -563,7 +577,7 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
         // Deserialize to get the rotateable credential
         let config: Oauth2AuthorizationCodeFlowUserCredential =
             serde_json::from_value(user_cred.value.clone().into())?;
-        
+
         Ok(config.next_rotation_time())
     }
 }
@@ -657,19 +671,22 @@ pub struct Oauth2JwtBearerAssertionFlowController {
     pub static_credentials: Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration,
 }
 
-
 impl Oauth2JwtBearerAssertionFlowController {
-
     pub async fn decrypt_oauth_credentials(
         &self,
         crypto_service: &DecryptionService,
         user_credential: &UserCredentialSerialized,
     ) -> Result<DecryptedOauthCredentials, CommonError> {
-        let typed_creds: Oauth2AuthorizationCodeFlowUserCredential = serde_json::from_value(user_credential.value.clone().into())?;
+        let typed_creds: Oauth2AuthorizationCodeFlowUserCredential =
+            serde_json::from_value(user_credential.value.clone().into())?;
         let decrypted_creds: DecryptedOauthCredentials = DecryptedOauthCredentials {
             code: crypto_service.decrypt_data(typed_creds.code).await?,
-            access_token: crypto_service.decrypt_data(typed_creds.access_token).await?,
-            refresh_token: crypto_service.decrypt_data(typed_creds.refresh_token).await?,
+            access_token: crypto_service
+                .decrypt_data(typed_creds.access_token)
+                .await?,
+            refresh_token: crypto_service
+                .decrypt_data(typed_creds.refresh_token)
+                .await?,
             expiry_time: typed_creds.expiry_time,
             sub: typed_creds.sub,
             scopes: typed_creds.scopes,
@@ -708,12 +725,12 @@ impl ProviderCredentialControllerLike for Oauth2JwtBearerAssertionFlowController
 
     fn configuration_schema(&self) -> ConfigurationSchema {
         ConfigurationSchema {
-            resource_server: WrappedSchema::new(
-                schema_for!(Oauth2JwtBearerAssertionFlowResourceServerCredential),
-            ),
-            user_credential: WrappedSchema::new(
-                schema_for!(Oauth2JwtBearerAssertionFlowUserCredential),
-            ),
+            resource_server: WrappedSchema::new(schema_for!(
+                Oauth2JwtBearerAssertionFlowResourceServerCredential
+            )),
+            user_credential: WrappedSchema::new(schema_for!(
+                Oauth2JwtBearerAssertionFlowUserCredential
+            )),
         }
     }
 
@@ -803,10 +820,12 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
         // Deserialize and decrypt the resource server credential
         let resource_server_config: Oauth2JwtBearerAssertionFlowResourceServerCredential =
             serde_json::from_value(resource_server_cred.value.clone().into())?;
-        let private_key_pem = decryption_service.decrypt_data(resource_server_config.private_key).await?;
+        let private_key_pem = decryption_service
+            .decrypt_data(resource_server_config.private_key)
+            .await?;
 
         // Generate JWT assertion
-        use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+        use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 
         #[derive(Serialize)]
         struct Claims {
@@ -826,8 +845,9 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
             iat: now,
         };
 
-        let encoding_key = EncodingKey::from_rsa_pem(private_key_pem.as_bytes())
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse private key: {e}")))?;
+        let encoding_key = EncodingKey::from_rsa_pem(private_key_pem.as_bytes()).map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to parse private key: {e}"))
+        })?;
 
         let header = Header::new(Algorithm::RS256);
         let jwt = encode(&header, &claims, &encoding_key)
@@ -861,10 +881,9 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
             scope: String,
         }
 
-        let token_data: TokenResponse = token_response
-            .json()
-            .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {e}")))?;
+        let token_data: TokenResponse = token_response.json().await.map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to parse token response: {e}"))
+        })?;
 
         // Calculate new expiry time
         let now_dt = WrappedChronoDateTime::now();
@@ -876,7 +895,8 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
 
         // Parse scopes (use new scopes if provided, otherwise keep existing ones)
         let scopes: Vec<String> = if !token_data.scope.is_empty() {
-            token_data.scope
+            token_data
+                .scope
                 .split_whitespace()
                 .map(|s| s.to_string())
                 .collect()
@@ -886,7 +906,9 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
 
         // Encrypt the new tokens
         let encrypted_assertion = encryption_service.encrypt_data(jwt).await?;
-        let encrypted_access_token = encryption_service.encrypt_data(token_data.access_token).await?;
+        let encrypted_access_token = encryption_service
+            .encrypt_data(token_data.access_token)
+            .await?;
 
         // Create the updated credential
         let updated_credential = Oauth2JwtBearerAssertionFlowUserCredential {
@@ -936,8 +958,8 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
 mod tests {
     use super::*;
     use crate::logic::encryption::{
-        create_data_encryption_key, get_crypto_service, get_decryption_service,
-        get_encryption_service, CreateDataEncryptionKeyParams, EnvelopeEncryptionKeyContents,
+        CreateDataEncryptionKeyParams, EnvelopeEncryptionKeyContents, create_data_encryption_key,
+        get_crypto_service, get_decryption_service, get_encryption_service,
     };
     use shared::primitives::{SqlMigrationLoader, WrappedUuidV4};
 
@@ -1072,7 +1094,10 @@ mod tests {
         let access_token = "old-access-token";
         let refresh_token = "test-refresh-token";
 
-        let encrypted_code = encryption_service.encrypt_data(code.to_string()).await.unwrap();
+        let encrypted_code = encryption_service
+            .encrypt_data(code.to_string())
+            .await
+            .unwrap();
         let encrypted_access = encryption_service
             .encrypt_data(access_token.to_string())
             .await
@@ -1113,9 +1138,11 @@ mod tests {
         let static_creds = controller.static_credentials();
 
         // Verify the controller can be used for rotation
-        assert!(controller
-            .as_rotateable_controller_user_credential()
-            .is_some());
+        assert!(
+            controller
+                .as_rotateable_controller_user_credential()
+                .is_some()
+        );
 
         // Verify next rotation time calculation
         let next_rotation = controller
@@ -1240,11 +1267,13 @@ mod tests {
         assert_ne!(config.client_secret.0, "plain-text-secret");
 
         // Verify it's base64 encoded
-        assert!(base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            &config.client_secret.0
-        )
-        .is_ok());
+        assert!(
+            base64::Engine::decode(
+                &base64::engine::general_purpose::STANDARD,
+                &config.client_secret.0
+            )
+            .is_ok()
+        );
     }
 
     #[tokio::test]

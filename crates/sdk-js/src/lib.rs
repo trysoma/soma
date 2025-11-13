@@ -11,7 +11,6 @@ use tracing::info;
 use sdk_core as core_types;
 use types as js_types;
 
-
 /// Start the gRPC server on a Unix socket (without initial providers)
 #[napi]
 pub async fn start_grpc_server(socket_path: String) -> Result<()> {
@@ -238,48 +237,40 @@ pub fn add_function(
                     parameters: req.parameters,
                 };
 
-
                 let result = invoke_fn
                     .call_async(Ok(js_req))
                     .await
-                    .map_err(|e| {
-                        core_types::InvokeFunctionResponse {
-                            result: Err(core_types::InvokeError {
-                                message: e.reason.clone(),
-                            }),
-                        }
+                    .map_err(|e| core_types::InvokeFunctionResponse {
+                        result: Err(core_types::InvokeError {
+                            message: e.reason.clone(),
+                        }),
                     })
                     .unwrap()
                     .await
-                    .map_err(|e| {
-                        core_types::InvokeFunctionResponse {
-                            result: Err(core_types::InvokeError {
-                                message: e.reason.clone(),
-                            }),
-                        }
+                    .map_err(|e| core_types::InvokeFunctionResponse {
+                        result: Err(core_types::InvokeError {
+                            message: e.reason.clone(),
+                        }),
                     })
                     .unwrap();
 
                 info!("invoke_fn result: {:?}", result);
 
-                Ok::<core_types::InvokeFunctionResponse, CommonError>(core_types::InvokeFunctionResponse { result: 
-                    if let Some(data) = result.data {
-                        Ok(data)
-                    } 
-                    else if let Some(error) = result.error {
-                        Err(core_types::InvokeError {
-                            message: error.message,
-                        })
-                    }
-                    else {
-                        Err(core_types::InvokeError {
-                            message: "JS result must contain .data or .error".to_string(),
-                        })
-                    }
-                
-                
-                 })
-
+                Ok::<core_types::InvokeFunctionResponse, CommonError>(
+                    core_types::InvokeFunctionResponse {
+                        result: if let Some(data) = result.data {
+                            Ok(data)
+                        } else if let Some(error) = result.error {
+                            Err(core_types::InvokeError {
+                                message: error.message,
+                            })
+                        } else {
+                            Err(core_types::InvokeError {
+                                message: "JS result must contain .data or .error".to_string(),
+                            })
+                        },
+                    },
+                )
             })
         }),
     };
@@ -356,12 +347,8 @@ pub fn update_function(
     Ok(core_types::get_grpc_service().update_function(&provider_type_id, core_function))
 }
 
-
-
 #[napi]
-pub fn add_agent(
-    agent: js_types::Agent,
-) -> Result<bool> {
+pub fn add_agent(agent: js_types::Agent) -> Result<bool> {
     let core_agent = core_types::Agent {
         id: agent.id,
         project_id: agent.project_id,

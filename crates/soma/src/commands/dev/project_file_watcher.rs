@@ -34,7 +34,6 @@ fn files_to_ignore_v1() -> Result<GlobSet, CommonError> {
     Ok(builder.build()?)
 }
 
-
 fn collect_paths_to_watch(
     root: &Path,
     watch_globs: &GlobSet,
@@ -66,17 +65,14 @@ fn collect_paths_to_watch(
     paths
 }
 
-
 /// Starts a file watcher that monitors the source directory for changes
 pub async fn start_dev_file_watcher(
     src_dir: PathBuf,
     file_change_tx: Arc<FileChangeTx>,
 ) -> Result<(), CommonError> {
-    
-
     let files_to_watch = files_to_watch_v1()?;
     let files_to_ignore = files_to_ignore_v1()?;
-    
+
     let (file_change_debounced_tx, mut file_change_debounced_rx) =
         mpsc::channel::<(Instant, Vec<notify::Event>)>(10);
 
@@ -185,11 +181,17 @@ pub fn is_soma_config_change(event: &FileChangeEvt) -> bool {
         .any(|change| change.paths.iter().any(|path| path.ends_with("soma.yaml")))
 }
 
-
 /// Starts the file watcher subsystem
 pub fn start_project_file_watcher(
     project_dir: PathBuf,
-) -> Result<(Arc<FileChangeTx>, FileChangeRx, impl Future<Output = Result<(), CommonError>> + Send), CommonError> {
+) -> Result<
+    (
+        Arc<FileChangeTx>,
+        FileChangeRx,
+        impl Future<Output = Result<(), CommonError>> + Send,
+    ),
+    CommonError,
+> {
     // Setup file change notification
     let (file_change_tx, file_change_rx) = tokio::sync::broadcast::channel::<FileChangeEvt>(10);
     let file_change_tx = Arc::new(file_change_tx);
@@ -199,12 +201,11 @@ pub fn start_project_file_watcher(
     Ok((file_change_tx, file_change_rx, file_watcher_fut))
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use notify::{Event, EventKind};
+    use std::path::PathBuf;
 
     #[test]
     fn test_is_soma_config_change_with_soma_yaml() {
@@ -262,9 +263,7 @@ mod tests {
 
     #[test]
     fn test_is_soma_config_change_empty_event() {
-        let event = FileChangeEvt {
-            changes: vec![],
-        };
+        let event = FileChangeEvt { changes: vec![] };
 
         assert!(!is_soma_config_change(&event));
     }

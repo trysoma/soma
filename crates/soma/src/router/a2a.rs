@@ -11,10 +11,7 @@ use a2a_rs::{
     request_handlers::{
         default_request_handler::DefaultRequestHandler, request_handler::RequestHandler,
     },
-    types::{
-        Task, TaskState,
-        TaskStatus,
-    },
+    types::{Task, TaskState, TaskStatus},
 };
 use async_trait::async_trait;
 use axum::extract::State;
@@ -34,13 +31,12 @@ use utoipa_axum::routes;
 
 use crate::a2a::RepositoryTaskStore;
 use crate::logic::{
-    self, ConnectionManager, CreateMessageRequest, UpdateTaskStatusRequest, WithTaskId, update_task_status
+    self, ConnectionManager, CreateMessageRequest, UpdateTaskStatusRequest, WithTaskId,
+    update_task_status,
 };
 use crate::repository::{CreateTask, Repository, TaskRepositoryLike};
 use crate::utils::restate::admin_client::AdminClient;
-use crate::utils::restate::invoke::{
-    RestateIngressClient, construct_initial_object_id,
-};
+use crate::utils::restate::invoke::{RestateIngressClient, construct_initial_object_id};
 use crate::utils::soma_agent_definition::ConstructAgentCardParams;
 use shared::soma_agent_definition::{SomaAgentDefinition, SomaAgentDefinitionLike};
 
@@ -52,7 +48,6 @@ pub fn create_router() -> OpenApiRouter<Arc<Agent2AgentService>> {
     let openapi_router = OpenApiRouter::new().routes(routes!(route_definition));
 
     let a2a_router: OpenApiRouter<Arc<Agent2AgentService>> = create_a2a_router();
-    
 
     openapi_router.nest(
         &format!("{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}"),
@@ -148,17 +143,21 @@ impl Agent2AgentService {
 
 #[async_trait]
 impl A2aServiceLike for Agent2AgentService {
-    async fn agent_card(&self, _context: a2a_rs::service::RequestContext) -> Result<a2a_rs::types::AgentCard, A2aServerError> {
+    async fn agent_card(
+        &self,
+        _context: a2a_rs::service::RequestContext,
+    ) -> Result<a2a_rs::types::AgentCard, A2aServerError> {
         let soma_definition = self.soma_definition.get_definition().await?;
         let mut full_url = self.host.clone();
         full_url.set_path(&format!(
             "{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}"
         ));
-        
-        let card = crate::utils::soma_agent_definition::construct_agent_card(ConstructAgentCardParams {
-            definition: soma_definition,
-            url: full_url.to_string(),
-        });
+
+        let card =
+            crate::utils::soma_agent_definition::construct_agent_card(ConstructAgentCardParams {
+                definition: soma_definition,
+                url: full_url.to_string(),
+            });
         Ok(card)
     }
 
@@ -191,8 +190,13 @@ impl AgentExecutor for ProxiedAgent {
         &'a self,
         context: RequestContext,
         event_queue: EventQueue,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>> + Send + 'a>>
-    {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>>
+                + Send
+                + 'a,
+        >,
+    > {
         Box::pin(async move {
             let context_id = match context.context_id() {
                 Some(context_id) => context_id.to_string(),
@@ -201,28 +205,24 @@ impl AgentExecutor for ProxiedAgent {
 
             let task = match context.current_task() {
                 Some(task) => task.clone(),
-                None => {
-                    
-                    a2a_rs::types::Task {
-                        id: context
-                            .task_id()
-                            .expect("task_id must be present")
-                            .to_string(),
-                        context_id: context_id.to_string(),
-                        status: a2a_rs::types::TaskStatus {
-                            state: a2a_rs::types::TaskState::Submitted,
-                            message: None,
-                            timestamp: Some(chrono::Utc::now().to_rfc3339()),
-                        },
-                        artifacts: vec![],
-                        history: vec![],
-                        kind: "task".to_string(),
-                        metadata: Default::default(),
-                    }
-                }
+                None => a2a_rs::types::Task {
+                    id: context
+                        .task_id()
+                        .expect("task_id must be present")
+                        .to_string(),
+                    context_id: context_id.to_string(),
+                    status: a2a_rs::types::TaskStatus {
+                        state: a2a_rs::types::TaskState::Submitted,
+                        message: None,
+                        timestamp: Some(chrono::Utc::now().to_rfc3339()),
+                    },
+                    artifacts: vec![],
+                    history: vec![],
+                    kind: "task".to_string(),
+                    metadata: Default::default(),
+                },
             };
 
-          
             let task_id = match context.task_id() {
                 Some(task_id) => task_id,
                 None => {
@@ -295,19 +295,22 @@ impl AgentExecutor for ProxiedAgent {
 
             let db_task = self.repository.get_task_by_id(&task_id).await?;
             if db_task.is_none() {
-                self.repository.create_task(&CreateTask {
-                    id: task_id.clone(),
-                    context_id: WrappedUuidV4::from_str(&task.context_id).unwrap(),
-                    // todo: convert to logic::TaskStatus
-                    status: logic::TaskStatus::from(task.status.state.to_string()),
-                    status_timestamp: WrappedChronoDateTime::now(),
-                    metadata: WrappedJsonValue::new(serde_json::to_value(task.metadata.clone())?),
-                    created_at: WrappedChronoDateTime::now(),
-                    updated_at: WrappedChronoDateTime::now(),
-                }).await?;
+                self.repository
+                    .create_task(&CreateTask {
+                        id: task_id.clone(),
+                        context_id: WrappedUuidV4::from_str(&task.context_id).unwrap(),
+                        // todo: convert to logic::TaskStatus
+                        status: logic::TaskStatus::from(task.status.state.to_string()),
+                        status_timestamp: WrappedChronoDateTime::now(),
+                        metadata: WrappedJsonValue::new(serde_json::to_value(
+                            task.metadata.clone(),
+                        )?),
+                        created_at: WrappedChronoDateTime::now(),
+                        updated_at: WrappedChronoDateTime::now(),
+                    })
+                    .await?;
                 event_queue.enqueue_event(Event::Task(task.clone())).await?;
             }
-
 
             let message = match context.message() {
                 Some(message) => message,
@@ -355,31 +358,38 @@ impl AgentExecutor for ProxiedAgent {
                 .await
                 .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
 
-            
             // Get agent metadata
             use crate::commands::dev::runtime::grpc_client::create_unix_socket_client;
-            let socket_path = std::env::var("SOMA_SERVER_SOCK").unwrap_or_else(|_| "/tmp/soma-sdk.sock".to_string());
+            let socket_path = std::env::var("SOMA_SERVER_SOCK")
+                .unwrap_or_else(|_| "/tmp/soma-sdk.sock".to_string());
             let mut sdk_client = create_unix_socket_client(&socket_path).await.map_err(|e| {
-                Box::new(CommonError::Unknown(anyhow::anyhow!("Failed to connect to SDK: {e}"))) as Box<dyn std::error::Error + Send + Sync + 'static>
+                Box::new(CommonError::Unknown(anyhow::anyhow!(
+                    "Failed to connect to SDK: {e}"
+                ))) as Box<dyn std::error::Error + Send + Sync + 'static>
             })?;
-            let metadata_response = sdk_client.metadata(tonic::Request::new(())).await.map_err(|e| {
-                Box::new(CommonError::Unknown(anyhow::anyhow!("Failed to get SDK metadata: {e}"))) as Box<dyn std::error::Error + Send + Sync + 'static>
-            })?;
+            let metadata_response =
+                sdk_client
+                    .metadata(tonic::Request::new(()))
+                    .await
+                    .map_err(|e| {
+                        Box::new(CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to get SDK metadata: {e}"
+                        )))
+                            as Box<dyn std::error::Error + Send + Sync + 'static>
+                    })?;
             let metadata = metadata_response.into_inner();
-            let project_id = metadata.agents.first()
+            let project_id = metadata
+                .agents
+                .first()
                 .map(|agent| &agent.project_id)
-                .ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("No agents registered"))
-                })?;
-            let agent_id = metadata.agents.first()
+                .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("No agents registered")))?;
+            let agent_id = metadata
+                .agents
+                .first()
                 .map(|agent| &agent.id)
-                .ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("No agents registered"))
-                })?;
+                .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("No agents registered")))?;
             let service_name = format!("{project_id}.{agent_id}");
             let object_id = construct_initial_object_id(&task.id);
-
-            
 
             // Use the task status from the database if available, otherwise convert from context task
             let task_status = if let Some(db_task) = &db_task {
@@ -407,14 +417,19 @@ impl AgentExecutor for ProxiedAgent {
                         "taskId": task.id,
                         "contextId": task.context_id,
                     });
-                    update_task_status(&self.repository, &self.connection_manager, Some(event_queue.clone()), WithTaskId {
-                        task_id: task_id.clone(),
-                        inner: UpdateTaskStatusRequest {
-                            status: logic::TaskStatus::Working,
-                            message: None,
+                    update_task_status(
+                        &self.repository,
+                        &self.connection_manager,
+                        Some(event_queue.clone()),
+                        WithTaskId {
+                            task_id: task_id.clone(),
+                            inner: UpdateTaskStatusRequest {
+                                status: logic::TaskStatus::Working,
+                                message: None,
+                            },
                         },
-
-                    }).await?;
+                    )
+                    .await?;
                     self.restate_ingress_client
                         .invoke_virtual_object_handler(
                             &service_name,
@@ -423,20 +438,30 @@ impl AgentExecutor for ProxiedAgent {
                             body,
                         )
                         .await
-                        .map_err(|e| Box::new(CommonError::Unknown(anyhow::anyhow!("Failed to invoke entrypoint: {e}"))) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
-                    
-                },
+                        .map_err(|e| {
+                            Box::new(CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to invoke entrypoint: {e}"
+                            )))
+                                as Box<dyn std::error::Error + Send + Sync + 'static>
+                        })?;
+                }
                 _ => {
                     // Existing task - resolve the new_input_promise awakeable
                     info!("Existing task detected, resolving new_input_promise awakeable");
-                    
+
                     // TODO: we could have a race condition where promise is not created yet in restate sdk
                     // Get the awakeable ID from Restate state using SQL API
-                    let restate_state = self.restate_admin_client
+                    let restate_state = self
+                        .restate_admin_client
                         .get_state(&service_name, &object_id)
                         .await
-                        .map_err(|e| Box::new(CommonError::Unknown(anyhow::anyhow!("Failed to get state: {e}"))) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
-                    
+                        .map_err(|e| {
+                            Box::new(CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to get state: {e}"
+                            )))
+                                as Box<dyn std::error::Error + Send + Sync + 'static>
+                        })?;
+
                     info!("Restate state: {:?}", restate_state);
 
                     let new_input_promise = restate_state.get("new_input_promise").cloned();
@@ -445,10 +470,18 @@ impl AgentExecutor for ProxiedAgent {
                             self.restate_ingress_client
                                 .resolve_awakeable_generic(&awakeable_id, serde_json::Value::Null)
                                 .await
-                                .map_err(|e| Box::new(CommonError::Unknown(anyhow::anyhow!("Failed to resolve awakeable: {e}"))) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
+                                .map_err(|e| {
+                                    Box::new(CommonError::Unknown(anyhow::anyhow!(
+                                        "Failed to resolve awakeable: {e}"
+                                    )))
+                                        as Box<dyn std::error::Error + Send + Sync + 'static>
+                                })?;
                         }
                         None => {
-                            return Err(Box::new(CommonError::Unknown(anyhow::anyhow!("Awakeable ID not found in state. Task may not be initialized."))) as Box<dyn std::error::Error + Send + Sync + 'static>);
+                            return Err(Box::new(CommonError::Unknown(anyhow::anyhow!(
+                                "Awakeable ID not found in state. Task may not be initialized."
+                            )))
+                                as Box<dyn std::error::Error + Send + Sync + 'static>);
                         }
                     }
                 }
@@ -462,8 +495,13 @@ impl AgentExecutor for ProxiedAgent {
         &'a self,
         _context: RequestContext,
         event_queue: EventQueue,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>> + Send + 'a>>
-    {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>>
+                + Send
+                + 'a,
+        >,
+    > {
         Box::pin(async move {
             info!("HelloWorldAgent cancel called");
 

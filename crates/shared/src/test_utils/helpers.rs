@@ -1,8 +1,4 @@
-
-use std::{
-    sync::Once,
-    time::Duration,
-};
+use std::{sync::Once, time::Duration};
 
 use crate::error::DynError;
 use tokio_graceful_shutdown::{SubsystemHandle, Toplevel};
@@ -34,7 +30,6 @@ macro_rules! setup_sql_fixtures {
 }
 
 pub use setup_sql_fixtures;
-
 
 pub struct TestContext {
     pub workspace_root: String,

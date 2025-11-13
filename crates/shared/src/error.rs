@@ -1,3 +1,5 @@
+use crate::adapters::mcp::McpErrorMsg;
+use a2a_rs::errors::A2aServerError;
 use axum::{
     Json,
     response::{IntoResponse, Response},
@@ -7,8 +9,6 @@ use rmcp::ErrorData;
 use serde::Serialize;
 use thiserror::Error;
 use utoipa::{IntoResponses, PartialSchema, ToSchema};
-use a2a_rs::errors::A2aServerError;
-use crate::adapters::mcp::McpErrorMsg;
 
 pub type DynError = Box<dyn std::error::Error + Send + Sync + 'static>;
 

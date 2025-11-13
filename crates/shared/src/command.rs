@@ -1,7 +1,10 @@
 use crate::error::CommonError;
 use std::collections::HashMap;
 use std::process::Stdio;
-use tokio::{process::Command, sync::{broadcast, oneshot}};
+use tokio::{
+    process::Command,
+    sync::{broadcast, oneshot},
+};
 use tracing::{error, info};
 
 pub async fn run_child_process(
@@ -44,7 +47,6 @@ pub async fn run_child_process(
     let (status_tx, status_rx) = oneshot::channel::<Result<(), CommonError>>();
 
     if let Some(mut kill_signal_rx) = kill_signal {
-
         let process_name_clone = process_name.to_string();
 
         tokio::spawn(async move {
@@ -54,7 +56,7 @@ pub async fn run_child_process(
             // Kill the entire process group to ensure child processes are terminated
             #[cfg(unix)]
             if let Some(pid) = child.id() {
-                use nix::sys::signal::{kill, Signal};
+                use nix::sys::signal::{Signal, kill};
                 use nix::unistd::Pid;
 
                 // Send SIGTERM to the entire process group (negative PID)
@@ -63,11 +65,9 @@ pub async fn run_child_process(
                 let _ = kill(pgid, Signal::SIGTERM);
 
                 // Wait a bit for graceful shutdown
-                let wait_result = tokio::time::timeout(
-                    std::time::Duration::from_secs(30),
-                    child.wait(),
-                ).await;
-        
+                let wait_result =
+                    tokio::time::timeout(std::time::Duration::from_secs(30), child.wait()).await;
+
                 match wait_result {
                     Ok(Ok(status)) => {
                         info!("🛑 {} exited with {:?}", process_name_clone, status);
@@ -78,25 +78,28 @@ pub async fn run_child_process(
                     }
                     Ok(Err(err)) => {
                         error!("❌ Failed to wait for {}: {:?}", process_name_clone, err);
-                        let _ =status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
+                        let _ = status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
                             "{process_name_clone} exited with error: {err:?}"
                         ))));
-                        return
+                        return;
                     }
                     Err(_) => {
                         // Timeout expired — escalate to SIGKILL
-                        info!("⏰ Timeout waiting for {}, sending SIGKILL", process_name_clone);
+                        info!(
+                            "⏰ Timeout waiting for {}, sending SIGKILL",
+                            process_name_clone
+                        );
                         let _ = kill(pgid, Signal::SIGKILL);
-        
+
                         match child.wait().await {
                             Ok(status) => info!("🧨 {} killed: {:?}", process_name_clone, status),
                             Err(err) => {
                                 error!("❌ Failed to reap {}: {:?}", process_name_clone, err);
-                                let _ =status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
+                                let _ = status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
                                     "{process_name_clone} exited with error: {err:?}"
                                 ))));
-                                return
-                            },
+                                return;
+                            }
                         }
                     }
                 }
@@ -109,17 +112,16 @@ pub async fn run_child_process(
                     Ok(status) => info!("🛑 {} terminated: {:?}", process_name_clone, status),
                     Err(err) => {
                         error!("❌ Failed to wait for {}: {:?}", process_name_clone, err);
-                        let _ =status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
+                        let _ = status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
                             "{process_name_clone} exited with error: {err:?}"
                         ))));
-                        return
-                    },
+                        return;
+                    }
                 }
             }
 
             let _ = status_tx.send(Ok(()));
         });
-
     }
 
     let result = status_rx.await;
@@ -127,8 +129,8 @@ pub async fn run_child_process(
     match result {
         Ok(Ok(())) => Ok(()),
         Ok(Err(e)) => Err(e),
-        Err(_) => Err(CommonError::Unknown(anyhow::anyhow!("Failed to get status"))),
+        Err(_) => Err(CommonError::Unknown(anyhow::anyhow!(
+            "Failed to get status"
+        ))),
     }
-
-
 }

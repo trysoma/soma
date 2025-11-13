@@ -9,7 +9,6 @@ use shared::error::CommonError;
 use crate::router;
 use crate::vite::{Assets, wait_for_vite_dev_server_shutdown};
 
-
 /// Finds a free port in the given range
 pub fn find_free_port(start: u16, end: u16) -> std::io::Result<u16> {
     find_free_port_with_bind(start, end, TcpListener::bind)
@@ -39,7 +38,6 @@ pub struct StartAxumServerParams {
     pub port: u16,
     pub routers: router::Routers,
     pub system_shutdown_signal_rx: tokio::sync::broadcast::Receiver<()>,
-
 }
 
 /// Starts the Axum server
@@ -61,7 +59,6 @@ pub async fn start_axum_server(
 
     info!("Starting server on {}", addr);
 
-    
     let router = router::initiate_routers(params.routers)?;
     info!("Router initiated");
     let handle = axum_server::Handle::new();
@@ -70,7 +67,7 @@ pub async fn start_axum_server(
     use crate::commands::dev::server::{start_vite_dev_server, stop_vite_dev_server};
     #[cfg(debug_assertions)]
     let _vite_scope_guard = start_vite_dev_server();
-    
+
     let server_fut = axum_server::bind(addr)
         .handle(handle.clone())
         .serve(router.into_make_service());
@@ -93,7 +90,7 @@ pub async fn start_axum_server(
         handle_clone.shutdown();
         info!("Axum server shut down");
     });
-    
+
     info!("Server bound");
     Ok((server_fut, handle, addr))
 }
@@ -143,9 +140,7 @@ mod tests {
     #[test]
     fn test_find_free_port_no_ports_available() {
         // Mock bind function that always fails
-        let bind_fn = |_: SocketAddr| {
-            Err(Error::new(ErrorKind::AddrInUse, "Port in use"))
-        };
+        let bind_fn = |_: SocketAddr| Err(Error::new(ErrorKind::AddrInUse, "Port in use"));
 
         let result = find_free_port_with_bind(3000, 3010, bind_fn);
         assert!(result.is_err());
@@ -155,9 +150,7 @@ mod tests {
     #[test]
     fn test_find_free_port_first_port_available() {
         // Mock bind function that always succeeds
-        let bind_fn = |_: SocketAddr| {
-            Ok(TcpListener::bind("127.0.0.1:0").unwrap())
-        };
+        let bind_fn = |_: SocketAddr| Ok(TcpListener::bind("127.0.0.1:0").unwrap());
 
         let port = find_free_port_with_bind(5000, 5100, bind_fn).unwrap();
         assert_eq!(port, 5000);

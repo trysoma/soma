@@ -10,9 +10,9 @@ use restate_serde_util::SerdeableHeaderHashMap;
 use restate_types::identifiers::LambdaARN;
 use restate_types::schema::service::ServiceMetadata;
 use std::fmt::Formatter;
-use std::{collections::HashMap, fmt::Display};
 use std::str::FromStr;
 use std::time::Duration;
+use std::{collections::HashMap, fmt::Display};
 use tokio::time::sleep;
 use tracing::{debug, info, warn};
 use url::Url;
@@ -100,15 +100,19 @@ async fn wait_for_healthy_http_service(uri: &str) -> Result<()> {
     const INITIAL_BACKOFF_MS: u64 = 500;
     const CONNECT_TIMEOUT_SECS: u64 = 2;
 
-    debug!("Checking if HTTP service at {} is accepting connections", uri);
+    debug!(
+        "Checking if HTTP service at {} is accepting connections",
+        uri
+    );
 
     // Parse the URI to extract host and port
-    let url = Url::parse(uri)
-        .map_err(|e| anyhow!("Invalid URI '{uri}': {e}"))?;
-    
-    let host = url.host_str()
+    let url = Url::parse(uri).map_err(|e| anyhow!("Invalid URI '{uri}': {e}"))?;
+
+    let host = url
+        .host_str()
         .ok_or_else(|| anyhow!("URI '{uri}' has no host"))?;
-    let port = url.port()
+    let port = url
+        .port()
         .or_else(|| {
             // Default ports based on scheme
             match url.scheme() {
@@ -124,7 +128,9 @@ async fn wait_for_healthy_http_service(uri: &str) -> Result<()> {
         match tokio::time::timeout(
             Duration::from_secs(CONNECT_TIMEOUT_SECS),
             tokio::net::TcpStream::connect((host, port)),
-        ).await {
+        )
+        .await
+        {
             Ok(Ok(_stream)) => {
                 // Successfully connected - the service is listening
                 debug!("HTTP service at {} is accepting connections", uri);
@@ -148,8 +154,7 @@ async fn wait_for_healthy_http_service(uri: &str) -> Result<()> {
                 } else {
                     warn!(
                         "HTTP service at {} not ready after {} attempts, but proceeding with registration. Restate will retry discovery if needed.",
-                        uri,
-                        MAX_HEALTH_CHECK_ATTEMPTS
+                        uri, MAX_HEALTH_CHECK_ATTEMPTS
                     );
                     return Ok(()); // Allow registration to proceed
                 }
@@ -171,8 +176,7 @@ async fn wait_for_healthy_http_service(uri: &str) -> Result<()> {
                 } else {
                     warn!(
                         "HTTP service at {} not ready after {} attempts (timeout), but proceeding with registration. Restate will retry discovery if needed.",
-                        uri,
-                        MAX_HEALTH_CHECK_ATTEMPTS
+                        uri, MAX_HEALTH_CHECK_ATTEMPTS
                     );
                     return Ok(()); // Allow registration to proceed
                 }

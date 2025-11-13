@@ -8,7 +8,8 @@ use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use utoipa::{
-    openapi::{schema::AdditionalProperties, ObjectBuilder, Type}, IntoParams, PartialSchema, ToSchema
+    IntoParams, PartialSchema, ToSchema,
+    openapi::{ObjectBuilder, Type, schema::AdditionalProperties},
 };
 
 use crate::error::CommonError;
@@ -103,13 +104,19 @@ pub trait SqlMigrationLoader {
 pub struct WrappedJsonValue(serde_json::Value);
 
 impl ToNapiValue for WrappedJsonValue {
-    unsafe fn to_napi_value(env: napi::sys::napi_env, val: Self) -> napi::Result<napi::sys::napi_value> {
+    unsafe fn to_napi_value(
+        env: napi::sys::napi_env,
+        val: Self,
+    ) -> napi::Result<napi::sys::napi_value> {
         unsafe { ToNapiValue::to_napi_value(env, &val.0) }
     }
 }
 
 impl FromNapiValue for WrappedJsonValue {
-    unsafe fn from_napi_value(env: napi::sys::napi_env, napi_val: napi::sys::napi_value) -> napi::Result<Self> {
+    unsafe fn from_napi_value(
+        env: napi::sys::napi_env,
+        napi_val: napi::sys::napi_value,
+    ) -> napi::Result<Self> {
         let value = unsafe { serde_json::Value::from_napi_value(env, napi_val) }?;
         Ok(WrappedJsonValue::new(value))
     }
@@ -163,7 +170,6 @@ impl libsql::FromValue for WrappedJsonValue {
         }
     }
 }
-
 
 impl TryInto<WrappedJsonValue> for Schema {
     type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -415,9 +421,7 @@ impl<T: ToSchema + Serialize> PaginatedResponse<T> {
     }
 }
 
-
-
-#[derive(Debug, Clone,  Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
 pub struct WrappedSchema(schemars::Schema);
 
@@ -462,12 +466,13 @@ impl libsql::FromValue for WrappedSchema {
             libsql::Value::Null => return Err(libsql::Error::NullValue),
             _ => return Err(libsql::Error::InvalidColumnType),
         };
-        let value: serde_json::Value = serde_json::from_str(&s).map_err(|_e| libsql::Error::InvalidColumnType)?;
-        let schema = schemars::Schema::try_from(value).map_err(|_e| libsql::Error::InvalidColumnType)?;
+        let value: serde_json::Value =
+            serde_json::from_str(&s).map_err(|_e| libsql::Error::InvalidColumnType)?;
+        let schema =
+            schemars::Schema::try_from(value).map_err(|_e| libsql::Error::InvalidColumnType)?;
         Ok(WrappedSchema::new(schema))
     }
 }
-
 
 // impl TryInto<WrappedSchema> for schemars::Schema {
 //     type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -482,25 +487,30 @@ impl TryFrom<libsql::Value> for WrappedSchema {
     fn try_from(val: libsql::Value) -> Result<Self, Self::Error> {
         let s = match val {
             libsql::Value::Text(s) => s,
-            libsql::Value::Null => return Err(CommonError::InvalidRequest {
-                msg: "null value".to_string(),
-                source: None,
-            }),
-            _ => return Err(CommonError::InvalidRequest {
-                msg: "invalid value type".to_string(),
-                source: None,
-            }),
+            libsql::Value::Null => {
+                return Err(CommonError::InvalidRequest {
+                    msg: "null value".to_string(),
+                    source: None,
+                });
+            }
+            _ => {
+                return Err(CommonError::InvalidRequest {
+                    msg: "invalid value type".to_string(),
+                    source: None,
+                });
+            }
         };
-        let value: serde_json::Value = serde_json::from_str(&s).map_err(|e| CommonError::InvalidRequest {
-            msg: format!("invalid json value: {e}"),
-            source: None,
-        })?;
-        let schema = schemars::Schema::try_from(value).map_err(|e| CommonError::InvalidRequest {
-            msg: format!("invalid schema value: {e}"),
-            source: None,
-        })?;
+        let value: serde_json::Value =
+            serde_json::from_str(&s).map_err(|e| CommonError::InvalidRequest {
+                msg: format!("invalid json value: {e}"),
+                source: None,
+            })?;
+        let schema =
+            schemars::Schema::try_from(value).map_err(|e| CommonError::InvalidRequest {
+                msg: format!("invalid schema value: {e}"),
+                source: None,
+            })?;
         Ok(WrappedSchema::new(schema))
-        
     }
 }
 
@@ -509,7 +519,12 @@ impl ToSchema for WrappedSchema {
         std::borrow::Cow::Owned("JsonSchema".to_string())
     }
 
-    fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
         schemas.push((Self::name().to_string(), Self::schema()));
     }
 }
@@ -520,7 +535,7 @@ impl PartialSchema for WrappedSchema {
             ObjectBuilder::new()
                 .schema_type(Type::Object)
                 .additional_properties(Some(AdditionalProperties::FreeForm(true)))
-                .build()
+                .build(),
         ))
     }
 }

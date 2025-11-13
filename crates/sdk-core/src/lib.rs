@@ -7,7 +7,7 @@ pub use types::*;
 
 use sdk_proto::soma_sdk_service_server::{SomaSdkService, SomaSdkServiceServer};
 use std::{path::PathBuf, sync::Arc};
-use tonic::{transport::Server, Request, Response, Status};
+use tonic::{Request, Response, Status, transport::Server};
 use tracing::info;
 
 pub struct GrpcService {
@@ -45,11 +45,12 @@ impl SomaSdkService for GrpcService {
         request: Request<sdk_proto::InvokeFunctionRequest>,
     ) -> Result<Response<sdk_proto::InvokeFunctionResponse>, Status> {
         let proto_req = request.into_inner();
-        let req: InvokeFunctionRequest = proto_req
-            .try_into()
-            .map_err(|e: shared::error::CommonError| {
-                Status::invalid_argument(format!("Invalid request: {e}"))
-            })?;
+        let req: InvokeFunctionRequest =
+            proto_req
+                .try_into()
+                .map_err(|e: shared::error::CommonError| {
+                    Status::invalid_argument(format!("Invalid request: {e}"))
+                })?;
 
         let providers = self.providers.load();
 
@@ -88,8 +89,6 @@ impl SomaSdkService for GrpcService {
 
         Ok(Response::new(result.into()))
     }
-
-
 }
 
 impl GrpcService {
@@ -99,7 +98,6 @@ impl GrpcService {
             agents: ArcSwap::from_pointee(agents),
         }
     }
-
 
     /// Add a new provider controller
     pub fn add_provider(&self, provider: ProviderController) {
@@ -131,7 +129,10 @@ impl GrpcService {
         let mut updated = false;
         self.providers.rcu(|current| {
             let mut new_providers = (**current).clone();
-            if let Some(pos) = new_providers.iter().position(|p| p.type_id == provider.type_id) {
+            if let Some(pos) = new_providers
+                .iter()
+                .position(|p| p.type_id == provider.type_id)
+            {
                 new_providers.remove(pos);
                 new_providers.push(provider.clone());
                 updated = true;
@@ -146,7 +147,10 @@ impl GrpcService {
         let mut added = false;
         self.providers.rcu(|current| {
             let mut new_providers = (**current).clone();
-            if let Some(provider) = new_providers.iter_mut().find(|p| p.type_id == provider_type_id) {
+            if let Some(provider) = new_providers
+                .iter_mut()
+                .find(|p| p.type_id == provider_type_id)
+            {
                 provider.functions.push(function.clone());
                 added = true;
             }
@@ -160,7 +164,10 @@ impl GrpcService {
         let mut removed = false;
         self.providers.rcu(|current| {
             let mut new_providers = (**current).clone();
-            if let Some(provider) = new_providers.iter_mut().find(|p| p.type_id == provider_type_id) {
+            if let Some(provider) = new_providers
+                .iter_mut()
+                .find(|p| p.type_id == provider_type_id)
+            {
                 let initial_len = provider.functions.len();
                 provider.functions.retain(|f| f.name != function_name);
                 removed = provider.functions.len() != initial_len;
@@ -171,16 +178,19 @@ impl GrpcService {
     }
 
     /// Update a function controller (removes old and inserts new)
-    pub fn update_function(
-        &self,
-        provider_type_id: &str,
-        function: FunctionController,
-    ) -> bool {
+    pub fn update_function(&self, provider_type_id: &str, function: FunctionController) -> bool {
         let mut updated = false;
         self.providers.rcu(|current| {
             let mut new_providers = (**current).clone();
-            if let Some(provider) = new_providers.iter_mut().find(|p| p.type_id == provider_type_id) {
-                if let Some(pos) = provider.functions.iter().position(|f| f.name == function.name) {
+            if let Some(provider) = new_providers
+                .iter_mut()
+                .find(|p| p.type_id == provider_type_id)
+            {
+                if let Some(pos) = provider
+                    .functions
+                    .iter()
+                    .position(|f| f.name == function.name)
+                {
                     provider.functions.remove(pos);
                     provider.functions.push(function.clone());
                     updated = true;
@@ -235,13 +245,15 @@ impl GrpcService {
 
     /// Get a provider by type_id
     pub fn get_provider(&self, type_id: &str) -> Option<ProviderController> {
-        self.providers.load().iter().find(|p| p.type_id == type_id).cloned()
+        self.providers
+            .load()
+            .iter()
+            .find(|p| p.type_id == type_id)
+            .cloned()
     }
 }
 
-static GRPC_SERVICE: Lazy<GrpcService> = Lazy::new(|| {
-    GrpcService::new(vec![], vec![])
-});
+static GRPC_SERVICE: Lazy<GrpcService> = Lazy::new(|| GrpcService::new(vec![], vec![]));
 
 /// Starts a gRPC server that handles function invocations over a Unix socket
 ///
@@ -258,7 +270,6 @@ pub async fn start_grpc_server(
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse().unwrap()))
         .init();
-
 
     // Set the providers in the global service
     GRPC_SERVICE.set_providers(providers);
@@ -311,7 +322,6 @@ impl SomaSdkService for GrpcServiceWrapper {
     ) -> Result<Response<sdk_proto::InvokeFunctionResponse>, Status> {
         GRPC_SERVICE.invoke_function(request).await
     }
-
 }
 
 /// Get a reference to the global GRPC service for dynamic provider management
