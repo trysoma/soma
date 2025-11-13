@@ -52,6 +52,7 @@ jobs:
         if: always()
         with:
           mode: upsert
+          comment_tag: soma-db-quality
           message: |
             Soma Database Migration Lint Report:
             ```
@@ -79,6 +80,7 @@ jobs:
         if: always()
         with:
           mode: upsert
+          comment_tag: bridge-db-quality
           message: |
             Bridge Database Migration Lint Report:
             ```
@@ -115,6 +117,7 @@ jobs:
         uses: thollander/actions-comment-pull-request@v3
         with:
           mode: upsert
+          comment_tag: api-quality
           message: |
             OpenAPI Spec diff report:
             ```
@@ -134,6 +137,7 @@ jobs:
         if: always()
         with:
           mode: upsert
+          comment_tag: api-spec-diff
           message: |
             OpenAPI Spec Breaking changes report:
             ```
@@ -157,9 +161,6 @@ jobs:
           toolchain: 1.88.0
           profile: minimal
           components: rustfmt,clippy
-
-      - name: Install pnpm dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Install cargo-llvm-cov and cargo-nextest
         uses: taiki-e/install-action@v2
@@ -421,6 +422,7 @@ jobs:
         if: always()
         with:
           mode: upsert
+          comment_tag: coverage
           message: |
             ## 📊 Coverage Report
 
