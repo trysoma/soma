@@ -1,5 +1,7 @@
 # Soma
 
+**Note:** For documentation, tutorials and getting started with Soma, please visit our [documentation](https://trysoma.ai). Any documentation here is for contributing and setting up this repo.
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
