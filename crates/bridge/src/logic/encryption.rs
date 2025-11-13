@@ -774,7 +774,7 @@ mod tests {
     use shared::primitives::SqlMigrationLoader;
 
     const TEST_KMS_KEY_ARN: &str =
-        "arn:aws:kms:us-east-1:855806899624:key/0155f7f0-b3a2-4e5a-afdc-9070c2cd4059";
+        "arn:aws:kms:eu-west-2:914788356809:alias/unsafe-github-action-soma-test-key";
 
     #[tokio::test]
     async fn test_encrypt_data_envelope_key_with_aws_kms() {

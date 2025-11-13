@@ -108,7 +108,7 @@ clean: ## Clean build artifacts and cache files
 
 test: ## Run all tests (Rust + JS)
 	@echo "Running Rust tests..."
-	cargo test
+	cargo nextest run
 	@echo "Running JS tests..."
 	pnpm -r --workspace-concurrency=1 run test
 	@echo "✓ All tests passed"
