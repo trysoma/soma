@@ -170,7 +170,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y lcov bc
-          npm install -g lcov-result-merger
 
       - name: Merge coverage reports
         id: merge-coverage
@@ -205,20 +204,48 @@ jobs:
           # Merge LCOV files
           if [ -n "$lcov_files" ]; then
             echo "=== Merging coverage files: $lcov_files ==="
-            npx lcov-result-merger $lcov_files ./coverage/merged/coverage.lcov
+
+            # Build lcov arguments dynamically
+            lcov_args=""
+            for file in $lcov_files; do
+              lcov_args="$lcov_args -a $file"
+            done
+
+            echo "Running: lcov $lcov_args -o ./coverage/merged/coverage.lcov"
+
+            # Merge with lcov (handles mixed llvm/istanbul formats correctly)
+            lcov $lcov_args -o ./coverage/merged/coverage.lcov
             echo "✓ Coverage merge completed"
+
+            # Verify merged file exists
+            if [ ! -f ./coverage/merged/coverage.lcov ]; then
+              echo "❌ ERROR: Merged coverage file was not created!"
+              exit 1
+            fi
+
+            echo "=== Merged coverage file info ==="
+            ls -lh ./coverage/merged/coverage.lcov
           else
             echo "❌ ERROR: No coverage files found to merge!"
             exit 1
           fi
 
           # Parse coverage metrics from merged LCOV
+          echo "=== Generating coverage summary ==="
           coverage_summary=$(lcov --summary ./coverage/merged/coverage.lcov 2>&1 | grep -E "lines|functions|branches" | head -3)
+
+          echo "Coverage summary:"
+          echo "$coverage_summary"
 
           # Extract percentages
           lines_coverage=$(echo "$coverage_summary" | grep "lines" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
           functions_coverage=$(echo "$coverage_summary" | grep "functions" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
           branches_coverage=$(echo "$coverage_summary" | grep "branches" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
+
+          echo "Extracted coverage:"
+          echo "  Lines: $lines_coverage%"
+          echo "  Functions: $functions_coverage%"
+          echo "  Branches: $branches_coverage%"
 
           # Store metrics in a JSON file
           mkdir -p .coverage-metrics
