@@ -401,6 +401,7 @@ jobs:
 
       - name: Get latest main branch workflow run
         id: get-main-run
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -409,10 +410,10 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/repos/${{ github.repository }}/actions/workflows/main-coverage.yml/runs?branch=main&status=success&per_page=1" \
-            --jq '.workflow_runs[0].id')
+            --jq '.workflow_runs[0].id' 2>/dev/null || echo "")
 
           if [ -z "$latest_run" ] || [ "$latest_run" = "null" ]; then
-            echo "⚠ No successful main coverage workflow run found"
+            echo "⚠ No successful main coverage workflow run found (workflow may not exist yet)"
             echo "run_id=" >> $GITHUB_OUTPUT
           else
             echo "✓ Found latest main coverage run: $latest_run"
