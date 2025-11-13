@@ -6,23 +6,23 @@ use bridge::logic::FunctionControllerLike;
 use bridge::logic::InvokeError;
 use bridge::logic::InvokeResult;
 use bridge::logic::Metadata;
-use bridge::logic::no_auth::NoAuthStaticCredentialConfiguration;
+use bridge::logic::ProviderControllerLike;
+use bridge::logic::ProviderCredentialControllerLike;
 use bridge::logic::ResourceServerCredentialSerialized;
 use bridge::logic::StaticCredentialConfigurationLike;
 use bridge::logic::StaticProviderCredentialControllerLike;
-use bridge::logic::ProviderControllerLike;
-use bridge::logic::ProviderCredentialControllerLike;
 use bridge::logic::UserCredentialSerialized;
 use bridge::logic::no_auth::NoAuthController;
+use bridge::logic::no_auth::NoAuthStaticCredentialConfiguration;
 use schemars::schema_for;
 use shared::primitives::WrappedJsonValue;
 use shared::primitives::WrappedSchema;
 
 use shared::error::CommonError;
 
-use crate::logic::get_task_timeline_items;
 use crate::logic::GetTaskTimelineItemsRequest;
 use crate::logic::GetTaskTimelineItemsResponse;
+use crate::logic::get_task_timeline_items;
 use crate::repository::Repository;
 
 /// Soma provider controller that provides soma-specific functions
@@ -110,7 +110,7 @@ impl FunctionControllerLike for GetTaskTimelineItemsFunctionController {
         &self,
         _crypto_service: &DecryptionService,
         credential_controller: &Arc<dyn ProviderCredentialControllerLike>,
-        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _static_credentials: &dyn StaticCredentialConfigurationLike,
         _resource_server_credential: &ResourceServerCredentialSerialized,
         _user_credential: &UserCredentialSerialized,
         params: WrappedJsonValue,
@@ -127,29 +127,23 @@ impl FunctionControllerLike for GetTaskTimelineItemsFunctionController {
                 .as_any()
                 .downcast_ref::<NoAuthController>()
                 .ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to downcast to NoAuthController"
-                    ))
+                    CommonError::Unknown(anyhow::anyhow!("Failed to downcast to NoAuthController"))
                 })?;
-
-        }  else {
+        } else {
             return Err(CommonError::Unknown(anyhow::anyhow!(
                 "Unsupported credential controller type: {cred_controller_type_id}"
             )));
         };
 
-        let res = get_task_timeline_items(
-            &self.repository,
-            params,
-        )
-        .await;
+        let res = get_task_timeline_items(&self.repository, params).await;
 
         match res {
-            Ok(res) => Ok(InvokeResult::Success(WrappedJsonValue::new(serde_json::json!(res)))),
+            Ok(res) => Ok(InvokeResult::Success(WrappedJsonValue::new(
+                serde_json::json!(res),
+            ))),
             Err(e) => Ok(InvokeResult::Error(InvokeError {
                 message: e.to_string(),
             })),
         }
-
     }
 }

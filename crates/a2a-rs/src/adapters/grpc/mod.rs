@@ -18,6 +18,7 @@ use crate::adapters::grpc::utils::{GrpcResponse, map_optional_task_to_not_found}
 use crate::service::{A2aServiceLike, RequestContext};
 use crate::spawn_stream_to_grpc;
 
+#[allow(clippy::all)]
 pub mod proto {
     pub const FILE_DESCRIPTOR_SET: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/service.bin"));
 
@@ -177,7 +178,11 @@ impl proto::a2a_service_server::A2aService for GrpcService {
         request: tonic::Request<proto::GetAgentCardRequest>,
     ) -> Result<tonic::Response<proto::AgentCard>, tonic::Status> {
         let request_context = require_request_context!(request);
-        let card = self.service.agent_card(request_context).await.map_err(|e| tonic::Status::internal(e.to_string()))?;
+        let card = self
+            .service
+            .agent_card(request_context)
+            .await
+            .map_err(|e| tonic::Status::internal(e.to_string()))?;
         Ok(tonic::Response::new(card.into()))
     }
     /// Delete a push notification config for a task.

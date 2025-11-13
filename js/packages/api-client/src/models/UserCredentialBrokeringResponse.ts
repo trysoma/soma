@@ -12,67 +12,78 @@
  * Do not edit the class manually.
  */
 
-import type { UserCredentialBrokeringResponseOneOf } from './UserCredentialBrokeringResponseOneOf';
+import type { UserCredentialBrokeringResponseOneOf } from "./UserCredentialBrokeringResponseOneOf";
 import {
-    instanceOfUserCredentialBrokeringResponseOneOf,
-    UserCredentialBrokeringResponseOneOfFromJSON,
-    UserCredentialBrokeringResponseOneOfFromJSONTyped,
-    UserCredentialBrokeringResponseOneOfToJSON,
-} from './UserCredentialBrokeringResponseOneOf';
-import type { UserCredentialBrokeringResponseOneOf1 } from './UserCredentialBrokeringResponseOneOf1';
+	instanceOfUserCredentialBrokeringResponseOneOf,
+	UserCredentialBrokeringResponseOneOfFromJSONTyped,
+	UserCredentialBrokeringResponseOneOfToJSON,
+} from "./UserCredentialBrokeringResponseOneOf";
+import type { UserCredentialBrokeringResponseOneOf1 } from "./UserCredentialBrokeringResponseOneOf1";
 import {
-    instanceOfUserCredentialBrokeringResponseOneOf1,
-    UserCredentialBrokeringResponseOneOf1FromJSON,
-    UserCredentialBrokeringResponseOneOf1FromJSONTyped,
-    UserCredentialBrokeringResponseOneOf1ToJSON,
-} from './UserCredentialBrokeringResponseOneOf1';
+	instanceOfUserCredentialBrokeringResponseOneOf1,
+	UserCredentialBrokeringResponseOneOf1FromJSONTyped,
+	UserCredentialBrokeringResponseOneOf1ToJSON,
+} from "./UserCredentialBrokeringResponseOneOf1";
 
 /**
  * @type UserCredentialBrokeringResponse
- * 
+ *
  * @export
  */
-export type UserCredentialBrokeringResponse = UserCredentialBrokeringResponseOneOf | UserCredentialBrokeringResponseOneOf1;
+export type UserCredentialBrokeringResponse =
+	| UserCredentialBrokeringResponseOneOf
+	| UserCredentialBrokeringResponseOneOf1;
 
-export function UserCredentialBrokeringResponseFromJSON(json: any): UserCredentialBrokeringResponse {
-    return UserCredentialBrokeringResponseFromJSONTyped(json, false);
+export function UserCredentialBrokeringResponseFromJSON(
+	json: any,
+): UserCredentialBrokeringResponse {
+	return UserCredentialBrokeringResponseFromJSONTyped(json, false);
 }
 
-export function UserCredentialBrokeringResponseFromJSONTyped(json: any, ignoreDiscriminator: boolean): UserCredentialBrokeringResponse {
-    if (json == null) {
-        return json;
-    }
-    if (typeof json !== 'object') {
-        return json;
-    }
-    if (instanceOfUserCredentialBrokeringResponseOneOf(json)) {
-        return UserCredentialBrokeringResponseOneOfFromJSONTyped(json, true);
-    }
-    if (instanceOfUserCredentialBrokeringResponseOneOf1(json)) {
-        return UserCredentialBrokeringResponseOneOf1FromJSONTyped(json, true);
-    }
+export function UserCredentialBrokeringResponseFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): UserCredentialBrokeringResponse {
+	if (json == null) {
+		return json;
+	}
+	if (typeof json !== "object") {
+		return json;
+	}
+	if (instanceOfUserCredentialBrokeringResponseOneOf(json)) {
+		return UserCredentialBrokeringResponseOneOfFromJSONTyped(json, true);
+	}
+	if (instanceOfUserCredentialBrokeringResponseOneOf1(json)) {
+		return UserCredentialBrokeringResponseOneOf1FromJSONTyped(json, true);
+	}
 
-    return {} as any;
+	return {} as any;
 }
 
 export function UserCredentialBrokeringResponseToJSON(json: any): any {
-    return UserCredentialBrokeringResponseToJSONTyped(json, false);
+	return UserCredentialBrokeringResponseToJSONTyped(json, false);
 }
 
-export function UserCredentialBrokeringResponseToJSONTyped(value?: UserCredentialBrokeringResponse | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
-    if (typeof value !== 'object') {
-        return value;
-    }
-    if (instanceOfUserCredentialBrokeringResponseOneOf(value)) {
-        return UserCredentialBrokeringResponseOneOfToJSON(value as UserCredentialBrokeringResponseOneOf);
-    }
-    if (instanceOfUserCredentialBrokeringResponseOneOf1(value)) {
-        return UserCredentialBrokeringResponseOneOf1ToJSON(value as UserCredentialBrokeringResponseOneOf1);
-    }
+export function UserCredentialBrokeringResponseToJSONTyped(
+	value?: UserCredentialBrokeringResponse | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
+	if (typeof value !== "object") {
+		return value;
+	}
+	if (instanceOfUserCredentialBrokeringResponseOneOf(value)) {
+		return UserCredentialBrokeringResponseOneOfToJSON(
+			value as UserCredentialBrokeringResponseOneOf,
+		);
+	}
+	if (instanceOfUserCredentialBrokeringResponseOneOf1(value)) {
+		return UserCredentialBrokeringResponseOneOf1ToJSON(
+			value as UserCredentialBrokeringResponseOneOf1,
+		);
+	}
 
-    return {};
+	return {};
 }
-

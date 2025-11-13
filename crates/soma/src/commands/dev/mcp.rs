@@ -6,9 +6,9 @@ pub struct StartMcpConnectionManagerParams {
     pub bridge_service: BridgeService,
     pub mcp_transport_rx: mpsc::UnboundedReceiver<rmcp::transport::sse_server::SseServerTransport>,
     pub system_shutdown_signal_rx: tokio::sync::broadcast::Receiver<()>,
-
 }
 
+#[allow(clippy::needless_return)]
 pub async fn start_mcp_connection_manager(
     params: StartMcpConnectionManagerParams,
 ) -> Result<(), CommonError> {
@@ -26,7 +26,9 @@ pub async fn start_mcp_connection_manager(
         loop {
             let maybe_incoming_mcp_transport = mcp_transport_rx.recv().await;
 
-            match handle_mcp_transport(maybe_incoming_mcp_transport, &bridge_service, &mcp_ct_clone).await {
+            match handle_mcp_transport(maybe_incoming_mcp_transport, &bridge_service, &mcp_ct_clone)
+                .await
+            {
                 Ok(should_break) => {
                     if should_break {
                         break;
@@ -53,7 +55,6 @@ pub async fn start_mcp_connection_manager(
             return Err(CommonError::Unknown(anyhow::anyhow!("MCP transport processor loop broke unexpectedly")));
         }
     }
-
 }
 
 // tokio::spawn(async move {

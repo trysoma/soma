@@ -12,55 +12,63 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface InvokeFunctionParamsInner
  */
 export interface InvokeFunctionParamsInner {
-    /**
-     * 
-     * @type {any}
-     * @memberof InvokeFunctionParamsInner
-     */
-    params: any | null;
+	/**
+	 *
+	 * @type {any}
+	 * @memberof InvokeFunctionParamsInner
+	 */
+	params: any | null;
 }
 
 /**
  * Check if a given object implements the InvokeFunctionParamsInner interface.
  */
-export function instanceOfInvokeFunctionParamsInner(value: object): value is InvokeFunctionParamsInner {
-    if (!('params' in value) || value['params'] === undefined) return false;
-    return true;
+export function instanceOfInvokeFunctionParamsInner(
+	value: object,
+): value is InvokeFunctionParamsInner {
+	if (!("params" in value) || value.params === undefined) return false;
+	return true;
 }
 
-export function InvokeFunctionParamsInnerFromJSON(json: any): InvokeFunctionParamsInner {
-    return InvokeFunctionParamsInnerFromJSONTyped(json, false);
+export function InvokeFunctionParamsInnerFromJSON(
+	json: any,
+): InvokeFunctionParamsInner {
+	return InvokeFunctionParamsInnerFromJSONTyped(json, false);
 }
 
-export function InvokeFunctionParamsInnerFromJSONTyped(json: any, ignoreDiscriminator: boolean): InvokeFunctionParamsInner {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'params': json['params'],
-    };
+export function InvokeFunctionParamsInnerFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): InvokeFunctionParamsInner {
+	if (json == null) {
+		return json;
+	}
+	return {
+		params: json.params,
+	};
 }
 
-export function InvokeFunctionParamsInnerToJSON(json: any): InvokeFunctionParamsInner {
-    return InvokeFunctionParamsInnerToJSONTyped(json, false);
+export function InvokeFunctionParamsInnerToJSON(
+	json: any,
+): InvokeFunctionParamsInner {
+	return InvokeFunctionParamsInnerToJSONTyped(json, false);
 }
 
-export function InvokeFunctionParamsInnerToJSONTyped(value?: InvokeFunctionParamsInner | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function InvokeFunctionParamsInnerToJSONTyped(
+	value?: InvokeFunctionParamsInner | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'params': value['params'],
-    };
+	return {
+		params: value.params,
+	};
 }
-

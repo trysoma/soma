@@ -1,8 +1,17 @@
-
 use std::sync::Arc;
 
+use crate::commands::dev::bridge_util::providers::soma::SomaProviderController;
 use bridge::logic::{
-    create_data_encryption_key, create_provider_instance, create_resource_server_credential, create_user_credential, delete_data_encryption_key, delete_provider_instance, disable_function, enable_function, list_data_encryption_keys, list_function_instances, register_all_bridge_providers, CreateDataEncryptionKeyParams, CreateProviderInstanceParamsInner, CreateResourceServerCredentialParams, CreateResourceServerCredentialParamsInner, CreateUserCredentialParams, CreateUserCredentialParamsInner, DisableFunctionParamsInner, EnableFunctionParamsInner, EncryptedDataEncryptionKey, EnvelopeEncryptionKeyContents, Metadata, OnConfigChangeTx, ProviderInstanceSerializedWithFunctions, WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithProviderControllerTypeId, WithProviderInstanceId, PROVIDER_REGISTRY
+    CreateDataEncryptionKeyParams, CreateProviderInstanceParamsInner,
+    CreateResourceServerCredentialParams, CreateResourceServerCredentialParamsInner,
+    CreateUserCredentialParams, CreateUserCredentialParamsInner, DisableFunctionParamsInner,
+    EnableFunctionParamsInner, EncryptedDataEncryptionKey, EnvelopeEncryptionKeyContents, Metadata,
+    OnConfigChangeTx, PROVIDER_REGISTRY, ProviderInstanceSerializedWithFunctions,
+    WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithProviderControllerTypeId,
+    WithProviderInstanceId, create_data_encryption_key, create_provider_instance,
+    create_resource_server_credential, create_user_credential, delete_data_encryption_key,
+    delete_provider_instance, disable_function, enable_function, list_data_encryption_keys,
+    list_function_instances, register_all_bridge_providers,
 };
 use shared::{
     error::CommonError,
@@ -10,7 +19,6 @@ use shared::{
     soma_agent_definition::SomaAgentDefinitionLike,
 };
 use tracing::info;
-use crate::commands::dev::bridge_util::providers::soma::SomaProviderController;
 /// Synchronizes the bridge database with the soma.yaml definition.
 ///
 /// This function performs a smart sync that:
@@ -35,13 +43,12 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
     let soma_definition = soma_definition_provider.get_definition().await?;
     use std::collections::{HashMap, HashSet};
 
-     // Register all bridge providers before syncing
+    // Register all bridge providers before syncing
     register_all_bridge_providers().await?;
     PROVIDER_REGISTRY
         .write()
         .unwrap()
         .push(Arc::new(SomaProviderController::new(soma_repo.clone())));
-
 
     // 1. Sync data encryption keys
     // Get all existing keys
@@ -68,7 +75,8 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
     // Get keys from soma definition
     let yaml_keys: HashMap<String, _> = soma_definition
         .bridge
-        .as_ref().map(|b| &b.encryption.0)
+        .as_ref()
+        .map(|b| &b.encryption.0)
         .map(|enc| enc.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
         .unwrap_or_default();
 
@@ -135,32 +143,57 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 // Check if provider exists and if it needs updating
                 let needs_recreate = if let Some(existing) = existing_providers.get(provider_id) {
                     // Check if key fields changed
-                    let basic_fields_changed = existing.provider_instance.provider_controller_type_id != *provider_controller_type_id
-                        || existing.provider_instance.credential_controller_type_id != *credential_controller_type_id
+                    let basic_fields_changed = existing
+                        .provider_instance
+                        .provider_controller_type_id
+                        != *provider_controller_type_id
+                        || existing.provider_instance.credential_controller_type_id
+                            != *credential_controller_type_id
                         || existing.provider_instance.display_name != provider_config.display_name;
-                    
+
                     // Compare resource server credentials (encrypted values, no decryption needed)
-                    let resource_cred_changed = 
-                        existing.resource_server_credential.value.get_inner() != &provider_config.resource_server_credential.value
-                        || existing.resource_server_credential.data_encryption_key_id != provider_config.resource_server_credential.data_encryption_key_id
-                        || serde_json::Value::Object(existing.resource_server_credential.metadata.0.clone()) != provider_config.resource_server_credential.metadata
-                        || existing.resource_server_credential.type_id != provider_config.resource_server_credential.type_id
-                        || existing.resource_server_credential.next_rotation_time.as_ref().map(|t| t.to_string()) != provider_config.resource_server_credential.next_rotation_time;
-                    
+                    let resource_cred_changed =
+                        existing.resource_server_credential.value.get_inner()
+                            != &provider_config.resource_server_credential.value
+                            || existing.resource_server_credential.data_encryption_key_id
+                                != provider_config
+                                    .resource_server_credential
+                                    .data_encryption_key_id
+                            || serde_json::Value::Object(
+                                existing.resource_server_credential.metadata.0.clone(),
+                            ) != provider_config.resource_server_credential.metadata
+                            || existing.resource_server_credential.type_id
+                                != provider_config.resource_server_credential.type_id
+                            || existing
+                                .resource_server_credential
+                                .next_rotation_time
+                                .as_ref()
+                                .map(|t| t.to_string())
+                                != provider_config
+                                    .resource_server_credential
+                                    .next_rotation_time;
+
                     // Compare user credentials (if either exists)
-                    let user_cred_changed = match (&existing.user_credential, &provider_config.user_credential) {
-                        (Some(existing_uc), Some(config_uc)) => {
-                            // Both exist, compare them
-                            existing_uc.value.get_inner() != &config_uc.value
-                                || existing_uc.data_encryption_key_id != config_uc.data_encryption_key_id
-                                || serde_json::Value::Object(existing_uc.metadata.0.clone()) != config_uc.metadata
-                                || existing_uc.type_id != config_uc.type_id
-                                || existing_uc.next_rotation_time.as_ref().map(|t| t.to_string()) != config_uc.next_rotation_time
-                        }
-                        (None, None) => false, // Both don't exist, no change
-                        _ => true, // One exists but not the other, needs recreate
-                    };
-                    
+                    let user_cred_changed =
+                        match (&existing.user_credential, &provider_config.user_credential) {
+                            (Some(existing_uc), Some(config_uc)) => {
+                                // Both exist, compare them
+                                existing_uc.value.get_inner() != &config_uc.value
+                                    || existing_uc.data_encryption_key_id
+                                        != config_uc.data_encryption_key_id
+                                    || serde_json::Value::Object(existing_uc.metadata.0.clone())
+                                        != config_uc.metadata
+                                    || existing_uc.type_id != config_uc.type_id
+                                    || existing_uc
+                                        .next_rotation_time
+                                        .as_ref()
+                                        .map(|t| t.to_string())
+                                        != config_uc.next_rotation_time
+                            }
+                            (None, None) => false, // Both don't exist, no change
+                            _ => true,             // One exists but not the other, needs recreate
+                        };
+
                     basic_fields_changed || resource_cred_changed || user_cred_changed
                 } else {
                     // Provider doesn't exist, needs creation
@@ -170,7 +203,10 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 if needs_recreate {
                     // Delete existing provider if it exists
                     if existing_providers.contains_key(provider_id) {
-                        tracing::info!("Provider '{}' configuration changed, recreating", provider_id);
+                        tracing::info!(
+                            "Provider '{}' configuration changed, recreating",
+                            provider_id
+                        );
                         delete_provider_instance(
                             on_config_change_tx,
                             bridge_repo,
@@ -191,7 +227,8 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                         CreateResourceServerCredentialParams {
                             provider_controller_type_id: provider_controller_type_id.clone(),
                             inner: WithCredentialControllerTypeId {
-                                credential_controller_type_id: credential_controller_type_id.clone(),
+                                credential_controller_type_id: credential_controller_type_id
+                                    .clone(),
                                 inner: CreateResourceServerCredentialParamsInner {
                                     data_encryption_key_id: provider_config
                                         .resource_server_credential
@@ -212,37 +249,38 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                     .await?;
 
                     // Create user credential if provided
-                    let user_credential =
-                        if let Some(user_cred_config) = &provider_config.user_credential {
-                            Some(
-                                create_user_credential(
-                                    bridge_repo,
-                                    CreateUserCredentialParams {
-                                        provider_controller_type_id: provider_controller_type_id
-                                            .clone(),
-                                        inner: WithCredentialControllerTypeId {
-                                            credential_controller_type_id:
-                                                credential_controller_type_id.clone(),
-                                            inner: CreateUserCredentialParamsInner {
-                                                data_encryption_key_id: user_cred_config
-                                                    .data_encryption_key_id
-                                                    .clone(),
-                                                user_credential_configuration: WrappedJsonValue::new(
-                                                    user_cred_config.value.clone(),
-                                                ),
-                                                metadata: user_cred_config
-                                                    .metadata
-                                                    .as_object()
-                                                    .map(|m| Metadata(m.clone())),
-                                            },
+                    let user_credential = if let Some(user_cred_config) =
+                        &provider_config.user_credential
+                    {
+                        Some(
+                            create_user_credential(
+                                bridge_repo,
+                                CreateUserCredentialParams {
+                                    provider_controller_type_id: provider_controller_type_id
+                                        .clone(),
+                                    inner: WithCredentialControllerTypeId {
+                                        credential_controller_type_id:
+                                            credential_controller_type_id.clone(),
+                                        inner: CreateUserCredentialParamsInner {
+                                            data_encryption_key_id: user_cred_config
+                                                .data_encryption_key_id
+                                                .clone(),
+                                            user_credential_configuration: WrappedJsonValue::new(
+                                                user_cred_config.value.clone(),
+                                            ),
+                                            metadata: user_cred_config
+                                                .metadata
+                                                .as_object()
+                                                .map(|m| Metadata(m.clone())),
                                         },
                                     },
-                                )
-                                .await?,
+                                },
                             )
-                        } else {
-                            None
-                        };
+                            .await?,
+                        )
+                    } else {
+                        None
+                    };
 
                     // Create provider instance
                     create_provider_instance(
@@ -251,7 +289,8 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                         WithProviderControllerTypeId {
                             provider_controller_type_id: provider_controller_type_id.clone(),
                             inner: WithCredentialControllerTypeId {
-                                credential_controller_type_id: credential_controller_type_id.clone(),
+                                credential_controller_type_id: credential_controller_type_id
+                                    .clone(),
                                 inner: CreateProviderInstanceParamsInner {
                                     provider_instance_id: Some(provider_id.clone()),
                                     display_name: provider_config.display_name.clone(),
@@ -346,7 +385,8 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
             // Delete provider instances not in yaml (only if status is "active")
             for (provider_id, existing) in existing_providers.iter() {
                 if !yaml_provider_ids.contains(provider_id)
-                    && existing.provider_instance.status == "active" {
+                    && existing.provider_instance.status == "active"
+                {
                     tracing::info!(
                         "Deleting provider '{}' not in yaml (status: active)",
                         provider_id
@@ -370,7 +410,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
     // Get all credentials to check which keys are still in use
     let keys_in_use: HashSet<String> = {
         let mut in_use = HashSet::new();
-        
+
         // Check resource server credentials
         let mut next_page_token: Option<String> = None;
         loop {
@@ -378,7 +418,9 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 page_size: 100,
                 next_page_token: next_page_token.clone(),
             };
-            let response = bridge_repo.list_resource_server_credentials(&pagination).await?;
+            let response = bridge_repo
+                .list_resource_server_credentials(&pagination)
+                .await?;
             for cred in response.items {
                 in_use.insert(cred.data_encryption_key_id);
             }
@@ -387,7 +429,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
             }
             next_page_token = response.next_page_token;
         }
-        
+
         // Check user credentials
         let mut next_page_token: Option<String> = None;
         loop {
@@ -404,14 +446,15 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
             }
             next_page_token = response.next_page_token;
         }
-        
+
         in_use
     };
 
     // Delete keys not in yaml and not in use by any credentials
     for (key_id, _) in existing_keys.iter() {
         if !yaml_keys.contains_key(key_id) && !keys_in_use.contains(key_id) {
-            delete_data_encryption_key(on_config_change_tx, bridge_repo, key_id.clone(), false).await?;
+            delete_data_encryption_key(on_config_change_tx, bridge_repo, key_id.clone(), false)
+                .await?;
         }
     }
 
@@ -425,7 +468,10 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use shared::{primitives::SqlMigrationLoader, soma_agent_definition::{SomaAgentDefinition, YamlSomaAgentDefinition}};
+    use shared::{
+        primitives::SqlMigrationLoader,
+        soma_agent_definition::{SomaAgentDefinition, YamlSomaAgentDefinition},
+    };
     use tokio::sync::Mutex;
 
     #[tokio::test]
@@ -456,7 +502,14 @@ mod tests {
         };
         let soma_def_provider = Arc::new(soma_def) as Arc<dyn SomaAgentDefinitionLike>;
 
-        let result = sync_bridge_db_from_soma_definition_on_start(&kek, &tx, &bridge_repo, &soma_repo, &soma_def_provider).await;
+        let result = sync_bridge_db_from_soma_definition_on_start(
+            &kek,
+            &tx,
+            &bridge_repo,
+            &soma_repo,
+            &soma_def_provider,
+        )
+        .await;
         assert!(result.is_ok());
 
         // Verify database is still empty
@@ -481,7 +534,7 @@ mod tests {
         ])
         .await
         .unwrap();
-        let bridge_repo = bridge::repository::Repository::new(conn.clone()  );
+        let bridge_repo = bridge::repository::Repository::new(conn.clone());
         let soma_repo = crate::repository::Repository::new(conn.clone());
         let (tx, _rx) = tokio::sync::mpsc::channel(10);
 
@@ -496,9 +549,10 @@ mod tests {
             "key1".to_string(),
             shared::soma_agent_definition::EncryptionConfiguration {
                 encrypted_data_encryption_key: "encrypted-key-1".to_string(),
-                envelope_encryption_key_id: shared::soma_agent_definition::EnvelopeEncryptionKeyId::Local {
-                    key_id: "test-key".to_string(),
-                },
+                envelope_encryption_key_id:
+                    shared::soma_agent_definition::EnvelopeEncryptionKeyId::Local {
+                        key_id: "test-key".to_string(),
+                    },
             },
         );
 
@@ -506,14 +560,23 @@ mod tests {
             cached_definition: Arc::new(Mutex::new(SomaAgentDefinition {
                 version: "1.0.0".to_string(),
                 bridge: Some(shared::soma_agent_definition::BridgeConfig {
-                    encryption: shared::soma_agent_definition::BridgeEncryptionConfig(encryption_map),
+                    encryption: shared::soma_agent_definition::BridgeEncryptionConfig(
+                        encryption_map,
+                    ),
                     providers: None,
                 }),
             })),
             path: PathBuf::from("test.yaml"),
         };
         let soma_def_provider = Arc::new(soma_def_provider) as Arc<dyn SomaAgentDefinitionLike>;
-        let result = sync_bridge_db_from_soma_definition_on_start(&kek, &tx, &bridge_repo, &soma_repo, &soma_def_provider).await;
+        let result = sync_bridge_db_from_soma_definition_on_start(
+            &kek,
+            &tx,
+            &bridge_repo,
+            &soma_repo,
+            &soma_def_provider,
+        )
+        .await;
         assert!(result.is_ok());
 
         // Verify encryption key was created
@@ -589,7 +652,14 @@ mod tests {
             path: PathBuf::from("test.yaml"),
         };
         let soma_def_provider = Arc::new(soma_def_provider) as Arc<dyn SomaAgentDefinitionLike>;
-        let result = sync_bridge_db_from_soma_definition_on_start(&kek, &tx, &bridge_repo, &soma_repo, &soma_def_provider).await;
+        let result = sync_bridge_db_from_soma_definition_on_start(
+            &kek,
+            &tx,
+            &bridge_repo,
+            &soma_repo,
+            &soma_def_provider,
+        )
+        .await;
         assert!(result.is_ok());
 
         // Verify all old keys were deleted

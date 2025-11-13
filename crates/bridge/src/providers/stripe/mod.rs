@@ -71,7 +71,8 @@ impl FunctionControllerLike for ProcessRefundFunctionController {
     }
     fn documentation(&self) -> String {
         "# Process a refund
-".to_string()
+"
+        .to_string()
     }
     fn parameters(&self) -> WrappedSchema {
         WrappedSchema::new(schema_for!(ProcessRefundFunctionParameters))
@@ -87,7 +88,7 @@ impl FunctionControllerLike for ProcessRefundFunctionController {
         &self,
         crypto_service: &DecryptionService,
         credential_controller: &Arc<dyn ProviderCredentialControllerLike>,
-        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _static_credentials: &dyn StaticCredentialConfigurationLike,
         resource_server_credential: &ResourceServerCredentialSerialized,
         _user_credential: &UserCredentialSerialized,
         params: WrappedJsonValue,
@@ -140,10 +141,13 @@ impl FunctionControllerLike for ProcessRefundFunctionController {
         }
 
         // Parse the response
-        let stripe_response: serde_json::Value = response.json().await.map_err(|e| {
-            CommonError::Unknown(anyhow::anyhow!("Failed to parse response: {e}"))
-        })?;
+        let stripe_response: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse response: {e}")))?;
 
-        Ok(InvokeResult::Success(WrappedJsonValue::new(stripe_response)))
+        Ok(InvokeResult::Success(WrappedJsonValue::new(
+            stripe_response,
+        )))
     }
 }

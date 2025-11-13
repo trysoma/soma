@@ -1,3 +1,3 @@
-import { createSomaViteConfig } from '@soma/sdk/vite'
+import { createSomaViteConfig } from "@trysoma/sdk/vite";
 
-export default createSomaViteConfig(__dirname)
+export default createSomaViteConfig(__dirname);

@@ -3,8 +3,6 @@ use std::collections::HashMap;
 use a2a_rs::types::AgentCard;
 use shared::soma_agent_definition::SomaAgentDefinition;
 
-
-
 pub struct ConstructAgentCardParams {
     pub definition: SomaAgentDefinition,
     pub url: String,

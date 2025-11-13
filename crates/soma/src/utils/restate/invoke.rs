@@ -40,7 +40,11 @@ impl RestateIngressClient {
         Ok(())
     }
 
-    pub async fn resolve_awakeable_generic(&self, awakeable_id: &str, body: serde_json::Value) -> Result<()> {
+    pub async fn resolve_awakeable_generic(
+        &self,
+        awakeable_id: &str,
+        body: serde_json::Value,
+    ) -> Result<()> {
         let url = format!(
             "{}/restate/awakeables/{}/resolve",
             self.restate_base,

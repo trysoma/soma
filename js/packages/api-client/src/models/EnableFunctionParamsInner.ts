@@ -12,54 +12,63 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface EnableFunctionParamsInner
  */
 export interface EnableFunctionParamsInner {
-    /**
-     * 
-     * @type {string}
-     * @memberof EnableFunctionParamsInner
-     */
-    functionInstanceId?: string | null;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof EnableFunctionParamsInner
+	 */
+	functionInstanceId?: string | null;
 }
 
 /**
  * Check if a given object implements the EnableFunctionParamsInner interface.
  */
-export function instanceOfEnableFunctionParamsInner(value: object): value is EnableFunctionParamsInner {
-    return true;
+export function instanceOfEnableFunctionParamsInner(
+	value: object,
+): value is EnableFunctionParamsInner {
+	return true;
 }
 
-export function EnableFunctionParamsInnerFromJSON(json: any): EnableFunctionParamsInner {
-    return EnableFunctionParamsInnerFromJSONTyped(json, false);
+export function EnableFunctionParamsInnerFromJSON(
+	json: any,
+): EnableFunctionParamsInner {
+	return EnableFunctionParamsInnerFromJSONTyped(json, false);
 }
 
-export function EnableFunctionParamsInnerFromJSONTyped(json: any, ignoreDiscriminator: boolean): EnableFunctionParamsInner {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'functionInstanceId': json['function_instance_id'] == null ? undefined : json['function_instance_id'],
-    };
+export function EnableFunctionParamsInnerFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): EnableFunctionParamsInner {
+	if (json == null) {
+		return json;
+	}
+	return {
+		functionInstanceId:
+			json.function_instance_id == null ? undefined : json.function_instance_id,
+	};
 }
 
-export function EnableFunctionParamsInnerToJSON(json: any): EnableFunctionParamsInner {
-    return EnableFunctionParamsInnerToJSONTyped(json, false);
+export function EnableFunctionParamsInnerToJSON(
+	json: any,
+): EnableFunctionParamsInner {
+	return EnableFunctionParamsInnerToJSONTyped(json, false);
 }
 
-export function EnableFunctionParamsInnerToJSONTyped(value?: EnableFunctionParamsInner | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function EnableFunctionParamsInnerToJSONTyped(
+	value?: EnableFunctionParamsInner | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'function_instance_id': value['functionInstanceId'],
-    };
+	return {
+		function_instance_id: value.functionInstanceId,
+	};
 }
-

@@ -4,6 +4,7 @@ tmep
 pki
 target/
 .DS_Store
+crates/soma/bin/
 .vscode/
 .idea/
 database.db

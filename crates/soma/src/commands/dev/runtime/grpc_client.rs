@@ -27,15 +27,16 @@ pub async fn create_unix_socket_client(
             }
         }))
         .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to connect to Unix socket: {e}")))?;
+        .map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to connect to Unix socket: {e}"))
+        })?;
 
     Ok(SomaSdkServiceClient::new(channel))
 }
 
-
 /// Establish connection with retry logic
 pub async fn establish_connection_with_retry(socket_path: &str) -> Result<(), CommonError> {
-    use tokio::time::{interval, Duration};
+    use tokio::time::{Duration, interval};
 
     let mut ticker = interval(Duration::from_millis(500));
     let max_attempts = 20; // 10 seconds total

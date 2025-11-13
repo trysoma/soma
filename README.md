@@ -1,5 +1,7 @@
 # Soma
 
+**Note:** For documentation, tutorials and getting started with Soma, please visit our [documentation](https://trysoma.ai). Any documentation here is for contributing and setting up this repo.
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
@@ -25,7 +27,7 @@ From here, you can start developing locally. If you would like to develop and te
 ```bash
 # run insurance bot. The Rust code doesn't support HMR so you will need to restart between 
 # Rust changes and re-build the JS pnpm packages (make build if you want)
-make dev-insurance-bot
+make dev-insurance-claim-bot
 ```
 
 ### Database development
@@ -43,7 +45,7 @@ Database migrations run via Rust server on startup
 ### API development
 
 1. Add or edit axum routes
-2. Re-build and Restart the rust server (e.g. ```make dev-insurance-bot```)
+2. Re-build and Restart the rust server (e.g. ```make dev-insurance-claim-bot```)
 3. As part of the ```build.rs``` of the soma crate, we generate a root openapi.json file and generate typescript API client in ```crates/soma/app/src/@types/openapi.d.ts```
 
 ### Commit checks

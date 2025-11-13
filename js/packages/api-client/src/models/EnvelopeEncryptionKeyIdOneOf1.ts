@@ -12,74 +12,81 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface EnvelopeEncryptionKeyIdOneOf1
  */
 export interface EnvelopeEncryptionKeyIdOneOf1 {
-    /**
-     * 
-     * @type {string}
-     * @memberof EnvelopeEncryptionKeyIdOneOf1
-     */
-    keyId: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof EnvelopeEncryptionKeyIdOneOf1
-     */
-    type: EnvelopeEncryptionKeyIdOneOf1TypeEnum;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof EnvelopeEncryptionKeyIdOneOf1
+	 */
+	keyId: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof EnvelopeEncryptionKeyIdOneOf1
+	 */
+	type: EnvelopeEncryptionKeyIdOneOf1TypeEnum;
 }
-
 
 /**
  * @export
  */
 export const EnvelopeEncryptionKeyIdOneOf1TypeEnum = {
-    Local: 'local'
+	Local: "local",
 } as const;
-export type EnvelopeEncryptionKeyIdOneOf1TypeEnum = typeof EnvelopeEncryptionKeyIdOneOf1TypeEnum[keyof typeof EnvelopeEncryptionKeyIdOneOf1TypeEnum];
-
+export type EnvelopeEncryptionKeyIdOneOf1TypeEnum =
+	(typeof EnvelopeEncryptionKeyIdOneOf1TypeEnum)[keyof typeof EnvelopeEncryptionKeyIdOneOf1TypeEnum];
 
 /**
  * Check if a given object implements the EnvelopeEncryptionKeyIdOneOf1 interface.
  */
-export function instanceOfEnvelopeEncryptionKeyIdOneOf1(value: object): value is EnvelopeEncryptionKeyIdOneOf1 {
-    if (!('keyId' in value) || value['keyId'] === undefined) return false;
-    if (!('type' in value) || value['type'] === undefined) return false;
-    return true;
+export function instanceOfEnvelopeEncryptionKeyIdOneOf1(
+	value: object,
+): value is EnvelopeEncryptionKeyIdOneOf1 {
+	if (!("keyId" in value) || value.keyId === undefined) return false;
+	if (!("type" in value) || value.type === undefined) return false;
+	return true;
 }
 
-export function EnvelopeEncryptionKeyIdOneOf1FromJSON(json: any): EnvelopeEncryptionKeyIdOneOf1 {
-    return EnvelopeEncryptionKeyIdOneOf1FromJSONTyped(json, false);
+export function EnvelopeEncryptionKeyIdOneOf1FromJSON(
+	json: any,
+): EnvelopeEncryptionKeyIdOneOf1 {
+	return EnvelopeEncryptionKeyIdOneOf1FromJSONTyped(json, false);
 }
 
-export function EnvelopeEncryptionKeyIdOneOf1FromJSONTyped(json: any, ignoreDiscriminator: boolean): EnvelopeEncryptionKeyIdOneOf1 {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'keyId': json['key_id'],
-        'type': json['type'],
-    };
+export function EnvelopeEncryptionKeyIdOneOf1FromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): EnvelopeEncryptionKeyIdOneOf1 {
+	if (json == null) {
+		return json;
+	}
+	return {
+		keyId: json.key_id,
+		type: json.type,
+	};
 }
 
-export function EnvelopeEncryptionKeyIdOneOf1ToJSON(json: any): EnvelopeEncryptionKeyIdOneOf1 {
-    return EnvelopeEncryptionKeyIdOneOf1ToJSONTyped(json, false);
+export function EnvelopeEncryptionKeyIdOneOf1ToJSON(
+	json: any,
+): EnvelopeEncryptionKeyIdOneOf1 {
+	return EnvelopeEncryptionKeyIdOneOf1ToJSONTyped(json, false);
 }
 
-export function EnvelopeEncryptionKeyIdOneOf1ToJSONTyped(value?: EnvelopeEncryptionKeyIdOneOf1 | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function EnvelopeEncryptionKeyIdOneOf1ToJSONTyped(
+	value?: EnvelopeEncryptionKeyIdOneOf1 | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'key_id': value['keyId'],
-        'type': value['type'],
-    };
+	return {
+		key_id: value.keyId,
+		type: value.type,
+	};
 }
-

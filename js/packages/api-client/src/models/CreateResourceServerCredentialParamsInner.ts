@@ -12,72 +12,88 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface CreateResourceServerCredentialParamsInner
  */
 export interface CreateResourceServerCredentialParamsInner {
-    /**
-     * 
-     * @type {string}
-     * @memberof CreateResourceServerCredentialParamsInner
-     */
-    dataEncryptionKeyId: string;
-    /**
-     * 
-     * @type {{ [key: string]: any; }}
-     * @memberof CreateResourceServerCredentialParamsInner
-     */
-    metadata?: { [key: string]: any; };
-    /**
-     * 
-     * @type {any}
-     * @memberof CreateResourceServerCredentialParamsInner
-     */
-    resourceServerConfiguration: any | null;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof CreateResourceServerCredentialParamsInner
+	 */
+	dataEncryptionKeyId: string;
+	/**
+	 *
+	 * @type {{ [key: string]: any; }}
+	 * @memberof CreateResourceServerCredentialParamsInner
+	 */
+	metadata?: { [key: string]: any };
+	/**
+	 *
+	 * @type {any}
+	 * @memberof CreateResourceServerCredentialParamsInner
+	 */
+	resourceServerConfiguration: any | null;
 }
 
 /**
  * Check if a given object implements the CreateResourceServerCredentialParamsInner interface.
  */
-export function instanceOfCreateResourceServerCredentialParamsInner(value: object): value is CreateResourceServerCredentialParamsInner {
-    if (!('dataEncryptionKeyId' in value) || value['dataEncryptionKeyId'] === undefined) return false;
-    if (!('resourceServerConfiguration' in value) || value['resourceServerConfiguration'] === undefined) return false;
-    return true;
+export function instanceOfCreateResourceServerCredentialParamsInner(
+	value: object,
+): value is CreateResourceServerCredentialParamsInner {
+	if (
+		!("dataEncryptionKeyId" in value) ||
+		value.dataEncryptionKeyId === undefined
+	)
+		return false;
+	if (
+		!("resourceServerConfiguration" in value) ||
+		value.resourceServerConfiguration === undefined
+	)
+		return false;
+	return true;
 }
 
-export function CreateResourceServerCredentialParamsInnerFromJSON(json: any): CreateResourceServerCredentialParamsInner {
-    return CreateResourceServerCredentialParamsInnerFromJSONTyped(json, false);
+export function CreateResourceServerCredentialParamsInnerFromJSON(
+	json: any,
+): CreateResourceServerCredentialParamsInner {
+	return CreateResourceServerCredentialParamsInnerFromJSONTyped(json, false);
 }
 
-export function CreateResourceServerCredentialParamsInnerFromJSONTyped(json: any, ignoreDiscriminator: boolean): CreateResourceServerCredentialParamsInner {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'dataEncryptionKeyId': json['data_encryption_key_id'],
-        'metadata': json['metadata'] == null ? undefined : json['metadata'],
-        'resourceServerConfiguration': json['resource_server_configuration'],
-    };
+export function CreateResourceServerCredentialParamsInnerFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): CreateResourceServerCredentialParamsInner {
+	if (json == null) {
+		return json;
+	}
+	return {
+		dataEncryptionKeyId: json.data_encryption_key_id,
+		metadata: json.metadata == null ? undefined : json.metadata,
+		resourceServerConfiguration: json.resource_server_configuration,
+	};
 }
 
-export function CreateResourceServerCredentialParamsInnerToJSON(json: any): CreateResourceServerCredentialParamsInner {
-    return CreateResourceServerCredentialParamsInnerToJSONTyped(json, false);
+export function CreateResourceServerCredentialParamsInnerToJSON(
+	json: any,
+): CreateResourceServerCredentialParamsInner {
+	return CreateResourceServerCredentialParamsInnerToJSONTyped(json, false);
 }
 
-export function CreateResourceServerCredentialParamsInnerToJSONTyped(value?: CreateResourceServerCredentialParamsInner | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function CreateResourceServerCredentialParamsInnerToJSONTyped(
+	value?: CreateResourceServerCredentialParamsInner | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'data_encryption_key_id': value['dataEncryptionKeyId'],
-        'metadata': value['metadata'],
-        'resource_server_configuration': value['resourceServerConfiguration'],
-    };
+	return {
+		data_encryption_key_id: value.dataEncryptionKeyId,
+		metadata: value.metadata,
+		resource_server_configuration: value.resourceServerConfiguration,
+	};
 }
-

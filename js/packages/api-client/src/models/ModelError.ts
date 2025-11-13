@@ -12,63 +12,65 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface ModelError
  */
 export interface ModelError {
-    /**
-     * 
-     * @type {any}
-     * @memberof ModelError
-     */
-    data?: any | null;
-    /**
-     * 
-     * @type {string}
-     * @memberof ModelError
-     */
-    message: string;
+	/**
+	 *
+	 * @type {any}
+	 * @memberof ModelError
+	 */
+	data?: any | null;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof ModelError
+	 */
+	message: string;
 }
 
 /**
  * Check if a given object implements the ModelError interface.
  */
 export function instanceOfModelError(value: object): value is ModelError {
-    if (!('message' in value) || value['message'] === undefined) return false;
-    return true;
+	if (!("message" in value) || value.message === undefined) return false;
+	return true;
 }
 
 export function ModelErrorFromJSON(json: any): ModelError {
-    return ModelErrorFromJSONTyped(json, false);
+	return ModelErrorFromJSONTyped(json, false);
 }
 
-export function ModelErrorFromJSONTyped(json: any, ignoreDiscriminator: boolean): ModelError {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'data': json['data'] == null ? undefined : json['data'],
-        'message': json['message'],
-    };
+export function ModelErrorFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): ModelError {
+	if (json == null) {
+		return json;
+	}
+	return {
+		data: json.data == null ? undefined : json.data,
+		message: json.message,
+	};
 }
 
 export function ModelErrorToJSON(json: any): ModelError {
-    return ModelErrorToJSONTyped(json, false);
+	return ModelErrorToJSONTyped(json, false);
 }
 
-export function ModelErrorToJSONTyped(value?: ModelError | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function ModelErrorToJSONTyped(
+	value?: ModelError | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'data': value['data'],
-        'message': value['message'],
-    };
+	return {
+		data: value.data,
+		message: value.message,
+	};
 }
-

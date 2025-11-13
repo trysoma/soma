@@ -12,91 +12,107 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface FunctionInstanceSerialized
  */
 export interface FunctionInstanceSerialized {
-    /**
-     * 
-     * @type {Date}
-     * @memberof FunctionInstanceSerialized
-     */
-    createdAt: Date;
-    /**
-     * 
-     * @type {string}
-     * @memberof FunctionInstanceSerialized
-     */
-    functionControllerTypeId: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof FunctionInstanceSerialized
-     */
-    id: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof FunctionInstanceSerialized
-     */
-    providerInstanceId: string;
-    /**
-     * 
-     * @type {Date}
-     * @memberof FunctionInstanceSerialized
-     */
-    updatedAt: Date;
+	/**
+	 *
+	 * @type {Date}
+	 * @memberof FunctionInstanceSerialized
+	 */
+	createdAt: Date;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof FunctionInstanceSerialized
+	 */
+	functionControllerTypeId: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof FunctionInstanceSerialized
+	 */
+	id: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof FunctionInstanceSerialized
+	 */
+	providerInstanceId: string;
+	/**
+	 *
+	 * @type {Date}
+	 * @memberof FunctionInstanceSerialized
+	 */
+	updatedAt: Date;
 }
 
 /**
  * Check if a given object implements the FunctionInstanceSerialized interface.
  */
-export function instanceOfFunctionInstanceSerialized(value: object): value is FunctionInstanceSerialized {
-    if (!('createdAt' in value) || value['createdAt'] === undefined) return false;
-    if (!('functionControllerTypeId' in value) || value['functionControllerTypeId'] === undefined) return false;
-    if (!('id' in value) || value['id'] === undefined) return false;
-    if (!('providerInstanceId' in value) || value['providerInstanceId'] === undefined) return false;
-    if (!('updatedAt' in value) || value['updatedAt'] === undefined) return false;
-    return true;
+export function instanceOfFunctionInstanceSerialized(
+	value: object,
+): value is FunctionInstanceSerialized {
+	if (!("createdAt" in value) || value.createdAt === undefined) return false;
+	if (
+		!("functionControllerTypeId" in value) ||
+		value.functionControllerTypeId === undefined
+	)
+		return false;
+	if (!("id" in value) || value.id === undefined) return false;
+	if (
+		!("providerInstanceId" in value) ||
+		value.providerInstanceId === undefined
+	)
+		return false;
+	if (!("updatedAt" in value) || value.updatedAt === undefined) return false;
+	return true;
 }
 
-export function FunctionInstanceSerializedFromJSON(json: any): FunctionInstanceSerialized {
-    return FunctionInstanceSerializedFromJSONTyped(json, false);
+export function FunctionInstanceSerializedFromJSON(
+	json: any,
+): FunctionInstanceSerialized {
+	return FunctionInstanceSerializedFromJSONTyped(json, false);
 }
 
-export function FunctionInstanceSerializedFromJSONTyped(json: any, ignoreDiscriminator: boolean): FunctionInstanceSerialized {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'createdAt': (new Date(json['created_at'])),
-        'functionControllerTypeId': json['function_controller_type_id'],
-        'id': json['id'],
-        'providerInstanceId': json['provider_instance_id'],
-        'updatedAt': (new Date(json['updated_at'])),
-    };
+export function FunctionInstanceSerializedFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): FunctionInstanceSerialized {
+	if (json == null) {
+		return json;
+	}
+	return {
+		createdAt: new Date(json.created_at),
+		functionControllerTypeId: json.function_controller_type_id,
+		id: json.id,
+		providerInstanceId: json.provider_instance_id,
+		updatedAt: new Date(json.updated_at),
+	};
 }
 
-export function FunctionInstanceSerializedToJSON(json: any): FunctionInstanceSerialized {
-    return FunctionInstanceSerializedToJSONTyped(json, false);
+export function FunctionInstanceSerializedToJSON(
+	json: any,
+): FunctionInstanceSerialized {
+	return FunctionInstanceSerializedToJSONTyped(json, false);
 }
 
-export function FunctionInstanceSerializedToJSONTyped(value?: FunctionInstanceSerialized | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function FunctionInstanceSerializedToJSONTyped(
+	value?: FunctionInstanceSerialized | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'created_at': ((value['createdAt']).toISOString()),
-        'function_controller_type_id': value['functionControllerTypeId'],
-        'id': value['id'],
-        'provider_instance_id': value['providerInstanceId'],
-        'updated_at': ((value['updatedAt']).toISOString()),
-    };
+	return {
+		created_at: value.createdAt.toISOString(),
+		function_controller_type_id: value.functionControllerTypeId,
+		id: value.id,
+		provider_instance_id: value.providerInstanceId,
+		updated_at: value.updatedAt.toISOString(),
+	};
 }
-

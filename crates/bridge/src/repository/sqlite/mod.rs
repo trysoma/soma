@@ -2,7 +2,12 @@
 #![allow(dead_code)]
 mod raw_impl;
 
-include!("raw.generated.rs");
+#[allow(clippy::all)]
+pub mod generated {
+    include!("raw.generated.rs");
+}
+
+pub use generated::*;
 
 use crate::logic::credential::{
     BrokerState, ResourceServerCredentialSerialized, UserCredentialSerialized,
@@ -272,9 +277,10 @@ impl ProviderRepositoryLike for Repository {
             provider_controller_type_id: &params.provider_controller_type_id,
             credential_controller_type_id: &params.credential_controller_type_id,
             status: &params.status,
-            return_on_successful_brokering: &params.return_on_successful_brokering.as_ref().map(|v| WrappedJsonValue::new(
-                    serde_json::to_value(v).ok().unwrap_or_default(),
-                )),
+            return_on_successful_brokering: &params
+                .return_on_successful_brokering
+                .as_ref()
+                .map(|v| WrappedJsonValue::new(serde_json::to_value(v).ok().unwrap_or_default())),
         };
 
         create_provider_instance(&self.conn, sqlc_params)
@@ -773,9 +779,8 @@ impl ProviderRepositoryLike for Repository {
         updated_at: Option<&WrappedChronoDateTime>,
     ) -> Result<(), CommonError> {
         let value_owned = value.cloned();
-        let metadata_owned = metadata.map(|m| {
-            WrappedJsonValue::new(serde_json::Value::Object(m.0.clone()))
-        });
+        let metadata_owned =
+            metadata.map(|m| WrappedJsonValue::new(serde_json::Value::Object(m.0.clone())));
         let next_rotation_owned = next_rotation_time.cloned();
         let updated_at_owned = updated_at.cloned();
 
@@ -807,9 +812,8 @@ impl ProviderRepositoryLike for Repository {
         updated_at: Option<&WrappedChronoDateTime>,
     ) -> Result<(), CommonError> {
         let value_owned = value.cloned();
-        let metadata_owned = metadata.map(|m| {
-            WrappedJsonValue::new(serde_json::Value::Object(m.0.clone()))
-        });
+        let metadata_owned =
+            metadata.map(|m| WrappedJsonValue::new(serde_json::Value::Object(m.0.clone())));
         let next_rotation_owned = next_rotation_time.cloned();
         let updated_at_owned = updated_at.cloned();
 
@@ -860,12 +864,13 @@ impl ProviderRepositoryLike for Repository {
             None
         };
 
-        let params: get_provider_instances_with_credentials_params<'_> = get_provider_instances_with_credentials_params {
-            cursor: &cursor_datetime,
-            status: &status.map(|s| s.to_string()),
-            rotation_window_end: &rotation_window_end.copied(),
-            page_size: &pagination.page_size,
-        };
+        let params: get_provider_instances_with_credentials_params<'_> =
+            get_provider_instances_with_credentials_params {
+                cursor: &cursor_datetime,
+                status: &status.map(|s| s.to_string()),
+                rotation_window_end: &rotation_window_end.copied(),
+                page_size: &pagination.page_size,
+            };
 
         let rows = get_provider_instances_with_credentials(&self.conn, params)
             .await
@@ -889,7 +894,9 @@ impl ProviderRepositoryLike for Repository {
         };
 
         let next_page_token = if has_more {
-            items.last().map(|item| item.provider_instance.created_at.to_string())
+            items
+                .last()
+                .map(|item| item.provider_instance.created_at.to_string())
         } else {
             None
         };
@@ -1021,15 +1028,13 @@ impl SqlMigrationLoader for Repository {
 mod tests {
     use super::*;
     use crate::logic::{
-        DataEncryptionKey, EncryptedDataEncryptionKey,
-        EnvelopeEncryptionKeyId, Metadata, ProviderInstanceSerialized,
-        instance::FunctionInstanceSerialized,
-        credential::BrokerAction,
+        DataEncryptionKey, EncryptedDataEncryptionKey, EnvelopeEncryptionKeyId, Metadata,
+        ProviderInstanceSerialized, credential::BrokerAction, instance::FunctionInstanceSerialized,
     };
     use crate::repository::{
-        BrokerState, CreateBrokerState, CreateDataEncryptionKey, CreateFunctionInstance, CreateProviderInstance,
-        CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
-        ResourceServerCredentialSerialized, UserCredentialSerialized,
+        BrokerState, CreateBrokerState, CreateDataEncryptionKey, CreateFunctionInstance,
+        CreateProviderInstance, CreateResourceServerCredential, CreateUserCredential,
+        ProviderRepositoryLike, ResourceServerCredentialSerialized, UserCredentialSerialized,
     };
     use shared::primitives::{
         SqlMigrationLoader, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4,
@@ -3048,75 +3053,106 @@ mod tests {
             "client_id": "updated-client-id",
             "client_secret": "updated-secret"
         }));
-        repo.update_resource_server_credential(
-            &rsc_id,
-            Some(&new_value),
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+        repo.update_resource_server_credential(&rsc_id, Some(&new_value), None, None, None)
+            .await
+            .unwrap();
 
-        let updated = repo.get_resource_server_credential_by_id(&rsc_id).await.unwrap().unwrap();
+        let updated = repo
+            .get_resource_server_credential_by_id(&rsc_id)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(updated.value, new_value, "Value should be updated");
-        assert_eq!(updated.metadata.0, initial_metadata.0, "Metadata should remain unchanged when None is passed");
-        assert_eq!(updated.next_rotation_time, Some(initial_rotation_time), "Rotation time should remain unchanged when None is passed");
+        assert_eq!(
+            updated.metadata.0, initial_metadata.0,
+            "Metadata should remain unchanged when None is passed"
+        );
+        assert_eq!(
+            updated.next_rotation_time,
+            Some(initial_rotation_time),
+            "Rotation time should remain unchanged when None is passed"
+        );
 
         // Test 2: Update only metadata, other fields should remain unchanged
         let mut new_metadata_map = serde_json::Map::new();
         new_metadata_map.insert("key".to_string(), serde_json::json!("value"));
         let new_metadata = Metadata(new_metadata_map);
 
-        repo.update_resource_server_credential(
-            &rsc_id,
-            None,
-            Some(&new_metadata),
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+        repo.update_resource_server_credential(&rsc_id, None, Some(&new_metadata), None, None)
+            .await
+            .unwrap();
 
-        let updated = repo.get_resource_server_credential_by_id(&rsc_id).await.unwrap().unwrap();
-        assert_eq!(updated.value, new_value, "Value should remain unchanged when None is passed");
-        assert_eq!(updated.metadata.0, new_metadata.0, "Metadata should be updated");
-        assert_eq!(updated.next_rotation_time, Some(initial_rotation_time), "Rotation time should remain unchanged when None is passed");
+        let updated = repo
+            .get_resource_server_credential_by_id(&rsc_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            updated.value, new_value,
+            "Value should remain unchanged when None is passed"
+        );
+        assert_eq!(
+            updated.metadata.0, new_metadata.0,
+            "Metadata should be updated"
+        );
+        assert_eq!(
+            updated.next_rotation_time,
+            Some(initial_rotation_time),
+            "Rotation time should remain unchanged when None is passed"
+        );
 
         // Test 3: Update only next_rotation_time, other fields should remain unchanged
         let new_rotation_time = WrappedChronoDateTime::now();
-        repo.update_resource_server_credential(
-            &rsc_id,
-            None,
-            None,
-            Some(&new_rotation_time),
-            None,
-        )
-        .await
-        .unwrap();
+        repo.update_resource_server_credential(&rsc_id, None, None, Some(&new_rotation_time), None)
+            .await
+            .unwrap();
 
-        let updated = repo.get_resource_server_credential_by_id(&rsc_id).await.unwrap().unwrap();
-        assert_eq!(updated.value, new_value, "Value should remain unchanged when None is passed");
-        assert_eq!(updated.metadata.0, new_metadata.0, "Metadata should remain unchanged when None is passed");
-        assert!(updated.next_rotation_time.is_some(), "Rotation time should be updated");
+        let updated = repo
+            .get_resource_server_credential_by_id(&rsc_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            updated.value, new_value,
+            "Value should remain unchanged when None is passed"
+        );
+        assert_eq!(
+            updated.metadata.0, new_metadata.0,
+            "Metadata should remain unchanged when None is passed"
+        );
+        assert!(
+            updated.next_rotation_time.is_some(),
+            "Rotation time should be updated"
+        );
 
         // Test 4: Pass None for all optional fields, all should remain unchanged
-        let before_none_update = repo.get_resource_server_credential_by_id(&rsc_id).await.unwrap().unwrap();
+        let before_none_update = repo
+            .get_resource_server_credential_by_id(&rsc_id)
+            .await
+            .unwrap()
+            .unwrap();
 
-        repo.update_resource_server_credential(
-            &rsc_id,
-            None,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+        repo.update_resource_server_credential(&rsc_id, None, None, None, None)
+            .await
+            .unwrap();
 
-        let after_none_update = repo.get_resource_server_credential_by_id(&rsc_id).await.unwrap().unwrap();
-        assert_eq!(after_none_update.value, before_none_update.value, "Value should remain unchanged when None is passed");
-        assert_eq!(after_none_update.metadata.0, before_none_update.metadata.0, "Metadata should remain unchanged when None is passed");
-        assert_eq!(after_none_update.next_rotation_time, before_none_update.next_rotation_time, "Rotation time should remain unchanged when None is passed");
+        let after_none_update = repo
+            .get_resource_server_credential_by_id(&rsc_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            after_none_update.value, before_none_update.value,
+            "Value should remain unchanged when None is passed"
+        );
+        assert_eq!(
+            after_none_update.metadata.0, before_none_update.metadata.0,
+            "Metadata should remain unchanged when None is passed"
+        );
+        assert_eq!(
+            after_none_update.next_rotation_time, before_none_update.next_rotation_time,
+            "Rotation time should remain unchanged when None is passed"
+        );
 
         // Test 5: Update all fields at once
         let final_value = WrappedJsonValue::new(serde_json::json!({
@@ -3138,10 +3174,20 @@ mod tests {
         .await
         .unwrap();
 
-        let updated = repo.get_resource_server_credential_by_id(&rsc_id).await.unwrap().unwrap();
+        let updated = repo
+            .get_resource_server_credential_by_id(&rsc_id)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(updated.value, final_value, "All fields should be updated");
-        assert_eq!(updated.metadata.0, final_metadata.0, "All fields should be updated");
-        assert!(updated.next_rotation_time.is_some(), "All fields should be updated");
+        assert_eq!(
+            updated.metadata.0, final_metadata.0,
+            "All fields should be updated"
+        );
+        assert!(
+            updated.next_rotation_time.is_some(),
+            "All fields should be updated"
+        );
     }
 
     #[tokio::test]
@@ -3159,7 +3205,10 @@ mod tests {
             "refresh_token": "initial-refresh"
         }));
         let mut initial_metadata_map = serde_json::Map::new();
-        initial_metadata_map.insert("initial_key".to_string(), serde_json::json!("initial_value"));
+        initial_metadata_map.insert(
+            "initial_key".to_string(),
+            serde_json::json!("initial_value"),
+        );
         let initial_metadata = Metadata(initial_metadata_map);
         let initial_rotation_time = WrappedChronoDateTime::now();
 
@@ -3183,75 +3232,106 @@ mod tests {
             "access_token": "updated-token",
             "refresh_token": "updated-refresh"
         }));
-        repo.update_user_credential(
-            &uc_id,
-            Some(&new_value),
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+        repo.update_user_credential(&uc_id, Some(&new_value), None, None, None)
+            .await
+            .unwrap();
 
-        let updated = repo.get_user_credential_by_id(&uc_id).await.unwrap().unwrap();
+        let updated = repo
+            .get_user_credential_by_id(&uc_id)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(updated.value, new_value, "Value should be updated");
-        assert_eq!(updated.metadata.0, initial_metadata.0, "Metadata should remain unchanged when None is passed");
-        assert_eq!(updated.next_rotation_time, Some(initial_rotation_time), "Rotation time should remain unchanged when None is passed");
+        assert_eq!(
+            updated.metadata.0, initial_metadata.0,
+            "Metadata should remain unchanged when None is passed"
+        );
+        assert_eq!(
+            updated.next_rotation_time,
+            Some(initial_rotation_time),
+            "Rotation time should remain unchanged when None is passed"
+        );
 
         // Test 2: Update only metadata, other fields should remain unchanged
         let mut new_metadata_map = serde_json::Map::new();
         new_metadata_map.insert("new_key".to_string(), serde_json::json!("new_value"));
         let new_metadata = Metadata(new_metadata_map);
 
-        repo.update_user_credential(
-            &uc_id,
-            None,
-            Some(&new_metadata),
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+        repo.update_user_credential(&uc_id, None, Some(&new_metadata), None, None)
+            .await
+            .unwrap();
 
-        let updated = repo.get_user_credential_by_id(&uc_id).await.unwrap().unwrap();
-        assert_eq!(updated.value, new_value, "Value should remain unchanged when None is passed");
-        assert_eq!(updated.metadata.0, new_metadata.0, "Metadata should be updated");
-        assert_eq!(updated.next_rotation_time, Some(initial_rotation_time), "Rotation time should remain unchanged when None is passed");
+        let updated = repo
+            .get_user_credential_by_id(&uc_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            updated.value, new_value,
+            "Value should remain unchanged when None is passed"
+        );
+        assert_eq!(
+            updated.metadata.0, new_metadata.0,
+            "Metadata should be updated"
+        );
+        assert_eq!(
+            updated.next_rotation_time,
+            Some(initial_rotation_time),
+            "Rotation time should remain unchanged when None is passed"
+        );
 
         // Test 3: Update only next_rotation_time, other fields should remain unchanged
         let new_rotation_time = WrappedChronoDateTime::now();
-        repo.update_user_credential(
-            &uc_id,
-            None,
-            None,
-            Some(&new_rotation_time),
-            None,
-        )
-        .await
-        .unwrap();
+        repo.update_user_credential(&uc_id, None, None, Some(&new_rotation_time), None)
+            .await
+            .unwrap();
 
-        let updated = repo.get_user_credential_by_id(&uc_id).await.unwrap().unwrap();
-        assert_eq!(updated.value, new_value, "Value should remain unchanged when None is passed");
-        assert_eq!(updated.metadata.0, new_metadata.0, "Metadata should remain unchanged when None is passed");
-        assert!(updated.next_rotation_time.is_some(), "Rotation time should be updated");
+        let updated = repo
+            .get_user_credential_by_id(&uc_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            updated.value, new_value,
+            "Value should remain unchanged when None is passed"
+        );
+        assert_eq!(
+            updated.metadata.0, new_metadata.0,
+            "Metadata should remain unchanged when None is passed"
+        );
+        assert!(
+            updated.next_rotation_time.is_some(),
+            "Rotation time should be updated"
+        );
 
         // Test 4: Update with None values (all should remain unchanged)
-        let before_none_update = repo.get_user_credential_by_id(&uc_id).await.unwrap().unwrap();
+        let before_none_update = repo
+            .get_user_credential_by_id(&uc_id)
+            .await
+            .unwrap()
+            .unwrap();
 
-        repo.update_user_credential(
-            &uc_id,
-            None,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+        repo.update_user_credential(&uc_id, None, None, None, None)
+            .await
+            .unwrap();
 
-        let after_none_update = repo.get_user_credential_by_id(&uc_id).await.unwrap().unwrap();
-        assert_eq!(after_none_update.value, before_none_update.value, "Value should remain unchanged when None is passed");
-        assert_eq!(after_none_update.metadata.0, before_none_update.metadata.0, "Metadata should remain unchanged when None is passed");
-        assert_eq!(after_none_update.next_rotation_time, before_none_update.next_rotation_time, "Rotation time should remain unchanged when None is passed");
+        let after_none_update = repo
+            .get_user_credential_by_id(&uc_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            after_none_update.value, before_none_update.value,
+            "Value should remain unchanged when None is passed"
+        );
+        assert_eq!(
+            after_none_update.metadata.0, before_none_update.metadata.0,
+            "Metadata should remain unchanged when None is passed"
+        );
+        assert_eq!(
+            after_none_update.next_rotation_time, before_none_update.next_rotation_time,
+            "Rotation time should remain unchanged when None is passed"
+        );
 
         // Test 5: Update all fields at once
         let final_value = WrappedJsonValue::new(serde_json::json!({
@@ -3273,9 +3353,19 @@ mod tests {
         .await
         .unwrap();
 
-        let updated = repo.get_user_credential_by_id(&uc_id).await.unwrap().unwrap();
+        let updated = repo
+            .get_user_credential_by_id(&uc_id)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(updated.value, final_value, "All fields should be updated");
-        assert_eq!(updated.metadata.0, final_metadata.0, "All fields should be updated");
-        assert!(updated.next_rotation_time.is_some(), "All fields should be updated");
+        assert_eq!(
+            updated.metadata.0, final_metadata.0,
+            "All fields should be updated"
+        );
+        assert!(
+            updated.next_rotation_time.is_some(),
+            "All fields should be updated"
+        );
     }
 }

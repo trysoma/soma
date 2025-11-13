@@ -12,82 +12,84 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { Message } from './Message';
-import {
-    MessageFromJSON,
-    MessageFromJSONTyped,
-    MessageToJSON,
-    MessageToJSONTyped,
-} from './Message';
+import type { Message } from "./Message";
+import { MessageFromJSON, MessageToJSON } from "./Message";
 
 /**
- * 
+ *
  * @export
  * @interface TaskTimelineItemPayloadOneOf1
  */
 export interface TaskTimelineItemPayloadOneOf1 {
-    /**
-     * 
-     * @type {Message}
-     * @memberof TaskTimelineItemPayloadOneOf1
-     */
-    message: Message;
-    /**
-     * 
-     * @type {string}
-     * @memberof TaskTimelineItemPayloadOneOf1
-     */
-    type: TaskTimelineItemPayloadOneOf1TypeEnum;
+	/**
+	 *
+	 * @type {Message}
+	 * @memberof TaskTimelineItemPayloadOneOf1
+	 */
+	message: Message;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof TaskTimelineItemPayloadOneOf1
+	 */
+	type: TaskTimelineItemPayloadOneOf1TypeEnum;
 }
-
 
 /**
  * @export
  */
 export const TaskTimelineItemPayloadOneOf1TypeEnum = {
-    Message: 'message'
+	Message: "message",
 } as const;
-export type TaskTimelineItemPayloadOneOf1TypeEnum = typeof TaskTimelineItemPayloadOneOf1TypeEnum[keyof typeof TaskTimelineItemPayloadOneOf1TypeEnum];
-
+export type TaskTimelineItemPayloadOneOf1TypeEnum =
+	(typeof TaskTimelineItemPayloadOneOf1TypeEnum)[keyof typeof TaskTimelineItemPayloadOneOf1TypeEnum];
 
 /**
  * Check if a given object implements the TaskTimelineItemPayloadOneOf1 interface.
  */
-export function instanceOfTaskTimelineItemPayloadOneOf1(value: object): value is TaskTimelineItemPayloadOneOf1 {
-    if (!('message' in value) || value['message'] === undefined) return false;
-    if (!('type' in value) || value['type'] === undefined) return false;
-    return true;
+export function instanceOfTaskTimelineItemPayloadOneOf1(
+	value: object,
+): value is TaskTimelineItemPayloadOneOf1 {
+	if (!("message" in value) || value.message === undefined) return false;
+	if (!("type" in value) || value.type === undefined) return false;
+	return true;
 }
 
-export function TaskTimelineItemPayloadOneOf1FromJSON(json: any): TaskTimelineItemPayloadOneOf1 {
-    return TaskTimelineItemPayloadOneOf1FromJSONTyped(json, false);
+export function TaskTimelineItemPayloadOneOf1FromJSON(
+	json: any,
+): TaskTimelineItemPayloadOneOf1 {
+	return TaskTimelineItemPayloadOneOf1FromJSONTyped(json, false);
 }
 
-export function TaskTimelineItemPayloadOneOf1FromJSONTyped(json: any, ignoreDiscriminator: boolean): TaskTimelineItemPayloadOneOf1 {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'message': MessageFromJSON(json['message']),
-        'type': json['type'],
-    };
+export function TaskTimelineItemPayloadOneOf1FromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): TaskTimelineItemPayloadOneOf1 {
+	if (json == null) {
+		return json;
+	}
+	return {
+		message: MessageFromJSON(json.message),
+		type: json.type,
+	};
 }
 
-export function TaskTimelineItemPayloadOneOf1ToJSON(json: any): TaskTimelineItemPayloadOneOf1 {
-    return TaskTimelineItemPayloadOneOf1ToJSONTyped(json, false);
+export function TaskTimelineItemPayloadOneOf1ToJSON(
+	json: any,
+): TaskTimelineItemPayloadOneOf1 {
+	return TaskTimelineItemPayloadOneOf1ToJSONTyped(json, false);
 }
 
-export function TaskTimelineItemPayloadOneOf1ToJSONTyped(value?: TaskTimelineItemPayloadOneOf1 | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function TaskTimelineItemPayloadOneOf1ToJSONTyped(
+	value?: TaskTimelineItemPayloadOneOf1 | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'message': MessageToJSON(value['message']),
-        'type': value['type'],
-    };
+	return {
+		message: MessageToJSON(value.message),
+		type: value.type,
+	};
 }
-

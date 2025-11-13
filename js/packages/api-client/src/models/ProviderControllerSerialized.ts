@@ -12,115 +12,132 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { ProviderCredentialControllerSerialized } from './ProviderCredentialControllerSerialized';
+import type { FunctionControllerSerialized } from "./FunctionControllerSerialized";
 import {
-    ProviderCredentialControllerSerializedFromJSON,
-    ProviderCredentialControllerSerializedFromJSONTyped,
-    ProviderCredentialControllerSerializedToJSON,
-    ProviderCredentialControllerSerializedToJSONTyped,
-} from './ProviderCredentialControllerSerialized';
-import type { FunctionControllerSerialized } from './FunctionControllerSerialized';
+	FunctionControllerSerializedFromJSON,
+	FunctionControllerSerializedToJSON,
+} from "./FunctionControllerSerialized";
+import type { ProviderCredentialControllerSerialized } from "./ProviderCredentialControllerSerialized";
 import {
-    FunctionControllerSerializedFromJSON,
-    FunctionControllerSerializedFromJSONTyped,
-    FunctionControllerSerializedToJSON,
-    FunctionControllerSerializedToJSONTyped,
-} from './FunctionControllerSerialized';
+	ProviderCredentialControllerSerializedFromJSON,
+	ProviderCredentialControllerSerializedToJSON,
+} from "./ProviderCredentialControllerSerialized";
 
 /**
- * 
+ *
  * @export
  * @interface ProviderControllerSerialized
  */
 export interface ProviderControllerSerialized {
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof ProviderControllerSerialized
-     */
-    categories: Array<string>;
-    /**
-     * 
-     * @type {Array<ProviderCredentialControllerSerialized>}
-     * @memberof ProviderControllerSerialized
-     */
-    credentialControllers: Array<ProviderCredentialControllerSerialized>;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProviderControllerSerialized
-     */
-    documentation: string;
-    /**
-     * 
-     * @type {Array<FunctionControllerSerialized>}
-     * @memberof ProviderControllerSerialized
-     */
-    functions: Array<FunctionControllerSerialized>;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProviderControllerSerialized
-     */
-    name: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProviderControllerSerialized
-     */
-    typeId: string;
+	/**
+	 *
+	 * @type {Array<string>}
+	 * @memberof ProviderControllerSerialized
+	 */
+	categories: Array<string>;
+	/**
+	 *
+	 * @type {Array<ProviderCredentialControllerSerialized>}
+	 * @memberof ProviderControllerSerialized
+	 */
+	credentialControllers: Array<ProviderCredentialControllerSerialized>;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof ProviderControllerSerialized
+	 */
+	documentation: string;
+	/**
+	 *
+	 * @type {Array<FunctionControllerSerialized>}
+	 * @memberof ProviderControllerSerialized
+	 */
+	functions: Array<FunctionControllerSerialized>;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof ProviderControllerSerialized
+	 */
+	name: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof ProviderControllerSerialized
+	 */
+	typeId: string;
 }
 
 /**
  * Check if a given object implements the ProviderControllerSerialized interface.
  */
-export function instanceOfProviderControllerSerialized(value: object): value is ProviderControllerSerialized {
-    if (!('categories' in value) || value['categories'] === undefined) return false;
-    if (!('credentialControllers' in value) || value['credentialControllers'] === undefined) return false;
-    if (!('documentation' in value) || value['documentation'] === undefined) return false;
-    if (!('functions' in value) || value['functions'] === undefined) return false;
-    if (!('name' in value) || value['name'] === undefined) return false;
-    if (!('typeId' in value) || value['typeId'] === undefined) return false;
-    return true;
+export function instanceOfProviderControllerSerialized(
+	value: object,
+): value is ProviderControllerSerialized {
+	if (!("categories" in value) || value.categories === undefined) return false;
+	if (
+		!("credentialControllers" in value) ||
+		value.credentialControllers === undefined
+	)
+		return false;
+	if (!("documentation" in value) || value.documentation === undefined)
+		return false;
+	if (!("functions" in value) || value.functions === undefined) return false;
+	if (!("name" in value) || value.name === undefined) return false;
+	if (!("typeId" in value) || value.typeId === undefined) return false;
+	return true;
 }
 
-export function ProviderControllerSerializedFromJSON(json: any): ProviderControllerSerialized {
-    return ProviderControllerSerializedFromJSONTyped(json, false);
+export function ProviderControllerSerializedFromJSON(
+	json: any,
+): ProviderControllerSerialized {
+	return ProviderControllerSerializedFromJSONTyped(json, false);
 }
 
-export function ProviderControllerSerializedFromJSONTyped(json: any, ignoreDiscriminator: boolean): ProviderControllerSerialized {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'categories': json['categories'],
-        'credentialControllers': ((json['credential_controllers'] as Array<any>).map(ProviderCredentialControllerSerializedFromJSON)),
-        'documentation': json['documentation'],
-        'functions': ((json['functions'] as Array<any>).map(FunctionControllerSerializedFromJSON)),
-        'name': json['name'],
-        'typeId': json['type_id'],
-    };
+export function ProviderControllerSerializedFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): ProviderControllerSerialized {
+	if (json == null) {
+		return json;
+	}
+	return {
+		categories: json.categories,
+		credentialControllers: (json.credential_controllers as Array<any>).map(
+			ProviderCredentialControllerSerializedFromJSON,
+		),
+		documentation: json.documentation,
+		functions: (json.functions as Array<any>).map(
+			FunctionControllerSerializedFromJSON,
+		),
+		name: json.name,
+		typeId: json.type_id,
+	};
 }
 
-export function ProviderControllerSerializedToJSON(json: any): ProviderControllerSerialized {
-    return ProviderControllerSerializedToJSONTyped(json, false);
+export function ProviderControllerSerializedToJSON(
+	json: any,
+): ProviderControllerSerialized {
+	return ProviderControllerSerializedToJSONTyped(json, false);
 }
 
-export function ProviderControllerSerializedToJSONTyped(value?: ProviderControllerSerialized | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function ProviderControllerSerializedToJSONTyped(
+	value?: ProviderControllerSerialized | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'categories': value['categories'],
-        'credential_controllers': ((value['credentialControllers'] as Array<any>).map(ProviderCredentialControllerSerializedToJSON)),
-        'documentation': value['documentation'],
-        'functions': ((value['functions'] as Array<any>).map(FunctionControllerSerializedToJSON)),
-        'name': value['name'],
-        'type_id': value['typeId'],
-    };
+	return {
+		categories: value.categories,
+		credential_controllers: (value.credentialControllers as Array<any>).map(
+			ProviderCredentialControllerSerializedToJSON,
+		),
+		documentation: value.documentation,
+		functions: (value.functions as Array<any>).map(
+			FunctionControllerSerializedToJSON,
+		),
+		name: value.name,
+		type_id: value.typeId,
+	};
 }
-

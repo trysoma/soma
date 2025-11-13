@@ -1,7 +1,7 @@
-mod interface;
-mod typescript;
 pub mod grpc_client;
+mod interface;
 pub mod sdk_provider_sync;
+mod typescript;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -13,7 +13,9 @@ use tracing::{error, info};
 use shared::error::CommonError;
 
 use crate::commands::dev::DevParams;
-use crate::commands::dev::runtime::grpc_client::{create_unix_socket_client, establish_connection_with_retry, monitor_connection_health};
+use crate::commands::dev::runtime::grpc_client::{
+    create_unix_socket_client, establish_connection_with_retry, monitor_connection_health,
+};
 use crate::utils::construct_src_dir_absolute;
 
 use super::project_file_watcher::FileChangeTx;
@@ -57,10 +59,7 @@ pub fn determine_runtime_from_dir(src_dir: &Path) -> Result<Option<Runtime>, Com
 }
 
 fn validate_runtime_pnpm_v1(src_dir: PathBuf) -> Result<bool, CommonError> {
-    let files_to_check = vec![
-        "package.json",
-        "vite.config.ts",
-    ];
+    let files_to_check = vec!["package.json", "vite.config.ts"];
     for file in files_to_check {
         let file_path = src_dir.join(file);
         if !file_path.exists() {
@@ -70,12 +69,10 @@ fn validate_runtime_pnpm_v1(src_dir: PathBuf) -> Result<bool, CommonError> {
     Ok(true)
 }
 
-
 /// Check if the project uses Vite by looking for vite.config.ts
 fn is_vite_project(src_dir: &Path) -> bool {
     src_dir.join("vite.config.ts").exists()
 }
-
 
 pub struct StartDevRuntimeParams {
     pub project_dir: PathBuf,
@@ -86,9 +83,7 @@ pub struct StartDevRuntimeParams {
 }
 
 /// Starts the development runtime with hot reloading on file changes
-pub async fn start_dev_runtime(
-    params: StartDevRuntimeParams,
-) -> Result<(), CommonError> {
+pub async fn start_dev_runtime(params: StartDevRuntimeParams) -> Result<(), CommonError> {
     let StartDevRuntimeParams {
         project_dir,
         runtime: _runtime,
@@ -120,9 +115,7 @@ pub async fn start_dev_runtime(
 
 /// Fetch metadata and sync providers to the bridge registry
 /// Returns the list of agents from the metadata response
-async fn fetch_and_sync_providers(
-    socket_path: &str,
-) -> Result<Vec<sdk_proto::Agent>, CommonError> {
+async fn fetch_and_sync_providers(socket_path: &str) -> Result<Vec<sdk_proto::Agent>, CommonError> {
     let mut client = create_unix_socket_client(socket_path).await?;
 
     let request = tonic::Request::new(());
@@ -137,7 +130,12 @@ async fn fetch_and_sync_providers(
     info!("Provider count: {}", metadata.bridge_providers.len());
 
     for (i, provider) in metadata.bridge_providers.iter().enumerate() {
-        info!("Provider {}: type_id={}, name={}", i + 1, provider.type_id, provider.name);
+        info!(
+            "Provider {}: type_id={}, name={}",
+            i + 1,
+            provider.type_id,
+            provider.name
+        );
         info!("  Function count: {}", provider.functions.len());
 
         for (j, func) in provider.functions.iter().enumerate() {
@@ -166,7 +164,10 @@ async fn register_agent_deployments(
 ) -> Result<(), CommonError> {
     use std::collections::HashMap;
 
-    info!("Registering {} agent deployment(s) with Restate", agents.len());
+    info!(
+        "Registering {} agent deployment(s) with Restate",
+        agents.len()
+    );
 
     for agent in agents {
         let service_uri = format!("http://127.0.0.1:{runtime_port}");
@@ -193,7 +194,10 @@ async fn register_agent_deployments(
 
         match crate::utils::restate::deploy::register_deployment(config).await {
             Ok(metadata) => {
-                info!("✓ Successfully registered agent '{}' (service: {})", agent.name, metadata.name);
+                info!(
+                    "✓ Successfully registered agent '{}' (service: {})",
+                    agent.name, metadata.name
+                );
             }
             Err(e) => {
                 error!("✗ Failed to register agent '{}': {:?}", agent.name, e);
@@ -215,6 +219,7 @@ pub struct SyncDevRuntimeChangesFromSdkServerParams {
 /// Watch for dev runtime reloads by monitoring the gRPC connection
 /// This function runs indefinitely, reconnecting when the server restarts
 /// and syncing providers on each reconnection
+#[allow(clippy::needless_return)]
 pub async fn sync_dev_runtime_changes_from_sdk_server(
     params: SyncDevRuntimeChangesFromSdkServerParams,
 ) -> Result<(), CommonError> {
@@ -225,9 +230,12 @@ pub async fn sync_dev_runtime_changes_from_sdk_server(
         mut system_shutdown_signal_rx,
     } = params;
 
-
-    let (sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger, sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_receiver) = oneshot::channel::<CommonError>();
-    let (system_shutdown_signal_tx_clone, system_shutdown_signal_rx_clone_receiver) = tokio::sync::oneshot::channel::<()>();
+    let (
+        sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger,
+        sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_receiver,
+    ) = oneshot::channel::<CommonError>();
+    let (system_shutdown_signal_tx_clone, system_shutdown_signal_rx_clone_receiver) =
+        tokio::sync::oneshot::channel::<()>();
     tokio::spawn(async move {
         tokio::select! {
             _ = system_shutdown_signal_rx_clone_receiver => {
@@ -262,17 +270,23 @@ pub async fn internal_sync_dev_runtime_changes_from_sdk_server_loop(
     socket_path: String,
     restate_params: super::restate::RestateServerParams,
     runtime_port: u16,
-    sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger: oneshot::Sender<CommonError>,
+    sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger: oneshot::Sender<
+        CommonError,
+    >,
 ) {
-    info!("Starting dev runtime reload watcher for socket: {}", socket_path);
+    info!(
+        "Starting dev runtime reload watcher for socket: {}",
+        socket_path
+    );
     let mut ticker = tokio::time::interval(Duration::from_millis(500));
-    
+
     loop {
         // Try to establish connection with timeout
         let connection_result = tokio::time::timeout(
             Duration::from_secs(10),
-            establish_connection_with_retry(&socket_path)
-        ).await;
+            establish_connection_with_retry(&socket_path),
+        )
+        .await;
 
         match connection_result {
             Ok(Ok(_)) => {
@@ -283,7 +297,10 @@ pub async fn internal_sync_dev_runtime_changes_from_sdk_server_loop(
                     Ok(agents) => {
                         // Register Restate deployments for each agent
                         if !agents.is_empty() {
-                            if let Err(e) = register_agent_deployments(agents, &restate_params, runtime_port).await {
+                            if let Err(e) =
+                                register_agent_deployments(agents, &restate_params, runtime_port)
+                                    .await
+                            {
                                 error!("Failed to register agent deployments: {:?}", e);
                             }
                         }
@@ -299,15 +316,20 @@ pub async fn internal_sync_dev_runtime_changes_from_sdk_server_loop(
             }
             Ok(Err(e)) => {
                 error!("Failed to establish connection: {:?}", e);
-                let err = CommonError::Unknown(anyhow::anyhow!("Failed to establish connection: {e:?}"));
-                let _ = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger.send(err);
-                return
+                let err =
+                    CommonError::Unknown(anyhow::anyhow!("Failed to establish connection: {e:?}"));
+                let _ = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger
+                    .send(err);
+                return;
             }
             Err(_) => {
                 error!("Connection timeout after 10 seconds");
-                let err = CommonError::Unknown(anyhow::anyhow!("Failed to connect to SDK server within 10 seconds"));
-                let _ = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger.send(err);
-                return
+                let err = CommonError::Unknown(anyhow::anyhow!(
+                    "Failed to connect to SDK server within 10 seconds"
+                ));
+                let _ = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger
+                    .send(err);
+                return;
             }
         }
 
@@ -375,5 +397,4 @@ mod tests {
         let runtime = determine_runtime_from_dir(temp_dir.path()).unwrap();
         assert_eq!(runtime, None);
     }
-
 }

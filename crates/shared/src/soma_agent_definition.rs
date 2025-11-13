@@ -58,8 +58,6 @@ pub struct ProviderConfig {
     pub functions: Option<Vec<String>>,
 }
 
-
-
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct CredentialConfig {
@@ -116,7 +114,6 @@ pub struct YamlSomaAgentDefinition {
 }
 
 impl YamlSomaAgentDefinition {
-
     fn load_agent_definition(path: PathBuf) -> Result<SomaAgentDefinition, CommonError> {
         let yaml_str = std::fs::read_to_string(&path).map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!("Failed to read soma definition: {e:?}"))
@@ -135,7 +132,10 @@ impl YamlSomaAgentDefinition {
         })
     }
 
-    pub async fn save(&self, guard: MutexGuard<'_, SomaAgentDefinition>) -> Result<(), CommonError> {
+    pub async fn save(
+        &self,
+        guard: MutexGuard<'_, SomaAgentDefinition>,
+    ) -> Result<(), CommonError> {
         std::fs::write(
             self.path.clone(),
             serde_yaml::to_string(&*guard).map_err(|e| {
@@ -153,7 +153,6 @@ impl YamlSomaAgentDefinition {
 
 #[async_trait]
 impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
-
     async fn reload(&self) -> Result<(), CommonError> {
         let definition = Self::load_agent_definition(self.path.clone())?;
         *self.cached_definition.lock().await = definition;
@@ -180,7 +179,11 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         }
         let bridge = match &mut definition.bridge {
             Some(bridge) => bridge,
-            None => return Err(CommonError::Unknown(anyhow::anyhow!("Bridge configuration not found"))),
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Bridge configuration not found"
+                )));
+            }
         };
         bridge.encryption.0.insert(
             key_id.clone(),
@@ -200,11 +203,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             Some(bridge) => bridge,
             None => return Ok(vec![]),
         };
-        Ok(bridge
-            .encryption
-            .0
-            .values()
-            .cloned().collect())
+        Ok(bridge.encryption.0.values().cloned().collect())
     }
 
     async fn remove_data_encryption_key(&self, key_id: String) -> Result<(), CommonError> {
@@ -238,7 +237,11 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         }
         let bridge = match &mut definition.bridge {
             Some(bridge) => bridge,
-            None => return Err(CommonError::Unknown(anyhow::anyhow!("Bridge configuration not found"))),
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Bridge configuration not found"
+                )));
+            }
         };
         if bridge.providers.is_none() {
             bridge.providers = Some(HashMap::new());
@@ -278,7 +281,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         config: ProviderConfig,
     ) -> Result<(), CommonError> {
         let mut definition = self.cached_definition.lock().await;
-        
+
         // Create bridge configuration if it doesn't exist (same as add_provider)
         if definition.bridge.is_none() {
             definition.bridge = Some(BridgeConfig {
@@ -286,10 +289,14 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
                 providers: Some(HashMap::new()),
             });
         }
-        
+
         let bridge = match &mut definition.bridge {
             Some(bridge) => bridge,
-            None => return Err(CommonError::Unknown(anyhow::anyhow!("Bridge configuration not found"))),
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Bridge configuration not found"
+                )));
+            }
         };
 
         // Create providers HashMap if it doesn't exist
@@ -333,7 +340,11 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         let mut definition = self.cached_definition.lock().await;
         let bridge = match &mut definition.bridge {
             Some(bridge) => bridge,
-            None => return Err(CommonError::Unknown(anyhow::anyhow!("Bridge configuration not found"))),
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Bridge configuration not found"
+                )));
+            }
         };
         let providers = match &mut bridge.providers {
             Some(providers) => providers,
@@ -348,7 +359,10 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         }
         let functions = provider.functions.as_mut().unwrap();
         functions.push(function_controller_type_id.clone());
-        info!("Function instance added to provider {}: {:?}", provider_controller_type_id, function_controller_type_id);
+        info!(
+            "Function instance added to provider {}: {:?}",
+            provider_controller_type_id, function_controller_type_id
+        );
         self.save(definition).await?;
         Ok(())
     }
@@ -379,7 +393,10 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
 
         functions.retain(|f| *f != function_controller_type_id);
 
-        info!("Function instance ({}) removed from provider ({}, {})", function_controller_type_id, provider_controller_type_id, provider_instance_id);
+        info!(
+            "Function instance ({}) removed from provider ({}, {})",
+            function_controller_type_id, provider_controller_type_id, provider_instance_id
+        );
         self.save(definition).await?;
         Ok(())
     }

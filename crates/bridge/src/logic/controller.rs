@@ -1,21 +1,21 @@
-
-
-
 use std::sync::Arc;
 
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use shared::{
     error::CommonError,
-    primitives::{
-        PaginatedResponse, PaginationRequest,
-        WrappedSchema,
-    },
+    primitives::{PaginatedResponse, PaginationRequest, WrappedSchema},
 };
 use std::sync::RwLock;
 use utoipa::ToSchema;
 
-use crate::{logic::{credential::ConfigurationSchema, FunctionControllerLike, ProviderControllerLike, ProviderCredentialControllerLike}, providers::{google_mail::GoogleMailProviderController, stripe::StripeProviderController}};
+use crate::{
+    logic::{
+        FunctionControllerLike, ProviderControllerLike, ProviderCredentialControllerLike,
+        credential::ConfigurationSchema,
+    },
+    providers::{google_mail::GoogleMailProviderController, stripe::StripeProviderController},
+};
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct ProviderCredentialControllerSerialized {
@@ -63,7 +63,6 @@ impl From<&Arc<dyn ProviderCredentialControllerLike>> for ProviderCredentialCont
         }
     }
 }
-
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct FunctionControllerSerialized {
@@ -144,7 +143,6 @@ impl From<&dyn ProviderControllerLike> for ProviderControllerSerialized {
     }
 }
 
-
 pub const CATEGORY_EMAIL: &str = "email";
 pub const CATEGORY_PAYMENTS: &str = "payments";
 
@@ -169,8 +167,6 @@ pub async fn list_available_providers(
         |p| vec![p.type_id.to_string()],
     ))
 }
-
-
 
 pub fn get_provider_controller(
     provider_controller_type_id: &str,
@@ -237,7 +233,10 @@ pub fn remove_provider_controller_from_registry(
         )));
     }
 
-    tracing::info!("Removed provider controller: {}", provider_controller_type_id);
+    tracing::info!(
+        "Removed provider controller: {}",
+        provider_controller_type_id
+    );
 
     Ok(())
 }
@@ -272,7 +271,6 @@ pub fn get_function_controller(
         .clone();
     Ok(function_controller)
 }
-
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct WithFunctionControllerTypeId<T> {
@@ -319,7 +317,7 @@ mod tests {
         let result = list_available_providers(pagination).await;
         assert!(result.is_ok());
 
-        let response = result.unwrap();
+        let _response = result.unwrap();
         // Should have at least the registered providers
         // Should return a valid paginated response (may be empty during isolated tests)
         // Just verify the structure is correct

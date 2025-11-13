@@ -12,126 +12,117 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { MessageRole } from './MessageRole';
-import {
-    MessageRoleFromJSON,
-    MessageRoleFromJSONTyped,
-    MessageRoleToJSON,
-    MessageRoleToJSONTyped,
-} from './MessageRole';
-import type { MessagePart } from './MessagePart';
-import {
-    MessagePartFromJSON,
-    MessagePartFromJSONTyped,
-    MessagePartToJSON,
-    MessagePartToJSONTyped,
-} from './MessagePart';
+import type { MessagePart } from "./MessagePart";
+import { MessagePartFromJSON, MessagePartToJSON } from "./MessagePart";
+import type { MessageRole } from "./MessageRole";
+import { MessageRoleFromJSON, MessageRoleToJSON } from "./MessageRole";
 
 /**
- * 
+ *
  * @export
  * @interface Message
  */
 export interface Message {
-    /**
-     * 
-     * @type {Date}
-     * @memberof Message
-     */
-    createdAt: Date;
-    /**
-     * 
-     * @type {string}
-     * @memberof Message
-     */
-    id: string;
-    /**
-     * 
-     * @type {{ [key: string]: any; }}
-     * @memberof Message
-     */
-    metadata: { [key: string]: any; };
-    /**
-     * 
-     * @type {Array<MessagePart>}
-     * @memberof Message
-     */
-    parts: Array<MessagePart>;
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof Message
-     */
-    referenceTaskIds: Array<string>;
-    /**
-     * 
-     * @type {MessageRole}
-     * @memberof Message
-     */
-    role: MessageRole;
-    /**
-     * 
-     * @type {string}
-     * @memberof Message
-     */
-    taskId: string;
+	/**
+	 *
+	 * @type {Date}
+	 * @memberof Message
+	 */
+	createdAt: Date;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof Message
+	 */
+	id: string;
+	/**
+	 *
+	 * @type {{ [key: string]: any; }}
+	 * @memberof Message
+	 */
+	metadata: { [key: string]: any };
+	/**
+	 *
+	 * @type {Array<MessagePart>}
+	 * @memberof Message
+	 */
+	parts: Array<MessagePart>;
+	/**
+	 *
+	 * @type {Array<string>}
+	 * @memberof Message
+	 */
+	referenceTaskIds: Array<string>;
+	/**
+	 *
+	 * @type {MessageRole}
+	 * @memberof Message
+	 */
+	role: MessageRole;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof Message
+	 */
+	taskId: string;
 }
-
-
 
 /**
  * Check if a given object implements the Message interface.
  */
 export function instanceOfMessage(value: object): value is Message {
-    if (!('createdAt' in value) || value['createdAt'] === undefined) return false;
-    if (!('id' in value) || value['id'] === undefined) return false;
-    if (!('metadata' in value) || value['metadata'] === undefined) return false;
-    if (!('parts' in value) || value['parts'] === undefined) return false;
-    if (!('referenceTaskIds' in value) || value['referenceTaskIds'] === undefined) return false;
-    if (!('role' in value) || value['role'] === undefined) return false;
-    if (!('taskId' in value) || value['taskId'] === undefined) return false;
-    return true;
+	if (!("createdAt" in value) || value.createdAt === undefined) return false;
+	if (!("id" in value) || value.id === undefined) return false;
+	if (!("metadata" in value) || value.metadata === undefined) return false;
+	if (!("parts" in value) || value.parts === undefined) return false;
+	if (!("referenceTaskIds" in value) || value.referenceTaskIds === undefined)
+		return false;
+	if (!("role" in value) || value.role === undefined) return false;
+	if (!("taskId" in value) || value.taskId === undefined) return false;
+	return true;
 }
 
 export function MessageFromJSON(json: any): Message {
-    return MessageFromJSONTyped(json, false);
+	return MessageFromJSONTyped(json, false);
 }
 
-export function MessageFromJSONTyped(json: any, ignoreDiscriminator: boolean): Message {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'createdAt': (new Date(json['created_at'])),
-        'id': json['id'],
-        'metadata': json['metadata'],
-        'parts': ((json['parts'] as Array<any>).map(MessagePartFromJSON)),
-        'referenceTaskIds': json['reference_task_ids'],
-        'role': MessageRoleFromJSON(json['role']),
-        'taskId': json['task_id'],
-    };
+export function MessageFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): Message {
+	if (json == null) {
+		return json;
+	}
+	return {
+		createdAt: new Date(json.created_at),
+		id: json.id,
+		metadata: json.metadata,
+		parts: (json.parts as Array<any>).map(MessagePartFromJSON),
+		referenceTaskIds: json.reference_task_ids,
+		role: MessageRoleFromJSON(json.role),
+		taskId: json.task_id,
+	};
 }
 
 export function MessageToJSON(json: any): Message {
-    return MessageToJSONTyped(json, false);
+	return MessageToJSONTyped(json, false);
 }
 
-export function MessageToJSONTyped(value?: Message | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function MessageToJSONTyped(
+	value?: Message | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'created_at': ((value['createdAt']).toISOString()),
-        'id': value['id'],
-        'metadata': value['metadata'],
-        'parts': ((value['parts'] as Array<any>).map(MessagePartToJSON)),
-        'reference_task_ids': value['referenceTaskIds'],
-        'role': MessageRoleToJSON(value['role']),
-        'task_id': value['taskId'],
-    };
+	return {
+		created_at: value.createdAt.toISOString(),
+		id: value.id,
+		metadata: value.metadata,
+		parts: (value.parts as Array<any>).map(MessagePartToJSON),
+		reference_task_ids: value.referenceTaskIds,
+		role: MessageRoleToJSON(value.role),
+		task_id: value.taskId,
+	};
 }
-

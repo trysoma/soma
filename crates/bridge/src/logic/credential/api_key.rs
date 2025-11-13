@@ -8,23 +8,22 @@ use shared::{
 };
 
 use crate::logic::{
-    schemars_make_password, ConfigurationSchema, DecryptionService, EncryptedString, EncryptionService, Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike, ResourceServerCredentialSerialized, StaticCredentialConfigurationLike, StaticProviderCredentialControllerLike, UserCredentialLike
+    ConfigurationSchema, DecryptionService, EncryptedString, EncryptionService, Metadata,
+    ProviderCredentialControllerLike, ResourceServerCredentialLike,
+    ResourceServerCredentialSerialized, StaticCredentialConfigurationLike,
+    StaticProviderCredentialControllerLike, UserCredentialLike, schemars_make_password,
 };
 
 // ============================================================================
 // Static Credential Configuration
 // ============================================================================
 
-
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ApiKeyStaticCredentialConfiguration {
     pub metadata: Metadata,
-
 }
 
-impl StaticCredentialConfigurationLike
-    for ApiKeyStaticCredentialConfiguration
-{
+impl StaticCredentialConfigurationLike for ApiKeyStaticCredentialConfiguration {
     fn type_id(&self) -> &'static str {
         "static_api_key"
     }
@@ -67,8 +66,6 @@ pub struct ApiKeyUserCredential {
     pub metadata: Metadata,
 }
 
-
-
 impl UserCredentialLike for ApiKeyUserCredential {
     fn type_id(&self) -> &'static str {
         "user_api_key"
@@ -77,14 +74,12 @@ impl UserCredentialLike for ApiKeyUserCredential {
     fn value(&self) -> WrappedJsonValue {
         WrappedJsonValue::new(json!(self))
     }
-
 }
 
 pub struct DecryptedApiKeyCredentials {
     pub api_key: String,
     pub metadata: Metadata,
 }
-
 
 // ============================================================================
 // OAuth Authorization Code Flow Controller
@@ -97,13 +92,13 @@ pub struct ApiKeyController {
 const STATIC_TYPE_ID_API_KEY: &str = "api_key";
 
 impl ApiKeyController {
-
     pub async fn decrypt_api_key_credentials(
         &self,
         crypto_service: &DecryptionService,
         resource_server_cred: &ResourceServerCredentialSerialized,
     ) -> Result<DecryptedApiKeyCredentials, CommonError> {
-        let typed_creds: ApiKeyResourceServerCredential = serde_json::from_value(resource_server_cred.value.clone().into())?;
+        let typed_creds: ApiKeyResourceServerCredential =
+            serde_json::from_value(resource_server_cred.value.clone().into())?;
         let decrypted_creds: DecryptedApiKeyCredentials = DecryptedApiKeyCredentials {
             api_key: crypto_service.decrypt_data(typed_creds.api_key).await?,
             metadata: typed_creds.metadata,
@@ -121,8 +116,8 @@ impl StaticProviderCredentialControllerLike for ApiKeyController {
 
 #[async_trait]
 impl ProviderCredentialControllerLike for ApiKeyController {
-    fn static_credentials(&self) -> Box<dyn StaticCredentialConfigurationLike> {
-        Box::new(self.static_credentials.clone())
+    fn static_credentials(&self) -> &dyn StaticCredentialConfigurationLike {
+        &self.static_credentials
     }
 
     fn type_id(&self) -> &'static str {
@@ -139,12 +134,8 @@ impl ProviderCredentialControllerLike for ApiKeyController {
 
     fn configuration_schema(&self) -> ConfigurationSchema {
         ConfigurationSchema {
-            resource_server: WrappedSchema::new(
-                schema_for!(ApiKeyResourceServerCredential),
-            ),
-            user_credential: WrappedSchema::new(
-                schema_for!(ApiKeyUserCredential),
-            ),
+            resource_server: WrappedSchema::new(schema_for!(ApiKeyResourceServerCredential)),
+            user_credential: WrappedSchema::new(schema_for!(ApiKeyUserCredential)),
         }
     }
 
@@ -158,8 +149,7 @@ impl ProviderCredentialControllerLike for ApiKeyController {
             serde_json::from_value(raw_resource_server_configuration.into())?;
 
         // Encrypt the client secret
-        config.api_key =
-            EncryptedString(crypto_service.encrypt_data(config.api_key.0).await?.0);
+        config.api_key = EncryptedString(crypto_service.encrypt_data(config.api_key.0).await?.0);
 
         Ok(Box::new(config))
     }

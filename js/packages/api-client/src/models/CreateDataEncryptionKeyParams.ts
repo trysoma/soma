@@ -12,62 +12,73 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface CreateDataEncryptionKeyParams
  */
 export interface CreateDataEncryptionKeyParams {
-    /**
-     * 
-     * @type {string}
-     * @memberof CreateDataEncryptionKeyParams
-     */
-    encryptedDataEnvelopeKey?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof CreateDataEncryptionKeyParams
-     */
-    id?: string | null;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof CreateDataEncryptionKeyParams
+	 */
+	encryptedDataEnvelopeKey?: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof CreateDataEncryptionKeyParams
+	 */
+	id?: string | null;
 }
 
 /**
  * Check if a given object implements the CreateDataEncryptionKeyParams interface.
  */
-export function instanceOfCreateDataEncryptionKeyParams(value: object): value is CreateDataEncryptionKeyParams {
-    return true;
+export function instanceOfCreateDataEncryptionKeyParams(
+	value: object,
+): value is CreateDataEncryptionKeyParams {
+	return true;
 }
 
-export function CreateDataEncryptionKeyParamsFromJSON(json: any): CreateDataEncryptionKeyParams {
-    return CreateDataEncryptionKeyParamsFromJSONTyped(json, false);
+export function CreateDataEncryptionKeyParamsFromJSON(
+	json: any,
+): CreateDataEncryptionKeyParams {
+	return CreateDataEncryptionKeyParamsFromJSONTyped(json, false);
 }
 
-export function CreateDataEncryptionKeyParamsFromJSONTyped(json: any, ignoreDiscriminator: boolean): CreateDataEncryptionKeyParams {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'encryptedDataEnvelopeKey': json['encrypted_data_envelope_key'] == null ? undefined : json['encrypted_data_envelope_key'],
-        'id': json['id'] == null ? undefined : json['id'],
-    };
+export function CreateDataEncryptionKeyParamsFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): CreateDataEncryptionKeyParams {
+	if (json == null) {
+		return json;
+	}
+	return {
+		encryptedDataEnvelopeKey:
+			json.encrypted_data_envelope_key == null
+				? undefined
+				: json.encrypted_data_envelope_key,
+		id: json.id == null ? undefined : json.id,
+	};
 }
 
-export function CreateDataEncryptionKeyParamsToJSON(json: any): CreateDataEncryptionKeyParams {
-    return CreateDataEncryptionKeyParamsToJSONTyped(json, false);
+export function CreateDataEncryptionKeyParamsToJSON(
+	json: any,
+): CreateDataEncryptionKeyParams {
+	return CreateDataEncryptionKeyParamsToJSONTyped(json, false);
 }
 
-export function CreateDataEncryptionKeyParamsToJSONTyped(value?: CreateDataEncryptionKeyParams | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function CreateDataEncryptionKeyParamsToJSONTyped(
+	value?: CreateDataEncryptionKeyParams | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'encrypted_data_envelope_key': value['encryptedDataEnvelopeKey'],
-        'id': value['id'],
-    };
+	return {
+		encrypted_data_envelope_key: value.encryptedDataEnvelopeKey,
+		id: value.id,
+	};
 }
-

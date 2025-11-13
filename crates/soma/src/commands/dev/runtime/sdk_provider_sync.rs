@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use bridge::logic::{add_provider_controller_to_registry, remove_provider_controller_from_registry, PROVIDER_REGISTRY};
+use bridge::logic::{
+    PROVIDER_REGISTRY, add_provider_controller_to_registry,
+    remove_provider_controller_from_registry,
+};
 use shared::error::CommonError;
 use shared::primitives::WrappedSchema;
 use tracing::{error, info};
 
 use crate::commands::dev::bridge_util::providers::dynamic::{
-    DynamicProviderController, DynamicProviderControllerParams, DynamicFunctionControllerParams,
+    DynamicFunctionControllerParams, DynamicProviderController, DynamicProviderControllerParams,
 };
 
 /// Sync providers from SDK metadata
@@ -16,7 +19,10 @@ use crate::commands::dev::bridge_util::providers::dynamic::{
 pub fn sync_providers_from_metadata(
     metadata: &sdk_proto::MetadataResponse,
 ) -> Result<(), CommonError> {
-    info!("Syncing {} providers from SDK metadata", metadata.bridge_providers.len());
+    info!(
+        "Syncing {} providers from SDK metadata",
+        metadata.bridge_providers.len()
+    );
 
     // Step 1: Query all existing providers and identify dynamic ones to remove
     let dynamic_provider_ids: Vec<String> = {
@@ -38,7 +44,10 @@ pub fn sync_providers_from_metadata(
     };
 
     // Step 2: Remove all dynamic providers
-    info!("Found {} existing dynamic providers to remove", dynamic_provider_ids.len());
+    info!(
+        "Found {} existing dynamic providers to remove",
+        dynamic_provider_ids.len()
+    );
     for provider_id in &dynamic_provider_ids {
         match remove_provider_controller_from_registry(provider_id) {
             Ok(_) => info!("✅ Removed old dynamic provider: {}", provider_id),
@@ -57,14 +66,15 @@ pub fn sync_providers_from_metadata(
 
         match register_provider_from_proto(proto_provider) {
             Ok(_) => {
-                info!("✅ Successfully registered provider: {}", proto_provider.type_id);
+                info!(
+                    "✅ Successfully registered provider: {}",
+                    proto_provider.type_id
+                );
             }
             Err(e) => {
                 error!(
                     "❌ Failed to register provider '{}' ({}): {:#}",
-                    proto_provider.type_id,
-                    proto_provider.name,
-                    e
+                    proto_provider.type_id, proto_provider.name, e
                 );
             }
         }

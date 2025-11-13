@@ -1,4 +1,3 @@
-
 use std::path::PathBuf;
 
 use aes_gcm::{
@@ -11,13 +10,17 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shared::{
     error::CommonError,
-    primitives::{
-        PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
-    },
+    primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue},
 };
 use utoipa::ToSchema;
 
-use crate::logic::{controller::{get_credential_controller, get_provider_controller, WithCredentialControllerTypeId, WithProviderControllerTypeId}, OnConfigChangeEvt, OnConfigChangeTx};
+use crate::logic::{
+    OnConfigChangeEvt, OnConfigChangeTx,
+    controller::{
+        WithCredentialControllerTypeId, WithProviderControllerTypeId, get_credential_controller,
+        get_provider_controller,
+    },
+};
 
 // encrpyion
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
@@ -159,8 +162,10 @@ impl CryptoService {
     ) -> Result<Self, CommonError> {
         let mut envelop_key_match = false;
 
-        if let EnvelopeEncryptionKeyContents::Local { key_id, key_bytes: _ } =
-            &envelope_encryption_key_contents
+        if let EnvelopeEncryptionKeyContents::Local {
+            key_id,
+            key_bytes: _,
+        } = &envelope_encryption_key_contents
             && let EnvelopeEncryptionKeyId::Local {
                 key_id: data_encryption_key_id,
                 ..
@@ -301,7 +306,6 @@ impl DecryptionService {
         Ok(result)
     }
 }
-
 
 // encryption functions
 
@@ -533,7 +537,9 @@ pub async fn create_data_encryption_key(
     params: CreateDataEncryptionKeyParams,
     publish_on_change_evt: bool,
 ) -> Result<CreateDataEncryptionKeyResponse, CommonError> {
-    let id = params.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let id = params
+        .id
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
     let key_encryption_key = key_encryption_key.clone();
     let encrypted_data_encryption_key = match params.encrypted_data_envelope_key {
@@ -660,11 +666,10 @@ pub async fn delete_data_encryption_key(
     Ok(())
 }
 
-
 pub async fn get_crypto_service(
     envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
     repo: &impl crate::repository::ProviderRepositoryLike,
-    data_encryption_key_id: &String,
+    data_encryption_key_id: &str,
 ) -> Result<CryptoService, CommonError> {
     let data_encryption_key = repo
         .get_data_encryption_key_by_id(data_encryption_key_id)
@@ -769,7 +774,7 @@ mod tests {
     use shared::primitives::SqlMigrationLoader;
 
     const TEST_KMS_KEY_ARN: &str =
-        "arn:aws:kms:us-east-1:855806899624:key/0155f7f0-b3a2-4e5a-afdc-9070c2cd4059";
+        "arn:aws:kms:eu-west-2:914788356809:alias/unsafe-github-action-soma-test-key";
 
     #[tokio::test]
     async fn test_encrypt_data_envelope_key_with_aws_kms() {
@@ -1694,7 +1699,14 @@ mod tests {
     async fn test_create_data_encryption_key_with_id() {
         shared::setup_test!();
 
-        let repo = { let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()]).await.unwrap(); crate::repository::Repository::new(conn) };
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
         let (tx, _rx) = tokio::sync::mpsc::channel(10);
 
         let kek = EnvelopeEncryptionKeyContents::Local {
@@ -1719,7 +1731,14 @@ mod tests {
     async fn test_create_data_encryption_key_generates_id() {
         shared::setup_test!();
 
-        let repo = { let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()]).await.unwrap(); crate::repository::Repository::new(conn) };
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
         let (tx, _rx) = tokio::sync::mpsc::channel(10);
 
         let kek = EnvelopeEncryptionKeyContents::Local {
@@ -1745,7 +1764,14 @@ mod tests {
     async fn test_create_data_encryption_key_with_existing_encrypted_key() {
         shared::setup_test!();
 
-        let repo = { let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()]).await.unwrap(); crate::repository::Repository::new(conn) };
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
         let (tx, _rx) = tokio::sync::mpsc::channel(10);
 
         let kek = EnvelopeEncryptionKeyContents::Local {
@@ -1771,7 +1797,14 @@ mod tests {
     async fn test_delete_data_encryption_key_publishes_event() {
         shared::setup_test!();
 
-        let repo = { let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()]).await.unwrap(); crate::repository::Repository::new(conn) };
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
         let (tx, mut rx) = tokio::sync::mpsc::channel(10);
 
         // Create a DEK first
@@ -1785,10 +1818,13 @@ mod tests {
             encrypted_data_envelope_key: None,
         };
 
-        create_data_encryption_key(&kek, &tx, &repo, create_params, false).await.unwrap();
+        create_data_encryption_key(&kek, &tx, &repo, create_params, false)
+            .await
+            .unwrap();
 
         // Delete it with event publishing enabled
-        let result = delete_data_encryption_key(&tx, &repo, "dek-to-delete".to_string(), true).await;
+        let result =
+            delete_data_encryption_key(&tx, &repo, "dek-to-delete".to_string(), true).await;
         assert!(result.is_ok());
 
         // Verify event was published
@@ -1806,7 +1842,14 @@ mod tests {
     async fn test_delete_data_encryption_key_no_event_when_disabled() {
         shared::setup_test!();
 
-        let repo = { let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()]).await.unwrap(); crate::repository::Repository::new(conn) };
+        let repo = {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                crate::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            crate::repository::Repository::new(conn)
+        };
         let (tx, mut rx) = tokio::sync::mpsc::channel(10);
 
         // Create a DEK first
@@ -1820,15 +1863,17 @@ mod tests {
             encrypted_data_envelope_key: None,
         };
 
-        create_data_encryption_key(&kek, &tx, &repo, create_params, false).await.unwrap();
+        create_data_encryption_key(&kek, &tx, &repo, create_params, false)
+            .await
+            .unwrap();
 
         // Delete it with event publishing disabled
-        let result = delete_data_encryption_key(&tx, &repo, "dek-to-delete".to_string(), false).await;
+        let result =
+            delete_data_encryption_key(&tx, &repo, "dek-to-delete".to_string(), false).await;
         assert!(result.is_ok());
 
         // Verify no event was published
         let event = rx.try_recv();
         assert!(event.is_err());
     }
-
 }

@@ -12,90 +12,93 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
-import type { TaskTimelineItemPayload } from './TaskTimelineItemPayload';
+import type { TaskTimelineItemPayload } from "./TaskTimelineItemPayload";
 import {
-    TaskTimelineItemPayloadFromJSON,
-    TaskTimelineItemPayloadFromJSONTyped,
-    TaskTimelineItemPayloadToJSON,
-    TaskTimelineItemPayloadToJSONTyped,
-} from './TaskTimelineItemPayload';
+	TaskTimelineItemPayloadFromJSON,
+	TaskTimelineItemPayloadToJSON,
+} from "./TaskTimelineItemPayload";
 
 /**
- * 
+ *
  * @export
  * @interface TaskTimelineItem
  */
 export interface TaskTimelineItem {
-    /**
-     * 
-     * @type {Date}
-     * @memberof TaskTimelineItem
-     */
-    createdAt: Date;
-    /**
-     * 
-     * @type {TaskTimelineItemPayload}
-     * @memberof TaskTimelineItem
-     */
-    eventPayload: TaskTimelineItemPayload;
-    /**
-     * 
-     * @type {string}
-     * @memberof TaskTimelineItem
-     */
-    id: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof TaskTimelineItem
-     */
-    taskId: string;
+	/**
+	 *
+	 * @type {Date}
+	 * @memberof TaskTimelineItem
+	 */
+	createdAt: Date;
+	/**
+	 *
+	 * @type {TaskTimelineItemPayload}
+	 * @memberof TaskTimelineItem
+	 */
+	eventPayload: TaskTimelineItemPayload;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof TaskTimelineItem
+	 */
+	id: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof TaskTimelineItem
+	 */
+	taskId: string;
 }
 
 /**
  * Check if a given object implements the TaskTimelineItem interface.
  */
-export function instanceOfTaskTimelineItem(value: object): value is TaskTimelineItem {
-    if (!('createdAt' in value) || value['createdAt'] === undefined) return false;
-    if (!('eventPayload' in value) || value['eventPayload'] === undefined) return false;
-    if (!('id' in value) || value['id'] === undefined) return false;
-    if (!('taskId' in value) || value['taskId'] === undefined) return false;
-    return true;
+export function instanceOfTaskTimelineItem(
+	value: object,
+): value is TaskTimelineItem {
+	if (!("createdAt" in value) || value.createdAt === undefined) return false;
+	if (!("eventPayload" in value) || value.eventPayload === undefined)
+		return false;
+	if (!("id" in value) || value.id === undefined) return false;
+	if (!("taskId" in value) || value.taskId === undefined) return false;
+	return true;
 }
 
 export function TaskTimelineItemFromJSON(json: any): TaskTimelineItem {
-    return TaskTimelineItemFromJSONTyped(json, false);
+	return TaskTimelineItemFromJSONTyped(json, false);
 }
 
-export function TaskTimelineItemFromJSONTyped(json: any, ignoreDiscriminator: boolean): TaskTimelineItem {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'createdAt': (new Date(json['created_at'])),
-        'eventPayload': TaskTimelineItemPayloadFromJSON(json['event_payload']),
-        'id': json['id'],
-        'taskId': json['task_id'],
-    };
+export function TaskTimelineItemFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): TaskTimelineItem {
+	if (json == null) {
+		return json;
+	}
+	return {
+		createdAt: new Date(json.created_at),
+		eventPayload: TaskTimelineItemPayloadFromJSON(json.event_payload),
+		id: json.id,
+		taskId: json.task_id,
+	};
 }
 
 export function TaskTimelineItemToJSON(json: any): TaskTimelineItem {
-    return TaskTimelineItemToJSONTyped(json, false);
+	return TaskTimelineItemToJSONTyped(json, false);
 }
 
-export function TaskTimelineItemToJSONTyped(value?: TaskTimelineItem | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function TaskTimelineItemToJSONTyped(
+	value?: TaskTimelineItem | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'created_at': ((value['createdAt']).toISOString()),
-        'event_payload': TaskTimelineItemPayloadToJSON(value['eventPayload']),
-        'id': value['id'],
-        'task_id': value['taskId'],
-    };
+	return {
+		created_at: value.createdAt.toISOString(),
+		event_payload: TaskTimelineItemPayloadToJSON(value.eventPayload),
+		id: value.id,
+		task_id: value.taskId,
+	};
 }
-

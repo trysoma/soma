@@ -2,10 +2,10 @@ use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-    braced, bracketed,
+    Expr, ExprStruct, Ident, LitStr, Token, braced, bracketed,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    token, Expr, ExprStruct, Ident, LitStr, Token,
+    token,
 };
 
 // -----------------------------------------------------------------------------
@@ -96,10 +96,7 @@ impl Parse for ProviderBody {
                     .collect::<Vec<_>>();
                 input.parse::<Token![,]>().ok();
             } else {
-                return Err(syn::Error::new_spanned(
-                    key,
-                    "expected `functions:` key",
-                ));
+                return Err(syn::Error::new_spanned(key, "expected `functions:` key"));
             }
         }
 
@@ -186,11 +183,15 @@ pub fn define_provider(input: TokenStream) -> TokenStream {
     let _scope_vec = default_scopes.iter().map(|s| quote! { #s.to_string() });
 
     // save_* match arms
-    let match_arms_resource = flow_names.iter().map(|f| quote! {
-        ResourceServerCredentialVariant::#f(_) => (),
+    let match_arms_resource = flow_names.iter().map(|f| {
+        quote! {
+            ResourceServerCredentialVariant::#f(_) => (),
+        }
     });
-    let match_arms_user = flow_names.iter().map(|f| quote! {
-        UserCredentialVariant::#f(_) => (),
+    let match_arms_user = flow_names.iter().map(|f| {
+        quote! {
+            UserCredentialVariant::#f(_) => (),
+        }
     });
 
     // get_static_credentials match arms
@@ -223,9 +224,12 @@ pub fn define_provider(input: TokenStream) -> TokenStream {
         .map(|f| format_ident!("{}FullCredential", f))
         .collect();
 
-    let enum_variants = flow_names.iter().zip(full_credential_idents.iter()).map(|(flow, full)| {
-        quote! { #flow(#full), }
-    });
+    let enum_variants = flow_names
+        .iter()
+        .zip(full_credential_idents.iter())
+        .map(|(flow, full)| {
+            quote! { #flow(#full), }
+        });
 
     // configuration_schema inserts
     let config_schema_inserts = flow_names.iter().map(|f| {
@@ -250,7 +254,7 @@ pub fn define_provider(input: TokenStream) -> TokenStream {
     let provider_controller_variant_ident = format_ident!("{}", pascal(&provider_id));
 
     let expanded = quote! {
-        
+
 
         pub struct #controller_ident;
 

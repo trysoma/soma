@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/*","crates/workspace-hack"]
+members = ["crates/*"]
 resolver = "3"
 
 metadata.crane.name = "soma"

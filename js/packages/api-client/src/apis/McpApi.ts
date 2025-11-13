@@ -12,99 +12,118 @@
  * Do not edit the class manually.
  */
 
-
-import * as runtime from '../runtime';
+import * as runtime from "../runtime";
 
 export interface ListenToMcpSseRequest {
-    taskId: string;
+	taskId: string;
 }
 
 export interface TriggerMcpMessageRequest {
-    taskId: string;
-    body: object;
+	taskId: string;
+	body: object;
 }
 
 /**
- * 
+ *
  */
 export class McpApi extends runtime.BaseAPI {
+	/**
+	 */
+	async listenToMcpSseRaw(
+		requestParameters: ListenToMcpSseRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<void>> {
+		if (requestParameters.taskId == null) {
+			throw new runtime.RequiredError(
+				"taskId",
+				'Required parameter "taskId" was null or undefined when calling listenToMcpSse().',
+			);
+		}
 
-    /**
-     */
-    async listenToMcpSseRaw(requestParameters: ListenToMcpSseRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
-        if (requestParameters['taskId'] == null) {
-            throw new runtime.RequiredError(
-                'taskId',
-                'Required parameter "taskId" was null or undefined when calling listenToMcpSse().'
-            );
-        }
+		const queryParameters: any = {};
 
-        const queryParameters: any = {};
+		const headerParameters: runtime.HTTPHeaders = {};
 
-        const headerParameters: runtime.HTTPHeaders = {};
+		let urlPath = `/api/mcp/v1/task/{task_id}`;
+		urlPath = urlPath.replace(
+			`{${"task_id"}}`,
+			encodeURIComponent(String(requestParameters.taskId)),
+		);
 
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
 
-        let urlPath = `/api/mcp/v1/task/{task_id}`;
-        urlPath = urlPath.replace(`{${"task_id"}}`, encodeURIComponent(String(requestParameters['taskId'])));
+		return new runtime.VoidApiResponse(response);
+	}
 
-        const response = await this.request({
-            path: urlPath,
-            method: 'GET',
-            headers: headerParameters,
-            query: queryParameters,
-        }, initOverrides);
+	/**
+	 */
+	async listenToMcpSse(
+		requestParameters: ListenToMcpSseRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<void> {
+		await this.listenToMcpSseRaw(requestParameters, initOverrides);
+	}
 
-        return new runtime.VoidApiResponse(response);
-    }
+	/**
+	 */
+	async triggerMcpMessageRaw(
+		requestParameters: TriggerMcpMessageRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<void>> {
+		if (requestParameters.taskId == null) {
+			throw new runtime.RequiredError(
+				"taskId",
+				'Required parameter "taskId" was null or undefined when calling triggerMcpMessage().',
+			);
+		}
 
-    /**
-     */
-    async listenToMcpSse(requestParameters: ListenToMcpSseRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
-        await this.listenToMcpSseRaw(requestParameters, initOverrides);
-    }
+		if (requestParameters.body == null) {
+			throw new runtime.RequiredError(
+				"body",
+				'Required parameter "body" was null or undefined when calling triggerMcpMessage().',
+			);
+		}
 
-    /**
-     */
-    async triggerMcpMessageRaw(requestParameters: TriggerMcpMessageRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
-        if (requestParameters['taskId'] == null) {
-            throw new runtime.RequiredError(
-                'taskId',
-                'Required parameter "taskId" was null or undefined when calling triggerMcpMessage().'
-            );
-        }
+		const queryParameters: any = {};
 
-        if (requestParameters['body'] == null) {
-            throw new runtime.RequiredError(
-                'body',
-                'Required parameter "body" was null or undefined when calling triggerMcpMessage().'
-            );
-        }
+		const headerParameters: runtime.HTTPHeaders = {};
 
-        const queryParameters: any = {};
+		headerParameters["Content-Type"] = "application/json";
 
-        const headerParameters: runtime.HTTPHeaders = {};
+		let urlPath = `/api/mcp/v1/task/{task_id}`;
+		urlPath = urlPath.replace(
+			`{${"task_id"}}`,
+			encodeURIComponent(String(requestParameters.taskId)),
+		);
 
-        headerParameters['Content-Type'] = 'application/json';
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: requestParameters.body as any,
+			},
+			initOverrides,
+		);
 
+		return new runtime.VoidApiResponse(response);
+	}
 
-        let urlPath = `/api/mcp/v1/task/{task_id}`;
-        urlPath = urlPath.replace(`{${"task_id"}}`, encodeURIComponent(String(requestParameters['taskId'])));
-
-        const response = await this.request({
-            path: urlPath,
-            method: 'POST',
-            headers: headerParameters,
-            query: queryParameters,
-            body: requestParameters['body'] as any,
-        }, initOverrides);
-
-        return new runtime.VoidApiResponse(response);
-    }
-
-    /**
-     */
-    async triggerMcpMessage(requestParameters: TriggerMcpMessageRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
-        await this.triggerMcpMessageRaw(requestParameters, initOverrides);
-    }
-
+	/**
+	 */
+	async triggerMcpMessage(
+		requestParameters: TriggerMcpMessageRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<void> {
+		await this.triggerMcpMessageRaw(requestParameters, initOverrides);
+	}
 }

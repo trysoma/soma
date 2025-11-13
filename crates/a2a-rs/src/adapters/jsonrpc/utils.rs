@@ -136,4 +136,3 @@ impl<T: Serialize, E: Serialize + IntoResponse> From<Result<T, E>> for JsonRespo
         }
     }
 }
-

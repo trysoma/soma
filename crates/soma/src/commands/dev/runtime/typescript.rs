@@ -19,20 +19,27 @@ impl SdkClient for Typescript {
 
         let mut cmd = Command::new("pnpm");
 
-        cmd
-            .arg("dlx")
+        cmd.arg("dlx")
             .arg("vite")
             .arg("dev")
             .current_dir(ctx.project_dir.clone());
 
-
         // Set the SOMA_SERVER_SOCK environment variable
         let env_vars = HashMap::from([
             ("SOMA_SERVER_SOCK".to_string(), ctx.socket_path),
-            ("RESTATE_RUNTIME_PORT".to_string(), ctx.restate_runtime_port.to_string()),
+            (
+                "RESTATE_RUNTIME_PORT".to_string(),
+                ctx.restate_runtime_port.to_string(),
+            ),
         ]);
 
-        shared::command::run_child_process("pnpm-dev-server", cmd, Some(ctx.kill_signal_rx), Some(env_vars)).await?;
+        shared::command::run_child_process(
+            "pnpm-dev-server",
+            cmd,
+            Some(ctx.kill_signal_rx),
+            Some(env_vars),
+        )
+        .await?;
 
         Ok(())
     }
@@ -43,8 +50,7 @@ impl SdkClient for Typescript {
             .arg("vite")
             .arg("build")
             .current_dir(ctx.project_dir.clone());
-        shared::command::run_child_process("pnpm-build", cmd, None, None,).await?;
+        shared::command::run_child_process("pnpm-build", cmd, None, None).await?;
         Ok(())
     }
-
 }

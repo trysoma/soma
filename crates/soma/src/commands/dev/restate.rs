@@ -9,8 +9,8 @@ use shared::error::CommonError;
 
 use crate::utils::restate::admin_client::AdminClient;
 use crate::utils::restate::invoke::RestateIngressClient;
+use crate::utils::restate_binary;
 use crate::utils::{is_port_in_use, restate};
-
 
 #[derive(Clone)]
 pub struct RestateServerLocalParams {
@@ -35,9 +35,10 @@ pub enum RestateServerParams {
 }
 
 impl RestateServerParams {
-
     pub fn get_ingress_client(&self) -> Result<RestateIngressClient, CommonError> {
-        Ok(RestateIngressClient::new(self.get_ingress_address()?.to_string()))
+        Ok(RestateIngressClient::new(
+            self.get_ingress_address()?.to_string(),
+        ))
     }
 
     pub async fn get_admin_client(&self) -> Result<AdminClient, CommonError> {
@@ -46,7 +47,9 @@ impl RestateServerParams {
 
     pub fn get_admin_address(&self) -> Result<Url, CommonError> {
         let res = match self {
-            RestateServerParams::Local(params) => Url::parse(&format!("http://127.0.0.1:{}", params.admin_port))?,
+            RestateServerParams::Local(params) => {
+                Url::parse(&format!("http://127.0.0.1:{}", params.admin_port))?
+            }
             RestateServerParams::Remote(params) => params.admin_address.clone(),
         };
 
@@ -55,7 +58,9 @@ impl RestateServerParams {
 
     pub fn get_ingress_address(&self) -> Result<Url, CommonError> {
         let res = match self {
-            RestateServerParams::Local(params) => Url::parse(&format!("http://127.0.0.1:{}", params.ingress_port))?,
+            RestateServerParams::Local(params) => {
+                Url::parse(&format!("http://127.0.0.1:{}", params.ingress_port))?
+            }
             RestateServerParams::Remote(params) => params.ingress_address.clone(),
         };
 
@@ -91,7 +96,6 @@ impl RestateServerParams {
     }
 }
 
-
 /// Registers the deployment with Restate
 /// TODO: this should be moved to the deployment subsystem and run on metadata response to register all agents in the metadata response
 #[allow(dead_code)]
@@ -104,7 +108,6 @@ pub async fn start_restate_deployment(
 
     // The HTTP service URI should point to the local Axum server, not the Restate admin
     // let service_uri = format!("http://127.0.0.1:{runtime_port}");
-
 
     // let admin_address = params.get_admin_address()?;
     // let admin_token = params.get_admin_token();
@@ -133,8 +136,10 @@ pub async fn start_restate_deployment(
 }
 
 /// Starts the Restate server subsystem
-pub async fn start_restate_server(params: RestateServerParams, kill_signal_rx: tokio::sync::broadcast::Receiver<()>) -> Result<(), CommonError> {
-
+pub async fn start_restate_server(
+    params: RestateServerParams,
+    kill_signal_rx: tokio::sync::broadcast::Receiver<()>,
+) -> Result<(), CommonError> {
     match params {
         RestateServerParams::Local(params) => {
             info!("Starting Restate server locally");
@@ -147,54 +152,85 @@ pub async fn start_restate_server(params: RestateServerParams, kill_signal_rx: t
     }
 }
 
-
-async fn start_restate_server_local(params: RestateServerLocalParams, kill_signal_rx: tokio::sync::broadcast::Receiver<()>) -> Result<(), CommonError> {
-
+async fn start_restate_server_local(
+    params: RestateServerLocalParams,
+    kill_signal_rx: tokio::sync::broadcast::Receiver<()>,
+) -> Result<(), CommonError> {
     if is_port_in_use(params.ingress_port).await? {
-        return Err(CommonError::Unknown(anyhow::anyhow!("Restate ingress address is in use (127.0.0.1:{})", params.ingress_port)));
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Restate ingress address is in use (127.0.0.1:{})",
+            params.ingress_port
+        )));
     }
     if is_port_in_use(params.admin_port).await? {
-        return Err(CommonError::Unknown(anyhow::anyhow!("Restate admin address is in use (127.0.0.1:{})", params.admin_port)));
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Restate admin address is in use (127.0.0.1:{})",
+            params.admin_port
+        )));
     }
     if is_port_in_use(params.advertised_node_port).await? {
-        return Err(CommonError::Unknown(anyhow::anyhow!("Restate advertised node address is in use (127.0.0.1:{})", params.advertised_node_port)));
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Restate advertised node address is in use (127.0.0.1:{})",
+            params.advertised_node_port
+        )));
     }
 
     // Delete Restate data directory if --clean flag is set
     if params.clean {
         let restate_data_dir = params.project_dir.join(".soma/restate-data");
         if restate_data_dir.exists() {
-            info!("Cleaning Restate data directory: {}", restate_data_dir.display());
-            std::fs::remove_dir_all(&restate_data_dir)
-                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to delete Restate data directory: {e}")))?;
+            info!(
+                "Cleaning Restate data directory: {}",
+                restate_data_dir.display()
+            );
+            std::fs::remove_dir_all(&restate_data_dir).map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "Failed to delete Restate data directory: {e}"
+                ))
+            })?;
             info!("Restate data directory deleted successfully");
         } else {
             info!("Restate data directory does not exist, skipping clean");
         }
     }
 
-    let mut cmd = Command::new("restate-server");
-    
+    // Ensure restate-server binary is available (use system binary or bundled one)
+    let restate_binary_path = restate_binary::ensure_restate_binary()?;
+    info!("Using restate-server binary: {}", restate_binary_path);
+
+    let mut cmd = Command::new(&restate_binary_path);
+
     cmd.arg("--log-filter")
         .arg("warn")
         .arg("--tracing-filter")
         .arg("warn")
         .arg("--base-dir")
-        .arg(params.project_dir.join(".soma/restate-data").display().to_string())
-        .env("RESTATE__INGRESS__BIND_ADDRESS", format!("127.0.0.1:{}", params.ingress_port))
-        .env("RESTATE__ADMIN__BIND_ADDRESS", format!("127.0.0.1:{}", params.admin_port))
-        .env("RESTATE__ADVERTISED_ADDRESS", format!("127.0.0.1:{}", params.advertised_node_port));
-    run_child_process(
-        "restate-server",
-        cmd,
-        Some(kill_signal_rx),
-        None,
-    )
-    .await?;
+        .arg(
+            params
+                .project_dir
+                .join(".soma/restate-data")
+                .display()
+                .to_string(),
+        )
+        .env(
+            "RESTATE__INGRESS__BIND_ADDRESS",
+            format!("127.0.0.1:{}", params.ingress_port),
+        )
+        .env(
+            "RESTATE__ADMIN__BIND_ADDRESS",
+            format!("127.0.0.1:{}", params.admin_port),
+        )
+        .env(
+            "RESTATE__ADVERTISED_ADDRESS",
+            format!("127.0.0.1:{}", params.advertised_node_port),
+        );
+    run_child_process("restate-server", cmd, Some(kill_signal_rx), None).await?;
     Ok(())
 }
 
-async fn start_restate_server_remote(_params: RestateServerRemoteParams) -> Result<(), CommonError> {
+async fn start_restate_server_remote(
+    _params: RestateServerRemoteParams,
+) -> Result<(), CommonError> {
     // TODO: should just perform a curl request to the admin address / ingress address to check health and client can connect.
 
     Ok(())

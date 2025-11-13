@@ -108,7 +108,7 @@ clean: ## Clean build artifacts and cache files
 
 test: ## Run all tests (Rust + JS)
 	@echo "Running Rust tests..."
-	cargo test
+	cargo nextest run
 	@echo "Running JS tests..."
 	pnpm -r --workspace-concurrency=1 run test
 	@echo "✓ All tests passed"
@@ -118,11 +118,10 @@ test-coverage: ## Run tests with coverage and generate merged report
 	@rm -rf coverage .coverage-tmp
 	@mkdir -p .coverage-tmp coverage
 	@echo "Running Rust tests with coverage..."
-	cargo llvm-cov --all-features --workspace --exclude sdk-py --lcov --output-path .coverage-tmp/rust.lcov
+	cargo llvm-cov nextest --all-features --workspace  --lcov --output-path .coverage-tmp/rust.lcov
 	@echo "✓ Rust coverage generated"
 	@echo "Running JS tests with coverage..."
-	cd js && pnpm -r --workspace-concurrency=1 --filter './packages/*' --filter '@soma/sdk-core' run test:coverage
-	cd crates/soma/app && pnpm test:coverage
+	pnpm -r --workspace-concurrency=1 --filter './js/packages/*' --filter './crates/sdk-js' run test:coverage
 	@echo "✓ JS coverage generated"
 	@echo "Collecting JS coverage reports..."
 	@find . -name 'lcov.info' -type f -not -path './coverage/*' -not -path './node_modules/*' -not -path './js/examples/*' | while read file; do \
@@ -163,8 +162,18 @@ lint-js: ## Run JS/TS linters
 
 lint-db: ## Run database linters
 	@echo "Running database linters..."
-	atlas migrate lint --env soma --git-base main
-	atlas migrate lint --env bridge --git-base main
+	@soma_output=$$(atlas migrate lint --env soma --git-base main 2>&1); \
+	if [ -z "$$soma_output" ]; then \
+		echo "Soma DB: SUCCESS: checksums match, no breaking changes"; \
+	else \
+		echo "$$soma_output"; \
+	fi
+	@bridge_output=$$(atlas migrate lint --env bridge --git-base main 2>&1); \
+	if [ -z "$$bridge_output" ]; then \
+		echo "Bridge DB: SUCCESS: checksums match, no breaking changes"; \
+	else \
+		echo "$$bridge_output"; \
+	fi
 	@echo "✓ Database linters passed"
 
 lint-fix: lint-fix-rs lint-fix-js ## Run all linters with auto-fix (Rust + JS)

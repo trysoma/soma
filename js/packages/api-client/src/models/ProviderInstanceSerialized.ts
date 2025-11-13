@@ -12,118 +12,140 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface ProviderInstanceSerialized
  */
 export interface ProviderInstanceSerialized {
-    /**
-     * 
-     * @type {Date}
-     * @memberof ProviderInstanceSerialized
-     */
-    createdAt: Date;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProviderInstanceSerialized
-     */
-    credentialControllerTypeId: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProviderInstanceSerialized
-     */
-    displayName: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProviderInstanceSerialized
-     */
-    id: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProviderInstanceSerialized
-     */
-    providerControllerTypeId: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProviderInstanceSerialized
-     */
-    resourceServerCredentialId: string;
-    /**
-     * 
-     * @type {Date}
-     * @memberof ProviderInstanceSerialized
-     */
-    updatedAt: Date;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProviderInstanceSerialized
-     */
-    userCredentialId: string;
+	/**
+	 *
+	 * @type {Date}
+	 * @memberof ProviderInstanceSerialized
+	 */
+	createdAt: Date;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof ProviderInstanceSerialized
+	 */
+	credentialControllerTypeId: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof ProviderInstanceSerialized
+	 */
+	displayName: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof ProviderInstanceSerialized
+	 */
+	id: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof ProviderInstanceSerialized
+	 */
+	providerControllerTypeId: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof ProviderInstanceSerialized
+	 */
+	resourceServerCredentialId: string;
+	/**
+	 *
+	 * @type {Date}
+	 * @memberof ProviderInstanceSerialized
+	 */
+	updatedAt: Date;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof ProviderInstanceSerialized
+	 */
+	userCredentialId: string;
 }
 
 /**
  * Check if a given object implements the ProviderInstanceSerialized interface.
  */
-export function instanceOfProviderInstanceSerialized(value: object): value is ProviderInstanceSerialized {
-    if (!('createdAt' in value) || value['createdAt'] === undefined) return false;
-    if (!('credentialControllerTypeId' in value) || value['credentialControllerTypeId'] === undefined) return false;
-    if (!('displayName' in value) || value['displayName'] === undefined) return false;
-    if (!('id' in value) || value['id'] === undefined) return false;
-    if (!('providerControllerTypeId' in value) || value['providerControllerTypeId'] === undefined) return false;
-    if (!('resourceServerCredentialId' in value) || value['resourceServerCredentialId'] === undefined) return false;
-    if (!('updatedAt' in value) || value['updatedAt'] === undefined) return false;
-    if (!('userCredentialId' in value) || value['userCredentialId'] === undefined) return false;
-    return true;
+export function instanceOfProviderInstanceSerialized(
+	value: object,
+): value is ProviderInstanceSerialized {
+	if (!("createdAt" in value) || value.createdAt === undefined) return false;
+	if (
+		!("credentialControllerTypeId" in value) ||
+		value.credentialControllerTypeId === undefined
+	)
+		return false;
+	if (!("displayName" in value) || value.displayName === undefined)
+		return false;
+	if (!("id" in value) || value.id === undefined) return false;
+	if (
+		!("providerControllerTypeId" in value) ||
+		value.providerControllerTypeId === undefined
+	)
+		return false;
+	if (
+		!("resourceServerCredentialId" in value) ||
+		value.resourceServerCredentialId === undefined
+	)
+		return false;
+	if (!("updatedAt" in value) || value.updatedAt === undefined) return false;
+	if (!("userCredentialId" in value) || value.userCredentialId === undefined)
+		return false;
+	return true;
 }
 
-export function ProviderInstanceSerializedFromJSON(json: any): ProviderInstanceSerialized {
-    return ProviderInstanceSerializedFromJSONTyped(json, false);
+export function ProviderInstanceSerializedFromJSON(
+	json: any,
+): ProviderInstanceSerialized {
+	return ProviderInstanceSerializedFromJSONTyped(json, false);
 }
 
-export function ProviderInstanceSerializedFromJSONTyped(json: any, ignoreDiscriminator: boolean): ProviderInstanceSerialized {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'createdAt': (new Date(json['created_at'])),
-        'credentialControllerTypeId': json['credential_controller_type_id'],
-        'displayName': json['display_name'],
-        'id': json['id'],
-        'providerControllerTypeId': json['provider_controller_type_id'],
-        'resourceServerCredentialId': json['resource_server_credential_id'],
-        'updatedAt': (new Date(json['updated_at'])),
-        'userCredentialId': json['user_credential_id'],
-    };
+export function ProviderInstanceSerializedFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): ProviderInstanceSerialized {
+	if (json == null) {
+		return json;
+	}
+	return {
+		createdAt: new Date(json.created_at),
+		credentialControllerTypeId: json.credential_controller_type_id,
+		displayName: json.display_name,
+		id: json.id,
+		providerControllerTypeId: json.provider_controller_type_id,
+		resourceServerCredentialId: json.resource_server_credential_id,
+		updatedAt: new Date(json.updated_at),
+		userCredentialId: json.user_credential_id,
+	};
 }
 
-export function ProviderInstanceSerializedToJSON(json: any): ProviderInstanceSerialized {
-    return ProviderInstanceSerializedToJSONTyped(json, false);
+export function ProviderInstanceSerializedToJSON(
+	json: any,
+): ProviderInstanceSerialized {
+	return ProviderInstanceSerializedToJSONTyped(json, false);
 }
 
-export function ProviderInstanceSerializedToJSONTyped(value?: ProviderInstanceSerialized | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function ProviderInstanceSerializedToJSONTyped(
+	value?: ProviderInstanceSerialized | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'created_at': ((value['createdAt']).toISOString()),
-        'credential_controller_type_id': value['credentialControllerTypeId'],
-        'display_name': value['displayName'],
-        'id': value['id'],
-        'provider_controller_type_id': value['providerControllerTypeId'],
-        'resource_server_credential_id': value['resourceServerCredentialId'],
-        'updated_at': ((value['updatedAt']).toISOString()),
-        'user_credential_id': value['userCredentialId'],
-    };
+	return {
+		created_at: value.createdAt.toISOString(),
+		credential_controller_type_id: value.credentialControllerTypeId,
+		display_name: value.displayName,
+		id: value.id,
+		provider_controller_type_id: value.providerControllerTypeId,
+		resource_server_credential_id: value.resourceServerCredentialId,
+		updated_at: value.updatedAt.toISOString(),
+		user_credential_id: value.userCredentialId,
+	};
 }
-

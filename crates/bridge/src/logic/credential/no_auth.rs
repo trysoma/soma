@@ -8,22 +8,21 @@ use shared::{
 };
 
 use crate::logic::{
-    ConfigurationSchema, EncryptionService, Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike, StaticCredentialConfigurationLike, StaticProviderCredentialControllerLike, UserCredentialLike
+    ConfigurationSchema, EncryptionService, Metadata, ProviderCredentialControllerLike,
+    ResourceServerCredentialLike, StaticCredentialConfigurationLike,
+    StaticProviderCredentialControllerLike, UserCredentialLike,
 };
 
 // ============================================================================
 // Static Credential Configuration
 // ============================================================================
 
-
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct NoAuthStaticCredentialConfiguration {
     pub metadata: Metadata,
 }
 
-impl StaticCredentialConfigurationLike
-    for NoAuthStaticCredentialConfiguration
-{
+impl StaticCredentialConfigurationLike for NoAuthStaticCredentialConfiguration {
     fn type_id(&self) -> &'static str {
         "static_no_auth"
     }
@@ -64,8 +63,6 @@ pub struct NoAuthUserCredential {
     pub metadata: Metadata,
 }
 
-
-
 impl UserCredentialLike for NoAuthUserCredential {
     fn type_id(&self) -> &'static str {
         "user_no_auth"
@@ -74,7 +71,6 @@ impl UserCredentialLike for NoAuthUserCredential {
     fn value(&self) -> WrappedJsonValue {
         WrappedJsonValue::new(json!(self))
     }
-
 }
 
 // ============================================================================
@@ -86,7 +82,6 @@ pub struct NoAuthController {
     pub static_credentials: NoAuthStaticCredentialConfiguration,
 }
 
-
 impl StaticProviderCredentialControllerLike for NoAuthController {
     fn static_type_id() -> &'static str {
         STATIC_TYPE_ID_NO_AUTH
@@ -95,8 +90,8 @@ impl StaticProviderCredentialControllerLike for NoAuthController {
 
 #[async_trait]
 impl ProviderCredentialControllerLike for NoAuthController {
-    fn static_credentials(&self) -> Box<dyn StaticCredentialConfigurationLike> {
-        Box::new(self.static_credentials.clone())
+    fn static_credentials(&self) -> &dyn StaticCredentialConfigurationLike {
+        &self.static_credentials
     }
 
     fn type_id(&self) -> &'static str {
@@ -113,12 +108,8 @@ impl ProviderCredentialControllerLike for NoAuthController {
 
     fn configuration_schema(&self) -> ConfigurationSchema {
         ConfigurationSchema {
-            resource_server: WrappedSchema::new(
-                schema_for!(NoAuthResourceServerCredential),
-            ),
-            user_credential: WrappedSchema::new(
-                schema_for!(NoAuthUserCredential),
-            ),
+            resource_server: WrappedSchema::new(schema_for!(NoAuthResourceServerCredential)),
+            user_credential: WrappedSchema::new(schema_for!(NoAuthUserCredential)),
         }
     }
 

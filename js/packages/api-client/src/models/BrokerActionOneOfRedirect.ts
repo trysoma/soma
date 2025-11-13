@@ -12,55 +12,63 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface BrokerActionOneOfRedirect
  */
 export interface BrokerActionOneOfRedirect {
-    /**
-     * 
-     * @type {string}
-     * @memberof BrokerActionOneOfRedirect
-     */
-    url: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof BrokerActionOneOfRedirect
+	 */
+	url: string;
 }
 
 /**
  * Check if a given object implements the BrokerActionOneOfRedirect interface.
  */
-export function instanceOfBrokerActionOneOfRedirect(value: object): value is BrokerActionOneOfRedirect {
-    if (!('url' in value) || value['url'] === undefined) return false;
-    return true;
+export function instanceOfBrokerActionOneOfRedirect(
+	value: object,
+): value is BrokerActionOneOfRedirect {
+	if (!("url" in value) || value.url === undefined) return false;
+	return true;
 }
 
-export function BrokerActionOneOfRedirectFromJSON(json: any): BrokerActionOneOfRedirect {
-    return BrokerActionOneOfRedirectFromJSONTyped(json, false);
+export function BrokerActionOneOfRedirectFromJSON(
+	json: any,
+): BrokerActionOneOfRedirect {
+	return BrokerActionOneOfRedirectFromJSONTyped(json, false);
 }
 
-export function BrokerActionOneOfRedirectFromJSONTyped(json: any, ignoreDiscriminator: boolean): BrokerActionOneOfRedirect {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'url': json['url'],
-    };
+export function BrokerActionOneOfRedirectFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): BrokerActionOneOfRedirect {
+	if (json == null) {
+		return json;
+	}
+	return {
+		url: json.url,
+	};
 }
 
-export function BrokerActionOneOfRedirectToJSON(json: any): BrokerActionOneOfRedirect {
-    return BrokerActionOneOfRedirectToJSONTyped(json, false);
+export function BrokerActionOneOfRedirectToJSON(
+	json: any,
+): BrokerActionOneOfRedirect {
+	return BrokerActionOneOfRedirectToJSONTyped(json, false);
 }
 
-export function BrokerActionOneOfRedirectToJSONTyped(value?: BrokerActionOneOfRedirect | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function BrokerActionOneOfRedirectToJSONTyped(
+	value?: BrokerActionOneOfRedirect | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'url': value['url'],
-    };
+	return {
+		url: value.url,
+	};
 }
-

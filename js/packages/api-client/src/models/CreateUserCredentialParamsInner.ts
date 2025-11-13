@@ -12,72 +12,88 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface CreateUserCredentialParamsInner
  */
 export interface CreateUserCredentialParamsInner {
-    /**
-     * 
-     * @type {string}
-     * @memberof CreateUserCredentialParamsInner
-     */
-    dataEncryptionKeyId: string;
-    /**
-     * 
-     * @type {{ [key: string]: any; }}
-     * @memberof CreateUserCredentialParamsInner
-     */
-    metadata?: { [key: string]: any; };
-    /**
-     * 
-     * @type {any}
-     * @memberof CreateUserCredentialParamsInner
-     */
-    userCredentialConfiguration: any | null;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof CreateUserCredentialParamsInner
+	 */
+	dataEncryptionKeyId: string;
+	/**
+	 *
+	 * @type {{ [key: string]: any; }}
+	 * @memberof CreateUserCredentialParamsInner
+	 */
+	metadata?: { [key: string]: any };
+	/**
+	 *
+	 * @type {any}
+	 * @memberof CreateUserCredentialParamsInner
+	 */
+	userCredentialConfiguration: any | null;
 }
 
 /**
  * Check if a given object implements the CreateUserCredentialParamsInner interface.
  */
-export function instanceOfCreateUserCredentialParamsInner(value: object): value is CreateUserCredentialParamsInner {
-    if (!('dataEncryptionKeyId' in value) || value['dataEncryptionKeyId'] === undefined) return false;
-    if (!('userCredentialConfiguration' in value) || value['userCredentialConfiguration'] === undefined) return false;
-    return true;
+export function instanceOfCreateUserCredentialParamsInner(
+	value: object,
+): value is CreateUserCredentialParamsInner {
+	if (
+		!("dataEncryptionKeyId" in value) ||
+		value.dataEncryptionKeyId === undefined
+	)
+		return false;
+	if (
+		!("userCredentialConfiguration" in value) ||
+		value.userCredentialConfiguration === undefined
+	)
+		return false;
+	return true;
 }
 
-export function CreateUserCredentialParamsInnerFromJSON(json: any): CreateUserCredentialParamsInner {
-    return CreateUserCredentialParamsInnerFromJSONTyped(json, false);
+export function CreateUserCredentialParamsInnerFromJSON(
+	json: any,
+): CreateUserCredentialParamsInner {
+	return CreateUserCredentialParamsInnerFromJSONTyped(json, false);
 }
 
-export function CreateUserCredentialParamsInnerFromJSONTyped(json: any, ignoreDiscriminator: boolean): CreateUserCredentialParamsInner {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'dataEncryptionKeyId': json['data_encryption_key_id'],
-        'metadata': json['metadata'] == null ? undefined : json['metadata'],
-        'userCredentialConfiguration': json['user_credential_configuration'],
-    };
+export function CreateUserCredentialParamsInnerFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): CreateUserCredentialParamsInner {
+	if (json == null) {
+		return json;
+	}
+	return {
+		dataEncryptionKeyId: json.data_encryption_key_id,
+		metadata: json.metadata == null ? undefined : json.metadata,
+		userCredentialConfiguration: json.user_credential_configuration,
+	};
 }
 
-export function CreateUserCredentialParamsInnerToJSON(json: any): CreateUserCredentialParamsInner {
-    return CreateUserCredentialParamsInnerToJSONTyped(json, false);
+export function CreateUserCredentialParamsInnerToJSON(
+	json: any,
+): CreateUserCredentialParamsInner {
+	return CreateUserCredentialParamsInnerToJSONTyped(json, false);
 }
 
-export function CreateUserCredentialParamsInnerToJSONTyped(value?: CreateUserCredentialParamsInner | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function CreateUserCredentialParamsInnerToJSONTyped(
+	value?: CreateUserCredentialParamsInner | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'data_encryption_key_id': value['dataEncryptionKeyId'],
-        'metadata': value['metadata'],
-        'user_credential_configuration': value['userCredentialConfiguration'],
-    };
+	return {
+		data_encryption_key_id: value.dataEncryptionKeyId,
+		metadata: value.metadata,
+		user_credential_configuration: value.userCredentialConfiguration,
+	};
 }
-

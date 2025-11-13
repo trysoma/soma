@@ -12,64 +12,76 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface EncryptCredentialConfigurationParamsInner
  */
 export interface EncryptCredentialConfigurationParamsInner {
-    /**
-     * 
-     * @type {string}
-     * @memberof EncryptCredentialConfigurationParamsInner
-     */
-    dataEncryptionKeyId: string;
-    /**
-     * 
-     * @type {any}
-     * @memberof EncryptCredentialConfigurationParamsInner
-     */
-    value: any | null;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof EncryptCredentialConfigurationParamsInner
+	 */
+	dataEncryptionKeyId: string;
+	/**
+	 *
+	 * @type {any}
+	 * @memberof EncryptCredentialConfigurationParamsInner
+	 */
+	value: any | null;
 }
 
 /**
  * Check if a given object implements the EncryptCredentialConfigurationParamsInner interface.
  */
-export function instanceOfEncryptCredentialConfigurationParamsInner(value: object): value is EncryptCredentialConfigurationParamsInner {
-    if (!('dataEncryptionKeyId' in value) || value['dataEncryptionKeyId'] === undefined) return false;
-    if (!('value' in value) || value['value'] === undefined) return false;
-    return true;
+export function instanceOfEncryptCredentialConfigurationParamsInner(
+	value: object,
+): value is EncryptCredentialConfigurationParamsInner {
+	if (
+		!("dataEncryptionKeyId" in value) ||
+		value.dataEncryptionKeyId === undefined
+	)
+		return false;
+	if (!("value" in value) || value.value === undefined) return false;
+	return true;
 }
 
-export function EncryptCredentialConfigurationParamsInnerFromJSON(json: any): EncryptCredentialConfigurationParamsInner {
-    return EncryptCredentialConfigurationParamsInnerFromJSONTyped(json, false);
+export function EncryptCredentialConfigurationParamsInnerFromJSON(
+	json: any,
+): EncryptCredentialConfigurationParamsInner {
+	return EncryptCredentialConfigurationParamsInnerFromJSONTyped(json, false);
 }
 
-export function EncryptCredentialConfigurationParamsInnerFromJSONTyped(json: any, ignoreDiscriminator: boolean): EncryptCredentialConfigurationParamsInner {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'dataEncryptionKeyId': json['data_encryption_key_id'],
-        'value': json['value'],
-    };
+export function EncryptCredentialConfigurationParamsInnerFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): EncryptCredentialConfigurationParamsInner {
+	if (json == null) {
+		return json;
+	}
+	return {
+		dataEncryptionKeyId: json.data_encryption_key_id,
+		value: json.value,
+	};
 }
 
-export function EncryptCredentialConfigurationParamsInnerToJSON(json: any): EncryptCredentialConfigurationParamsInner {
-    return EncryptCredentialConfigurationParamsInnerToJSONTyped(json, false);
+export function EncryptCredentialConfigurationParamsInnerToJSON(
+	json: any,
+): EncryptCredentialConfigurationParamsInner {
+	return EncryptCredentialConfigurationParamsInnerToJSONTyped(json, false);
 }
 
-export function EncryptCredentialConfigurationParamsInnerToJSONTyped(value?: EncryptCredentialConfigurationParamsInner | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function EncryptCredentialConfigurationParamsInnerToJSONTyped(
+	value?: EncryptCredentialConfigurationParamsInner | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'data_encryption_key_id': value['dataEncryptionKeyId'],
-        'value': value['value'],
-    };
+	return {
+		data_encryption_key_id: value.dataEncryptionKeyId,
+		value: value.value,
+	};
 }
-

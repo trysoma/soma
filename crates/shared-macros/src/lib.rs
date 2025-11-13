@@ -117,9 +117,7 @@ pub fn load_atlas_sql_migrations(input: TokenStream) -> TokenStream {
 
             // Check if this is an Atlas format migration
             if !contents.starts_with("-- atlas:txtar") {
-                panic!(
-                    "Migration file '{file_name}' must start with '-- atlas:txtar' header"
-                );
+                panic!("Migration file '{file_name}' must start with '-- atlas:txtar' header");
             }
 
             // Parse the Atlas txtar format
@@ -212,7 +210,8 @@ fn parse_atlas_txtar(contents: &str, filename: &str) -> (String, String) {
     let mut current_section: Option<String> = None;
     let mut current_content = Vec::new();
 
-    for line in lines.iter().skip(1) { // Skip the "-- atlas:txtar" header
+    for line in lines.iter().skip(1) {
+        // Skip the "-- atlas:txtar" header
         // Check if this is a section header (e.g., "-- migration.sql --")
         if line.starts_with("--") && line.ends_with("--") && line.contains(".sql") {
             // Save previous section if it exists
@@ -240,17 +239,19 @@ fn parse_atlas_txtar(contents: &str, filename: &str) -> (String, String) {
     }
 
     // Validate required sections
-    let migration_sql = sections.get("migration.sql")
-        .unwrap_or_else(|| panic!(
-            "Migration file '{filename}' must contain '-- migration.sql --' section"
-        ))
+    let migration_sql = sections
+        .get("migration.sql")
+        .unwrap_or_else(|| {
+            panic!("Migration file '{filename}' must contain '-- migration.sql --' section")
+        })
         .trim()
         .to_string();
 
-    let down_sql = sections.get("down.sql")
-        .unwrap_or_else(|| panic!(
-            "Migration file '{filename}' must contain '-- down.sql --' section"
-        ))
+    let down_sql = sections
+        .get("down.sql")
+        .unwrap_or_else(|| {
+            panic!("Migration file '{filename}' must contain '-- down.sql --' section")
+        })
         .trim()
         .to_string();
 

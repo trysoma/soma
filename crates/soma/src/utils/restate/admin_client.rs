@@ -293,45 +293,51 @@ impl AdminClient {
     }
 
     /// Get state from Restate using SQL API
-    pub async fn get_state(&self, service: &str, key: &str) -> Result<HashMap<String, String>, Error> {
+    pub async fn get_state(
+        &self,
+        service: &str,
+        key: &str,
+    ) -> Result<HashMap<String, String>, Error> {
         // Use Restate SQL API to query state
         let query = format!(
             "SELECT key, value_utf8, value FROM state WHERE service_name = '{}' AND service_key = '{}'",
             service.replace("'", "''"), // Escape single quotes
             key.replace("'", "''")
         );
-        
+
         // Use versioned URL for the query endpoint
         let query_url = self.versioned_url(["query"]);
-        
+
         info!("Querying state via SQL API: {}", query_url);
         info!("Query: {}", query);
-        
+
         #[derive(Serialize, Debug)]
         struct SqlQueryRequest {
             query: String,
         }
-        
-        let envelope: Envelope<SqlQueryResponse> = self.run_with_body(
-            reqwest::Method::POST,
-            query_url.clone(),
-            SqlQueryRequest { query },
-        ).await?;
-        
+
+        let envelope: Envelope<SqlQueryResponse> = self
+            .run_with_body(
+                reqwest::Method::POST,
+                query_url.clone(),
+                SqlQueryRequest { query },
+            )
+            .await?;
+
         // Check status code first before consuming the envelope
         let status = envelope.status_code();
         let url = envelope.url().clone();
-        
+
         // Get the raw response text
         let raw_body = envelope.into_text().await?;
-        
+
         // Handle non-success status codes
         if !status.is_success() {
             info!("Response from {} ({})", url, status);
             info!("  {}", raw_body);
             // Try to parse as ApiError body
-            let error_body = serde_json::from_str::<ApiErrorBody>(&raw_body)
-                .unwrap_or_else(|_| ApiErrorBody {
+            let error_body =
+                serde_json::from_str::<ApiErrorBody>(&raw_body).unwrap_or_else(|_| ApiErrorBody {
                     restate_code: None,
                     message: raw_body.clone(),
                 });
@@ -341,24 +347,28 @@ impl AdminClient {
                 body: error_body,
             })));
         }
-        
+
         // Handle empty responses (when query returns no rows)
         if raw_body.trim().is_empty() {
             warn!("Empty response from SQL query, returning empty state map");
             return Ok(HashMap::new());
         }
-        
+
         // Parse the JSON response
         let response: SqlQueryResponse = match serde_json::from_str(&raw_body) {
             Ok(r) => r,
             Err(e) => {
-                warn!("Failed to parse SQL query response: {}. Raw body: {}", e, raw_body);
+                warn!(
+                    "Failed to parse SQL query response: {}. Raw body: {}",
+                    e, raw_body
+                );
                 return Err(Error::Serialization(e));
             }
         };
-        
+
         // Convert rows to HashMap, parsing JSON strings from value_utf8
-        let state_map: HashMap<String, String> = response.rows
+        let state_map: HashMap<String, String> = response
+            .rows
             .into_iter()
             .map(|row| {
                 // Parse the JSON-encoded string to get the actual value
@@ -368,7 +378,7 @@ impl AdminClient {
                 (row.key, parsed_value)
             })
             .collect();
-        
+
         // Return the value for the requested state_key
         Ok(state_map)
     }

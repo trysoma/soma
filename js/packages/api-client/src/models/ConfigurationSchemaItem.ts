@@ -12,64 +12,74 @@
  * Do not edit the class manually.
  */
 
-import { mapValues } from '../runtime';
 /**
- * 
+ *
  * @export
  * @interface ConfigurationSchemaItem
  */
 export interface ConfigurationSchemaItem {
-    /**
-     * 
-     * @type {{ [key: string]: any; }}
-     * @memberof ConfigurationSchemaItem
-     */
-    resourceServer: { [key: string]: any; };
-    /**
-     * 
-     * @type {{ [key: string]: any; }}
-     * @memberof ConfigurationSchemaItem
-     */
-    userCredential: { [key: string]: any; };
+	/**
+	 *
+	 * @type {{ [key: string]: any; }}
+	 * @memberof ConfigurationSchemaItem
+	 */
+	resourceServer: { [key: string]: any };
+	/**
+	 *
+	 * @type {{ [key: string]: any; }}
+	 * @memberof ConfigurationSchemaItem
+	 */
+	userCredential: { [key: string]: any };
 }
 
 /**
  * Check if a given object implements the ConfigurationSchemaItem interface.
  */
-export function instanceOfConfigurationSchemaItem(value: object): value is ConfigurationSchemaItem {
-    if (!('resourceServer' in value) || value['resourceServer'] === undefined) return false;
-    if (!('userCredential' in value) || value['userCredential'] === undefined) return false;
-    return true;
+export function instanceOfConfigurationSchemaItem(
+	value: object,
+): value is ConfigurationSchemaItem {
+	if (!("resourceServer" in value) || value.resourceServer === undefined)
+		return false;
+	if (!("userCredential" in value) || value.userCredential === undefined)
+		return false;
+	return true;
 }
 
-export function ConfigurationSchemaItemFromJSON(json: any): ConfigurationSchemaItem {
-    return ConfigurationSchemaItemFromJSONTyped(json, false);
+export function ConfigurationSchemaItemFromJSON(
+	json: any,
+): ConfigurationSchemaItem {
+	return ConfigurationSchemaItemFromJSONTyped(json, false);
 }
 
-export function ConfigurationSchemaItemFromJSONTyped(json: any, ignoreDiscriminator: boolean): ConfigurationSchemaItem {
-    if (json == null) {
-        return json;
-    }
-    return {
-        
-        'resourceServer': json['resource_server'],
-        'userCredential': json['user_credential'],
-    };
+export function ConfigurationSchemaItemFromJSONTyped(
+	json: any,
+	_ignoreDiscriminator: boolean,
+): ConfigurationSchemaItem {
+	if (json == null) {
+		return json;
+	}
+	return {
+		resourceServer: json.resource_server,
+		userCredential: json.user_credential,
+	};
 }
 
-export function ConfigurationSchemaItemToJSON(json: any): ConfigurationSchemaItem {
-    return ConfigurationSchemaItemToJSONTyped(json, false);
+export function ConfigurationSchemaItemToJSON(
+	json: any,
+): ConfigurationSchemaItem {
+	return ConfigurationSchemaItemToJSONTyped(json, false);
 }
 
-export function ConfigurationSchemaItemToJSONTyped(value?: ConfigurationSchemaItem | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+export function ConfigurationSchemaItemToJSONTyped(
+	value?: ConfigurationSchemaItem | null,
+	_ignoreDiscriminator: boolean = false,
+): any {
+	if (value == null) {
+		return value;
+	}
 
-    return {
-        
-        'resource_server': value['resourceServer'],
-        'user_credential': value['userCredential'],
-    };
+	return {
+		resource_server: value.resourceServer,
+		user_credential: value.userCredential,
+	};
 }
-

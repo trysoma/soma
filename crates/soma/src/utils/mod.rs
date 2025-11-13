@@ -1,13 +1,12 @@
-
 pub mod config;
 pub(crate) mod restate;
+pub(crate) mod restate_binary;
 pub(crate) mod soma_agent_definition;
 
 use std::path::PathBuf;
 
 use shared::error::CommonError;
 use tokio::net::TcpListener;
-
 
 pub fn construct_src_dir_absolute(src_dir: Option<PathBuf>) -> Result<PathBuf, CommonError> {
     let cwd = std::env::current_dir()?;
@@ -22,7 +21,6 @@ pub fn construct_src_dir_absolute(src_dir: Option<PathBuf>) -> Result<PathBuf, C
     Ok(src_dir)
 }
 
-
 pub async fn is_port_in_use(port: u16) -> Result<bool, CommonError> {
     match TcpListener::bind(("127.0.0.1", port)).await {
         Ok(listener) => {
@@ -33,8 +31,10 @@ pub async fn is_port_in_use(port: u16) -> Result<bool, CommonError> {
             if e.kind() == std::io::ErrorKind::AddrInUse {
                 Ok(true)
             } else {
-                Err(CommonError::Unknown(anyhow::anyhow!("Failed to check if port is in use: {e:?}")))
+                Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Failed to check if port is in use: {e:?}"
+                )))
             }
-        },
+        }
     }
 }

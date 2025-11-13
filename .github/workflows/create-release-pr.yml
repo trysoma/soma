@@ -1,0 +1,23 @@
+# Example workflow for creating changelog PRs with changie-create-pr
+# This workflow runs when PRs are merged to main and creates a new PR with version bump
+
+name: Create Release PR
+
+on:
+  workflow_dispatch:
+    
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          # Use bot PAT to allow pushing to protected branches
+          token: ${{ secrets.TRY_SOMA_BOT_TOKEN }}
+
+      - name: Create release PR
+        uses: trysoma/github-actions/changie-create-pr@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          bot-token: ${{ secrets.TRY_SOMA_BOT_TOKEN }}

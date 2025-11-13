@@ -16,7 +16,7 @@ export * from './apis/index{{importFileExtension}}';
 export * from './models/index{{importFileExtension}}';
 {{/models.0}}
 
-import { Configuration } from '@soma/sdk/bridge';
+import { Configuration } from '@trysoma/sdk/bridge';
 import { DefaultApi } from './apis/DefaultApi';
 export const bridge = ()=> new DefaultApi(new Configuration({
     basePath: process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000',

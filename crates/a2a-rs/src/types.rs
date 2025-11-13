@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use utoipa::{PartialSchema, ToSchema};
 
 use crate::errors::A2aServerError;
-
 include!(concat!(env!("OUT_DIR"), "/a2a_types.rs"));
 
 pub type TaskId = String;

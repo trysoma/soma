@@ -28,7 +28,6 @@ pub struct FunctionController {
     pub output: String,
 }
 
-
 #[napi]
 pub enum ProviderCredentialController {
     NoAuth,

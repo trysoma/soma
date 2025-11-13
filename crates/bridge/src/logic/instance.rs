@@ -5,23 +5,31 @@ use serde::{Deserialize, Serialize};
 use shared::{
     error::CommonError,
     primitives::{
-        PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4,
+        PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
+        WrappedUuidV4,
     },
 };
 use tracing::info;
 use utoipa::{
     IntoParams, ToSchema,
-    openapi::{Components, Content, HttpMethod, ObjectBuilder, OpenApi, Paths, Ref, RefOr, Required, Response, Type, path::Operation, request_body::RequestBody, schema::SchemaType},
+    openapi::{
+        Components, Content, HttpMethod, ObjectBuilder, OpenApi, Paths, Ref, RefOr, Required,
+        Response, Type, path::Operation, request_body::RequestBody, schema::SchemaType,
+    },
 };
 
 use crate::{
     logic::{
-        FunctionControllerLike, InvokeResult, OnConfigChangeEvt, OnConfigChangeTx, ProviderControllerLike, controller::{
+        FunctionControllerLike, InvokeResult, OnConfigChangeEvt, OnConfigChangeTx,
+        ProviderControllerLike,
+        controller::{
             FunctionControllerSerialized, PROVIDER_REGISTRY, ProviderControllerSerialized,
             ProviderCredentialControllerSerialized, WithCredentialControllerTypeId,
             WithFunctionControllerTypeId, WithProviderControllerTypeId, get_credential_controller,
             get_function_controller, get_provider_controller,
-        }, credential::{ResourceServerCredentialSerialized, UserCredentialSerialized}, encryption::{EnvelopeEncryptionKeyContents, get_crypto_service, get_decryption_service}
+        },
+        credential::{ResourceServerCredentialSerialized, UserCredentialSerialized},
+        encryption::{EnvelopeEncryptionKeyContents, get_crypto_service, get_decryption_service},
     },
     repository::ProviderRepositoryLike,
     router::bridge::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY},
@@ -322,54 +330,80 @@ pub async fn get_function_instances_openapi_spec(
         page_size: 1000,
         next_page_token: None,
     };
-    let mut components = Components::builder()
-        .schema("Error", utoipa::openapi::ObjectBuilder::new()
+    let mut components = Components::builder().schema(
+        "Error",
+        utoipa::openapi::ObjectBuilder::new()
             .title(Some("Error"))
-            .property("message", RefOr::T(
-                utoipa::openapi::schema::Schema::Object(ObjectBuilder::new()
-                    .schema_type(SchemaType::Type(Type::String))
-                    .build()
-                )
-            ))
-    
-        );
+            .property(
+                "message",
+                RefOr::T(utoipa::openapi::schema::Schema::Object(
+                    ObjectBuilder::new()
+                        .schema_type(SchemaType::Type(Type::String))
+                        .build(),
+                )),
+            ),
+    );
     loop {
         let repo_resp = repo
             .list_provider_instances(&pagination, None, None)
             .await?;
         for provider_instance in repo_resp.items {
-            let provider_controller = get_provider_controller(&provider_instance.provider_instance.provider_controller_type_id)?;
+            let provider_controller = get_provider_controller(
+                &provider_instance
+                    .provider_instance
+                    .provider_controller_type_id,
+            )?;
             for function_instance in provider_instance.functions {
-                let function_controller = get_function_controller(&provider_controller, &function_instance.function_controller_type_id)?;
+                let function_controller = get_function_controller(
+                    &provider_controller,
+                    &function_instance.function_controller_type_id,
+                )?;
 
                 // Schema names for this function
-                let params_schema_name = format!("{}{}Params",
-                    provider_instance.provider_instance.provider_controller_type_id,
-                    function_instance.function_controller_type_id);
-                let response_schema_name = format!("{}{}Response",
-                    provider_instance.provider_instance.provider_controller_type_id,
-                    function_instance.function_controller_type_id);
+                let params_schema_name = format!(
+                    "{}{}Params",
+                    provider_instance
+                        .provider_instance
+                        .provider_controller_type_id,
+                    function_instance.function_controller_type_id
+                );
+                let response_schema_name = format!(
+                    "{}{}Response",
+                    provider_instance
+                        .provider_instance
+                        .provider_controller_type_id,
+                    function_instance.function_controller_type_id
+                );
                 // Wrapper schema name that matches InvokeFunctionParamsInner structure
                 let wrapper_schema_name = format!("{params_schema_name}Wrapper");
 
                 // Convert params schema: schemars::Schema -> OpenAPI schema
                 let params_schema = function_controller.parameters();
                 let params_json_schema = params_schema.get_inner().as_value();
-                let (params_openapi_json, params_defs) = convert_jsonschema_to_openapi(
-                    params_json_schema,
-                    &params_schema_name,
-                )?;
-                info!("Params OpenAPI schema for {}: {}", params_schema_name, params_openapi_json);
+                let (params_openapi_json, params_defs) =
+                    convert_jsonschema_to_openapi(params_json_schema, &params_schema_name)?;
+                info!(
+                    "Params OpenAPI schema for {}: {}",
+                    params_schema_name, params_openapi_json
+                );
 
                 // Deserialize JSON Value into utoipa Schema
-                let params_utoipa_schema: utoipa::openapi::schema::Schema = serde_json::from_value(params_openapi_json)
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize params schema: {e}")))?;
+                let params_utoipa_schema: utoipa::openapi::schema::Schema =
+                    serde_json::from_value(params_openapi_json).map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to deserialize params schema: {e}"
+                        ))
+                    })?;
                 components = components.schema(params_schema_name.clone(), params_utoipa_schema);
 
                 // Add extracted definitions to components
                 for (def_name, def_json) in params_defs {
-                    let def_utoipa_schema: utoipa::openapi::schema::Schema = serde_json::from_value(def_json)
-                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize def schema {def_name}: {e}")))?;
+                    let def_utoipa_schema: utoipa::openapi::schema::Schema =
+                        serde_json::from_value(def_json).map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to deserialize def schema {def_name}: {e}"
+                            ))
+                        })?;
                     components = components.schema(def_name, def_utoipa_schema);
                 }
 
@@ -379,7 +413,7 @@ pub async fn get_function_instances_openapi_spec(
                     .title(Some(&wrapper_schema_name))
                     .property(
                         "params",
-                        RefOr::Ref(Ref::from_schema_name(&params_schema_name))
+                        RefOr::Ref(Ref::from_schema_name(&params_schema_name)),
                     )
                     .required("params")
                     .build();
@@ -388,21 +422,31 @@ pub async fn get_function_instances_openapi_spec(
                 // Convert response schema: schemars::Schema -> OpenAPI schema
                 let response_schema = function_controller.output();
                 let response_json_schema = response_schema.get_inner().as_value();
-                let (response_openapi_json, response_defs) = convert_jsonschema_to_openapi(
-                    response_json_schema,
-                    &response_schema_name,
-                )?;
-                info!("Response OpenAPI schema for {}: {}", response_schema_name, response_openapi_json);
+                let (response_openapi_json, response_defs) =
+                    convert_jsonschema_to_openapi(response_json_schema, &response_schema_name)?;
+                info!(
+                    "Response OpenAPI schema for {}: {}",
+                    response_schema_name, response_openapi_json
+                );
 
                 // Deserialize JSON Value into utoipa Schema
-                let response_utoipa_schema: utoipa::openapi::schema::Schema = serde_json::from_value(response_openapi_json)
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize response schema: {e}")))?;
-                components = components.schema(response_schema_name.clone(), response_utoipa_schema);
+                let response_utoipa_schema: utoipa::openapi::schema::Schema =
+                    serde_json::from_value(response_openapi_json).map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to deserialize response schema: {e}"
+                        ))
+                    })?;
+                components =
+                    components.schema(response_schema_name.clone(), response_utoipa_schema);
 
                 // Add extracted definitions to components
                 for (def_name, def_json) in response_defs {
-                    let def_utoipa_schema: utoipa::openapi::schema::Schema = serde_json::from_value(def_json)
-                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to deserialize def schema {def_name}: {e}")))?;
+                    let def_utoipa_schema: utoipa::openapi::schema::Schema =
+                        serde_json::from_value(def_json).map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to deserialize def schema {def_name}: {e}"
+                            ))
+                        })?;
                     components = components.schema(def_name, def_utoipa_schema);
                 }
 
@@ -420,31 +464,54 @@ pub async fn get_function_instances_openapi_spec(
                         )))
                         .operation_id(Some(format!(
                             "invoke-{}-{}",
-                            sanitize_display_name(&provider_instance.provider_instance.display_name),
+                            sanitize_display_name(
+                                &provider_instance.provider_instance.display_name
+                            ),
                             function_instance.function_controller_type_id
                         )))
                         .request_body(Some(
                             RequestBody::builder()
                                 .required(Some(Required::True))
-                                .content("application/json", Content::builder()
-                                    .schema(Some(RefOr::Ref(Ref::from_schema_name(&wrapper_schema_name))))
-                                    .build())
-                                .build()
+                                .content(
+                                    "application/json",
+                                    Content::builder()
+                                        .schema(Some(RefOr::Ref(Ref::from_schema_name(
+                                            &wrapper_schema_name,
+                                        ))))
+                                        .build(),
+                                )
+                                .build(),
                         ))
-                        .response("200", Response::builder()
-                            .description("Invoke function")
-                            .content("application/json", Content::builder()
-                                .schema(Some(RefOr::Ref(Ref::from_schema_name(format!("{}{}Response", provider_instance.provider_instance.provider_controller_type_id, function_instance.function_controller_type_id)))))
-                                .build())
-                            .build()
+                        .response(
+                            "200",
+                            Response::builder()
+                                .description("Invoke function")
+                                .content(
+                                    "application/json",
+                                    Content::builder()
+                                        .schema(Some(RefOr::Ref(Ref::from_schema_name(format!(
+                                            "{}{}Response",
+                                            provider_instance
+                                                .provider_instance
+                                                .provider_controller_type_id,
+                                            function_instance.function_controller_type_id
+                                        )))))
+                                        .build(),
+                                )
+                                .build(),
                         )
                         // TODO: map 500 to actual runtime error response
-                        .response("500", Response::builder()
-                            .description("Internal Server Error")
-                            .content("application/json", Content::builder()
-                                .schema(Some(RefOr::Ref(Ref::from_schema_name("Error"))))
-                                .build())
-                            .build()
+                        .response(
+                            "500",
+                            Response::builder()
+                                .description("Internal Server Error")
+                                .content(
+                                    "application/json",
+                                    Content::builder()
+                                        .schema(Some(RefOr::Ref(Ref::from_schema_name("Error"))))
+                                        .build(),
+                                )
+                                .build(),
                         )
                         .build(),
                 );
@@ -1010,7 +1077,7 @@ pub async fn invoke_function(
         .invoke(
             &decryption_service,
             &credential_controller,
-            &static_credentials,
+            static_credentials,
             &function_instance_with_credentials.resource_server_credential,
             &function_instance_with_credentials.user_credential,
             params.inner.inner.params,
@@ -1155,7 +1222,10 @@ mod tests {
 
         // Test mixed characters
         assert_eq!(sanitize_display_name("My Provider #1!"), "My-Provider-1");
-        assert_eq!(sanitize_display_name("provider_name@2024"), "providername2024");
+        assert_eq!(
+            sanitize_display_name("provider_name@2024"),
+            "providername2024"
+        );
 
         // Test edge cases
         assert_eq!(sanitize_display_name(""), "");
@@ -1179,7 +1249,10 @@ mod tests {
         assert!(defs.is_empty());
         assert_eq!(converted.get("$schema"), None); // Should be removed
         assert_eq!(converted.get("title"), None); // Should be removed
-        assert_eq!(converted.get("type").and_then(|v| v.as_str()), Some("object"));
+        assert_eq!(
+            converted.get("type").and_then(|v| v.as_str()),
+            Some("object")
+        );
 
         // Test schema with $defs
         let schema_with_defs = serde_json::json!({
@@ -1234,14 +1307,19 @@ mod tests {
             }
         });
 
-        let (converted, defs) = convert_jsonschema_to_openapi(&schema_with_nested_defs, "Nested").unwrap();
+        let (_converted, defs) =
+            convert_jsonschema_to_openapi(&schema_with_nested_defs, "Nested").unwrap();
         assert_eq!(defs.len(), 2);
 
         // Find the Person definition
-        let person_def = defs.iter().find(|(name, _)| name == "Nested_Person").unwrap();
+        let person_def = defs
+            .iter()
+            .find(|(name, _)| name == "Nested_Person")
+            .unwrap();
 
         // Check that the nested reference in Person was updated
-        let address_ref = person_def.1
+        let address_ref = person_def
+            .1
             .get("properties")
             .and_then(|p| p.get("address"))
             .and_then(|a| a.get("$ref"))

@@ -23,7 +23,6 @@ use shared::primitives::WrappedSchema;
 
 use shared::error::CommonError;
 
-
 /// Soma provider controller that provides soma-specific functions
 pub struct DynamicProviderController {
     type_id: String,
@@ -51,7 +50,13 @@ impl DynamicProviderController {
             name: params.name,
             documentation: params.documentation,
             categories: params.categories,
-            functions: params.functions.into_iter().map(|f| Arc::new(DynamicFunctionController::new(f)) as Arc<dyn FunctionControllerLike>).collect(),
+            functions: params
+                .functions
+                .into_iter()
+                .map(|f| {
+                    Arc::new(DynamicFunctionController::new(f)) as Arc<dyn FunctionControllerLike>
+                })
+                .collect(),
             credential_controllers: vec![Arc::new(NoAuthController {
                 static_credentials: NoAuthStaticCredentialConfiguration {
                     metadata: Metadata::new(),
@@ -162,7 +167,7 @@ impl FunctionControllerLike for DynamicFunctionController {
         &self,
         decryption_service: &DecryptionService,
         credential_controller: &Arc<dyn ProviderCredentialControllerLike>,
-        _static_credentials: &Box<dyn StaticCredentialConfigurationLike>,
+        _static_credentials: &dyn StaticCredentialConfigurationLike,
         resource_server_credential: &ResourceServerCredentialSerialized,
         user_credential: &UserCredentialSerialized,
         params: WrappedJsonValue,
@@ -226,8 +231,8 @@ impl FunctionControllerLike for DynamicFunctionController {
         };
 
         // Make gRPC call to SDK server to invoke the function
-        use crate::commands::dev::runtime::grpc_client;
         use crate::commands::dev::runtime::DEFAULT_SOMA_SERVER_SOCK;
+        use crate::commands::dev::runtime::grpc_client;
 
         tracing::info!(
             "Invoking SDK function: provider={}, function={}, credential_type={}",
@@ -239,12 +244,16 @@ impl FunctionControllerLike for DynamicFunctionController {
         // Create gRPC client
         let mut client = grpc_client::create_unix_socket_client(DEFAULT_SOMA_SERVER_SOCK)
             .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to connect to SDK server: {e}")))?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to connect to SDK server: {e}"))
+            })?;
 
-        let credentials_json = serde_json::to_string(&credentials)
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to serialize credentials: {e}")))?;
-        let parameters_json = serde_json::to_string(params.get_inner())
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to serialize parameters: {e}")))?;
+        let credentials_json = serde_json::to_string(&credentials).map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to serialize credentials: {e}"))
+        })?;
+        let parameters_json = serde_json::to_string(params.get_inner()).map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to serialize parameters: {e}"))
+        })?;
 
         tracing::debug!(
             "SDK function call details: credentials={}, parameters={}",
@@ -262,10 +271,9 @@ impl FunctionControllerLike for DynamicFunctionController {
         });
 
         // Call the SDK server
-        let response = client
-            .invoke_function(request)
-            .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("gRPC invoke_function failed: {e}")))?;
+        let response = client.invoke_function(request).await.map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("gRPC invoke_function failed: {e}"))
+        })?;
 
         let result = response.into_inner();
 

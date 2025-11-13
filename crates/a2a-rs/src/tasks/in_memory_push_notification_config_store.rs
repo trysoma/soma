@@ -21,18 +21,18 @@ pub struct InMemoryPushNotificationConfigStore {
 impl PushNotificationConfigStore for InMemoryPushNotificationConfigStore {
     async fn set_info(
         &self,
-        task_id: &String,
+        task_id: &str,
         notification_config: &PushNotificationConfig,
     ) -> Result<(), A2aServerError> {
         let mut infos = self.push_notification_infos.write().await;
 
         // Get or create the vector for this task_id
-        let configs = infos.entry(task_id.clone()).or_insert_with(Vec::new);
+        let configs = infos.entry(task_id.to_string()).or_insert_with(Vec::new);
 
         // Set the id if it's None
         let mut config_to_store = notification_config.clone();
         if config_to_store.id.is_none() {
-            config_to_store.id = Some(task_id.clone());
+            config_to_store.id = Some(task_id.to_string());
         }
 
         // Remove existing config with same id if it exists
@@ -50,10 +50,7 @@ impl PushNotificationConfigStore for InMemoryPushNotificationConfigStore {
         Ok(())
     }
 
-    async fn get_info(
-        &self,
-        task_id: &String,
-    ) -> Result<Vec<PushNotificationConfig>, A2aServerError> {
+    async fn get_info(&self, task_id: &str) -> Result<Vec<PushNotificationConfig>, A2aServerError> {
         debug!(
             "Attempting to get push notification configs for task: {}",
             task_id
@@ -76,7 +73,7 @@ impl PushNotificationConfigStore for InMemoryPushNotificationConfigStore {
 
     async fn delete_info(
         &self,
-        task_id: &String,
+        task_id: &str,
         config_id: Option<&String>,
     ) -> Result<(), A2aServerError> {
         debug!(
@@ -85,7 +82,8 @@ impl PushNotificationConfigStore for InMemoryPushNotificationConfigStore {
         );
         let mut infos = self.push_notification_infos.write().await;
 
-        let config_id_to_delete = config_id.unwrap_or(task_id);
+        let task_id_str = task_id.to_string();
+        let config_id_to_delete = config_id.unwrap_or(&task_id_str);
 
         if let Some(configs) = infos.get_mut(task_id) {
             let initial_len = configs.len();

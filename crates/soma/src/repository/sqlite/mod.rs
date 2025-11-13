@@ -1,7 +1,12 @@
 #![allow(non_camel_case_types)]
 mod raw_impl;
 
-include!("raw.generated.rs");
+#[allow(clippy::all)]
+mod generated {
+    include!("raw.generated.rs");
+}
+
+pub use generated::*;
 
 use crate::logic::TaskWithDetails;
 use crate::repository::{
@@ -16,8 +21,8 @@ use shared::{
         decode_pagination_token,
     },
 };
-use std::collections::BTreeMap;
 use shared_macros::load_atlas_sql_migrations;
+use std::collections::BTreeMap;
 
 #[derive(Clone)]
 pub struct Repository {
@@ -132,8 +137,7 @@ impl TaskRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Result<Vec<Task>, CommonError> =
-            rows.into_iter().map(Task::try_from).collect();
+        let items: Result<Vec<Task>, CommonError> = rows.into_iter().map(Task::try_from).collect();
         let items = items?;
 
         Ok(PaginatedResponse::from_items_with_extra(
@@ -238,8 +242,7 @@ impl TaskRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Result<Vec<Task>, CommonError> =
-            rows.into_iter().map(Task::try_from).collect();
+        let items: Result<Vec<Task>, CommonError> = rows.into_iter().map(Task::try_from).collect();
         let items = items?;
 
         Ok(PaginatedResponse::from_items_with_extra(
@@ -290,10 +293,8 @@ impl TaskRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Result<Vec<TaskTimelineItem>, CommonError> = rows
-            .into_iter()
-            .map(TaskTimelineItem::try_from)
-            .collect();
+        let items: Result<Vec<TaskTimelineItem>, CommonError> =
+            rows.into_iter().map(TaskTimelineItem::try_from).collect();
         let items = items?;
 
         Ok(PaginatedResponse::from_items_with_extra(
@@ -805,11 +806,13 @@ mod tests {
         let created_at = WrappedChronoDateTime::now();
 
         // Test all status transitions
-        let statuses = [TaskStatus::Submitted,
+        let statuses = [
+            TaskStatus::Submitted,
             TaskStatus::Working,
             TaskStatus::InputRequired,
             TaskStatus::Working,
-            TaskStatus::Completed];
+            TaskStatus::Completed,
+        ];
 
         // Create initial task
         let create_params = CreateTask {
@@ -1979,11 +1982,7 @@ mod tests {
 
         // The timestamp should be from the 101st message (index 100)
         // which is the message that triggers pagination
-        let message_101_created_at = task_with_details
-            .messages
-            .get(99)
-            .unwrap()
-            .created_at;
+        let _message_101_created_at = task_with_details.messages.get(99).unwrap().created_at;
 
         // The token should represent a timestamp that can be used for pagination
         assert!(parsed.unwrap().timestamp() > 0);

@@ -2,16 +2,28 @@ mod sqlite;
 
 use shared::{
     error::CommonError,
-    primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4},
+    primitives::{
+        PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
+        WrappedUuidV4,
+    },
 };
 
 #[allow(unused_imports)]
 pub use sqlite::Repository;
 
 use crate::logic::Metadata;
-use crate::logic::credential::{BrokerState, ResourceServerCredentialSerialized, UserCredentialSerialized};
-use crate::logic::encryption::{DataEncryptionKey, DataEncryptionKeyListItem, EncryptedDataEncryptionKey, EnvelopeEncryptionKeyId};
-use crate::logic::instance::{FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials, ProviderInstanceSerialized, ProviderInstanceSerializedWithCredentials, ProviderInstanceSerializedWithFunctions};
+use crate::logic::credential::{
+    BrokerState, ResourceServerCredentialSerialized, UserCredentialSerialized,
+};
+use crate::logic::encryption::{
+    DataEncryptionKey, DataEncryptionKeyListItem, EncryptedDataEncryptionKey,
+    EnvelopeEncryptionKeyId,
+};
+use crate::logic::instance::{
+    FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
+    ProviderInstanceSerialized, ProviderInstanceSerializedWithCredentials,
+    ProviderInstanceSerializedWithFunctions,
+};
 
 // Repository parameter structs for resource server credentials
 #[derive(Debug)]
@@ -204,10 +216,7 @@ pub trait ProviderRepositoryLike {
         id: &WrappedUuidV4,
     ) -> Result<Option<UserCredentialSerialized>, CommonError>;
 
-    async fn delete_user_credential(
-        &self,
-        id: &WrappedUuidV4,
-    ) -> Result<(), CommonError>;
+    async fn delete_user_credential(&self, id: &WrappedUuidV4) -> Result<(), CommonError>;
 
     async fn delete_resource_server_credential(
         &self,
@@ -246,10 +255,7 @@ pub trait ProviderRepositoryLike {
         user_credential_id: &WrappedUuidV4,
     ) -> Result<(), CommonError>;
 
-    async fn delete_provider_instance(
-        &self,
-        id: &str,
-    ) -> Result<(), CommonError>;
+    async fn delete_provider_instance(&self, id: &str) -> Result<(), CommonError>;
 
     async fn create_function_instance(
         &self,
@@ -277,20 +283,11 @@ pub trait ProviderRepositoryLike {
         provider_instance_id: &str,
     ) -> Result<Option<FunctionInstanceSerializedWithCredentials>, CommonError>;
 
-    async fn create_broker_state(
-        &self,
-        params: &CreateBrokerState,
-    ) -> Result<(), CommonError>;
+    async fn create_broker_state(&self, params: &CreateBrokerState) -> Result<(), CommonError>;
 
-    async fn get_broker_state_by_id(
-        &self,
-        id: &str,
-    ) -> Result<Option<BrokerState>, CommonError>;
+    async fn get_broker_state_by_id(&self, id: &str) -> Result<Option<BrokerState>, CommonError>;
 
-    async fn delete_broker_state(
-        &self,
-        id: &str,
-    ) -> Result<(), CommonError>;
+    async fn delete_broker_state(&self, id: &str) -> Result<(), CommonError>;
 
     async fn create_data_encryption_key(
         &self,
@@ -302,10 +299,7 @@ pub trait ProviderRepositoryLike {
         id: &str,
     ) -> Result<Option<DataEncryptionKey>, CommonError>;
 
-    async fn delete_data_encryption_key(
-        &self,
-        id: &str,
-    ) -> Result<(), CommonError>;
+    async fn delete_data_encryption_key(&self, id: &str) -> Result<(), CommonError>;
 
     async fn list_data_encryption_keys(
         &self,

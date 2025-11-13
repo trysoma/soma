@@ -6,7 +6,8 @@
 	],
 	"scripts": {
 		"lint": "biome check .",
-		"lint:fix": "biome check --write .",
+		"lint:ci": "biome ci .",
+		"lint:fix": "biome check --write --unsafe .",
 		"test": "echo 'Run tests in individual packages'",
 		"build": "pnpm --filter './packages/*' run build"
 	},

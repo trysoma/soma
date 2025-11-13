@@ -24,17 +24,12 @@ use rmcp::{
     },
 };
 use serde::{Deserialize, Serialize};
-use shared::{
-    adapters::mcp::StructuredResponse,
-    primitives::WrappedUuidV4,
-};
+use shared::{adapters::mcp::StructuredResponse, primitives::WrappedUuidV4};
 use utoipa::{PartialSchema, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
-    logic::{
-        ConnectionManager, WithTaskId, create_message, update_task_status,
-    },
+    logic::{ConnectionManager, WithTaskId, create_message, update_task_status},
     mcp,
     repository::Repository,
 };

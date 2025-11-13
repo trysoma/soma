@@ -1,4 +1,4 @@
 /* tslint:disable */
 /* eslint-disable */
-export * from './DefaultApi';
-export * from './McpApi';
+export * from "./DefaultApi";
+export * from "./McpApi";
