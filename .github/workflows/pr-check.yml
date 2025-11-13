@@ -316,12 +316,14 @@ jobs:
 
       - name: Download Rust coverage artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: rust-coverage-lcov
           path: ./coverage/rust/
 
       - name: Download JS coverage artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: js-coverage-lcov
           path: ./coverage/js/
@@ -373,31 +375,38 @@ jobs:
             echo "✗ JS coverage directory not found at ./coverage/js"
           fi
 
-          # Merge LCOV files
+          # Merge LCOV files or set defaults
           if [ -n "$lcov_files" ]; then
             echo "=== Merging coverage files: $lcov_files ==="
             npx lcov-result-merger $lcov_files ./coverage/merged/coverage.lcov
             echo "✓ Coverage merge completed"
+
+            # Parse coverage metrics from merged LCOV
+            coverage_summary=$(lcov --summary ./coverage/merged/coverage.lcov 2>&1 | grep -E "lines|functions|branches" | head -3)
+            echo "coverage_summary<<EOF" >> $GITHUB_OUTPUT
+            echo "$coverage_summary" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+
+            # Extract percentages
+            lines_coverage=$(echo "$coverage_summary" | grep "lines" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
+            functions_coverage=$(echo "$coverage_summary" | grep "functions" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
+            branches_coverage=$(echo "$coverage_summary" | grep "branches" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
+
+            echo "lines_coverage=$lines_coverage" >> $GITHUB_OUTPUT
+            echo "functions_coverage=$functions_coverage" >> $GITHUB_OUTPUT
+            echo "branches_coverage=$branches_coverage" >> $GITHUB_OUTPUT
+            echo "has_coverage=true" >> $GITHUB_OUTPUT
           else
-            echo "❌ ERROR: No coverage files found to merge!"
-            echo "Expected to find coverage files from Rust and JS jobs but none were found."
-            exit 1
+            echo "⚠ WARNING: No coverage files found to merge!"
+            echo "This may happen if the test jobs failed or didn't generate coverage."
+
+            # Set empty outputs
+            echo "coverage_summary=No coverage data available" >> $GITHUB_OUTPUT
+            echo "lines_coverage=0" >> $GITHUB_OUTPUT
+            echo "functions_coverage=0" >> $GITHUB_OUTPUT
+            echo "branches_coverage=0" >> $GITHUB_OUTPUT
+            echo "has_coverage=false" >> $GITHUB_OUTPUT
           fi
-
-          # Parse coverage metrics from merged LCOV
-          coverage_summary=$(lcov --summary ./coverage/merged/coverage.lcov 2>&1 | grep -E "lines|functions|branches" | head -3)
-          echo "coverage_summary<<EOF" >> $GITHUB_OUTPUT
-          echo "$coverage_summary" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-          # Extract percentages
-          lines_coverage=$(echo "$coverage_summary" | grep "lines" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
-          functions_coverage=$(echo "$coverage_summary" | grep "functions" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
-          branches_coverage=$(echo "$coverage_summary" | grep "branches" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
-
-          echo "lines_coverage=$lines_coverage" >> $GITHUB_OUTPUT
-          echo "functions_coverage=$functions_coverage" >> $GITHUB_OUTPUT
-          echo "branches_coverage=$branches_coverage" >> $GITHUB_OUTPUT
 
       - name: Get latest main branch workflow run
         id: get-main-run
@@ -406,18 +415,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # Get the latest successful workflow run on main branch
-          latest_run=$(gh api \
+          set +e  # Don't exit on error
+          response=$(gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${{ github.repository }}/actions/workflows/main-coverage.yml/runs?branch=main&status=success&per_page=1" \
-            --jq '.workflow_runs[0].id' 2>/dev/null || echo "")
+            "/repos/${{ github.repository }}/actions/workflows/main-coverage.yml/runs?branch=main&status=success&per_page=1" 2>&1)
+          exit_code=$?
+          set -e
 
-          if [ -z "$latest_run" ] || [ "$latest_run" = "null" ]; then
-            echo "⚠ No successful main coverage workflow run found (workflow may not exist yet)"
+          if [ $exit_code -ne 0 ]; then
+            echo "⚠ Could not find main coverage workflow (it may not exist yet on main branch)"
             echo "run_id=" >> $GITHUB_OUTPUT
           else
-            echo "✓ Found latest main coverage run: $latest_run"
-            echo "run_id=$latest_run" >> $GITHUB_OUTPUT
+            latest_run=$(echo "$response" | jq -r '.workflow_runs[0].id // empty')
+
+            if [ -z "$latest_run" ] || [ "$latest_run" = "null" ]; then
+              echo "⚠ No successful main coverage workflow run found"
+              echo "run_id=" >> $GITHUB_OUTPUT
+            else
+              echo "✓ Found latest main coverage run: $latest_run"
+              echo "run_id=$latest_run" >> $GITHUB_OUTPUT
+            fi
           fi
 
       - name: Download main branch coverage metrics
@@ -544,9 +562,24 @@ jobs:
           verbose: true
           token: ${{ secrets.CODECOV_TOKEN }}
 
+      - name: Comment coverage report on PR (no coverage data)
+        uses: thollander/actions-comment-pull-request@v3
+        if: always() && steps.merge-coverage.outputs.has_coverage == 'false'
+        with:
+          mode: upsert
+          comment-tag: coverage
+          message: |
+            ## 📊 Coverage Report
+
+            ⚠️ **No coverage data available**
+
+            The test jobs may have failed or not generated coverage data. Please check the workflow logs for details.
+
+            - [View Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
       - name: Comment coverage report on PR (no main baseline)
         uses: thollander/actions-comment-pull-request@v3
-        if: always() && steps.main-coverage.outputs.main_lines == ''
+        if: always() && steps.merge-coverage.outputs.has_coverage == 'true' && steps.main-coverage.outputs.main_lines == ''
         with:
           mode: upsert
           comment-tag: coverage
@@ -581,7 +614,7 @@ jobs:
 
       - name: Comment coverage report on PR (with comparison)
         uses: thollander/actions-comment-pull-request@v3
-        if: always() && steps.main-coverage.outputs.main_lines != ''
+        if: always() && steps.merge-coverage.outputs.has_coverage == 'true' && steps.main-coverage.outputs.main_lines != ''
         with:
           mode: upsert
           comment-tag: coverage
