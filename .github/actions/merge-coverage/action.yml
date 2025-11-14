@@ -25,6 +25,10 @@ inputs:
     description: 'Filename for merged coverage'
     required: false
     default: 'coverage.lcov'
+  codecov-token:
+    description: 'Codecov token for uploading coverage'
+    required: false
+    default: ''
 
 outputs:
   coverage_summary:
@@ -234,9 +238,9 @@ runs:
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
-      if: always()
+      if: always() && inputs.codecov-token != ''
       with:
         files: ${{ inputs.coverage-dir }}/${{ inputs.output-dir }}/${{ inputs.output-file }}
         fail_ci_if_error: false
         verbose: true
-        token: ${{ secrets.CODECOV_TOKEN }}
+        token: ${{ inputs.codecov-token }}

@@ -250,6 +250,8 @@ jobs:
       - name: Merge coverage reports
         id: merge-coverage
         uses: ./.github/actions/merge-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Compare coverage with main branch
         id: coverage-compare
