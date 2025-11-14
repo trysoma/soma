@@ -53,7 +53,7 @@ jobs:
           echo "⏭️ Release skipped - tag already exists"
 
   build-binaries:
-    name: Build Rust binaries
+    name: Build Soma binaries
     needs: release
     if: needs.release.outputs.skipped != 'true'
     runs-on: ${{ matrix.os }}

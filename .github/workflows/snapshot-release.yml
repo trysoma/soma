@@ -13,7 +13,10 @@ on:
       revision:
         description: 'Branch or tag to release from'
         required: true
-        type: string
+        type: choice
+        options:
+          - main
+          - develop
         default: 'main'
       semantic-version:
         description: 'Semantic version (leave empty to auto-calculate from changie)'
@@ -188,8 +191,8 @@ jobs:
           draft: false
           prerelease: true
 
-  build-napi:
-    name: Build NAPI bindings - ${{ matrix.settings.target }}
+  build-core-js-sdk:
+    name: Build Core JS SDK (NAPI) - ${{ matrix.settings.target }}
     needs: snapshot-release
     runs-on: ${{ matrix.settings.host }}
     strategy:
@@ -224,7 +227,7 @@ jobs:
           skip-tests: ${{ contains(matrix.settings.target, 'aarch64') && matrix.settings.host != 'macos-latest' }}
 
   build-soma:
-    name: Build Rust binaries
+    name: Build Soma binaries
     needs: snapshot-release
     runs-on: ${{ matrix.os }}
     strategy:
