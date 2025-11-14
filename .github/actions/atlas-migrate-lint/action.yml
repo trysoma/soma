@@ -1,0 +1,48 @@
+name: 'Atlas Database Migration Lint'
+description: 'Validates database migrations for breaking changes using Atlas CLI and comments results on PR'
+inputs:
+  env:
+    description: 'Atlas environment name (e.g., soma, bridge)'
+    required: true
+  git-base:
+    description: 'Base git branch to compare against'
+    required: false
+    default: 'main'
+  comment-tag:
+    description: 'Unique tag for the PR comment (e.g., soma-db-quality)'
+    required: true
+  display-name:
+    description: 'Display name for the report (e.g., "Soma Database", "Bridge Database")'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate ${{ inputs.display-name }} migrations for breaking changes
+      id: lint
+      if: always()
+      shell: bash
+      run: |
+        lint_output=$(atlas migrate lint --env ${{ inputs.env }} --git-base ${{ inputs.git-base }} 2>&1) || lint_exit=$?
+        if [ -z "$lint_output" ]; then
+          lint_output="SUCCESS: checksums match, no breaking changes"
+        fi
+        echo "lint_output<<EOF" >> $GITHUB_OUTPUT
+        echo "$lint_output" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        if [ -n "${lint_exit:-}" ]; then
+          echo "$lint_output"
+          exit $lint_exit
+        fi
+
+    - name: Comment ${{ inputs.display-name }} migration lint results on PR
+      uses: thollander/actions-comment-pull-request@v3
+      if: always()
+      with:
+        mode: upsert
+        comment-tag: ${{ inputs.comment-tag }}
+        message: |
+          ${{ inputs.display-name }} Migration Lint Report:
+          ```
+          ${{ steps.lint.outputs.lint_output }}
+          ```

@@ -1,0 +1,176 @@
+name: 'Compare Coverage with Main Branch'
+description: 'Fetches main branch coverage metrics and calculates coverage differences'
+inputs:
+  current-lines:
+    description: 'Current branch lines coverage percentage'
+    required: true
+  current-functions:
+    description: 'Current branch functions coverage percentage'
+    required: true
+  current-branches:
+    description: 'Current branch branches coverage percentage'
+    required: true
+  workflow-file:
+    description: 'Workflow file name that publishes coverage metrics'
+    required: false
+    default: 'main-coverage.yml'
+  artifact-name:
+    description: 'Name of the artifact containing coverage metrics'
+    required: false
+    default: 'main-coverage-metrics'
+  metrics-file:
+    description: 'Name of the JSON file with coverage metrics'
+    required: false
+    default: 'main-coverage.json'
+  download-dir:
+    description: 'Directory to download coverage metrics to'
+    required: false
+    default: '.coverage-main'
+
+outputs:
+  main_lines:
+    description: 'Main branch lines coverage percentage'
+    value: ${{ steps.parse-coverage.outputs.main_lines }}
+  main_functions:
+    description: 'Main branch functions coverage percentage'
+    value: ${{ steps.parse-coverage.outputs.main_functions }}
+  main_branches:
+    description: 'Main branch branches coverage percentage'
+    value: ${{ steps.parse-coverage.outputs.main_branches }}
+  lines_diff:
+    description: 'Lines coverage difference (formatted)'
+    value: ${{ steps.calculate-diff.outputs.lines_diff }}
+  functions_diff:
+    description: 'Functions coverage difference (formatted)'
+    value: ${{ steps.calculate-diff.outputs.functions_diff }}
+  branches_diff:
+    description: 'Branches coverage difference (formatted)'
+    value: ${{ steps.calculate-diff.outputs.branches_diff }}
+  has_baseline:
+    description: 'Whether main branch baseline was found'
+    value: ${{ steps.parse-coverage.outputs.has_baseline }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Get latest main branch workflow run
+      id: get-main-run
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        # Get the latest successful workflow run on main branch
+        set +e  # Don't exit on error
+        response=$(gh api \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "/repos/${{ github.repository }}/actions/workflows/${{ inputs.workflow-file }}/runs?branch=main&status=success&per_page=1" 2>&1)
+        exit_code=$?
+        set -e
+
+        if [ $exit_code -ne 0 ]; then
+          echo "⚠ Could not find main coverage workflow (it may not exist yet on main branch)"
+          echo "run_id=" >> $GITHUB_OUTPUT
+        else
+          latest_run=$(echo "$response" | jq -r '.workflow_runs[0].id // empty')
+
+          if [ -z "$latest_run" ] || [ "$latest_run" = "null" ]; then
+            echo "⚠ No successful main coverage workflow run found"
+            echo "run_id=" >> $GITHUB_OUTPUT
+          else
+            echo "✓ Found latest main coverage run: $latest_run"
+            echo "run_id=$latest_run" >> $GITHUB_OUTPUT
+          fi
+        fi
+
+    - name: Download main branch coverage metrics
+      if: steps.get-main-run.outputs.run_id != ''
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        mkdir -p ${{ inputs.download-dir }}
+
+        # Download the artifact from the main branch run
+        gh run download ${{ steps.get-main-run.outputs.run_id }} \
+          --name ${{ inputs.artifact-name }} \
+          --dir ${{ inputs.download-dir }}
+
+        if [ -f ${{ inputs.download-dir }}/${{ inputs.metrics-file }} ]; then
+          echo "✓ Successfully downloaded main branch coverage metrics"
+          cat ${{ inputs.download-dir }}/${{ inputs.metrics-file }}
+        else
+          echo "⚠ Failed to download coverage metrics"
+        fi
+
+    - name: Parse coverage from main branch
+      id: parse-coverage
+      shell: bash
+      run: |
+        METRICS_FILE="${{ inputs.download-dir }}/${{ inputs.metrics-file }}"
+
+        if [ -f "$METRICS_FILE" ]; then
+          echo "✓ Found coverage metrics from main branch"
+          cat "$METRICS_FILE"
+
+          main_lines=$(jq -r '.lines' "$METRICS_FILE")
+          main_functions=$(jq -r '.functions' "$METRICS_FILE")
+          main_branches=$(jq -r '.branches' "$METRICS_FILE")
+
+          echo "main_lines=$main_lines" >> $GITHUB_OUTPUT
+          echo "main_functions=$main_functions" >> $GITHUB_OUTPUT
+          echo "main_branches=$main_branches" >> $GITHUB_OUTPUT
+          echo "has_baseline=true" >> $GITHUB_OUTPUT
+        else
+          echo "⚠ No coverage metrics found from main branch"
+          echo "main_lines=" >> $GITHUB_OUTPUT
+          echo "main_functions=" >> $GITHUB_OUTPUT
+          echo "main_branches=" >> $GITHUB_OUTPUT
+          echo "has_baseline=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Calculate coverage differences
+      id: calculate-diff
+      shell: bash
+      run: |
+        current_lines="${{ inputs.current-lines }}"
+        current_functions="${{ inputs.current-functions }}"
+        current_branches="${{ inputs.current-branches }}"
+
+        main_lines="${{ steps.parse-coverage.outputs.main_lines }}"
+        main_functions="${{ steps.parse-coverage.outputs.main_functions }}"
+        main_branches="${{ steps.parse-coverage.outputs.main_branches }}"
+
+        # Function to calculate and format diff
+        calculate_diff() {
+          local current=$1
+          local main=$2
+
+          # Check if main coverage exists and is valid
+          if [ -z "$main" ] || [ "$main" = "null" ] || [ "$main" = "0" ]; then
+            echo "N/A"
+            return
+          fi
+
+          # Calculate diff
+          local diff=$(echo "scale=2; $current - $main" | bc)
+
+          # Format with + sign for positive values
+          if (( $(echo "$diff > 0" | bc -l) )); then
+            echo "+${diff}%"
+          elif (( $(echo "$diff < 0" | bc -l) )); then
+            echo "${diff}%"
+          else
+            echo "0%"
+          fi
+        }
+
+        lines_diff_formatted=$(calculate_diff "$current_lines" "$main_lines")
+        functions_diff_formatted=$(calculate_diff "$current_functions" "$main_functions")
+        branches_diff_formatted=$(calculate_diff "$current_branches" "$main_branches")
+
+        echo "lines_diff=$lines_diff_formatted" >> $GITHUB_OUTPUT
+        echo "functions_diff=$functions_diff_formatted" >> $GITHUB_OUTPUT
+        echo "branches_diff=$branches_diff_formatted" >> $GITHUB_OUTPUT

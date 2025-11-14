@@ -1,0 +1,67 @@
+name: 'Collect JS Coverage Reports'
+description: 'Collects and processes JavaScript/TypeScript coverage reports from lcov.info files'
+inputs:
+  output-dir:
+    description: 'Directory to output collected coverage files'
+    required: false
+    default: '.coverage-tmp'
+  exclude-paths:
+    description: 'Space-separated list of paths to exclude from search'
+    required: false
+    default: './coverage/* ./node_modules/* ./js/examples/*'
+  require-coverage:
+    description: 'Whether to fail if no coverage files are found'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Collect JS coverage reports
+      if: always()
+      shell: bash
+      run: |
+        echo "=== Searching for lcov.info files ==="
+
+        # Build exclude arguments for find command
+        EXCLUDE_ARGS=""
+        for path in ${{ inputs.exclude-paths }}; do
+          EXCLUDE_ARGS="$EXCLUDE_ARGS -not -path '$path'"
+        done
+
+        eval "find . -name 'lcov.info' -type f $EXCLUDE_ARGS" || echo "No lcov.info files found"
+
+        echo ""
+        echo "=== Collecting coverage files ==="
+        mkdir -p ${{ inputs.output-dir }}
+        count=0
+
+        # Use process substitution instead of pipe to avoid subshell
+        while IFS= read -r file; do
+          dir=$(dirname "$file")
+          pkgdir=$(dirname "$dir")
+          name=$(echo "$pkgdir" | sed 's/^\.\///' | sed 's/\//-/g')
+          output_file="${{ inputs.output-dir }}/js-$name.lcov"
+          echo "✓ Processing: $file -> $output_file"
+
+          # Adjust paths in the lcov file to be relative to repo root
+          sed "s|^SF:|SF:$pkgdir/|g" "$file" > "$output_file"
+          count=$((count + 1))
+        done < <(eval "find . -name 'lcov.info' -type f $EXCLUDE_ARGS")
+
+        echo ""
+        if [ "$count" -eq 0 ]; then
+          if [ "${{ inputs.require-coverage }}" = "true" ]; then
+            echo "❌ ERROR: No coverage files found!"
+            echo "Expected to find lcov.info files in JS packages but none were generated."
+            exit 1
+          else
+            echo "⚠ WARNING: No coverage files found"
+          fi
+        else
+          echo "✓ Successfully collected $count coverage file(s)"
+        fi
+
+        echo ""
+        echo "=== Coverage files in ${{ inputs.output-dir }} ==="
+        ls -la ${{ inputs.output-dir }}/
