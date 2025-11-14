@@ -318,14 +318,6 @@ jobs:
           pnpm run build
         shell: bash
 
-      - name: Install protoc for cross (Docker)
-        if: matrix.use_cross
-        run: |
-          # Cross builds in Docker, so we need protoc available in the container
-          # The cross Docker images should have protoc, but we'll set PROTOC env var
-          echo "PROTOC=/usr/bin/protoc" >> $GITHUB_ENV
-        shell: bash
-
       - name: Build binary
         run: |
           if [ "${{ matrix.use_cross }}" = "true" ]; then
