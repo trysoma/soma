@@ -1,0 +1,48 @@
+name: 'Setup Rust Toolchain'
+description: 'Sets up Rust with optional components, protoc, and caching'
+inputs:
+  toolchain:
+    description: 'Rust toolchain version'
+    required: false
+    default: '1.88.0'
+  profile:
+    description: 'Rust toolchain profile (minimal, default, complete)'
+    required: false
+    default: 'minimal'
+  components:
+    description: 'Comma-separated list of components to install (e.g., rustfmt,clippy)'
+    required: false
+    default: 'rustfmt,clippy'
+  install-protoc:
+    description: 'Whether to install protoc'
+    required: false
+    default: 'true'
+  cache:
+    description: 'Whether to enable Rust caching with Swatinem/rust-cache'
+    required: false
+    default: 'true'
+  target:
+    description: 'Additional target to install (e.g., x86_64-unknown-linux-gnu)'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        profile: ${{ inputs.profile }}
+        components: ${{ inputs.components }}
+        target: ${{ inputs.target }}
+
+    - name: Setup Rust cache
+      if: inputs.cache == 'true'
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install protoc
+      if: inputs.install-protoc == 'true'
+      uses: arduino/setup-protoc@v3
+      with:
+        repo-token: ${{ github.token }}

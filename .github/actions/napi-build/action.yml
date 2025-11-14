@@ -1,0 +1,88 @@
+name: 'Build NAPI-RS Native Module'
+description: 'Builds NAPI-RS native modules with Rust and Node.js'
+inputs:
+  target:
+    description: 'Rust target triple (e.g., x86_64-unknown-linux-gnu)'
+    required: true
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '24'
+  package-manager:
+    description: 'Package manager to use (yarn or pnpm)'
+    required: false
+    default: 'yarn'
+  build-command:
+    description: 'Build command to run (e.g., yarn build --target <target>)'
+    required: false
+    default: ''
+  use-napi-cross:
+    description: 'Whether to add --use-napi-cross flag to build command'
+    required: false
+    default: 'false'
+  rust-toolchain:
+    description: 'Rust toolchain version'
+    required: false
+    default: 'stable'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup pnpm
+      if: inputs.package-manager == 'pnpm'
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+
+    - name: Setup node
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: ${{ inputs.package-manager }}
+        cache-dependency-path: ${{ inputs.package-manager == 'pnpm' && 'pnpm-lock.yaml' || 'yarn.lock' }}
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ inputs.rust-toolchain }}
+        targets: ${{ inputs.target }}
+
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          ~/.napi-rs
+          .cargo-cache
+          target/
+        key: ${{ inputs.target }}-cargo-${{ runner.os }}
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        if [ "${{ inputs.package-manager }}" = "pnpm" ]; then
+          pnpm install --frozen-lockfile
+        else
+          ${{ inputs.package-manager }} install
+        fi
+
+    - name: Build NAPI module
+      shell: bash
+      working-directory: crates/sdk-js
+      run: |
+        if [ -n "${{ inputs.build-command }}" ]; then
+          ${{ inputs.build-command }}
+        else
+          NAPI_CROSS_FLAG=""
+          if [ "${{ inputs.use-napi-cross }}" = "true" ]; then
+            NAPI_CROSS_FLAG="--use-napi-cross"
+          fi
+
+          if [ "${{ inputs.package-manager }}" = "pnpm" ]; then
+            pnpm run build --target ${{ inputs.target }} $NAPI_CROSS_FLAG
+          else
+            yarn build --target ${{ inputs.target }} $NAPI_CROSS_FLAG
+          fi
+        fi

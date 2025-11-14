@@ -93,15 +93,12 @@ jobs:
           submodules: recursive
 
       - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: stable
           target: ${{ matrix.target }}
-
-      - name: Install protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          components: ''
+          cache: 'false'
 
       - name: Install cross
         if: matrix.use_cross
@@ -109,25 +106,10 @@ jobs:
         with:
           tool: cross
       
-      - name: Setup pnpm (for frontend build)
-        uses: pnpm/action-setup@v4
+      - name: Setup pnpm and Node.js (for frontend build)
+        uses: ./.github/actions/setup-pnpm-node
         with:
-          version: 9
-
-      - name: Setup Node.js (for frontend build)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Install pnpm dependencies
-        run: pnpm install --frozen-lockfile
+          install-dependencies: 'true'
 
       - name: Build binary
         run: |
@@ -190,9 +172,9 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Rust (for sdk-core build)
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.88.0
+          components: ''
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -200,4 +182,52 @@ jobs:
       - name: Build packages
         run: pnpm -r run build
 
-      - run: pnpm -r publish --access public --no-git-checks
+      - name: Publish packages
+        run: pnpm -r publish --access public --no-git-checks
+
+      - name: Comment npm package links on release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ needs.release.outputs.version }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = process.env.RELEASE_TAG;
+
+            // Get all published packages from workspace
+            const packages = [
+              '@trysoma/sdk',
+              '@trysoma/sdk-core',
+              '@trysoma/api-client'
+            ];
+
+            // Create links to npm packages
+            const packageLinks = packages.map(pkg => {
+              const pkgName = pkg.replace('@trysoma/', '');
+              return `- [${pkg}](https://www.npmjs.com/package/${pkg}/v/${tag.replace('v', '')})`;
+            }).join('\n');
+
+            const comment = `## 📦 Published NPM Packages
+
+            ${packageLinks}
+
+            Install with:
+            \`\`\`bash
+            pnpm add ${packages.join(' ')}
+            \`\`\`
+            `;
+
+            // Find the release by tag
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag
+            });
+
+            // Update the release body
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              body: (release.body || '') + '\n\n' + comment
+            });

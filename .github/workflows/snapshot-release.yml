@@ -148,10 +148,10 @@ jobs:
           changie merge
 
       - name: Setup Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.88.0
-          profile: minimal
+          components: ''
+          install-protoc: 'false'
 
       - name: Update Cargo.lock
         run: |
@@ -229,15 +229,12 @@ jobs:
           submodules: recursive
 
       - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: stable
           target: ${{ matrix.target }}
-
-      - name: Install protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          components: ''
+          cache: 'false'
 
       - name: Install cross
         if: matrix.use_cross
@@ -245,25 +242,15 @@ jobs:
         with:
           tool: cross
 
-      - name: Setup pnpm (for frontend build)
-        uses: pnpm/action-setup@v4
+      - name: Setup pnpm and Node.js (for frontend build)
+        uses: ./.github/actions/setup-pnpm-node
         with:
-          version: 9
-
-      - name: Setup Node.js (for frontend build)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
+          install-dependencies: 'true'
 
       - name: upgrade npm to 11 (supports trusted publishing)
         run: |
           npm install -g npm@latest
           npm -v
-
-      - name: Install pnpm dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Build binary
         run: |
@@ -307,6 +294,11 @@ jobs:
         with:
           version: 9
 
+      - name: upgrade npm to 11 (supports trusted publishing)
+        run: |
+          npm install -g npm@latest
+          npm -v
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -316,20 +308,66 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Rust (for sdk-core build)
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.88.0
+          components: ''
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Install protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build packages
         run: pnpm -r run build
 
       - name: Publish prerelease to npm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm -r publish --access public --tag ${{ inputs.prerelease-label }} --no-git-checks
+
+      - name: Comment npm package links on release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ needs.snapshot-release.outputs.version }}
+          PRERELEASE_LABEL: ${{ inputs.prerelease-label }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = process.env.RELEASE_TAG;
+            const label = process.env.PRERELEASE_LABEL;
+
+            // Get all published packages from workspace
+            const packages = [
+              '@trysoma/sdk',
+              '@trysoma/sdk-core',
+              '@trysoma/api-client'
+            ];
+
+            // Create links to npm packages
+            const packageLinks = packages.map(pkg => {
+              const pkgName = pkg.replace('@trysoma/', '');
+              return `- [${pkg}](https://www.npmjs.com/package/${pkg}/v/${tag.replace('v', '')})`;
+            }).join('\n');
+
+            const comment = `## 📦 Published NPM Packages (${label} tag)
+
+            ${packageLinks}
+
+            Install with:
+            \`\`\`bash
+            pnpm add ${packages.map(p => `${p}@${label}`).join(' ')}
+            \`\`\`
+            `;
+
+            // Find the release by tag
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag
+            });
+
+            // Update the release body
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              body: (release.body || '') + '\n\n' + comment
+            });

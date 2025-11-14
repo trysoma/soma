@@ -34,18 +34,8 @@ jobs:
           aws-region: eu-west-2
           role-to-assume: ${{ secrets.AWS_INTEGRATION_TESTS_ROLE_ARN }}
 
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: 1.88.0
-          profile: minimal
-          components: rustfmt,clippy
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Install protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
 
       - name: Install cargo-llvm-cov and cargo-nextest
         uses: taiki-e/install-action@v2
@@ -74,20 +64,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup pnpm and Node.js
+        uses: ./.github/actions/setup-pnpm-node
         with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          install-dependencies: 'true'
 
       - name: Run tests with coverage
         run: |
@@ -162,9 +142,7 @@ jobs:
           path: ./coverage/js/
 
       - name: Setup Node.js for lcov-merger
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+        uses: ./.github/actions/setup-pnpm-node
 
       - name: Install lcov tools
         run: |
