@@ -2,6 +2,7 @@ pub mod grpc_client;
 mod interface;
 pub mod sdk_provider_sync;
 mod typescript;
+mod unix_stream;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

@@ -1,13 +1,14 @@
 use std::path::Path;
 
 use hyper_util::rt::TokioIo;
-use tokio::net::UnixStream;
 use tonic::transport::{Endpoint, Uri};
 use tower::service_fn;
 use tracing::info;
 
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use shared::error::CommonError;
+
+use crate::commands::dev::runtime::unix_stream::connect_unix_stream;
 
 /// Create a gRPC client connected to a Unix socket
 pub async fn create_unix_socket_client(
@@ -22,7 +23,7 @@ pub async fn create_unix_socket_client(
         .connect_with_connector(service_fn(move |_: Uri| {
             let socket_path = socket_path.clone();
             async move {
-                let stream = UnixStream::connect(socket_path).await?;
+                let stream = connect_unix_stream(&socket_path).await?;
                 Ok::<_, std::io::Error>(TokioIo::new(stream))
             }
         }))

@@ -166,6 +166,12 @@ jobs:
           # Create tarball of all changes using --files-from to handle special characters
           git diff --cached --name-only --diff-filter=ACMR > /tmp/changed-files.txt
 
+          # Also add the frontend dist directory (not tracked by git)
+          if [ -d "crates/soma/app/dist" ]; then
+            echo "Adding frontend dist directory to artifact"
+            find crates/soma/app/dist -type f >> /tmp/changed-files.txt
+          fi
+
           if [ -s /tmp/changed-files.txt ]; then
             echo "Packaging changed files:"
             cat /tmp/changed-files.txt
@@ -311,11 +317,6 @@ jobs:
         uses: ./.github/actions/setup-pnpm-node
         with:
           install-dependencies: 'true'
-
-      - name: upgrade npm to 11 (supports trusted publishing)
-        run: |
-          sudo npm install -g npm@latest
-          npm -v
 
       - name: Pre-fetch cargo dependencies
         run: |

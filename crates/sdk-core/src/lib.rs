@@ -1,9 +1,12 @@
 pub mod types;
+mod unix_socket;
+
 use arc_swap::ArcSwap;
 use once_cell::sync::Lazy;
 use shared::error::CommonError;
 use tracing_subscriber::EnvFilter;
 pub use types::*;
+use unix_socket::{bind_unix_listener, create_listener_stream};
 
 use sdk_proto::soma_sdk_service_server::{SomaSdkService, SomaSdkServiceServer};
 use std::{path::PathBuf, sync::Arc};
@@ -282,11 +285,12 @@ pub async fn start_grpc_server(
 
     info!("Starting gRPC server on Unix socket: {:?}", socket_path);
 
-    // Create Unix socket listener
-    let uds = tokio::net::UnixListener::bind(&socket_path)
+    // Create Unix socket listener (platform-specific)
+    let uds = bind_unix_listener(&socket_path)
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to bind Unix socket: {e}"))?;
 
-    let incoming = tokio_stream::wrappers::UnixListenerStream::new(uds);
+    let incoming = create_listener_stream(uds);
 
     // Create a wrapper service that uses the global GRPC_SERVICE
     let service = GrpcServiceWrapper;

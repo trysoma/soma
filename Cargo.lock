@@ -4989,7 +4989,9 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "arc-swap",
+ "async-stream",
  "futures",
+ "futures-util",
  "once_cell",
  "sdk-proto",
  "serde",
@@ -4997,9 +4999,11 @@ dependencies = [
  "shared",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "tonic 0.13.1",
  "tracing",
  "tracing-subscriber",
+ "uds_windows",
  "workspace-hack",
 ]
 
@@ -5459,6 +5463,7 @@ dependencies = [
  "tower 0.5.2",
  "tower-http 0.6.6",
  "tracing",
+ "uds_windows",
  "url",
  "urlencoding",
  "utoipa",
@@ -6291,6 +6296,17 @@ dependencies = [
  "serde_tokenstream",
  "syn 2.0.106",
  "typify-impl 0.4.2",
+]
+
+[[package]]
+name = "uds_windows"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89daebc3e6fd160ac4aa9fc8b3bf71e1f74fbf92367ae71fb83a037e8bf164b9"
+dependencies = [
+ "memoffset",
+ "tempfile",
+ "winapi",
 ]
 
 [[package]]

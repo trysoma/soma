@@ -58,6 +58,7 @@ tokio-util.workspace = true
 urlencoding.workspace = true
 shared-macros.workspace = true
 dirs.workspace = true
+uds_windows.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
