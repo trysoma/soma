@@ -43,17 +43,26 @@ fn main() {
     match install_result {
         Ok(output) => {
             if !output.status.success() {
-                println!("cargo:warning=pnpm install failed with exit code: {:?}", output.status.code());
+                println!(
+                    "cargo:warning=pnpm install failed with exit code: {:?}",
+                    output.status.code()
+                );
                 if !output.stdout.is_empty() {
-                    println!("cargo:warning=stdout: {}", String::from_utf8_lossy(&output.stdout));
+                    println!(
+                        "cargo:warning=stdout: {}",
+                        String::from_utf8_lossy(&output.stdout)
+                    );
                 }
                 if !output.stderr.is_empty() {
-                    println!("cargo:warning=stderr: {}", String::from_utf8_lossy(&output.stderr));
+                    println!(
+                        "cargo:warning=stderr: {}",
+                        String::from_utf8_lossy(&output.stderr)
+                    );
                 }
             }
         }
         Err(e) => {
-            println!("cargo:warning=Could not run pnpm install: {}", e);
+            println!("cargo:warning=Could not run pnpm install: {e}");
         }
     }
 
@@ -66,17 +75,26 @@ fn main() {
     match build_result {
         Ok(output) => {
             if !output.status.success() {
-                println!("cargo:warning=pnpm build failed with exit code: {:?}", output.status.code());
+                println!(
+                    "cargo:warning=pnpm build failed with exit code: {:?}",
+                    output.status.code()
+                );
                 if !output.stdout.is_empty() {
-                    println!("cargo:warning=stdout: {}", String::from_utf8_lossy(&output.stdout));
+                    println!(
+                        "cargo:warning=stdout: {}",
+                        String::from_utf8_lossy(&output.stdout)
+                    );
                 }
                 if !output.stderr.is_empty() {
-                    println!("cargo:warning=stderr: {}", String::from_utf8_lossy(&output.stderr));
+                    println!(
+                        "cargo:warning=stderr: {}",
+                        String::from_utf8_lossy(&output.stderr)
+                    );
                 }
             }
         }
         Err(e) => {
-            println!("cargo:warning=Could not run pnpm build: {}", e);
+            println!("cargo:warning=Could not run pnpm build: {e}");
         }
     }
 }

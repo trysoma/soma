@@ -33,8 +33,4 @@ const viteConfig = defineViteConfig({
 	},
 });
 // https://vitejs.dev/config/
-export default mergeConfig(
-	baseConfig,
-	viteConfig,
-	
-);
+export default mergeConfig(baseConfig, viteConfig);
