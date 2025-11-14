@@ -282,11 +282,6 @@ jobs:
         with:
           install-dependencies: 'true'
 
-      - name: upgrade npm to 11 (supports trusted publishing)
-        run: |
-          sudo npm install -g npm@latest
-          npm -v
-
       - name: Build binary
         run: |
           if [ "${{ matrix.use_cross }}" = "true" ]; then
@@ -406,3 +401,48 @@ jobs:
   #             release_id: release.id,
   #             body: (release.body || '') + '\n\n' + comment
   #           });
+
+  report-failure:
+    name: Report Release Failure
+    runs-on: ubuntu-latest
+    needs: [snapshot-release, build-soma, build-core-js-sdk]
+    if: failure()
+    permissions:
+      issues: write
+    steps:
+      - name: Create issue for failed release
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const version = '${{ needs.snapshot-release.outputs.version }}';
+            const runId = context.runId;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
+            const title = `Release ${version} failed`;
+            const body = `## Release Failure
+
+            The snapshot release workflow for version **${version}** has failed.
+
+            **Workflow Run:** ${runUrl}
+
+            ### Failed Jobs
+
+            Please check the workflow run for details on which job(s) failed:
+            - build-soma
+            - build-core-js-sdk
+
+            ### Action Required
+
+            1. Review the failed job logs in the workflow run
+            2. Fix any issues identified
+            3. Re-run the snapshot release workflow
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['release-failure', 'automated']
+            });
