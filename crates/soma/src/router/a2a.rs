@@ -199,7 +199,7 @@ struct ProxiedAgent {
 }
 
 impl AgentExecutor for ProxiedAgent {
-    fn execute(&self, context: RequestContext, event_queue: EventQueue) -> BoxedFuture {
+    fn execute(&self, context: RequestContext, event_queue: EventQueue) -> BoxedFuture<'_> {
         Box::pin(async move {
             let context_id = match context.context_id() {
                 Some(context_id) => context_id.to_string(),

@@ -7,6 +7,7 @@ use shared::error::CommonError;
 #[dev_server_port = 21012]
 pub(crate) struct Assets;
 
+#[allow(dead_code)]
 async fn ping_vite_dev_server() -> Result<(), CommonError> {
     let client = reqwest::Client::new();
     let response = client.get("http://localhost:21012").send().await?;
@@ -19,6 +20,7 @@ async fn ping_vite_dev_server() -> Result<(), CommonError> {
     }
 }
 
+#[allow(dead_code)]
 pub async fn wait_for_vite_dev_server_shutdown() -> Result<(), CommonError> {
     let mut attempts = 0;
     let max_attempts = 10;

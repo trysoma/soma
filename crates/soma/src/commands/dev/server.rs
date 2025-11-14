@@ -7,7 +7,6 @@ use tracing::info;
 use shared::error::CommonError;
 
 use crate::router;
-use crate::vite::{Assets, wait_for_vite_dev_server_shutdown};
 
 /// Finds a free port in the given range
 pub fn find_free_port(start: u16, end: u16) -> std::io::Result<u16> {
@@ -111,6 +110,8 @@ pub fn start_vite_dev_server() -> impl Drop {
 /// Stops the Vite dev server and waits for shutdown (debug builds only)
 #[cfg(debug_assertions)]
 pub async fn stop_vite_dev_server() -> Result<(), CommonError> {
+    use crate::vite::Assets;
+    use crate::vite::wait_for_vite_dev_server_shutdown;
     info!("Stopping vite dev server");
     Assets::stop_dev_server();
     wait_for_vite_dev_server_shutdown().await?;

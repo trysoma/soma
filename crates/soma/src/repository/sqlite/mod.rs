@@ -2,6 +2,7 @@
 mod raw_impl;
 
 #[allow(clippy::all)]
+#[allow(dead_code)]
 mod generated {
     include!("raw.generated.rs");
 }

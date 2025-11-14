@@ -70,14 +70,15 @@ use serde::{Serialize, Deserialize};
             ,
     ]).await
 }
+  #[allow(dead_code)]
   pub struct get_messages_by_task_id_params<'a> {
-      pub task_id: &'a 
+      pub task_id: &'a
           shared::primitives::WrappedUuidV4
       ,
       pub cursor: &'a Option<
           shared::primitives::WrappedChronoDateTime
       >,
-      pub page_size: &'a 
+      pub page_size: &'a
           i64
       ,
   }
@@ -93,6 +94,7 @@ use serde::{Serialize, Deserialize};
       pub parts:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,
   }
+  #[allow(dead_code)]
   pub async fn get_messages_by_task_id(
       conn: &shared::libsql::Connection
       ,params: get_messages_by_task_id_params<'_>
