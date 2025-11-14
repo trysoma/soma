@@ -150,7 +150,31 @@ jobs:
           mkdir -p .coverage-tmp
           cargo llvm-cov nextest --all-features --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov
 
-      - name: Setup pnpm and Node.js for NAPI check
+      - name: Upload Rust coverage LCOV
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage-lcov
+          path: .coverage-tmp/rust.lcov
+          retention-days: 7
+          if-no-files-found: error
+
+  napi-quality:
+    name: NAPI build verification
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          components: ''
+
+      - name: Setup pnpm and Node.js
         uses: ./.github/actions/setup-pnpm-node
         with:
           install-dependencies: 'true'
@@ -161,14 +185,6 @@ jobs:
           echo "Building NAPI module for native platform to verify build succeeds..."
           pnpm run build
           echo "✓ NAPI build successful"
-
-      - name: Upload Rust coverage LCOV
-        uses: actions/upload-artifact@v4
-        with:
-          name: rust-coverage-lcov
-          path: .coverage-tmp/rust.lcov
-          retention-days: 7
-          if-no-files-found: error
 
   ts-quality:
     name: TypeScript quality
