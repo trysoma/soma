@@ -77,7 +77,12 @@ runs:
     - name: Build NAPI module
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+      env:
+        RUSTUP_TOOLCHAIN: '1.88.0'
       run: |
+        # Add the target to the 1.88.0 toolchain
+        rustup target add ${{ inputs.target }} --toolchain 1.88.0
+
         NAPI_CROSS_FLAG=""
         if [ "${{ inputs.use-napi-cross }}" = "true" ]; then
           NAPI_CROSS_FLAG="--use-napi-cross"
