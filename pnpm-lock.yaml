@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  zod: ^3.23.8
-
 importers:
 
   .:
@@ -61,19 +58,19 @@ importers:
     dependencies:
       '@ai-sdk/openai':
         specifier: ^2.0.64
-        version: 2.0.64(zod@3.25.76)
+        version: 2.0.64(zod@4.1.12)
       '@genkit-ai/googleai':
         specifier: ^1.8.0
         version: 1.22.0(genkit@1.22.0(@google-cloud/firestore@7.11.6)(firebase-admin@13.5.0))
       '@genkit-ai/vertexai':
         specifier: ^1.8.0
-        version: 1.22.0(genkit@1.22.0(@google-cloud/firestore@7.11.6)(firebase-admin@13.5.0))(zod@3.25.76)
+        version: 1.22.0(genkit@1.22.0(@google-cloud/firestore@7.11.6)(firebase-admin@13.5.0))(zod@4.1.12)
       '@restatedev/restate-sdk':
         specifier: ^1.9.0
         version: 1.9.0
       '@restatedev/vercel-ai-middleware':
         specifier: ^0.2.0
-        version: 0.2.0(@restatedev/restate-sdk@1.9.0)(ai@5.0.89(zod@3.25.76))(superjson@2.2.5)
+        version: 0.2.0(@restatedev/restate-sdk@1.9.0)(ai@5.0.89(zod@4.1.12))(superjson@2.2.5)
       '@trysoma/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
@@ -82,13 +79,13 @@ importers:
         version: link:../../packages/sdk
       ai:
         specifier: ^5.0.89
-        version: 5.0.89(zod@3.25.76)
+        version: 5.0.89(zod@4.1.12)
       genkit:
         specifier: ^1.8.0
         version: 1.22.0(@google-cloud/firestore@7.11.6)(firebase-admin@13.5.0)
       zod:
-        specifier: ^3.23.8
-        version: 3.25.76
+        specifier: ^4.1.12
+        version: 4.1.12
     devDependencies:
       '@biomejs/biome':
         specifier: 2.2.5
@@ -142,11 +139,11 @@ importers:
         specifier: ^5
         version: 5.9.3
       zod:
-        specifier: ^3.23.8
-        version: 3.25.76
+        specifier: ^4.1.12
+        version: 4.1.12
       zod-to-json-schema:
         specifier: ^3.24.1
-        version: 3.24.6(zod@3.25.76)
+        version: 3.24.6(zod@4.1.12)
     devDependencies:
       '@biomejs/biome':
         specifier: 2.2.5
@@ -176,19 +173,19 @@ packages:
     resolution: {integrity: sha512-/AI5AKi4vOK9SEb8Z1dfXkhsJ5NAfWsoJQc96B/mzn2KIrjw5occOjIwD06scuhV9xWlghCoXJT1sQD9QH/tyg==}
     engines: {node: '>=18'}
     peerDependencies:
-      zod: ^3.23.8
+      zod: ^3.25.76 || ^4.1.8
 
   '@ai-sdk/openai@2.0.64':
     resolution: {integrity: sha512-+1mqxn42uB32DPZ6kurSyGAmL3MgCaDpkYU7zNDWI4NLy3Zg97RxTsI1jBCGIqkEVvRZKJlIMYtb89OvMnq3AQ==}
     engines: {node: '>=18'}
     peerDependencies:
-      zod: ^3.23.8
+      zod: ^3.25.76 || ^4.1.8
 
   '@ai-sdk/provider-utils@3.0.16':
     resolution: {integrity: sha512-lsWQY9aDXHitw7C1QRYIbVGmgwyT98TF3MfM8alNIXKpdJdi+W782Rzd9f1RyOfgRmZ08gJ2EYNDhWNK7RqpEA==}
     engines: {node: '>=18'}
     peerDependencies:
-      zod: ^3.23.8
+      zod: ^3.25.76 || ^4.1.8
 
   '@ai-sdk/provider@2.0.0':
     resolution: {integrity: sha512-6o7Y2SeO9vFKB8lArHXehNuusnpddKPk7xqL7T2/b+OvXMRIXUO1rR4wcv1hAFUAT9avGZshty3Wlua/XA7TvA==}
@@ -774,7 +771,7 @@ packages:
   '@mistralai/mistralai-gcp@1.5.0':
     resolution: {integrity: sha512-KUv4GziIN8do4gmPe7T85gpYW1o2Q89e0hs8PQfZhFRMYz7uYPwxHyVI5UaxWlHFcmAvyxfaOAH0OuCC38Hb6g==}
     peerDependencies:
-      zod: ^3.23.8
+      zod: '>= 3'
 
   '@napi-rs/cli@3.4.1':
     resolution: {integrity: sha512-ayhm+NfrP5Hmh7vy5pfyYm/ktYtLh2PrgdLuqHTAubO7RoO2JkUE4F991AtgYxNewwXI8+guZLxU8itV7QnDrQ==}
@@ -2110,7 +2107,7 @@ packages:
     resolution: {integrity: sha512-8Nq+ZojGacQrupoJEQLrTDzT5VtR3gyp5AaqFSV3tzsAXlYQ9Igb7QE3yeoEdzOk5IRfDwWL7mDCUD+oBg1hDA==}
     engines: {node: '>=18'}
     peerDependencies:
-      zod: ^3.23.8
+      zod: ^3.25.76 || ^4.1.8
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
@@ -3961,10 +3958,13 @@ packages:
   zod-to-json-schema@3.24.6:
     resolution: {integrity: sha512-h/z3PKvcTcTetyjl1fkj79MHNEjm+HpD6NXheWjzOekY7kV+lwDYnHw+ivHkijnCSMz1yJaWBD9vu/Fcmk+vEg==}
     peerDependencies:
-      zod: ^3.23.8
+      zod: ^3.24.1
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+  zod@4.1.12:
+    resolution: {integrity: sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ==}
 
 snapshots:
 
@@ -3974,25 +3974,25 @@ snapshots:
     optionalDependencies:
       express: 4.21.2
 
-  '@ai-sdk/gateway@2.0.7(zod@3.25.76)':
+  '@ai-sdk/gateway@2.0.7(zod@4.1.12)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.16(zod@3.25.76)
+      '@ai-sdk/provider-utils': 3.0.16(zod@4.1.12)
       '@vercel/oidc': 3.0.3
-      zod: 3.25.76
+      zod: 4.1.12
 
-  '@ai-sdk/openai@2.0.64(zod@3.25.76)':
+  '@ai-sdk/openai@2.0.64(zod@4.1.12)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.16(zod@3.25.76)
-      zod: 3.25.76
+      '@ai-sdk/provider-utils': 3.0.16(zod@4.1.12)
+      zod: 4.1.12
 
-  '@ai-sdk/provider-utils@3.0.16(zod@3.25.76)':
+  '@ai-sdk/provider-utils@3.0.16(zod@4.1.12)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
       '@standard-schema/spec': 1.0.0
       eventsource-parser: 3.0.6
-      zod: 3.25.76
+      zod: 4.1.12
 
   '@ai-sdk/provider@2.0.0':
     dependencies:
@@ -4324,18 +4324,18 @@ snapshots:
       - encoding
       - supports-color
 
-  '@genkit-ai/vertexai@1.22.0(genkit@1.22.0(@google-cloud/firestore@7.11.6)(firebase-admin@13.5.0))(zod@3.25.76)':
+  '@genkit-ai/vertexai@1.22.0(genkit@1.22.0(@google-cloud/firestore@7.11.6)(firebase-admin@13.5.0))(zod@4.1.12)':
     dependencies:
       '@anthropic-ai/sdk': 0.24.3
       '@anthropic-ai/vertex-sdk': 0.4.3
       '@google-cloud/aiplatform': 3.35.0
       '@google-cloud/vertexai': 1.10.0
-      '@mistralai/mistralai-gcp': 1.5.0(zod@3.25.76)
+      '@mistralai/mistralai-gcp': 1.5.0(zod@4.1.12)
       genkit: 1.22.0(@google-cloud/firestore@7.11.6)(firebase-admin@13.5.0)
       google-auth-library: 9.15.1
       googleapis: 140.0.1
       node-fetch: 3.3.2
-      openai: 4.104.0(zod@3.25.76)
+      openai: 4.104.0(zod@4.1.12)
     optionalDependencies:
       '@google-cloud/bigquery': 7.9.4
       firebase-admin: 13.5.0
@@ -4692,10 +4692,10 @@ snapshots:
 
   '@lukeed/csprng@1.1.0': {}
 
-  '@mistralai/mistralai-gcp@1.5.0(zod@3.25.76)':
+  '@mistralai/mistralai-gcp@1.5.0(zod@4.1.12)':
     dependencies:
       google-auth-library: 9.15.1
-      zod: 3.25.76
+      zod: 4.1.12
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -5864,10 +5864,10 @@ snapshots:
     dependencies:
       '@restatedev/restate-sdk-core': 1.9.0
 
-  '@restatedev/vercel-ai-middleware@0.2.0(@restatedev/restate-sdk@1.9.0)(ai@5.0.89(zod@3.25.76))(superjson@2.2.5)':
+  '@restatedev/vercel-ai-middleware@0.2.0(@restatedev/restate-sdk@1.9.0)(ai@5.0.89(zod@4.1.12))(superjson@2.2.5)':
     dependencies:
       '@restatedev/restate-sdk': 1.9.0
-      ai: 5.0.89(zod@3.25.76)
+      ai: 5.0.89(zod@4.1.12)
       superjson: 2.2.5
 
   '@rollup/rollup-android-arm-eabi@4.52.5':
@@ -6201,13 +6201,13 @@ snapshots:
     dependencies:
       humanize-ms: 1.2.1
 
-  ai@5.0.89(zod@3.25.76):
+  ai@5.0.89(zod@4.1.12):
     dependencies:
-      '@ai-sdk/gateway': 2.0.7(zod@3.25.76)
+      '@ai-sdk/gateway': 2.0.7(zod@4.1.12)
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.16(zod@3.25.76)
+      '@ai-sdk/provider-utils': 3.0.16(zod@4.1.12)
       '@opentelemetry/api': 1.9.0
-      zod: 3.25.76
+      zod: 4.1.12
 
   ajv-formats@3.0.1(ajv@8.17.1):
     optionalDependencies:
@@ -7468,7 +7468,7 @@ snapshots:
     dependencies:
       mimic-function: 5.0.1
 
-  openai@4.104.0(zod@3.25.76):
+  openai@4.104.0(zod@4.1.12):
     dependencies:
       '@types/node': 18.19.130
       '@types/node-fetch': 2.6.13
@@ -7478,7 +7478,7 @@ snapshots:
       formdata-node: 4.4.1
       node-fetch: 2.7.0
     optionalDependencies:
-      zod: 3.25.76
+      zod: 4.1.12
     transitivePeerDependencies:
       - encoding
 
@@ -8213,4 +8213,10 @@ snapshots:
     dependencies:
       zod: 3.25.76
 
+  zod-to-json-schema@3.24.6(zod@4.1.12):
+    dependencies:
+      zod: 4.1.12
+
   zod@3.25.76: {}
+
+  zod@4.1.12: {}

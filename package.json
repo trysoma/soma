@@ -1,10 +1,5 @@
 {
 	"devDependencies": {
 		"@vitest/coverage-v8": "^4.0.8"
-	},
-	"pnpm": {
-		"overrides": {
-			"zod": "^3.23.8"
-		}
 	}
 }

@@ -14,11 +14,11 @@ import { convertToAiSdkMessages } from "../utils";
 /////
 
 const InsuranceClaimSchema = z.object({
-	date: z.string().nonoptional().optional(),
-	category: z.string().nonoptional().optional(),
-	reason: z.string().nonoptional().optional(),
-	amount: z.number().nonoptional().optional(),
-	email: z.string().nonoptional().optional(),
+	date: z.string(),
+	category: z.string(),
+	reason: z.string(),
+	amount: z.number(),
+	email: z.string(),
 });
 
 // type InsuranceClaim = z.infer<typeof InsuranceClaimSchema>;
@@ -62,7 +62,9 @@ const handlers = {
 					decodeClaim: tool({
 						description: "Decode a claim into a structured object. ",
 						inputSchema: assessmentSchema,
-						execute: (input) => onGoalAchieved(input),
+						execute: async (input: Assessment) => {
+							return onGoalAchieved(input);
+						},
 					}),
 				},
 			});

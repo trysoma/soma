@@ -48,16 +48,10 @@ runs:
         targets: ${{ inputs.target }}
 
     - name: Cache cargo
-      uses: actions/cache@v4
+      uses: Swatinem/rust-cache@v2
       with:
-        path: |
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          ~/.napi-rs
-          .cargo-cache
-          target/
-        key: ${{ inputs.target }}-cargo-${{ runner.os }}
+        shared-key: ${{ inputs.target }}
+        cache-on-failure: true
 
     - name: Install dependencies
       shell: bash
