@@ -13,10 +13,7 @@ on:
       revision:
         description: 'Branch or tag to release from'
         required: true
-        type: choice
-        options:
-          - main
-          - develop
+        type: string
         default: 'main'
       semantic-version:
         description: 'Semantic version (leave empty to auto-calculate from changie)'
