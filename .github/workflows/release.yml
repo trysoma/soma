@@ -169,6 +169,11 @@ jobs:
         with:
           version: 9
 
+      - name: upgrade npm to 11 (supports trusted publishing)
+        run: |
+          npm install -g npm@latest
+          npm -v
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
