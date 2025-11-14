@@ -202,12 +202,8 @@ jobs:
             target: x86_64-pc-windows-msvc
           - host: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            use-napi-cross: true
           - host: macos-latest
             target: aarch64-apple-darwin
-          - host: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            use-napi-cross: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
