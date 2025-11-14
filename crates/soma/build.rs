@@ -38,32 +38,46 @@ fn main() {
     let install_result = std::process::Command::new("pnpm")
         .arg("install")
         .current_dir(workspace_dir)
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .status(); // Use status() instead of spawn() to wait for completion
+        .output();
 
-    if let Ok(status) = install_result {
-        if !status.success() {
-            println!("cargo:warning=Warning: pnpm install failed");
+    match install_result {
+        Ok(output) => {
+            if !output.status.success() {
+                println!("cargo:warning=pnpm install failed with exit code: {:?}", output.status.code());
+                if !output.stdout.is_empty() {
+                    println!("cargo:warning=stdout: {}", String::from_utf8_lossy(&output.stdout));
+                }
+                if !output.stderr.is_empty() {
+                    println!("cargo:warning=stderr: {}", String::from_utf8_lossy(&output.stderr));
+                }
+            }
         }
-    } else {
-        println!("cargo:warning=Warning: Could not run pnpm install");
+        Err(e) => {
+            println!("cargo:warning=Could not run pnpm install: {}", e);
+        }
     }
 
     let build_result = std::process::Command::new("pnpm")
         .arg("run")
         .arg("build")
         .current_dir(app_dir.clone())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .status(); // Use status() instead of spawn() to wait for completion
+        .output();
 
-    if let Ok(status) = build_result {
-        if !status.success() {
-            println!("cargo:warning=Warning: pnpm build failed");
+    match build_result {
+        Ok(output) => {
+            if !output.status.success() {
+                println!("cargo:warning=pnpm build failed with exit code: {:?}", output.status.code());
+                if !output.stdout.is_empty() {
+                    println!("cargo:warning=stdout: {}", String::from_utf8_lossy(&output.stdout));
+                }
+                if !output.stderr.is_empty() {
+                    println!("cargo:warning=stderr: {}", String::from_utf8_lossy(&output.stderr));
+                }
+            }
         }
-    } else {
-        println!("cargo:warning=Warning: Could not run pnpm build");
+        Err(e) => {
+            println!("cargo:warning=Could not run pnpm build: {}", e);
+        }
     }
 }
 
