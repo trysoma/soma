@@ -188,7 +188,42 @@ jobs:
           draft: false
           prerelease: true
 
-  build-binaries:
+  build-napi:
+    name: Build NAPI bindings - ${{ matrix.settings.target }}
+    needs: snapshot-release
+    runs-on: ${{ matrix.settings.host }}
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - host: macos-latest
+            target: x86_64-apple-darwin
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            use-napi-cross: true
+          - host: macos-latest
+            target: aarch64-apple-darwin
+          - host: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            use-napi-cross: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.snapshot-release.outputs.version }}
+          submodules: recursive
+
+      - name: Build and test NAPI bindings
+        uses: ./.github/actions/napi-build-test
+        with:
+          target: ${{ matrix.settings.target }}
+          package-manager: pnpm
+          use-napi-cross: ${{ matrix.settings.use-napi-cross && 'true' || 'false' }}
+          skip-tests: ${{ contains(matrix.settings.target, 'aarch64') && matrix.settings.host != 'macos-latest' }}
+
+  build-soma:
     name: Build Rust binaries
     needs: snapshot-release
     runs-on: ${{ matrix.os }}
@@ -275,99 +310,99 @@ jobs:
           asset_name: ${{ matrix.asset_name }}
           asset_content_type: application/octet-stream
 
-  publish-npm:
-    name: Publish to npm
-    needs: snapshot-release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ needs.snapshot-release.outputs.version }}
-          submodules: recursive
+  # publish-npm:
+  #   name: Publish to npm
+  #   needs: snapshot-release
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     id-token: write
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v5
+  #       with:
+  #         ref: ${{ needs.snapshot-release.outputs.version }}
+  #         submodules: recursive
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
+  #     - name: Setup pnpm
+  #       uses: pnpm/action-setup@v4
+  #       with:
+  #         version: 9
 
-      - name: upgrade npm to 11 (supports trusted publishing)
-        run: |
-          sudo npm install -g npm@latest
-          npm -v
+  #     - name: upgrade npm to 11 (supports trusted publishing)
+  #       run: |
+  #         sudo npm install -g npm@latest
+  #         npm -v
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #         registry-url: 'https://registry.npmjs.org'
+  #         cache: 'pnpm'
+  #         cache-dependency-path: pnpm-lock.yaml
 
-      - name: Setup Rust (for sdk-core build)
-        uses: ./.github/actions/setup-rust
-        with:
-          components: ''
+  #     - name: Setup Rust (for sdk-core build)
+  #       uses: ./.github/actions/setup-rust
+  #       with:
+  #         components: ''
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+  #     - name: Install dependencies
+  #       run: pnpm install --frozen-lockfile
 
-      - name: Build packages
-        run: pnpm -r run build
+  #     - name: Build packages
+  #       run: pnpm -r run build
 
-      - name: Publish prerelease to npm
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm -r publish --access public --tag ${{ inputs.prerelease-label }} --no-git-checks
+  #     - name: Publish prerelease to npm
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       run: pnpm -r publish --access public --tag ${{ inputs.prerelease-label }} --no-git-checks
 
-      - name: Comment npm package links on release
-        uses: actions/github-script@v7
-        env:
-          RELEASE_TAG: ${{ needs.snapshot-release.outputs.version }}
-          PRERELEASE_LABEL: ${{ inputs.prerelease-label }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const tag = process.env.RELEASE_TAG;
-            const label = process.env.PRERELEASE_LABEL;
+  #     - name: Comment npm package links on release
+  #       uses: actions/github-script@v7
+  #       env:
+  #         RELEASE_TAG: ${{ needs.snapshot-release.outputs.version }}
+  #         PRERELEASE_LABEL: ${{ inputs.prerelease-label }}
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #         script: |
+  #           const tag = process.env.RELEASE_TAG;
+  #           const label = process.env.PRERELEASE_LABEL;
 
-            // Get all published packages from workspace
-            const packages = [
-              '@trysoma/sdk',
-              '@trysoma/sdk-core',
-              '@trysoma/api-client'
-            ];
+  #           // Get all published packages from workspace
+  #           const packages = [
+  #             '@trysoma/sdk',
+  #             '@trysoma/sdk-core',
+  #             '@trysoma/api-client'
+  #           ];
 
-            // Create links to npm packages
-            const packageLinks = packages.map(pkg => {
-              const pkgName = pkg.replace('@trysoma/', '');
-              return `- [${pkg}](https://www.npmjs.com/package/${pkg}/v/${tag.replace('v', '')})`;
-            }).join('\n');
+  #           // Create links to npm packages
+  #           const packageLinks = packages.map(pkg => {
+  #             const pkgName = pkg.replace('@trysoma/', '');
+  #             return `- [${pkg}](https://www.npmjs.com/package/${pkg}/v/${tag.replace('v', '')})`;
+  #           }).join('\n');
 
-            const comment = `## 📦 Published NPM Packages (${label} tag)
+  #           const comment = `## 📦 Published NPM Packages (${label} tag)
 
-            ${packageLinks}
+  #           ${packageLinks}
 
-            Install with:
-            \`\`\`bash
-            pnpm add ${packages.map(p => `${p}@${label}`).join(' ')}
-            \`\`\`
-            `;
+  #           Install with:
+  #           \`\`\`bash
+  #           pnpm add ${packages.map(p => `${p}@${label}`).join(' ')}
+  #           \`\`\`
+  #           `;
 
-            // Find the release by tag
-            const { data: release } = await github.rest.repos.getReleaseByTag({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag: tag
-            });
+  #           // Find the release by tag
+  #           const { data: release } = await github.rest.repos.getReleaseByTag({
+  #             owner: context.repo.owner,
+  #             repo: context.repo.repo,
+  #             tag: tag
+  #           });
 
-            // Update the release body
-            await github.rest.repos.updateRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: release.id,
-              body: (release.body || '') + '\n\n' + comment
-            });
+  #           // Update the release body
+  #           await github.rest.repos.updateRelease({
+  #             owner: context.repo.owner,
+  #             repo: context.repo.repo,
+  #             release_id: release.id,
+  #             body: (release.body || '') + '\n\n' + comment
+  #           });

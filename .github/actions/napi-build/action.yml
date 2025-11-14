@@ -66,8 +66,10 @@ runs:
       shell: bash
       working-directory: crates/sdk-js
       run: |
-        if [ -n "${{ inputs.build-command }}" ]; then
-          ${{ inputs.build-command }}
+        BUILD_COMMAND="${{ inputs.build-command }}"
+
+        if [ -n "$BUILD_COMMAND" ]; then
+          $BUILD_COMMAND
         else
           NAPI_CROSS_FLAG=""
           if [ "${{ inputs.use-napi-cross }}" = "true" ]; then

@@ -1,0 +1,121 @@
+name: 'Comment Coverage Report on PR'
+description: 'Posts coverage report as a PR comment with optional comparison to main branch'
+inputs:
+  has-coverage:
+    description: 'Whether coverage data exists'
+    required: true
+  has-baseline:
+    description: 'Whether main branch baseline exists'
+    required: true
+  lines-coverage:
+    description: 'Lines coverage percentage'
+    required: false
+  functions-coverage:
+    description: 'Functions coverage percentage'
+    required: false
+  branches-coverage:
+    description: 'Branches coverage percentage'
+    required: false
+  coverage-summary:
+    description: 'Coverage summary text'
+    required: false
+  lines-diff:
+    description: 'Lines coverage difference (formatted)'
+    required: false
+  functions-diff:
+    description: 'Functions coverage difference (formatted)'
+    required: false
+  branches-diff:
+    description: 'Branches coverage difference (formatted)'
+    required: false
+  comment-tag:
+    description: 'Tag for the PR comment'
+    required: false
+    default: 'coverage'
+  codecov-repo:
+    description: 'Codecov repository URL (e.g., owner/repo)'
+    required: false
+  artifact-names:
+    description: 'Comma-separated list of artifact names to reference'
+    required: false
+    default: 'rust-coverage-lcov, js-coverage-lcov, merged-coverage-html, merged-coverage-lcov'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Comment coverage report on PR (no coverage data)
+      uses: thollander/actions-comment-pull-request@v3
+      if: always() && inputs.has-coverage == 'false'
+      with:
+        mode: upsert
+        comment-tag: ${{ inputs.comment-tag }}
+        message: |
+          ## 📊 Coverage Report
+
+          ⚠️ **No coverage data available**
+
+          The test jobs may have failed or not generated coverage data. Please check the workflow logs for details.
+
+          - [View Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+    - name: Comment coverage report on PR (no main baseline)
+      uses: thollander/actions-comment-pull-request@v3
+      if: always() && inputs.has-coverage == 'true' && inputs.has-baseline == 'false'
+      with:
+        mode: upsert
+        comment-tag: ${{ inputs.comment-tag }}
+        message: |
+          ## 📊 Coverage Report
+
+          ### Overall Coverage Metrics
+
+          | Metric | Current |
+          |--------|---------|
+          | **Lines** | ${{ inputs.lines-coverage }}% |
+          | **Functions** | ${{ inputs.functions-coverage }}% |
+          | **Branches** | ${{ inputs.branches-coverage }}% |
+
+          > ℹ️ No baseline coverage found from main branch yet. Coverage comparison will be available once the main branch workflow completes.
+
+          ### Coverage Details
+          ```
+          ${{ inputs.coverage-summary }}
+          ```
+
+          ### 📁 Coverage Reports
+
+          Download the HTML coverage reports from the workflow artifacts:
+          - [View Coverage Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          ${{ inputs.artifact-names != '' && format('- Artifacts: {0}', inputs.artifact-names) || '' }}
+
+          ${{ inputs.codecov-repo != '' && format('Coverage has also been uploaded to [Codecov](https://codecov.io/gh/{0})', inputs.codecov-repo) || '' }}
+
+    - name: Comment coverage report on PR (with comparison)
+      uses: thollander/actions-comment-pull-request@v3
+      if: always() && inputs.has-coverage == 'true' && inputs.has-baseline == 'true'
+      with:
+        mode: upsert
+        comment-tag: ${{ inputs.comment-tag }}
+        message: |
+          ## 📊 Coverage Report
+
+          ### Overall Coverage Metrics
+
+          | Metric | Current | Change |
+          |--------|---------|--------|
+          | **Lines** | ${{ inputs.lines-coverage }}% | ${{ inputs.lines-diff }} |
+          | **Functions** | ${{ inputs.functions-coverage }}% | ${{ inputs.functions-diff }} |
+          | **Branches** | ${{ inputs.branches-coverage }}% | ${{ inputs.branches-diff }} |
+
+          ### Coverage Details
+          ```
+          ${{ inputs.coverage-summary }}
+          ```
+
+          ### 📁 Coverage Reports
+
+          Download the HTML coverage reports from the workflow artifacts:
+          - [View Coverage Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          ${{ inputs.artifact-names != '' && format('- Artifacts: {0}', inputs.artifact-names) || '' }}
+
+          ${{ inputs.codecov-repo != '' && format('Coverage has also been uploaded to [Codecov](https://codecov.io/gh/{0})', inputs.codecov-repo) || '' }}

@@ -1,0 +1,112 @@
+name: 'Build and Test NAPI Module'
+description: 'Builds NAPI native modules and tests them across platforms'
+inputs:
+  target:
+    description: 'Rust target triple (e.g., x86_64-unknown-linux-gnu)'
+    required: true
+  build-args:
+    description: 'Additional arguments for napi build command'
+    required: false
+    default: ''
+  use-napi-cross:
+    description: 'Whether to use --use-napi-cross flag'
+    required: false
+    default: 'false'
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '24'
+  package-manager:
+    description: 'Package manager to use (yarn or pnpm)'
+    required: false
+    default: 'pnpm'
+  working-directory:
+    description: 'Working directory for the NAPI project'
+    required: false
+    default: 'crates/sdk-js'
+  artifact-name-prefix:
+    description: 'Prefix for artifact names'
+    required: false
+    default: 'napi-bindings'
+  skip-tests:
+    description: 'Skip running tests (useful for cross-compilation)'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+        targets: ${{ inputs.target }}
+
+    - name: Cache cargo
+      uses: actions/cache@v4
+      shell: bash
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          ~/.napi-rs
+          .cargo-cache
+          target/
+        key: ${{ inputs.target }}-cargo-${{ runner.os }}
+
+    - name: Setup Node.js and pnpm
+      if: inputs.package-manager == 'pnpm'
+      uses: ./.github/actions/setup-pnpm-node
+
+    - name: Setup Node.js with yarn
+      if: inputs.package-manager == 'yarn'
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: yarn
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        if [ "${{ inputs.package-manager }}" = "pnpm" ]; then
+          pnpm install --frozen-lockfile
+        else
+          yarn install
+        fi
+
+    - name: Build NAPI module
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        NAPI_CROSS_FLAG=""
+        if [ "${{ inputs.use-napi-cross }}" = "true" ]; then
+          NAPI_CROSS_FLAG="--use-napi-cross"
+        fi
+
+        if [ "${{ inputs.package-manager }}" = "pnpm" ]; then
+          pnpm run build --target ${{ inputs.target }} $NAPI_CROSS_FLAG ${{ inputs.build-args }}
+        else
+          yarn build --target ${{ inputs.target }} $NAPI_CROSS_FLAG ${{ inputs.build-args }}
+        fi
+
+    - name: Upload bindings artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name-prefix }}-${{ inputs.target }}
+        path: |
+          ${{ inputs.working-directory }}/*.*.node
+          ${{ inputs.working-directory }}/*.*.wasm
+        if-no-files-found: error
+        retention-days: 7
+
+    - name: Test bindings
+      if: inputs.skip-tests == 'false'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        if [ "${{ inputs.package-manager }}" = "pnpm" ]; then
+          pnpm test
+        else
+          yarn test
+        fi

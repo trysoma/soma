@@ -1,0 +1,246 @@
+name: 'Merge Coverage Reports'
+description: 'Merges LCOV coverage reports from multiple sources and extracts metrics'
+inputs:
+  coverage-dir:
+    description: 'Base directory containing coverage files'
+    required: false
+    default: './coverage'
+  rust-coverage-path:
+    description: 'Path to Rust coverage file relative to coverage-dir'
+    required: false
+    default: 'rust/rust.lcov'
+  js-coverage-dir:
+    description: 'Directory containing JS coverage files relative to coverage-dir'
+    required: false
+    default: 'js'
+  js-coverage-pattern:
+    description: 'Pattern for JS coverage files'
+    required: false
+    default: 'js-*.lcov'
+  output-dir:
+    description: 'Directory for merged coverage output relative to coverage-dir'
+    required: false
+    default: 'merged'
+  output-file:
+    description: 'Filename for merged coverage'
+    required: false
+    default: 'coverage.lcov'
+  codecov-token:
+    description: 'Codecov token for uploading coverage'
+    required: false
+    default: ''
+
+outputs:
+  coverage_summary:
+    description: 'Coverage summary text'
+    value: ${{ steps.merge.outputs.coverage_summary }}
+  lines_coverage:
+    description: 'Lines coverage percentage'
+    value: ${{ steps.merge.outputs.lines_coverage }}
+  functions_coverage:
+    description: 'Functions coverage percentage'
+    value: ${{ steps.merge.outputs.functions_coverage }}
+  branches_coverage:
+    description: 'Branches coverage percentage'
+    value: ${{ steps.merge.outputs.branches_coverage }}
+  has_coverage:
+    description: 'Whether coverage data was found and merged'
+    value: ${{ steps.merge.outputs.has_coverage }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: ./.github/actions/setup-pnpm-node
+
+    - name: Install lcov tools
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y lcov bc
+
+    - name: Merge coverage reports
+      id: merge
+      shell: bash
+      run: |
+        COVERAGE_DIR="${{ inputs.coverage-dir }}"
+        OUTPUT_PATH="$COVERAGE_DIR/${{ inputs.output-dir }}"
+        OUTPUT_FILE="$OUTPUT_PATH/${{ inputs.output-file }}"
+
+        mkdir -p "$OUTPUT_PATH"
+
+        # Debug: Show what was downloaded
+        echo "=== Downloaded artifacts structure ==="
+        ls -laR "$COVERAGE_DIR/" || echo "No coverage directory found"
+
+        # Collect all LCOV files
+        lcov_files=""
+        RUST_PATH="$COVERAGE_DIR/${{ inputs.rust-coverage-path }}"
+        if [ -f "$RUST_PATH" ]; then
+          echo "✓ Found Rust coverage: $RUST_PATH"
+          lcov_files="$lcov_files $RUST_PATH"
+        else
+          echo "✗ Rust coverage not found at $RUST_PATH"
+        fi
+
+        # Add all JS coverage files
+        JS_DIR="$COVERAGE_DIR/${{ inputs.js-coverage-dir }}"
+        if [ -d "$JS_DIR" ]; then
+          echo "✓ JS coverage directory exists"
+          for file in "$JS_DIR"/${{ inputs.js-coverage-pattern }}; do
+            if [ -f "$file" ]; then
+              echo "✓ Found JS coverage: $file"
+              lcov_files="$lcov_files $file"
+            fi
+          done
+
+          # Check for .no-coverage marker
+          if [ -f "$JS_DIR/.no-coverage" ]; then
+            echo "⚠ Found .no-coverage marker - no JS coverage was generated"
+          fi
+        else
+          echo "✗ JS coverage directory not found at $JS_DIR"
+        fi
+
+        # Merge LCOV files or set defaults
+        if [ -n "$lcov_files" ]; then
+          echo "=== Merging coverage files: $lcov_files ==="
+
+          # Build lcov arguments dynamically
+          lcov_args=""
+          for file in $lcov_files; do
+            lcov_args="$lcov_args -a $file"
+          done
+
+          echo "Running: lcov $lcov_args -o $OUTPUT_FILE"
+
+          # Merge with lcov (handles mixed llvm/istanbul formats correctly)
+          set +e
+          lcov $lcov_args -o "$OUTPUT_FILE" 2>&1
+          merge_exit=$?
+          set -e
+
+          if [ $merge_exit -ne 0 ]; then
+            echo "⚠ WARNING: lcov merge exited with code $merge_exit, but may have produced output"
+          else
+            echo "✓ Coverage merge with lcov completed successfully"
+          fi
+
+          # Verify merged file exists and has content
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "❌ ERROR: Merged coverage file was not created!"
+            echo "coverage_summary=Merge failed - no output file" >> $GITHUB_OUTPUT
+            echo "lines_coverage=0" >> $GITHUB_OUTPUT
+            echo "functions_coverage=0" >> $GITHUB_OUTPUT
+            echo "branches_coverage=0" >> $GITHUB_OUTPUT
+            echo "has_coverage=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ ! -s "$OUTPUT_FILE" ]; then
+            echo "❌ ERROR: Merged coverage file is empty!"
+            echo "coverage_summary=Merge failed - empty output file" >> $GITHUB_OUTPUT
+            echo "lines_coverage=0" >> $GITHUB_OUTPUT
+            echo "functions_coverage=0" >> $GITHUB_OUTPUT
+            echo "branches_coverage=0" >> $GITHUB_OUTPUT
+            echo "has_coverage=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "=== Merged coverage file info ==="
+          ls -lh "$OUTPUT_FILE"
+          echo "First 10 lines:"
+          head -10 "$OUTPUT_FILE" || echo "Could not read file"
+
+          # Parse coverage metrics from merged LCOV
+          echo "=== Generating coverage summary ==="
+          coverage_summary=$(lcov --summary "$OUTPUT_FILE" 2>&1 | grep -E "lines|functions|branches" | head -3 || echo "")
+
+          if [ -z "$coverage_summary" ]; then
+            echo "⚠ WARNING: lcov --summary produced no output"
+            echo "coverage_summary=No summary available" >> $GITHUB_OUTPUT
+            echo "lines_coverage=0" >> $GITHUB_OUTPUT
+            echo "functions_coverage=0" >> $GITHUB_OUTPUT
+            echo "branches_coverage=0" >> $GITHUB_OUTPUT
+            echo "has_coverage=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Coverage summary:"
+          echo "$coverage_summary"
+
+          echo "coverage_summary<<EOF" >> $GITHUB_OUTPUT
+          echo "$coverage_summary" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # Extract percentages
+          lines_coverage=$(echo "$coverage_summary" | grep "lines" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
+          functions_coverage=$(echo "$coverage_summary" | grep "functions" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
+          branches_coverage=$(echo "$coverage_summary" | grep "branches" | grep -oE "[0-9]+\.[0-9]+%" | head -1 | sed 's/%//' || echo "0")
+
+          echo "Extracted coverage:"
+          echo "  Lines: $lines_coverage%"
+          echo "  Functions: $functions_coverage%"
+          echo "  Branches: $branches_coverage%"
+
+          echo "lines_coverage=$lines_coverage" >> $GITHUB_OUTPUT
+          echo "functions_coverage=$functions_coverage" >> $GITHUB_OUTPUT
+          echo "branches_coverage=$branches_coverage" >> $GITHUB_OUTPUT
+          echo "has_coverage=true" >> $GITHUB_OUTPUT
+        else
+          echo "⚠ WARNING: No coverage files found to merge!"
+          echo "This may happen if the test jobs failed or didn't generate coverage."
+
+          # Set empty outputs
+          echo "coverage_summary=No coverage data available" >> $GITHUB_OUTPUT
+          echo "lines_coverage=0" >> $GITHUB_OUTPUT
+          echo "functions_coverage=0" >> $GITHUB_OUTPUT
+          echo "branches_coverage=0" >> $GITHUB_OUTPUT
+          echo "has_coverage=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Generate HTML coverage report
+      if: always()
+      shell: bash
+      run: |
+        COVERAGE_DIR="${{ inputs.coverage-dir }}"
+        OUTPUT_PATH="$COVERAGE_DIR/${{ inputs.output-dir }}"
+        OUTPUT_FILE="$OUTPUT_PATH/${{ inputs.output-file }}"
+        HTML_DIR="$COVERAGE_DIR/html"
+
+        if [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
+          if grep -q "^SF:" "$OUTPUT_FILE"; then
+            mkdir -p "$HTML_DIR"
+            genhtml "$OUTPUT_FILE" --output-directory "$HTML_DIR" --ignore-errors source --prefix $(pwd)
+            echo "✓ HTML report generated at $HTML_DIR/index.html"
+          else
+            echo "⚠ Coverage file exists but contains no valid coverage records"
+          fi
+        else
+          echo "⚠ No coverage data available for HTML report generation"
+        fi
+        
+    - name: Upload merged coverage HTML
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: merged-coverage-html
+        path: ${{ inputs.coverage-dir }}/html/
+        retention-days: 7
+
+    - name: Upload merged coverage LCOV
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: merged-coverage-lcov
+        path: ${{ inputs.coverage-dir }}/${{ inputs.output-dir }}/${{ inputs.output-file }}
+        retention-days: 7
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      if: always() && inputs.codecov-token != ''
+      with:
+        files: ${{ inputs.coverage-dir }}/${{ inputs.output-dir }}/${{ inputs.output-file }}
+        fail_ci_if_error: false
+        verbose: true
+        token: ${{ inputs.codecov-token }}
