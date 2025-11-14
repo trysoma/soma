@@ -234,6 +234,11 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
 
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install cross
         if: matrix.use_cross
         uses: taiki-e/install-action@v2
@@ -322,6 +327,4 @@ jobs:
         run: pnpm -r run build
 
       - name: Publish prerelease to npm
-        run: npm publish -ws --access public --tag ${{ inputs.prerelease-label }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm -r publish --access public --tag ${{ inputs.prerelease-label }} --no-git-checks
