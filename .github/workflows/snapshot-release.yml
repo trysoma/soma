@@ -313,7 +313,9 @@ jobs:
         shell: bash
 
       - name: Build frontend
-        run: pnpm --filter my-app run build
+        run: |
+          cd crates/soma/app
+          pnpm run build
         shell: bash
 
       - name: Install protoc for cross (Docker)
