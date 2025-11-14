@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const AsciiBg = () => {
 	const [frames, setFrames] = useState<string[]>([]);
@@ -82,7 +82,6 @@ const AsciiBg = () => {
 		loadASCIIFile();
 	}, []);
 
-	
 	// Animation loop
 	useEffect(() => {
 		if (frames.length > 1) {

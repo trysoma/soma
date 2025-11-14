@@ -4,19 +4,19 @@
 @custom-variant dark (&:is(.dark *));
 
 @font-face {
-  font-family: 'BalithSerifSlant';
-  src: url('/baliths_serif_slant.ttf') format('truetype');
-  font-display: swap;
+	font-family: "BalithSerifSlant";
+	src: url("/baliths_serif_slant.ttf") format("truetype");
+	font-display: swap;
 }
 
 :root {
-  --header-height: 52px;
-  --nav-height: 48px;
-  --sub-nav-height: 38px;
+	--header-height: 52px;
+	--nav-height: 48px;
+	--sub-nav-height: 38px;
 
-  --font-geist-sans: 'Geist Sans', sans-serif;
-  --font-geist-mono: 'Geist Mono', monospace;
-  --font-balith-serif-slant: 'BalithSerifSlant', serif;
+	--font-geist-sans: "Geist Sans", sans-serif;
+	--font-geist-mono: "Geist Mono", monospace;
+	--font-balith-serif-slant: "BalithSerifSlant", serif;
 
 	--background: #ffebcc;
 	--foreground: #27272a;
@@ -188,12 +188,11 @@
 }
 
 /* Prevent layout shifts when dropdowns open */
-html, body {
+html,
+body {
 	scrollbar-gutter: unset;
 	overflow-y: hidden;
 }
-
-
 
 /* Ensure dropdown content doesn't affect page scrolling */
 [data-radix-popper-content-wrapper] {
@@ -210,82 +209,81 @@ html, body {
 html body[data-scroll-locked],
 body[data-scroll-locked="true"],
 body[data-scroll-locked] {
-	margin-right: 0 !important;
-
+	margin-right: 0;
 }
 
 .dark {
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+	--sidebar: hsl(240 5.9% 10%);
+	--sidebar-foreground: hsl(240 4.8% 95.9%);
+	--sidebar-primary: hsl(224.3 76.3% 48%);
+	--sidebar-primary-foreground: hsl(0 0% 100%);
+	--sidebar-accent: hsl(240 3.7% 15.9%);
+	--sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+	--sidebar-border: hsl(240 3.7% 15.9%);
+	--sidebar-ring: hsl(217.2 91.2% 59.8%);
 }
 
 /* RJSF Form Customizations */
 .rjsf-form-wrapper .form-group {
-  @apply mb-6;
+	@apply mb-6;
 }
 
 .rjsf-form-wrapper label {
-  @apply block text-sm font-medium mb-2;
+	@apply block text-sm font-medium mb-2;
 }
 
 .rjsf-form-wrapper input,
 .rjsf-form-wrapper select,
 .rjsf-form-wrapper textarea {
-  @apply w-full max-w-2xl px-3 py-2 border border-input rounded-md bg-background text-foreground;
-  @apply focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent;
-  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+	@apply w-full max-w-2xl px-3 py-2 border border-input rounded-md bg-background text-foreground;
+	@apply focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent;
+	@apply disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .rjsf-form-wrapper input[type="checkbox"] {
-  @apply w-auto max-w-none;
+	@apply w-auto max-w-none;
 }
 
 .rjsf-form-wrapper .field-description {
-  @apply text-sm text-muted-foreground mt-1 max-w-2xl;
+	@apply text-sm text-muted-foreground mt-1 max-w-2xl;
 }
 
 .rjsf-form-wrapper .field-error {
-  @apply text-sm text-destructive mt-1 max-w-2xl;
+	@apply text-sm text-destructive mt-1 max-w-2xl;
 }
 
 /* Submit button container - left align */
 .rjsf-form-wrapper form > div:last-child,
 .rjsf-form-wrapper .submit-button-container {
-  @apply flex justify-start pt-4 mt-6 border-t;
+	@apply flex justify-start pt-4 mt-6 border-t;
 }
 
 .rjsf-form-wrapper button[type="submit"] {
-  @apply px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium;
-  @apply hover:bg-primary/90 transition-colors;
-  @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+	@apply px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium;
+	@apply hover:bg-primary/90 transition-colors;
+	@apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
 }
 
 /* Password field styling */
 .rjsf-form-wrapper input[type="password"] {
-  @apply font-mono;
+	@apply font-mono;
 }
 
 /* Textarea styling */
 .rjsf-form-wrapper textarea {
-  @apply font-mono text-sm resize-y min-h-[100px];
+	@apply font-mono text-sm resize-y min-h-[100px];
 }
 
 /* Required field indicator */
 .rjsf-form-wrapper .required {
-  @apply text-destructive ml-1;
+	@apply text-destructive ml-1;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
 }

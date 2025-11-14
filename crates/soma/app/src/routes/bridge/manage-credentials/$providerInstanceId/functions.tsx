@@ -1,10 +1,8 @@
 "use client";
-import { createFileRoute, useParams } from '@tanstack/react-router'
-import { X, Plus } from "lucide-react";
+import { createFileRoute, useParams } from "@tanstack/react-router";
+import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import $api from '@/lib/api-client.client';
 import {
 	Command,
 	CommandEmpty,
@@ -17,40 +15,48 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import $api from "@/lib/api-client.client";
 
-export const Route = createFileRoute('/bridge/manage-credentials/$providerInstanceId/functions')({
-  component: RouteComponent,
-})
+export const Route = createFileRoute(
+	"/bridge/manage-credentials/$providerInstanceId/functions",
+)({
+	component: RouteComponent,
+});
 
 function RouteComponent() {
-  const { providerInstanceId } = useParams({ from: '/bridge/manage-credentials/$providerInstanceId/functions' });
+	const { providerInstanceId } = useParams({
+		from: "/bridge/manage-credentials/$providerInstanceId/functions",
+	});
 
-  // Query the specific provider instance with all its details
-  const {
-    data: providerInstanceData,
-  } = $api.useQuery("get", "/api/bridge/v1/provider/{provider_instance_id}", {
-    params: {
-      path: {
-        provider_instance_id: providerInstanceId,
-      },
-    },
-  });
+	// Query the specific provider instance with all its details
+	const { data: providerInstanceData } = $api.useQuery(
+		"get",
+		"/api/bridge/v1/provider/{provider_instance_id}",
+		{
+			params: {
+				path: {
+					provider_instance_id: providerInstanceId,
+				},
+			},
+		},
+	);
 
-  const instance = providerInstanceData?.provider_instance;
-  const providerController = providerInstanceData?.controller;
+	const instance = providerInstanceData?.provider_instance;
+	const providerController = providerInstanceData?.controller;
 
-  if (!instance || !providerController) {
-    return null;
-  }
+	if (!instance || !providerController) {
+		return null;
+	}
 
-  return (
-    <div className="p-6 mt-0">
-      <EnabledFunctionsTab 
-        providerInstance={instance}
-        providerController={providerController}
-      />
-    </div>
-  );
+	return (
+		<div className="p-6 mt-0">
+			<EnabledFunctionsTab
+				providerInstance={instance}
+				providerController={providerController}
+			/>
+		</div>
+	);
 }
 
 // Enabled Functions Tab Component
@@ -79,19 +85,28 @@ const EnabledFunctionsTab = ({
 	});
 
 	// Enable function mutation (creates a function instance)
-	const enableFunctionMutation = $api.useMutation("post", "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable");
+	const enableFunctionMutation = $api.useMutation(
+		"post",
+		"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable",
+	);
 
 	// Disable function mutation (deletes a function instance)
-	const disableFunctionMutation = $api.useMutation("post", "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable");
+	const disableFunctionMutation = $api.useMutation(
+		"post",
+		"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable",
+	);
 
 	const enabledFunctionInstances = functionInstancesData?.items || [];
 
 	// Get available functions from provider controller
 	const availableFunctions = providerController?.functions || [];
-	
+
 	// Filter out already enabled functions
 	const unenabledFunctions = availableFunctions.filter(
-		(func: any) => !enabledFunctionInstances.some((enabled) => enabled.function_controller_type_id === func.type_id)
+		(func: any) =>
+			!enabledFunctionInstances.some(
+				(enabled) => enabled.function_controller_type_id === func.type_id,
+			),
 	);
 
 	const handleEnableFunction = async (functionTypeId: string) => {
@@ -141,7 +156,9 @@ const EnabledFunctionsTab = ({
 
 	// Find function name from provider controller
 	const getFunctionName = (functionTypeId: string) => {
-		const func = availableFunctions.find((f: any) => f.type_id === functionTypeId);
+		const func = availableFunctions.find(
+			(f: any) => f.type_id === functionTypeId,
+		);
 		return func?.name || functionTypeId;
 	};
 
@@ -213,14 +230,20 @@ const EnabledFunctionsTab = ({
 										} hover:bg-gray-50 transition-colors`}
 									>
 										<td className="px-3 py-2 text-sm font-medium">
-											{getFunctionName(functionInstance.function_controller_type_id)}
+											{getFunctionName(
+												functionInstance.function_controller_type_id,
+											)}
 										</td>
 										<td className="px-3 py-2 text-right w-50">
 											<Button
 												type="button"
 												variant="ghost"
 												size="sm"
-												onClick={() => handleDisableFunction(functionInstance.function_controller_type_id)}
+												onClick={() =>
+													handleDisableFunction(
+														functionInstance.function_controller_type_id,
+													)
+												}
 												className="hover:bg-red-50 hover:text-red-600"
 												disabled={disableFunctionMutation.isPending}
 											>

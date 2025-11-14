@@ -35,4 +35,3 @@ export const SlideOut = ({ isOpen, onClose, children }: SlideOutProps) => {
 		</AnimatePresence>
 	);
 };
-

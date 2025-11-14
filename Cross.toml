@@ -3,6 +3,17 @@
 
 # Override linker settings from .cargo/config.toml for cross-compilation
 [target.aarch64-unknown-linux-gnu]
+pre-build = [
+    "apt-get update && apt-get install -y protobuf-compiler",
+]
+
+[target.aarch64-unknown-linux-gnu.env]
+volumes = []
+passthrough = []
+
+[env]
+# Set PROTOC to be available in Docker container after pre-build installs it
+PROTOC = "/usr/bin/protoc"
 
 [target.x86_64-apple-darwin]
 
