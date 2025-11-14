@@ -1,9 +1,9 @@
 "use client";
 
+import { Link, useLocation } from "@tanstack/react-router";
 import { CornerDownRightIcon, ExternalLinkIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Link, useLocation } from "@tanstack/react-router";
 
 export interface SubNavItem {
 	label: string;
@@ -17,8 +17,12 @@ interface SubNavProps {
 	className?: string;
 }
 
-export function SubNavigation({ items, nestLevel = "first", className }: SubNavProps) {
-	const {pathname} = useLocation();
+export function SubNavigation({
+	items,
+	nestLevel = "first",
+	className,
+}: SubNavProps) {
+	const { pathname } = useLocation();
 	const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 	const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 	const navRefs = useRef<(HTMLAnchorElement | null)[]>([]);

@@ -6,10 +6,7 @@ interface ClerkLayoutProps {
 	fullWidth?: boolean;
 }
 
-export function ClerkLayout({
-	children,
-	className,
-}: ClerkLayoutProps) {
+export function ClerkLayout({ children, className }: ClerkLayoutProps) {
 	return (
 		<div
 			className={cn(

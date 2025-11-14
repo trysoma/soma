@@ -111,6 +111,10 @@ jobs:
         with:
           install-dependencies: 'true'
 
+      - name: Build frontend
+        run: pnpm --filter my-app run build
+        shell: bash
+
       - name: Build binary
         run: |
           if [ "${{ matrix.use_cross }}" = "true" ]; then

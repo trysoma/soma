@@ -3,23 +3,23 @@
  * Returns true if all characters in the query appear in the same order in the text
  */
 export function fuzzyMatch(query: string, text: string): boolean {
-  if (!query) return true;
-  if (!text) return false;
+	if (!query) return true;
+	if (!text) return false;
 
-  const queryLower = query.toLowerCase();
-  const textLower = text.toLowerCase();
+	const queryLower = query.toLowerCase();
+	const textLower = text.toLowerCase();
 
-  let queryIndex = 0;
-  let textIndex = 0;
+	let queryIndex = 0;
+	let textIndex = 0;
 
-  while (queryIndex < queryLower.length && textIndex < textLower.length) {
-    if (queryLower[queryIndex] === textLower[textIndex]) {
-      queryIndex++;
-    }
-    textIndex++;
-  }
+	while (queryIndex < queryLower.length && textIndex < textLower.length) {
+		if (queryLower[queryIndex] === textLower[textIndex]) {
+			queryIndex++;
+		}
+		textIndex++;
+	}
 
-  return queryIndex === queryLower.length;
+	return queryIndex === queryLower.length;
 }
 
 /**
@@ -28,40 +28,40 @@ export function fuzzyMatch(query: string, text: string): boolean {
  * Higher score = better match
  */
 export function fuzzyScore(query: string, text: string): number {
-  if (!query) return 1;
-  if (!text) return 0;
+	if (!query) return 1;
+	if (!text) return 0;
 
-  const queryLower = query.toLowerCase();
-  const textLower = text.toLowerCase();
+	const queryLower = query.toLowerCase();
+	const textLower = text.toLowerCase();
 
-  // Exact match
-  if (textLower === queryLower) return 1000;
+	// Exact match
+	if (textLower === queryLower) return 1000;
 
-  // Starts with query
-  if (textLower.startsWith(queryLower)) return 100;
+	// Starts with query
+	if (textLower.startsWith(queryLower)) return 100;
 
-  // Contains exact query
-  if (textLower.includes(queryLower)) return 50;
+	// Contains exact query
+	if (textLower.includes(queryLower)) return 50;
 
-  // Fuzzy match
-  let score = 0;
-  let queryIndex = 0;
-  let textIndex = 0;
-  let consecutiveMatches = 0;
+	// Fuzzy match
+	let score = 0;
+	let queryIndex = 0;
+	let textIndex = 0;
+	let consecutiveMatches = 0;
 
-  while (queryIndex < queryLower.length && textIndex < textLower.length) {
-    if (queryLower[queryIndex] === textLower[textIndex]) {
-      queryIndex++;
-      consecutiveMatches++;
-      score += consecutiveMatches * 2; // Bonus for consecutive matches
-    } else {
-      consecutiveMatches = 0;
-    }
-    textIndex++;
-  }
+	while (queryIndex < queryLower.length && textIndex < textLower.length) {
+		if (queryLower[queryIndex] === textLower[textIndex]) {
+			queryIndex++;
+			consecutiveMatches++;
+			score += consecutiveMatches * 2; // Bonus for consecutive matches
+		} else {
+			consecutiveMatches = 0;
+		}
+		textIndex++;
+	}
 
-  // Only return score if all characters were found
-  return queryIndex === queryLower.length ? score : 0;
+	// Only return score if all characters were found
+	return queryIndex === queryLower.length ? score : 0;
 }
 
 /**
@@ -72,19 +72,19 @@ export function fuzzyScore(query: string, text: string): number {
  * @returns Filtered and sorted array
  */
 export function fuzzyFilter<T>(
-  items: T[],
-  query: string,
-  getSearchText: (item: T) => string
+	items: T[],
+	query: string,
+	getSearchText: (item: T) => string,
 ): T[] {
-  if (!query) return items;
+	if (!query) return items;
 
-  const scoredItems = items
-    .map(item => ({
-      item,
-      score: fuzzyScore(query, getSearchText(item))
-    }))
-    .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score);
+	const scoredItems = items
+		.map((item) => ({
+			item,
+			score: fuzzyScore(query, getSearchText(item)),
+		}))
+		.filter(({ score }) => score > 0)
+		.sort((a, b) => b.score - a.score);
 
-  return scoredItems.map(({ item }) => item);
+	return scoredItems.map(({ item }) => item);
 }

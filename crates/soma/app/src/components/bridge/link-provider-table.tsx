@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import $api from '@/lib/api-client.client';
 import type { components } from "@/@types/openapi";
-import { LinkProviderInstancesTable } from "./configuration-form";
-import { ConfigurationForm } from "./configuration-form";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import $api from "@/lib/api-client.client";
+import {
+	ConfigurationForm,
+	LinkProviderInstancesTable,
+} from "./configuration-form";
 
 type ProviderController = components["schemas"]["ProviderControllerSerialized"];
 
@@ -14,27 +16,29 @@ interface LinkProviderOrCreateProps {
 }
 
 // Component that shows tabs to either link to existing provider or create new one
-export const LinkProviderOrCreate = ({ provider, functionTypeId, onSuccess }: LinkProviderOrCreateProps) => {
+export const LinkProviderOrCreate = ({
+	provider,
+	functionTypeId,
+	onSuccess,
+}: LinkProviderOrCreateProps) => {
 	const [configMode, setConfigMode] = useState<"existing" | "new">("existing");
 
 	// Query existing provider instances for this provider type (status=active)
-	const {
-		data: providerInstancesData,
-		isLoading: isLoadingInstances,
-	} = $api.useQuery("get", "/api/bridge/v1/provider", {
-		params: {
-			query: {
-				page_size: 1000,
-				status: "active",
+	const { data: providerInstancesData, isLoading: isLoadingInstances } =
+		$api.useQuery("get", "/api/bridge/v1/provider", {
+			params: {
+				query: {
+					page_size: 1000,
+					status: "active",
+				},
 			},
-		},
-	});
+		});
 
 	// Filter instances by provider controller type
 	const existingProviderInstances = useMemo(() => {
 		if (!providerInstancesData?.items) return [];
 		return providerInstancesData.items.filter(
-			(instance) => instance.provider_controller_type_id === provider.type_id
+			(instance) => instance.provider_controller_type_id === provider.type_id,
 		);
 	}, [providerInstancesData, provider.type_id]);
 
@@ -53,10 +57,7 @@ export const LinkProviderOrCreate = ({ provider, functionTypeId, onSuccess }: Li
 	if (!hasExistingCredentials) {
 		return (
 			<div className="space-y-4">
-				<ConfigurationForm 
-					provider={provider} 
-					onSuccess={onSuccess}
-				/>
+				<ConfigurationForm provider={provider} onSuccess={onSuccess} />
 			</div>
 		);
 	}
@@ -64,7 +65,10 @@ export const LinkProviderOrCreate = ({ provider, functionTypeId, onSuccess }: Li
 	// If we have existing credentials, show tabs for "Use Existing" and "Add New"
 	return (
 		<div className="space-y-4">
-			<Tabs value={configMode} onValueChange={(v) => setConfigMode(v as "existing" | "new")}>
+			<Tabs
+				value={configMode}
+				onValueChange={(v) => setConfigMode(v as "existing" | "new")}
+			>
 				<TabsList className="grid w-fit grid-cols-2">
 					<TabsTrigger value="existing">Use existing credentials</TabsTrigger>
 					<TabsTrigger value="new">Add new credentials</TabsTrigger>
@@ -80,13 +84,9 @@ export const LinkProviderOrCreate = ({ provider, functionTypeId, onSuccess }: Li
 				</TabsContent>
 
 				<TabsContent value="new" className="mt-4">
-					<ConfigurationForm 
-						provider={provider} 
-						onSuccess={onSuccess}
-					/>
+					<ConfigurationForm provider={provider} onSuccess={onSuccess} />
 				</TabsContent>
 			</Tabs>
 		</div>
 	);
 };
-

@@ -1,48 +1,53 @@
 "use client";
-import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { PageLayout } from "@/components/ui/page-layout";
+import type { components } from "@/@types/openapi";
 import { PageHeaderWithAction } from "@/components/layout/page-header-with-action";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { PageLayout } from "@/components/ui/page-layout";
 import {
 	SearchableSelect,
 	type SelectOption,
 } from "@/components/ui/searchable-select";
-import { LINKS } from "@/lib/links";
-import $api from '@/lib/api-client.client';
-import type { components } from "@/@types/openapi";
 import {
 	Table,
-	TableWrapper,
-	TableTitle,
-	TableContainer,
-	TableHeader,
 	TableBody,
-	TableRow,
-	TableHead,
 	TableCell,
+	TableContainer,
+	TableHead,
+	TableHeader,
 	TableLoadMore,
+	TableRow,
+	TableTitle,
+	TableWrapper,
 } from "@/components/ui/table";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import $api from "@/lib/api-client.client";
+import { LINKS } from "@/lib/links";
 
-export const Route = createFileRoute('/bridge/enable-functions')({
-  component: RouteComponent,
-})
+export const Route = createFileRoute("/bridge/enable-functions")({
+	component: RouteComponent,
+});
 
 function RouteComponent() {
-  return (
-    <>
-      <EnableFunctionsPage />
-      <Outlet />
-    </>
-  )
+	return (
+		<>
+			<EnableFunctionsPage />
+			<Outlet />
+		</>
+	);
 }
 
 // Type aliases for better readability
 type JsonSchema = components["schemas"]["JsonSchema"];
-type ProviderInstance = components["schemas"]["ProviderInstanceSerializedWithCredentials"];
+type ProviderInstance =
+	components["schemas"]["ProviderInstanceSerializedWithCredentials"];
 
 // Type for available functions derived from providers
 export interface AvailableFunction {
@@ -58,7 +63,11 @@ export interface AvailableFunction {
 }
 
 // Component to render provider instance badges with truncation and tooltip
-const ProviderInstanceBadges = ({ instances }: { instances: ProviderInstance[] }) => {
+const ProviderInstanceBadges = ({
+	instances,
+}: {
+	instances: ProviderInstance[];
+}) => {
 	const MAX_DISPLAY_LENGTH = 50; // Maximum characters to display before truncating
 	const MAX_VISIBLE_BADGES = 3; // Show at most 3 badges before "+ X more"
 
@@ -87,12 +96,21 @@ const ProviderInstanceBadges = ({ instances }: { instances: ProviderInstance[] }
 
 	const visibleInstances = instances.slice(0, visibleCount);
 	const hiddenCount = instances.length - visibleCount;
-	const allInstanceNames = instances.map((i) => i.provider_instance.display_name).join(", ");
+	const allInstanceNames = instances
+		.map((i) => i.provider_instance.display_name)
+		.join(", ");
 
 	return (
-		<div className="flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+		<div
+			className="flex items-center gap-1 flex-wrap"
+			onClick={(e) => e.stopPropagation()}
+		>
 			{visibleInstances.map((instance) => (
-				<Badge key={instance.provider_instance.id} variant="secondary" className="text-xs">
+				<Badge
+					key={instance.provider_instance.id}
+					variant="secondary"
+					className="text-xs"
+				>
 					{instance.provider_instance.display_name}
 				</Badge>
 			))}
@@ -135,11 +153,11 @@ const FunctionsTable = ({
 		observerRef.current = new IntersectionObserver(
 			(entries) => {
 				if (entries[0].isIntersecting) {
-					loadMore()
+					loadMore();
 				}
 			},
 			{ threshold: 0.1 },
-		)
+		);
 
 		if (loadMoreRef.current) {
 			observerRef.current.observe(loadMoreRef.current);
@@ -149,7 +167,7 @@ const FunctionsTable = ({
 			if (observerRef.current) {
 				observerRef.current.disconnect();
 			}
-		}
+		};
 	}, [loadMore, hasMore]);
 
 	return (
@@ -183,7 +201,7 @@ const FunctionsTable = ({
 				{hasMore && <TableLoadMore loadMoreRef={loadMoreRef} />}
 			</TableContainer>
 		</TableWrapper>
-	)
+	);
 };
 
 function EnableFunctionsPage() {
@@ -200,10 +218,11 @@ function EnableFunctionsPage() {
 				page_size: 100,
 			},
 		},
-	})
+	});
 
 	// Check if we have any encryption keys
-	const hasEncryptionKeys = dataEncryptionKeys?.items && dataEncryptionKeys.items.length > 0;
+	const hasEncryptionKeys =
+		dataEncryptionKeys?.items && dataEncryptionKeys.items.length > 0;
 
 	const [selectedProviderFilter, setSelectedProviderFilter] = useState("");
 	const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("");
@@ -216,13 +235,19 @@ function EnableFunctionsPage() {
 		data: functionInstanceData,
 		isLoading: isLoadingFunctions,
 		isFetching: isFetchingFunctions,
-	} = $api.useQuery("get", "/api/bridge/v1/provider/grouped-by-function",
+	} = $api.useQuery(
+		"get",
+		"/api/bridge/v1/provider/grouped-by-function",
 		{
 			params: {
 				query: {
 					page_size: 1000,
-					...(selectedProviderFilter && { provider_controller_type_id: selectedProviderFilter }),
-					...(selectedCategoryFilter && { function_category: selectedCategoryFilter }),
+					...(selectedProviderFilter && {
+						provider_controller_type_id: selectedProviderFilter,
+					}),
+					...(selectedCategoryFilter && {
+						function_category: selectedCategoryFilter,
+					}),
 				},
 			},
 		},
@@ -230,13 +255,13 @@ function EnableFunctionsPage() {
 			enabled: hasEncryptionKeys,
 			// Keep previous data while fetching new data to prevent flashing
 			placeholderData: (previousData) => previousData,
-		}
-	)
+		},
+	);
 
 	// Query available providers to get the list for filter dropdown
-	const {
-		data: availableProvidersData,
-	} = $api.useQuery("get", "/api/bridge/v1/available-providers",
+	const { data: availableProvidersData } = $api.useQuery(
+		"get",
+		"/api/bridge/v1/available-providers",
 		{
 			params: {
 				query: {
@@ -246,11 +271,14 @@ function EnableFunctionsPage() {
 		},
 		{
 			enabled: hasEncryptionKeys,
-		}
-	)
+		},
+	);
 
 	// Mutation to create data encryption key
-	const createKeyMutation = $api.useMutation("post", "/api/bridge/v1/encryption/data-encryption-key");
+	const createKeyMutation = $api.useMutation(
+		"post",
+		"/api/bridge/v1/encryption/data-encryption-key",
+	);
 
 	// Handler to create default encryption key
 	const handleEnableBridge = async () => {
@@ -259,29 +287,31 @@ function EnableFunctionsPage() {
 				body: {
 					id: "default",
 				},
-			})
+			});
 			// Refetch keys after creation
 			await refetchKeys();
 		} catch (error) {
 			console.error("Failed to create encryption key:", error);
 		}
-	}
+	};
 
 	// Transform function instance data into available functions
 	const availableFunctions = useMemo(() => {
 		if (!functionInstanceData?.items) return [];
 
-		const functions: AvailableFunction[] = functionInstanceData.items.map((item) => ({
-			id: item.function_controller.type_id,
-			providerTypeId: item.provider_controller.type_id,
-			providerName: item.provider_controller.name,
-			functionName: item.function_controller.name,
-			documentation: item.function_controller.documentation,
-			parametersSchema: item.function_controller.parameters,
-			outputSchema: item.function_controller.output,
-			categories: item.provider_controller.categories || [],
-			providerInstances: item.provider_instances || [],
-		}));
+		const functions: AvailableFunction[] = functionInstanceData.items.map(
+			(item) => ({
+				id: item.function_controller.type_id,
+				providerTypeId: item.provider_controller.type_id,
+				providerName: item.provider_controller.name,
+				functionName: item.function_controller.name,
+				documentation: item.function_controller.documentation,
+				parametersSchema: item.function_controller.parameters,
+				outputSchema: item.function_controller.output,
+				categories: item.provider_controller.categories || [],
+				providerInstances: item.provider_instances || [],
+			}),
+		);
 
 		return functions;
 	}, [functionInstanceData]);
@@ -301,11 +331,10 @@ function EnableFunctionsPage() {
 			(p.categories || []).forEach((c) => categories.add(c));
 		});
 		return Array.from(categories).sort();
-	}, [availableProvidersData])
+	}, [availableProvidersData]);
 
-	const [displayedAvailableFunctions, setDisplayedAvailableFunctions] = useState<
-		AvailableFunction[]
-	>([]);
+	const [displayedAvailableFunctions, setDisplayedAvailableFunctions] =
+		useState<AvailableFunction[]>([]);
 
 	const ITEMS_PER_PAGE = 20;
 
@@ -328,7 +357,10 @@ function EnableFunctionsPage() {
 
 	// Category options for filters
 	const categoryOptions: SelectOption[] = useMemo(() => {
-		const categorySelectOptions = allCategories.map((c) => ({ value: c, label: c }));
+		const categorySelectOptions = allCategories.map((c) => ({
+			value: c,
+			label: c,
+		}));
 
 		// If no search query, show first 10 categories
 		if (!categorySearchQuery) {
@@ -363,8 +395,8 @@ function EnableFunctionsPage() {
 	}, [availableFunctions]);
 
 	const handleFunctionClick = (func: AvailableFunction) => {
-		navigate({ to: LINKS.BRIDGE_ENABLE_FUNCTIONS_FUNCTION(func.id) })
-	}
+		navigate({ to: LINKS.BRIDGE_ENABLE_FUNCTIONS_FUNCTION(func.id) });
+	};
 
 	// If loading, show loading state
 	if (isLoadingKeys || (hasEncryptionKeys && isLoadingFunctions)) {
@@ -378,7 +410,7 @@ function EnableFunctionsPage() {
 					<p className="text-muted-foreground">Loading...</p>
 				</div>
 			</PageLayout>
-		)
+		);
 	}
 
 	// If no encryption keys exist, show setup screen
@@ -389,11 +421,13 @@ function EnableFunctionsPage() {
 					title="Enable Functions"
 					description="Browse and enable available MCP functions"
 					actions={
-						<Button 
-							onClick={handleEnableBridge} 
+						<Button
+							onClick={handleEnableBridge}
 							disabled={createKeyMutation.isPending}
 						>
-							{createKeyMutation.isPending ? "Enabling..." : "Enable Bridge MCP"}
+							{createKeyMutation.isPending
+								? "Enabling..."
+								: "Enable Bridge MCP"}
 						</Button>
 					}
 				/>
@@ -405,7 +439,7 @@ function EnableFunctionsPage() {
 					</div>
 				)}
 			</PageLayout>
-		)
+		);
 	}
 
 	return (
@@ -450,8 +484,8 @@ function EnableFunctionsPage() {
 										variant="ghost"
 										size="sm"
 										onClick={() => {
-											setSelectedProviderFilter("")
-											setSelectedCategoryFilter("")
+											setSelectedProviderFilter("");
+											setSelectedCategoryFilter("");
 										}}
 										className="h-8 px-2 lg:px-3"
 									>
@@ -464,15 +498,18 @@ function EnableFunctionsPage() {
 							{/* Data tables */}
 							<div className="space-y-4 relative">
 								{/* Loading overlay - shows when fetching new data */}
-								
-								<div className={`transition-opacity duration-200 ${isFetchingFunctions && !isLoadingFunctions ? 'opacity-60' : 'opacity-100'}`}>
+
+								<div
+									className={`transition-opacity duration-200 ${isFetchingFunctions && !isLoadingFunctions ? "opacity-60" : "opacity-100"}`}
+								>
 									<FunctionsTable
 										functions={displayedAvailableFunctions}
 										title="Available Functions"
 										onRowClick={handleFunctionClick}
 										loadMore={loadMoreAvailable}
 										hasMore={
-											displayedAvailableFunctions.length < availableFunctions.length
+											displayedAvailableFunctions.length <
+											availableFunctions.length
 										}
 									/>
 								</div>
@@ -482,5 +519,5 @@ function EnableFunctionsPage() {
 				</div>
 			</div>
 		</PageLayout>
-	)
+	);
 }

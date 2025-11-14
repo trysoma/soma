@@ -11,6 +11,7 @@ fn main() {
 
     // Point to the app directory
     let app_dir = crate_dir.join("app");
+    let workspace_dir = crate_dir.join("..");
     // Export it so the derive macro sees it
     println!("cargo:rustc-env=FRONTEND_APP_DIR={}", app_dir.display());
 
@@ -23,11 +24,20 @@ fn main() {
         return;
     }
 
+    // Check if frontend is already built (routes.json exists)
+    let routes_json = app_dir.join("dist/.vite-rs/routes.json");
+    if routes_json.exists() {
+        println!("cargo:warning=Frontend already built, skipping pnpm steps");
+        return;
+    }
+
     // Skip npm/pnpm commands in Nix builds (no network access)
     // Only run npm commands in non-Nix environments
+    // Note: In CI/CD, frontend should be built before cargo build
+    // These commands are fallback for local development
     let install_result = std::process::Command::new("pnpm")
         .arg("install")
-        .current_dir(app_dir.clone())
+        .current_dir(workspace_dir)
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())
         .status(); // Use status() instead of spawn() to wait for completion

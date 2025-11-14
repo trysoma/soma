@@ -5,33 +5,36 @@ import type { ChatContext } from "@/types/a2a";
 
 // Terminal states that should reset tasks
 export const terminalStates: TaskState[] = [
-  "completed",
-  "canceled",
-  "failed",
-  "rejected",
-  "unknown",
+	"completed",
+	"canceled",
+	"failed",
+	"rejected",
+	"unknown",
 ];
 
 export const createMessageSendParams = (
-  messageText: string,
-  contextId: string,
-  taskId?: string
+	messageText: string,
+	contextId: string,
+	taskId?: string,
 ): MessageSendParams => ({
-  message: {
-    contextId,
-    kind: "message",
-    messageId: uuidv4(),
-    parts: [{ kind: "text", text: messageText }],
-    role: "user",
-    ...(taskId && { taskId }),
-  },
+	message: {
+		contextId,
+		kind: "message",
+		messageId: uuidv4(),
+		parts: [{ kind: "text", text: messageText }],
+		role: "user",
+		...(taskId && { taskId }),
+	},
 });
 
-export const createTempChatContext = (contextId: string, agent: AgentCard): ChatContext => ({
-  contextId,
-  agent,
-  tasks: [],
-  pendingMessage: null,
-  messageText: "",
-  loading: true,
+export const createTempChatContext = (
+	contextId: string,
+	agent: AgentCard,
+): ChatContext => ({
+	contextId,
+	agent,
+	tasks: [],
+	pendingMessage: null,
+	messageText: "",
+	loading: true,
 });

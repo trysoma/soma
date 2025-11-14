@@ -1,35 +1,35 @@
 "use client";
-import { createFileRoute, useNavigate, Outlet } from '@tanstack/react-router'
-import { PageLayout } from "@/components/ui/page-layout";
-import { PageHeaderWithAction } from "@/components/layout/page-header-with-action";
-import { cn } from "@/lib/utils";
-import { LINKS } from "@/lib/links";
-import $api from '@/lib/api-client.client';
+import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import type { components } from "@/@types/openapi";
+import { PageHeaderWithAction } from "@/components/layout/page-header-with-action";
+import { PageLayout } from "@/components/ui/page-layout";
 import {
 	Table,
-	TableWrapper,
-	TableTitle,
+	TableBody,
+	TableCell,
 	TableContainer,
 	TableEmpty,
-	TableHeader,
-	TableBody,
-	TableRow,
 	TableHead,
-	TableCell,
+	TableHeader,
+	TableRow,
+	TableTitle,
+	TableWrapper,
 } from "@/components/ui/table";
+import $api from "@/lib/api-client.client";
+import { LINKS } from "@/lib/links";
+import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute('/bridge/manage-credentials')({
-  component: RouteComponent,
-})
+export const Route = createFileRoute("/bridge/manage-credentials")({
+	component: RouteComponent,
+});
 
 function RouteComponent() {
-  return (
-    <>
-      <ManageCredentialsPage />
-      <Outlet />
-    </>
-  )
+	return (
+		<>
+			<ManageCredentialsPage />
+			<Outlet />
+		</>
+	);
 }
 
 // Type aliases for better readability
@@ -72,16 +72,22 @@ const ProviderInstancesTable = ({
 								>
 									<TableCell bold>{instance.display_name}</TableCell>
 									<TableCell>
-										{instance.providerController?.name || instance.provider_controller_type_id}
+										{instance.providerController?.name ||
+											instance.provider_controller_type_id}
 									</TableCell>
 									<TableCell>
-										{instance.credentialControllerName || instance.credential_controller_type_id}
+										{instance.credentialControllerName ||
+											instance.credential_controller_type_id}
 									</TableCell>
 									<TableCell>
-										<span className={cn(
-											"px-2 py-1 rounded text-xs",
-											instance.status === "active" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-										)}>
+										<span
+											className={cn(
+												"px-2 py-1 rounded text-xs",
+												instance.status === "active"
+													? "bg-green-100 text-green-800"
+													: "bg-yellow-100 text-yellow-800",
+											)}
+										>
 											{instance.status}
 										</span>
 									</TableCell>
@@ -94,54 +100,59 @@ const ProviderInstancesTable = ({
 				)}
 			</TableContainer>
 		</TableWrapper>
-	)
+	);
 };
 
 function ManageCredentialsPage() {
 	const navigate = useNavigate();
 
 	// Query provider instances
-	const {
-		data: providerInstancesData,
-		isLoading: isLoadingInstances,
-	} = $api.useQuery("get", "/api/bridge/v1/provider", {
-		params: {
-			query: {
-				page_size: 1000,
+	const { data: providerInstancesData, isLoading: isLoadingInstances } =
+		$api.useQuery("get", "/api/bridge/v1/provider", {
+			params: {
+				query: {
+					page_size: 1000,
+				},
 			},
-		},
-	})
+		});
 
 	// Query available providers to get metadata
-	const {
-		data: availableProvidersData,
-	} = $api.useQuery("get", "/api/bridge/v1/available-providers", {
-		params: {
-			query: {
-				page_size: 1000,
+	const { data: availableProvidersData } = $api.useQuery(
+		"get",
+		"/api/bridge/v1/available-providers",
+		{
+			params: {
+				query: {
+					page_size: 1000,
+				},
 			},
 		},
-	})
+	);
 
 	// Enrich provider instances with metadata
-	const providerInstances: ProviderInstanceWithMetadata[] = (providerInstancesData?.items || []).map((instance) => {
+	const providerInstances: ProviderInstanceWithMetadata[] = (
+		providerInstancesData?.items || []
+	).map((instance) => {
 		const providerController = availableProvidersData?.items.find(
-			(p) => p.type_id === instance.provider_controller_type_id
-		)
-		const credentialControllerName = providerController?.credential_controllers.find(
-			(c) => c.type_id === instance.credential_controller_type_id
-		)?.name;
+			(p) => p.type_id === instance.provider_controller_type_id,
+		);
+		const credentialControllerName =
+			providerController?.credential_controllers.find(
+				(c) => c.type_id === instance.credential_controller_type_id,
+			)?.name;
 
 		return {
 			...instance,
 			providerController,
 			credentialControllerName,
-		}
-	})
+		};
+	});
 
 	const handleRowClick = (instance: ProviderInstanceWithMetadata) => {
-		navigate({ to: LINKS.BRIDGE_MANAGE_CREDENTIALS_DOCUMENTATION(instance.id) })
-	}
+		navigate({
+			to: LINKS.BRIDGE_MANAGE_CREDENTIALS_DOCUMENTATION(instance.id),
+		});
+	};
 
 	if (isLoadingInstances) {
 		return (
@@ -150,7 +161,7 @@ function ManageCredentialsPage() {
 					<p className="text-muted-foreground">Loading...</p>
 				</div>
 			</PageLayout>
-		)
+		);
 	}
 
 	return (
@@ -166,5 +177,5 @@ function ManageCredentialsPage() {
 				/>
 			</div>
 		</PageLayout>
-	)
+	);
 }

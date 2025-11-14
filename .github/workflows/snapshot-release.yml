@@ -270,6 +270,7 @@ jobs:
           target: ${{ matrix.target }}
           components: ''
           cache: 'false'
+          install-protoc: 'true'
 
       - name: Install cross
         if: matrix.use_cross
@@ -281,6 +282,47 @@ jobs:
         uses: ./.github/actions/setup-pnpm-node
         with:
           install-dependencies: 'true'
+
+      - name: upgrade npm to 11 (supports trusted publishing)
+        run: |
+          sudo npm install -g npm@latest
+          npm -v
+
+      - name: Pre-fetch cargo dependencies
+        run: |
+          echo "Fetching cargo dependencies to ensure git repos are downloaded..."
+          cargo fetch --locked
+        shell: bash
+
+      # TODO: might be needed for restate-types build issue on windows
+      - name: Fetch git dependency submodules
+        run: |
+          # Cargo fetches git dependencies to ~/.cargo/git
+          # We need to initialize submodules for restate dependency
+          CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}"
+          RESTATE_DIR=$(find "$CARGO_HOME/git/checkouts" -type d -name "restate-*" 2>/dev/null | head -1)
+          if [ -n "$RESTATE_DIR" ] && [ -d "$RESTATE_DIR/.git" ]; then
+            echo "Found restate checkout at: $RESTATE_DIR"
+            cd "$RESTATE_DIR"
+            git submodule update --init --recursive || true
+          else
+            echo "Warning: Restate git checkout not found after cargo fetch"
+            # List what was actually fetched to help debugging
+            find "$CARGO_HOME/git/checkouts" -maxdepth 2 -type d 2>/dev/null || true
+          fi
+        shell: bash
+
+      - name: Build frontend
+        run: pnpm --filter my-app run build
+        shell: bash
+
+      - name: Install protoc for cross (Docker)
+        if: matrix.use_cross
+        run: |
+          # Cross builds in Docker, so we need protoc available in the container
+          # The cross Docker images should have protoc, but we'll set PROTOC env var
+          echo "PROTOC=/usr/bin/protoc" >> $GITHUB_ENV
+        shell: bash
 
       - name: Build binary
         run: |
