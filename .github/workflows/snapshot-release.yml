@@ -256,11 +256,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: depot-ubuntu-24.04	
             target: x86_64-unknown-linux-gnu
             artifact_name: soma
             asset_name: soma-linux-x86_64
-          - os: ubuntu-latest
+          - os: depot-ubuntu-24.04	
             target: aarch64-unknown-linux-gnu
             artifact_name: soma
             asset_name: soma-linux-aarch64
@@ -274,7 +274,7 @@ jobs:
             artifact_name: soma
             asset_name: soma-macos-aarch64
           - os: windows-latest
-            target: x86_64-pc-windows-msvc
+            target: depot-windows-2022	
             artifact_name: soma.exe
             asset_name: soma-windows-x86_64.exe
     env:

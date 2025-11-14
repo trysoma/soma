@@ -28,13 +28,69 @@ mod windows_impl {
     use super::*;
     use async_stream::stream;
     use futures::Stream;
+    use std::pin::Pin;
     use std::sync::Arc;
+    use std::task::{Context, Poll};
+    use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
     use tokio_util::io::SyncIoBridge;
+    use tonic::transport::server::Connected;
     use uds_windows::{UnixListener as UdsUnixListener, UnixStream as UdsUnixStream};
 
-    // Wrapper to make uds_windows::UnixStream work with tokio
-    // We use SyncIoBridge to convert blocking I/O to async
-    pub type TokioUnixStream = SyncIoBridge<UdsUnixStream>;
+    // Wrapper to make uds_windows::UnixStream work with tokio and implement Connected
+    pub struct TokioUnixStream {
+        inner: SyncIoBridge<UdsUnixStream>,
+    }
+
+    impl TokioUnixStream {
+        pub fn new(stream: UdsUnixStream) -> Self {
+            Self {
+                inner: SyncIoBridge::new(stream),
+            }
+        }
+    }
+
+    impl AsyncRead for TokioUnixStream {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buf: &mut ReadBuf<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            Pin::new(&mut self.inner).poll_read(cx, buf)
+        }
+    }
+
+    impl AsyncWrite for TokioUnixStream {
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buf: &[u8],
+        ) -> Poll<std::io::Result<usize>> {
+            Pin::new(&mut self.inner).poll_write(cx, buf)
+        }
+
+        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            Pin::new(&mut self.inner).poll_flush(cx)
+        }
+
+        fn poll_shutdown(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            Pin::new(&mut self.inner).poll_shutdown(cx)
+        }
+    }
+
+    impl Connected for TokioUnixStream {
+        type ConnectInfo = ();
+
+        fn connect_info(&self) -> Self::ConnectInfo {
+            ()
+        }
+    }
+
+    // SyncIoBridge is Unpin if the inner type is Unpin
+    // UdsUnixStream should be Unpin, so this should be safe
+    impl Unpin for TokioUnixStream {}
 
     // Wrapper for UnixListener
     pub struct UnixListener {
@@ -43,13 +99,14 @@ mod windows_impl {
 
     impl UnixListener {
         pub async fn bind(path: &PathBuf) -> Result<Self> {
-            // Convert PathBuf to &str for uds_windows
+            // Convert PathBuf to String to own it for the closure
             let path_str = path
                 .to_str()
-                .ok_or_else(|| anyhow::anyhow!("Invalid socket path"))?;
+                .ok_or_else(|| anyhow::anyhow!("Invalid socket path"))?
+                .to_string();
             // Use spawn_blocking since bind might block
             let listener =
-                tokio::task::spawn_blocking(move || UdsUnixListener::bind(path_str)).await??;
+                tokio::task::spawn_blocking(move || UdsUnixListener::bind(&path_str)).await??;
             Ok(Self {
                 inner: Arc::new(listener),
             })
@@ -72,8 +129,8 @@ mod windows_impl {
                     }).await;
 
                     match result {
-                        Ok(Ok(stream)) => {
-                            yield Ok(SyncIoBridge::new(stream));
+                        Ok(Ok((stream, _addr))) => {
+                            yield Ok(TokioUnixStream::new(stream));
                         }
                         Ok(Err(e)) => {
                             yield Err(e);

@@ -14,6 +14,16 @@ fn main() {
     let workspace_dir = crate_dir.join("..");
     // Export it so the derive macro sees it
     println!("cargo:rustc-env=FRONTEND_APP_DIR={}", app_dir.display());
+    
+    // Check if app directory exists and has dist directory (frontend built)
+    // Set flags for conditional compilation
+    if app_dir.exists() && app_dir.is_dir() {
+        println!("cargo:rustc-cfg=has_app_dir");
+        let dist_dir = app_dir.join("dist");
+        if dist_dir.exists() && dist_dir.is_dir() {
+            println!("cargo:rustc-cfg=has_frontend_dist");
+        }
+    }
 
     // Download restate-server binary for the current target
     download_restate_binary(&crate_dir);
