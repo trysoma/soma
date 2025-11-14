@@ -150,6 +150,18 @@ jobs:
           mkdir -p .coverage-tmp
           cargo llvm-cov nextest --all-features --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov
 
+      - name: Setup pnpm and Node.js for NAPI check
+        uses: ./.github/actions/setup-pnpm-node
+        with:
+          install-dependencies: 'true'
+
+      - name: Verify sdk-js NAPI build (native platform only)
+        working-directory: crates/sdk-js
+        run: |
+          echo "Building NAPI module for native platform to verify build succeeds..."
+          pnpm run build
+          echo "✓ NAPI build successful"
+
       - name: Upload Rust coverage LCOV
         uses: actions/upload-artifact@v4
         with:
