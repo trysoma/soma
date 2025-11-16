@@ -271,16 +271,16 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v5
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - name: Setup node
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
           architecture: ${{ matrix.settings.architecture }}
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Download artifacts
@@ -311,15 +311,12 @@ jobs:
     runs-on: ${{ contains(matrix.target, 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v5
-      - name: Setup node
-        uses: actions/setup-node@v6
+      - name: Setup pnpm and Node.js (for frontend build)
+        uses: ./.github/actions/setup-pnpm-node
         with:
+          install-dependencies: 'true'
           node-version: ${{ matrix.node }}
-          cache: pnpm
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
+
       - name: Output docker params
         id: docker
         run: |
@@ -700,6 +697,8 @@ jobs:
     needs:
       - test-macOS-windows-binding
       - test-linux-binding
+      - test-soma-macOS-windows
+      - test-soma-linux
     steps:
       - uses: actions/checkout@v5
       - name: Setup node
@@ -744,7 +743,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [prepare-release, build-soma, build-core-js-sdk]
+    needs: [prepare-release, build-soma, build-core-js-sdk, publish-npm]
     permissions:
       contents: write
     steps:
@@ -839,7 +838,15 @@ jobs:
   report-failure:
     name: Report Release Failure
     runs-on: ubuntu-latest
-    needs: [prepare-release, build-soma, build-core-js-sdk]
+    needs:
+      - prepare-release
+      - build-soma
+      - build-core-js-sdk
+      - test-macOS-windows-binding
+      - test-linux-binding
+      - test-soma-macOS-windows
+      - test-soma-linux
+      - publish-npm
     if: failure()
     permissions:
       issues: write
@@ -849,9 +856,20 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const version = '${{ needs.prepare-release.outputs.version }}';
+            const version = '${{ needs.prepare-release.outputs.version }}' || 'unknown';
             const runId = context.runId;
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
+            // Determine which jobs failed
+            const failedJobs = [];
+            if ('${{ needs.prepare-release.result }}' === 'failure') failedJobs.push('prepare-release');
+            if ('${{ needs.build-soma.result }}' === 'failure') failedJobs.push('build-soma');
+            if ('${{ needs.build-core-js-sdk.result }}' === 'failure') failedJobs.push('build-core-js-sdk');
+            if ('${{ needs.test-macOS-windows-binding.result }}' === 'failure') failedJobs.push('test-macOS-windows-binding');
+            if ('${{ needs.test-linux-binding.result }}' === 'failure') failedJobs.push('test-linux-binding');
+            if ('${{ needs.test-soma-macOS-windows.result }}' === 'failure') failedJobs.push('test-soma-macOS-windows');
+            if ('${{ needs.test-soma-linux.result }}' === 'failure') failedJobs.push('test-soma-linux');
+            if ('${{ needs.publish-npm.result }}' === 'failure') failedJobs.push('publish-npm');
 
             const title = `Release ${version} failed`;
             const body = `## Release Failure
@@ -862,10 +880,8 @@ jobs:
 
             ### Failed Jobs
 
-            Please check the workflow run for details on which job(s) failed:
-            - prepare-release
-            - build-soma
-            - build-core-js-sdk
+            The following job(s) failed:
+            ${failedJobs.map(job => `- ${job}`).join('\n')}
 
             ### Action Required
 
