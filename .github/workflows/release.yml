@@ -29,9 +29,6 @@ jobs:
           fetch-depth: 0  # Full history needed for release notes
           token: ${{ secrets.TRY_SOMA_BOT_TOKEN }}  # Use bot PAT for pushing tags
 
-      
-          
-
       - name: Create release
         id: release
         uses: trysoma/github-actions/changie-release@v1
