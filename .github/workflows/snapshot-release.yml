@@ -42,6 +42,18 @@ jobs:
         with:
           version: latest
 
+      - name: Get current version
+        id: current-version
+        run: |
+          # Get the current version (latest release tag) before calculating next version
+          CURRENT_VERSION=$(git tag -l "v*" | grep -v -E ".*-(snapshot|rc)-" | sort -V | tail -1 || echo "")
+          if [ -z "$CURRENT_VERSION" ]; then
+            # If no release tags exist, try to get version from changie latest
+            CURRENT_VERSION=$(changie latest 2>/dev/null || echo "")
+          fi
+          echo "Current version: ${CURRENT_VERSION:-none}"
+          echo "current_version=${CURRENT_VERSION:-}" >> $GITHUB_OUTPUT
+
       - name: Calculate base version
         id: base-version
         run: |
@@ -140,6 +152,7 @@ jobs:
         id: prev-version
         run: |
           BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
+          CURRENT_VERSION="${{ steps.current-version.outputs.current_version }}"
           LABEL="${{ inputs.prerelease-label }}"
           INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
           
@@ -149,13 +162,20 @@ jobs:
             PREV_VERSION="${BASE_VERSION}-${LABEL}-${PREV_INCREMENT}"
             echo "Previous version for comparison: $PREV_VERSION"
           else
-            # For first increment (0), use the base version tag
-            PREV_VERSION="$BASE_VERSION"
-            echo "First increment detected, using base version for comparison: $PREV_VERSION"
+            # For first increment (0), use the current version (before the base version)
+            # This is the version that exists before creating the snapshot/rc
+            if [ -n "$CURRENT_VERSION" ]; then
+              PREV_VERSION="$CURRENT_VERSION"
+              echo "First increment detected, using current version for comparison: $PREV_VERSION"
+            else
+              # Fallback: try to use base version tag if current version not found
+              PREV_VERSION="$BASE_VERSION"
+              echo "First increment detected, current version not found, trying base version: $PREV_VERSION"
+            fi
             
-            # Verify the base version tag exists
+            # Verify the previous version tag exists
             if ! git rev-parse "$PREV_VERSION" >/dev/null 2>&1; then
-              echo "Warning: Base version tag $PREV_VERSION not found, will skip diff generation"
+              echo "Warning: Previous version tag $PREV_VERSION not found, will skip diff generation"
               PREV_VERSION=""
             fi
           fi
