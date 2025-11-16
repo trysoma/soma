@@ -156,28 +156,36 @@ jobs:
           LABEL="${{ inputs.prerelease-label }}"
           INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
           
+          PREV_VERSION=""
+          
           if [ "$INCREMENT" -gt 0 ]; then
-            # For subsequent increments, use the previous increment
-            PREV_INCREMENT=$((INCREMENT - 1))
-            PREV_VERSION="${BASE_VERSION}-${LABEL}-${PREV_INCREMENT}"
-            echo "Previous version for comparison: $PREV_VERSION"
+            # For subsequent increments, first try to use the base version tag if it exists
+            # (e.g., if v1.0.0 exists, compare v1.0.0-snapshot-5 against v1.0.0)
+            if git rev-parse "$BASE_VERSION" >/dev/null 2>&1; then
+              PREV_VERSION="$BASE_VERSION"
+              echo "Using base version tag for comparison: $PREV_VERSION"
+            else
+              # Fallback to previous increment if base version tag doesn't exist
+              PREV_INCREMENT=$((INCREMENT - 1))
+              PREV_VERSION="${BASE_VERSION}-${LABEL}-${PREV_INCREMENT}"
+              echo "Base version tag not found, using previous increment: $PREV_VERSION"
+            fi
           else
-            # For first increment (0), use the current version (before the base version)
+            # For first increment (0), use the current version (previous semantic version)
             # This is the version that exists before creating the snapshot/rc
             if [ -n "$CURRENT_VERSION" ]; then
               PREV_VERSION="$CURRENT_VERSION"
-              echo "First increment detected, using current version for comparison: $PREV_VERSION"
+              echo "First increment detected, using current version (previous semantic version) for comparison: $PREV_VERSION"
             else
-              # Fallback: try to use base version tag if current version not found
-              PREV_VERSION="$BASE_VERSION"
-              echo "First increment detected, current version not found, trying base version: $PREV_VERSION"
-            fi
-            
-            # Verify the previous version tag exists
-            if ! git rev-parse "$PREV_VERSION" >/dev/null 2>&1; then
-              echo "Warning: Previous version tag $PREV_VERSION not found, will skip diff generation"
+              echo "Warning: Current version not found, will skip diff generation"
               PREV_VERSION=""
             fi
+          fi
+          
+          # Verify the previous version tag exists
+          if [ -n "$PREV_VERSION" ] && ! git rev-parse "$PREV_VERSION" >/dev/null 2>&1; then
+            echo "Warning: Previous version tag $PREV_VERSION not found, will skip diff generation"
+            PREV_VERSION=""
           fi
           
           echo "prev_version=$PREV_VERSION" >> $GITHUB_OUTPUT
