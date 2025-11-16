@@ -136,6 +136,206 @@ jobs:
             echo "This is the first increment (0), no previous changes to restore"
           fi
 
+      - name: Calculate previous version for comparison
+        id: prev-version
+        run: |
+          BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
+          LABEL="${{ inputs.prerelease-label }}"
+          INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
+          
+          if [ "$INCREMENT" -gt 0 ]; then
+            PREV_INCREMENT=$((INCREMENT - 1))
+            PREV_VERSION="${BASE_VERSION}-${LABEL}-${PREV_INCREMENT}"
+            echo "Previous version for comparison: $PREV_VERSION"
+          else
+            # For first increment, try to find the latest release tag before this base version
+            # Extract version number without 'v' prefix for comparison
+            VERSION_NUM=$(echo "$BASE_VERSION" | sed 's/^v//')
+            MAJOR_MINOR=$(echo "$VERSION_NUM" | cut -d. -f1-2)
+            
+            # Find the latest tag that matches the pattern v<major>.<minor>.* (excluding prereleases)
+            PREV_VERSION=$(git tag -l "v${MAJOR_MINOR}.*" | grep -v -E ".*-(${LABEL}|snapshot|rc)-" | sort -V | tail -1 || echo "")
+            
+            if [ -z "$PREV_VERSION" ]; then
+              # Fallback: find any latest release tag
+              PREV_VERSION=$(git tag -l "v*" | grep -v -E ".*-(${LABEL}|snapshot|rc)-" | sort -V | tail -1 || echo "")
+            fi
+            
+            if [ -z "$PREV_VERSION" ]; then
+              echo "No previous version found, will skip diff generation"
+              PREV_VERSION=""
+            else
+              echo "Previous version for comparison: $PREV_VERSION"
+            fi
+          fi
+          
+          echo "prev_version=$PREV_VERSION" >> $GITHUB_OUTPUT
+          echo "has_prev_version=$([ -n "$PREV_VERSION" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+
+      - name: Install Atlas CLI
+        if: steps.prev-version.outputs.has_prev_version == 'true'
+        run: |
+          curl -sSf https://atlasgo.sh | sh -s -- --community -y
+          echo "$HOME/.atlas/bin" >> $GITHUB_PATH
+
+      - name: Download OpenAPI spec from previous version
+        if: steps.prev-version.outputs.has_prev_version == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_VERSION="${{ steps.prev-version.outputs.prev_version }}"
+          echo "Downloading openapi.json from tag: $PREV_VERSION"
+          
+          curl -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github.v3.raw" \
+                -o ./openapi-prev.json \
+                "https://api.github.com/repos/${{ github.repository }}/contents/openapi.json?ref=$PREV_VERSION" || {
+            echo "Warning: Could not download openapi.json from $PREV_VERSION, will skip OpenAPI diff"
+            touch ./openapi-prev.json
+          }
+
+      - name: Check OpenAPI files exist
+        if: steps.prev-version.outputs.has_prev_version == 'true'
+        id: check-openapi
+        run: |
+          if [ ! -f ./openapi.json ]; then
+            echo "has_current=false" >> $GITHUB_OUTPUT
+            echo "Warning: openapi.json not found in current checkout"
+          else
+            echo "has_current=true" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ ! -f ./openapi-prev.json ] || [ ! -s ./openapi-prev.json ]; then
+            echo "has_previous=false" >> $GITHUB_OUTPUT
+            echo "Warning: Previous openapi.json not available"
+          else
+            echo "has_previous=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate OpenAPI diff
+        if: |
+          steps.prev-version.outputs.has_prev_version == 'true' &&
+          steps.check-openapi.outputs.has_current == 'true' &&
+          steps.check-openapi.outputs.has_previous == 'true'
+        id: openapi-diff
+        continue-on-error: true
+        uses: oasdiff/oasdiff-action/diff@main
+        with:
+          base: ./openapi-prev.json
+          revision: ./openapi.json
+
+      - name: Run Atlas migrate lint for Soma database
+        if: steps.prev-version.outputs.has_prev_version == 'true'
+        id: atlas-soma
+        continue-on-error: true
+        run: |
+          PREV_VERSION="${{ steps.prev-version.outputs.prev_version }}"
+          echo "Running Atlas migrate lint for Soma database against $PREV_VERSION"
+          
+          # Fetch the previous version tag
+          git fetch origin "refs/tags/$PREV_VERSION:refs/tags/$PREV_VERSION" || git fetch origin "$PREV_VERSION" || true
+          
+          # Use git-base with the tag name (atlas should handle tags)
+          atlas_output=$(atlas migrate lint --env soma --git-base "$PREV_VERSION" 2>&1) || atlas_exit=$?
+          if [ -z "$atlas_output" ]; then
+            atlas_output="SUCCESS: checksums match, no breaking changes"
+          fi
+          
+          echo "soma_lint_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$atlas_output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          if [ -n "${atlas_exit:-}" ]; then
+            echo "Atlas lint found issues (exit code: $atlas_exit)"
+            echo "$atlas_output"
+          fi
+
+      - name: Run Atlas migrate lint for Bridge database
+        if: steps.prev-version.outputs.has_prev_version == 'true'
+        id: atlas-bridge
+        continue-on-error: true
+        run: |
+          PREV_VERSION="${{ steps.prev-version.outputs.prev_version }}"
+          echo "Running Atlas migrate lint for Bridge database against $PREV_VERSION"
+          
+          # Fetch the previous version tag
+          git fetch origin "refs/tags/$PREV_VERSION:refs/tags/$PREV_VERSION" || git fetch origin "$PREV_VERSION" || true
+          
+          # Use git-base with the tag name (atlas should handle tags)
+          atlas_output=$(atlas migrate lint --env bridge --git-base "$PREV_VERSION" 2>&1) || atlas_exit=$?
+          if [ -z "$atlas_output" ]; then
+            atlas_output="SUCCESS: checksums match, no breaking changes"
+          fi
+          
+          echo "bridge_lint_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$atlas_output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          if [ -n "${atlas_exit:-}" ]; then
+            echo "Atlas lint found issues (exit code: $atlas_exit)"
+            echo "$atlas_output"
+          fi
+
+      - name: Prepare environment variables for changie
+        id: changie-env
+        run: |
+          OPENAPI_DIFF=""
+          DATABASE_SCHEMA_DIFF=""
+          
+          if [ "${{ steps.prev-version.outputs.has_prev_version }}" = "true" ]; then
+            # Set OpenAPI diff
+            if [ "${{ steps.check-openapi.outputs.has_current }}" = "true" ] && [ "${{ steps.check-openapi.outputs.has_previous }}" = "true" ]; then
+              OPENAPI_DIFF="${{ steps.openapi-diff.outputs.diff }}"
+              if [ -z "$OPENAPI_DIFF" ]; then
+                OPENAPI_DIFF="No changes detected in OpenAPI schema."
+              fi
+            else
+              OPENAPI_DIFF="Previous OpenAPI spec not available for comparison."
+            fi
+            
+            # Combine database schema diffs
+            SOMA_DIFF="${{ steps.atlas-soma.outputs.soma_lint_output }}"
+            BRIDGE_DIFF="${{ steps.atlas-bridge.outputs.bridge_lint_output }}"
+            
+            if [ -n "$SOMA_DIFF" ] || [ -n "$BRIDGE_DIFF" ]; then
+              DATABASE_SCHEMA_DIFF=""
+              if [ -n "$SOMA_DIFF" ]; then
+                DATABASE_SCHEMA_DIFF="### Soma Database
+\`\`\`
+$SOMA_DIFF
+\`\`\`"
+              fi
+              if [ -n "$BRIDGE_DIFF" ]; then
+                if [ -n "$DATABASE_SCHEMA_DIFF" ]; then
+                  DATABASE_SCHEMA_DIFF="$DATABASE_SCHEMA_DIFF
+
+"
+                fi
+                DATABASE_SCHEMA_DIFF="${DATABASE_SCHEMA_DIFF}### Bridge Database
+\`\`\`
+$BRIDGE_DIFF
+\`\`\`"
+              fi
+            else
+              DATABASE_SCHEMA_DIFF="No database schema changes detected."
+            fi
+          else
+            OPENAPI_DIFF="No previous version found for comparison."
+            DATABASE_SCHEMA_DIFF="No previous version found for comparison."
+          fi
+          
+          # Set as environment variables for changie merge (using multiline format)
+          echo "OPENAPI_DIFF<<EOF" >> $GITHUB_ENV
+          echo -e "$OPENAPI_DIFF" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          echo "DATABASE_SCHEMA_DIFF<<EOF" >> $GITHUB_ENV
+          echo -e "$DATABASE_SCHEMA_DIFF" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          echo "OpenAPI diff prepared (length: ${#OPENAPI_DIFF})"
+          echo "Database schema diff prepared (length: ${#DATABASE_SCHEMA_DIFF})"
+
       - name: Create prerelease changelog
         run: |
           VERSION="${{ steps.calculate-version.outputs.version }}"
@@ -145,6 +345,7 @@ jobs:
           echo "Creating changelog for prerelease: $VERSION"
           changie batch "$VERSION" --prerelease "${LABEL}-${INCREMENT}" --move-dir=prerelease
           changie merge
+          cat CHANGELOG.md
 
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
