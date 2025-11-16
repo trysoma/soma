@@ -144,28 +144,19 @@ jobs:
           INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
           
           if [ "$INCREMENT" -gt 0 ]; then
+            # For subsequent increments, use the previous increment
             PREV_INCREMENT=$((INCREMENT - 1))
             PREV_VERSION="${BASE_VERSION}-${LABEL}-${PREV_INCREMENT}"
             echo "Previous version for comparison: $PREV_VERSION"
           else
-            # For first increment, try to find the latest release tag before this base version
-            # Extract version number without 'v' prefix for comparison
-            VERSION_NUM=$(echo "$BASE_VERSION" | sed 's/^v//')
-            MAJOR_MINOR=$(echo "$VERSION_NUM" | cut -d. -f1-2)
+            # For first increment (0), use the base version tag
+            PREV_VERSION="$BASE_VERSION"
+            echo "First increment detected, using base version for comparison: $PREV_VERSION"
             
-            # Find the latest tag that matches the pattern v<major>.<minor>.* (excluding prereleases)
-            PREV_VERSION=$(git tag -l "v${MAJOR_MINOR}.*" | grep -v -E ".*-(${LABEL}|snapshot|rc)-" | sort -V | tail -1 || echo "")
-            
-            if [ -z "$PREV_VERSION" ]; then
-              # Fallback: find any latest release tag
-              PREV_VERSION=$(git tag -l "v*" | grep -v -E ".*-(${LABEL}|snapshot|rc)-" | sort -V | tail -1 || echo "")
-            fi
-            
-            if [ -z "$PREV_VERSION" ]; then
-              echo "No previous version found, will skip diff generation"
+            # Verify the base version tag exists
+            if ! git rev-parse "$PREV_VERSION" >/dev/null 2>&1; then
+              echo "Warning: Base version tag $PREV_VERSION not found, will skip diff generation"
               PREV_VERSION=""
-            else
-              echo "Previous version for comparison: $PREV_VERSION"
             fi
           fi
           
