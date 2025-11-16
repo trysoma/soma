@@ -133,6 +133,10 @@ jobs:
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
+        with:
+          install-protoc: 'true'
+          components: 'rustfmt,clippy'
+          cache: 'true'
 
       - name: Install cargo-llvm-cov and cargo-nextest
         uses: taiki-e/install-action@v2

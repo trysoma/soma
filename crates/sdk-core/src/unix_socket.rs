@@ -31,12 +31,13 @@ mod windows_impl {
     use std::pin::Pin;
     use std::sync::Arc;
     use std::task::{Context, Poll};
-    use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+    use tokio::io::{AsyncRead, AsyncWrite};
     use tokio_util::io::SyncIoBridge;
     use tonic::transport::server::Connected;
     use uds_windows::{UnixListener as UdsUnixListener, UnixStream as UdsUnixStream};
 
     // Wrapper to make uds_windows::UnixStream work with tokio and implement Connected
+    // SyncIoBridge already implements AsyncRead and AsyncWrite, so we just wrap it
     pub struct TokioUnixStream {
         inner: SyncIoBridge<UdsUnixStream>,
     }
@@ -49,34 +50,37 @@ mod windows_impl {
         }
     }
 
+    // Delegate AsyncRead to SyncIoBridge (which already implements it)
     impl AsyncRead for TokioUnixStream {
         fn poll_read(
-            mut self: Pin<&mut Self>,
+            self: Pin<&mut Self>,
             cx: &mut Context<'_>,
-            buf: &mut ReadBuf<'_>,
+            buf: &mut tokio::io::ReadBuf<'_>,
         ) -> Poll<std::io::Result<()>> {
-            Pin::new(&mut self.inner).poll_read(cx, buf)
+            // SyncIoBridge implements AsyncRead, so we can use it directly
+            AsyncRead::poll_read(Pin::new(&mut self.get_mut().inner), cx, buf)
         }
     }
 
+    // Delegate AsyncWrite to SyncIoBridge (which already implements it)
     impl AsyncWrite for TokioUnixStream {
         fn poll_write(
-            mut self: Pin<&mut Self>,
+            self: Pin<&mut Self>,
             cx: &mut Context<'_>,
             buf: &[u8],
         ) -> Poll<std::io::Result<usize>> {
-            Pin::new(&mut self.inner).poll_write(cx, buf)
+            AsyncWrite::poll_write(Pin::new(&mut self.get_mut().inner), cx, buf)
         }
 
-        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-            Pin::new(&mut self.inner).poll_flush(cx)
+        fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            AsyncWrite::poll_flush(Pin::new(&mut self.get_mut().inner), cx)
         }
 
         fn poll_shutdown(
-            mut self: Pin<&mut Self>,
+            self: Pin<&mut Self>,
             cx: &mut Context<'_>,
         ) -> Poll<std::io::Result<()>> {
-            Pin::new(&mut self.inner).poll_shutdown(cx)
+            AsyncWrite::poll_shutdown(Pin::new(&mut self.get_mut().inner), cx)
         }
     }
 
