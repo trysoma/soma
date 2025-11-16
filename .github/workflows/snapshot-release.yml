@@ -300,21 +300,13 @@ jobs:
             if [ -n "$SOMA_DIFF" ] || [ -n "$BRIDGE_DIFF" ]; then
               DATABASE_SCHEMA_DIFF=""
               if [ -n "$SOMA_DIFF" ]; then
-                DATABASE_SCHEMA_DIFF="### Soma Database
-\`\`\`
-$SOMA_DIFF
-\`\`\`"
+                DATABASE_SCHEMA_DIFF="### Soma Database"$'\n'"\`\`\`"$'\n'"$SOMA_DIFF"$'\n'"\`\`\`"
               fi
               if [ -n "$BRIDGE_DIFF" ]; then
                 if [ -n "$DATABASE_SCHEMA_DIFF" ]; then
-                  DATABASE_SCHEMA_DIFF="$DATABASE_SCHEMA_DIFF
-
-"
+                  DATABASE_SCHEMA_DIFF="$DATABASE_SCHEMA_DIFF"$'\n\n'
                 fi
-                DATABASE_SCHEMA_DIFF="${DATABASE_SCHEMA_DIFF}### Bridge Database
-\`\`\`
-$BRIDGE_DIFF
-\`\`\`"
+                DATABASE_SCHEMA_DIFF="${DATABASE_SCHEMA_DIFF}### Bridge Database"$'\n'"\`\`\`"$'\n'"$BRIDGE_DIFF"$'\n'"\`\`\`"
               fi
             else
               DATABASE_SCHEMA_DIFF="No database schema changes detected."
@@ -927,6 +919,12 @@ $BRIDGE_DIFF
       # - test-soma-linux
     steps:
       - uses: actions/checkout@v5
+      
+      - name: Setup pnpm and Node.js
+        uses: ./.github/actions/setup-pnpm-node
+        with:
+          install-dependencies: 'true'
+          node-version: '22'
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
