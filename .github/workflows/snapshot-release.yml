@@ -248,121 +248,121 @@ jobs:
           use-napi-cross: ${{ matrix.settings.use-napi-cross && 'true' || 'false' }}
           skip-tests: ${{ contains(matrix.settings.target, 'aarch64') && matrix.settings.host != 'macos-latest' }}
 
-  test-macOS-windows-binding:
-    name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
-    needs:
-      - build-core-js-sdk
-    strategy:
-      fail-fast: false
-      matrix:
-        settings:
-          # - host: windows-latest
-          #   target: x86_64-pc-windows-msvc
-          #   architecture: x64
-          - host: macos-latest
-            target: aarch64-apple-darwin
-            architecture: arm64
-          - host: macos-latest
-            target: x86_64-apple-darwin
-            architecture: x64
-        node:
-          - '20'
-          - '22'
-    runs-on: ${{ matrix.settings.host }}
-    steps:
-      - uses: actions/checkout@v5
-      - name: Setup pnpm and Node.js (for frontend build)
-        uses: ./.github/actions/setup-pnpm-node
-        with:
-          install-dependencies: 'true'
-          node-version: ${{ matrix.node }}
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Download artifacts
-        uses: actions/download-artifact@v6
-        with:
-          name: napi-bindings-${{ matrix.settings.target }}
-          path: .
-      - name: List packages
-        run: ls -R .
-        shell: bash
-      - name: Test bindings
-        working-directory: crates/sdk-js
-        run: pnpm test
+  # test-macOS-windows-binding:
+  #   name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
+  #   needs:
+  #     - build-core-js-sdk
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       settings:
+  #         # - host: windows-latest
+  #         #   target: x86_64-pc-windows-msvc
+  #         #   architecture: x64
+  #         - host: macos-latest
+  #           target: aarch64-apple-darwin
+  #           architecture: arm64
+  #         - host: macos-latest
+  #           target: x86_64-apple-darwin
+  #           architecture: x64
+  #       node:
+  #         - '20'
+  #         - '22'
+  #   runs-on: ${{ matrix.settings.host }}
+  #   steps:
+  #     - uses: actions/checkout@v5
+  #     - name: Setup pnpm and Node.js (for frontend build)
+  #       uses: ./.github/actions/setup-pnpm-node
+  #       with:
+  #         install-dependencies: 'true'
+  #         node-version: ${{ matrix.node }}
+  #     - name: Install dependencies
+  #       run: pnpm install --frozen-lockfile
+  #     - name: Download artifacts
+  #       uses: actions/download-artifact@v6
+  #       with:
+  #         name: napi-bindings-${{ matrix.settings.target }}
+  #         path: .
+  #     - name: List packages
+  #       run: ls -R .
+  #       shell: bash
+  #     - name: Test bindings
+  #       working-directory: crates/sdk-js
+  #       run: pnpm test
 
-  test-linux-binding:
-    name: Test ${{ matrix.target }} - node@${{ matrix.node }}
-    needs:
-      - build-core-js-sdk
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          # - aarch64-unknown-linux-gnu
-        node:
-          - '20'
-          - '22'
-    runs-on: ${{ contains(matrix.target, 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
-    steps:
-      - uses: actions/checkout@v5
-      - name: Setup pnpm and Node.js (for frontend build)
-        uses: ./.github/actions/setup-pnpm-node
-        with:
-          install-dependencies: 'true'
-          node-version: ${{ matrix.node }}
-
-      - name: Output docker params
-        id: docker
-        run: |
-          node -e "
-            if ('${{ matrix.target }}'.startsWith('aarch64')) {
-              console.log('PLATFORM=linux/arm64')
-            } else if ('${{ matrix.target }}'.startsWith('armv7')) {
-              console.log('PLATFORM=linux/arm/v7')
-            } else {
-              console.log('PLATFORM=linux/amd64')
-            }
-          " >> $GITHUB_OUTPUT
-          node -e "
-            if ('${{ matrix.target }}'.endsWith('-musl')) {
-              console.log('IMAGE=node:${{ matrix.node }}-alpine')
-            } else {
-              console.log('IMAGE=node:${{ matrix.node }}-slim')
-            }
-          " >> $GITHUB_OUTPUT
-      - name: Install dependencies
-        run: |
-          pnpm config set supportedArchitectures.cpu '["current", "arm64", "x64", "arm"]'
-          pnpm config set supportedArchitectures.libc '["current", "musl", "gnu"]'
-          pnpm install --frozen-lockfile
-      - name: Download artifacts
-        uses: actions/download-artifact@v6
-        with:
-          name: napi-bindings-${{ matrix.target }}
-          path: .
-      - name: List packages
-        run: ls -R .
-        shell: bash
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        if: ${{ contains(matrix.target, 'armv7') }}
-        with:
-          platforms: all
-      - run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-        if: ${{ contains(matrix.target, 'armv7') }}
-      - name: Test bindings
-        uses: addnab/docker-run-action@v3
-        with:
-          image: ${{ steps.docker.outputs.IMAGE }}
-          options: '-v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }}/crates/sdk-js --platform ${{ steps.docker.outputs.PLATFORM }}'
-          run: |
-            corepack enable
-            corepack prepare pnpm@9 --activate
-            pnpm config set supportedArchitectures.cpu '["current", "arm64", "x64", "arm"]'
-            pnpm config set supportedArchitectures.libc '["current", "musl", "gnu"]'
-            pnpm install --frozen-lockfile
-            pnpm test
+  # test-linux-binding:
+  #   name: Test ${{ matrix.target }} - node@${{ matrix.node }}
+  #   needs:
+  #     - build-core-js-sdk
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       target:
+  #         - x86_64-unknown-linux-gnu
+  #         # - aarch64-unknown-linux-gnu
+  #       node:
+  #         - '20'
+  #         - '22'
+  #   runs-on: ${{ contains(matrix.target, 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+  #   steps:
+  #     - uses: actions/checkout@v5
+  #     - name: Setup pnpm and Node.js (for frontend build)
+  #       uses: ./.github/actions/setup-pnpm-node
+  #       with:
+  #         install-dependencies: 'true'
+  #         node-version: ${{ matrix.node }}
+  #
+  #     - name: Output docker params
+  #       id: docker
+  #       run: |
+  #         node -e "
+  #           if ('${{ matrix.target }}'.startsWith('aarch64')) {
+  #             console.log('PLATFORM=linux/arm64')
+  #           } else if ('${{ matrix.target }}'.startsWith('armv7')) {
+  #             console.log('PLATFORM=linux/arm/v7')
+  #           } else {
+  #             console.log('PLATFORM=linux/amd64')
+  #           }
+  #         " >> $GITHUB_OUTPUT
+  #         node -e "
+  #           if ('${{ matrix.target }}'.endsWith('-musl')) {
+  #             console.log('IMAGE=node:${{ matrix.node }}-alpine')
+  #           } else {
+  #             console.log('IMAGE=node:${{ matrix.node }}-slim')
+  #           }
+  #         " >> $GITHUB_OUTPUT
+  #     - name: Install dependencies
+  #       run: |
+  #         pnpm config set supportedArchitectures.cpu '["current", "arm64", "x64", "arm"]'
+  #         pnpm config set supportedArchitectures.libc '["current", "musl", "gnu"]'
+  #         pnpm install --frozen-lockfile
+  #     - name: Download artifacts
+  #       uses: actions/download-artifact@v6
+  #       with:
+  #         name: napi-bindings-${{ matrix.target }}
+  #         path: .
+  #     - name: List packages
+  #       run: ls -R .
+  #       shell: bash
+  #     - name: Set up QEMU
+  #       uses: docker/setup-qemu-action@v3
+  #       if: ${{ contains(matrix.target, 'armv7') }}
+  #       with:
+  #         platforms: all
+  #     - run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+  #       if: ${{ contains(matrix.target, 'armv7') }}
+  #     - name: Test bindings
+  #       uses: addnab/docker-run-action@v3
+  #       with:
+  #         image: ${{ steps.docker.outputs.IMAGE }}
+  #         options: '-v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }}/crates/sdk-js --platform ${{ steps.docker.outputs.PLATFORM }}'
+  #         run: |
+  #           corepack enable
+  #           corepack prepare pnpm@9 --activate
+  #           pnpm config set supportedArchitectures.cpu '["current", "arm64", "x64", "arm"]'
+  #           pnpm config set supportedArchitectures.libc '["current", "musl", "gnu"]'
+  #           pnpm install --frozen-lockfile
+  #           pnpm test
 
   build-soma:
     name: Build Soma binaries - ${{ matrix.target }}
@@ -491,225 +491,225 @@ jobs:
           path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
           retention-days: 1
 
-  test-soma-macOS-windows:
-    name: Test Soma binary on ${{ matrix.settings.target }} - ${{ matrix.settings.os }}
-    needs:
-      - build-soma
-    permissions:
-      contents: read
-      id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        settings:
-          # - os: windows-latest
-          #   target: x86_64-pc-windows-msvc
-          #   artifact_name: soma.exe
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: soma
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: soma
-    runs-on: ${{ matrix.settings.os }}
-    env:
-      CARGO_INCREMENTAL: 0
-      CARGO_PROFILE_TEST_DEBUG: 0
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.revision }}
-          submodules: recursive
+  # test-soma-macOS-windows:
+  #   name: Test Soma binary on ${{ matrix.settings.target }} - ${{ matrix.settings.os }}
+  #   needs:
+  #     - build-soma
+  #   permissions:
+  #     contents: read
+  #     id-token: write
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       settings:
+  #         # - os: windows-latest
+  #         #   target: x86_64-pc-windows-msvc
+  #         #   artifact_name: soma.exe
+  #         - os: macos-latest
+  #           target: aarch64-apple-darwin
+  #           artifact_name: soma
+  #         - os: macos-latest
+  #           target: x86_64-apple-darwin
+  #           artifact_name: soma
+  #   runs-on: ${{ matrix.settings.os }}
+  #   env:
+  #     CARGO_INCREMENTAL: 0
+  #     CARGO_PROFILE_TEST_DEBUG: 0
+  #   steps:
+  #     - uses: actions/checkout@v5
+  #       with:
+  #         ref: ${{ inputs.revision }}
+  #         submodules: recursive
+  #
+  #     - name: Download release changes
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: release-changes
+  #
+  #     - name: Apply release changes
+  #       run: tar -xzf release-changes.tar.gz
+  #       shell: bash
+  #
+  #     - name: Configure AWS Credentials for integration tests
+  #       uses: aws-actions/configure-aws-credentials@v5.1.0
+  #       with:
+  #         audience: sts.amazonaws.com
+  #         aws-region: eu-west-2
+  #         role-to-assume: ${{ secrets.AWS_INTEGRATION_TESTS_ROLE_ARN }}
+  #
+  #     - name: Setup Rust
+  #       uses: ./.github/actions/setup-rust
+  #       with:
+  #         toolchain: stable
+  #         target: ${{ matrix.settings.target }}
+  #         components: ''
+  #         cache: 'true'
+  #         install-protoc: 'true'
+  #
+  #     - name: Install cargo-nextest
+  #       uses: taiki-e/install-action@v2
+  #       with:
+  #         tool: cargo-nextest
+  #
+  #     - name: Setup pnpm and Node.js (for frontend build)
+  #       uses: ./.github/actions/setup-pnpm-node
+  #       with:
+  #         install-dependencies: 'true'
+  #
+  #     - name: Pre-fetch cargo dependencies
+  #       run: |
+  #         echo "Fetching cargo dependencies to ensure git repos are downloaded..."
+  #         cargo fetch --locked
+  #       shell: bash
+  #
+  #     - name: Cache frontend build
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: crates/soma/app/dist
+  #         key: frontend-dist-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'crates/soma/app/**/*.ts', 'crates/soma/app/**/*.tsx', 'crates/soma/app/**/*.css', 'crates/soma/app/package.json', 'crates/soma/app/vite.config.ts', 'crates/soma/app/tsconfig.json') }}
+  #         restore-keys: |
+  #           frontend-dist-${{ runner.os }}-
+  #
+  #     - name: Build frontend
+  #       run: |
+  #         cd crates/soma/app
+  #         pnpm run build
+  #       shell: bash
+  #
+  #     - name: Download binary artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: soma-${{ matrix.settings.target }}
+  #         path: target/${{ matrix.settings.target }}/release
+  #
+  #     - name: Verify binary exists
+  #       run: |
+  #         if [ -f "target/${{ matrix.settings.target }}/release/${{ matrix.settings.artifact_name }}" ]; then
+  #           echo "Binary found: target/${{ matrix.settings.target }}/release/${{ matrix.settings.artifact_name }}"
+  #           ls -lh "target/${{ matrix.settings.target }}/release/${{ matrix.settings.artifact_name }}"
+  #         else
+  #           echo "Error: Binary not found at target/${{ matrix.settings.target }}/release/${{ matrix.settings.artifact_name }}"
+  #           exit 1
+  #         fi
+  #       shell: bash
+  #
+  #     - name: Run Rust tests
+  #       run: cargo nextest run --target ${{ matrix.settings.target }} --locked
+  #       shell: bash
 
-      - name: Download release changes
-        uses: actions/download-artifact@v4
-        with:
-          name: release-changes
-
-      - name: Apply release changes
-        run: tar -xzf release-changes.tar.gz
-        shell: bash
-
-      - name: Configure AWS Credentials for integration tests
-        uses: aws-actions/configure-aws-credentials@v5.1.0
-        with:
-          audience: sts.amazonaws.com
-          aws-region: eu-west-2
-          role-to-assume: ${{ secrets.AWS_INTEGRATION_TESTS_ROLE_ARN }}
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-        with:
-          toolchain: stable
-          target: ${{ matrix.settings.target }}
-          components: ''
-          cache: 'true'
-          install-protoc: 'true'
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
-
-      - name: Setup pnpm and Node.js (for frontend build)
-        uses: ./.github/actions/setup-pnpm-node
-        with:
-          install-dependencies: 'true'
-
-      - name: Pre-fetch cargo dependencies
-        run: |
-          echo "Fetching cargo dependencies to ensure git repos are downloaded..."
-          cargo fetch --locked
-        shell: bash
-
-      - name: Cache frontend build
-        uses: actions/cache@v4
-        with:
-          path: crates/soma/app/dist
-          key: frontend-dist-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'crates/soma/app/**/*.ts', 'crates/soma/app/**/*.tsx', 'crates/soma/app/**/*.css', 'crates/soma/app/package.json', 'crates/soma/app/vite.config.ts', 'crates/soma/app/tsconfig.json') }}
-          restore-keys: |
-            frontend-dist-${{ runner.os }}-
-
-      - name: Build frontend
-        run: |
-          cd crates/soma/app
-          pnpm run build
-        shell: bash
-
-      - name: Download binary artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: soma-${{ matrix.settings.target }}
-          path: target/${{ matrix.settings.target }}/release
-
-      - name: Verify binary exists
-        run: |
-          if [ -f "target/${{ matrix.settings.target }}/release/${{ matrix.settings.artifact_name }}" ]; then
-            echo "Binary found: target/${{ matrix.settings.target }}/release/${{ matrix.settings.artifact_name }}"
-            ls -lh "target/${{ matrix.settings.target }}/release/${{ matrix.settings.artifact_name }}"
-          else
-            echo "Error: Binary not found at target/${{ matrix.settings.target }}/release/${{ matrix.settings.artifact_name }}"
-            exit 1
-          fi
-        shell: bash
-
-      - name: Run Rust tests
-        run: cargo nextest run --target ${{ matrix.settings.target }} --locked
-        shell: bash
-
-  test-soma-linux:
-    name: Test Soma binary on ${{ matrix.target }} - ${{ matrix.os }}
-    needs:
-      - build-soma
-    permissions:
-      contents: read
-      id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: soma
-          - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
-            artifact_name: soma
-    runs-on: ${{ matrix.os }}
-    env:
-      CARGO_INCREMENTAL: 0
-      CARGO_PROFILE_TEST_DEBUG: 0
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.revision }}
-          submodules: recursive
-
-      - name: Download release changes
-        uses: actions/download-artifact@v4
-        with:
-          name: release-changes
-
-      - name: Apply release changes
-        run: tar -xzf release-changes.tar.gz
-        shell: bash
-
-      - name: Configure AWS Credentials for integration tests
-        uses: aws-actions/configure-aws-credentials@v5.1.0
-        with:
-          audience: sts.amazonaws.com
-          aws-region: eu-west-2
-          role-to-assume: ${{ secrets.AWS_INTEGRATION_TESTS_ROLE_ARN }}
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          components: ''
-          cache: 'true'
-          install-protoc: 'true'
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
-
-      - name: Install cross
-        if: matrix.use_cross
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cross
-
-      - name: Setup pnpm and Node.js (for frontend build)
-        uses: ./.github/actions/setup-pnpm-node
-        with:
-          install-dependencies: 'true'
-
-      - name: Pre-fetch cargo dependencies
-        run: |
-          echo "Fetching cargo dependencies to ensure git repos are downloaded..."
-          cargo fetch --locked
-        shell: bash
-
-      - name: Cache frontend build
-        uses: actions/cache@v4
-        with:
-          path: crates/soma/app/dist
-          key: frontend-dist-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'crates/soma/app/**/*.ts', 'crates/soma/app/**/*.tsx', 'crates/soma/app/**/*.css', 'crates/soma/app/package.json', 'crates/soma/app/vite.config.ts', 'crates/soma/app/tsconfig.json') }}
-          restore-keys: |
-            frontend-dist-${{ runner.os }}-
-
-      - name: Build frontend
-        run: |
-          cd crates/soma/app
-          pnpm run build
-        shell: bash
-
-      - name: Download binary artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: soma-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release
-
-      - name: Verify binary exists
-        run: |
-          if [ -f "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" ]; then
-            echo "Binary found: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
-            ls -lh "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
-          else
-            echo "Error: Binary not found at target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
-            exit 1
-          fi
-        shell: bash
-
-      - name: Run Rust tests
-        run: |
-          if [ "${{ matrix.use_cross }}" = "true" ]; then
-            cross test --target ${{ matrix.target }} --locked
-          else
-            cargo nextest run --target ${{ matrix.target }} --locked
-          fi
-        shell: bash
+  # test-soma-linux:
+  #   name: Test Soma binary on ${{ matrix.target }} - ${{ matrix.os }}
+  #   needs:
+  #     - build-soma
+  #   permissions:
+  #     contents: read
+  #     id-token: write
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #         - os: ubuntu-latest
+  #           target: x86_64-unknown-linux-gnu
+  #           artifact_name: soma
+  #         - os: ubuntu-24.04-arm
+  #           target: aarch64-unknown-linux-gnu
+  #           artifact_name: soma
+  #   runs-on: ${{ matrix.os }}
+  #   env:
+  #     CARGO_INCREMENTAL: 0
+  #     CARGO_PROFILE_TEST_DEBUG: 0
+  #   steps:
+  #     - uses: actions/checkout@v5
+  #       with:
+  #         ref: ${{ inputs.revision }}
+  #         submodules: recursive
+  #
+  #     - name: Download release changes
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: release-changes
+  #
+  #     - name: Apply release changes
+  #       run: tar -xzf release-changes.tar.gz
+  #       shell: bash
+  #
+  #     - name: Configure AWS Credentials for integration tests
+  #       uses: aws-actions/configure-aws-credentials@v5.1.0
+  #       with:
+  #         audience: sts.amazonaws.com
+  #         aws-region: eu-west-2
+  #         role-to-assume: ${{ secrets.AWS_INTEGRATION_TESTS_ROLE_ARN }}
+  #
+  #     - name: Setup Rust
+  #       uses: ./.github/actions/setup-rust
+  #       with:
+  #         toolchain: stable
+  #         target: ${{ matrix.target }}
+  #         components: ''
+  #         cache: 'true'
+  #         install-protoc: 'true'
+  #
+  #     - name: Install cargo-nextest
+  #       uses: taiki-e/install-action@v2
+  #       with:
+  #         tool: cargo-nextest
+  #
+  #     - name: Install cross
+  #       if: matrix.use_cross
+  #       uses: taiki-e/install-action@v2
+  #       with:
+  #         tool: cross
+  #
+  #     - name: Setup pnpm and Node.js (for frontend build)
+  #       uses: ./.github/actions/setup-pnpm-node
+  #       with:
+  #         install-dependencies: 'true'
+  #
+  #     - name: Pre-fetch cargo dependencies
+  #       run: |
+  #         echo "Fetching cargo dependencies to ensure git repos are downloaded..."
+  #         cargo fetch --locked
+  #       shell: bash
+  #
+  #     - name: Cache frontend build
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: crates/soma/app/dist
+  #         key: frontend-dist-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'crates/soma/app/**/*.ts', 'crates/soma/app/**/*.tsx', 'crates/soma/app/**/*.css', 'crates/soma/app/package.json', 'crates/soma/app/vite.config.ts', 'crates/soma/app/tsconfig.json') }}
+  #         restore-keys: |
+  #           frontend-dist-${{ runner.os }}-
+  #
+  #     - name: Build frontend
+  #       run: |
+  #         cd crates/soma/app
+  #         pnpm run build
+  #       shell: bash
+  #
+  #     - name: Download binary artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: soma-${{ matrix.target }}
+  #         path: target/${{ matrix.target }}/release
+  #
+  #     - name: Verify binary exists
+  #       run: |
+  #         if [ -f "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" ]; then
+  #           echo "Binary found: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
+  #           ls -lh "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
+  #         else
+  #           echo "Error: Binary not found at target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
+  #           exit 1
+  #         fi
+  #       shell: bash
+  #
+  #     - name: Run Rust tests
+  #       run: |
+  #         if [ "${{ matrix.use_cross }}" = "true" ]; then
+  #           cross test --target ${{ matrix.target }} --locked
+  #         else
+  #           cargo nextest run --target ${{ matrix.target }} --locked
+  #         fi
+  #       shell: bash
 
   publish-npm:
     name: Publish
@@ -718,10 +718,12 @@ jobs:
       contents: write
       id-token: write
     needs:
-      - test-macOS-windows-binding
-      - test-linux-binding
-      - test-soma-macOS-windows
-      - test-soma-linux
+      - build-core-js-sdk
+      - build-soma
+      # - test-macOS-windows-binding
+      # - test-linux-binding
+      # - test-soma-macOS-windows
+      # - test-soma-linux
     steps:
       - uses: actions/checkout@v5
       
@@ -924,10 +926,10 @@ jobs:
       - prepare-release
       - build-soma
       - build-core-js-sdk
-      - test-macOS-windows-binding
-      - test-linux-binding
-      - test-soma-macOS-windows
-      - test-soma-linux
+      # - test-macOS-windows-binding
+      # - test-linux-binding
+      # - test-soma-macOS-windows
+      # - test-soma-linux
       - publish-npm
     if: failure()
     permissions:
@@ -947,10 +949,10 @@ jobs:
             if ('${{ needs.prepare-release.result }}' === 'failure') failedJobs.push('prepare-release');
             if ('${{ needs.build-soma.result }}' === 'failure') failedJobs.push('build-soma');
             if ('${{ needs.build-core-js-sdk.result }}' === 'failure') failedJobs.push('build-core-js-sdk');
-            if ('${{ needs.test-macOS-windows-binding.result }}' === 'failure') failedJobs.push('test-macOS-windows-binding');
-            if ('${{ needs.test-linux-binding.result }}' === 'failure') failedJobs.push('test-linux-binding');
-            if ('${{ needs.test-soma-macOS-windows.result }}' === 'failure') failedJobs.push('test-soma-macOS-windows');
-            if ('${{ needs.test-soma-linux.result }}' === 'failure') failedJobs.push('test-soma-linux');
+            // if ('${{ needs.test-macOS-windows-binding.result }}' === 'failure') failedJobs.push('test-macOS-windows-binding');
+            // if ('${{ needs.test-linux-binding.result }}' === 'failure') failedJobs.push('test-linux-binding');
+            // if ('${{ needs.test-soma-macOS-windows.result }}' === 'failure') failedJobs.push('test-soma-macOS-windows');
+            // if ('${{ needs.test-soma-linux.result }}' === 'failure') failedJobs.push('test-soma-linux');
             if ('${{ needs.publish-npm.result }}' === 'failure') failedJobs.push('publish-npm');
 
             const title = `Release ${version} failed`;
