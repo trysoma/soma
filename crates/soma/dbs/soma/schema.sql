@@ -30,3 +30,13 @@ CREATE TABLE IF NOT EXISTS message (
     parts JSON NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS message_v2 (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    reference_task_ids JSON NOT NULL,
+    role TEXT NOT NULL,
+    metadata JSON NOT NULL,
+    parts JSON NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
