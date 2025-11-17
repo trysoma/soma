@@ -955,13 +955,19 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      
+      - name: Build all packages
+        run: pnpm -r run build
+      
       - name: create npm dirs
         working-directory: crates/sdk-js
         run: pnpm napi create-npm-dirs
+      
       - name: Download all artifacts
         uses: actions/download-artifact@v6
         with:
           path: artifacts
+      
       - name: Move artifacts to sdk-js directory
         run: |
           mkdir -p crates/sdk-js/artifacts
@@ -983,40 +989,17 @@ jobs:
             exit 1
           fi
         shell: bash
+      
       - name: Move artifacts
         working-directory: crates/sdk-js
         run: pnpm artifacts
+      
       - name: List packages
         working-directory: crates/sdk-js
         run: ls -R ./npm
         shell: bash
-      - name: Verify and update package.json version
-        working-directory: crates/sdk-js
-        run: |
-          VERSION="${{ needs.prepare-release.outputs.version }}"
-          
-          if [ -z "$VERSION" ]; then
-            echo "Error: VERSION is empty. Cannot update package.json version."
-            exit 1
-          fi
-          
-          # Remove 'v' prefix if present for npm version
-          NPM_VERSION=$(echo "$VERSION" | sed 's/^v//')
-          
-          echo "Expected npm version: $NPM_VERSION"
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          echo "Current package.json version: $CURRENT_VERSION"
-          
-          if [ "$CURRENT_VERSION" != "$NPM_VERSION" ]; then
-            echo "Updating package.json version from $CURRENT_VERSION to $NPM_VERSION"
-            # Update package.json version using node - properly escape the version string
-            node -e "const fs = require('fs'); const pkg = require('./package.json'); pkg.version = '$NPM_VERSION'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, '\t') + '\n');"
-            echo "Updated package.json version to: $(node -p 'require(\"./package.json\").version')"
-          else
-            echo "Package.json version already matches expected version"
-          fi
-
-
+      
+      
       - name: Setup npm authentication
         run: |
           # Setup npm authentication using NPM_TOKEN secret
@@ -1027,16 +1010,20 @@ jobs:
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
           echo "Configured npm authentication"
 
-      - name: Publish
-        working-directory: crates/sdk-js
+      - name: Publish all packages
         run: |
           # Always publish snapshot/rc releases with the appropriate tag
           VERSION="${{ needs.prepare-release.outputs.version }}"
           LABEL="${{ inputs.prerelease-label }}"
           
-          # Use the prerelease label (snapshot or rc) as the npm tag
-          npm publish --tag "$LABEL" --access public
-          echo "Published version $VERSION with tag '$LABEL'"
+          echo "Publishing all packages with version $VERSION and tag '$LABEL'"
+          
+          # Publish all packages using pnpm workspace publish
+          # pnpm -r publish will publish all packages with publishConfig set
+          # This will publish: @trysoma/sdk-core, @trysoma/sdk, @trysoma/api-client
+          pnpm -r publish --access public --no-git-checks --tag "$LABEL"
+          
+          echo "Published all packages with version $VERSION and tag '$LABEL'"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -1072,6 +1059,7 @@ jobs:
 
       - name: Create GitHub Release
         id: create-release
+        continue-on-error: false
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1203,6 +1191,7 @@ jobs:
       # - test-soma-macOS-windows
       # - test-soma-linux
       - publish-npm
+      - create-release
     if: failure()
     permissions:
       issues: write
@@ -1226,6 +1215,7 @@ jobs:
             // if ('${{ needs.test-soma-macOS-windows.result }}' === 'failure') failedJobs.push('test-soma-macOS-windows');
             // if ('${{ needs.test-soma-linux.result }}' === 'failure') failedJobs.push('test-soma-linux');
             if ('${{ needs.publish-npm.result }}' === 'failure') failedJobs.push('publish-npm');
+            if ('${{ needs.create-release.result }}' === 'failure') failedJobs.push('create-release');
 
             const title = `Release ${version} failed`;
             const body = `## Release Failure
