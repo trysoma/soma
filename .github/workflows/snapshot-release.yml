@@ -929,6 +929,7 @@ jobs:
     permissions:
       contents: write
     needs:
+      - prepare-release
       - build-core-js-sdk
       - build-soma
       # - test-macOS-windows-binding
@@ -994,6 +995,12 @@ jobs:
         working-directory: crates/sdk-js
         run: |
           VERSION="${{ needs.prepare-release.outputs.version }}"
+          
+          if [ -z "$VERSION" ]; then
+            echo "Error: VERSION is empty. Cannot update package.json version."
+            exit 1
+          fi
+          
           # Remove 'v' prefix if present for npm version
           NPM_VERSION=$(echo "$VERSION" | sed 's/^v//')
           
@@ -1003,9 +1010,9 @@ jobs:
           
           if [ "$CURRENT_VERSION" != "$NPM_VERSION" ]; then
             echo "Updating package.json version from $CURRENT_VERSION to $NPM_VERSION"
-            # Update package.json version using node
+            # Update package.json version using node - properly escape the version string
             node -e "const fs = require('fs'); const pkg = require('./package.json'); pkg.version = '$NPM_VERSION'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, '\t') + '\n');"
-            echo "Updated package.json version to: $(node -p \"require('./package.json').version\")"
+            echo "Updated package.json version to: $(node -p 'require(\"./package.json\").version')"
           else
             echo "Package.json version already matches expected version"
           fi
