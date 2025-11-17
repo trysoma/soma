@@ -50,7 +50,7 @@
 		"lint": "biome check .",
 		"lint:ci": "biome ci .",
 		"lint:fix": "biome check --write .",
-		"prepublishOnly": "napi prepublish -t npm",
+		"prepublishOnly": "napi prepublish -t npm --no-gh-release",
 		"test": "vitest run",
 		"test:coverage": "vitest run --coverage",
 		"preversion": "napi build --platform && git add .",

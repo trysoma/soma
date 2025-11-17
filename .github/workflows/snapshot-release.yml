@@ -939,6 +939,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       
+      - name: Download release changes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changes
+
+      - name: Apply release changes
+        run: tar -xzf release-changes.tar.gz
+        shell: bash
+      
       - name: Setup pnpm and Node.js
         uses: ./.github/actions/setup-pnpm-node
         with:
@@ -982,6 +991,27 @@ jobs:
         working-directory: crates/sdk-js
         run: ls -R ./npm
         shell: bash
+      - name: Verify and update package.json version
+        working-directory: crates/sdk-js
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          # Remove 'v' prefix if present for npm version
+          NPM_VERSION=$(echo "$VERSION" | sed 's/^v//')
+          
+          echo "Expected npm version: $NPM_VERSION"
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current package.json version: $CURRENT_VERSION"
+          
+          if [ "$CURRENT_VERSION" != "$NPM_VERSION" ]; then
+            echo "Updating package.json version from $CURRENT_VERSION to $NPM_VERSION"
+            # Update package.json version using node
+            node -e "const fs = require('fs'); const pkg = require('./package.json'); pkg.version = '$NPM_VERSION'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, '\t') + '\n');"
+            echo "Updated package.json version to: $(node -p \"require('./package.json').version\")"
+          else
+            echo "Package.json version already matches expected version"
+          fi
+
+
       - name: Publish
         working-directory: crates/sdk-js
         run: |
@@ -995,6 +1025,7 @@ jobs:
           echo "Published version $VERSION with tag '$LABEL'"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   create-release:
     name: Create GitHub Release
