@@ -408,14 +408,14 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          - host: macos-latest
-            target: x86_64-apple-darwin
+          # - host: macos-latest
+          #   target: x86_64-apple-darwin
           # - host: windows-latest
           #   target: x86_64-pc-windows-msvc
-          - host: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - host: macos-latest
-            target: aarch64-apple-darwin
+          # - host: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
+          # - host: macos-latest
+          #   target: aarch64-apple-darwin
           - host: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             # Don't use napi-cross - build with native cross-compilation tools
@@ -584,22 +584,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: soma
-            asset_name: soma-linux-x86_64
+          # - os: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
+          #   artifact_name: soma
+          #   asset_name: soma-linux-x86_64
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             artifact_name: soma
             asset_name: soma-linux-aarch64
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: soma
-            asset_name: soma-macos-x86_64
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: soma
-            asset_name: soma-macos-aarch64
+          # - os: macos-latest
+          #   target: x86_64-apple-darwin
+          #   artifact_name: soma
+          #   asset_name: soma-macos-x86_64
+          # - os: macos-latest
+          #   target: aarch64-apple-darwin
+          #   artifact_name: soma
+          #   asset_name: soma-macos-aarch64
           # - os: windows-latest
           #   target: x86_64-pc-windows-msvc
           #   artifact_name: soma.exe
@@ -958,11 +958,22 @@ jobs:
         run: |
           mkdir -p crates/sdk-js/artifacts
           # Move all .node and .wasm files from downloaded artifacts to crates/sdk-js/artifacts
-          find artifacts -name "*.node" -o -name "*.wasm" | while read file; do
+          # Artifacts are downloaded in subdirectories like artifacts/napi-bindings-{target}/
+          # Use parentheses to properly group the OR condition in find
+          find artifacts \( -name "*.node" -o -name "*.wasm" \) -type f | while read file; do
             cp "$file" crates/sdk-js/artifacts/
           done
           echo "Artifacts moved to crates/sdk-js/artifacts:"
           ls -la crates/sdk-js/artifacts/ || echo "No artifacts found"
+          # Verify artifacts exist before proceeding
+          if [ ! -d "crates/sdk-js/artifacts" ] || [ -z "$(ls -A crates/sdk-js/artifacts 2>/dev/null)" ]; then
+            echo "Error: No artifacts found in crates/sdk-js/artifacts"
+            echo "Contents of artifacts directory:"
+            find artifacts -type f || echo "No files found"
+            echo "Directory structure:"
+            find artifacts -type d || echo "No directories found"
+            exit 1
+          fi
         shell: bash
       - name: Move artifacts
         working-directory: crates/sdk-js
