@@ -928,7 +928,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
     needs:
       - build-core-js-sdk
       - build-soma
@@ -1012,10 +1011,19 @@ jobs:
           fi
 
 
+      - name: Setup npm authentication
+        run: |
+          # Setup npm authentication using NPM_TOKEN secret
+          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "Error: NPM_TOKEN secret is required for npm publishing"
+            exit 1
+          fi
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
+          echo "Configured npm authentication"
+
       - name: Publish
         working-directory: crates/sdk-js
         run: |
-          npm config set provenance true
           # Always publish snapshot/rc releases with the appropriate tag
           VERSION="${{ needs.prepare-release.outputs.version }}"
           LABEL="${{ inputs.prerelease-label }}"
@@ -1025,7 +1033,6 @@ jobs:
           echo "Published version $VERSION with tag '$LABEL'"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   create-release:
     name: Create GitHub Release
