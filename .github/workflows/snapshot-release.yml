@@ -1049,6 +1049,11 @@ jobs:
       - name: Apply release changes
         run: tar -xzf release-changes.tar.gz
 
+      - name: Configure git
+        run: |
+          git config user.name "TrySoma Bot"
+          git config user.email "services+github-bot@trysoma.com"
+
       - name: Create and push tag
         run: |
           VERSION="${{ needs.prepare-release.outputs.version }}"
