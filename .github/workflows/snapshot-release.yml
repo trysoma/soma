@@ -931,7 +931,6 @@ jobs:
     needs:
       - prepare-release
       - build-core-js-sdk
-      - build-soma
       # - test-macOS-windows-binding
       # - test-linux-binding
       # - test-soma-macOS-windows
