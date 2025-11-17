@@ -1,6 +1,6 @@
 {
 	"name": "@trysoma/api-client",
-	"version": "0.0.2-snapshot-1",
+	"version": "0.0.1",
 	"publishConfig": {
 		"registry": "https://registry.npmjs.org/",
 		"access": "public"

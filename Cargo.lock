@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "a2a-rs"
-version = "0.0.2-snapshot-1"
+version = "0.0.1"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -948,7 +948,7 @@ checksum = "3eeab4423108c5d7c744f4d234de88d18d636100093ae04caf4825134b9c3a32"
 
 [[package]]
 name = "bridge"
-version = "0.0.2-snapshot-1"
+version = "0.0.1"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -994,7 +994,7 @@ dependencies = [
 
 [[package]]
 name = "bridge-macros"
-version = "0.0.2-snapshot-1"
+version = "0.0.1"
 dependencies = [
  "convert_case 0.8.0",
  "paste",
@@ -4985,7 +4985,7 @@ dependencies = [
 
 [[package]]
 name = "sdk-core"
-version = "0.0.2-snapshot-1"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -5009,7 +5009,7 @@ dependencies = [
 
 [[package]]
 name = "sdk-js"
-version = "0.0.2-snapshot-1"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "napi",
@@ -5027,7 +5027,7 @@ dependencies = [
 
 [[package]]
 name = "sdk-proto"
-version = "0.0.2-snapshot-1"
+version = "0.0.1"
 dependencies = [
  "chrono",
  "prost 0.13.5",
@@ -5044,7 +5044,7 @@ dependencies = [
 
 [[package]]
 name = "sdk-py"
-version = "0.0.2-snapshot-1"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "pyo3",
@@ -5283,7 +5283,7 @@ dependencies = [
 
 [[package]]
 name = "shared"
-version = "0.0.2-snapshot-1"
+version = "0.0.1"
 dependencies = [
  "a2a-rs",
  "anyhow",
@@ -5330,7 +5330,7 @@ dependencies = [
 
 [[package]]
 name = "shared-macros"
-version = "0.0.2-snapshot-1"
+version = "0.0.1"
 dependencies = [
  "quote",
  "syn 2.0.106",
@@ -5419,7 +5419,7 @@ dependencies = [
 
 [[package]]
 name = "soma"
-version = "0.0.2-snapshot-1"
+version = "0.0.1"
 dependencies = [
  "a2a-rs",
  "anyhow",
