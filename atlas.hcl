@@ -5,7 +5,7 @@ env "soma" {
   src = "file://crates/soma/dbs/soma/schema.sql"
 
   migration {
-    dir = "file://crates/soma/dbs/soma/migrations"
+    dir = "file://crates/soma/dbs/soma/migrations?format=goose"
   }
 
   //we don't actually use atlas to deploy to an env
@@ -17,7 +17,7 @@ env "bridge" {
   src = "file://crates/bridge/dbs/bridge/schema.sql"
 
   migration {
-    dir = "file://crates/bridge/dbs/bridge/migrations"
+    dir = "file://crates/bridge/dbs/bridge/migrations?format=goose"
   }
   
   //we don't actually use atlas to deploy to an env

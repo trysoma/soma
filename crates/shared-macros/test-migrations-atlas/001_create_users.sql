@@ -1,11 +1,5 @@
--- atlas:txtar
-
--- checks.sql --
--- The assertion below must evaluate to true, ensuring the "users" table doesn't exist.
-SELECT NOT EXISTS(SELECT name FROM sqlite_master WHERE type='table' AND name='users');
-
--- migration.sql --
--- Executed only if the assertion above succeeds.
+-- +goose Up
+-- create "users" table
 CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
@@ -17,7 +11,7 @@ CREATE INDEX idx_users_email ON users(email);
 
 INSERT INTO users (id, name, email) VALUES (1, 'Alice', 'alice@example.com');
 
--- down.sql --
--- Used to revert the migration.
+-- +goose Down
+-- reverse: create "users" table
 DROP INDEX IF EXISTS idx_users_email;
 DROP TABLE IF EXISTS users;

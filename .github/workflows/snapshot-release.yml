@@ -954,6 +954,16 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           path: artifacts
+      - name: Move artifacts to sdk-js directory
+        run: |
+          mkdir -p crates/sdk-js/artifacts
+          # Move all .node and .wasm files from downloaded artifacts to crates/sdk-js/artifacts
+          find artifacts -name "*.node" -o -name "*.wasm" | while read file; do
+            cp "$file" crates/sdk-js/artifacts/
+          done
+          echo "Artifacts moved to crates/sdk-js/artifacts:"
+          ls -la crates/sdk-js/artifacts/ || echo "No artifacts found"
+        shell: bash
       - name: Move artifacts
         working-directory: crates/sdk-js
         run: pnpm artifacts
