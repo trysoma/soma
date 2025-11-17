@@ -202,7 +202,7 @@ fn parse_goose_format(contents: &str, filename: &str) -> (String, String) {
 
     for line in lines.iter() {
         let trimmed = line.trim();
-        
+
         // Check for goose section markers
         if trimmed == "-- +goose Up" {
             current_section = Some("up");
