@@ -50,11 +50,14 @@ fn test_load_atlas_migrations() {
         "Down migration should drop index"
     );
 
-    // Verify that checks.sql is NOT included in the migration content
-    // (it's for validation only, not executed)
+    // Verify that goose markers are NOT included in the migration content
     assert!(
-        !up_sql.contains("checks.sql"),
-        "Up migration should not contain checks section"
+        !up_sql.contains("-- +goose Up"),
+        "Up migration should not contain goose marker"
+    );
+    assert!(
+        !down_sql.contains("-- +goose Down"),
+        "Down migration should not contain goose marker"
     );
 }
 
@@ -115,14 +118,14 @@ fn test_atlas_migration_structure() {
         "Should have at least 2 files (up and down)"
     );
 
-    // Verify the content doesn't have the txtar headers
+    // Verify the content doesn't have the goose markers
     let up_sql = sqlite_migrations.get("001_create_users.up.sql").unwrap();
     assert!(
-        !up_sql.contains("-- atlas:txtar"),
-        "Should not contain txtar header"
+        !up_sql.contains("-- +goose Up"),
+        "Should not contain goose Up marker"
     );
     assert!(
-        !up_sql.contains("-- migration.sql --"),
-        "Should not contain section markers"
+        !up_sql.contains("-- +goose Down"),
+        "Should not contain goose Down marker"
     );
 }

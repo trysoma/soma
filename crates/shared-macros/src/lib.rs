@@ -115,13 +115,8 @@ pub fn load_atlas_sql_migrations(input: TokenStream) -> TokenStream {
             let contents = fs::read_to_string(&path)
                 .unwrap_or_else(|e| panic!("Failed to read migration file {file_name}: {e}"));
 
-            // Check if this is an Atlas format migration
-            if !contents.starts_with("-- atlas:txtar") {
-                panic!("Migration file '{file_name}' must start with '-- atlas:txtar' header");
-            }
-
-            // Parse the Atlas txtar format
-            let (migration_sql, down_sql) = parse_atlas_txtar(&contents, file_name);
+            // Parse the goose format migration (-- +goose Up / -- +goose Down)
+            let (migration_sql, down_sql) = parse_goose_format(&contents, file_name);
 
             // Determine which backend(s) this migration applies to
             let mut matched_backend = None;
@@ -189,71 +184,58 @@ pub fn load_atlas_sql_migrations(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-/// Parse Atlas txtar format migration file
+/// Parse goose format migration file
 /// Format:
 /// ```text
-/// -- atlas:txtar
-///
-/// -- checks.sql --
-/// SELECT ...;
-///
-/// -- migration.sql --
+/// -- +goose Up
 /// CREATE TABLE ...;
 ///
-/// -- down.sql --
+/// -- +goose Down
 /// DROP TABLE ...;
 /// ```
-fn parse_atlas_txtar(contents: &str, filename: &str) -> (String, String) {
+fn parse_goose_format(contents: &str, filename: &str) -> (String, String) {
     let lines: Vec<&str> = contents.lines().collect();
 
-    let mut sections = std::collections::HashMap::new();
-    let mut current_section: Option<String> = None;
-    let mut current_content = Vec::new();
+    let mut up_sql = Vec::new();
+    let mut down_sql = Vec::new();
+    let mut current_section: Option<&str> = None;
 
-    for line in lines.iter().skip(1) {
-        // Skip the "-- atlas:txtar" header
-        // Check if this is a section header (e.g., "-- migration.sql --")
-        if line.starts_with("--") && line.ends_with("--") && line.contains(".sql") {
-            // Save previous section if it exists
-            if let Some(section_name) = current_section.take() {
-                sections.insert(section_name, current_content.join("\n"));
-                current_content.clear();
+    for line in lines.iter() {
+        let trimmed = line.trim();
+
+        // Check for goose section markers
+        if trimmed == "-- +goose Up" {
+            current_section = Some("up");
+            continue;
+        } else if trimmed == "-- +goose Down" {
+            current_section = Some("down");
+            continue;
+        }
+
+        // Add line to appropriate section
+        match current_section {
+            Some("up") => up_sql.push(*line),
+            Some("down") => down_sql.push(*line),
+            Some(_) => {
+                // Unknown section marker, skip
             }
-
-            // Extract section name (e.g., "migration.sql" from "-- migration.sql --")
-            let section_name = line
-                .trim_start_matches("--")
-                .trim_end_matches("--")
-                .trim()
-                .to_string();
-            current_section = Some(section_name);
-        } else if current_section.is_some() {
-            // Add line to current section
-            current_content.push(*line);
+            None => {
+                // If we haven't seen a section marker yet, skip the line
+                // (allows for comments or empty lines before the first section)
+            }
         }
     }
 
-    // Save the last section
-    if let Some(section_name) = current_section {
-        sections.insert(section_name, current_content.join("\n"));
+    // Validate that we found both sections
+    if up_sql.is_empty() {
+        panic!("Migration file '{filename}' must contain '-- +goose Up' section");
+    }
+    if down_sql.is_empty() {
+        panic!("Migration file '{filename}' must contain '-- +goose Down' section");
     }
 
-    // Validate required sections
-    let migration_sql = sections
-        .get("migration.sql")
-        .unwrap_or_else(|| {
-            panic!("Migration file '{filename}' must contain '-- migration.sql --' section")
-        })
-        .trim()
-        .to_string();
+    let migration_sql = up_sql.join("\n").trim().to_string();
+    let down_sql_content = down_sql.join("\n").trim().to_string();
 
-    let down_sql = sections
-        .get("down.sql")
-        .unwrap_or_else(|| {
-            panic!("Migration file '{filename}' must contain '-- down.sql --' section")
-        })
-        .trim()
-        .to_string();
-
-    (migration_sql, down_sql)
+    (migration_sql, down_sql_content)
 }

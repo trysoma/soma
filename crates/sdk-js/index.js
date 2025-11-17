@@ -40,7 +40,7 @@ const isMuslFromReport = () => {
 	if (!report) {
 		return null;
 	}
-	if (report.header?.glibcVersionRuntime) {
+	if (report.header && report.header.glibcVersionRuntime) {
 		return false;
 	}
 	if (Array.isArray(report.sharedObjects)) {
@@ -53,10 +53,10 @@ const isMuslFromReport = () => {
 
 const isMuslFromChildProcess = () => {
 	try {
-		return require("node:child_process")
+		return require("child_process")
 			.execSync("ldd --version", { encoding: "utf8" })
 			.includes("musl");
-	} catch (_e) {
+	} catch (e) {
 		// If we reach this case, we don't know if the system is musl or not, so is better to just fallback to false
 		return false;
 	}

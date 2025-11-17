@@ -14,36 +14,6 @@
     "version": "0.2.0"
   },
   "paths": {
-    "/api/a2a/v1": {
-      "post": {
-        "operationId": "json_rpc",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JsonrpcRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response"
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/a2a/v1/.well-known/agent.json": {
       "get": {
         "operationId": "agent_card",

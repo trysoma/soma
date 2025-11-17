@@ -42,6 +42,18 @@ jobs:
         with:
           version: latest
 
+      - name: Get current version
+        id: current-version
+        run: |
+          # Get the current version (latest release tag) before calculating next version
+          CURRENT_VERSION=$(git tag -l "v*" | grep -v -E ".*-(snapshot|rc)-" | sort -V | tail -1 || echo "")
+          if [ -z "$CURRENT_VERSION" ]; then
+            # If no release tags exist, try to get version from changie latest
+            CURRENT_VERSION=$(changie latest 2>/dev/null || echo "")
+          fi
+          echo "Current version: ${CURRENT_VERSION:-none}"
+          echo "current_version=${CURRENT_VERSION:-}" >> $GITHUB_OUTPUT
+
       - name: Calculate base version
         id: base-version
         run: |
@@ -140,24 +152,40 @@ jobs:
         id: prev-version
         run: |
           BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
+          CURRENT_VERSION="${{ steps.current-version.outputs.current_version }}"
           LABEL="${{ inputs.prerelease-label }}"
           INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
           
+          PREV_VERSION=""
+          
           if [ "$INCREMENT" -gt 0 ]; then
-            # For subsequent increments, use the previous increment
-            PREV_INCREMENT=$((INCREMENT - 1))
-            PREV_VERSION="${BASE_VERSION}-${LABEL}-${PREV_INCREMENT}"
-            echo "Previous version for comparison: $PREV_VERSION"
+            # For subsequent increments, first try to use the base version tag if it exists
+            # (e.g., if v1.0.0 exists, compare v1.0.0-snapshot-5 against v1.0.0)
+            if git rev-parse "$BASE_VERSION" >/dev/null 2>&1; then
+              PREV_VERSION="$BASE_VERSION"
+              echo "Using base version tag for comparison: $PREV_VERSION"
+            else
+              # Fallback to previous increment if base version tag doesn't exist
+              PREV_INCREMENT=$((INCREMENT - 1))
+              PREV_VERSION="${BASE_VERSION}-${LABEL}-${PREV_INCREMENT}"
+              echo "Base version tag not found, using previous increment: $PREV_VERSION"
+            fi
           else
-            # For first increment (0), use the base version tag
-            PREV_VERSION="$BASE_VERSION"
-            echo "First increment detected, using base version for comparison: $PREV_VERSION"
-            
-            # Verify the base version tag exists
-            if ! git rev-parse "$PREV_VERSION" >/dev/null 2>&1; then
-              echo "Warning: Base version tag $PREV_VERSION not found, will skip diff generation"
+            # For first increment (0), use the current version (previous semantic version)
+            # This is the version that exists before creating the snapshot/rc
+            if [ -n "$CURRENT_VERSION" ]; then
+              PREV_VERSION="$CURRENT_VERSION"
+              echo "First increment detected, using current version (previous semantic version) for comparison: $PREV_VERSION"
+            else
+              echo "Warning: Current version not found, will skip diff generation"
               PREV_VERSION=""
             fi
+          fi
+          
+          # Verify the previous version tag exists
+          if [ -n "$PREV_VERSION" ] && ! git rev-parse "$PREV_VERSION" >/dev/null 2>&1; then
+            echo "Warning: Previous version tag $PREV_VERSION not found, will skip diff generation"
+            PREV_VERSION=""
           fi
           
           echo "prev_version=$PREV_VERSION" >> $GITHUB_OUTPUT
@@ -380,14 +408,14 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          - host: macos-latest
-            target: x86_64-apple-darwin
+          # - host: macos-latest
+          #   target: x86_64-apple-darwin
           # - host: windows-latest
           #   target: x86_64-pc-windows-msvc
-          - host: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - host: macos-latest
-            target: aarch64-apple-darwin
+          # - host: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
+          # - host: macos-latest
+          #   target: aarch64-apple-darwin
           - host: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             # Don't use napi-cross - build with native cross-compilation tools
@@ -556,22 +584,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: soma
-            asset_name: soma-linux-x86_64
+          # - os: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
+          #   artifact_name: soma
+          #   asset_name: soma-linux-x86_64
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             artifact_name: soma
             asset_name: soma-linux-aarch64
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: soma
-            asset_name: soma-macos-x86_64
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: soma
-            asset_name: soma-macos-aarch64
+          # - os: macos-latest
+          #   target: x86_64-apple-darwin
+          #   artifact_name: soma
+          #   asset_name: soma-macos-x86_64
+          # - os: macos-latest
+          #   target: aarch64-apple-darwin
+          #   artifact_name: soma
+          #   asset_name: soma-macos-aarch64
           # - os: windows-latest
           #   target: x86_64-pc-windows-msvc
           #   artifact_name: soma.exe
@@ -926,6 +954,27 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           path: artifacts
+      - name: Move artifacts to sdk-js directory
+        run: |
+          mkdir -p crates/sdk-js/artifacts
+          # Move all .node and .wasm files from downloaded artifacts to crates/sdk-js/artifacts
+          # Artifacts are downloaded in subdirectories like artifacts/napi-bindings-{target}/
+          # Use parentheses to properly group the OR condition in find
+          find artifacts \( -name "*.node" -o -name "*.wasm" \) -type f | while read file; do
+            cp "$file" crates/sdk-js/artifacts/
+          done
+          echo "Artifacts moved to crates/sdk-js/artifacts:"
+          ls -la crates/sdk-js/artifacts/ || echo "No artifacts found"
+          # Verify artifacts exist before proceeding
+          if [ ! -d "crates/sdk-js/artifacts" ] || [ -z "$(ls -A crates/sdk-js/artifacts 2>/dev/null)" ]; then
+            echo "Error: No artifacts found in crates/sdk-js/artifacts"
+            echo "Contents of artifacts directory:"
+            find artifacts -type f || echo "No files found"
+            echo "Directory structure:"
+            find artifacts -type d || echo "No directories found"
+            exit 1
+          fi
+        shell: bash
       - name: Move artifacts
         working-directory: crates/sdk-js
         run: pnpm artifacts

@@ -76,10 +76,7 @@ mod windows_impl {
             AsyncWrite::poll_flush(Pin::new(&mut self.get_mut().inner), cx)
         }
 
-        fn poll_shutdown(
-            self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-        ) -> Poll<std::io::Result<()>> {
+        fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
             AsyncWrite::poll_shutdown(Pin::new(&mut self.get_mut().inner), cx)
         }
     }

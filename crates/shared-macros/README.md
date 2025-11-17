@@ -25,7 +25,7 @@ impl SqlMigrationLoader for MyRepository {
 
 ### `load_atlas_sql_migrations!`
 
-Loads Atlas-format migration files that contain both up and down migrations in a single file.
+Loads goose-format migration files that contain both up and down migrations in a single file.
 
 **Usage:**
 ```rust
@@ -40,17 +40,11 @@ impl SqlMigrationLoader for MyRepository {
 
 **Migration file format:**
 
-Atlas migrations use the txtar format to combine checks, migration, and rollback SQL in a single file:
+Goose migrations use comment markers to separate up and down migrations in a single file:
 
 ```sql
--- atlas:txtar
-
--- checks.sql --
--- Optional: Assertions that must pass before migration runs
-SELECT NOT EXISTS(SELECT name FROM sqlite_master WHERE type='table' AND name='users');
-
--- migration.sql --
--- Required: The actual migration SQL
+-- +goose Up
+-- create "users" table
 CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
@@ -59,23 +53,22 @@ CREATE TABLE users (
 
 INSERT INTO users (id, name, email) VALUES (1, 'Alice', 'alice@example.com');
 
--- down.sql --
--- Required: SQL to revert the migration
+-- +goose Down
+-- reverse: create "users" table
 DROP TABLE IF EXISTS users;
 ```
 
 **Requirements:**
-- File must start with `-- atlas:txtar` header (panics if missing)
-- Must contain `-- migration.sql --` section (panics if missing)
-- Must contain `-- down.sql --` section (panics if missing)
-- Optional `-- checks.sql --` section for pre-migration validation
+- Must contain `-- +goose Up` section (panics if missing)
+- Must contain `-- +goose Down` section (panics if missing)
 - File naming: `001_create_users.sql` (no .up/.down suffix needed)
+- The macro automatically generates `.up.sql` and `.down.sql` entries from the single file
 
 **Output:**
 
 The macro automatically generates:
-- `001_create_users.up.sql` → contains content from `-- migration.sql --`
-- `001_create_users.down.sql` → contains content from `-- down.sql --`
+- `001_create_users.up.sql` → contains content from `-- +goose Up` section
+- `001_create_users.down.sql` → contains content from `-- +goose Down` section
 
 These are added to the BTreeMap just like traditional migrations.
 
