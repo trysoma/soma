@@ -986,13 +986,13 @@ jobs:
         working-directory: crates/sdk-js
         run: |
           npm config set provenance true
-          if git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$"; then
-            npm publish --access public
-          elif git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+"; then
-            npm publish --tag next --access public
-          else
-            echo "Not a release, skipping publish"
-          fi
+          # Always publish snapshot/rc releases with the appropriate tag
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          LABEL="${{ inputs.prerelease-label }}"
+          
+          # Use the prerelease label (snapshot or rc) as the npm tag
+          npm publish --tag "$LABEL" --access public
+          echo "Published version $VERSION with tag '$LABEL'"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

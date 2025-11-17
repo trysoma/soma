@@ -49,3 +49,5 @@ node_modules
 coverage/
 .coverage-tmp/
 .cargo/config.toml.tmp
+openapi-prev.json
+release-changes.tar.gz
