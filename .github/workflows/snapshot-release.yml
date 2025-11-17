@@ -956,8 +956,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       
-      - name: Build all packages
-        run: pnpm -r run build
+      - name: Build JS packages
+        run: pnpm --filter "./js/packages/*" -r run build
       
       - name: create npm dirs
         working-directory: crates/sdk-js
