@@ -1,4 +1,4 @@
-name: Build Core JS SDK
+name: Common - Build Core JS SDK
 
 on:
   workflow_call:

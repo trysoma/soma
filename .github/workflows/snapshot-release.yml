@@ -476,6 +476,8 @@ jobs:
       - publish-npm
       - create-github-release
     if: failure()
+    permissions:
+      issues: write
     uses: ./.github/workflows/common-create-github-issue-on-fail.yml
     with:
       version: ${{ needs.prepare-release.outputs.version }}

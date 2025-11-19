@@ -1,4 +1,4 @@
-name: Publish NPM
+name: Common - Publish NPM
 
 on:
   workflow_call:

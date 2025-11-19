@@ -1,4 +1,4 @@
-name: Test Soma macOS/Windows
+name: Common - Test Soma macOS/Windows
 
 on:
   workflow_call:

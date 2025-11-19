@@ -1,4 +1,4 @@
-name: Test SDK JS macOS/Windows Binding
+name: Common - Test SDK JS macOS/Windows Binding
 
 on:
   workflow_call:

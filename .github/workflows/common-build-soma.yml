@@ -1,4 +1,4 @@
-name: Build Soma
+name: Common - Build Soma
 
 on:
   workflow_call:

@@ -1,4 +1,4 @@
-name: Test Linux JS SDK Binding
+name: Common - Test Linux JS SDK Binding
 
 on:
   workflow_call:

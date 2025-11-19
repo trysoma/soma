@@ -1,4 +1,4 @@
-name: Create GitHub Release
+name: Common - Create GitHub Release
 
 on:
   workflow_call:
