@@ -16,6 +16,59 @@ jobs:
           # Use bot PAT to allow pushing to protected branches
           token: ${{ secrets.TRY_SOMA_BOT_TOKEN }}
 
+      - name: Prepare environment variables for changie
+        id: changie-env
+        run: |
+          OPENAPI_DIFF=""
+          DATABASE_SCHEMA_DIFF=""
+          
+          if [ "${{ steps.prev-version.outputs.has_prev_version }}" = "true" ]; then
+            # Set OpenAPI diff
+            if [ "${{ steps.check-openapi.outputs.has_current }}" = "true" ] && [ "${{ steps.check-openapi.outputs.has_previous }}" = "true" ]; then
+              OPENAPI_DIFF="${{ steps.openapi-diff.outputs.diff }}"
+              if [ -z "$OPENAPI_DIFF" ]; then
+                OPENAPI_DIFF="No changes detected in OpenAPI schema."
+              fi
+            else
+              OPENAPI_DIFF="Previous OpenAPI spec not available for comparison."
+            fi
+            
+            # Combine database schema diffs
+            SOMA_DIFF="${{ steps.atlas-soma.outputs.soma_lint_output }}"
+            BRIDGE_DIFF="${{ steps.atlas-bridge.outputs.bridge_lint_output }}"
+            
+            if [ -n "$SOMA_DIFF" ] || [ -n "$BRIDGE_DIFF" ]; then
+              DATABASE_SCHEMA_DIFF=""
+              if [ -n "$SOMA_DIFF" ]; then
+                DATABASE_SCHEMA_DIFF="### Soma Database"$'\n'"\`\`\`"$'\n'"$SOMA_DIFF"$'\n'"\`\`\`"
+              fi
+              if [ -n "$BRIDGE_DIFF" ]; then
+                if [ -n "$DATABASE_SCHEMA_DIFF" ]; then
+                  DATABASE_SCHEMA_DIFF="$DATABASE_SCHEMA_DIFF"$'\n\n'
+                fi
+                DATABASE_SCHEMA_DIFF="${DATABASE_SCHEMA_DIFF}### Bridge Database"$'\n'"\`\`\`"$'\n'"$BRIDGE_DIFF"$'\n'"\`\`\`"
+              fi
+            else
+              DATABASE_SCHEMA_DIFF="No database schema changes detected."
+            fi
+          else
+            OPENAPI_DIFF="No previous version found for comparison."
+            DATABASE_SCHEMA_DIFF="No previous version found for comparison."
+          fi
+          
+          # Set as environment variables for changie merge (using multiline format)
+          echo "OPENAPI_DIFF<<EOF" >> $GITHUB_ENV
+          echo -e "$OPENAPI_DIFF" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          echo "DATABASE_SCHEMA_DIFF<<EOF" >> $GITHUB_ENV
+          echo -e "$DATABASE_SCHEMA_DIFF" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          echo "OpenAPI diff prepared (length: ${#OPENAPI_DIFF})"
+          echo "Database schema diff prepared (length: ${#DATABASE_SCHEMA_DIFF})"
+
+
       - name: Batch changes
         uses: miniscruff/changie-action@v2.1.0
         with:

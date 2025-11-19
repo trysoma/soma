@@ -1,0 +1,115 @@
+name: Build Soma
+
+on:
+  workflow_call:
+    inputs:
+      revision:
+        description: 'Branch or tag to build from'
+        required: false
+        type: string
+        default: 'main'
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+      AWS_INTEGRATION_TESTS_ROLE_ARN:
+        required: false
+
+jobs:
+  build-soma:
+    name: Build Soma binaries - ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: soma
+            asset_name: soma-linux-x86_64
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            artifact_name: soma
+            asset_name: soma-linux-aarch64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: soma
+            asset_name: soma-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: soma
+            asset_name: soma-macos-aarch64
+          # - os: windows-latest
+          #   target: x86_64-pc-windows-msvc
+          #   artifact_name: soma.exe
+          #   asset_name: soma-windows-x86_64.exe
+    env:
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+      CARGO_PROFILE_RELEASE_LTO: true
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+          submodules: recursive
+
+      - name: Download release changes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changes
+
+      - name: Apply release changes
+        run: tar -xzf release-changes.tar.gz
+        shell: bash
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          components: ''
+          cache: 'true'
+          install-protoc: 'true'
+
+      - name: Setup pnpm and Node.js (for frontend build)
+        uses: ./.github/actions/setup-pnpm-node
+        with:
+          install-dependencies: 'true'
+
+      - name: Pre-fetch cargo dependencies
+        run: |
+          echo "Fetching cargo dependencies to ensure git repos are downloaded..."
+          cargo fetch --locked
+        shell: bash
+
+      - name: Cache frontend build
+        uses: actions/cache@v4
+        with:
+          path: crates/soma/app/dist
+          key: frontend-dist-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'crates/soma/app/**/*.ts', 'crates/soma/app/**/*.tsx', 'crates/soma/app/**/*.css', 'crates/soma/app/package.json', 'crates/soma/app/vite.config.ts', 'crates/soma/app/tsconfig.json') }}
+          restore-keys: |
+            frontend-dist-${{ runner.os }}-
+
+      - name: Build frontend
+        run: |
+          cd crates/soma/app
+          pnpm run build
+        shell: bash
+
+      - name: Build binary
+        run: |
+          cargo build --release --target ${{ matrix.target }} --bin soma --locked
+        shell: bash
+
+      - name: Strip binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: soma-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          retention-days: 1
+

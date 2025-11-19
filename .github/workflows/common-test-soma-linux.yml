@@ -1,0 +1,118 @@
+name: Test Soma Linux
+
+on:
+  workflow_call:
+    inputs:
+      revision:
+        description: 'Branch or tag to test from'
+        required: false
+        type: string
+        default: 'main'
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+      AWS_INTEGRATION_TESTS_ROLE_ARN:
+        required: true
+
+jobs:
+  test-soma-linux:
+    name: Test Soma binary on ${{ matrix.target }} - ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: soma
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            artifact_name: soma
+    runs-on: ${{ matrix.os }}
+    env:
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+          submodules: recursive
+  
+      - name: Download release changes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changes
+  
+      - name: Apply release changes
+        run: tar -xzf release-changes.tar.gz
+        shell: bash
+  
+      - name: Configure AWS Credentials for integration tests
+        uses: aws-actions/configure-aws-credentials@v5.1.0
+        with:
+          audience: sts.amazonaws.com
+          aws-region: eu-west-2
+          role-to-assume: ${{ secrets.AWS_INTEGRATION_TESTS_ROLE_ARN }}
+  
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          components: ''
+          cache: 'true'
+          install-protoc: 'true'
+  
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+  
+      - name: Setup pnpm and Node.js (for frontend build)
+        uses: ./.github/actions/setup-pnpm-node
+        with:
+          install-dependencies: 'true'
+  
+      - name: Pre-fetch cargo dependencies
+        run: |
+          echo "Fetching cargo dependencies to ensure git repos are downloaded..."
+          cargo fetch --locked
+        shell: bash
+  
+      - name: Cache frontend build
+        uses: actions/cache@v4
+        with:
+          path: crates/soma/app/dist
+          key: frontend-dist-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'crates/soma/app/**/*.ts', 'crates/soma/app/**/*.tsx', 'crates/soma/app/**/*.css', 'crates/soma/app/package.json', 'crates/soma/app/vite.config.ts', 'crates/soma/app/tsconfig.json') }}
+          restore-keys: |
+            frontend-dist-${{ runner.os }}-
+  
+      - name: Build frontend
+        run: |
+          cd crates/soma/app
+          pnpm run build
+        shell: bash
+  
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: soma-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release
+  
+      - name: Verify binary exists
+        run: |
+          if [ -f "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" ]; then
+            echo "Binary found: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
+            ls -lh "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
+          else
+            echo "Error: Binary not found at target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
+            exit 1
+          fi
+        shell: bash
+  
+      - name: Run Rust tests
+        run: cargo nextest run --target ${{ matrix.target }} --locked
+        shell: bash
+

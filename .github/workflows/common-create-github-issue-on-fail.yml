@@ -1,0 +1,73 @@
+name: Create GitHub Issue on Fail
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version that failed'
+        required: true
+        type: string
+      workflow-type:
+        description: 'Type of workflow (release or snapshot-release)'
+        required: true
+        type: string
+      failed-jobs:
+        description: 'Comma-separated list of failed job names'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+
+jobs:
+  create-github-issue-on-fail:
+    name: Create GitHub Issue on Fail
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Create issue for failed release
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const version = '${{ inputs.version }}' || 'unknown';
+            const workflowType = '${{ inputs.workflow-type }}';
+            const failedJobsStr = '${{ inputs.failed-jobs }}';
+            const runId = context.runId;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
+            // Parse failed jobs
+            const failedJobs = failedJobsStr ? failedJobsStr.split(',').map(j => j.trim()).filter(j => j) : [];
+
+            const workflowName = workflowType === 'snapshot-release' ? 'snapshot release' : 'release';
+            const title = `Release ${version} failed`;
+            const body = `## Release Failure
+
+            The ${workflowName} workflow for version **${version}** has failed.
+
+            **Workflow Run:** ${runUrl}
+
+            ### Failed Jobs
+
+            ${failedJobs.length > 0 
+              ? `The following job(s) failed:\n${failedJobs.map(job => `- ${job}`).join('\n')}`
+              : 'One or more jobs in the workflow failed.'
+            }
+
+            ### Action Required
+
+            1. Review the failed job logs in the workflow run
+            2. Fix any issues identified
+            3. Re-run the ${workflowName} workflow
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['release-failure', 'automated']
+            });
+

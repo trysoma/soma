@@ -46,6 +46,7 @@ _install-sqlc-gen-from-template: ## Install sqlc-gen-from-template if not alread
 	fi
 
 install: _install-sqlc-gen-from-template ## Install all dependencies (Rust and Node.js)
+	git submodule update --init --recursive
 	@echo "Installing JS monorepo dependencies..."
 	pnpm install
 	@echo "✓ All dependencies installed"

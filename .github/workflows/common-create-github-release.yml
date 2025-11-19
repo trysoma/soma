@@ -1,0 +1,182 @@
+name: Create GitHub Release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to release'
+        required: true
+        type: string
+      revision:
+        description: 'Branch or tag to release from'
+        required: false
+        type: string
+        default: 'main'
+      prerelease:
+        description: 'Whether this is a prerelease'
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+      TRY_SOMA_BOT_TOKEN:
+        required: true
+
+jobs:
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+          token: ${{ secrets.TRY_SOMA_BOT_TOKEN }}
+
+      - name: Download release changes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changes
+
+      - name: Apply release changes
+        run: tar -xzf release-changes.tar.gz
+
+      - name: Configure git
+        run: |
+          git config user.name "TrySoma Bot"
+          git config user.email "services+github-bot@trysoma.com"
+
+      - name: Create and push tag
+        run: |
+          VERSION="${{ inputs.version }}"
+
+          echo "Creating tag: $VERSION"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+
+      - name: Create GitHub Release
+        id: create-release
+        continue-on-error: false
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ inputs.version }}
+          release_name: ${{ inputs.version }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: ${{ inputs.prerelease }}
+
+      - name: Download all soma binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: soma-*
+          path: binaries
+
+      - name: Upload binaries to release
+        run: |
+          VERSION="${{ inputs.version }}"
+
+          for target_dir in binaries/soma-*; do
+            target=$(basename "$target_dir" | sed 's/^soma-//')
+            binary=$(ls "$target_dir")
+
+            # Map target to asset name
+            case "$target" in
+              x86_64-unknown-linux-gnu)
+                asset_name="soma-linux-x86_64"
+                ;;
+              aarch64-unknown-linux-gnu)
+                asset_name="soma-linux-aarch64"
+                ;;
+              x86_64-apple-darwin)
+                asset_name="soma-macos-x86_64"
+                ;;
+              aarch64-apple-darwin)
+                asset_name="soma-macos-aarch64"
+                ;;
+              x86_64-pc-windows-msvc)
+                asset_name="soma-windows-x86_64.exe"
+                ;;
+              *)
+                asset_name="soma-$target"
+                ;;
+            esac
+
+            echo "Uploading $target_dir/$binary as $asset_name"
+            gh release upload "$VERSION" "$target_dir/$binary#$asset_name" --clobber
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment npm package links on release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ inputs.version }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = process.env.RELEASE_TAG;
+            const version = tag.replace('v', '');
+
+            // Get all published packages from workspace
+            const mainPackages = [
+              '@trysoma/sdk',
+              '@trysoma/sdk-core',
+              '@trysoma/api-client'
+            ];
+
+            // Platform-specific packages (based on build targets in workflow)
+            const platformPackages = [
+              '@trysoma/sdk-core-darwin-universal',
+              '@trysoma/sdk-core-darwin-x64',
+              '@trysoma/sdk-core-darwin-arm64',
+              '@trysoma/sdk-core-linux-x64-gnu',
+              '@trysoma/sdk-core-linux-arm64-gnu'
+            ];
+
+            // Create links to main npm packages
+            const mainPackageLinks = mainPackages.map(pkg => {
+              return `- [${pkg}](https://www.npmjs.com/package/${pkg}/v/${version})`;
+            }).join('\n');
+
+            // Create links to platform-specific packages
+            const platformPackageLinks = platformPackages.map(pkg => {
+              return `- [${pkg}](https://www.npmjs.com/package/${pkg}/v/${version})`;
+            }).join('\n');
+
+            const comment = `## 📦 Published NPM Packages
+
+            ### Main Packages
+            ${mainPackageLinks}
+
+            ### Platform-Specific Packages
+            ${platformPackageLinks}
+
+            Install with:
+            \`\`\`bash
+            pnpm add ${mainPackages.join(' ')}
+            \`\`\`
+
+            > Platform-specific packages are automatically installed as optional dependencies based on your system architecture.
+            `;
+
+            // Find the release by tag
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag
+            });
+
+            // Update the release body
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              body: (release.body || '') + '\n\n' + comment
+            });
+

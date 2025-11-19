@@ -1,0 +1,115 @@
+name: Publish NPM
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to publish'
+        required: true
+        type: string
+      npm-tag:
+        description: 'NPM tag to use (e.g., latest, snapshot, rc)'
+        required: true
+        type: string
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+      NPM_TOKEN:
+        required: true
+
+jobs:
+  publish-npm:
+    name: Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Download release changes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changes
+
+      - name: Apply release changes
+        run: tar -xzf release-changes.tar.gz
+        shell: bash
+      
+      - name: Setup pnpm and Node.js
+        uses: ./.github/actions/setup-pnpm-node
+        with:
+          install-dependencies: 'true'
+          node-version: '22'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build JS packages
+        run: pnpm --filter "./js/packages/*" -r run build
+      
+      - name: create npm dirs
+        working-directory: crates/sdk-js
+        run: pnpm napi create-npm-dirs
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: artifacts
+      
+      - name: Move artifacts to sdk-js directory
+        run: |
+          mkdir -p crates/sdk-js/artifacts
+          # Move all .node and .wasm files from downloaded artifacts to crates/sdk-js/artifacts
+          # Artifacts are downloaded in subdirectories like artifacts/napi-bindings-{target}/
+          # Use parentheses to properly group the OR condition in find
+          find artifacts \( -name "*.node" -o -name "*.wasm" \) -type f | while read file; do
+            cp "$file" crates/sdk-js/artifacts/
+          done
+          echo "Artifacts moved to crates/sdk-js/artifacts:"
+          ls -la crates/sdk-js/artifacts/ || echo "No artifacts found"
+          # Verify artifacts exist before proceeding
+          if [ ! -d "crates/sdk-js/artifacts" ] || [ -z "$(ls -A crates/sdk-js/artifacts 2>/dev/null)" ]; then
+            echo "Error: No artifacts found in crates/sdk-js/artifacts"
+            echo "Contents of artifacts directory:"
+            find artifacts -type f || echo "No files found"
+            echo "Directory structure:"
+            find artifacts -type d || echo "No directories found"
+            exit 1
+          fi
+        shell: bash
+      
+      - name: Move artifacts
+        working-directory: crates/sdk-js
+        run: pnpm artifacts
+      
+      - name: List packages
+        working-directory: crates/sdk-js
+        run: ls -R ./npm
+        shell: bash
+      
+      - name: Setup npm authentication
+        run: |
+          # Setup npm authentication using NPM_TOKEN secret
+          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "Error: NPM_TOKEN secret is required for npm publishing"
+            exit 1
+          fi
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
+          echo "Configured npm authentication"
+
+      - name: Publish all packages
+        run: |
+          VERSION="${{ inputs.version }}"
+          NPM_TAG="${{ inputs.npm-tag }}"
+          
+          echo "Publishing all packages with version $VERSION and tag '$NPM_TAG'"
+          
+          # Publish all packages using pnpm workspace publish
+          # pnpm -r publish will publish all packages with publishConfig set
+          # This will publish: @trysoma/sdk-core, @trysoma/sdk, @trysoma/api-client
+          pnpm -r publish --access public --no-git-checks --tag "$NPM_TAG"
+          
+          echo "Published all packages with version $VERSION and tag '$NPM_TAG'"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
