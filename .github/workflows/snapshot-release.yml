@@ -163,7 +163,7 @@ jobs:
           retention-days: 1
 
   build-core-js-sdk:
-    needs: prepare-release
+    needs: [prepare-release, create-changelog-and-artifacts]
     uses: ./.github/workflows/common-build-core-js-sdk.yml
     with:
       revision: ${{ inputs.revision }}
@@ -177,7 +177,7 @@ jobs:
     uses: ./.github/workflows/common-test-linux-js-sdk-binding.yml
 
   build-soma:
-    needs: prepare-release
+    needs: [prepare-release, create-changelog-and-artifacts]
     uses: ./.github/workflows/common-build-soma.yml
     with:
       revision: ${{ inputs.revision }}
