@@ -18,8 +18,6 @@ on:
         type: boolean
         default: false
     secrets:
-      GITHUB_TOKEN:
-        required: true
       TRY_SOMA_BOT_TOKEN:
         required: true
 

@@ -405,20 +405,14 @@ jobs:
     uses: ./.github/workflows/common-build-core-js-sdk.yml
     with:
       revision: ${{ inputs.revision }}
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-sdk-js-macOS-windows-binding:
     needs: build-core-js-sdk
     uses: ./.github/workflows/common-test-sdk-js-macOS-windows-binding.yml
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-linux-js-sdk-binding:
     needs: build-core-js-sdk
     uses: ./.github/workflows/common-test-linux-js-sdk-binding.yml
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-soma:
     needs: prepare-release
@@ -426,7 +420,6 @@ jobs:
     with:
       revision: ${{ inputs.revision }}
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       AWS_INTEGRATION_TESTS_ROLE_ARN: ${{ secrets.AWS_INTEGRATION_TESTS_ROLE_ARN }}
 
   test-soma-macOS-windows:
@@ -435,7 +428,6 @@ jobs:
     with:
       revision: ${{ inputs.revision }}
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       AWS_INTEGRATION_TESTS_ROLE_ARN: ${{ secrets.AWS_INTEGRATION_TESTS_ROLE_ARN }}
 
   test-soma-linux:
@@ -444,7 +436,6 @@ jobs:
     with:
       revision: ${{ inputs.revision }}
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       AWS_INTEGRATION_TESTS_ROLE_ARN: ${{ secrets.AWS_INTEGRATION_TESTS_ROLE_ARN }}
 
   publish-npm:
@@ -461,7 +452,6 @@ jobs:
       version: ${{ needs.prepare-release.outputs.version }}
       npm-tag: ${{ inputs.prerelease-label }}
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   create-github-release:
@@ -472,7 +462,6 @@ jobs:
       revision: ${{ inputs.revision }}
       prerelease: true
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TRY_SOMA_BOT_TOKEN: ${{ secrets.TRY_SOMA_BOT_TOKEN }}
 
   create-github-issue-on-fail:
@@ -492,5 +481,3 @@ jobs:
       version: ${{ needs.prepare-release.outputs.version }}
       workflow-type: snapshot-release
       failed-jobs: ${{ needs.prepare-release.result == 'failure' && 'prepare-release' || '' }}${{ needs.build-soma.result == 'failure' && format(',build-soma') || '' }}${{ needs.build-core-js-sdk.result == 'failure' && format(',build-core-js-sdk') || '' }}${{ needs.publish-npm.result == 'failure' && format(',publish-npm') || '' }}${{ needs.create-github-release.result == 'failure' && format(',create-github-release') || '' }}
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
