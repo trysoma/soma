@@ -1,0 +1,442 @@
+name: Common - Prepare Release
+
+on:
+  workflow_call:
+    inputs:
+      release-type:
+        description: 'Type of release: snapshot, regular, or pr'
+        required: true
+        type: string
+      revision:
+        description: 'Branch or tag to release from'
+        required: false
+        type: string
+        default: 'main'
+      prerelease-label:
+        description: 'Prerelease label (for snapshot releases)'
+        required: false
+        type: string
+      semantic-version:
+        description: 'Semantic version (for snapshot releases, leave empty to auto-calculate)'
+        required: false
+        type: string
+    secrets:
+      TRY_SOMA_BOT_TOKEN:
+        required: true
+    outputs:
+      version:
+        description: 'Calculated version'
+        value: ${{ jobs.prepare-release.outputs.version }}
+      prev_version:
+        description: 'Previous version for comparison'
+        value: ${{ jobs.prepare-release.outputs.prev_version }}
+      has_prev_version:
+        description: 'Whether previous version exists'
+        value: ${{ jobs.prepare-release.outputs.has_prev_version }}
+      openapi_diff:
+        description: 'OpenAPI diff for changie'
+        value: ${{ jobs.prepare-release.outputs.openapi_diff }}
+      database_schema_diff:
+        description: 'Database schema diff for changie'
+        value: ${{ jobs.prepare-release.outputs.database_schema_diff }}
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.calculate-version.outputs.version }}
+      prev_version: ${{ steps.prev-version.outputs.prev_version }}
+      has_prev_version: ${{ steps.prev-version.outputs.has_prev_version }}
+      openapi_diff: ${{ steps.changie-env.outputs.openapi_diff }}
+      database_schema_diff: ${{ steps.changie-env.outputs.database_schema_diff }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+          token: ${{ secrets.TRY_SOMA_BOT_TOKEN }}
+
+      - name: Setup Changie
+        uses: miniscruff/changie-action@v2.1.0
+        with:
+          version: latest
+
+      - name: Get current version
+        id: current-version
+        run: |
+          # Get the current version (latest release tag) before calculating next version
+          CURRENT_VERSION=$(git tag -l "v*" | grep -v -E ".*-(snapshot|rc)-" | sort -V | tail -1 || echo "")
+          if [ -z "$CURRENT_VERSION" ]; then
+            # If no release tags exist, try to get version from changie latest
+            CURRENT_VERSION=$(changie latest 2>/dev/null || echo "")
+          fi
+          echo "Current version: ${CURRENT_VERSION:-none}"
+          echo "current_version=${CURRENT_VERSION:-}" >> $GITHUB_OUTPUT
+
+      - name: Calculate base version
+        id: base-version
+        if: inputs.release-type == 'snapshot' || inputs.release-type == 'pr'
+        run: |
+          if [ "${{ inputs.release-type }}" = "snapshot" ] && [ -n "${{ inputs.semantic-version }}" ]; then
+            BASE_VERSION="${{ inputs.semantic-version }}"
+            if [[ ! "$BASE_VERSION" =~ ^v ]]; then
+              BASE_VERSION="v$BASE_VERSION"
+            fi
+            echo "Using provided version: $BASE_VERSION"
+          else
+            echo "Calculating next version from changie..."
+            BASE_VERSION=$(changie next auto)
+            if [ $? -ne 0 ] || [ -z "$BASE_VERSION" ]; then
+              echo "Error: Failed to calculate next version from changie"
+              exit 1
+            fi
+            echo "Calculated version: $BASE_VERSION"
+          fi
+          echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Read version from VERSION file
+        id: read-version
+        if: inputs.release-type == 'regular'
+        run: |
+          if [ ! -f "VERSION" ]; then
+            echo "Error: VERSION file not found"
+            exit 1
+          fi
+          
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          if [ -z "$VERSION" ]; then
+            echo "Error: VERSION file is empty"
+            exit 1
+          fi
+          
+          # Ensure version starts with 'v'
+          if [[ ! "$VERSION" =~ ^v ]]; then
+            VERSION="v$VERSION"
+          fi
+          
+          echo "Version from VERSION file: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Calculate prerelease increment
+        id: calculate-increment
+        if: inputs.release-type == 'snapshot'
+        run: |
+          BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
+          LABEL="${{ inputs.prerelease-label }}"
+
+          echo "Finding existing prerelease tags for $BASE_VERSION-$LABEL-*"
+
+          # Get all tags matching the pattern
+          EXISTING_TAGS=$(git tag -l "${BASE_VERSION}-${LABEL}-*" | sort -V)
+
+          if [ -z "$EXISTING_TAGS" ]; then
+            echo "No existing tags found, starting at 0"
+            INCREMENT=0
+          else
+            echo "Found existing tags:"
+            echo "$EXISTING_TAGS"
+
+            # Extract the highest increment number
+            HIGHEST=$(echo "$EXISTING_TAGS" | sed "s/${BASE_VERSION}-${LABEL}-//" | sort -n | tail -1)
+            INCREMENT=$((HIGHEST + 1))
+            echo "Highest increment found: $HIGHEST, using: $INCREMENT"
+          fi
+
+          echo "increment=$INCREMENT" >> $GITHUB_OUTPUT
+
+      - name: Calculate full version
+        id: calculate-version
+        run: |
+          if [ "${{ inputs.release-type }}" = "snapshot" ]; then
+            BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
+            LABEL="${{ inputs.prerelease-label }}"
+            INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
+            FULL_VERSION="${BASE_VERSION}-${LABEL}-${INCREMENT}"
+          elif [ "${{ inputs.release-type }}" = "regular" ]; then
+            FULL_VERSION="${{ steps.read-version.outputs.version }}"
+          elif [ "${{ inputs.release-type }}" = "pr" ]; then
+            FULL_VERSION="${{ steps.base-version.outputs.base_version }}"
+          else
+            echo "Error: Unknown release type: ${{ inputs.release-type }}"
+            exit 1
+          fi
+          echo "Full version: $FULL_VERSION"
+          echo "version=$FULL_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Restore previous prerelease changes
+        if: inputs.release-type == 'snapshot'
+        run: |
+          BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
+          LABEL="${{ inputs.prerelease-label }}"
+          INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
+
+          # If this is not the first increment (i > 0), restore previous changes
+          if [ "$INCREMENT" -gt 0 ]; then
+            PREV_INCREMENT=$((INCREMENT - 1))
+            PREV_VERSION="${BASE_VERSION}-${LABEL}-${PREV_INCREMENT}"
+
+            echo "Restoring changes from previous version: $PREV_VERSION"
+
+            # Check if the previous tag exists
+            if git rev-parse "$PREV_VERSION" >/dev/null 2>&1; then
+              # Get all .changes files from the previous tag
+              CHANGES_FILES=$(git ls-tree -r --name-only "$PREV_VERSION" .changes/ | grep -E "\.changes/${BASE_VERSION}-${LABEL}-.*\.md$" || true)
+
+              if [ -n "$CHANGES_FILES" ]; then
+                echo "Found previous changes files:"
+                echo "$CHANGES_FILES"
+
+                # Restore each file from the previous tag
+                for file in $CHANGES_FILES; do
+                  echo "Restoring: $file"
+                  git checkout "$PREV_VERSION" -- "$file" || echo "Could not restore $file"
+                done
+              else
+                echo "No previous changes files found in $PREV_VERSION"
+              fi
+            else
+              echo "Warning: Previous tag $PREV_VERSION not found"
+            fi
+          else
+            echo "This is the first increment (0), no previous changes to restore"
+          fi
+
+      - name: Calculate previous version for comparison
+        id: prev-version
+        run: |
+          if [ "${{ inputs.release-type }}" = "snapshot" ]; then
+            BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
+            CURRENT_VERSION="${{ steps.current-version.outputs.current_version }}"
+            LABEL="${{ inputs.prerelease-label }}"
+            INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
+            
+            PREV_VERSION=""
+            
+            if [ "$INCREMENT" -gt 0 ]; then
+              # For subsequent increments, first try to use the base version tag if it exists
+              # (e.g., if v1.0.0 exists, compare v1.0.0-snapshot-5 against v1.0.0)
+              if git rev-parse "$BASE_VERSION" >/dev/null 2>&1; then
+                PREV_VERSION="$BASE_VERSION"
+                echo "Using base version tag for comparison: $PREV_VERSION"
+              else
+                # Fallback to previous increment if base version tag doesn't exist
+                PREV_INCREMENT=$((INCREMENT - 1))
+                PREV_VERSION="${BASE_VERSION}-${LABEL}-${PREV_INCREMENT}"
+                echo "Base version tag not found, using previous increment: $PREV_VERSION"
+              fi
+            else
+              # For first increment (0), use the current version (previous semantic version)
+              # This is the version that exists before creating the snapshot/rc
+              if [ -n "$CURRENT_VERSION" ]; then
+                PREV_VERSION="$CURRENT_VERSION"
+                echo "First increment detected, using current version (previous semantic version) for comparison: $PREV_VERSION"
+              else
+                echo "Warning: Current version not found, will skip diff generation"
+                PREV_VERSION=""
+              fi
+            fi
+          elif [ "${{ inputs.release-type }}" = "regular" ]; then
+            CURRENT_VERSION="${{ steps.read-version.outputs.version }}"
+            
+            # Get the latest release tag (excluding prereleases)
+            PREV_VERSION=$(git tag -l "v*" | grep -v -E ".*-(snapshot|rc)-" | sort -V | tail -1 || echo "")
+            
+            # Exclude the current version if it already exists as a tag
+            if [ "$PREV_VERSION" = "$CURRENT_VERSION" ]; then
+              # Get the second-to-last tag
+              PREV_VERSION=$(git tag -l "v*" | grep -v -E ".*-(snapshot|rc)-" | sort -V | tail -2 | head -1 || echo "")
+            fi
+            
+            if [ -z "$PREV_VERSION" ]; then
+              echo "Warning: No previous version found, will skip diff generation"
+              PREV_VERSION=""
+            else
+              echo "Previous version for comparison: $PREV_VERSION"
+            fi
+          elif [ "${{ inputs.release-type }}" = "pr" ]; then
+            # For PR creation, use the latest release tag
+            PREV_VERSION=$(git tag -l "v*" | grep -v -E ".*-(snapshot|rc)-" | sort -V | tail -1 || echo "")
+            if [ -z "$PREV_VERSION" ]; then
+              echo "Warning: No previous version found, will skip diff generation"
+              PREV_VERSION=""
+            else
+              echo "Previous version for comparison: $PREV_VERSION"
+            fi
+          fi
+          
+          # Verify the previous version tag exists
+          if [ -n "$PREV_VERSION" ] && ! git rev-parse "$PREV_VERSION" >/dev/null 2>&1; then
+            echo "Warning: Previous version tag $PREV_VERSION not found, will skip diff generation"
+            PREV_VERSION=""
+          fi
+          
+          echo "prev_version=$PREV_VERSION" >> $GITHUB_OUTPUT
+          echo "has_prev_version=$([ -n "$PREV_VERSION" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+
+      - name: Install Atlas CLI
+        if: steps.prev-version.outputs.has_prev_version == 'true'
+        run: |
+          curl -sSf https://atlasgo.sh | sh -s -- --community -y
+          echo "$HOME/.atlas/bin" >> $GITHUB_PATH
+
+      - name: Download OpenAPI spec from previous version
+        if: steps.prev-version.outputs.has_prev_version == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_VERSION="${{ steps.prev-version.outputs.prev_version }}"
+          echo "Downloading openapi.json from tag: $PREV_VERSION"
+          
+          curl -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github.v3.raw" \
+                -o ./openapi-prev.json \
+                "https://api.github.com/repos/${{ github.repository }}/contents/openapi.json?ref=$PREV_VERSION" || {
+            echo "Warning: Could not download openapi.json from $PREV_VERSION, will skip OpenAPI diff"
+            touch ./openapi-prev.json
+          }
+
+      - name: Check OpenAPI files exist
+        if: steps.prev-version.outputs.has_prev_version == 'true'
+        id: check-openapi
+        run: |
+          if [ ! -f ./openapi.json ]; then
+            echo "has_current=false" >> $GITHUB_OUTPUT
+            echo "Warning: openapi.json not found in current checkout"
+          else
+            echo "has_current=true" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ ! -f ./openapi-prev.json ] || [ ! -s ./openapi-prev.json ]; then
+            echo "has_previous=false" >> $GITHUB_OUTPUT
+            echo "Warning: Previous openapi.json not available"
+          else
+            echo "has_previous=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate OpenAPI diff
+        if: |
+          steps.prev-version.outputs.has_prev_version == 'true' &&
+          steps.check-openapi.outputs.has_current == 'true' &&
+          steps.check-openapi.outputs.has_previous == 'true'
+        id: openapi-diff
+        continue-on-error: true
+        uses: oasdiff/oasdiff-action/diff@main
+        with:
+          base: ./openapi-prev.json
+          revision: ./openapi.json
+
+      - name: Run Atlas migrate lint for Soma database
+        if: steps.prev-version.outputs.has_prev_version == 'true'
+        id: atlas-soma
+        continue-on-error: true
+        run: |
+          PREV_VERSION="${{ steps.prev-version.outputs.prev_version }}"
+          echo "Running Atlas migrate lint for Soma database against $PREV_VERSION"
+          
+          # Fetch the previous version tag
+          git fetch origin "refs/tags/$PREV_VERSION:refs/tags/$PREV_VERSION" || git fetch origin "$PREV_VERSION" || true
+          
+          # Use git-base with the tag name (atlas should handle tags)
+          atlas_output=$(atlas migrate lint --env soma --git-base "$PREV_VERSION" 2>&1) || atlas_exit=$?
+          if [ -z "$atlas_output" ]; then
+            atlas_output="SUCCESS: checksums match, no breaking changes"
+          fi
+          
+          echo "soma_lint_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$atlas_output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          if [ -n "${atlas_exit:-}" ]; then
+            echo "Atlas lint found issues (exit code: $atlas_exit)"
+            echo "$atlas_output"
+          fi
+
+      - name: Run Atlas migrate lint for Bridge database
+        if: steps.prev-version.outputs.has_prev_version == 'true'
+        id: atlas-bridge
+        continue-on-error: true
+        run: |
+          PREV_VERSION="${{ steps.prev-version.outputs.prev_version }}"
+          echo "Running Atlas migrate lint for Bridge database against $PREV_VERSION"
+          
+          # Fetch the previous version tag
+          git fetch origin "refs/tags/$PREV_VERSION:refs/tags/$PREV_VERSION" || git fetch origin "$PREV_VERSION" || true
+          
+          # Use git-base with the tag name (atlas should handle tags)
+          atlas_output=$(atlas migrate lint --env bridge --git-base "$PREV_VERSION" 2>&1) || atlas_exit=$?
+          if [ -z "$atlas_output" ]; then
+            atlas_output="SUCCESS: checksums match, no breaking changes"
+          fi
+          
+          echo "bridge_lint_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$atlas_output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          if [ -n "${atlas_exit:-}" ]; then
+            echo "Atlas lint found issues (exit code: $atlas_exit)"
+            echo "$atlas_output"
+          fi
+
+      - name: Prepare environment variables for changie
+        id: changie-env
+        run: |
+          OPENAPI_DIFF=""
+          DATABASE_SCHEMA_DIFF=""
+          
+          if [ "${{ steps.prev-version.outputs.has_prev_version }}" = "true" ]; then
+            # Set OpenAPI diff
+            if [ "${{ steps.check-openapi.outputs.has_current }}" = "true" ] && [ "${{ steps.check-openapi.outputs.has_previous }}" = "true" ]; then
+              OPENAPI_DIFF="${{ steps.openapi-diff.outputs.diff }}"
+              if [ -z "$OPENAPI_DIFF" ]; then
+                OPENAPI_DIFF="No changes detected in OpenAPI schema."
+              fi
+            else
+              OPENAPI_DIFF="Previous OpenAPI spec not available for comparison."
+            fi
+            
+            # Combine database schema diffs
+            SOMA_DIFF="${{ steps.atlas-soma.outputs.soma_lint_output }}"
+            BRIDGE_DIFF="${{ steps.atlas-bridge.outputs.bridge_lint_output }}"
+            
+            if [ -n "$SOMA_DIFF" ] || [ -n "$BRIDGE_DIFF" ]; then
+              DATABASE_SCHEMA_DIFF=""
+              if [ -n "$SOMA_DIFF" ]; then
+                DATABASE_SCHEMA_DIFF="### Soma Database"$'\n'"\`\`\`"$'\n'"$SOMA_DIFF"$'\n'"\`\`\`"
+              fi
+              if [ -n "$BRIDGE_DIFF" ]; then
+                if [ -n "$DATABASE_SCHEMA_DIFF" ]; then
+                  DATABASE_SCHEMA_DIFF="$DATABASE_SCHEMA_DIFF"$'\n\n'
+                fi
+                DATABASE_SCHEMA_DIFF="${DATABASE_SCHEMA_DIFF}### Bridge Database"$'\n'"\`\`\`"$'\n'"$BRIDGE_DIFF"$'\n'"\`\`\`"
+              fi
+            else
+              DATABASE_SCHEMA_DIFF="No database schema changes detected."
+            fi
+          else
+            OPENAPI_DIFF="No previous version found for comparison."
+            DATABASE_SCHEMA_DIFF="No previous version found for comparison."
+          fi
+          
+          # Set as environment variables with CHANGIE_ prefix for changie injection
+          # changie will strip the prefix and make them available as .Env.OPENAPI_DIFF and .Env.DATABASE_SCHEMA_DIFF
+          echo "CHANGIE_OPENAPI_DIFF<<EOF" >> $GITHUB_ENV
+          echo -e "$OPENAPI_DIFF" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          echo "CHANGIE_DATABASE_SCHEMA_DIFF<<EOF" >> $GITHUB_ENV
+          echo -e "$DATABASE_SCHEMA_DIFF" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          # Also output as job outputs for use in other jobs
+          echo "openapi_diff<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$OPENAPI_DIFF" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "database_schema_diff<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$DATABASE_SCHEMA_DIFF" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "OpenAPI diff prepared (length: ${#OPENAPI_DIFF})"
+          echo "Database schema diff prepared (length: ${#DATABASE_SCHEMA_DIFF})"
+

@@ -14,173 +14,21 @@ permissions:
 
 jobs:
   prepare-release:
+    uses: ./.github/workflows/common-prepare-release.yml
+    with:
+      release-type: regular
+    secrets:
+      TRY_SOMA_BOT_TOKEN: ${{ secrets.TRY_SOMA_BOT_TOKEN }}
+
+  create-artifacts:
+    needs: prepare-release
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.read-version.outputs.version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ secrets.TRY_SOMA_BOT_TOKEN }}
-
-      - name: Read version from VERSION file
-        id: read-version
-        run: |
-          if [ ! -f "VERSION" ]; then
-            echo "Error: VERSION file not found"
-            exit 1
-          fi
-          
-          VERSION=$(cat VERSION | tr -d '[:space:]')
-          if [ -z "$VERSION" ]; then
-            echo "Error: VERSION file is empty"
-            exit 1
-          fi
-          
-          # Ensure version starts with 'v'
-          if [[ ! "$VERSION" =~ ^v ]]; then
-            VERSION="v$VERSION"
-          fi
-          
-          echo "Version from VERSION file: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Calculate previous version for comparison
-        id: prev-version
-        run: |
-          CURRENT_VERSION="${{ steps.read-version.outputs.version }}"
-          
-          # Get the latest release tag (excluding prereleases)
-          PREV_VERSION=$(git tag -l "v*" | grep -v -E ".*-(snapshot|rc)-" | sort -V | tail -1 || echo "")
-          
-          # Exclude the current version if it already exists as a tag
-          if [ "$PREV_VERSION" = "$CURRENT_VERSION" ]; then
-            # Get the second-to-last tag
-            PREV_VERSION=$(git tag -l "v*" | grep -v -E ".*-(snapshot|rc)-" | sort -V | tail -2 | head -1 || echo "")
-          fi
-          
-          if [ -z "$PREV_VERSION" ]; then
-            echo "Warning: No previous version found, will skip diff generation"
-            PREV_VERSION=""
-          else
-            echo "Previous version for comparison: $PREV_VERSION"
-          fi
-          
-          # Verify the previous version tag exists
-          if [ -n "$PREV_VERSION" ] && ! git rev-parse "$PREV_VERSION" >/dev/null 2>&1; then
-            echo "Warning: Previous version tag $PREV_VERSION not found, will skip diff generation"
-            PREV_VERSION=""
-          fi
-          
-          echo "prev_version=$PREV_VERSION" >> $GITHUB_OUTPUT
-          echo "has_prev_version=$([ -n "$PREV_VERSION" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-
-      - name: Install Atlas CLI
-        if: steps.prev-version.outputs.has_prev_version == 'true'
-        run: |
-          curl -sSf https://atlasgo.sh | sh -s -- --community -y
-          echo "$HOME/.atlas/bin" >> $GITHUB_PATH
-
-      - name: Download OpenAPI spec from previous version
-        if: steps.prev-version.outputs.has_prev_version == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PREV_VERSION="${{ steps.prev-version.outputs.prev_version }}"
-          echo "Downloading openapi.json from tag: $PREV_VERSION"
-          
-          curl -H "Authorization: token $GITHUB_TOKEN" \
-                -H "Accept: application/vnd.github.v3.raw" \
-                -o ./openapi-prev.json \
-                "https://api.github.com/repos/${{ github.repository }}/contents/openapi.json?ref=$PREV_VERSION" || {
-            echo "Warning: Could not download openapi.json from $PREV_VERSION, will skip OpenAPI diff"
-            touch ./openapi-prev.json
-          }
-
-      - name: Check OpenAPI files exist
-        if: steps.prev-version.outputs.has_prev_version == 'true'
-        id: check-openapi
-        run: |
-          if [ ! -f ./openapi.json ]; then
-            echo "has_current=false" >> $GITHUB_OUTPUT
-            echo "Warning: openapi.json not found in current checkout"
-          else
-            echo "has_current=true" >> $GITHUB_OUTPUT
-          fi
-          
-          if [ ! -f ./openapi-prev.json ] || [ ! -s ./openapi-prev.json ]; then
-            echo "has_previous=false" >> $GITHUB_OUTPUT
-            echo "Warning: Previous openapi.json not available"
-          else
-            echo "has_previous=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Generate OpenAPI diff
-        if: |
-          steps.prev-version.outputs.has_prev_version == 'true' &&
-          steps.check-openapi.outputs.has_current == 'true' &&
-          steps.check-openapi.outputs.has_previous == 'true'
-        id: openapi-diff
-        continue-on-error: true
-        uses: oasdiff/oasdiff-action/diff@main
-        with:
-          base: ./openapi-prev.json
-          revision: ./openapi.json
-
-      - name: Run Atlas migrate lint for Soma database
-        if: steps.prev-version.outputs.has_prev_version == 'true'
-        id: atlas-soma
-        continue-on-error: true
-        run: |
-          PREV_VERSION="${{ steps.prev-version.outputs.prev_version }}"
-          echo "Running Atlas migrate lint for Soma database against $PREV_VERSION"
-          
-          # Fetch the previous version tag
-          git fetch origin "refs/tags/$PREV_VERSION:refs/tags/$PREV_VERSION" || git fetch origin "$PREV_VERSION" || true
-          
-          # Use git-base with the tag name (atlas should handle tags)
-          atlas_output=$(atlas migrate lint --env soma --git-base "$PREV_VERSION" 2>&1) || atlas_exit=$?
-          if [ -z "$atlas_output" ]; then
-            atlas_output="SUCCESS: checksums match, no breaking changes"
-          fi
-          
-          echo "soma_lint_output<<EOF" >> $GITHUB_OUTPUT
-          echo "$atlas_output" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-          if [ -n "${atlas_exit:-}" ]; then
-            echo "Atlas lint found issues (exit code: $atlas_exit)"
-            echo "$atlas_output"
-          fi
-
-      - name: Run Atlas migrate lint for Bridge database
-        if: steps.prev-version.outputs.has_prev_version == 'true'
-        id: atlas-bridge
-        continue-on-error: true
-        run: |
-          PREV_VERSION="${{ steps.prev-version.outputs.prev_version }}"
-          echo "Running Atlas migrate lint for Bridge database against $PREV_VERSION"
-          
-          # Fetch the previous version tag
-          git fetch origin "refs/tags/$PREV_VERSION:refs/tags/$PREV_VERSION" || git fetch origin "$PREV_VERSION" || true
-          
-          # Use git-base with the tag name (atlas should handle tags)
-          atlas_output=$(atlas migrate lint --env bridge --git-base "$PREV_VERSION" 2>&1) || atlas_exit=$?
-          if [ -z "$atlas_output" ]; then
-            atlas_output="SUCCESS: checksums match, no breaking changes"
-          fi
-          
-          echo "bridge_lint_output<<EOF" >> $GITHUB_OUTPUT
-          echo "$atlas_output" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-          if [ -n "${atlas_exit:-}" ]; then
-            echo "Atlas lint found issues (exit code: $atlas_exit)"
-            echo "$atlas_output"
-          fi
-
-      
 
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
@@ -190,7 +38,7 @@ jobs:
 
       - name: Update Cargo.lock
         run: |
-          echo "Updating Cargo.lock for version ${{ steps.read-version.outputs.version }}"
+          echo "Updating Cargo.lock for version ${{ needs.prepare-release.outputs.version }}"
           cargo update --workspace
 
       - name: Create release artifact
