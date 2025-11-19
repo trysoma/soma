@@ -139,12 +139,13 @@ jobs:
   create-github-issue-on-fail:
     needs:
       - prepare-release
-      - build-soma
+      - create-artifacts
       - build-core-js-sdk
-      # - test-sdk-js-macOS-windows-binding
-      # - test-linux-js-sdk-binding
-      # - test-soma-macOS-windows
-      # - test-soma-linux
+      - test-sdk-js-macOS-windows-binding
+      - test-linux-js-sdk-binding
+      - build-soma
+      - test-soma-macOS-windows
+      - test-soma-linux
       - publish-npm
       - create-github-release
     if: failure()
@@ -154,4 +155,4 @@ jobs:
     with:
       version: ${{ needs.prepare-release.outputs.version }}
       workflow-type: release
-      failed-jobs: ${{ needs.prepare-release.result == 'failure' && 'prepare-release' || '' }}${{ needs.build-soma.result == 'failure' && format(',build-soma') || '' }}${{ needs.build-core-js-sdk.result == 'failure' && format(',build-core-js-sdk') || '' }}${{ needs.publish-npm.result == 'failure' && format(',publish-npm') || '' }}${{ needs.create-github-release.result == 'failure' && format(',create-github-release') || '' }}
+      failed-jobs: ${{ needs.prepare-release.result == 'failure' && 'prepare-release' || '' }}${{ needs.create-artifacts.result == 'failure' && format(',create-artifacts') || '' }}${{ needs.build-core-js-sdk.result == 'failure' && format(',build-core-js-sdk') || '' }}${{ needs.test-sdk-js-macOS-windows-binding.result == 'failure' && format(',test-sdk-js-macOS-windows-binding') || '' }}${{ needs.test-linux-js-sdk-binding.result == 'failure' && format(',test-linux-js-sdk-binding') || '' }}${{ needs.build-soma.result == 'failure' && format(',build-soma') || '' }}${{ needs.test-soma-macOS-windows.result == 'failure' && format(',test-soma-macOS-windows') || '' }}${{ needs.test-soma-linux.result == 'failure' && format(',test-soma-linux') || '' }}${{ needs.publish-npm.result == 'failure' && format(',publish-npm') || '' }}${{ needs.create-github-release.result == 'failure' && format(',create-github-release') || '' }}
