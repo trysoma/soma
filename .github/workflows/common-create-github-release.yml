@@ -48,40 +48,39 @@ jobs:
           git config user.name "TrySoma Bot"
           git config user.email "services+github-bot@trysoma.com"
 
-      - name: Create and push tag
-        run: |
-          VERSION="${{ inputs.version }}"
-
-          echo "Creating tag: $VERSION"
-          git tag -a "$VERSION" -m "Release $VERSION"
-          git push origin "$VERSION"
-
-      - name: Create GitHub Release
-        id: create-release
-        continue-on-error: false
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ inputs.version }}
-          release_name: ${{ inputs.version }}
-          body_path: CHANGELOG.md
-          draft: false
-          prerelease: ${{ inputs.prerelease }}
-
       - name: Download all soma binaries
         uses: actions/download-artifact@v4
         with:
           pattern: soma-*
           path: binaries
+          merge-multiple: false
 
-      - name: Upload binaries to release
+      - name: Prepare release binaries
+        id: prepare-binaries
         run: |
-          VERSION="${{ inputs.version }}"
+          # List all downloaded artifacts for debugging
+          echo "Downloaded artifacts:"
+          ls -la binaries/
+
+          # Create a temporary directory for renamed binaries
+          mkdir -p release-binaries
+
+          # Track all prepared binaries for the release creation
+          BINARY_PATHS=""
 
           for target_dir in binaries/soma-*; do
+            if [ ! -d "$target_dir" ]; then
+              echo "Skipping non-directory: $target_dir"
+              continue
+            fi
+
             target=$(basename "$target_dir" | sed 's/^soma-//')
-            binary=$(ls "$target_dir")
+            binary=$(find "$target_dir" -type f -name "soma*" | head -n 1)
+
+            if [ -z "$binary" ]; then
+              echo "Warning: No binary found in $target_dir"
+              continue
+            fi
 
             # Map target to asset name
             case "$target" in
@@ -105,75 +104,95 @@ jobs:
                 ;;
             esac
 
-            echo "Uploading $target_dir/$binary as $asset_name"
-            gh release upload "$VERSION" "$target_dir/$binary#$asset_name" --clobber
+            # Copy and rename binary to release directory
+            cp "$binary" "release-binaries/$asset_name"
+            echo "✓ Prepared: $binary -> release-binaries/$asset_name ($(du -h "release-binaries/$asset_name" | cut -f1))"
+
+            # Add to binary paths for release creation
+            BINARY_PATHS="$BINARY_PATHS release-binaries/$asset_name"
           done
+
+          # Save binary paths for next step
+          echo "binary_paths=$BINARY_PATHS" >> $GITHUB_OUTPUT
+
+          echo ""
+          echo "All binaries prepared for release:"
+          ls -lh release-binaries/
+
+      - name: Create and push tag
+        run: |
+          VERSION="${{ inputs.version }}"
+
+          echo "Creating tag: $VERSION"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+
+      - name: Prepare release notes
+        id: prepare-notes
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION_NUMBER="${VERSION#v}"
+
+          # Create npm package links section
+          cat >> release-notes.md << 'EOF'
+          ## 📦 Published NPM Packages
+
+          ### Main Packages
+          - [@trysoma/sdk](https://www.npmjs.com/package/@trysoma/sdk/v/VERSION_NUMBER)
+          - [@trysoma/sdk-core](https://www.npmjs.com/package/@trysoma/sdk-core/v/VERSION_NUMBER)
+          - [@trysoma/api-client](https://www.npmjs.com/package/@trysoma/api-client/v/VERSION_NUMBER)
+
+          ### Platform-Specific Packages
+          - [@trysoma/sdk-core-darwin-universal](https://www.npmjs.com/package/@trysoma/sdk-core-darwin-universal/v/VERSION_NUMBER)
+          - [@trysoma/sdk-core-darwin-x64](https://www.npmjs.com/package/@trysoma/sdk-core-darwin-x64/v/VERSION_NUMBER)
+          - [@trysoma/sdk-core-darwin-arm64](https://www.npmjs.com/package/@trysoma/sdk-core-darwin-arm64/v/VERSION_NUMBER)
+          - [@trysoma/sdk-core-linux-x64-gnu](https://www.npmjs.com/package/@trysoma/sdk-core-linux-x64-gnu/v/VERSION_NUMBER)
+          - [@trysoma/sdk-core-linux-arm64-gnu](https://www.npmjs.com/package/@trysoma/sdk-core-linux-arm64-gnu/v/VERSION_NUMBER)
+
+          Install with:
+          \`\`\`bash
+          pnpm add @trysoma/sdk @trysoma/sdk-core @trysoma/api-client
+          \`\`\`
+
+          > Platform-specific packages are automatically installed as optional dependencies based on your system architecture.
+          EOF
+
+          # Replace VERSION_NUMBER placeholder with actual version
+          sed -i.bak "s/VERSION_NUMBER/$VERSION_NUMBER/g" release-notes.md
+          rm -f release-notes.md.bak
+
+          # Combine CHANGELOG.md with npm package links
+          cat CHANGELOG.md release-notes.md > combined-notes.md
+
+          echo "Release notes prepared:"
+          echo "---"
+          cat combined-notes.md
+          echo "---"
+
+      - name: Create GitHub Release with all binaries
+        run: |
+          VERSION="${{ inputs.version }}"
+          PRERELEASE_FLAG=""
+
+          if [ "${{ inputs.prerelease }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          echo "Creating release $VERSION with all binaries..."
+
+          # Create release with all binaries in a single operation (supports immutable releases)
+          gh release create "$VERSION" \
+            --title "$VERSION" \
+            --notes-file combined-notes.md \
+            $PRERELEASE_FLAG \
+            release-binaries/*
+
+          echo ""
+          echo "✓ Release created successfully with all binaries!"
+
+          # Verify assets were uploaded
+          echo ""
+          echo "Verifying uploaded assets:"
+          gh release view "$VERSION" --json assets --jq '.assets[] | "  - \(.name) (\(.size) bytes)"'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Comment npm package links on release
-        uses: actions/github-script@v7
-        env:
-          RELEASE_TAG: ${{ inputs.version }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const tag = process.env.RELEASE_TAG;
-            const version = tag.replace('v', '');
-
-            // Get all published packages from workspace
-            const mainPackages = [
-              '@trysoma/sdk',
-              '@trysoma/sdk-core',
-              '@trysoma/api-client'
-            ];
-
-            // Platform-specific packages (based on build targets in workflow)
-            const platformPackages = [
-              '@trysoma/sdk-core-darwin-universal',
-              '@trysoma/sdk-core-darwin-x64',
-              '@trysoma/sdk-core-darwin-arm64',
-              '@trysoma/sdk-core-linux-x64-gnu',
-              '@trysoma/sdk-core-linux-arm64-gnu'
-            ];
-
-            // Create links to main npm packages
-            const mainPackageLinks = mainPackages.map(pkg => {
-              return `- [${pkg}](https://www.npmjs.com/package/${pkg}/v/${version})`;
-            }).join('\n');
-
-            // Create links to platform-specific packages
-            const platformPackageLinks = platformPackages.map(pkg => {
-              return `- [${pkg}](https://www.npmjs.com/package/${pkg}/v/${version})`;
-            }).join('\n');
-
-            const comment = `## 📦 Published NPM Packages
-
-            ### Main Packages
-            ${mainPackageLinks}
-
-            ### Platform-Specific Packages
-            ${platformPackageLinks}
-
-            Install with:
-            \`\`\`bash
-            pnpm add ${mainPackages.join(' ')}
-            \`\`\`
-
-            > Platform-specific packages are automatically installed as optional dependencies based on your system architecture.
-            `;
-
-            // Find the release by tag
-            const { data: release } = await github.rest.repos.getReleaseByTag({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag: tag
-            });
-
-            // Update the release body
-            await github.rest.repos.updateRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: release.id,
-              body: (release.body || '') + '\n\n' + comment
-            });
