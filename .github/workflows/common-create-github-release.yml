@@ -177,4 +177,3 @@ jobs:
               release_id: release.id,
               body: (release.body || '') + '\n\n' + comment
             });
-
