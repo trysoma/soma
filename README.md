@@ -1,6 +1,6 @@
 # Soma
 
-**Note:** For documentation, tutorials and getting started with Soma, please visit our [documentation](https://trysoma.ai). Any documentation here is for contributing and setting up this repo.
+**Note:** For documentation, tutorials and getting started with Soma, please visit our [documentation](https://docs.trysoma.ai). Any documentation here is for contributing and setting up this repo.
 
 ## Prerequisites
 

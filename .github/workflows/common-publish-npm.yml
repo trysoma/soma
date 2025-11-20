@@ -42,34 +42,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       
-      - name: Update js/packages/sdk dependency on sdk-core
-        run: |
-          VERSION="${{ inputs.version }}"
-          # Remove 'v' prefix if present for npm version
-          NPM_VERSION="${VERSION#v}"
-          
-          echo "Updating @trysoma/sdk-core dependency in js/packages/sdk/package.json to version $NPM_VERSION"
-          
-          # Use a tool that's available (sed or node)
-          if command -v node >/dev/null 2>&1; then
-            node -e "
-              const fs = require('fs');
-              const pkgPath = 'js/packages/sdk/package.json';
-              const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-              if (pkg.dependencies && pkg.dependencies['@trysoma/sdk-core']) {
-                pkg.dependencies['@trysoma/sdk-core'] = '$NPM_VERSION';
-                fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, '\t') + '\n');
-                console.log('Updated @trysoma/sdk-core to', '$NPM_VERSION');
-              } else {
-                console.log('Warning: @trysoma/sdk-core dependency not found');
-              }
-            "
-          else
-            # Fallback to sed if node is not available
-            sed -i.bak "s|\"@trysoma/sdk-core\": \"workspace:\*\"|\"@trysoma/sdk-core\": \"$NPM_VERSION\"|g" js/packages/sdk/package.json
-            rm -f js/packages/sdk/package.json.bak
-          fi
-        shell: bash
       
       - name: Build JS packages
         run: pnpm --filter "./js/packages/*" -r run build
