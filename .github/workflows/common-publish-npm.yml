@@ -42,6 +42,35 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       
+      - name: Update js/packages/sdk dependency on sdk-core
+        run: |
+          VERSION="${{ inputs.version }}"
+          # Remove 'v' prefix if present for npm version
+          NPM_VERSION="${VERSION#v}"
+          
+          echo "Updating @trysoma/sdk-core dependency in js/packages/sdk/package.json to version $NPM_VERSION"
+          
+          # Use a tool that's available (sed or node)
+          if command -v node >/dev/null 2>&1; then
+            node -e "
+              const fs = require('fs');
+              const pkgPath = 'js/packages/sdk/package.json';
+              const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+              if (pkg.dependencies && pkg.dependencies['@trysoma/sdk-core']) {
+                pkg.dependencies['@trysoma/sdk-core'] = '$NPM_VERSION';
+                fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, '\t') + '\n');
+                console.log('Updated @trysoma/sdk-core to', '$NPM_VERSION');
+              } else {
+                console.log('Warning: @trysoma/sdk-core dependency not found');
+              }
+            "
+          else
+            # Fallback to sed if node is not available
+            sed -i.bak "s|\"@trysoma/sdk-core\": \"workspace:\*\"|\"@trysoma/sdk-core\": \"$NPM_VERSION\"|g" js/packages/sdk/package.json
+            rm -f js/packages/sdk/package.json.bak
+          fi
+        shell: bash
+      
       - name: Build JS packages
         run: pnpm --filter "./js/packages/*" -r run build
       
@@ -59,10 +88,16 @@ jobs:
           mkdir -p crates/sdk-js/artifacts
           # Move all .node and .wasm files from downloaded artifacts to crates/sdk-js/artifacts
           # Artifacts are downloaded in subdirectories like artifacts/napi-bindings-{target}/
-          # Use parentheses to properly group the OR condition in find
+          # The pattern *.*.node matches files like sdk-js.darwin-arm64.node
+          echo "Searching for artifacts in:"
+          find artifacts -type d || echo "No directories found"
+          echo ""
+          echo "Finding .node and .wasm files:"
           find artifacts \( -name "*.node" -o -name "*.wasm" \) -type f | while read file; do
+            echo "Copying artifact: $file -> crates/sdk-js/artifacts/$(basename "$file")"
             cp "$file" crates/sdk-js/artifacts/
           done
+          echo ""
           echo "Artifacts moved to crates/sdk-js/artifacts:"
           ls -la crates/sdk-js/artifacts/ || echo "No artifacts found"
           # Verify artifacts exist before proceeding
@@ -74,11 +109,28 @@ jobs:
             find artifacts -type d || echo "No directories found"
             exit 1
           fi
+          echo ""
+          echo "Artifact files found:"
+          ls -1 crates/sdk-js/artifacts/ | head -20
         shell: bash
       
-      - name: Move artifacts
+      - name: Move artifacts to npm packages
         working-directory: crates/sdk-js
-        run: pnpm artifacts
+        run: |
+          echo "Running napi artifacts command to organize artifacts into npm packages..."
+          pnpm artifacts
+          echo ""
+          echo "Verifying npm packages were created:"
+          if [ -d "./npm" ]; then
+            find ./npm -name "*.node" -type f | head -10 || echo "No .node files found in npm packages"
+            echo ""
+            echo "NPM package structure:"
+            ls -R ./npm | head -50
+          else
+            echo "Error: npm directory not created"
+            exit 1
+          fi
+        shell: bash
       
       - name: List packages
         working-directory: crates/sdk-js

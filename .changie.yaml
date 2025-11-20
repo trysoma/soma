@@ -34,8 +34,8 @@ envPrefix: CHANGIE_
 
 replacements:
   - path: crates/sdk-js/package.json
-    find: '  "version": "{{.VersionNoPrefix}}",'
-    replace: '  "version": "{{.VersionNoPrefix}}",'
+    find: '	"version": ".*",'
+    replace: '	"version": "{{.VersionNoPrefix}}",'
   - path: crates/soma/app/package.json
     find: '	"version": ".*",'
     replace: '	"version": "{{.VersionNoPrefix}}",'
