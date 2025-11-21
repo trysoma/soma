@@ -33,13 +33,16 @@ use tracing::info;
 ///
 /// All operations are performed with `publish_on_change_evt: false` to prevent
 /// circular updates back to the soma.yaml file during sync.
-pub async fn sync_bridge_db_from_soma_definition_on_start(
+pub async fn sync_bridge_db_from_soma_definition_on_start<R>(
     key_encryption_key: &EnvelopeEncryptionKeyContents,
     on_config_change_tx: &OnConfigChangeTx,
-    bridge_repo: &impl bridge::repository::ProviderRepositoryLike,
+    bridge_repo: &R,
     soma_repo: &crate::repository::Repository,
     soma_definition_provider: &Arc<dyn SomaAgentDefinitionLike>,
-) -> Result<(), CommonError> {
+) -> Result<(), CommonError>
+where
+    R: bridge::repository::ProviderRepositoryLike + bridge::logic::DataEncryptionKeyRepositoryLike,
+{
     let soma_definition = soma_definition_provider.get_definition().await?;
     use std::collections::{HashMap, HashSet};
 

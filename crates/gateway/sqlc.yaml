@@ -1,0 +1,25 @@
+version: "2"
+plugins:
+  - name: sqlc-gen-from-template
+    process:
+      cmd: "sqlc-gen-from-template"
+sql:
+  - engine: "sqlite"
+    schema: "./dbs/gateway/schema.sql"
+    queries: "./dbs/gateway/queries"
+    codegen:
+      - out: "src/repository/sqlite"
+        plugin: "sqlc-gen-from-template"
+        options:
+          template: "./../../rust_rusqlite.go.tmpl"
+          filename: "raw.generated.rs"
+          cache_statements: true
+          use_serde: true
+          overrides:
+            # Add type overrides here as needed
+            - db_type: datetime
+              column: "*.created_at"
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: "*.updated_at"
+              rust_type: "shared::primitives::WrappedChronoDateTime"

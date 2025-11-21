@@ -1,0 +1,28 @@
+[package]
+name = "encryption"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+aes-gcm.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+aws-config.workspace = true
+aws-sdk-kms.workspace = true
+base64.workspace = true
+chrono.workspace = true
+libsql.workspace = true
+rand.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+shared.workspace = true
+tokio.workspace = true
+utoipa.workspace = true
+uuid.workspace = true
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+zeroize.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tracing.workspace = true
