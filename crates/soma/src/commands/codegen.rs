@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -143,7 +143,7 @@ pub async fn cmd_codegen(
 /// Resolves relative database connection string paths
 fn resolve_db_connection_string(
     db_conn_string: &Url,
-    project_dir: &PathBuf,
+    project_dir: &Path,
 ) -> Result<Url, CommonError> {
     if db_conn_string.as_str().starts_with("libsql://./") {
         // Extract the path portion after libsql://./
