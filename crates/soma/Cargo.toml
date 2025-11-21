@@ -60,6 +60,7 @@ urlencoding.workspace = true
 shared-macros.workspace = true
 dirs.workspace = true
 uds_windows.workspace = true
+zip.workspace = true
 
 
 [dev-dependencies]

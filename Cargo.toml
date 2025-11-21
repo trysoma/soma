@@ -154,6 +154,7 @@ pyo3-build-config = "0.23.5"
 serde_repr = "^0.1"
 serde_with = { version = "^3.8", default-features = false, features = ["base64", "std", "macros"] }
 sha2 = "0.10.9"
+zip = "2.2.2"
 
 ## internal crates
 a2a-rs = { path = "./crates/a2a-rs" }
