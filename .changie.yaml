@@ -11,6 +11,8 @@ kinds:
       auto: major
     - label: Added (Minor, new features)
       auto: minor
+    - label: Added (Patch, new features)
+      auto: patch
     - label: Changed BREAKING (Major, changes to existing API contracts)
       auto: major
     - label: Changed (Minor, changes to existing functionality without breaking API changes)

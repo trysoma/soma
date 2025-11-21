@@ -427,128 +427,173 @@ await new Promise(() => {});
 function bridgeClientPlugin(baseDir: string): Plugin {
 	let isGenerating = false;
 
+	/**
+	 * Check if the Soma server OpenAPI endpoint is available
+	 */
+	async function isSomaServerReady(baseUrl: string): Promise<boolean> {
+		try {
+			const response = await fetch(
+				`${baseUrl}/api/bridge/v1/function-instances/openapi.json`,
+			);
+			return response.ok;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Wait for Soma server to be ready with retry logic
+	 */
+	async function waitForSomaServer(
+		baseUrl: string,
+		maxRetries: number = 30,
+		delayMs: number = 1000,
+	): Promise<void> {
+		console.log(`Waiting for Soma server at ${baseUrl} to be ready...`);
+		for (let i = 0; i < maxRetries; i++) {
+			if (await isSomaServerReady(baseUrl)) {
+				console.log("Soma server is ready!");
+				return;
+			}
+			if (i < maxRetries - 1) {
+				await new Promise((resolve) => setTimeout(resolve, delayMs));
+			}
+		}
+		throw new Error(
+			`Soma server at ${baseUrl} did not become ready within ${(maxRetries * delayMs) / 1000} seconds`,
+		);
+	}
+
 	async function generateBridgeClient() {
 		if (isGenerating) return;
 		isGenerating = true;
 
 		const outputDir = resolve(baseDir, ".soma/bridge-client");
 		const tempOutputDir = resolve(baseDir, ".soma/bridge-client-tmp");
+		const somaServerBaseUrl =
+			process.env["SOMA_SERVER_BASE_URL"] || "http://localhost:3000";
 
-		// Clean up any existing temp directory
-		if (existsSync(tempOutputDir)) {
-			rmSync(tempOutputDir, { recursive: true, force: true });
-		}
+		try {
+			// Wait for Soma server to be ready before attempting generation
+			await waitForSomaServer(somaServerBaseUrl);
 
-		// Ensure temp output directory exists
-		mkdirSync(tempOutputDir, { recursive: true });
+			// Clean up any existing temp directory
+			if (existsSync(tempOutputDir)) {
+				rmSync(tempOutputDir, { recursive: true, force: true });
+			}
 
-		console.log("Generating Bridge client from OpenAPI spec...");
+			// Ensure temp output directory exists
+			mkdirSync(tempOutputDir, { recursive: true });
 
-		return new Promise<void>((resolvePromise, reject) => {
-			const stdoutChunks: Buffer[] = [];
-			const stderrChunks: Buffer[] = [];
+			console.log("Generating Bridge client from OpenAPI spec...");
 
-			const child = spawn(
-				"npx",
-				[
-					"--yes",
-					"@openapitools/openapi-generator-cli",
-					"generate",
-					"-i",
-					"http://localhost:3000/api/bridge/v1/function-instances/openapi.json",
-					// "-t",
-					// "./node_modules/@trysoma/sdk/openapi-template",
-					"-g",
-					"typescript-fetch",
-					"--additional-properties",
-					"supportsES6=true",
-					"--ignore-file-override=./node_modules/@trysoma/sdk/openapi-template/.openapi-generator-ignore",
-					"-o",
-					tempOutputDir,
-				],
-				{
-					stdio: ["pipe", "pipe", "pipe"],
-					cwd: baseDir,
-					shell: true,
-				},
-			);
+			return new Promise<void>((resolvePromise, reject) => {
+				const stdoutChunks: Buffer[] = [];
+				const stderrChunks: Buffer[] = [];
 
-			child.stdout?.on("data", (chunk) => {
-				stdoutChunks.push(chunk);
-			});
+				const child = spawn(
+					"npx",
+					[
+						"--yes",
+						"@openapitools/openapi-generator-cli",
+						"generate",
+						"-i",
+						`${somaServerBaseUrl}/api/bridge/v1/function-instances/openapi.json`,
+						// "-t",
+						// "./node_modules/@trysoma/sdk/openapi-template",
+						"-g",
+						"typescript-fetch",
+						"--additional-properties",
+						"supportsES6=true",
+						"--ignore-file-override=./node_modules/@trysoma/sdk/openapi-template/.openapi-generator-ignore",
+						"-o",
+						tempOutputDir,
+					],
+					{
+						stdio: ["pipe", "pipe", "pipe"],
+						cwd: baseDir,
+						shell: true,
+					},
+				);
 
-			child.stderr?.on("data", (chunk) => {
-				stderrChunks.push(chunk);
-			});
+				child.stdout?.on("data", (chunk) => {
+					stdoutChunks.push(chunk);
+				});
 
-			child.on("error", (err) => {
-				console.error("Failed to generate Bridge client:", err);
-				// Clean up temp directory on error
-				if (existsSync(tempOutputDir)) {
-					rmSync(tempOutputDir, { recursive: true, force: true });
-				}
-				isGenerating = false;
-				reject(err);
-			});
+				child.stderr?.on("data", (chunk) => {
+					stderrChunks.push(chunk);
+				});
 
-			child.on("exit", (code) => {
-				isGenerating = false;
-				if (code === 0) {
-					try {
-						// Delete old bridge-client directory
-						if (existsSync(outputDir)) {
-							rmSync(outputDir, { recursive: true, force: true });
-						}
-
-						// Move temp directory to final location
-						renameSync(tempOutputDir, outputDir);
-
-						console.log("Bridge client generated successfully!");
-						resolvePromise();
-					} catch (err) {
-						// Clean up temp directory if rename fails
-						if (existsSync(tempOutputDir)) {
-							rmSync(tempOutputDir, { recursive: true, force: true });
-						}
-						reject(err);
-					}
-				} else {
-					// Clean up temp directory on failure
+				child.on("error", (err) => {
+					console.error("Failed to generate Bridge client:", err);
+					// Clean up temp directory on error
 					if (existsSync(tempOutputDir)) {
 						rmSync(tempOutputDir, { recursive: true, force: true });
 					}
+					isGenerating = false;
+					reject(err);
+				});
 
-					const stdout = Buffer.concat(stdoutChunks).toString();
-					const stderr = Buffer.concat(stderrChunks).toString();
+				child.on("exit", (code) => {
+					isGenerating = false;
+					if (code === 0) {
+						try {
+							// Delete old bridge-client directory
+							if (existsSync(outputDir)) {
+								rmSync(outputDir, { recursive: true, force: true });
+							}
 
-					const error = new Error(
-						`openapi-generator-cli exited with code ${code}`,
-					);
-					console.error(error.message);
+							// Move temp directory to final location
+							renameSync(tempOutputDir, outputDir);
 
-					if (stdout) {
-						console.error("STDOUT:");
-						console.error(stdout);
+							console.log("Bridge client generated successfully!");
+							resolvePromise();
+						} catch (err) {
+							// Clean up temp directory if rename fails
+							if (existsSync(tempOutputDir)) {
+								rmSync(tempOutputDir, { recursive: true, force: true });
+							}
+							reject(err);
+						}
+					} else {
+						// Clean up temp directory on failure
+						if (existsSync(tempOutputDir)) {
+							rmSync(tempOutputDir, { recursive: true, force: true });
+						}
+
+						const stdout = Buffer.concat(stdoutChunks).toString();
+						const stderr = Buffer.concat(stderrChunks).toString();
+
+						const error = new Error(
+							`openapi-generator-cli exited with code ${code}`,
+						);
+						console.error(error.message);
+
+						if (stdout) {
+							console.error("STDOUT:");
+							console.error(stdout);
+						}
+						if (stderr) {
+							console.error("STDERR:");
+							console.error(stderr);
+						}
+
+						reject(error);
 					}
-					if (stderr) {
-						console.error("STDERR:");
-						console.error(stderr);
-					}
-
-					reject(error);
-				}
+				});
 			});
-		});
+		} catch (err) {
+			isGenerating = false;
+			throw err;
+		}
 	}
 
 	return {
 		name: "soma-bridge-client",
 
 		async configureServer(server) {
-			// Generate bridge client before server starts
+			// Generate bridge client after server starts
 			server.httpServer?.once("listening", async () => {
-				// Wait a bit for the bridge server to be ready
-				await new Promise((resolve) => setTimeout(resolve, 2000));
 				try {
 					await generateBridgeClient();
 				} catch (err) {

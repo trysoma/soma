@@ -16,6 +16,7 @@ axum.workspace = true
 axum-server.workspace = true
 chrono.workspace = true
 clap.workspace = true
+clap_complete.workspace = true
 http.workspace = true
 humantime.workspace = true
 libsql.workspace = true
@@ -59,6 +60,7 @@ urlencoding.workspace = true
 shared-macros.workspace = true
 dirs.workspace = true
 uds_windows.workspace = true
+
 
 [dev-dependencies]
 tempfile.workspace = true
