@@ -1024,6 +1024,39 @@ impl SqlMigrationLoader for Repository {
     }
 }
 
+// Implement the encryption crate's DataEncryptionKeyRepositoryLike trait
+#[async_trait::async_trait]
+impl encryption::DataEncryptionKeyRepositoryLike for Repository {
+    async fn create_data_encryption_key(
+        &self,
+        data_encryption_key: &encryption::DataEncryptionKey,
+    ) -> Result<(), CommonError> {
+        <Self as ProviderRepositoryLike>::create_data_encryption_key(
+            self,
+            &CreateDataEncryptionKey::from(data_encryption_key.clone()),
+        )
+        .await
+    }
+
+    async fn get_data_encryption_key_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<encryption::DataEncryptionKey>, CommonError> {
+        <Self as ProviderRepositoryLike>::get_data_encryption_key_by_id(self, id).await
+    }
+
+    async fn list_data_encryption_keys(
+        &self,
+        params: &PaginationRequest,
+    ) -> Result<PaginatedResponse<encryption::DataEncryptionKeyListItem>, CommonError> {
+        <Self as ProviderRepositoryLike>::list_data_encryption_keys(self, params).await
+    }
+
+    async fn delete_data_encryption_key(&self, id: &str) -> Result<(), CommonError> {
+        <Self as ProviderRepositoryLike>::delete_data_encryption_key(self, id).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

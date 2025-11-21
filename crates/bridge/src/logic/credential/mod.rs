@@ -533,12 +533,16 @@ pub struct ResumeUserCredentialBrokeringParams {
     pub input: BrokerInput,
 }
 
-pub async fn resume_user_credential_brokering(
+pub async fn resume_user_credential_brokering<R>(
     on_config_change_tx: &OnConfigChangeTx,
-    repo: &impl crate::repository::ProviderRepositoryLike,
+    repo: &R,
     key_encryption_key_contents: &EnvelopeEncryptionKeyContents,
     params: ResumeUserCredentialBrokeringParams,
-) -> Result<UserCredentialBrokeringResponse, CommonError> {
+) -> Result<UserCredentialBrokeringResponse, CommonError>
+where
+    R: crate::repository::ProviderRepositoryLike
+        + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
+{
     // Fetch broker state from database
     let broker_state = repo
         .get_broker_state_by_id(&params.broker_state_id)
@@ -617,11 +621,13 @@ pub async fn resume_user_credential_brokering(
 
 /// Background task that periodically rotates credentials
 /// This function is designed to be called in its own tokio::spawn
-pub async fn credential_rotation_task(
-    repo: impl ProviderRepositoryLike,
+pub async fn credential_rotation_task<R>(
+    repo: R,
     envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
     on_config_change_tx: OnConfigChangeTx,
-) {
+) where
+    R: ProviderRepositoryLike + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
+{
     use tokio::time::{Duration, interval};
 
     let mut timer = interval(Duration::from_secs(10 * 60)); // 10 minutes
@@ -646,12 +652,15 @@ pub async fn credential_rotation_task(
     }
 }
 
-pub async fn process_credential_rotations_with_window(
-    repo: &impl ProviderRepositoryLike,
+pub async fn process_credential_rotations_with_window<R>(
+    repo: &R,
     on_config_change_tx: &OnConfigChangeTx,
     envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
     window_minutes: i64,
-) -> Result<(), CommonError> {
+) -> Result<(), CommonError>
+where
+    R: ProviderRepositoryLike + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
+{
     // Calculate rotation window
     let now = WrappedChronoDateTime::now();
     let rotation_window_end: WrappedChronoDateTime = WrappedChronoDateTime::new(
@@ -709,14 +718,17 @@ pub async fn process_credential_rotations_with_window(
     Ok(())
 }
 
-pub async fn process_credential_rotation(
-    repo: &impl ProviderRepositoryLike,
+pub async fn process_credential_rotation<R>(
+    repo: &R,
     on_config_change_tx: &OnConfigChangeTx,
     envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
     pi: &ProviderInstanceSerializedWithCredentials,
     rotation_window_end: &WrappedChronoDateTime,
     publish_update: bool,
-) -> Result<(), CommonError> {
+) -> Result<(), CommonError>
+where
+    R: ProviderRepositoryLike + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
+{
     let mut resource_server_rotated = false;
     let mut user_cred_rotated = false;
 
@@ -781,12 +793,15 @@ pub async fn process_credential_rotation(
     Ok::<(), CommonError>(())
 }
 
-async fn rotate_resource_server_credential(
-    repo: &impl ProviderRepositoryLike,
+async fn rotate_resource_server_credential<R>(
+    repo: &R,
     envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
     provider_instance: &ProviderInstanceSerialized,
     resource_server_cred: &ResourceServerCredentialSerialized,
-) -> Result<ResourceServerCredentialSerialized, CommonError> {
+) -> Result<ResourceServerCredentialSerialized, CommonError>
+where
+    R: ProviderRepositoryLike + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
+{
     let crypto_service = get_crypto_service(
         envelope_encryption_key_contents,
         repo,
@@ -846,13 +861,16 @@ async fn rotate_resource_server_credential(
     Ok(rotated_credential)
 }
 
-async fn rotate_user_credential(
-    repo: &impl ProviderRepositoryLike,
+async fn rotate_user_credential<R>(
+    repo: &R,
     envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
     provider_instance: &ProviderInstanceSerialized,
     resource_server_cred: &ResourceServerCredentialSerialized,
     user_cred: &UserCredentialSerialized,
-) -> Result<UserCredentialSerialized, CommonError> {
+) -> Result<UserCredentialSerialized, CommonError>
+where
+    R: ProviderRepositoryLike + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
+{
     // todo: we assume resource server credential and user credential use the same data encryption key id
     let crypto_service = get_crypto_service(
         envelope_encryption_key_contents,

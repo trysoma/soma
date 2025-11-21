@@ -4,22 +4,19 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-aes-gcm.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
-aws-config.workspace = true
-aws-sdk-kms.workspace = true
 axum.workspace = true
 base64.workspace = true
 bridge-macros.workspace = true
 chrono.workspace = true
 ctor.workspace = true
+encryption.workspace = true
 enum_dispatch.workspace = true
 jsonwebtoken.workspace = true
 libsql.workspace = true
 once_cell.workspace = true
 paste.workspace = true
-rand.workspace = true
 reqwest.workspace = true
 schemars.workspace = true
 serde.workspace = true
@@ -35,7 +32,6 @@ utoipa.workspace = true
 utoipa-axum.workspace = true
 uuid.workspace = true
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
-zeroize.workspace = true
 shared-macros.workspace = true
 sha2.workspace = true
 http.workspace = true
@@ -45,4 +41,5 @@ tokio-util.workspace = true
 futures.workspace = true
 
 [dev-dependencies]
+rand.workspace = true
 tempfile.workspace = true
