@@ -68,6 +68,13 @@ jobs:
           # Track all prepared binaries for the release creation
           BINARY_PATHS=""
 
+          # List all downloaded artifacts for debugging
+          echo "Downloaded artifacts:"
+          ls -la binaries/
+
+          # Create a temporary directory for renamed binaries
+          mkdir -p release-binaries
+
           for target_dir in binaries/soma-*; do
             if [ ! -d "$target_dir" ]; then
               echo "Skipping non-directory: $target_dir"
@@ -148,11 +155,6 @@ jobs:
           - [@trysoma/sdk-core-darwin-arm64](https://www.npmjs.com/package/@trysoma/sdk-core-darwin-arm64/v/VERSION_NUMBER)
           - [@trysoma/sdk-core-linux-x64-gnu](https://www.npmjs.com/package/@trysoma/sdk-core-linux-x64-gnu/v/VERSION_NUMBER)
           - [@trysoma/sdk-core-linux-arm64-gnu](https://www.npmjs.com/package/@trysoma/sdk-core-linux-arm64-gnu/v/VERSION_NUMBER)
-
-          Install with:
-          \`\`\`bash
-          pnpm add @trysoma/sdk @trysoma/sdk-core @trysoma/api-client
-          \`\`\`
 
           > Platform-specific packages are automatically installed as optional dependencies based on your system architecture.
           EOF

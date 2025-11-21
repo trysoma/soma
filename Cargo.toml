@@ -104,12 +104,13 @@ tracing-subscriber = { version = "0.3.20", features = [
 ] }
 ## CLI
 clap = { version = "4.5.44", features = ["derive"] }
-
+clap_complete = { version = "4.5.61"}
 ## Code generation
 prettyplease = "0.2.35"
 quote = "1.0.40"
 syn = { version = "2.0.104", features = ["full"] }
 typify = "0.4.2"
+tera = "1.20.0"
 
 ## External services
 restate-admin-rest-model = { git = "https://github.com/restatedev/restate", package = "restate-admin-rest-model", features = ["schema"] }
@@ -154,6 +155,7 @@ pyo3-build-config = "0.23.5"
 serde_repr = "^0.1"
 serde_with = { version = "^3.8", default-features = false, features = ["base64", "std", "macros"] }
 sha2 = "0.10.9"
+zip = "2.2.2"
 
 ## internal crates
 a2a-rs = { path = "./crates/a2a-rs" }

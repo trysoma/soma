@@ -55,3 +55,14 @@ Database migrations run via Rust server on startup
 3. ```make test``` to run your tests
 
 ## Troubleshooting
+
+
+
+Soma is building support for fine-grained authentication and access management. This allows end users to query Soma's API's with specific credentials. We intend to support:
+
+* Oauth tokens supplied in standard Authorization header, allow the user to configure Oauth credential config, JWKS url and a way to extract groups and map them to Soma permissions
+* API keys generated in Soma dev UI. Allow engineers to generate API keys in the soma dev UI, encrypt them with a KMS key provided and specify their permissions per API key
+* All internal API's should use the same protections. 
+* Agents running over UDS GRPC should get an API key injected into the runtime to make requests back to the Soma API
+* The UDS server itself that runtimes spawn should be protected via an internal API key such that only the runtime that spawned them can communicate with them
+* Ensure Restate workflow handlers are secure

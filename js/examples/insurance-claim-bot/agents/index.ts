@@ -8,9 +8,9 @@ import {
 import { createSomaAgent, patterns } from "@trysoma/sdk";
 import { type LanguageModel, streamText, tool, wrapLanguageModel } from "ai";
 import { z } from "zod";
+import { type BridgeDefinition, getBridge } from "../.soma/bridge";
 import { convertToAiSdkMessages } from "../utils";
 
-// import { bridge } from "./../.soma/bridge-client";
 /////
 
 const InsuranceClaimSchema = z.object({
@@ -41,7 +41,11 @@ interface ProcessClaimInput {
 }
 
 const handlers = {
-	discoverClaim: patterns.chat<DiscoverClaimInput, Assessment>(
+	discoverClaim: patterns.chat<
+		BridgeDefinition,
+		DiscoverClaimInput,
+		Assessment
+	>(
 		async ({
 			ctx,
 			soma: _soma,
@@ -93,11 +97,12 @@ const handlers = {
 			});
 		},
 	),
-	processClaim: patterns.workflow<ProcessClaimInput, void>(
+	processClaim: patterns.workflow<BridgeDefinition, ProcessClaimInput, void>(
 		async ({
 			ctx,
 			soma: _soma,
 			history: _history,
+			bridge,
 			input: { assessment },
 			sendMessage,
 		}) => {
@@ -143,6 +148,8 @@ export default createSomaAgent({
 	name: "Insurance Claims Agent",
 	description: "An agent that can process insurance claims.",
 	entrypoint: async ({ ctx, soma, taskId, contextId: _contextId }) => {
+		const bridge = getBridge(ctx);
+
 		const model = wrapLanguageModel({
 			model: openai("gpt-4o"),
 			middleware: durableCalls(ctx, { maxRetryAttempts: 3 }),
@@ -151,6 +158,7 @@ export default createSomaAgent({
 		ctx.console.log("Discovering claim...");
 		const assessment = await handlers.discoverClaim({
 			ctx,
+			bridge,
 			input: { model },
 			taskId,
 			soma,
@@ -159,6 +167,7 @@ export default createSomaAgent({
 
 		await handlers.processClaim({
 			ctx,
+			bridge,
 			input: { assessment },
 			taskId,
 			soma,
