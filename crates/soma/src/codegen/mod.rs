@@ -10,26 +10,23 @@ use bridge::logic::{FunctionInstanceWithMetadata, get_function_instances};
 use bridge::repository::ProviderRepositoryLike;
 
 // Re-export Runtime for convenience
-pub use crate::commands::dev::runtime::{determine_runtime_from_dir, Runtime};
+pub use crate::commands::dev::runtime::{Runtime, determine_runtime_from_dir};
 
 /// TypeScript template loaded at compile time
 const TYPESCRIPT_TEMPLATE: &str = include_str!("typescript.ts");
 
 /// Saves TypeScript code to $project_dir/.soma/bridge.ts
-pub async fn save_typescript_code(
-    code: String,
-    project_dir: &Path,
-) -> Result<(), CommonError> {
+pub async fn save_typescript_code(code: String, project_dir: &Path) -> Result<(), CommonError> {
     let soma_dir = project_dir.join(".soma");
     let output_path = soma_dir.join("bridge.ts");
 
     // Ensure .soma directory exists
     std::fs::create_dir_all(&soma_dir).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to create .soma directory: {}", e))
+        CommonError::Unknown(anyhow::anyhow!("Failed to create .soma directory: {e}"))
     })?;
 
     std::fs::write(&output_path, code).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to write bridge client file: {}", e))
+        CommonError::Unknown(anyhow::anyhow!("Failed to write bridge client file: {e}"))
     })?;
 
     info!("Bridge client written to: {}", output_path.display());
@@ -47,7 +44,7 @@ pub async fn write_bridge_client_to_file(
     let code = generate_bridge_client(runtime, project_dir, bridge_repo).await?;
 
     std::fs::write(output_path, code).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to write bridge client file: {}", e))
+        CommonError::Unknown(anyhow::anyhow!("Failed to write bridge client file: {e}"))
     })?;
 
     info!("Bridge client written to: {}", output_path.display());
@@ -62,7 +59,8 @@ pub async fn regenerate_bridge_client(
 ) -> Result<(), CommonError> {
     match runtime {
         Runtime::PnpmV1 => {
-            let code = generate_typescript_code(&get_function_instances(bridge_repo).await?).await?;
+            let code =
+                generate_typescript_code(&get_function_instances(bridge_repo).await?).await?;
             save_typescript_code(code, project_dir).await?;
             Ok(())
         }
@@ -123,9 +121,7 @@ async fn generate_typescript_code(
         HashMap::new();
 
     for func_metadata in function_instances {
-        let provider_type_id = &func_metadata
-            .provider_instance
-            .provider_controller_type_id;
+        let provider_type_id = &func_metadata.provider_instance.provider_controller_type_id;
         let account_name = &func_metadata.provider_instance.display_name;
 
         providers_map
@@ -165,8 +161,10 @@ async fn generate_typescript_code(
                     &func_metadata.function_controller.type_id(),
                 ));
                 let provider_name_pascal = to_pascal_case(&sanitize_identifier(&provider_type_id));
-                let params_type_name = format!("{}{}Params", provider_name_pascal, function_name_pascal);
-                let return_type_name = format!("{}{}Result", provider_name_pascal, function_name_pascal);
+                let params_type_name =
+                    format!("{provider_name_pascal}{function_name_pascal}Params");
+                let return_type_name =
+                    format!("{provider_name_pascal}{function_name_pascal}Result");
 
                 // Generate camelCase function name (stripped of provider prefix)
                 let function_name_camel = strip_provider_prefix_and_camel_case(
@@ -204,14 +202,14 @@ async fn generate_typescript_code(
     // Create Tera instance and render template
     let mut tera = Tera::default();
     tera.add_raw_template("typescript", TYPESCRIPT_TEMPLATE)
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to add template: {}", e)))?;
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to add template: {e}")))?;
 
     let mut context = Context::new();
     context.insert("providers", &providers);
 
     let rendered = tera
         .render("typescript", &context)
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to render template: {}", e)))?;
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to render template: {e}")))?;
 
     Ok(rendered)
 }
@@ -227,7 +225,10 @@ fn convert_schema_to_typescript_type(
 }
 
 /// Recursively convert JSON Schema to TypeScript type string
-fn json_schema_to_typescript(value: &serde_json::Value, depth: usize) -> Result<String, CommonError> {
+fn json_schema_to_typescript(
+    value: &serde_json::Value,
+    depth: usize,
+) -> Result<String, CommonError> {
     // Prevent infinite recursion
     if depth > 10 {
         return Ok("any".to_string());
@@ -245,7 +246,7 @@ fn json_schema_to_typescript(value: &serde_json::Value, depth: usize) -> Result<
                                 let variants: Vec<String> = arr
                                     .iter()
                                     .filter_map(|v| v.as_str())
-                                    .map(|s| format!("\"{}\"", s))
+                                    .map(|s| format!("\"{s}\""))
                                     .collect();
                                 return Ok(variants.join(" | "));
                             }
@@ -258,7 +259,7 @@ fn json_schema_to_typescript(value: &serde_json::Value, depth: usize) -> Result<
                     Some("array") => {
                         if let Some(items) = map.get("items") {
                             let item_type = json_schema_to_typescript(items, depth + 1)?;
-                            Ok(format!("Array<{}>", item_type))
+                            Ok(format!("Array<{item_type}>"))
                         } else {
                             Ok("Array<any>".to_string())
                         }
@@ -270,21 +271,25 @@ fn json_schema_to_typescript(value: &serde_json::Value, depth: usize) -> Result<
                                     .get("required")
                                     .and_then(|r| r.as_array())
                                     .map(|arr| {
-                                        arr.iter()
-                                            .filter_map(|v| v.as_str())
-                                            .collect::<Vec<_>>()
+                                        arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>()
                                     })
                                     .unwrap_or_default();
 
                                 let mut fields = Vec::new();
                                 for (key, prop_schema) in props_map {
-                                    let prop_type = json_schema_to_typescript(prop_schema, depth + 1)?;
+                                    let prop_type =
+                                        json_schema_to_typescript(prop_schema, depth + 1)?;
                                     let optional = if required.contains(&key.as_str()) {
                                         ""
                                     } else {
                                         "?"
                                     };
-                                    fields.push(format!("{}{}: {}", sanitize_identifier(key), optional, prop_type));
+                                    fields.push(format!(
+                                        "{}{}: {}",
+                                        sanitize_identifier(key),
+                                        optional,
+                                        prop_type
+                                    ));
                                 }
                                 return Ok(format!("{{ {} }}", fields.join("; ")));
                             }
@@ -347,7 +352,7 @@ fn sanitize_identifier(name: &str) -> String {
 
 /// Convert snake_case or kebab-case to PascalCase
 fn to_pascal_case(s: &str) -> String {
-    s.split(|c| c == '_' || c == '-')
+    s.split(['_', '-'])
         .filter(|s| !s.is_empty())
         .map(|word| {
             let mut chars = word.chars();
@@ -361,9 +366,7 @@ fn to_pascal_case(s: &str) -> String {
 
 /// Convert snake_case or kebab-case to camelCase
 fn to_camel_case(s: &str) -> String {
-    let parts: Vec<&str> = s.split(|c| c == '_' || c == '-')
-        .filter(|s| !s.is_empty())
-        .collect();
+    let parts: Vec<&str> = s.split(['_', '-']).filter(|s| !s.is_empty()).collect();
 
     if parts.is_empty() {
         return String::new();
@@ -395,7 +398,7 @@ fn strip_provider_prefix_and_camel_case(function_name: &str, provider_name: &str
     }
 
     // Try to strip the provider prefix with underscore
-    let stripped = if function_lower.starts_with(&format!("{}_", provider_lower)) {
+    let stripped = if function_lower.starts_with(&format!("{provider_lower}_")) {
         &function_name[provider_lower.len() + 1..]
     } else if function_lower.starts_with(&provider_lower) {
         &function_name[provider_lower.len()..]
@@ -428,7 +431,10 @@ mod tests {
         assert_eq!(to_pascal_case("my_function"), "MyFunction");
         assert_eq!(to_pascal_case("my-function"), "MyFunction");
         assert_eq!(to_pascal_case("myFunction"), "MyFunction");
-        assert_eq!(to_pascal_case("my_long_function_name"), "MyLongFunctionName");
+        assert_eq!(
+            to_pascal_case("my_long_function_name"),
+            "MyLongFunctionName"
+        );
     }
 
     #[test]

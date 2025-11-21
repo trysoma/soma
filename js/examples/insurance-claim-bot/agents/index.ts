@@ -8,9 +8,9 @@ import {
 import { createSomaAgent, patterns } from "@trysoma/sdk";
 import { type LanguageModel, streamText, tool, wrapLanguageModel } from "ai";
 import { z } from "zod";
+import { type BridgeDefinition, getBridge } from "../.soma/bridge";
 import { convertToAiSdkMessages } from "../utils";
 
-import { getBridge, type BridgeDefinition } from "../.soma/bridge";
 /////
 
 const InsuranceClaimSchema = z.object({
@@ -41,7 +41,11 @@ interface ProcessClaimInput {
 }
 
 const handlers = {
-	discoverClaim: patterns.chat<BridgeDefinition, DiscoverClaimInput, Assessment>(
+	discoverClaim: patterns.chat<
+		BridgeDefinition,
+		DiscoverClaimInput,
+		Assessment
+	>(
 		async ({
 			ctx,
 			soma: _soma,
@@ -145,7 +149,7 @@ export default createSomaAgent({
 	description: "An agent that can process insurance claims.",
 	entrypoint: async ({ ctx, soma, taskId, contextId: _contextId }) => {
 		const bridge = getBridge(ctx);
-		
+
 		const model = wrapLanguageModel({
 			model: openai("gpt-4o"),
 			middleware: durableCalls(ctx, { maxRetryAttempts: 3 }),

@@ -9,19 +9,22 @@ pub enum InternalCommands {
     Codegen,
 }
 
-pub async fn cmd_internal(command: InternalCommands, _config: &mut CliConfig) -> Result<(), CommonError> {
+pub async fn cmd_internal(
+    command: InternalCommands,
+    _config: &mut CliConfig,
+) -> Result<(), CommonError> {
     match command {
         InternalCommands::Codegen => codegen_internal().await,
     }
 }
 
 async fn codegen_internal() -> Result<(), CommonError> {
+    use shared::node::override_path_env;
     use std::fs;
     use std::path::PathBuf;
     use std::process::Stdio;
     use tokio::process::Command;
     use tracing::{error, info};
-    use shared::node::override_path_env;
 
     info!("generating openapi spec in /openapi.json");
     let frontend_assets_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?).join("./app");

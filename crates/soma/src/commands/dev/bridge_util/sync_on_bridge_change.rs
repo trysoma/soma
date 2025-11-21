@@ -202,7 +202,9 @@ pub async fn sync_on_bridge_change(
                 );
                 soma_definition
                     .add_function_instance(
-                        function_instance_serialized.provider_controller_type_id.clone(),
+                        function_instance_serialized
+                            .provider_controller_type_id
+                            .clone(),
                         function_instance_serialized
                             .function_controller_type_id
                             .clone(),

@@ -340,14 +340,18 @@ pub async fn get_function_instances(
         for provider_instance in repo_resp.items {
             // Try to get provider controller, skip if not found
             let provider_controller = match get_provider_controller(
-                &provider_instance.provider_instance.provider_controller_type_id,
+                &provider_instance
+                    .provider_instance
+                    .provider_controller_type_id,
             ) {
                 Ok(controller) => controller,
                 Err(e) => {
                     tracing::warn!(
                         "Skipping provider instance '{}' (type: {}): {}",
                         provider_instance.provider_instance.id,
-                        provider_instance.provider_instance.provider_controller_type_id,
+                        provider_instance
+                            .provider_instance
+                            .provider_controller_type_id,
                         e
                     );
                     continue;
@@ -365,7 +369,9 @@ pub async fn get_function_instances(
                         tracing::warn!(
                             "Skipping function '{}' for provider '{}': {}",
                             function_instance.function_controller_type_id,
-                            provider_instance.provider_instance.provider_controller_type_id,
+                            provider_instance
+                                .provider_instance
+                                .provider_controller_type_id,
                             e
                         );
                         continue;
@@ -455,9 +461,7 @@ pub async fn get_function_instances_openapi_spec(
         // Deserialize JSON Value into utoipa Schema
         let params_utoipa_schema: utoipa::openapi::schema::Schema =
             serde_json::from_value(params_openapi_json).map_err(|e| {
-                CommonError::Unknown(anyhow::anyhow!(
-                    "Failed to deserialize params schema: {e}"
-                ))
+                CommonError::Unknown(anyhow::anyhow!("Failed to deserialize params schema: {e}"))
             })?;
         components = components.schema(params_schema_name.clone(), params_utoipa_schema);
 
@@ -501,8 +505,7 @@ pub async fn get_function_instances_openapi_spec(
                     "Failed to deserialize response schema: {e}"
                 ))
             })?;
-        components =
-            components.schema(response_schema_name.clone(), response_utoipa_schema);
+        components = components.schema(response_schema_name.clone(), response_utoipa_schema);
 
         // Add extracted definitions to components
         for (def_name, def_json) in response_defs {

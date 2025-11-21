@@ -10,7 +10,6 @@ use crate::{
     utils::config::get_or_init_cli_config,
 };
 
-
 pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn unwrap_and_error<T>(cmd: Result<T, CommonError>) -> T {
@@ -28,7 +27,6 @@ pub struct Cli {
     #[command(subcommand)]
     command: Commands,
 }
-
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Subcommand)]
@@ -66,9 +64,9 @@ pub async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
         Commands::Init(params) => commands::init::cmd_init(params).await,
         Commands::Internal(command) => commands::internal::cmd_internal(command, &mut config).await,
         Commands::Version => {
-            println!("Soma CLI version: {}", CLI_VERSION);
+            println!("Soma CLI version: {CLI_VERSION}");
             Ok(())
-        },
+        }
     };
 
     unwrap_and_error(cmd_res);

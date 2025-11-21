@@ -134,7 +134,9 @@ export interface WrappedWorkflowHandlerParams<Bridge, Input, _Output> {
 }
 
 export const workflow = <Bridge, Input, Output>(
-	handler: (params: WorkflowHandlerParams<Bridge, Input, Output>) => Promise<Output>,
+	handler: (
+		params: WorkflowHandlerParams<Bridge, Input, Output>,
+	) => Promise<Output>,
 ) => {
 	return async ({
 		ctx,

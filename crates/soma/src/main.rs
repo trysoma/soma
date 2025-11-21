@@ -13,11 +13,8 @@ use clap::Parser;
 
 use crate::cli::{Cli, run_cli};
 
-
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-
     // Initialize tracing
     shared::env::configure_env()?;
     shared::logging::configure_logging()?;

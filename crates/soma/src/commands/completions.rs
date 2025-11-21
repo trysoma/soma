@@ -1,8 +1,8 @@
-use clap::{CommandFactory, ValueEnum};
-use shared::error::CommonError;
-use clap_complete::{generate, Shell};
-use std::io;
 use crate::cli::Cli;
+use clap::{CommandFactory, ValueEnum};
+use clap_complete::{Shell, generate};
+use shared::error::CommonError;
+use std::io;
 
 #[derive(Debug, Clone, ValueEnum)]
 pub enum CompletionShell {

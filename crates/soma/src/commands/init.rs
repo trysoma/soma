@@ -47,19 +47,14 @@ pub async fn cmd_init(params: InitParams) -> Result<(), CommonError> {
 
     // Construct the GitHub repo URL and zip download URL
     let repo_name = format!("{}-template", params.template);
-    let zip_url = format!(
-        "https://github.com/trysoma/{}/archive/refs/heads/main.zip",
-        repo_name
-    );
+    let zip_url = format!("https://github.com/trysoma/{repo_name}/archive/refs/heads/main.zip");
 
     info!("Downloading template from {}", zip_url);
 
     // Download the zip file
     let response = reqwest::get(&zip_url).await.map_err(|e| {
         CommonError::Unknown(anyhow::anyhow!(
-            "Failed to download template from {}: {}",
-            zip_url,
-            e
+            "Failed to download template from {zip_url}: {e}"
         ))
     })?;
 
@@ -73,25 +68,25 @@ pub async fn cmd_init(params: InitParams) -> Result<(), CommonError> {
         )));
     }
 
-    let zip_bytes = response.bytes().await.map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to read response bytes: {}", e))
-    })?;
+    let zip_bytes = response
+        .bytes()
+        .await
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read response bytes: {e}")))?;
 
     info!("Extracting template...");
 
     // Extract the zip file
     let cursor = Cursor::new(zip_bytes);
-    let mut archive = ZipArchive::new(cursor).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to open zip archive: {}", e))
-    })?;
+    let mut archive = ZipArchive::new(cursor)
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to open zip archive: {e}")))?;
 
     // GitHub zip archives have a root directory with format: {repo-name}-{branch}
     // We'll strip this root directory when extracting
-    let root_prefix = format!("{}-main/", repo_name);
+    let root_prefix = format!("{repo_name}-main/");
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).map_err(|e| {
-            CommonError::Unknown(anyhow::anyhow!("Failed to read file from archive: {}", e))
+            CommonError::Unknown(anyhow::anyhow!("Failed to read file from archive: {e}"))
         })?;
 
         let file_path = file.name();

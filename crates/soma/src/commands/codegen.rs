@@ -14,10 +14,10 @@ use crate::{
     codegen::{self},
     commands::dev::bridge_util::providers::soma::SomaProviderController,
     commands::dev::runtime::{
-        StartDevRuntimeParams, start_dev_runtime,
-        grpc_client::{establish_connection_with_retry, create_unix_socket_client},
+        DEFAULT_SOMA_SERVER_SOCK, StartDevRuntimeParams,
+        grpc_client::{create_unix_socket_client, establish_connection_with_retry},
         sdk_provider_sync::sync_providers_from_metadata,
-        DEFAULT_SOMA_SERVER_SOCK,
+        start_dev_runtime,
     },
     repository::setup_repository,
     utils::{config::CliConfig, construct_src_dir_absolute},
@@ -33,7 +33,10 @@ pub struct CodegenParams {
     pub db_auth_token: Option<String>,
 }
 
-pub async fn cmd_codegen(params: CodegenParams, _config: &mut CliConfig) -> Result<(), CommonError> {
+pub async fn cmd_codegen(
+    params: CodegenParams,
+    _config: &mut CliConfig,
+) -> Result<(), CommonError> {
     let project_dir = construct_src_dir_absolute(params.src_dir)?;
 
     // Determine runtime based on project directory
@@ -43,7 +46,7 @@ pub async fn cmd_codegen(params: CodegenParams, _config: &mut CliConfig) -> Resu
             return Err(CommonError::Unknown(anyhow::anyhow!(
                 "Could not determine runtime from project directory: {}",
                 project_dir.display()
-            )))
+            )));
         }
     };
 
@@ -64,7 +67,9 @@ pub async fn cmd_codegen(params: CodegenParams, _config: &mut CliConfig) -> Resu
     // Register Soma provider controller
     PROVIDER_REGISTRY
         .write()
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to lock provider registry: {}", e)))?
+        .map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to lock provider registry: {e}"))
+        })?
         .push(Arc::new(SomaProviderController::new(repository.clone())));
 
     // Start SDK dev runtime to load custom providers from project
@@ -94,13 +99,13 @@ pub async fn cmd_codegen(params: CodegenParams, _config: &mut CliConfig) -> Resu
     info!("Waiting for SDK server to be ready...");
     match tokio::time::timeout(
         Duration::from_secs(30),
-        establish_connection_with_retry(&socket_path.to_string()),
+        establish_connection_with_retry(socket_path),
     )
     .await
     {
         Ok(Ok(_)) => {
             info!("SDK server is ready, fetching metadata...");
-            let mut client = create_unix_socket_client(&socket_path.to_string()).await?;
+            let mut client = create_unix_socket_client(socket_path).await?;
             let request = tonic::Request::new(());
             let response = client.metadata(request).await.map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to get SDK metadata: {e}"))
@@ -154,14 +159,14 @@ fn resolve_db_connection_string(
         // Reconstruct the URL with absolute path
         let path_str = absolute_path.to_string_lossy();
         let new_url_str = if query_part.is_empty() {
-            format!("libsql://{}", path_str)
+            format!("libsql://{path_str}")
         } else {
-            format!("libsql://{}?{}", path_str, query_part)
+            format!("libsql://{path_str}?{query_part}")
         };
 
         info!("Database path resolved to: {}", absolute_path.display());
         Url::parse(&new_url_str)
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse resolved URL: {}", e)))
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse resolved URL: {e}")))
     } else {
         Ok(db_conn_string.clone())
     }

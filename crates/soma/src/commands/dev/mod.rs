@@ -23,11 +23,11 @@ use shared::error::CommonError;
 use shared::soma_agent_definition::{SomaAgentDefinitionLike, YamlSomaAgentDefinition};
 
 use crate::commands::dev::mcp::{StartMcpConnectionManagerParams, start_mcp_connection_manager};
-use crate::repository::setup_repository;
 use crate::commands::dev::restate::RestateServerRemoteParams;
 use crate::commands::dev::restate::{RestateServerLocalParams, RestateServerParams};
 use crate::commands::dev::runtime::SyncDevRuntimeChangesFromSdkServerParams;
 use crate::logic::ConnectionManager;
+use crate::repository::setup_repository;
 use crate::utils::config::{CliConfig, get_config_file_path};
 use crate::utils::construct_src_dir_absolute;
 
@@ -126,9 +126,9 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         // Reconstruct the URL with absolute path
         let path_str = absolute_path.to_string_lossy();
         let new_url_str = if query_part.is_empty() {
-            format!("libsql://{}", path_str)
+            format!("libsql://{path_str}")
         } else {
-            format!("libsql://{}?{}", path_str, query_part)
+            format!("libsql://{path_str}?{query_part}")
         };
 
         info!("Database path resolved to: {}", absolute_path.display());
@@ -305,8 +305,8 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
 
     // Generate initial bridge client
     info!("Generating initial bridge client...");
-    if let Err(e) = crate::codegen::regenerate_bridge_client(&runtime, &project_dir, &bridge_repo)
-        .await
+    if let Err(e) =
+        crate::codegen::regenerate_bridge_client(&runtime, &project_dir, &bridge_repo).await
     {
         warn!("Failed to generate initial bridge client: {:?}", e);
     } else {
