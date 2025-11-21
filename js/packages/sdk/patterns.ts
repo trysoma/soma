@@ -8,17 +8,19 @@ import type {
 
 export type FirstTurn = "user" | "agent";
 
-export interface WrappedChatHandlerParams<Input, _Output> {
+export interface WrappedChatHandlerParams<Bridge, Input, _Output> {
 	ctx: ObjectContext;
 	soma: DefaultApi;
+	bridge: Bridge;
 	input: Input;
 	taskId: string;
 	firstTurn: FirstTurn;
 }
 
-export interface ChatHandlerParams<Input, Output> {
+export interface ChatHandlerParams<Bridge, Input, Output> {
 	ctx: ObjectContext;
 	soma: DefaultApi;
+	bridge: Bridge;
 	history: TaskTimelineItem[];
 	input: Input;
 	onGoalAchieved: (goal: Output) => void;
@@ -36,16 +38,17 @@ type Goal<Output> =
 			type: "not_achieved";
 	  };
 
-export const chat = <Input, Output>(
-	handler: (params: ChatHandlerParams<Input, Output>) => Promise<void>,
+export const chat = <Bridge, Input, Output>(
+	handler: (params: ChatHandlerParams<Bridge, Input, Output>) => Promise<void>,
 ) => {
 	return async ({
 		ctx,
 		soma,
+		bridge,
 		input,
 		taskId,
 		firstTurn = "user",
-	}: WrappedChatHandlerParams<Input, Output>) => {
+	}: WrappedChatHandlerParams<Bridge, Input, Output>) => {
 		const NEW_INPUT_PROMISE = `new_input_promise`;
 		let { id: awakeableId, promise: newInputPromise } =
 			await ctx.awakeable<void>();
@@ -84,6 +87,7 @@ export const chat = <Input, Output>(
 				ctx,
 				soma,
 				history: messages.items,
+				bridge,
 				input,
 				onGoalAchieved,
 				sendMessage,
@@ -103,14 +107,15 @@ export const chat = <Input, Output>(
 		if (goal.type === "not_achieved") {
 			throw new Error("Goal not achieved");
 		} else {
-			return goal.output;
+			return goal.output as Output;
 		}
 	};
 };
 
-export interface WorkflowHandlerParams<Input, _Output> {
+export interface WorkflowHandlerParams<Bridge, Input, _Output> {
 	ctx: ObjectContext;
 	soma: DefaultApi;
+	bridge: Bridge;
 	history: TaskTimelineItem[];
 	input: Input;
 	sendMessage: (
@@ -119,24 +124,26 @@ export interface WorkflowHandlerParams<Input, _Output> {
 	interruptable: boolean;
 }
 
-export interface WrappedWorkflowHandlerParams<Input, _Output> {
+export interface WrappedWorkflowHandlerParams<Bridge, Input, _Output> {
 	ctx: ObjectContext;
 	soma: DefaultApi;
+	bridge: Bridge;
 	input: Input;
 	taskId: string;
 	interruptable?: boolean;
 }
 
-export const workflow = <Input, Output>(
-	handler: (params: WorkflowHandlerParams<Input, Output>) => Promise<Output>,
+export const workflow = <Bridge, Input, Output>(
+	handler: (params: WorkflowHandlerParams<Bridge, Input, Output>) => Promise<Output>,
 ) => {
 	return async ({
 		ctx,
 		soma,
+		bridge,
 		input,
 		taskId,
 		interruptable = true,
-	}: WrappedWorkflowHandlerParams<Input, Output>) => {
+	}: WrappedWorkflowHandlerParams<Bridge, Input, Output>) => {
 		while (true) {
 			const NEW_INPUT_PROMISE = `new_input_promise`;
 			const { id: awakeableId, promise: newInputPromise } =
@@ -167,6 +174,7 @@ export const workflow = <Input, Output>(
 					ctx,
 					soma,
 					history: messages.items,
+					bridge,
 					input,
 					sendMessage,
 					interruptable,

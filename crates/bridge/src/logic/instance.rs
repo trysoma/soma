@@ -313,6 +313,86 @@ pub async fn list_function_instances(
     Ok(function_instances)
 }
 
+/// Represents a function instance with all associated metadata needed for code generation
+#[derive(Clone)]
+pub struct FunctionInstanceWithMetadata {
+    pub provider_instance: ProviderInstanceSerialized,
+    pub function_instance: FunctionInstanceSerialized,
+    pub provider_controller: Arc<dyn ProviderControllerLike>,
+    pub function_controller: Arc<dyn FunctionControllerLike>,
+}
+
+/// Returns all function instances with their associated controllers and metadata.
+/// This is the core data structure that can be used for client code generation.
+pub async fn get_function_instances(
+    repo: &impl crate::repository::ProviderRepositoryLike,
+) -> Result<Vec<FunctionInstanceWithMetadata>, CommonError> {
+    let mut result = Vec::new();
+    let mut pagination = PaginationRequest {
+        page_size: 1000,
+        next_page_token: None,
+    };
+
+    loop {
+        let repo_resp = repo
+            .list_provider_instances(&pagination, None, None)
+            .await?;
+        for provider_instance in repo_resp.items {
+            // Try to get provider controller, skip if not found
+            let provider_controller = match get_provider_controller(
+                &provider_instance.provider_instance.provider_controller_type_id,
+            ) {
+                Ok(controller) => controller,
+                Err(e) => {
+                    tracing::warn!(
+                        "Skipping provider instance '{}' (type: {}): {}",
+                        provider_instance.provider_instance.id,
+                        provider_instance.provider_instance.provider_controller_type_id,
+                        e
+                    );
+                    continue;
+                }
+            };
+
+            for function_instance in provider_instance.functions {
+                // Try to get function controller, skip if not found
+                let function_controller = match get_function_controller(
+                    &provider_controller,
+                    &function_instance.function_controller_type_id,
+                ) {
+                    Ok(controller) => controller,
+                    Err(e) => {
+                        tracing::warn!(
+                            "Skipping function '{}' for provider '{}': {}",
+                            function_instance.function_controller_type_id,
+                            provider_instance.provider_instance.provider_controller_type_id,
+                            e
+                        );
+                        continue;
+                    }
+                };
+
+                result.push(FunctionInstanceWithMetadata {
+                    provider_instance: provider_instance.provider_instance.clone(),
+                    function_instance,
+                    provider_controller: provider_controller.clone(),
+                    function_controller,
+                });
+            }
+        }
+        match repo_resp.next_page_token {
+            Some(next_page_token) => {
+                pagination.next_page_token = Some(next_page_token);
+            }
+            None => {
+                break;
+            }
+        }
+    }
+
+    Ok(result)
+}
+
 pub async fn get_function_instances_openapi_spec(
     repo: &impl crate::repository::ProviderRepositoryLike,
 ) -> Result<OpenApi, CommonError> {
@@ -325,11 +405,10 @@ pub async fn get_function_instances_openapi_spec(
         )
     }
 
+    // Get all function instances using the new core function
+    let function_instances = get_function_instances(repo).await?;
+
     let mut paths = Paths::new();
-    let mut pagination = PaginationRequest {
-        page_size: 1000,
-        next_page_token: None,
-    };
     let mut components = Components::builder().schema(
         "Error",
         utoipa::openapi::ObjectBuilder::new()
@@ -343,188 +422,158 @@ pub async fn get_function_instances_openapi_spec(
                 )),
             ),
     );
-    loop {
-        let repo_resp = repo
-            .list_provider_instances(&pagination, None, None)
-            .await?;
-        for provider_instance in repo_resp.items {
-            let provider_controller = get_provider_controller(
-                &provider_instance
-                    .provider_instance
-                    .provider_controller_type_id,
-            )?;
-            for function_instance in provider_instance.functions {
-                let function_controller = get_function_controller(
-                    &provider_controller,
-                    &function_instance.function_controller_type_id,
-                )?;
 
-                // Schema names for this function
-                let params_schema_name = format!(
-                    "{}{}Params",
-                    provider_instance
-                        .provider_instance
-                        .provider_controller_type_id,
+    for func_metadata in function_instances {
+        let provider_instance = &func_metadata.provider_instance;
+        let function_instance = &func_metadata.function_instance;
+        let function_controller = &func_metadata.function_controller;
+
+        // Schema names for this function
+        let params_schema_name = format!(
+            "{}{}Params",
+            provider_instance.provider_controller_type_id,
+            function_instance.function_controller_type_id
+        );
+        let response_schema_name = format!(
+            "{}{}Response",
+            provider_instance.provider_controller_type_id,
+            function_instance.function_controller_type_id
+        );
+        // Wrapper schema name that matches InvokeFunctionParamsInner structure
+        let wrapper_schema_name = format!("{params_schema_name}Wrapper");
+
+        // Convert params schema: schemars::Schema -> OpenAPI schema
+        let params_schema = function_controller.parameters();
+        let params_json_schema = params_schema.get_inner().as_value();
+        let (params_openapi_json, params_defs) =
+            convert_jsonschema_to_openapi(params_json_schema, &params_schema_name)?;
+        info!(
+            "Params OpenAPI schema for {}: {}",
+            params_schema_name, params_openapi_json
+        );
+
+        // Deserialize JSON Value into utoipa Schema
+        let params_utoipa_schema: utoipa::openapi::schema::Schema =
+            serde_json::from_value(params_openapi_json).map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "Failed to deserialize params schema: {e}"
+                ))
+            })?;
+        components = components.schema(params_schema_name.clone(), params_utoipa_schema);
+
+        // Add extracted definitions to components
+        for (def_name, def_json) in params_defs {
+            let def_utoipa_schema: utoipa::openapi::schema::Schema =
+                serde_json::from_value(def_json).map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to deserialize def schema {def_name}: {e}"
+                    ))
+                })?;
+            components = components.schema(def_name, def_utoipa_schema);
+        }
+
+        // Create wrapper schema that matches InvokeFunctionParamsInner structure
+        // This wraps the params in a "params" field as expected by the API
+        let wrapper_schema = utoipa::openapi::ObjectBuilder::new()
+            .title(Some(&wrapper_schema_name))
+            .property(
+                "params",
+                RefOr::Ref(Ref::from_schema_name(&params_schema_name)),
+            )
+            .required("params")
+            .build();
+        components = components.schema(wrapper_schema_name.clone(), wrapper_schema);
+
+        // Convert response schema: schemars::Schema -> OpenAPI schema
+        let response_schema = function_controller.output();
+        let response_json_schema = response_schema.get_inner().as_value();
+        let (response_openapi_json, response_defs) =
+            convert_jsonschema_to_openapi(response_json_schema, &response_schema_name)?;
+        info!(
+            "Response OpenAPI schema for {}: {}",
+            response_schema_name, response_openapi_json
+        );
+
+        // Deserialize JSON Value into utoipa Schema
+        let response_utoipa_schema: utoipa::openapi::schema::Schema =
+            serde_json::from_value(response_openapi_json).map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "Failed to deserialize response schema: {e}"
+                ))
+            })?;
+        components =
+            components.schema(response_schema_name.clone(), response_utoipa_schema);
+
+        // Add extracted definitions to components
+        for (def_name, def_json) in response_defs {
+            let def_utoipa_schema: utoipa::openapi::schema::Schema =
+                serde_json::from_value(def_json).map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to deserialize def schema {def_name}: {e}"
+                    ))
+                })?;
+            components = components.schema(def_name, def_utoipa_schema);
+        }
+
+        paths.add_path_operation(
+            get_openapi_path(
+                &function_instance.provider_instance_id,
+                &function_instance.function_controller_type_id,
+            ),
+            vec![HttpMethod::Post],
+            Operation::builder()
+                .description(Some(format!(
+                    "Invoke function {} on provider instance {}",
+                    function_instance.function_controller_type_id,
+                    function_instance.provider_instance_id
+                )))
+                .operation_id(Some(format!(
+                    "invoke-{}-{}",
+                    sanitize_display_name(&provider_instance.display_name),
                     function_instance.function_controller_type_id
-                );
-                let response_schema_name = format!(
-                    "{}{}Response",
-                    provider_instance
-                        .provider_instance
-                        .provider_controller_type_id,
-                    function_instance.function_controller_type_id
-                );
-                // Wrapper schema name that matches InvokeFunctionParamsInner structure
-                let wrapper_schema_name = format!("{params_schema_name}Wrapper");
-
-                // Convert params schema: schemars::Schema -> OpenAPI schema
-                let params_schema = function_controller.parameters();
-                let params_json_schema = params_schema.get_inner().as_value();
-                let (params_openapi_json, params_defs) =
-                    convert_jsonschema_to_openapi(params_json_schema, &params_schema_name)?;
-                info!(
-                    "Params OpenAPI schema for {}: {}",
-                    params_schema_name, params_openapi_json
-                );
-
-                // Deserialize JSON Value into utoipa Schema
-                let params_utoipa_schema: utoipa::openapi::schema::Schema =
-                    serde_json::from_value(params_openapi_json).map_err(|e| {
-                        CommonError::Unknown(anyhow::anyhow!(
-                            "Failed to deserialize params schema: {e}"
-                        ))
-                    })?;
-                components = components.schema(params_schema_name.clone(), params_utoipa_schema);
-
-                // Add extracted definitions to components
-                for (def_name, def_json) in params_defs {
-                    let def_utoipa_schema: utoipa::openapi::schema::Schema =
-                        serde_json::from_value(def_json).map_err(|e| {
-                            CommonError::Unknown(anyhow::anyhow!(
-                                "Failed to deserialize def schema {def_name}: {e}"
-                            ))
-                        })?;
-                    components = components.schema(def_name, def_utoipa_schema);
-                }
-
-                // Create wrapper schema that matches InvokeFunctionParamsInner structure
-                // This wraps the params in a "params" field as expected by the API
-                let wrapper_schema = utoipa::openapi::ObjectBuilder::new()
-                    .title(Some(&wrapper_schema_name))
-                    .property(
-                        "params",
-                        RefOr::Ref(Ref::from_schema_name(&params_schema_name)),
-                    )
-                    .required("params")
-                    .build();
-                components = components.schema(wrapper_schema_name.clone(), wrapper_schema);
-
-                // Convert response schema: schemars::Schema -> OpenAPI schema
-                let response_schema = function_controller.output();
-                let response_json_schema = response_schema.get_inner().as_value();
-                let (response_openapi_json, response_defs) =
-                    convert_jsonschema_to_openapi(response_json_schema, &response_schema_name)?;
-                info!(
-                    "Response OpenAPI schema for {}: {}",
-                    response_schema_name, response_openapi_json
-                );
-
-                // Deserialize JSON Value into utoipa Schema
-                let response_utoipa_schema: utoipa::openapi::schema::Schema =
-                    serde_json::from_value(response_openapi_json).map_err(|e| {
-                        CommonError::Unknown(anyhow::anyhow!(
-                            "Failed to deserialize response schema: {e}"
-                        ))
-                    })?;
-                components =
-                    components.schema(response_schema_name.clone(), response_utoipa_schema);
-
-                // Add extracted definitions to components
-                for (def_name, def_json) in response_defs {
-                    let def_utoipa_schema: utoipa::openapi::schema::Schema =
-                        serde_json::from_value(def_json).map_err(|e| {
-                            CommonError::Unknown(anyhow::anyhow!(
-                                "Failed to deserialize def schema {def_name}: {e}"
-                            ))
-                        })?;
-                    components = components.schema(def_name, def_utoipa_schema);
-                }
-
-                paths.add_path_operation(
-                    get_openapi_path(
-                        &function_instance.provider_instance_id,
-                        &function_instance.function_controller_type_id,
-                    ),
-                    vec![HttpMethod::Post],
-                    Operation::builder()
-                        .description(Some(format!(
-                            "Invoke function {} on provider instance {}",
-                            function_instance.function_controller_type_id,
-                            function_instance.provider_instance_id
-                        )))
-                        .operation_id(Some(format!(
-                            "invoke-{}-{}",
-                            sanitize_display_name(
-                                &provider_instance.provider_instance.display_name
-                            ),
-                            function_instance.function_controller_type_id
-                        )))
-                        .request_body(Some(
-                            RequestBody::builder()
-                                .required(Some(Required::True))
-                                .content(
-                                    "application/json",
-                                    Content::builder()
-                                        .schema(Some(RefOr::Ref(Ref::from_schema_name(
-                                            &wrapper_schema_name,
-                                        ))))
-                                        .build(),
-                                )
-                                .build(),
-                        ))
-                        .response(
-                            "200",
-                            Response::builder()
-                                .description("Invoke function")
-                                .content(
-                                    "application/json",
-                                    Content::builder()
-                                        .schema(Some(RefOr::Ref(Ref::from_schema_name(format!(
-                                            "{}{}Response",
-                                            provider_instance
-                                                .provider_instance
-                                                .provider_controller_type_id,
-                                            function_instance.function_controller_type_id
-                                        )))))
-                                        .build(),
-                                )
-                                .build(),
-                        )
-                        // TODO: map 500 to actual runtime error response
-                        .response(
-                            "500",
-                            Response::builder()
-                                .description("Internal Server Error")
-                                .content(
-                                    "application/json",
-                                    Content::builder()
-                                        .schema(Some(RefOr::Ref(Ref::from_schema_name("Error"))))
-                                        .build(),
-                                )
+                )))
+                .request_body(Some(
+                    RequestBody::builder()
+                        .required(Some(Required::True))
+                        .content(
+                            "application/json",
+                            Content::builder()
+                                .schema(Some(RefOr::Ref(Ref::from_schema_name(
+                                    &wrapper_schema_name,
+                                ))))
                                 .build(),
                         )
                         .build(),
-                );
-            }
-        }
-        match repo_resp.next_page_token {
-            Some(next_page_token) => {
-                pagination.next_page_token = Some(next_page_token);
-            }
-            None => {
-                break;
-            }
-        }
+                ))
+                .response(
+                    "200",
+                    Response::builder()
+                        .description("Invoke function")
+                        .content(
+                            "application/json",
+                            Content::builder()
+                                .schema(Some(RefOr::Ref(Ref::from_schema_name(
+                                    &response_schema_name,
+                                ))))
+                                .build(),
+                        )
+                        .build(),
+                )
+                // TODO: map 500 to actual runtime error response
+                .response(
+                    "500",
+                    Response::builder()
+                        .description("Internal Server Error")
+                        .content(
+                            "application/json",
+                            Content::builder()
+                                .schema(Some(RefOr::Ref(Ref::from_schema_name("Error"))))
+                                .build(),
+                        )
+                        .build(),
+                )
+                .build(),
+        );
     }
 
     let openapi_spec = OpenApi::builder()

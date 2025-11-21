@@ -1,5 +1,6 @@
 mod a2a;
 mod cli;
+mod codegen;
 mod commands;
 mod logic;
 mod mcp;
@@ -8,11 +9,9 @@ mod router;
 mod utils;
 mod vite;
 
-use clap::{CommandFactory, Parser, Subcommand};
-use shared::error::CommonError;
-use tracing::error;
+use clap::Parser;
 
-use crate::{cli::{Cli, run_cli}, commands::dev::DevParams, utils::config::get_or_init_cli_config};
+use crate::cli::{Cli, run_cli};
 
 
 

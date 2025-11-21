@@ -110,6 +110,7 @@ prettyplease = "0.2.35"
 quote = "1.0.40"
 syn = { version = "2.0.104", features = ["full"] }
 typify = "0.4.2"
+tera = "1.20.0"
 
 ## External services
 restate-admin-rest-model = { git = "https://github.com/restatedev/restate", package = "restate-admin-rest-model", features = ["schema"] }

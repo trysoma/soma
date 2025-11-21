@@ -61,6 +61,7 @@ shared-macros.workspace = true
 dirs.workspace = true
 uds_windows.workspace = true
 zip.workspace = true
+tera.workspace = true
 
 
 [dev-dependencies]

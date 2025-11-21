@@ -1,7 +1,6 @@
-mod bridge_util;
+pub mod bridge_util;
 mod mcp;
 mod project_file_watcher;
-mod repository;
 mod restate;
 pub mod runtime;
 mod server;
@@ -24,7 +23,7 @@ use shared::error::CommonError;
 use shared::soma_agent_definition::{SomaAgentDefinitionLike, YamlSomaAgentDefinition};
 
 use crate::commands::dev::mcp::{StartMcpConnectionManagerParams, start_mcp_connection_manager};
-use crate::commands::dev::repository::setup_repository;
+use crate::repository::setup_repository;
 use crate::commands::dev::restate::RestateServerRemoteParams;
 use crate::commands::dev::restate::{RestateServerLocalParams, RestateServerParams};
 use crate::commands::dev::runtime::SyncDevRuntimeChangesFromSdkServerParams;
@@ -117,7 +116,7 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         // Extract the path portion after libsql://./
         let url_str = params.db_conn_string.as_str();
         let path_with_query = url_str.strip_prefix("libsql://./").unwrap_or("");
-        let (path_part, _query_part) = path_with_query
+        let (path_part, query_part) = path_with_query
             .split_once('?')
             .unwrap_or((path_with_query, ""));
 
@@ -125,13 +124,15 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         let absolute_path = project_dir.join(path_part);
 
         // Reconstruct the URL with absolute path
-        let mut resolved_url = params.db_conn_string.clone();
-        // Remove the leading ./ from the path and set the absolute path
-        // URL paths typically start with /, so we need to ensure the format is correct
         let path_str = absolute_path.to_string_lossy();
-        // For libsql URLs, we can set the path directly
-        resolved_url.set_path(&path_str);
-        resolved_url
+        let new_url_str = if query_part.is_empty() {
+            format!("libsql://{}", path_str)
+        } else {
+            format!("libsql://{}?{}", path_str, query_part)
+        };
+
+        info!("Database path resolved to: {}", absolute_path.display());
+        Url::parse(&new_url_str).unwrap_or_else(|_| params.db_conn_string.clone())
     } else {
         params.db_conn_string.clone()
     };
@@ -202,8 +203,15 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
 
     // Start bridge config change listener subsystem
     let soma_definition_clone = soma_definition.clone();
-    let (on_bridge_change_evt_tx, on_bridge_change_evt_fut) =
-        start_sync_on_bridge_change(soma_definition_clone)?;
+    let runtime_clone = runtime.clone();
+    let project_dir_clone = project_dir.clone();
+    let bridge_repo_arc = Arc::new(bridge_repo.clone());
+    let (on_bridge_change_evt_tx, on_bridge_change_evt_fut) = start_sync_on_bridge_change(
+        soma_definition_clone,
+        runtime_clone,
+        project_dir_clone,
+        bridge_repo_arc,
+    )?;
     let (on_bridge_shutdown_complete_signal_trigger, on_bridge_shutdown_complete_signal_receiver) =
         oneshot::channel::<()>();
     tokio::spawn(async move {
@@ -294,6 +302,16 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
 
     // Reload soma definition
     soma_definition.reload().await?;
+
+    // Generate initial bridge client
+    info!("Generating initial bridge client...");
+    if let Err(e) = crate::codegen::regenerate_bridge_client(&runtime, &project_dir, &bridge_repo)
+        .await
+    {
+        warn!("Failed to generate initial bridge client: {:?}", e);
+    } else {
+        info!("Initial bridge client generated successfully");
+    }
 
     // Wait for Restate server to be ready before creating AdminClient
     info!("Waiting for Restate server to be ready...");
