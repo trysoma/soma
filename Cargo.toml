@@ -22,7 +22,6 @@ derive_builder = "0.20.2"
 dotenv = "0.15.0"
 futures = "0.3.31"
 futures-util = "0.3.31"
-humantime = "2.3.0"
 paste = "1.0.15"
 prost-types = "0.13"
 schemars = { version = "1.0.4", features = ["uuid1", "url2", "chrono04"] }
@@ -36,7 +35,7 @@ tokio-stream = "0.1.17"
 uds_windows = "1.1.0"
 url = "2.5.4"
 uuid = { version = "1.12.0", features = ["v7", "v4", "v5"] }
-
+humantime = { version = "2.3.0"}
 
 ## Async runtime
 tokio = { version = "1.43.0", default-features = false, features = [
@@ -116,7 +115,6 @@ tera = "1.20.0"
 restate-admin-rest-model = { git = "https://github.com/restatedev/restate", package = "restate-admin-rest-model", features = ["schema"] }
 restate-types = { git = "https://github.com/restatedev/restate", package = "restate-types", features = ["schemars"] }
 restate-serde-util = { git = "https://github.com/restatedev/restate", package = "restate-serde-util", features = ["schema"] }
-restate-sdk = "0.7.0"
 clerk-rs = { git = "https://github.com/trysoma/clerk-rs", rev = "5b45669779e5178b870df2a7d24d780213f180bb" }
 
 ## File system / utilities
@@ -161,6 +159,8 @@ zip = "2.2.2"
 a2a-rs = { path = "./crates/a2a-rs" }
 shared = { path = "./crates/shared" }
 shared-macros = { path = "./crates/shared-macros" }
+soma-api-server = { path = "./crates/soma-api-server" }
+soma-api-client = { path = "./crates/soma-api-client" }
 soma = { path = "./crates/soma" }
 bridge = { path = "./crates/bridge" }
 bridge-macros = { path = "./crates/bridge-macros" }

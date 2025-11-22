@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::commands::dev::bridge_util::providers::soma::SomaProviderController;
 use bridge::logic::{
     CreateDataEncryptionKeyParams, CreateProviderInstanceParamsInner,
     CreateResourceServerCredentialParams, CreateResourceServerCredentialParamsInner,
@@ -47,11 +46,11 @@ where
     use std::collections::{HashMap, HashSet};
 
     // Register all bridge providers before syncing
-    register_all_bridge_providers().await?;
-    PROVIDER_REGISTRY
-        .write()
-        .unwrap()
-        .push(Arc::new(SomaProviderController::new(soma_repo.clone())));
+    // register_all_bridge_providers().await?;
+    // PROVIDER_REGISTRY
+    //     .write()
+    //     .unwrap()
+    //     .push(Arc::new(SomaProviderController::new(soma_repo.clone())));
 
     // 1. Sync data encryption keys
     // Get all existing keys

@@ -21,7 +21,7 @@ axum = { version = "0.8", features = ["macros", "multipart"] }
 axum-core = { version = "0.5", default-features = false, features = ["tracing"] }
 bitflags = { version = "2", default-features = false, features = ["std"] }
 byteorder = { version = "1" }
-bytes = { version = "1", features = ["serde"] }
+bytes = { version = "^1.11.0", features = ["serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 crossbeam-utils = { version = "0.8" }
 crypto-common = { version = "0.1", default-features = false, features = ["getrandom", "std"] }
@@ -88,7 +88,8 @@ axum = { version = "0.8", features = ["macros", "multipart"] }
 axum-core = { version = "0.5", default-features = false, features = ["tracing"] }
 bitflags = { version = "2", default-features = false, features = ["std"] }
 byteorder = { version = "1" }
-bytes = { version = "1", features = ["serde"] }
+bytes = { version = "^1.11.0", features = ["serde"] }
+regress = { version = "^0.10.4" }
 chrono = { version = "0.4", features = ["serde"] }
 crossbeam-utils = { version = "0.8" }
 crypto-common = { version = "0.1", default-features = false, features = ["getrandom", "std"] }

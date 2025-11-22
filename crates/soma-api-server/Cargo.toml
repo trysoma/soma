@@ -1,12 +1,8 @@
 [package]
-name = "soma"
+name = "soma-api-server"
 version.workspace = true
 edition.workspace = true
 
-
-[[bin]]
-name = "soma"
-path = "src/main.rs"
 
 [dependencies]
 a2a-rs.workspace = true
@@ -20,6 +16,9 @@ clap_complete.workspace = true
 http.workspace = true
 humantime.workspace = true
 libsql.workspace = true
+restate-admin-rest-model.workspace = true
+restate-serde-util.workspace = true
+restate-types.workspace = true
 rmcp.workspace = true
 reqwest.workspace = true
 serde.workspace = true
@@ -58,7 +57,6 @@ dirs.workspace = true
 uds_windows.workspace = true
 zip.workspace = true
 tera.workspace = true
-soma-api-server.workspace = true
 
 
 [dev-dependencies]

@@ -22,6 +22,8 @@ use shared::primitives::WrappedJsonValue;
 use shared::primitives::WrappedSchema;
 
 use shared::error::CommonError;
+use shared::uds::DEFAULT_SOMA_SERVER_SOCK;
+use shared::uds::create_soma_unix_socket_client;
 
 /// Soma provider controller that provides soma-specific functions
 pub struct DynamicProviderController {
@@ -230,9 +232,6 @@ impl FunctionControllerLike for DynamicFunctionController {
             )));
         };
 
-        // Make gRPC call to SDK server to invoke the function
-        use crate::commands::dev::runtime::DEFAULT_SOMA_SERVER_SOCK;
-        use crate::commands::dev::runtime::grpc_client;
 
         tracing::info!(
             "Invoking SDK function: provider={}, function={}, credential_type={}",
@@ -242,7 +241,7 @@ impl FunctionControllerLike for DynamicFunctionController {
         );
 
         // Create gRPC client
-        let mut client = grpc_client::create_unix_socket_client(DEFAULT_SOMA_SERVER_SOCK)
+        let mut client = create_soma_unix_socket_client(DEFAULT_SOMA_SERVER_SOCK)
             .await
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to connect to SDK server: {e}"))

@@ -18,9 +18,7 @@ use shared::{
 
 #[derive(Debug, Clone)]
 pub struct Connection {
-    #[allow(dead_code)]
     pub id: WrappedUuidV4,
-    #[allow(dead_code)]
     pub created_at: WrappedChronoDateTime,
     pub sender: Sender<a2a_rs::events::Event>,
 }

@@ -5,12 +5,13 @@ use restate_admin_rest_model::version::{AdminApiVersion, VersionInformation};
 // use restate_cli_util::{CliContext, c_warn};
 use restate_types::SemanticRestateVersion;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use shared::error::CommonError;
 use std::collections::HashMap;
 use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, info, warn};
 use url::Url;
+
+use crate::error::CommonError;
 
 // use crate::build_info;
 // use crate::cli_env::CliEnv;

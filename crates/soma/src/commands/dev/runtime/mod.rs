@@ -1,8 +1,6 @@
-pub mod grpc_client;
 mod interface;
 pub mod sdk_provider_sync;
 mod typescript;
-mod unix_stream;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -14,17 +12,12 @@ use tracing::{error, info};
 use shared::error::CommonError;
 
 use crate::commands::dev::DevParams;
-use crate::commands::dev::runtime::grpc_client::{
-    create_unix_socket_client, establish_connection_with_retry, monitor_connection_health,
-};
 use crate::utils::construct_src_dir_absolute;
 
 use super::project_file_watcher::FileChangeTx;
 use interface::{ClientCtx, SdkClient};
 use typescript::Typescript;
 
-/// Default Unix socket path for the SDK gRPC server
-pub const DEFAULT_SOMA_SERVER_SOCK: &str = "/tmp/soma-sdk.sock";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Runtime {

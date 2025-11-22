@@ -1,19 +1,25 @@
+use crate::error::CommonError;
 use std::path::Path;
 
 use hyper_util::rt::TokioIo;
 use tonic::transport::{Endpoint, Uri};
 use tower::service_fn;
-use tracing::info;
-
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
-use shared::error::CommonError;
 
-use crate::commands::dev::runtime::unix_stream::connect_unix_stream;
+/// Default Unix socket path for the SDK gRPC server
+pub const DEFAULT_SOMA_SERVER_SOCK: &str = "/tmp/soma-sdk.sock";
+
+pub async fn create_soma_unix_socket_client(
+    socket_path: &str,
+) -> Result<SomaSdkServiceClient<tonic::transport::Channel>, CommonError> {
+    let channel = create_unix_socket_client(socket_path).await?;
+    Ok(SomaSdkServiceClient::new(channel))
+}
 
 /// Create a gRPC client connected to a Unix socket
 pub async fn create_unix_socket_client(
     socket_path: &str,
-) -> Result<SomaSdkServiceClient<tonic::transport::Channel>, CommonError> {
+) -> Result<tonic::transport::Channel, CommonError> {
     // Convert to String to avoid lifetime issues
     let socket_path = socket_path.to_string();
 
@@ -32,8 +38,10 @@ pub async fn create_unix_socket_client(
             CommonError::Unknown(anyhow::anyhow!("Failed to connect to Unix socket: {e}"))
         })?;
 
-    Ok(SomaSdkServiceClient::new(channel))
+    Ok(channel)
 }
+
+
 
 /// Establish connection with retry logic
 pub async fn establish_connection_with_retry(socket_path: &str) -> Result<(), CommonError> {
@@ -99,3 +107,39 @@ pub async fn monitor_connection_health(socket_path: &str) {
         }
     }
 }
+
+// Platform-specific UnixStream implementation for client connections
+// On Unix: uses tokio::net::UnixStream
+// On Windows: uses uds_windows::UnixStream wrapped with SyncIoBridge
+
+#[cfg(unix)]
+mod unix_impl {
+
+    use tokio::net::UnixStream as TokioUnixStream;
+
+    pub type UnixStream = TokioUnixStream;
+
+    pub async fn connect_unix_stream(path: &str) -> std::io::Result<UnixStream> {
+        TokioUnixStream::connect(path).await
+    }
+}
+
+#[cfg(windows)]
+mod windows_impl {
+    use tokio_util::io::SyncIoBridge;
+    use uds_windows::UnixStream as UdsUnixStream;
+
+    pub type UnixStream = SyncIoBridge<UdsUnixStream>;
+
+    pub async fn connect_unix_stream(path: &str) -> std::io::Result<UnixStream> {
+        let stream = tokio::task::spawn_blocking(move || UdsUnixStream::connect(path)).await??;
+        Ok(SyncIoBridge::new(stream))
+    }
+}
+
+use tracing::info;
+#[cfg(unix)]
+pub use unix_impl::*;
+
+#[cfg(windows)]
+pub use windows_impl::*;

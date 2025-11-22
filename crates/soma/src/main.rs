@@ -1,10 +1,6 @@
-mod a2a;
 mod cli;
 mod codegen;
 mod commands;
-mod logic;
-mod mcp;
-mod repository;
 mod router;
 mod utils;
 mod vite;

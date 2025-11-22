@@ -32,7 +32,7 @@ bridge:
       credential_controller_type_id: oauth_auth_flow
       display_name: daniel@trysoma.ai
       resource_server_credential:
-        id: ae3fc147-e8ef-4143-9db2-15a11adbb422
+        id: d4cd8b47-dc1d-4224-bc57-71ab30729fae
         type_id: oauth2_authorization_code_flow_resource_server
         metadata: {}
         value:
@@ -42,24 +42,24 @@ bridge:
           redirect_uri: http://localhost:3000/api/bridge/v1/generic-oauth-callback
         data_encryption_key_id: default
       user_credential:
-        id: c0352a60-66c3-451e-9a65-299d784bfa40
+        id: ff011180-92d3-4b4b-806e-158143f2678d
         type_id: oauth2_authorization_code_flow_user
         metadata: {}
         value:
-          access_token: xroPXvaPs8MjsXDq8NEU2353WGl0BH392gZVcERH7uT2YZ1BTNZ7GbCrZ+Zj+/vf5eR/E6vYh+x2H/HmN/CVXPAHvFD252tH9khvfBcWtNSNxHFGeWa5hJY1rfI/5fkuutrgSYmOVcU+5DE2ZJsq0NVYrzg2XoEfs4me3xPfHrJsm+iN3DnAfyMREDwVcVv819mcTUzFogdoagKdHBRTuoYgVi0YQMMMTto9zzGzoJGvRdMhBjHXSAIEvxMkdvvuwYZ7nEltYRFbnWjRKKUAAOXiv7i3T9LFnL56l/OJE8kP0OVOWHSo9jglj72QZBsYyYBAAQkrohmPSCXxqpszlKXkgspcVXINY3EWO4vjEsJt5Qyrm++2jDQ=
+          access_token: kfzlriH7DRdViol7gr01tGgY8pCwmQcXeNPuaddpHbCnGc305wmiI+6dgfbV9PhZOuTS62l7RTQF0HJpVfchP7uMbjS2ukIt/vnkPdXtfWKY7hZEAuihq+Y+elL05nBDu9sdRPw6kK7UlNiP3JAYeABd6S9qOHXcpmD3WwY55PjSrb78ZmCm6WWZnFCOdQlZEoneAF78KZdpHuxjV/yd7fgiY6Z0KPBPftgkyGnQ8BxdhoTXgXAmn3DEVipMQvHV5zt1nYw/qtIOSm6sNh7ZhpuMH7wCw+FNDwfdbgjr+3U517jivU4+5COzrRxTnr2tV3a8dOUTsyA92Mk9KwzHMkOQ/rc89vS3Bj++fx2X0naqSziw0bWYa1qL
           code: ks7klVV2obLf9MqNsm+vJrlB6sE3LQUeGnqizMxU83HlraNPfuwYptKapSH7mC7qWTWtRD2a2bh0JG2MZg3MNBNk8zu0+aFjNRufQ5RO7fEJ1Mizd5nIdlY+7hsvWmrOsth/oXE=
-          expiry_time: 2025-11-21T15:42:01.872012Z
+          expiry_time: 2025-11-22T17:51:21.754004Z
           metadata: {}
-          refresh_token: wu7Hh9zlnTAvFi94IykDeEKT9b/hqOz68vjIA7CuwZX9S96NCjZnopy6vLvFec2/ypZzvaS8Y8c1piLh17m6FeJngPLZji3+HSDkSQvQuZHlwX23CWzE/4HD17wEdWTwNlF1tevDofA+IBg6u96CDf3E/PgnSZufmvn2GnOW0vgyCfU=
+          refresh_token: J5IjLdTij/jpsQQ8adEjday5a4Sp1UO+XnMx6VKkpf+GWW+dXqfyP2TA1lQgFWHNwuhd6rQTqtnPj3txD9vBGwc4o0EFojFjVFrWGP+4JlCK0hg7bO510i+AMzQLg2NZUPw5EqzvU+dg/DcSYYWgMz//ntissFLsU6D36vuY6SbReYs=
           scopes:
-          - https://www.googleapis.com/auth/gmail.compose
-          - https://www.googleapis.com/auth/gmail.send
           - https://www.googleapis.com/auth/userinfo.email
+          - https://www.googleapis.com/auth/userinfo.profile
+          - https://www.googleapis.com/auth/gmail.send
+          - https://www.googleapis.com/auth/gmail.compose
           - openid
           - https://www.googleapis.com/auth/gmail.readonly
-          - https://www.googleapis.com/auth/userinfo.profile
           sub: '107313083092903712383'
-        next_rotation_time: 2025-11-21T15:37:01.872012+00:00
+        next_rotation_time: 2025-11-22T17:46:21.754004+00:00
         data_encryption_key_id: default
       functions:
       - google_mail_send_email

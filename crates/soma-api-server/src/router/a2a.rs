@@ -21,6 +21,7 @@ use serde_json::json;
 use shared::adapters::openapi::JsonResponse;
 use shared::error::CommonError;
 use shared::primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4};
+use shared::uds::{DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::{path::PathBuf, pin::Pin, sync::Arc};
@@ -30,15 +31,15 @@ use url::Url;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use crate::a2a::RepositoryTaskStore;
+use crate::a2a::{RepositoryTaskStore, construct_agent_card};
 use crate::logic::{
     self, ConnectionManager, CreateMessageRequest, UpdateTaskStatusRequest, WithTaskId,
     update_task_status,
 };
 use crate::repository::{CreateTask, Repository, TaskRepositoryLike};
-use crate::utils::restate::admin_client::AdminClient;
-use crate::utils::restate::invoke::{RestateIngressClient, construct_initial_object_id};
-use crate::utils::soma_agent_definition::ConstructAgentCardParams;
+use shared::restate::admin_client::AdminClient;
+use shared::restate::invoke::{RestateIngressClient, construct_initial_object_id};
+use crate::a2a::ConstructAgentCardParams;
 use shared::soma_agent_definition::{SomaAgentDefinition, SomaAgentDefinitionLike};
 
 pub const PATH_PREFIX: &str = "/api";
@@ -71,25 +72,17 @@ async fn route_definition(
     JsonResponse::from(soma_definition)
 }
 
-pub(crate) struct Agent2AgentService {
-    #[allow(dead_code)]
-    src_dir: PathBuf,
+pub struct Agent2AgentService {
     soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     host: Url,
     request_handler: Arc<dyn RequestHandler + Send + Sync>,
-    #[allow(dead_code)]
-    runtime_port: u16,
-    #[allow(dead_code)]
-    repository: Repository,
 }
 
 pub struct Agent2AgentServiceParams {
-    pub src_dir: PathBuf,
     pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub host: Url,
     pub connection_manager: ConnectionManager,
     pub repository: Repository,
-    pub runtime_port: u16,
     pub restate_ingress_client: RestateIngressClient,
     pub restate_admin_client: AdminClient,
 }
@@ -97,12 +90,10 @@ pub struct Agent2AgentServiceParams {
 impl Agent2AgentService {
     pub fn new(params: Agent2AgentServiceParams) -> Self {
         let Agent2AgentServiceParams {
-            src_dir,
             soma_definition,
             host,
             connection_manager,
             repository,
-            runtime_port,
             restate_ingress_client,
             restate_admin_client,
         } = params;
@@ -144,12 +135,9 @@ impl Agent2AgentService {
             ));
 
         Self {
-            src_dir,
             soma_definition: soma_definition.clone(),
             host,
             request_handler,
-            runtime_port,
-            repository,
         }
     }
 }
@@ -167,7 +155,7 @@ impl A2aServiceLike for Agent2AgentService {
         ));
 
         let card =
-            crate::utils::soma_agent_definition::construct_agent_card(ConstructAgentCardParams {
+            construct_agent_card(ConstructAgentCardParams {
                 definition: soma_definition,
                 url: full_url.to_string(),
             });
@@ -191,7 +179,6 @@ impl A2aServiceLike for Agent2AgentService {
 
 struct ProxiedAgent {
     connection_manager: ConnectionManager,
-    #[allow(dead_code)]
     soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     repository: Repository,
     restate_ingress_client: RestateIngressClient,
@@ -362,10 +349,9 @@ impl AgentExecutor for ProxiedAgent {
                 .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
 
             // Get agent metadata
-            use crate::commands::dev::runtime::grpc_client::create_unix_socket_client;
             let socket_path = std::env::var("SOMA_SERVER_SOCK")
-                .unwrap_or_else(|_| "/tmp/soma-sdk.sock".to_string());
-            let mut sdk_client = create_unix_socket_client(&socket_path).await.map_err(|e| {
+                .unwrap_or_else(|_| DEFAULT_SOMA_SERVER_SOCK.to_string());
+            let mut sdk_client = create_soma_unix_socket_client(&socket_path).await.map_err(|e| {
                 Box::new(CommonError::Unknown(anyhow::anyhow!(
                     "Failed to connect to SDK: {e}"
                 ))) as Box<dyn std::error::Error + Send + Sync + 'static>
