@@ -1,3 +1,15 @@
+use axum::{
+    body::Body,
+    extract::{Request, State},
+    http::StatusCode,
+    response::Response,
+    routing::any,
+};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use utoipa::ToSchema;
+use utoipa_axum::{router::OpenApiRouter, routes};
+use vite_rs_axum_0_8::ViteServe;
 use std::time::Duration;
 
 use shared::error::CommonError;
@@ -58,4 +70,91 @@ pub async fn stop_vite_dev_server() -> Result<(), CommonError> {
     Assets::stop_dev_server();
     wait_for_vite_dev_server_shutdown().await?;
     Ok(())
+}
+
+
+#[cfg(debug_assertions)]
+pub fn create_vite_router() -> OpenApiRouter<()> {
+    use vite_rs_axum_0_8::ViteServe;
+
+    let vite = ViteServe::new(Assets::boxed());
+
+
+    let vite_router =
+        OpenApiRouter::new()
+            // "/" handled explicitly
+            .route(
+                "/",
+                any(
+                    |State(vite): State<ViteServe>, req: Request<Body>| async move {
+                        vite.serve(req).await
+                    },
+                ),
+            )
+            // all other paths handled by SPA fallback
+            .route("/{*path}", any(tanstack_spa_handler))
+            .with_state(vite);
+
+    
+    vite_router
+}
+
+#[cfg(not(debug_assertions))]
+const ROUTES_JSON: &[u8] = include_bytes!(concat!(
+    env!("FRONTEND_APP_DIR"),
+    "/dist/.vite-rs/routes.json"
+));
+
+#[cfg(not(debug_assertions))]
+pub fn create_vite_router() -> OpenApiRouter<()> {
+
+    let vite = ViteServe::new(Assets::boxed());
+
+    #[derive(Debug, Deserialize, Serialize, ToSchema)]
+    struct RouteFile {
+        paths: Vec<String>,
+        assets: Vec<String>,
+    }
+
+    let routes = serde_json::from_slice::<RouteFile>(ROUTES_JSON).unwrap();
+
+    let mut vite_router = OpenApiRouter::new()
+        .route(
+            "/",
+            any(|State(vite): State<ViteServe>, req: Request<Body>| async move {
+                vite.serve(req).await
+            }),
+        );
+
+    let mut all_paths = vec![];
+
+    all_paths.extend(routes.paths);
+    all_paths.extend(routes.assets.iter().map(|asset| format!("/{}", asset)));
+
+    for path in all_paths {
+        if path == "/" {
+            continue;
+        }
+        vite_router = vite_router.route(path.as_str(), any(tanstack_spa_handler));
+    }
+
+    let vite_router = vite_router.with_state(vite);
+
+    vite_router
+}
+
+async fn tanstack_spa_handler(State(vite): State<ViteServe>, req: Request<Body>) -> Response {
+    let resp = vite.serve(req).await;
+
+    if resp.status() == StatusCode::NOT_FOUND {
+        if let Some(index_file) = vite.assets.get("index.html") {
+            return Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", index_file.content_type)
+                .body(Body::from(index_file.bytes))
+                .unwrap();
+        }
+    }
+
+    resp
 }

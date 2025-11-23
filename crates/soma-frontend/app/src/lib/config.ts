@@ -8,7 +8,7 @@ export async function loadConfig() {
 	if (runtimeConfig) return runtimeConfig;
 
 	try {
-		const res = await $api.GET("/api/frontend/v1/runtime_config");
+		const res = await $api.GET("/_internal/v1/runtime_config");
 		if (res.error) throw new Error(`Failed to fetch config`);
 		runtimeConfig = res.data;
 		(window as any).__RUNTIME_CONFIG__ = runtimeConfig;

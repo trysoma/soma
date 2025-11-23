@@ -14,6 +14,100 @@
     "version": "0.2.0"
   },
   "paths": {
+    "/_internal/v1/health": {
+      "get": {
+        "operationId": "health-check",
+        "responses": {
+          "200": {
+            "description": "Service is healthy"
+          }
+        }
+      }
+    },
+    "/_internal/v1/runtime_config": {
+      "get": {
+        "operationId": "get-internal-runtime-config",
+        "responses": {
+          "200": {
+            "description": "Runtime config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/_internal/v1/trigger_codegen": {
+      "post": {
+        "operationId": "trigger-codegen",
+        "responses": {
+          "200": {
+            "description": "Codegen triggered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerCodegenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/a2a/v1": {
+      "post": {
+        "operationId": "json_rpc",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonrpcRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/a2a/v1/.well-known/agent.json": {
       "get": {
         "operationId": "agent_card",
@@ -693,6 +787,33 @@
         }
       }
     },
+    "/api/bridge/v1/function-instances/openapi.json": {
+      "get": {
+        "operationId": "get-function-instances-openapi-spec",
+        "responses": {
+          "200": {
+            "description": "Get function instances openapi spec",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/bridge/v1/generic-oauth-callback": {
       "get": {
         "operationId": "resume-user-credential-brokering",
@@ -764,6 +885,40 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/mcp": {
+      "get": {
+        "tags": [
+          "bridge"
+        ],
+        "operationId": "listen-to-mcp-sse",
+        "responses": {
+          "200": {
+            "description": "MCP server running"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "bridge"
+        ],
+        "operationId": "trigger-mcp-message",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WrappedClientJsonRpcMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "MCP server running"
           }
         }
       }
@@ -1238,7 +1393,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WrappedJsonValue"
+                  "$ref": "#/components/schemas/InvokeResult"
                 }
               }
             }
@@ -1262,79 +1417,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/frontend/v1/runtime_config": {
-      "get": {
-        "operationId": "get-frontend-env",
-        "responses": {
-          "200": {
-            "description": "Runtime config",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RuntimeConfig"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/mcp/v1/task/{task_id}": {
-      "get": {
-        "tags": [
-          "mcp"
-        ],
-        "operationId": "listen-to-mcp-sse",
-        "parameters": [
-          {
-            "name": "task_id",
-            "in": "path",
-            "description": "Task ID",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "MCP server running"
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "mcp"
-        ],
-        "operationId": "trigger-mcp-message",
-        "parameters": [
-          {
-            "name": "task_id",
-            "in": "path",
-            "description": "Task ID",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WrappedClientJsonRpcMessage"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "MCP server running"
           }
         }
       }
@@ -2100,8 +2182,7 @@
       "ContextInfoPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -2353,8 +2434,7 @@
       "DataEncryptionKeyListItemPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -2515,8 +2595,7 @@
       "FunctionInstanceConfigPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -2578,8 +2657,7 @@
       "FunctionInstanceSerializedPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -2589,6 +2667,17 @@
             }
           },
           "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
+      "InvokeError": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
             "type": "string"
           }
         }
@@ -2603,6 +2692,52 @@
             "$ref": "#/components/schemas/WrappedJsonValue"
           }
         }
+      },
+      "InvokeResult": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WrappedJsonValue"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "success"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InvokeError"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "error"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
       },
       "JsonSchema": {
         "type": "object",
@@ -2787,8 +2922,7 @@
       "ProviderControllerSerializedPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -2869,8 +3003,7 @@
       "ProviderInstanceListItemPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -3084,16 +3217,9 @@
       "SomaAgentDefinition": {
         "type": "object",
         "required": [
-          "project",
-          "agent",
-          "description",
-          "name",
           "version"
         ],
         "properties": {
-          "agent": {
-            "type": "string"
-          },
           "bridge": {
             "oneOf": [
               {
@@ -3103,15 +3229,6 @@
                 "$ref": "#/components/schemas/BridgeConfig"
               }
             ]
-          },
-          "description": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "project": {
-            "type": "string"
           },
           "version": {
             "type": "string"
@@ -3177,8 +3294,7 @@
       "TaskPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -3253,8 +3369,7 @@
       "TaskTimelineItemPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -3359,6 +3474,17 @@
             "$ref": "#/components/schemas/Metadata"
           },
           "text": {
+            "type": "string"
+          }
+        }
+      },
+      "TriggerCodegenResponse": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
             "type": "string"
           }
         }

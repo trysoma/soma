@@ -915,7 +915,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
 		const headerParameters: runtime.HTTPHeaders = {};
 
-		const urlPath = `/api/frontend/v1/runtime_config`;
+		const urlPath = `/_internal/v1/runtime_config`;
 
 		const response = await this.request(
 			{

@@ -252,11 +252,12 @@ import * as http2 from 'http2';
 ${functionImports.join("\n")}
 ${agentImports.join("\n")}
 
-console.log("SDK server starting...");
+	console.log("SDK server starting...");
 
 // Start gRPC server (don't await - it runs forever)
 const socketPath = process.env.SOMA_SERVER_SOCK || '/tmp/soma-sdk.sock';
-startGrpcServer(socketPath).catch(err => {
+const projectDir = process.cwd();
+startGrpcServer(socketPath, projectDir).catch(err => {
   console.error('gRPC server error:', err);
   process.exit(1);
 });

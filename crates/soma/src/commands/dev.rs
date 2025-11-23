@@ -219,23 +219,17 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         let _ = axum_shutdown_complete_signal_trigger.send(());
     });
 
+    // Create API client configuration for the soma API server
+    let api_base_url = format!("http://{}:{}", params.host, params.port);
+    let api_config = crate::utils::create_api_client_config(&api_base_url);
+
     // Wait for API service to be ready
     info!("Waiting for API service to be ready...");
-    wait_for_soma_api_health_check(&format!("http://{}:{}", params.host, params.port), 30, 10).await?;
+    wait_for_soma_api_health_check(&api_config, 30, 10).await?;
     info!("API service is ready");
 
      // Sync bridge from soma definition (now all providers should be available)
      info!("Syncing bridge from soma.yaml...");
-     let api_base_url = format!("http://{}:{}", params.host, params.port);
-     let api_config = soma_api_client::apis::configuration::Configuration {
-         base_path: api_base_url,
-         user_agent: Some("soma-cli".to_string()),
-         client: reqwest::Client::new(),
-         basic_auth: None,
-         oauth_access_token: None,
-         bearer_access_token: None,
-         api_key: None,
-     };
      crate::bridge::sync_yaml_to_api_on_start::sync_bridge_db_from_soma_definition_on_start(
          &api_config,
          &soma_definition,

@@ -35,17 +35,32 @@ pub async fn start_axum_server(
 
     info!("Starting server on {}", addr);
 
-    let router = Router::new()
-        .merge(soma_api_server::router::initiaite_api_router(params.api_service)?)
-        .layer(CorsLayer::permissive());
-    info!("Router initiated");
+    
     
     let handle = axum_server::Handle::new();
 
+    // Build the main API router
+    let mut router = soma_api_server::router::initiaite_api_router(params.api_service)?;
+
+    // In debug mode, add the Vite dev server frontend
     #[cfg(debug_assertions)]
-    use soma_frontend::{start_vite_dev_server, stop_vite_dev_server};
+    use soma_frontend::{start_vite_dev_server, stop_vite_dev_server, create_vite_router };
+
     #[cfg(debug_assertions)]
     let _vite_scope_guard = start_vite_dev_server();
+
+    #[cfg(debug_assertions)]
+    {
+        let (vite_router, _) = create_vite_router().split_for_parts();
+        router = Router::new()
+            .merge(router)
+            .merge(vite_router);
+    }
+
+    // Add CORS layer
+    let router = router.layer(CorsLayer::permissive());
+
+    info!("Router initiated");
 
     let server_fut = axum_server::bind(addr)
         .handle(handle.clone())

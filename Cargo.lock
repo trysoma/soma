@@ -5725,12 +5725,16 @@ name = "soma-frontend"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "axum 0.8.6",
  "reqwest",
+ "serde",
  "serde_json",
  "shared",
  "soma-api-server",
  "tokio",
  "tracing",
+ "utoipa",
+ "utoipa-axum",
  "vite-rs",
  "vite-rs-axum-0-8",
 ]

@@ -14,11 +14,7 @@ fn main() {
     // Export it so the derive macro sees it
     println!("cargo:rustc-env=FRONTEND_APP_DIR={}", app_dir.display());
 
-    // if debug build, skip pnpm and codegen steps
-    if cfg!(debug_assertions) {
-        println!("cargo:warning=Debug build, skipping pnpm and codegen steps");
-        return;
-    }
+    
 
     // Step 1: Generate OpenAPI spec
     println!("cargo:warning=Generating openapi spec in /openapi.json");
@@ -75,6 +71,12 @@ fn main() {
     let routes_json = app_dir.join("dist/.vite-rs/routes.json");
     if routes_json.exists() {
         println!("cargo:warning=Frontend already built, skipping pnpm steps");
+        return;
+    }
+
+    // if debug build, skip pnpm
+    if cfg!(debug_assertions) {
+        println!("cargo:warning=Debug build, skipping pnpm");
         return;
     }
 

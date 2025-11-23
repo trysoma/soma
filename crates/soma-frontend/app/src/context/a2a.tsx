@@ -63,7 +63,7 @@ type Context = {
 	createdAt: Date;
 	id: string;
 	tasks: WrappedTask[];
-	taskNextToken: string | null;
+	taskNextToken: string | undefined;
 };
 
 type SelectedIds = {
@@ -295,8 +295,8 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 		taskId: string | null;
 	} | null>(null);
 	const [_curContextPageToken, setCurContextPageToken] = useState<
-		string | null
-	>(null);
+		string | undefined
+	>(undefined);
 	const fetchPageOfContexts = async (pageToken: string | null) => {
 		const res = await $api.GET("/api/task/v1/context", {
 			params: {
@@ -328,7 +328,7 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 						createdAt: new Date(newContext.created_at),
 						id: newContext.context_id,
 						tasks: [],
-						taskNextToken: null,
+						taskNextToken: undefined,
 					});
 				}
 			}
@@ -443,7 +443,7 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 								createdAt: new Date(),
 								id: event.contextId,
 								tasks: [],
-								taskNextToken: null,
+								taskNextToken: undefined,
 							};
 							prevCopy.push(cachedContext);
 							setSelectedIds((prev) => ({
@@ -626,7 +626,7 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 	const createContext = useCallback((contextId: string) => {
 		setContexts((prev) => [
 			...prev,
-			{ createdAt: new Date(), id: contextId, tasks: [], taskNextToken: null },
+			{ createdAt: new Date(), id: contextId, tasks: [], taskNextToken: undefined },
 		]);
 		setSelectedIds((prev) => ({ ...prev, contextId: contextId, taskId: null }));
 	}, []);
