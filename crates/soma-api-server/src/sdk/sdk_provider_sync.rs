@@ -8,7 +8,7 @@ use shared::error::CommonError;
 use shared::primitives::WrappedSchema;
 use tracing::{error, info};
 
-use crate::commands::dev::bridge_util::providers::dynamic::{
+use crate::bridge::providers::dynamic::{
     DynamicFunctionControllerParams, DynamicProviderController, DynamicProviderControllerParams,
 };
 

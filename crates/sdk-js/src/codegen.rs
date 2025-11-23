@@ -1,70 +1,32 @@
 use std::collections::HashMap;
-use std::path::Path;
-
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
 use tera::{Context, Tera};
-use tracing::info;
-
-use bridge::logic::{FunctionInstanceWithMetadata, get_function_instances};
-use bridge::repository::ProviderRepositoryLike;
-
-// Re-export Runtime for convenience
-pub use crate::commands::dev::runtime::{Runtime, determine_runtime_from_dir};
 
 /// TypeScript template loaded at compile time
 const TYPESCRIPT_TEMPLATE: &str = include_str!("typescript.ts");
 
-/// Saves TypeScript code to $project_dir/.soma/bridge.ts
-pub async fn save_typescript_code(code: String, project_dir: &Path) -> Result<(), CommonError> {
-    let soma_dir = project_dir.join(".soma");
-    let output_path = soma_dir.join("bridge.ts");
-
-    // Ensure .soma directory exists
-    std::fs::create_dir_all(&soma_dir).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to create .soma directory: {e}"))
-    })?;
-
-    std::fs::write(&output_path, code).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to write bridge client file: {e}"))
-    })?;
-
-    info!("Bridge client written to: {}", output_path.display());
-    Ok(())
+/// Simplified data structures for code generation from API data
+#[derive(Debug, Clone)]
+pub struct FunctionInstanceData {
+    pub provider_instance_id: String,
+    pub provider_instance_display_name: String,
+    pub provider_controller: ProviderControllerData,
+    pub function_controller: FunctionControllerData,
 }
 
-/// Writes generated bridge client code to a file
-#[allow(dead_code)]
-pub async fn write_bridge_client_to_file(
-    runtime: &Runtime,
-    project_dir: &Path,
-    bridge_repo: &impl ProviderRepositoryLike,
-    output_path: &Path,
-) -> Result<(), CommonError> {
-    let code = generate_bridge_client(runtime, project_dir, bridge_repo).await?;
-
-    std::fs::write(output_path, code).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to write bridge client file: {e}"))
-    })?;
-
-    info!("Bridge client written to: {}", output_path.display());
-    Ok(())
+#[derive(Debug, Clone)]
+pub struct ProviderControllerData {
+    pub type_id: String,
+    pub display_name: String,
 }
 
-/// Regenerates and saves the bridge client for TypeScript/JavaScript runtimes
-pub async fn regenerate_bridge_client(
-    runtime: &Runtime,
-    project_dir: &Path,
-    bridge_repo: &impl ProviderRepositoryLike,
-) -> Result<(), CommonError> {
-    match runtime {
-        Runtime::PnpmV1 => {
-            let code =
-                generate_typescript_code(&get_function_instances(bridge_repo).await?).await?;
-            save_typescript_code(code, project_dir).await?;
-            Ok(())
-        }
-    }
+#[derive(Debug, Clone)]
+pub struct FunctionControllerData {
+    pub type_id: String,
+    pub display_name: String,
+    pub params_json_schema: Option<serde_json::Value>,
+    pub return_value_json_schema: Option<serde_json::Value>,
 }
 
 /// Serializable structure for provider in template
@@ -94,42 +56,24 @@ struct FunctionData {
     return_type_name: String,
 }
 
-/// Generates TypeScript bridge client code
-#[allow(dead_code)]
-pub async fn generate_bridge_client(
-    runtime: &Runtime,
-    _project_dir: &Path,
-    bridge_repo: &impl ProviderRepositoryLike,
-) -> Result<String, CommonError> {
-    info!("Generating bridge client for runtime: {:?}", runtime);
-
-    // Get function instances from bridge
-    let function_instances = get_function_instances(bridge_repo).await?;
-
-    // Generate code based on runtime
-    match runtime {
-        Runtime::PnpmV1 => generate_typescript_code(&function_instances).await,
-    }
-}
-
-/// Generates TypeScript code from function instances
-async fn generate_typescript_code(
-    function_instances: &[FunctionInstanceWithMetadata],
+/// Generates TypeScript code from API data
+pub fn generate_typescript_code_from_api_data(
+    function_instances: &[FunctionInstanceData],
 ) -> Result<String, CommonError> {
     // Group function instances by provider and account
-    let mut providers_map: HashMap<String, HashMap<String, Vec<FunctionInstanceWithMetadata>>> =
+    let mut providers_map: HashMap<String, HashMap<String, Vec<FunctionInstanceData>>> =
         HashMap::new();
 
-    for func_metadata in function_instances {
-        let provider_type_id = &func_metadata.provider_instance.provider_controller_type_id;
-        let account_name = &func_metadata.provider_instance.display_name;
+    for func_data in function_instances {
+        let provider_type_id = &func_data.provider_controller.type_id;
+        let account_name = &func_data.provider_instance_display_name;
 
         providers_map
             .entry(provider_type_id.clone())
             .or_default()
             .entry(account_name.clone())
             .or_default()
-            .push(func_metadata.clone());
+            .push(func_data.clone());
     }
 
     // Build provider data for template
@@ -142,23 +86,29 @@ async fn generate_typescript_code(
             let mut function_data_list: Vec<FunctionData> = Vec::new();
             let mut provider_instance_id = String::new();
 
-            for func_metadata in functions {
+            for func_data in functions {
                 // Get parameter schema
-                let params_schema = func_metadata.function_controller.parameters();
-                let params_type = convert_schema_to_typescript_type(&params_schema)?;
+                let params_type = if let Some(schema) = &func_data.function_controller.params_json_schema {
+                    json_schema_to_typescript(schema, 0)?
+                } else {
+                    "void".to_string()
+                };
 
                 // Get return schema
-                let return_schema = func_metadata.function_controller.output();
-                let return_type = convert_schema_to_typescript_type(&return_schema)?;
+                let return_type = if let Some(schema) = &func_data.function_controller.return_value_json_schema {
+                    json_schema_to_typescript(schema, 0)?
+                } else {
+                    "void".to_string()
+                };
 
                 // Store provider instance ID from the first function
                 if provider_instance_id.is_empty() {
-                    provider_instance_id = func_metadata.provider_instance.id.clone();
+                    provider_instance_id = func_data.provider_instance_id.clone();
                 }
 
                 // Generate interface names
                 let function_name_pascal = to_pascal_case(&sanitize_identifier(
-                    &func_metadata.function_controller.type_id(),
+                    &func_data.function_controller.type_id,
                 ));
                 let provider_name_pascal = to_pascal_case(&sanitize_identifier(&provider_type_id));
                 let params_type_name =
@@ -168,13 +118,13 @@ async fn generate_typescript_code(
 
                 // Generate camelCase function name (stripped of provider prefix)
                 let function_name_camel = strip_provider_prefix_and_camel_case(
-                    &func_metadata.function_controller.type_id(),
+                    &func_data.function_controller.type_id,
                     &provider_type_id,
                 );
 
                 function_data_list.push(FunctionData {
                     name: function_name_camel,
-                    function_controller_type_id: func_metadata.function_controller.type_id(),
+                    function_controller_type_id: func_data.function_controller.type_id.clone(),
                     params_type,
                     params_type_name,
                     return_type,
@@ -189,12 +139,10 @@ async fn generate_typescript_code(
             });
         }
 
+        let provider_name_pascal = to_pascal_case(&sanitize_identifier(&provider_type_id));
         providers.push(ProviderData {
-            name: to_camel_case(&sanitize_identifier(&provider_type_id)),
-            interface_name: format!(
-                "{}Provider",
-                to_pascal_case(&sanitize_identifier(&provider_type_id))
-            ),
+            name: provider_type_id.clone(),
+            interface_name: provider_name_pascal,
             accounts,
         });
     }
@@ -212,16 +160,6 @@ async fn generate_typescript_code(
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to render template: {e}")))?;
 
     Ok(rendered)
-}
-
-/// Convert a JSON schema to TypeScript type
-fn convert_schema_to_typescript_type(
-    schema: &shared::primitives::WrappedSchema,
-) -> Result<String, CommonError> {
-    let json_schema = schema.get_inner().as_value();
-
-    // Convert the schema to a TypeScript type
-    json_schema_to_typescript(json_schema, 0)
 }
 
 /// Recursively convert JSON Schema to TypeScript type string

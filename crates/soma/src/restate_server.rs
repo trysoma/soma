@@ -1,7 +1,15 @@
 use anyhow::Context;
 use shared::error::CommonError;
+use shared::command::run_child_process;
+use shared::subsystem::SubsystemHandle;
 use std::fs;
 use std::path::PathBuf;
+use tokio::process::Command;
+use tokio::sync::broadcast;
+use tracing::{error, info};
+
+use soma_api_server::restate::{RestateServerParams, RestateServerLocalParams, RestateServerRemoteParams};
+use shared::port::is_port_in_use;
 
 /// The embedded restate-server binary for the current platform
 /// This is included at compile time from the binary downloaded during build
@@ -147,3 +155,128 @@ pub fn ensure_restate_binary() -> Result<String, CommonError> {
     tracing::warn!("Falling back to 'restate-server' command from PATH");
     Ok("restate-server".to_string())
 }
+
+
+/// Starts the Restate server subsystem
+pub async fn start_restate_server(
+    params: RestateServerParams,
+    kill_signal_rx: tokio::sync::broadcast::Receiver<()>,
+) -> Result<(), CommonError> {
+    match params {
+        RestateServerParams::Local(params) => {
+            info!("Starting Restate server locally");
+            start_restate_server_local(params, kill_signal_rx).await
+        }
+        RestateServerParams::Remote(params) => {
+            info!("Restate is running remotely, checking health and client can connect...");
+            start_restate_server_remote(params).await
+        }
+    }
+}
+
+async fn start_restate_server_local(
+    params: RestateServerLocalParams,
+    kill_signal_rx: tokio::sync::broadcast::Receiver<()>,
+) -> Result<(), CommonError> {
+    if is_port_in_use(params.ingress_port)? {
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Restate ingress address is in use (127.0.0.1:{})",
+            params.ingress_port
+        )));
+    }
+    if is_port_in_use(params.admin_port)? {
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Restate admin address is in use (127.0.0.1:{})",
+            params.admin_port
+        )));
+    }
+    if is_port_in_use(params.advertised_node_port)? {
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Restate advertised node address is in use (127.0.0.1:{})",
+            params.advertised_node_port
+        )));
+    }
+
+    // Delete Restate data directory if --clean flag is set
+    if params.clean {
+        let restate_data_dir = params.project_dir.join(".soma/restate-data");
+        if restate_data_dir.exists() {
+            info!(
+                "Cleaning Restate data directory: {}",
+                restate_data_dir.display()
+            );
+            std::fs::remove_dir_all(&restate_data_dir).map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "Failed to delete Restate data directory: {e}"
+                ))
+            })?;
+            info!("Restate data directory deleted successfully");
+        } else {
+            info!("Restate data directory does not exist, skipping clean");
+        }
+    }
+
+    // Ensure restate-server binary is available (use system binary or bundled one)
+    let restate_binary_path = ensure_restate_binary()?;
+    info!("Using restate-server binary: {}", restate_binary_path);
+
+    let mut cmd = Command::new(&restate_binary_path);
+
+    cmd.arg("--log-filter")
+        .arg("warn")
+        .arg("--tracing-filter")
+        .arg("warn")
+        .arg("--base-dir")
+        .arg(
+            params
+                .project_dir
+                .join(".soma/restate-data")
+                .display()
+                .to_string(),
+        )
+        .env(
+            "RESTATE__INGRESS__BIND_ADDRESS",
+            format!("127.0.0.1:{}", params.ingress_port),
+        )
+        .env(
+            "RESTATE__ADMIN__BIND_ADDRESS",
+            format!("127.0.0.1:{}", params.admin_port),
+        )
+        .env(
+            "RESTATE__ADVERTISED_ADDRESS",
+            format!("127.0.0.1:{}", params.advertised_node_port),
+        );
+    run_child_process("restate-server", cmd, Some(kill_signal_rx), None).await?;
+    Ok(())
+}
+
+async fn start_restate_server_remote(
+    _params: RestateServerRemoteParams,
+) -> Result<(), CommonError> {
+    // TODO: should just perform a curl request to the admin address / ingress address to check health and client can connect.
+
+    Ok(())
+}
+
+
+pub fn start_restate_subsystem(
+    restate_params: RestateServerParams,
+    shutdown_rx: broadcast::Receiver<()>,
+) -> Result<SubsystemHandle, CommonError> {
+    let (handle, signal) = SubsystemHandle::new("Restate");
+
+    tokio::spawn(async move {
+        match start_restate_server(restate_params, shutdown_rx).await {
+            Ok(()) => {
+                signal.signal_with_message("stopped gracefully");
+            }
+            Err(e) => {
+                error!("Restate server stopped with error: {:?}", e);
+                signal.signal();
+            }
+        }
+    });
+
+    Ok(handle)
+}
+

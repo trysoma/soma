@@ -1,3 +1,4 @@
+pub mod codegen;
 pub mod controller;
 pub mod credential;
 pub mod encryption;

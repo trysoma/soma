@@ -13,13 +13,27 @@ use std::{path::PathBuf, sync::Arc};
 use tonic::{Request, Response, Status, transport::Server};
 use tracing::info;
 
-pub struct GrpcService {
+pub type GenerateBridgeClientResponse = sdk_proto::GenerateBridgeClientResponse;
+pub type GenerateBridgeClientRequest = sdk_proto::GenerateBridgeClientRequest;
+
+/// Trait for SDK-specific code generation (TypeScript, Python, etc.)
+#[tonic::async_trait]
+pub trait SdkCodeGenerator: Send + Sync {
+    /// Generate bridge client code from function instance metadata
+    async fn generate_bridge_client(
+        &self,
+        request: GenerateBridgeClientRequest,
+    ) -> Result<GenerateBridgeClientResponse, CommonError>;
+}
+
+pub struct GrpcService<G: SdkCodeGenerator> {
     providers: ArcSwap<Vec<ProviderController>>,
     agents: ArcSwap<Vec<Agent>>,
+    code_generator: Arc<G>,
 }
 
 #[tonic::async_trait]
-impl SomaSdkService for GrpcService {
+impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
     async fn metadata(
         &self,
         _request: Request<()>,
@@ -92,13 +106,36 @@ impl SomaSdkService for GrpcService {
 
         Ok(Response::new(result.into()))
     }
+
+    async fn generate_bridge_client(
+        &self,
+        request: Request<sdk_proto::GenerateBridgeClientRequest>,
+    ) -> Result<Response<sdk_proto::GenerateBridgeClientResponse>, Status> {
+        info!("generate_bridge_client called - delegating to code generator");
+
+        let req = request.into_inner();
+        match self.code_generator.generate_bridge_client(req).await {
+            Ok(response) => Ok(Response::new(response)),
+            Err(e) => {
+                info!("Code generator returned error: {}", e);
+                Ok(Response::new(sdk_proto::GenerateBridgeClientResponse {
+                    result: Some(sdk_proto::generate_bridge_client_response::Result::Error(
+                        sdk_proto::GenerateBridgeClientError {
+                            message: e.to_string(),
+                        }
+                    ))
+                }))
+            }
+        }
+    }
 }
 
-impl GrpcService {
-    pub fn new(providers: Vec<ProviderController>, agents: Vec<Agent>) -> Self {
+impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
+    pub fn new(providers: Vec<ProviderController>, agents: Vec<Agent>, code_generator: G) -> Self {
         Self {
             providers: ArcSwap::from_pointee(providers),
             agents: ArcSwap::from_pointee(agents),
+            code_generator: Arc::new(code_generator),
         }
     }
 
@@ -254,28 +291,29 @@ impl GrpcService {
             .find(|p| p.type_id == type_id)
             .cloned()
     }
-}
 
-static GRPC_SERVICE: Lazy<GrpcService> = Lazy::new(|| GrpcService::new(vec![], vec![]));
+}
 
 /// Starts a gRPC server that handles function invocations over a Unix socket
 ///
 /// # Arguments
 /// * `providers` - Array of ProviderController definitions with function implementations
 /// * `socket_path` - Path to the Unix socket (e.g., "/tmp/soma-sdk.sock")
+/// * `code_generator` - Implementation of SdkCodeGenerator for bridge client generation
+///
+/// # Returns
+/// A handle to the GrpcService for dynamic provider/function management
 ///
 /// # Example
 /// Each FunctionController must have an `invoke` function that handles the invocation.
-pub async fn start_grpc_server(
+pub async fn start_grpc_server<G: SdkCodeGenerator + 'static>(
     providers: Vec<ProviderController>,
     socket_path: PathBuf,
-) -> Result<(), CommonError> {
+    code_generator: G,
+) -> Result<Arc<GrpcService<G>>, CommonError> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse().unwrap()))
         .init();
-
-    // Set the providers in the global service
-    GRPC_SERVICE.set_providers(providers);
 
     // Remove existing socket file if it exists
     if socket_path.exists() {
@@ -285,50 +323,63 @@ pub async fn start_grpc_server(
 
     info!("Starting gRPC server on Unix socket: {:?}", socket_path);
 
-    // Create Unix socket listener (platform-specific)
-    let uds = bind_unix_listener(&socket_path)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to bind Unix socket: {e}"))?;
+    // Create the gRPC service with code generator
+    let service = Arc::new(GrpcService::new(providers, vec![], code_generator));
+    let service_clone = Arc::clone(&service);
 
-    let incoming = create_listener_stream(uds);
+    // Spawn the server in a background task
+    tokio::spawn(async move {
+        // Create Unix socket listener (platform-specific)
+        let uds = match bind_unix_listener(&socket_path).await {
+            Ok(uds) => uds,
+            Err(e) => {
+                tracing::error!("Failed to bind Unix socket: {e}");
+                return;
+            }
+        };
 
-    // Create a wrapper service that uses the global GRPC_SERVICE
-    let service = GrpcServiceWrapper;
+        let incoming = create_listener_stream(uds);
 
-    Server::builder()
-        .add_service(SomaSdkServiceServer::new(service))
-        .serve_with_incoming(incoming)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to start server: {e}"))?;
+        if let Err(e) = Server::builder()
+            .add_service(SomaSdkServiceServer::new(GrpcServiceWrapper(service_clone)))
+            .serve_with_incoming(incoming)
+            .await
+        {
+            tracing::error!("gRPC server error: {e}");
+        }
+    });
 
-    Ok(())
+    Ok(service)
 }
 
-/// Wrapper struct that delegates to the global GRPC_SERVICE
-struct GrpcServiceWrapper;
+/// Wrapper to allow Arc<GrpcService> to implement SomaSdkService
+struct GrpcServiceWrapper<G: SdkCodeGenerator>(Arc<GrpcService<G>>);
 
 #[tonic::async_trait]
-impl SomaSdkService for GrpcServiceWrapper {
+impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcServiceWrapper<G> {
     async fn metadata(
         &self,
         request: Request<()>,
     ) -> Result<Response<sdk_proto::MetadataResponse>, Status> {
-        GRPC_SERVICE.metadata(request).await
+        self.0.metadata(request).await
     }
 
     async fn health_check(&self, request: Request<()>) -> Result<Response<()>, Status> {
-        GRPC_SERVICE.health_check(request).await
+        self.0.health_check(request).await
     }
 
     async fn invoke_function(
         &self,
         request: Request<sdk_proto::InvokeFunctionRequest>,
     ) -> Result<Response<sdk_proto::InvokeFunctionResponse>, Status> {
-        GRPC_SERVICE.invoke_function(request).await
+        self.0.invoke_function(request).await
+    }
+
+    async fn generate_bridge_client(
+        &self,
+        request: Request<sdk_proto::GenerateBridgeClientRequest>,
+    ) -> Result<Response<sdk_proto::GenerateBridgeClientResponse>, Status> {
+        self.0.generate_bridge_client(request).await
     }
 }
 
-/// Get a reference to the global GRPC service for dynamic provider management
-pub fn get_grpc_service() -> &'static GrpcService {
-    &GRPC_SERVICE
-}

@@ -1,42 +1,19 @@
 use std::future::Future;
 use std::net::{SocketAddr, TcpListener};
-use std::path::PathBuf;
 
+use axum::Router;
+use shared::error::CommonError;
+use shared::port::find_free_port;
+use soma_api_server::ApiService;
+use tower_http::cors::CorsLayer;
 use tracing::info;
 
-use shared::error::CommonError;
-
-use crate::router;
-
-/// Finds a free port in the given range
-pub fn find_free_port(start: u16, end: u16) -> std::io::Result<u16> {
-    find_free_port_with_bind(start, end, TcpListener::bind)
-}
-
-/// Internal implementation that accepts a custom bind function for testing
-fn find_free_port_with_bind<F>(start: u16, end: u16, bind_fn: F) -> std::io::Result<u16>
-where
-    F: Fn(SocketAddr) -> std::io::Result<TcpListener>,
-{
-    for port in start..=end {
-        let addr = SocketAddr::from(([127, 0, 0, 1], port));
-        if bind_fn(addr).is_ok() {
-            return Ok(port);
-        }
-    }
-    Err(std::io::Error::new(
-        std::io::ErrorKind::AddrNotAvailable,
-        "No free ports found",
-    ))
-}
 
 pub struct StartAxumServerParams {
-    #[allow(dead_code)]
-    pub project_dir: PathBuf,
     pub host: String,
     pub port: u16,
-    pub routers: router::Routers,
     pub system_shutdown_signal_rx: tokio::sync::broadcast::Receiver<()>,
+    pub api_service: ApiService,
 }
 
 /// Starts the Axum server
@@ -58,12 +35,15 @@ pub async fn start_axum_server(
 
     info!("Starting server on {}", addr);
 
-    let router = router::initiate_routers(params.routers)?;
+    let router = Router::new()
+        .merge(soma_api_server::router::initiaite_api_router(params.api_service)?)
+        .layer(CorsLayer::permissive());
     info!("Router initiated");
+    
     let handle = axum_server::Handle::new();
 
     #[cfg(debug_assertions)]
-    use crate::commands::dev::server::{start_vite_dev_server, stop_vite_dev_server};
+    use soma_frontend::{start_vite_dev_server, stop_vite_dev_server};
     #[cfg(debug_assertions)]
     let _vite_scope_guard = start_vite_dev_server();
 
@@ -94,32 +74,11 @@ pub async fn start_axum_server(
     Ok((server_fut, handle, addr))
 }
 
-/// Starts the Vite dev server (debug builds only)
-/// Returns a guard that stops the server when dropped
-#[cfg(debug_assertions)]
-pub fn start_vite_dev_server() -> impl Drop {
-    use crate::vite::Assets;
-    info!("Starting vite dev server");
-    // The return value is a scope guard that stops the server when dropped
-    let guard = Assets::start_dev_server(false);
-    guard.unwrap_or_else(|| {
-        panic!("Failed to start vite dev server");
-    })
-}
-
-/// Stops the Vite dev server and waits for shutdown (debug builds only)
-#[cfg(debug_assertions)]
-pub async fn stop_vite_dev_server() -> Result<(), CommonError> {
-    use crate::vite::Assets;
-    use crate::vite::wait_for_vite_dev_server_shutdown;
-    info!("Stopping vite dev server");
-    Assets::stop_dev_server();
-    wait_for_vite_dev_server_shutdown().await?;
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {
+    use shared::port::find_free_port_with_bind;
+
     use super::*;
     use std::io::{Error, ErrorKind};
 

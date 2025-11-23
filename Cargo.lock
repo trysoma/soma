@@ -969,6 +969,7 @@ dependencies = [
  "reqwest",
  "rmcp",
  "schemars 1.0.4",
+ "sdk-proto",
  "serde",
  "serde_json",
  "sha2",
@@ -980,6 +981,7 @@ dependencies = [
  "tokio-graceful-shutdown",
  "tokio-stream",
  "tokio-util",
+ "tonic 0.13.1",
  "tower-http 0.6.6",
  "tracing",
  "urlencoding",
@@ -5225,7 +5227,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uds_windows",
- "workspace-hack",
 ]
 
 [[package]]
@@ -5242,7 +5243,9 @@ dependencies = [
  "serde",
  "serde_json",
  "shared",
+ "tera",
  "tokio",
+ "tonic 0.13.1",
  "tracing",
 ]
 
@@ -5273,7 +5276,9 @@ dependencies = [
  "sdk-proto",
  "serde",
  "serde_json",
+ "shared",
  "tokio",
+ "tonic 0.13.1",
  "tracing",
 ]
 
@@ -5707,7 +5712,9 @@ dependencies = [
  "serde_yaml",
  "shared",
  "shared-macros",
+ "soma-api-client",
  "soma-api-server",
+ "soma-frontend",
  "tempfile",
  "tera",
  "thiserror 2.0.17",
@@ -5724,8 +5731,6 @@ dependencies = [
  "utoipa",
  "utoipa-axum",
  "uuid",
- "vite-rs",
- "vite-rs-axum-0-8",
  "workspace-hack",
  "zip",
 ]
@@ -5801,6 +5806,21 @@ dependencies = [
  "vite-rs-axum-0-8",
  "workspace-hack",
  "zip",
+]
+
+[[package]]
+name = "soma-frontend"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "reqwest",
+ "serde_json",
+ "shared",
+ "soma-api-server",
+ "tokio",
+ "tracing",
+ "vite-rs",
+ "vite-rs-axum-0-8",
 ]
 
 [[package]]

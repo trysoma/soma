@@ -3,24 +3,20 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use bridge::logic::{OnConfigChangeEvt, OnConfigChangeRx, OnConfigChangeTx};
-use bridge::repository::Repository;
 use serde_json::json;
 use tokio::sync::mpsc;
-use tracing::{error, info};
+use tracing::info;
 
 use shared::error::CommonError;
 use shared::soma_agent_definition::SomaAgentDefinitionLike;
-
-use crate::codegen::regenerate_bridge_client;
-use crate::commands::dev::runtime::Runtime;
 
 /// Watches for bridge configuration changes and updates soma.yaml accordingly
 pub async fn sync_on_bridge_change(
     mut on_bridge_config_change_rx: OnConfigChangeRx,
     soma_definition: Arc<dyn SomaAgentDefinitionLike>,
-    runtime: Runtime,
-    project_dir: PathBuf,
-    bridge_repo: Arc<Repository>,
+    // sdk_runtime: SdkRuntime,
+    _project_dir: PathBuf,
+    // bridge_repo: Arc<Repository>,
 ) -> Result<(), CommonError> {
     loop {
         let event = match on_bridge_config_change_rx.recv().await {
@@ -211,14 +207,6 @@ pub async fn sync_on_bridge_change(
                         function_instance_serialized.provider_instance_id.clone(),
                     )
                     .await?;
-
-                // Regenerate bridge client
-                info!("Regenerating bridge client after function instance added");
-                if let Err(e) =
-                    regenerate_bridge_client(&runtime, &project_dir, bridge_repo.as_ref()).await
-                {
-                    error!("Failed to regenerate bridge client: {:?}", e);
-                }
             }
             OnConfigChangeEvt::FunctionInstanceRemoved(
                 function_controller_type_id,
@@ -237,14 +225,6 @@ pub async fn sync_on_bridge_change(
                         provider_instance_id,
                     )
                     .await?;
-
-                // Regenerate bridge client
-                info!("Regenerating bridge client after function instance removed");
-                if let Err(e) =
-                    regenerate_bridge_client(&runtime, &project_dir, bridge_repo.as_ref()).await
-                {
-                    error!("Failed to regenerate bridge client: {:?}", e);
-                }
             }
         }
     }
@@ -253,9 +233,9 @@ pub async fn sync_on_bridge_change(
 /// Starts the bridge config change listener subsystem
 pub fn start_sync_on_bridge_change(
     soma_definition: Arc<dyn SomaAgentDefinitionLike>,
-    runtime: Runtime,
+    // sdk_runtime: SdkRuntime,
     project_dir: PathBuf,
-    bridge_repo: Arc<Repository>,
+    // bridge_repo: Arc<Repository>,
 ) -> Result<
     (
         OnConfigChangeTx,
@@ -268,9 +248,9 @@ pub fn start_sync_on_bridge_change(
     let sync_on_bridge_change_fut = sync_on_bridge_change(
         on_bridge_config_change_rx,
         soma_definition,
-        runtime,
+        // sdk_runtime,
         project_dir,
-        bridge_repo,
+        // bridge_repo,
     );
 
     Ok((on_bridge_config_change_tx, sync_on_bridge_change_fut))

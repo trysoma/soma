@@ -3,41 +3,35 @@ pub mod sdk_provider_sync;
 mod typescript;
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::Duration;
 
+use shared::build_helpers::BuildEvent;
+use shared::restate;
+use shared::subsystem::SubsystemHandle;
+use shared::uds::{DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client, establish_connection_with_retry, monitor_connection_health};
 use tokio::sync::{broadcast, oneshot};
 use tracing::{error, info};
 
 use shared::error::CommonError;
 
-use crate::commands::dev::DevParams;
-use crate::utils::construct_src_dir_absolute;
-
-use super::project_file_watcher::FileChangeTx;
+use crate::restate::RestateServerParams;
 use interface::{ClientCtx, SdkClient};
 use typescript::Typescript;
 
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Runtime {
+pub enum SdkRuntime {
     PnpmV1,
 }
 
-/// Determines which runtime to use based on the project structure
-pub fn determine_runtime(params: &DevParams) -> Result<Option<Runtime>, CommonError> {
-    let src_dir = construct_src_dir_absolute(params.src_dir.clone())?;
-    determine_runtime_from_dir(&src_dir)
-}
-
-/// Determines runtime from a directory path (testable version)
-pub fn determine_runtime_from_dir(src_dir: &Path) -> Result<Option<Runtime>, CommonError> {
-    let possible_runtimes = vec![(Runtime::PnpmV1, validate_runtime_pnpm_v1)];
+/// Determines which SDK runtime to use from a directory path
+pub fn determine_sdk_runtime(project_dir: &Path) -> Result<Option<SdkRuntime>, CommonError> {
+    let possible_runtimes = vec![(SdkRuntime::PnpmV1, validate_sdk_runtime_pnpm_v1)];
 
     let mut matched_runtimes = vec![];
 
     for (runtime, validate_fn) in possible_runtimes {
-        let result = validate_fn(src_dir.to_path_buf())?;
+        let result = validate_fn(project_dir.to_path_buf())?;
         if result {
             matched_runtimes.push(runtime);
         }
@@ -47,15 +41,15 @@ pub fn determine_runtime_from_dir(src_dir: &Path) -> Result<Option<Runtime>, Com
         0 => Ok(None),
         1 => Ok(Some(matched_runtimes[0].clone())),
         _ => Err(CommonError::Unknown(anyhow::anyhow!(
-            "Multiple runtimes matched"
+            "Multiple SDK runtimes matched"
         ))),
     }
 }
 
-fn validate_runtime_pnpm_v1(src_dir: PathBuf) -> Result<bool, CommonError> {
+fn validate_sdk_runtime_pnpm_v1(project_dir: PathBuf) -> Result<bool, CommonError> {
     let files_to_check = vec!["package.json", "vite.config.ts"];
     for file in files_to_check {
-        let file_path = src_dir.join(file);
+        let file_path = project_dir.join(file);
         if !file_path.exists() {
             return Ok(false);
         }
@@ -68,21 +62,19 @@ fn is_vite_project(src_dir: &Path) -> bool {
     src_dir.join("vite.config.ts").exists()
 }
 
-pub struct StartDevRuntimeParams {
+pub struct StartDevSdkParams {
     pub project_dir: PathBuf,
-    pub runtime: Runtime,
-    pub runtime_port: u16,
-    pub file_change_tx: Arc<FileChangeTx>,
+    pub sdk_runtime: SdkRuntime,
+    pub sdk_port: u16,
     pub kill_signal_rx: broadcast::Receiver<()>,
 }
 
-/// Starts the development runtime with hot reloading on file changes
-pub async fn start_dev_runtime(params: StartDevRuntimeParams) -> Result<(), CommonError> {
-    let StartDevRuntimeParams {
+/// Starts the development SDK server with hot reloading on file changes
+pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError> {
+    let StartDevSdkParams {
         project_dir,
-        runtime: _runtime,
-        runtime_port,
-        file_change_tx,
+        sdk_runtime: _sdk_runtime,
+        sdk_port,
         kill_signal_rx,
     } = params;
 
@@ -90,8 +82,7 @@ pub async fn start_dev_runtime(params: StartDevRuntimeParams) -> Result<(), Comm
     let ctx = ClientCtx {
         project_dir: project_dir.clone(),
         socket_path: DEFAULT_SOMA_SERVER_SOCK.to_string(),
-        restate_runtime_port: runtime_port,
-        file_change_tx: file_change_tx.clone(),
+        restate_runtime_port: sdk_port,
         kill_signal_rx: kill_signal_rx.resubscribe(),
     };
 
@@ -107,10 +98,73 @@ pub async fn start_dev_runtime(params: StartDevRuntimeParams) -> Result<(), Comm
     Ok(())
 }
 
+
+pub fn start_sdk_server_subsystem(
+    project_dir: PathBuf,
+    sdk_runtime: SdkRuntime,
+    sdk_port: u16,
+    shutdown_rx: broadcast::Receiver<()>,
+) -> Result<SubsystemHandle, CommonError> {
+
+    let (handle, signal) = SubsystemHandle::new("SDK Server");
+
+    tokio::spawn(async move {
+        match start_dev_sdk(StartDevSdkParams {
+            project_dir,
+            sdk_runtime,
+            sdk_port,
+            kill_signal_rx: shutdown_rx,
+        })
+        .await
+        {
+            Ok(()) => {
+                signal.signal_with_message("stopped gracefully");
+            }
+            Err(e) => {
+                error!("SDK server stopped with error: {:?}", e);
+                signal.signal();
+            }
+        }
+    });
+
+    Ok(handle)
+}
+
+pub fn start_sdk_sync_subsystem(
+    socket_path: String,
+    restate_params: RestateServerParams,
+    sdk_port: u16,
+    shutdown_rx: broadcast::Receiver<()>,
+) -> Result<SubsystemHandle, CommonError> {
+
+    let (handle, signal) = SubsystemHandle::new("SDK Sync");
+
+    tokio::spawn(async move {
+        match sync_sdk_changes(SyncSdkChangesParams {
+            socket_path,
+            restate_params,
+            sdk_port,
+            system_shutdown_signal_rx: shutdown_rx,
+        })
+        .await
+        {
+            Ok(()) => {
+                signal.signal_with_message("stopped gracefully");
+            }
+            Err(e) => {
+                error!("SDK sync watcher stopped with error: {:?}", e);
+                signal.signal();
+            }
+        }
+    });
+
+    Ok(handle)
+}
+
 /// Fetch metadata and sync providers to the bridge registry
 /// Returns the list of agents from the metadata response
 async fn fetch_and_sync_providers(socket_path: &str) -> Result<Vec<sdk_proto::Agent>, CommonError> {
-    let mut client = create_unix_socket_client(socket_path).await?;
+    let mut client = create_soma_unix_socket_client(socket_path).await?;
 
     let request = tonic::Request::new(());
     let response = client
@@ -153,8 +207,8 @@ async fn fetch_and_sync_providers(socket_path: &str) -> Result<Vec<sdk_proto::Ag
 /// Register Restate deployments for all agents
 async fn register_agent_deployments(
     agents: Vec<sdk_proto::Agent>,
-    restate_params: &super::restate::RestateServerParams,
-    runtime_port: u16,
+    restate_params: &crate::restate::RestateServerParams,
+    sdk_port: u16,
 ) -> Result<(), CommonError> {
     use std::collections::HashMap;
 
@@ -164,8 +218,8 @@ async fn register_agent_deployments(
     );
 
     for agent in agents {
-        let service_uri = format!("http://127.0.0.1:{runtime_port}");
-        let deployment_type = crate::utils::restate::deploy::DeploymentType::Http {
+        let service_uri = format!("http://127.0.0.1:{sdk_port}");
+        let deployment_type = restate::deploy::DeploymentType::Http {
             uri: service_uri.clone(),
             additional_headers: HashMap::new(),
         };
@@ -176,7 +230,7 @@ async fn register_agent_deployments(
         info!("Registering agent '{}' at {}", agent.name, service_uri);
 
         let admin_url = restate_params.get_admin_address()?;
-        let config = crate::utils::restate::deploy::DeploymentRegistrationConfig {
+        let config = restate::deploy::DeploymentRegistrationConfig {
             admin_url: admin_url.to_string(),
             service_path: service_path.clone(),
             deployment_type,
@@ -186,7 +240,7 @@ async fn register_agent_deployments(
             force: restate_params.get_force(),
         };
 
-        match crate::utils::restate::deploy::register_deployment(config).await {
+        match restate::deploy::register_deployment(config).await {
             Ok(metadata) => {
                 info!(
                     "✓ Successfully registered agent '{}' (service: {})",
@@ -203,50 +257,50 @@ async fn register_agent_deployments(
     Ok(())
 }
 
-pub struct SyncDevRuntimeChangesFromSdkServerParams {
+pub struct SyncSdkChangesParams {
     pub socket_path: String,
-    pub restate_params: super::restate::RestateServerParams,
-    pub runtime_port: u16,
+    pub restate_params: crate::restate::RestateServerParams,
+    pub sdk_port: u16,
     pub system_shutdown_signal_rx: broadcast::Receiver<()>,
 }
 
-/// Watch for dev runtime reloads by monitoring the gRPC connection
+/// Watch for dev SDK server reloads by monitoring the gRPC connection
 /// This function runs indefinitely, reconnecting when the server restarts
 /// and syncing providers on each reconnection
 #[allow(clippy::needless_return)]
-pub async fn sync_dev_runtime_changes_from_sdk_server(
-    params: SyncDevRuntimeChangesFromSdkServerParams,
+pub async fn sync_sdk_changes(
+    params: SyncSdkChangesParams,
 ) -> Result<(), CommonError> {
-    let SyncDevRuntimeChangesFromSdkServerParams {
+    let SyncSdkChangesParams {
         socket_path,
         restate_params,
-        runtime_port,
+        sdk_port,
         mut system_shutdown_signal_rx,
     } = params;
 
     let (
-        sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger,
-        sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_receiver,
+        sync_shutdown_complete_tx,
+        sync_shutdown_complete_rx,
     ) = oneshot::channel::<CommonError>();
-    let (system_shutdown_signal_tx_clone, system_shutdown_signal_rx_clone_receiver) =
+    let (system_shutdown_tx, system_shutdown_rx) =
         tokio::sync::oneshot::channel::<()>();
     tokio::spawn(async move {
         tokio::select! {
-            _ = system_shutdown_signal_rx_clone_receiver => {
+            _ = system_shutdown_rx => {
             }
-            _ = internal_sync_dev_runtime_changes_from_sdk_server_loop(socket_path, restate_params, runtime_port, sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger) => {
+            _ = internal_sync_sdk_changes_loop(socket_path, restate_params, sdk_port, sync_shutdown_complete_tx) => {
             }
         }
     });
 
     tokio::select! {
         _ = system_shutdown_signal_rx.recv() => {
-            info!("SDK reload watcher shutdown requested");
-            let _ = system_shutdown_signal_tx_clone.send(());
+            info!("SDK sync watcher shutdown requested");
+            let _ = system_shutdown_tx.send(());
 
             return Ok(());
         }
-        result = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_receiver => {
+        result = sync_shutdown_complete_rx => {
             match result {
                 Ok(err) => {
                     Err(err)
@@ -260,16 +314,14 @@ pub async fn sync_dev_runtime_changes_from_sdk_server(
     }
 }
 
-pub async fn internal_sync_dev_runtime_changes_from_sdk_server_loop(
+async fn internal_sync_sdk_changes_loop(
     socket_path: String,
-    restate_params: super::restate::RestateServerParams,
-    runtime_port: u16,
-    sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger: oneshot::Sender<
-        CommonError,
-    >,
+    restate_params: crate::restate::RestateServerParams,
+    sdk_port: u16,
+    sync_shutdown_complete_tx: oneshot::Sender<CommonError>,
 ) {
     info!(
-        "Starting dev runtime reload watcher for socket: {}",
+        "Starting dev SDK reload watcher for socket: {}",
         socket_path
     );
     let mut ticker = tokio::time::interval(Duration::from_millis(500));
@@ -292,7 +344,7 @@ pub async fn internal_sync_dev_runtime_changes_from_sdk_server_loop(
                         // Register Restate deployments for each agent
                         if !agents.is_empty() {
                             if let Err(e) =
-                                register_agent_deployments(agents, &restate_params, runtime_port)
+                                register_agent_deployments(agents, &restate_params, sdk_port)
                                     .await
                             {
                                 error!("Failed to register agent deployments: {:?}", e);
@@ -312,7 +364,7 @@ pub async fn internal_sync_dev_runtime_changes_from_sdk_server_loop(
                 error!("Failed to establish connection: {:?}", e);
                 let err =
                     CommonError::Unknown(anyhow::anyhow!("Failed to establish connection: {e:?}"));
-                let _ = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger
+                let _ = sync_shutdown_complete_tx
                     .send(err);
                 return;
             }
@@ -321,7 +373,7 @@ pub async fn internal_sync_dev_runtime_changes_from_sdk_server_loop(
                 let err = CommonError::Unknown(anyhow::anyhow!(
                     "Failed to connect to SDK server within 10 seconds"
                 ));
-                let _ = sync_dev_runtime_changes_from_sdk_server_shutdown_complete_signal_trigger
+                let _ = sync_shutdown_complete_tx
                     .send(err);
                 return;
             }
@@ -339,56 +391,56 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn test_validate_runtime_bun_v1_with_valid_project() {
+    fn test_validate_sdk_runtime_pnpm_v1_with_valid_project() {
         let temp_dir = TempDir::new().unwrap();
 
         // Create required files
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
         fs::write(temp_dir.path().join("vite.config.ts"), "export default {}").unwrap();
 
-        let result = validate_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
-        assert!(result, "Should validate as PnpmV1 runtime");
+        let result = validate_sdk_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
+        assert!(result, "Should validate as PnpmV1 SDK runtime");
     }
 
     #[test]
-    fn test_validate_runtime_pnpm_v1_missing_package_json() {
+    fn test_validate_sdk_runtime_pnpm_v1_missing_package_json() {
         let temp_dir = TempDir::new().unwrap();
 
         // Only create vite.config.ts
         fs::write(temp_dir.path().join("vite.config.ts"), "export default {}").unwrap();
 
-        let result = validate_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
+        let result = validate_sdk_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
         assert!(!result, "Should not validate without package.json");
     }
 
     #[test]
-    fn test_validate_runtime_pnpm_v1_missing_vite_config() {
+    fn test_validate_sdk_runtime_pnpm_v1_missing_vite_config() {
         let temp_dir = TempDir::new().unwrap();
 
         // Only create package.json
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
 
-        let result = validate_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
+        let result = validate_sdk_runtime_pnpm_v1(temp_dir.path().to_path_buf()).unwrap();
         assert!(!result, "Should not validate without vite.config.ts");
     }
 
     #[test]
-    fn test_determine_runtime_from_dir_pnpm_v1() {
+    fn test_determine_sdk_runtime_pnpm_v1() {
         let temp_dir = TempDir::new().unwrap();
 
         fs::write(temp_dir.path().join("package.json"), r#"{"name": "test"}"#).unwrap();
         fs::write(temp_dir.path().join("vite.config.ts"), "export default {}").unwrap();
 
-        let runtime = determine_runtime_from_dir(temp_dir.path()).unwrap();
-        assert_eq!(runtime, Some(Runtime::PnpmV1));
+        let runtime = determine_sdk_runtime(temp_dir.path()).unwrap();
+        assert_eq!(runtime, Some(SdkRuntime::PnpmV1));
     }
 
     #[test]
-    fn test_determine_runtime_from_dir_no_match() {
+    fn test_determine_sdk_runtime_no_match() {
         let temp_dir = TempDir::new().unwrap();
 
         // Empty directory
-        let runtime = determine_runtime_from_dir(temp_dir.path()).unwrap();
+        let runtime = determine_sdk_runtime(temp_dir.path()).unwrap();
         assert_eq!(runtime, None);
     }
 }

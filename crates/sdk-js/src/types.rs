@@ -96,3 +96,46 @@ pub struct InvokeFunctionResponse {
     pub data: Option<String>,
     pub error: Option<InvokeError>,
 }
+
+#[napi(object)]
+pub struct GenerateBridgeClientRequest {
+    pub function_instances: Vec<FunctionInstanceData>,
+}
+
+#[napi(object)]
+pub struct FunctionInstanceData {
+    pub provider_instance_id: String,
+    pub provider_instance_display_name: String,
+    pub provider_controller: Option<ProviderControllerData>,
+    pub function_controller: Option<FunctionControllerData>,
+}
+
+#[napi(object)]
+pub struct ProviderControllerData {
+    pub type_id: String,
+    pub display_name: String,
+}
+
+#[napi(object)]
+pub struct FunctionControllerData {
+    pub type_id: String,
+    pub display_name: String,
+    pub params_json_schema: String,
+    pub return_value_json_schema: String,
+}
+
+#[napi(object)]
+pub struct GenerateBridgeClientResponse {
+    pub success: Option<GenerateBridgeClientSuccess>,
+    pub error: Option<GenerateBridgeClientError>,
+}
+
+#[napi(object)]
+pub struct GenerateBridgeClientSuccess {
+    pub message: String,
+}
+
+#[napi(object)]
+pub struct GenerateBridgeClientError {
+    pub message: String,
+}

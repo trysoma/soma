@@ -1,10 +1,55 @@
 use pyo3::prelude::*;
 use sdk_core::{
     FunctionController, InvokeFunctionRequest, InvokeFunctionResponse, ProviderController,
-    ProviderCredentialController, start_grpc_server,
+    ProviderCredentialController, start_grpc_server, GenerateBridgeClientRequest, GenerateBridgeClientResponse,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
+use shared::error::CommonError;
+use tracing::info;
+
+/// Python code generator that implements the SdkCodeGenerator trait
+pub struct PythonCodeGenerator {
+    project_dir: PathBuf,
+}
+
+impl PythonCodeGenerator {
+    pub fn new(project_dir: PathBuf) -> Self {
+        Self { project_dir }
+    }
+}
+
+#[tonic::async_trait]
+impl sdk_core::SdkCodeGenerator for PythonCodeGenerator {
+    async fn generate_bridge_client(
+        &self,
+        request: GenerateBridgeClientRequest,
+    ) -> Result<GenerateBridgeClientResponse, CommonError> {
+        info!("Python code generator invoked with {} function instances", request.function_instances.len());
+
+        // For now, create a simple placeholder file
+        let soma_dir = self.project_dir.join(".soma");
+        let output_path = soma_dir.join("bridge.py");
+
+        std::fs::create_dir_all(&soma_dir)
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create .soma directory: {e}")))?;
+
+        let python_code = "# Bridge client for Soma Python SDK\n# TODO: Implement Python code generation\n";
+
+        std::fs::write(&output_path, python_code)
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to write bridge client file: {e}")))?;
+
+        info!("Bridge client written to: {}", output_path.display());
+
+        Ok(GenerateBridgeClientResponse {
+            result: Some(sdk_proto::generate_bridge_client_response::Result::Success(
+                sdk_proto::GenerateBridgeClientSuccess {
+                    message: format!("Python bridge client generated successfully at {}", output_path.display()),
+                }
+            ))
+        })
+    }
+}
 
 #[pyclass]
 struct InvocationRequest {
@@ -63,7 +108,13 @@ fn start_sdk_server(socket_path: String) -> PyResult<()> {
         credential_controllers: vec![ProviderCredentialController::NoAuth],
     }];
 
-    let path = PathBuf::from(socket_path);
+    let path = PathBuf::from(&socket_path);
+
+    // Create Python code generator
+    let project_dir = std::env::current_dir().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to get current directory: {e}"))
+    })?;
+    let code_generator = PythonCodeGenerator::new(project_dir);
 
     // Start the gRPC server in a new tokio runtime
     let runtime = tokio::runtime::Runtime::new().map_err(|e| {
@@ -71,11 +122,12 @@ fn start_sdk_server(socket_path: String) -> PyResult<()> {
     })?;
 
     runtime.block_on(async move {
-        start_grpc_server(providers, path).await.map_err(|e| {
+        start_grpc_server(providers, path, code_generator).await.map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                 "Failed to start server: {e}"
             ))
-        })
+        })?;
+        Ok(())
     })
 }
 

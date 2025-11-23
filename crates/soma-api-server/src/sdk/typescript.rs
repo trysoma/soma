@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use tokio::process::Command;
 
-use crate::commands::dev::runtime::interface::{ClientCtx, SdkClient};
+use super::interface::{ClientCtx, SdkClient};
 
 pub struct Typescript {}
 
