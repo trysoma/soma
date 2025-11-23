@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use ::bridge::{logic::{EnvelopeEncryptionKeyContents, OnConfigChangeTx, register_all_bridge_providers}, router::bridge::BridgeService};
+use ::bridge::{logic::{EnvelopeEncryptionKeyContents, OnConfigChangeTx}, router::bridge::BridgeService};
 use shared::{error::CommonError, restate::{admin_client::AdminClient, invoke::RestateIngressClient}, soma_agent_definition::SomaAgentDefinitionLike};
 use url::Url;
 
@@ -68,8 +68,6 @@ impl ApiService {
 
         let internal_service = Arc::new(internal::InternalService::new(bridge_service.clone()));
 
-        // Register built-in bridge providers (google_mail, stripe, etc.)
-        register_all_bridge_providers().await?;
 
         Ok(Self {
             agent_service,

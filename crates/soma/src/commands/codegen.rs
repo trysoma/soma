@@ -6,7 +6,7 @@ use tracing::info;
 use shared::error::CommonError;
 use soma_api_client::apis::{configuration::Configuration, default_api};
 
-use crate::utils::config::CliConfig;
+use crate::utils::CliConfig;
 
 #[derive(Args, Debug, Clone)]
 pub struct CodegenParams {

@@ -7,6 +7,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
+use soma_api_client::apis::configuration::Configuration as ApiClientConfiguration;
 use tokio::sync::{Mutex, MutexGuard};
 use tracing::info;
 
@@ -131,4 +132,76 @@ pub fn construct_src_dir_absolute(src_dir: Option<PathBuf>) -> Result<PathBuf, C
     }
 
     Ok(src_dir)
+}
+
+/// Creates an API client configuration for the given base URL
+///
+/// # Arguments
+/// * `base_url` - The base URL of the API server (e.g., "http://localhost:3000")
+///
+/// # Returns
+/// * API client configuration ready to use with soma_api_client functions
+pub fn create_api_client_config(base_url: &str) -> ApiClientConfiguration {
+    ApiClientConfiguration {
+        base_path: base_url.to_string(),
+        user_agent: Some("soma-cli".to_string()),
+        client: reqwest::Client::new(),
+        basic_auth: None,
+        oauth_access_token: None,
+        bearer_access_token: None,
+        api_key: None,
+    }
+}
+
+/// Polls the health endpoint until it returns a successful response
+///
+/// # Arguments
+/// * `api_config` - The API client configuration
+/// * `timeout_secs` - Maximum time to wait for health check (in seconds)
+/// * `max_retries` - Maximum number of retries
+///
+/// # Returns
+/// * `Ok(())` if the health endpoint responds successfully
+/// * `Err(CommonError)` if the timeout is reached or an error occurs
+pub async fn wait_for_soma_api_health_check(
+    api_config: &ApiClientConfiguration,
+    timeout_secs: u64,
+    max_retries: u64,
+) -> Result<(), CommonError> {
+    let health_url = format!("{}/_internal/v1/health", api_config.base_path);
+    let client = &api_config.client;
+    let start = std::time::Instant::now();
+    let timeout = std::time::Duration::from_secs(timeout_secs);
+
+    for _ in 0..max_retries {
+        if start.elapsed() >= timeout {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Health check timeout after {} seconds",
+                timeout_secs
+            )));
+        }
+
+        match client.get(&health_url).send().await {
+            Ok(response) if response.status().is_success() => {
+                info!("Health check successful at {}", health_url);
+                return Ok(());
+            }
+            Ok(response) => {
+                info!(
+                    "Health check returned status {}, retrying...",
+                    response.status()
+                );
+            }
+            Err(e) => {
+                info!("Health check failed: {}, retrying...", e);
+            }
+        }
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    }
+
+    Err(CommonError::Unknown(anyhow::anyhow!(
+        "Health check failed after {} retries",
+        max_retries
+    )))
 }

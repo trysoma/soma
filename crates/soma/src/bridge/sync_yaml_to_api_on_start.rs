@@ -48,10 +48,10 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
             for key in response.items {
                 keys.insert(key.id.clone(), key);
             }
-            if response.next_page_token.is_empty() {
+            if response.next_page_token.is_none() {
                 break;
             }
-            next_page_token = Some(response.next_page_token);
+            next_page_token = response.next_page_token;
         }
         keys
     };
@@ -99,10 +99,10 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                     for item in response.items {
                         instances.insert(item.id.clone(), item);
                     }
-                    if response.next_page_token.is_empty() {
+                    if response.next_page_token.is_none() {
                         break;
                     }
-                    next_page_token = Some(response.next_page_token);
+                    next_page_token = response.next_page_token;
                 }
                 instances
             };
@@ -239,10 +239,10 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                         for item in response.items {
                             instances.insert(item.function_controller_type_id);
                         }
-                        if response.next_page_token.is_empty() {
+                        if response.next_page_token.is_none() {
                             break;
                         }
-                        next_page_token = Some(response.next_page_token);
+                        next_page_token = response.next_page_token;
                     }
                     instances
                 };

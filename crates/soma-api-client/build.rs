@@ -73,6 +73,7 @@ fn main() {
     
     eprintln!("Generated source files copied to: {}", target_src.display());
     
+    
     // Tell Cargo to rerun this build script if the OpenAPI spec changes
     println!("cargo:rerun-if-changed=build.rs");
 }

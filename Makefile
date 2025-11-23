@@ -70,22 +70,22 @@ build-release: ## Build release binaries for Linux, Mac, and Windows
 	@echo "Note: Cross-compilation requires Docker and may take significant time."
 	@echo ""
 	@echo "Building for x86_64-unknown-linux-gnu (native)..."
-	cargo build --release --target x86_64-unknown-linux-gnu --workspace --exclude sdk-py
+	cargo build --release --target x86_64-unknown-linux-gnu --workspace 
 	@echo "✓ x86_64-unknown-linux-gnu built"
 	@echo ""
 	@echo "Temporarily disabling cargo config for cross-compilation..."
 	@mv .cargo/config.toml .cargo/config.toml.tmp 2>/dev/null || true
 	@echo "Building for aarch64-unknown-linux-gnu..."
-	-cross build --release --target aarch64-unknown-linux-gnu --workspace --exclude sdk-py && echo "✓ aarch64-unknown-linux-gnu built" || echo "⚠ aarch64-unknown-linux-gnu build failed (cross-compilation)"
+	-cross build --release --target aarch64-unknown-linux-gnu --workspace && echo "✓ aarch64-unknown-linux-gnu built" || echo "⚠ aarch64-unknown-linux-gnu build failed (cross-compilation)"
 	@echo ""
 	@echo "Building for x86_64-apple-darwin..."
-	-cross build --release --target x86_64-apple-darwin --workspace --exclude sdk-py && echo "✓ x86_64-apple-darwin built" || echo "⚠ x86_64-apple-darwin build failed (cross-compilation)"
+	-cross build --release --target x86_64-apple-darwin --workspace && echo "✓ x86_64-apple-darwin built" || echo "⚠ x86_64-apple-darwin build failed (cross-compilation)"
 	@echo ""
 	@echo "Building for aarch64-apple-darwin..."
-	-cross build --release --target aarch64-apple-darwin --workspace --exclude sdk-py && echo "✓ aarch64-apple-darwin built" || echo "⚠ aarch64-apple-darwin build failed (cross-compilation)"
+	-cross build --release --target aarch64-apple-darwin --workspace && echo "✓ aarch64-apple-darwin built" || echo "⚠ aarch64-apple-darwin build failed (cross-compilation)"
 	@echo ""
 	@echo "Building for x86_64-pc-windows-gnu..."
-	-cross build --release --target x86_64-pc-windows-gnu --workspace --exclude sdk-py && echo "✓ x86_64-pc-windows-gnu built" || echo "⚠ x86_64-pc-windows-gnu build failed (cross-compilation)"
+	-cross build --release --target x86_64-pc-windows-gnu --workspace && echo "✓ x86_64-pc-windows-gnu built" || echo "⚠ x86_64-pc-windows-gnu build failed (cross-compilation)"
 	@echo ""
 	@echo "Restoring cargo config..."
 	@mv .cargo/config.toml.tmp .cargo/config.toml 2>/dev/null || true

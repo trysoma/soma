@@ -12,8 +12,23 @@ pub const SERVICE_ROUTE_KEY: &str = "";
 
 pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {
     OpenApiRouter::new()
+        .routes(routes!(route_health))
         .routes(routes!(route_runtime_config))
         .routes(routes!(route_trigger_codegen))
+}
+
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/health", PATH_PREFIX, API_VERSION_1),
+    responses(
+        (status = 200, description = "Service is healthy"),
+    ),
+    operation_id = "health-check",
+)]
+async fn route_health(
+    State(_ctx): State<Arc<InternalService>>,
+) -> axum::http::StatusCode {
+    axum::http::StatusCode::OK
 }
 
 #[utoipa::path(

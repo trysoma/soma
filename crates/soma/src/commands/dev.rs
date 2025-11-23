@@ -19,9 +19,9 @@ use shared::soma_agent_definition::{SomaAgentDefinitionLike, YamlSomaAgentDefini
 use soma_api_server::restate::{RestateServerRemoteParams, RestateServerLocalParams, RestateServerParams};
 use soma_api_server::factory::{create_api_service, CreateApiServiceParams};
 use crate::bridge::start_bridge_sync_to_yaml_subsystem;
-use crate::utils::config::{CliConfig, get_config_file_path};
-use crate::utils::construct_src_dir_absolute;
+use crate::utils::{CliConfig, get_config_file_path, construct_src_dir_absolute};
 use crate::server::{StartAxumServerParams, start_axum_server};
+use crate::utils::wait_for_soma_api_health_check;
 
 #[derive(Args, Debug, Clone)]
 #[group(multiple = false, required = false)]
@@ -77,7 +77,7 @@ pub struct DevParams {
     pub key_encryption_key: Option<String>,
     #[arg(
         long,
-        help = "Delete the Restate data directory before starting (only applies to local Restate instances)"
+        help = "Delete the Restate data directory, local sqlite DB before starting (only applies to local Restate instances and local sqlite DB)"
     )]
     pub clean: bool,
 }
@@ -109,6 +109,14 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         };
 
         info!("Database path resolved to: {}", absolute_path.display());
+
+        if params.clean && absolute_path.exists() {
+            info!("Cleaning local sqlite DB...");
+            std::fs::remove_file(absolute_path).unwrap_or_else(|e| {
+                error!("Failed to clean local sqlite DB: {e:?}");
+            });
+        }
+
         Url::parse(&new_url_str).unwrap_or_else(|_| params.db_conn_string.clone())
     } else {
         params.db_conn_string.clone()
@@ -166,34 +174,12 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         envelope_encryption_key_contents,
         system_shutdown_signal: system_shutdown_signal_trigger.clone(),
         on_bridge_config_change_tx: on_bridge_change_tx.clone(),
-        restate_handle,
     })
     .await?;
 
     let api_service = api_service_bundle.api_service;
     let subsystems = api_service_bundle.subsystems;
 
-    // Sync bridge from soma definition (now all providers should be available)
-    info!("Syncing bridge from soma.yaml...");
-    let api_base_url = format!("http://{}:{}", params.host, params.port);
-    let api_config = soma_api_client::apis::configuration::Configuration {
-        base_path: api_base_url,
-        user_agent: Some("soma-cli".to_string()),
-        client: reqwest::Client::new(),
-        basic_auth: None,
-        oauth_access_token: None,
-        bearer_access_token: None,
-        api_key: None,
-    };
-    crate::bridge::sync_yaml_to_api_on_start::sync_bridge_db_from_soma_definition_on_start(
-        &api_config,
-        &soma_definition,
-    )
-    .await?;
-    info!("Bridge sync completed");
-
-    // Reload soma definition
-    soma_definition.reload().await?;
 
     info!("API service initialized and all subsystems started");
 
@@ -233,6 +219,33 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         let _ = axum_shutdown_complete_signal_trigger.send(());
     });
 
+    // Wait for API service to be ready
+    info!("Waiting for API service to be ready...");
+    wait_for_soma_api_health_check(&format!("http://{}:{}", params.host, params.port), 30, 10).await?;
+    info!("API service is ready");
+
+     // Sync bridge from soma definition (now all providers should be available)
+     info!("Syncing bridge from soma.yaml...");
+     let api_base_url = format!("http://{}:{}", params.host, params.port);
+     let api_config = soma_api_client::apis::configuration::Configuration {
+         base_path: api_base_url,
+         user_agent: Some("soma-cli".to_string()),
+         client: reqwest::Client::new(),
+         basic_auth: None,
+         oauth_access_token: None,
+         bearer_access_token: None,
+         api_key: None,
+     };
+     crate::bridge::sync_yaml_to_api_on_start::sync_bridge_db_from_soma_definition_on_start(
+         &api_config,
+         &soma_definition,
+     )
+     .await?;
+     info!("Bridge sync completed");
+ 
+     // Reload soma definition
+     soma_definition.reload().await?;
+
     // Shutdown monitoring thread - handles both unexpected exits and graceful shutdown
     let system_shutdown_signal_trigger_clone = system_shutdown_signal_trigger.clone();
     let mut shutdown_requested_rx = system_shutdown_signal_trigger.subscribe();
@@ -256,19 +269,16 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     };
 
     // Add all subsystems from the bundle
-    add_subsystem_handle("restate", subsystems.restate);
-    add_subsystem_handle("file_watcher", subsystems.file_watcher);
     add_subsystem_handle("bridge_sync_yaml", Some(bridge_sync_handle));
+    add_subsystem_handle("restate", Some(restate_handle));
     add_subsystem_handle("sdk_server", subsystems.sdk_server);
     add_subsystem_handle("sdk_sync", subsystems.sdk_sync);
     add_subsystem_handle("mcp", subsystems.mcp);
     add_subsystem_handle("credential_rotation", subsystems.credential_rotation);
-    add_subsystem_handle("bridge_codegen", subsystems.bridge_codegen);
 
     // Systems that can trigger shutdown (unexpected exits)
     let systems_that_can_trigger_shutdown: Vec<&str> = vec![
         "restate",
-        "file_watcher",
         "bridge_sync_yaml",
         "axum_server",
         "mcp",

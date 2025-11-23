@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bridge::logic::{EnvelopeEncryptionKeyContents, OnConfigChangeTx};
+use bridge::logic::{EnvelopeEncryptionKeyContents, OnConfigChangeTx, register_all_bridge_providers};
 use shared::error::CommonError;
 use shared::soma_agent_definition::SomaAgentDefinitionLike;
 use shared::subsystem::SubsystemHandle;
@@ -29,7 +29,6 @@ pub struct CreateApiServiceParams {
     pub envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
     pub system_shutdown_signal: broadcast::Sender<()>,
     pub on_bridge_config_change_tx: OnConfigChangeTx,
-    pub restate_handle: SubsystemHandle,
 }
 
 pub struct ApiServiceBundle {
@@ -54,7 +53,6 @@ pub async fn create_api_service(
         envelope_encryption_key_contents,
         system_shutdown_signal,
         on_bridge_config_change_tx,
-        restate_handle,
     } = params;
 
     // Determine SDK runtime
@@ -72,7 +70,6 @@ pub async fn create_api_service(
 
     // Restate server is started by caller (soma crate)
     // We just use the passed-in handle
-    let restate_handle = restate_handle;
 
     // Wait for Restate to be ready
     info!("Waiting for Restate server to be ready...");
@@ -136,8 +133,13 @@ pub async fn create_api_service(
     // Create MCP transport channel
     let (mcp_transport_tx, mcp_transport_rx) = tokio::sync::mpsc::unbounded_channel();
 
-    // Initialize API service (this registers built-in bridge providers)
-    info!("Initializing API service and registering built-in providers...");
+    // Register built-in bridge providers (google_mail, stripe, etc.) BEFORE creating API service
+    info!("Registering built-in bridge providers...");
+    register_all_bridge_providers().await?;
+    info!("Built-in providers registered");
+
+    // Initialize API service
+    info!("Initializing API service...");
     let api_service = ApiService::new(InitRouterParams {
         host: host.clone(),
         port,
@@ -154,7 +156,7 @@ pub async fn create_api_service(
         sdk_client: sdk_client.clone(),
     })
     .await?;
-    info!("API service initialized, built-in providers registered");
+    info!("API service initialized");
 
     // Start MCP connection manager
     info!("Starting MCP connection manager...");
@@ -184,14 +186,10 @@ pub async fn create_api_service(
     Ok(ApiServiceBundle {
         api_service,
         subsystems: Subsystems {
-            restate: Some(restate_handle),
-            file_watcher: None,
-            bridge_sync: None, // This is started separately in soma crate
             sdk_server: Some(sdk_server_handle),
             sdk_sync: Some(sdk_sync_handle),
             mcp: Some(mcp_handle),
             credential_rotation: Some(credential_rotation_handle),
-            bridge_codegen: None,
         },
     })
 }
