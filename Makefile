@@ -254,5 +254,5 @@ dev-insurance-claim-bot: ## Start the insurance claim bot
 		exit 1; \
 	fi
 	@echo "Starting insurance bot..."
-	cargo run --bin soma -- dev --src-dir ./js/examples/insurance-claim-bot --clean
+	cargo run --bin soma -- dev --cwd ./js/examples/insurance-claim-bot --clean
 	@echo "✓ Insurance bot started"

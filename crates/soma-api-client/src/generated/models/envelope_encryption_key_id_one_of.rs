@@ -15,14 +15,17 @@ use serde::{Deserialize, Serialize};
 pub struct EnvelopeEncryptionKeyIdOneOf {
     #[serde(rename = "arn")]
     pub arn: String,
+    #[serde(rename = "region")]
+    pub region: String,
     #[serde(rename = "type")]
     pub r#type: Type,
 }
 
 impl EnvelopeEncryptionKeyIdOneOf {
-    pub fn new(arn: String, r#type: Type) -> EnvelopeEncryptionKeyIdOneOf {
+    pub fn new(arn: String, region: String, r#type: Type) -> EnvelopeEncryptionKeyIdOneOf {
         EnvelopeEncryptionKeyIdOneOf {
             arn,
+            region,
             r#type,
         }
     }

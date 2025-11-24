@@ -951,6 +951,7 @@ name = "bridge"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "async-trait",
  "axum 0.8.6",
  "base64 0.22.1",

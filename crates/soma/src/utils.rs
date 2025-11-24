@@ -121,17 +121,17 @@ pub async fn ensure_user_is_set(config: &CliConfigInner) -> Result<CliUser, Comm
     }
 }
 
-pub fn construct_src_dir_absolute(src_dir: Option<PathBuf>) -> Result<PathBuf, CommonError> {
-    let cwd = std::env::current_dir()?;
-    let mut src_dir = match src_dir {
-        Some(src_dir) => src_dir,
-        None => cwd.clone(),
+pub fn construct_cwd_absolute(cwd: Option<PathBuf>) -> Result<PathBuf, CommonError> {
+    let current_dir = std::env::current_dir()?;
+    let mut cwd = match cwd {
+        Some(cwd) => cwd,
+        None => current_dir.clone(),
     };
-    if !src_dir.is_absolute() {
-        src_dir = cwd.join(src_dir);
+    if !cwd.is_absolute() {
+        cwd = current_dir.join(cwd);
     }
 
-    Ok(src_dir)
+    Ok(cwd)
 }
 
 /// Creates an API client configuration for the given base URL
@@ -151,6 +151,79 @@ pub fn create_api_client_config(base_url: &str) -> ApiClientConfiguration {
         bearer_access_token: None,
         api_key: None,
     }
+}
+
+/// Creates an API client configuration and waits for the API server to be ready
+///
+/// # Arguments
+/// * `api_url` - The base URL of the API server (e.g., "http://localhost:3000")
+/// * `timeout_secs` - Maximum time to wait for the API server to be ready (in seconds)
+///
+/// # Returns
+/// * `Ok(ApiClientConfiguration)` if the API server is ready
+/// * `Err(CommonError)` if the timeout is reached or an error occurs
+pub async fn create_and_wait_for_api_client(
+    api_url: &str,
+    timeout_secs: u64,
+) -> Result<ApiClientConfiguration, CommonError> {
+    use soma_api_client::apis::default_api;
+    use std::time::Duration;
+
+    // Create HTTP client
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(timeout_secs))
+        .build()
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create HTTP client: {e}")))?;
+
+    // Create API config for health check
+    let api_config = ApiClientConfiguration {
+        base_path: api_url.to_string(),
+        user_agent: Some("soma-cli".to_string()),
+        client: client.clone(),
+        basic_auth: None,
+        oauth_access_token: None,
+        bearer_access_token: None,
+        api_key: None,
+    };
+
+    // Wait for API to be ready
+    info!("Waiting for Soma API server at {} to be ready...", api_url);
+
+    let max_retries = timeout_secs / 2; // Check every 2 seconds
+    let mut connected = false;
+
+    for attempt in 1..=max_retries {
+        match default_api::agent_card(&api_config).await {
+            Ok(_) => {
+                info!("Connected to Soma API server successfully");
+                connected = true;
+                break;
+            }
+            Err(e) => {
+                if attempt == max_retries {
+                    return Err(CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to connect to Soma API server after {max_retries} attempts: {e:?}. Please ensure 'soma dev' is running."
+                    )));
+                }
+                if attempt == 1 {
+                    info!(
+                        "Waiting for server... (attempt {}/{})",
+                        attempt, max_retries
+                    );
+                }
+                tokio::time::sleep(Duration::from_secs(2)).await;
+            }
+        }
+    }
+
+    if !connected {
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Failed to connect to Soma API server. Please ensure 'soma dev' is running at {}",
+            api_url
+        )));
+    }
+
+    Ok(api_config)
 }
 
 /// Polls the health endpoint until it returns a successful response

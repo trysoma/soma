@@ -56,21 +56,24 @@ impl libsql::FromValue for EncryptedDataEncryptionKey {
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum EnvelopeEncryptionKeyId {
-    AwsKms { arn: String },
+    AwsKms { arn: String, region: String },
     Local { location: String },
 }
 
 #[derive(Clone, zeroize::Zeroize, zeroize::ZeroizeOnDrop)]
 pub enum EnvelopeEncryptionKeyContents {
-    AwsKms { arn: String },
+    AwsKms { arn: String, region: String },
     Local { location: String, key_bytes: Vec<u8> },
 }
 
 impl From<EnvelopeEncryptionKeyContents> for EnvelopeEncryptionKeyId {
     fn from(contents: EnvelopeEncryptionKeyContents) -> Self {
         match &contents {
-            EnvelopeEncryptionKeyContents::AwsKms { arn } => {
-                EnvelopeEncryptionKeyId::AwsKms { arn: arn.clone() }
+            EnvelopeEncryptionKeyContents::AwsKms { arn, region } => {
+                EnvelopeEncryptionKeyId::AwsKms { 
+                    arn: arn.clone(),
+                    region: region.clone(),
+                }
             }
             EnvelopeEncryptionKeyContents::Local {
                 location,
@@ -101,6 +104,20 @@ impl TryFrom<libsql::Value> for EnvelopeEncryptionKeyId {
             }
             _ => Err("Expected Text value for EnvelopeEncryptionKeyId".into()),
         }
+    }
+}
+
+/// Extract AWS region from a KMS ARN
+/// ARN format: arn:aws:kms:REGION:ACCOUNT:key/KEY-ID or arn:aws:kms:REGION:ACCOUNT:alias/ALIAS-NAME
+pub fn extract_region_from_kms_arn(arn: &str) -> Result<String, CommonError> {
+    // ARN format: arn:aws:kms:REGION:ACCOUNT:key/KEY-ID
+    let parts: Vec<&str> = arn.split(':').collect();
+    if parts.len() >= 4 && parts[0] == "arn" && parts[1] == "aws" && parts[2] == "kms" {
+        Ok(parts[3].to_string())
+    } else {
+        Err(CommonError::Unknown(anyhow::anyhow!(
+            "Invalid KMS ARN format: {arn}"
+        )))
     }
 }
 
@@ -167,14 +184,15 @@ impl CryptoService {
             } = &data_encryption_key.envelope_encryption_key_id
         {
             envelop_key_match = location == data_encryption_key_location;
-        } else if let EnvelopeEncryptionKeyContents::AwsKms { arn } =
+        } else if let EnvelopeEncryptionKeyContents::AwsKms { arn, region } =
             &envelope_encryption_key_contents
             && let EnvelopeEncryptionKeyId::AwsKms {
                 arn: data_encryption_key_arn,
+                region: data_encryption_key_region,
                 ..
             } = &data_encryption_key.envelope_encryption_key_id
         {
-            envelop_key_match = arn == data_encryption_key_arn;
+            envelop_key_match = arn == data_encryption_key_arn && region == data_encryption_key_region;
         }
 
         if !envelop_key_match {
@@ -360,9 +378,10 @@ pub async fn encrypt_data_envelope_key(
     data_envelope_key: String,
 ) -> Result<EncryptedDataEncryptionKey, CommonError> {
     match parent_encryption_key {
-        EnvelopeEncryptionKeyContents::AwsKms { arn } => {
-            // Create AWS KMS client
-            let config = aws_config::load_from_env().await;
+        EnvelopeEncryptionKeyContents::AwsKms { arn, region } => {
+            // Create AWS KMS client with specific region
+            let mut config = aws_config::load_from_env().await;
+            config = config.to_builder().region(aws_config::Region::new(region.clone())).build();
             let kms_client = aws_sdk_kms::Client::new(&config);
 
             // Encrypt the data envelope key using AWS KMS
@@ -436,7 +455,12 @@ pub async fn decrypt_data_envelope_key(
     encrypted_data_envelope_key: &EncryptedDataEncryptionKey,
 ) -> Result<DecryptedDataEnvelopeKey, CommonError> {
     match parent_encryption_key {
-        EnvelopeEncryptionKeyContents::AwsKms { arn } => {
+        EnvelopeEncryptionKeyContents::AwsKms { arn, region } => {
+            // Create AWS KMS client with specific region
+            let mut config = aws_config::load_from_env().await;
+            config = config.to_builder().region(aws_config::Region::new(region.clone())).build();
+            let kms_client = aws_sdk_kms::Client::new(&config);
+            
             // Decode the base64 encrypted key
             let ciphertext_blob = base64::Engine::decode(
                 &base64::engine::general_purpose::STANDARD,
@@ -447,10 +471,6 @@ pub async fn decrypt_data_envelope_key(
                     "Failed to decode base64 encrypted data envelope key: {e}"
                 ))
             })?;
-
-            // Create AWS KMS client
-            let config = aws_config::load_from_env().await;
-            let kms_client = aws_sdk_kms::Client::new(&config);
 
             // Decrypt the data envelope key using AWS KMS
             let decrypt_output = kms_client
@@ -559,9 +579,10 @@ pub async fn create_data_encryption_key<R: DataEncryptionKeyRepositoryLike>(
     let encrypted_data_encryption_key = match params.encrypted_data_envelope_key {
         Some(existing) => existing,
         None => match &key_encryption_key {
-            EnvelopeEncryptionKeyContents::AwsKms { arn } => {
+            EnvelopeEncryptionKeyContents::AwsKms { arn, region } => {
                 // --- AWS KMS path ---
-                let config = aws_config::load_from_env().await;
+                let mut config = aws_config::load_from_env().await;
+                config = config.to_builder().region(aws_config::Region::new(region.clone())).build();
                 let kms_client = aws_sdk_kms::Client::new(&config);
 
                 let output = kms_client
@@ -709,6 +730,7 @@ mod tests {
 
     const TEST_KMS_KEY_ARN: &str =
         "arn:aws:kms:eu-west-2:914788356809:alias/unsafe-github-action-soma-test-key";
+    const TEST_KMS_REGION: &str = "eu-west-2";
 
     #[tokio::test]
     async fn test_encrypt_data_envelope_key_with_aws_kms() {
@@ -718,6 +740,7 @@ mod tests {
         let test_data = "This is a test data encryption key for envelope encryption";
         let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
+            region: TEST_KMS_REGION.to_string(),
         };
 
         // Encrypt the data envelope key
@@ -756,6 +779,7 @@ mod tests {
         let test_data = "This is a test data encryption key for envelope encryption";
         let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
+            region: TEST_KMS_REGION.to_string(),
         };
 
         // First, encrypt the data
@@ -794,6 +818,7 @@ mod tests {
 
         let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
+            region: TEST_KMS_REGION.to_string(),
         };
 
         for test_data in test_cases {
@@ -918,9 +943,11 @@ mod tests {
         // Generate a 32-byte (256-bit) key using AWS KMS
         let parent_key = EnvelopeEncryptionKeyContents::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
+            region: TEST_KMS_REGION.to_string(),
         };
 
-        let config = aws_config::load_from_env().await;
+        let mut config = aws_config::load_from_env().await;
+        config = config.to_builder().region(aws_config::Region::new(TEST_KMS_REGION.to_string())).build();
         let kms_client = aws_sdk_kms::Client::new(&config);
 
         // Generate a 256-bit data key using AWS KMS

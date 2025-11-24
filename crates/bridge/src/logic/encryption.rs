@@ -15,6 +15,21 @@ use crate::logic::{
 
 // Bridge-specific data encryption key management functions
 
+/// Bridge-specific version of CreateDataEncryptionKeyParams that includes envelope encryption key identifier
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct CreateDataEncryptionKeyParamsBridge {
+    /// Optional ID for the data encryption key (auto-generated if not provided)
+    pub id: Option<String>,
+    /// Optional pre-encrypted data envelope key (will be generated if not provided)
+    pub encrypted_data_envelope_key: Option<EncryptedDataEncryptionKey>,
+    /// Optional envelope encryption key identifier (ARN for AWS KMS, location for local)
+    /// If not provided, uses the default key from the bridge configuration
+    pub envelope_encryption_key_identifier: Option<String>,
+    /// Optional AWS region (only used when envelope_encryption_key_identifier is an AWS KMS ARN)
+    /// If not provided, region will be extracted from the ARN
+    pub aws_region: Option<String>,
+}
+
 pub async fn create_data_encryption_key<R>(
     key_encryption_key: &EnvelopeEncryptionKeyContents,
     on_config_change_tx: &OnConfigChangeTx,
@@ -140,11 +155,239 @@ pub struct MigrateEncryptionKeyParams {
     pub to_envelope_encryption_key_id: EnvelopeEncryptionKeyId,
 }
 
+/// Parameters for migrating encryption keys by ARN/location
+/// This allows passing just the identifier (ARN or location) and the bridge will look up the full key details
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct MigrateEncryptionKeyByIdentifierParams {
+    /// Source encryption key identifier (ARN for AWS KMS, location path for local)
+    pub from: String,
+    /// Target encryption key identifier (ARN for AWS KMS, location path for local)
+    pub to: String,
+}
+
+/// Parameters for deleting data encryption keys by envelope encryption key identifier
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct DeleteDataEncryptionKeyByIdentifierParams {
+    /// Encryption key identifier (ARN for AWS KMS, location path for local)
+    pub identifier: String,
+}
+
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct MigrateEncryptionKeyResponse {
     pub migrated_resource_server_credentials: usize,
     pub migrated_user_credentials: usize,
     pub migrated_data_encryption_keys: usize,
+}
+
+/// Migrate encryption keys by identifier (ARN or location)
+/// Looks up the full envelope encryption key details from the database
+/// Constructs EnvelopeEncryptionKeyContents from the found keys (region extracted from DB for AWS KMS)
+pub async fn migrate_encryption_key_by_identifier<R>(
+    _bridge_envelope_key: &EnvelopeEncryptionKeyContents,
+    on_config_change_tx: &OnConfigChangeTx,
+    repo: &R,
+    params: MigrateEncryptionKeyByIdentifierParams,
+) -> Result<MigrateEncryptionKeyResponse, CommonError>
+where
+    R: crate::repository::ProviderRepositoryLike + DataEncryptionKeyRepositoryLike,
+{
+    use tracing::info;
+
+    // Find the from envelope encryption key by identifier
+    let from_envelope_key_id = if params.from.starts_with("arn:aws:kms:") {
+        find_envelope_encryption_key_by_arn(repo, &params.from)
+            .await?
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "No data encryption key found with ARN: {}",
+                    params.from
+                ))
+            })?
+    } else {
+        find_envelope_encryption_key_by_location(repo, &params.from)
+            .await?
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "No data encryption key found with location: {}",
+                    params.from
+                ))
+            })?
+    };
+
+    // Find the to envelope encryption key by identifier
+    let to_envelope_key_id = if params.to.starts_with("arn:aws:kms:") {
+        find_envelope_encryption_key_by_arn(repo, &params.to)
+            .await?
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "No data encryption key found with ARN: {}",
+                    params.to
+                ))
+            })?
+    } else {
+        find_envelope_encryption_key_by_location(repo, &params.to)
+            .await?
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "No data encryption key found with location: {}",
+                    params.to
+                ))
+            })?
+    };
+
+    info!(
+        "Found envelope encryption keys - from: {:?}, to: {:?}",
+        from_envelope_key_id, to_envelope_key_id
+    );
+
+    // Extract region and construct EnvelopeEncryptionKeyContents from the found keys
+    // For AWS KMS, use the ARN and region from the found key
+    // For local keys, load the key bytes from the file
+    let (from_key_contents, to_key_contents) = match (&from_envelope_key_id, &to_envelope_key_id) {
+        (
+            EnvelopeEncryptionKeyId::AwsKms { arn: from_arn, region: from_region },
+            EnvelopeEncryptionKeyId::AwsKms { arn: to_arn, region: to_region },
+        ) => {
+            // For AWS KMS, use the ARN and region from the found key
+            (
+                EnvelopeEncryptionKeyContents::AwsKms {
+                    arn: from_arn.clone(),
+                    region: from_region.clone(),
+                },
+                EnvelopeEncryptionKeyContents::AwsKms {
+                    arn: to_arn.clone(),
+                    region: to_region.clone(),
+                },
+            )
+        }
+        (
+            EnvelopeEncryptionKeyId::Local { location: from_loc },
+            EnvelopeEncryptionKeyId::Local { location: to_loc },
+        ) => {
+            // For local keys, load the key bytes from the file
+            let from_key_contents = encryption::get_or_create_local_encryption_key(
+                &std::path::PathBuf::from(from_loc),
+            )?;
+            let to_key_contents = encryption::get_or_create_local_encryption_key(
+                &std::path::PathBuf::from(to_loc),
+            )?;
+            
+            // Extract key_bytes from the loaded contents
+            let (from_key_bytes, to_key_bytes) = match (&from_key_contents, &to_key_contents) {
+                (
+                    EnvelopeEncryptionKeyContents::Local { key_bytes: from_bytes, .. },
+                    EnvelopeEncryptionKeyContents::Local { key_bytes: to_bytes, .. },
+                ) => (from_bytes.clone(), to_bytes.clone()),
+                _ => {
+                    return Err(CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to load local encryption keys"
+                    )));
+                }
+            };
+            
+            (
+                EnvelopeEncryptionKeyContents::Local {
+                    location: from_loc.clone(),
+                    key_bytes: from_key_bytes,
+                },
+                EnvelopeEncryptionKeyContents::Local {
+                    location: to_loc.clone(),
+                    key_bytes: to_key_bytes,
+                },
+            )
+        }
+        _ => {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Mismatched envelope encryption key types"
+            )));
+        }
+    };
+
+    // Call the existing migrate function with the resolved keys
+    migrate_encryption_key(
+        &from_key_contents,
+        &to_key_contents,
+        on_config_change_tx,
+        repo,
+        MigrateEncryptionKeyParams {
+            from_envelope_encryption_key_id: from_envelope_key_id,
+            to_envelope_encryption_key_id: to_envelope_key_id,
+        },
+    )
+    .await
+}
+
+/// Delete data encryption keys by envelope encryption key identifier (ARN or location)
+/// Finds all DEKs using the specified envelope encryption key and deletes them
+pub async fn delete_data_encryption_key_by_identifier<R>(
+    on_config_change_tx: &OnConfigChangeTx,
+    repo: &R,
+    params: DeleteDataEncryptionKeyByIdentifierParams,
+) -> Result<usize, CommonError>
+where
+    R: crate::repository::ProviderRepositoryLike + DataEncryptionKeyRepositoryLike,
+{
+    use shared::primitives::PaginationRequest;
+    use tracing::info;
+
+    // Find the envelope encryption key by identifier
+    let envelope_key_id = if params.identifier.starts_with("arn:aws:kms:") {
+        find_envelope_encryption_key_by_arn(repo, &params.identifier)
+            .await?
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "No data encryption key found with ARN: {}",
+                    params.identifier
+                ))
+            })?
+    } else {
+        find_envelope_encryption_key_by_location(repo, &params.identifier)
+            .await?
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "No data encryption key found with location: {}",
+                    params.identifier
+                ))
+            })?
+    };
+
+    info!("Found envelope encryption key: {:?}", envelope_key_id);
+
+    // Find all DEKs using this envelope encryption key and delete them
+    let mut deleted_count = 0;
+    let mut page_token = None;
+    loop {
+        let deks = encryption::list_data_encryption_keys(
+            repo,
+            PaginationRequest {
+                page_size: 100,
+                next_page_token: page_token.clone(),
+            },
+        )
+        .await?;
+
+        for dek_item in &deks.items {
+            if matches_envelope_key_id(&dek_item.envelope_encryption_key_id, &envelope_key_id) {
+                info!("Deleting data encryption key: {}", dek_item.id);
+                delete_data_encryption_key(
+                    on_config_change_tx,
+                    repo,
+                    dek_item.id.clone(), // DeleteDataEncryptionKeyParams is a String
+                    true,
+                )
+                .await?;
+                deleted_count += 1;
+            }
+        }
+
+        if deks.next_page_token.is_none() {
+            break;
+        }
+        page_token = deks.next_page_token;
+    }
+
+    info!("Deleted {} data encryption key(s)", deleted_count);
+    Ok(deleted_count)
 }
 
 pub async fn migrate_encryption_key<R>(
@@ -293,19 +536,97 @@ where
     })
 }
 
-fn matches_envelope_key_id(
+pub fn matches_envelope_key_id(
     id1: &EnvelopeEncryptionKeyId,
     id2: &EnvelopeEncryptionKeyId,
 ) -> bool {
     match (id1, id2) {
-        (EnvelopeEncryptionKeyId::AwsKms { arn: arn1 }, EnvelopeEncryptionKeyId::AwsKms { arn: arn2 }) => {
-            arn1 == arn2
+        (EnvelopeEncryptionKeyId::AwsKms { arn: arn1, region: region1 }, EnvelopeEncryptionKeyId::AwsKms { arn: arn2, region: region2 }) => {
+            arn1 == arn2 && region1 == region2
         }
         (EnvelopeEncryptionKeyId::Local { location: loc1 }, EnvelopeEncryptionKeyId::Local { location: loc2 }) => {
             loc1 == loc2
         }
         _ => false,
     }
+}
+
+/// Find envelope encryption key by ARN (for AWS KMS keys)
+/// Returns the full EnvelopeEncryptionKeyId with region extracted from stored data
+pub async fn find_envelope_encryption_key_by_arn<R>(
+    repo: &R,
+    arn: &str,
+) -> Result<Option<EnvelopeEncryptionKeyId>, CommonError>
+where
+    R: DataEncryptionKeyRepositoryLike,
+{
+    use shared::primitives::PaginationRequest;
+
+    let mut page_token = None;
+    loop {
+        let deks = encryption::list_data_encryption_keys(
+            repo,
+            PaginationRequest {
+                page_size: 100,
+                next_page_token: page_token.clone(),
+            },
+        )
+        .await?;
+
+        for dek_item in &deks.items {
+            if let EnvelopeEncryptionKeyId::AwsKms { arn: stored_arn, .. } = &dek_item.envelope_encryption_key_id {
+                if stored_arn == arn {
+                    return Ok(Some(dek_item.envelope_encryption_key_id.clone()));
+                }
+            }
+        }
+
+        if deks.next_page_token.is_none() {
+            break;
+        }
+        page_token = deks.next_page_token;
+    }
+
+    Ok(None)
+}
+
+/// Find envelope encryption key by location (for local keys)
+/// Returns the full EnvelopeEncryptionKeyId
+pub async fn find_envelope_encryption_key_by_location<R>(
+    repo: &R,
+    location: &str,
+) -> Result<Option<EnvelopeEncryptionKeyId>, CommonError>
+where
+    R: DataEncryptionKeyRepositoryLike,
+{
+    use shared::primitives::PaginationRequest;
+
+    let mut page_token = None;
+    loop {
+        let deks = encryption::list_data_encryption_keys(
+            repo,
+            PaginationRequest {
+                page_size: 100,
+                next_page_token: page_token.clone(),
+            },
+        )
+        .await?;
+
+        for dek_item in &deks.items {
+            if let EnvelopeEncryptionKeyId::Local { location: stored_location } = &dek_item.envelope_encryption_key_id {
+                if stored_location == location {
+                    return Ok(Some(dek_item.envelope_encryption_key_id.clone()));
+                }
+            }
+        }
+
+        if deks.next_page_token.is_none() {
+            break;
+        }
+        page_token = deks.next_page_token;
+    }
+
+    Ok(None)
 }
 
 async fn migrate_resource_server_credentials<R>(
@@ -576,9 +897,11 @@ mod tests {
     #[allow(dead_code)]
     fn get_aws_kms_key_by_alias() -> EnvelopeEncryptionKeyContents {
         let alias = "alias/unsafe-github-action-soma-test-key".to_string();
+        let region = "eu-west-2".to_string();
 
         EnvelopeEncryptionKeyContents::AwsKms {
             arn: alias, // Using alias as ARN - the encryption library should handle this
+            region,
         }
     }
 
@@ -976,8 +1299,8 @@ mod tests {
 
         // Get AWS KMS key
         let aws_key = get_aws_kms_key_by_alias();
-        let aws_key_id = if let EnvelopeEncryptionKeyContents::AwsKms { arn, .. } = &aws_key {
-            EnvelopeEncryptionKeyId::AwsKms { arn: arn.clone() }
+        let aws_key_id = if let EnvelopeEncryptionKeyContents::AwsKms { arn, region, .. } = &aws_key {
+            EnvelopeEncryptionKeyId::AwsKms { arn: arn.clone(), region: region.clone() }
         } else {
             panic!("Expected AWS KMS key");
         };
@@ -1062,8 +1385,8 @@ mod tests {
         // Get AWS KMS managed key (using alias)
         let kms_managed_key = get_aws_kms_key_by_alias();
         let kms_managed_key_id =
-            if let EnvelopeEncryptionKeyContents::AwsKms { arn, .. } = &kms_managed_key {
-                EnvelopeEncryptionKeyId::AwsKms { arn: arn.clone() }
+            if let EnvelopeEncryptionKeyContents::AwsKms { arn, region, .. } = &kms_managed_key {
+                EnvelopeEncryptionKeyId::AwsKms { arn: arn.clone(), region: region.clone() }
             } else {
                 panic!("Expected AWS KMS key");
             };
@@ -1140,7 +1463,7 @@ mod tests {
 
         // Verify the new DEK has the correct KMS managed key ID
         let new_dek = &aws_deks[0];
-        if let EnvelopeEncryptionKeyId::AwsKms { arn } = &new_dek.envelope_encryption_key_id {
+        if let EnvelopeEncryptionKeyId::AwsKms { arn, region: _ } = &new_dek.envelope_encryption_key_id {
             assert_eq!(arn, "alias/unsafe-github-action-soma-test-key");
         } else {
             panic!("Expected AWS KMS key");
@@ -1159,8 +1482,8 @@ mod tests {
 
         // Get AWS KMS key
         let aws_key = get_aws_kms_key_by_alias();
-        let aws_key_id = if let EnvelopeEncryptionKeyContents::AwsKms { arn, .. } = &aws_key {
-            EnvelopeEncryptionKeyId::AwsKms { arn: arn.clone() }
+        let aws_key_id = if let EnvelopeEncryptionKeyContents::AwsKms { arn, region, .. } = &aws_key {
+            EnvelopeEncryptionKeyId::AwsKms { arn: arn.clone(), region: region.clone() }
         } else {
             panic!("Expected AWS KMS key");
         };

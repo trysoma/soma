@@ -95,16 +95,27 @@ pub fn start_bridge_client_generation_subsystem(
                             if should_trigger {
                                 info!("Bridge change event detected, triggering bridge client generation");
 
-                                // Get the SDK client
+                                // Get the SDK client and verify it's ready
                                 let mut client_guard = sdk_client.lock().await;
                                 if let Some(ref mut client) = *client_guard {
-                                    match bridge::logic::codegen::trigger_bridge_client_generation(client, &bridge_repo).await {
-                                        Ok(()) => {
-                                            info!("Bridge client generation completed successfully");
-                                        }
+                                    // Verify SDK server is ready by checking health
+                                    let health_ready = match client.health_check(tonic::Request::new(())).await {
+                                        Ok(_) => true,
                                         Err(e) => {
-                                            warn!("Failed to trigger bridge client generation: {:?}", e);
-                                            // Don't return error, just log it - we want to keep listening
+                                            warn!("SDK server healthcheck failed, skipping bridge client generation: {:?}", e);
+                                            false
+                                        }
+                                    };
+
+                                    if health_ready {
+                                        match bridge::logic::codegen::trigger_bridge_client_generation(client, &bridge_repo).await {
+                                            Ok(()) => {
+                                                info!("Bridge client generation completed successfully");
+                                            }
+                                            Err(e) => {
+                                                warn!("Failed to trigger bridge client generation: {:?}", e);
+                                                // Don't return error, just log it - we want to keep listening
+                                            }
                                         }
                                     }
                                 } else {

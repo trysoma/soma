@@ -176,9 +176,59 @@ impl ServerHandler for BridgeService {
         let _provider_controller_type_id = id_arr[0].to_string();
         let function_controller_type_id = id_arr[1].to_string();
         let provider_instance_id = id_arr[2].to_string();
+        
+        // Get the envelope encryption key from the function instance's DEK
+        // Get the provider instance to find the resource server credential's DEK
+        use crate::repository::ProviderRepositoryLike;
+        let provider_instance = match self.repository().get_provider_instance_by_id(&provider_instance_id).await {
+            Ok(Some(instance)) => instance,
+            Ok(None) => {
+                return Err(rmcp::ErrorData::invalid_request(
+                    "Provider instance not found",
+                    None,
+                ));
+            }
+            Err(_e) => {
+                return Err(rmcp::ErrorData::internal_error(
+                    "Failed to get provider instance",
+                    None,
+                ));
+            }
+        };
+        
+        let resource_server_cred = match self.repository().get_resource_server_credential_by_id(
+            &provider_instance.provider_instance.resource_server_credential_id,
+        ).await {
+            Ok(Some(cred)) => cred,
+            Ok(None) => {
+                return Err(rmcp::ErrorData::invalid_request(
+                    "Resource server credential not found",
+                    None,
+                ));
+            }
+            Err(_e) => {
+                return Err(rmcp::ErrorData::internal_error(
+                    "Failed to get resource server credential",
+                    None,
+                ));
+            }
+        };
+
+        let envelope_key = match self.get_envelope_encryption_key_contents_from_dek_id(
+            &resource_server_cred.data_encryption_key_id
+        ).await {
+            Ok(key) => key,
+            Err(_e) => {
+                return Err(rmcp::ErrorData::internal_error(
+                    "Failed to get envelope encryption key",
+                    None,
+                ));
+            }
+        };
+
         let function_instance = invoke_function(
             self.repository(),
-            self.envelope_encryption_key_contents(),
+            &envelope_key,
             InvokeFunctionParams {
                 provider_instance_id: provider_instance_id.clone(),
                 inner: WithFunctionInstanceId {

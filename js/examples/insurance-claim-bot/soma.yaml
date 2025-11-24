@@ -5,14 +5,44 @@ bridge:
       encrypted_data_encryption_key: kFg4XRlDsAWs1r08JDDUam525qMH7J9TU5o4h9eO0WiCHS/0FZ7Ol3sIY5or/vpx/6o/FuSPm64+o4LH
       envelope_encryption_key_id:
         type: local
-        key_id: /Users/danielblignaut/Library/Application Support/soma/local-key.bin
+        location: /Users/danielblignaut/Development/soma/soma/./js/examples/insurance-claim-bot/.soma/master-encryption-key.bin
+    b81d630b-d330-4ae9-9a83-32e72b380948:
+      encrypted_data_encryption_key: /ys8fxHexFAn70CWYpZlfXN594YkLNw1OoPHhLFpON6DLYgQgG7eS2LE5P3hUNvQahY0T2OF3M0LUVtc
+      envelope_encryption_key_id:
+        type: local
+        location: /Users/danielblignaut/Development/soma/soma/./js/examples/insurance-claim-bot/.soma/master-encryption-key.bin
+    8365db3d-6269-4fdb-bdba-0df4644ff9b8:
+      encrypted_data_encryption_key: B3MPeULXVSomVSJm+//9kUUVCCagUa+uTqZgreq7mSpit+mm4tn53ygbMd0BDJjhC9RHdgfvJO5Sehr2
+      envelope_encryption_key_id:
+        type: local
+        location: /Users/danielblignaut/Development/soma/soma/./js/examples/insurance-claim-bot/.soma/master-encryption-key.bin
   providers:
+    6acd6431-6f56-48b6-8fa7-acc56b990c22:
+      provider_controller_type_id: approve-claim
+      credential_controller_type_id: no_auth
+      display_name: internal
+      resource_server_credential:
+        id: 2aec1a59-2ec9-43a7-8dee-ec4b04975996
+        type_id: resource_server_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        data_encryption_key_id: default
+      user_credential:
+        id: 7a40cb6d-f779-4a4b-9f17-fa5d549e778b
+        type_id: user_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        data_encryption_key_id: default
+      functions:
+      - approve-claim
     136e3705-6a55-42a3-881a-c4bad62db88c:
       provider_controller_type_id: google_mail
       credential_controller_type_id: oauth_auth_flow
       display_name: daniel@trysoma.ai
       resource_server_credential:
-        id: 549f0e3d-8814-412c-b277-780fa8d306aa
+        id: 39a7a84d-45f7-41a4-8592-6cb33f09c4e8
         type_id: oauth2_authorization_code_flow_resource_server
         metadata: {}
         value:
@@ -22,7 +52,7 @@ bridge:
           redirect_uri: http://localhost:3000/api/bridge/v1/generic-oauth-callback
         data_encryption_key_id: default
       user_credential:
-        id: e64445e7-680f-47e4-bf88-5502f69e1090
+        id: bf1e0c1a-6903-4687-bd1e-6b036dbe02a7
         type_id: oauth2_authorization_code_flow_user
         metadata: {}
         value:
@@ -43,23 +73,3 @@ bridge:
         data_encryption_key_id: default
       functions:
       - google_mail_send_email
-    6acd6431-6f56-48b6-8fa7-acc56b990c22:
-      provider_controller_type_id: approve-claim
-      credential_controller_type_id: no_auth
-      display_name: internal
-      resource_server_credential:
-        id: 68e7d318-9b8f-448f-94d2-d63e50bfcd4f
-        type_id: resource_server_no_auth
-        metadata: {}
-        value:
-          metadata: {}
-        data_encryption_key_id: default
-      user_credential:
-        id: e6ac2cdc-b1af-40d6-9ae7-64fb08e71891
-        type_id: user_no_auth
-        metadata: {}
-        value:
-          metadata: {}
-        data_encryption_key_id: default
-      functions:
-      - approve-claim

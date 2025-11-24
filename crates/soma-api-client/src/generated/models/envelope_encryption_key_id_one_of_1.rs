@@ -13,16 +13,16 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct EnvelopeEncryptionKeyIdOneOf1 {
-    #[serde(rename = "key_id")]
-    pub key_id: String,
+    #[serde(rename = "location")]
+    pub location: String,
     #[serde(rename = "type")]
     pub r#type: Type,
 }
 
 impl EnvelopeEncryptionKeyIdOneOf1 {
-    pub fn new(key_id: String, r#type: Type) -> EnvelopeEncryptionKeyIdOneOf1 {
+    pub fn new(location: String, r#type: Type) -> EnvelopeEncryptionKeyIdOneOf1 {
         EnvelopeEncryptionKeyIdOneOf1 {
-            key_id,
+            location,
             r#type,
         }
     }

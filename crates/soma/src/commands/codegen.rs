@@ -1,12 +1,10 @@
-use std::time::Duration;
-
 use clap::Args;
 use tracing::info;
 
 use shared::error::CommonError;
-use soma_api_client::apis::{configuration::Configuration, default_api};
+use soma_api_client::apis::default_api;
 
-use crate::utils::CliConfig;
+use crate::utils::{CliConfig, create_and_wait_for_api_client};
 
 #[derive(Args, Debug, Clone)]
 pub struct CodegenParams {
@@ -21,62 +19,8 @@ pub async fn cmd_codegen(
     params: CodegenParams,
     _config: &mut CliConfig,
 ) -> Result<(), CommonError> {
-    // Create HTTP client
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(params.timeout_secs))
-        .build()
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create HTTP client: {e}")))?;
-
-    // Wait for API to be ready
-    info!(
-        "Waiting for Soma API server at {} to be ready...",
-        params.api_url
-    );
-
-    let max_retries = params.timeout_secs / 2; // Check every 2 seconds
-    let mut connected = false;
-
-    // Create API config for health check
-    let api_config = Configuration {
-        base_path: params.api_url.clone(),
-        user_agent: Some("soma-cli/codegen".to_string()),
-        client: client.clone(),
-        basic_auth: None,
-        oauth_access_token: None,
-        bearer_access_token: None,
-        api_key: None,
-    };
-
-    for attempt in 1..=max_retries {
-        match default_api::agent_card(&api_config).await {
-            Ok(_) => {
-                info!("Connected to Soma API server successfully");
-                connected = true;
-                break;
-            }
-            Err(e) => {
-                if attempt == max_retries {
-                    return Err(CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to connect to Soma API server after {max_retries} attempts: {e:?}. Please ensure 'soma dev' is running."
-                    )));
-                }
-                if attempt == 1 {
-                    info!(
-                        "Waiting for server... (attempt {}/{})",
-                        attempt, max_retries
-                    );
-                }
-                tokio::time::sleep(Duration::from_secs(2)).await;
-            }
-        }
-    }
-
-    if !connected {
-        return Err(CommonError::Unknown(anyhow::anyhow!(
-            "Failed to connect to Soma API server. Please ensure 'soma dev' is running at {}",
-            params.api_url
-        )));
-    }
+    // Create API client and wait for server to be ready
+    let api_config = create_and_wait_for_api_client(&params.api_url, params.timeout_secs).await?;
 
     // Trigger codegen via API
     info!("Triggering bridge client generation...");

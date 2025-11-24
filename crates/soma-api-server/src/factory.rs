@@ -148,25 +148,19 @@ pub async fn create_api_service(
             // Store client for reuse
             Arc::new(tokio::sync::Mutex::new(Some(client)))
         }
-        Ok(Err(e)) => {
-            warn!(
-                "Failed to connect to SDK server: {:?}. Continuing without SDK providers.",
-                e
-            );
-            Arc::new(tokio::sync::Mutex::new(None))
-        }
-        Err(_) => {
-            warn!("Timeout waiting for SDK server. Continuing without SDK providers.");
+        Ok(Err(_)) | Err(_) => {
+            // SDK server not ready - create empty client
             Arc::new(tokio::sync::Mutex::new(None))
         }
     };
 
-    // Create MCP transport channel
-    let (mcp_transport_tx, mcp_transport_rx) = tokio::sync::mpsc::unbounded_channel();
-
     // Subscribe to bridge config change events for bridge client generation listener
+    // Do this AFTER SDK server is ready to avoid processing events before server is ready
     // Broadcast channels support multiple subscribers natively - no wrapper needed!
     let bridge_client_gen_rx = on_bridge_config_change_tx.subscribe();
+
+    // Create MCP transport channel
+    let (mcp_transport_tx, mcp_transport_rx) = tokio::sync::mpsc::unbounded_channel();
 
     // Register built-in bridge providers (google_mail, stripe, etc.) BEFORE creating API service
     info!("Registering built-in bridge providers...");

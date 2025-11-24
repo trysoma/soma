@@ -34,8 +34,8 @@ pub struct BridgeEncryptionConfig(pub HashMap<String, EncryptionConfiguration>);
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum EnvelopeEncryptionKeyId {
-    AwsKms { arn: String },
-    Local { key_id: String },
+    AwsKms { arn: String, region: String },
+    Local { location: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]

@@ -62,13 +62,6 @@ async function invokeBridgeFunction<TParams, TResult>(
 
 
 
-export type GoogleMailGoogleMailSendEmailParams = { body: string; subject: string; to: string };
-export type GoogleMailGoogleMailSendEmailResult = { message_id: string };
-
-
-
-
-
 export type ApproveClaimApproveClaimParams = string;
 export type ApproveClaimApproveClaimResult = string;
 
@@ -76,16 +69,12 @@ export type ApproveClaimApproveClaimResult = string;
 
 
 
-// Provider: google_mail
-export interface GoogleMail {
-  
-  "daniel@trysoma.ai": {
-    
-    sendEmail: (params: GoogleMailGoogleMailSendEmailParams) => Promise<GoogleMailGoogleMailSendEmailResult>;
-    
-  };
-  
-}
+export type GoogleMailGoogleMailSendEmailParams = { body: string; subject: string; to: string };
+export type GoogleMailGoogleMailSendEmailResult = { message_id: string };
+
+
+
+
 
 // Provider: approve-claim
 export interface ApproveClaim {
@@ -98,12 +87,23 @@ export interface ApproveClaim {
   
 }
 
+// Provider: google_mail
+export interface GoogleMail {
+  
+  "daniel@trysoma.ai": {
+    
+    sendEmail: (params: GoogleMailGoogleMailSendEmailParams) => Promise<GoogleMailGoogleMailSendEmailResult>;
+    
+  };
+  
+}
+
 
 export interface Bridge {
   
-  "google_mail": GoogleMail;
-  
   "approve-claim": ApproveClaim;
+  
+  "google_mail": GoogleMail;
   
 }
 
@@ -111,27 +111,6 @@ export type BridgeDefinition = Bridge;
 
 export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
   const baseUrl = config?.SOMA_BASE_URL || process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000';
-  
-  const google_mail: GoogleMail = {
-    
-    "daniel@trysoma.ai": {
-      
-      sendEmail: async (params: GoogleMailGoogleMailSendEmailParams): Promise<GoogleMailGoogleMailSendEmailResult> => {
-        return invokeBridgeFunction<GoogleMailGoogleMailSendEmailParams, GoogleMailGoogleMailSendEmailResult>(
-          ctx,
-          'google_mail',
-          'daniel@trysoma.ai',
-          'sendEmail',
-          '136e3705-6a55-42a3-881a-c4bad62db88c',
-          'google_mail_send_email',
-          params,
-          baseUrl
-        );
-      },
-      
-    },
-    
-  };
   
   const approve_claim: ApproveClaim = {
     
@@ -154,12 +133,33 @@ export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
     
   };
   
+  const google_mail: GoogleMail = {
+    
+    "daniel@trysoma.ai": {
+      
+      sendEmail: async (params: GoogleMailGoogleMailSendEmailParams): Promise<GoogleMailGoogleMailSendEmailResult> => {
+        return invokeBridgeFunction<GoogleMailGoogleMailSendEmailParams, GoogleMailGoogleMailSendEmailResult>(
+          ctx,
+          'google_mail',
+          'daniel@trysoma.ai',
+          'sendEmail',
+          '136e3705-6a55-42a3-881a-c4bad62db88c',
+          'google_mail_send_email',
+          params,
+          baseUrl
+        );
+      },
+      
+    },
+    
+  };
+  
 
   return {
     
-    "google_mail": google_mail,
-    
     "approve-claim": approve_claim,
+    
+    "google_mail": google_mail,
     
   };
 }

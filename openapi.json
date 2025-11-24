@@ -683,7 +683,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateDataEncryptionKeyParams"
+                "$ref": "#/components/schemas/CreateDataEncryptionKeyParamsBridge"
               }
             }
           },
@@ -696,6 +696,53 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DataEncryptionKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/encryption/data-encryption-key/by-identifier": {
+      "delete": {
+        "operationId": "delete-data-encryption-key-by-identifier",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteDataEncryptionKeyByIdentifierParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Delete data encryption keys by identifier",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteDataEncryptionKeyByIdentifierResponse"
                 }
               }
             }
@@ -739,6 +786,53 @@
         "responses": {
           "200": {
             "description": "Migrate encryption key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrateEncryptionKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/encryption/migrate-by-identifier": {
+      "post": {
+        "operationId": "migrate-encryption-key-by-identifier",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigrateEncryptionKeyByIdentifierParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Migrate encryption key by identifier",
             "content": {
               "application/json": {
                 "schema": {
@@ -2246,24 +2340,41 @@
           }
         }
       },
-      "CreateDataEncryptionKeyParams": {
+      "CreateDataEncryptionKeyParamsBridge": {
         "type": "object",
+        "description": "Bridge-specific version of CreateDataEncryptionKeyParams that includes envelope encryption key identifier",
         "properties": {
+          "aws_region": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional AWS region (only used when envelope_encryption_key_identifier is an AWS KMS ARN)\nIf not provided, region will be extracted from the ARN"
+          },
           "encrypted_data_envelope_key": {
             "oneOf": [
               {
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/EncryptedDataEncryptionKey"
+                "$ref": "#/components/schemas/EncryptedDataEncryptionKey",
+                "description": "Optional pre-encrypted data envelope key (will be generated if not provided)"
               }
             ]
+          },
+          "envelope_encryption_key_identifier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional envelope encryption key identifier (ARN for AWS KMS, location for local)\nIf not provided, uses the default key from the bridge configuration"
           },
           "id": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Optional ID for the data encryption key (auto-generated if not provided)"
           }
         }
       },
@@ -2498,6 +2609,31 @@
           }
         }
       },
+      "DeleteDataEncryptionKeyByIdentifierParams": {
+        "type": "object",
+        "description": "Parameters for deleting data encryption keys by envelope encryption key identifier",
+        "required": [
+          "identifier"
+        ],
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "description": "Encryption key identifier (ARN for AWS KMS, location path for local)"
+          }
+        }
+      },
+      "DeleteDataEncryptionKeyByIdentifierResponse": {
+        "type": "object",
+        "required": [
+          "deleted_count"
+        ],
+        "properties": {
+          "deleted_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
       "EnableFunctionParamsInner": {
         "type": "object"
       },
@@ -2540,10 +2676,14 @@
             "type": "object",
             "required": [
               "arn",
+              "region",
               "type"
             ],
             "properties": {
               "arn": {
+                "type": "string"
+              },
+              "region": {
                 "type": "string"
               },
               "type": {
@@ -2557,11 +2697,11 @@
           {
             "type": "object",
             "required": [
-              "key_id",
+              "location",
               "type"
             ],
             "properties": {
-              "key_id": {
+              "location": {
                 "type": "string"
               },
               "type": {
@@ -2885,6 +3025,24 @@
         "additionalProperties": {},
         "propertyNames": {
           "type": "string"
+        }
+      },
+      "MigrateEncryptionKeyByIdentifierParams": {
+        "type": "object",
+        "description": "Parameters for migrating encryption keys by ARN/location\nThis allows passing just the identifier (ARN or location) and the bridge will look up the full key details",
+        "required": [
+          "from",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "Source encryption key identifier (ARN for AWS KMS, location path for local)"
+          },
+          "to": {
+            "type": "string",
+            "description": "Target encryption key identifier (ARN for AWS KMS, location path for local)"
+          }
         }
       },
       "MigrateEncryptionKeyParams": {

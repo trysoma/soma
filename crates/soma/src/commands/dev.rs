@@ -21,7 +21,7 @@ use shared::soma_agent_definition::{SomaAgentDefinitionLike, YamlSomaAgentDefini
 use crate::bridge::start_bridge_sync_to_yaml_subsystem;
 use crate::server::{StartAxumServerParams, start_axum_server};
 use crate::utils::wait_for_soma_api_health_check;
-use crate::utils::{CliConfig, construct_src_dir_absolute};
+use crate::utils::{CliConfig, construct_cwd_absolute};
 use soma_api_server::factory::{CreateApiServiceParams, create_api_service};
 use soma_api_server::restate::{
     RestateServerLocalParams, RestateServerParams, RestateServerRemoteParams,
@@ -65,7 +65,7 @@ pub struct DevParams {
     #[arg(long, default_value = "127.0.0.1")]
     pub host: String,
     #[arg(long)]
-    pub src_dir: Option<PathBuf>,
+    pub cwd: Option<PathBuf>,
     #[arg(long, default_value = "libsql://./.soma/local.db?mode=local")]
     pub db_conn_string: Url,
     #[arg(long)]
@@ -90,7 +90,7 @@ pub struct DevParams {
 pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(), CommonError> {
     let (system_shutdown_signal_trigger, _system_shutdown_signal_receiver) =
         broadcast::channel::<()>(1);
-    let project_dir = construct_src_dir_absolute(params.clone().src_dir)?;
+    let project_dir = construct_cwd_absolute(params.clone().cwd)?;
 
     // Resolve relative db_conn_string paths relative to project_dir
     let db_conn_string = if params.db_conn_string.as_str().starts_with("libsql://./") {
@@ -465,8 +465,10 @@ fn setup_encryption_key(
             "local" => get_or_create_local_encryption_key(&local_key_path)?,
             _ => {
                 if is_valid_kms_arn(&key_encryption_key) {
+                    let region = extract_region_from_kms_arn(&key_encryption_key)?;
                     EnvelopeEncryptionKeyContents::AwsKms {
                         arn: key_encryption_key,
+                        region,
                     }
                 } else {
                     return Err(CommonError::Unknown(anyhow::anyhow!(
@@ -491,8 +493,8 @@ fn setup_encryption_key(
 }
 
 /// Loads the soma definition from the source directory
-fn load_soma_definition(src_dir: &Path) -> Result<Arc<dyn SomaAgentDefinitionLike>, CommonError> {
-    let path_to_soma_definition = src_dir.join("soma.yaml");
+fn load_soma_definition(project_dir: &Path) -> Result<Arc<dyn SomaAgentDefinitionLike>, CommonError> {
+    let path_to_soma_definition = project_dir.join("soma.yaml");
 
     if !path_to_soma_definition.exists() {
         return Err(CommonError::Unknown(anyhow::anyhow!(
@@ -507,6 +509,20 @@ fn load_soma_definition(src_dir: &Path) -> Result<Arc<dyn SomaAgentDefinitionLik
 /// Validates if a string is a valid AWS KMS ARN (testable)
 pub fn is_valid_kms_arn(arn: &str) -> bool {
     arn.starts_with("arn:aws:kms:")
+}
+
+/// Extract AWS region from a KMS ARN
+/// ARN format: arn:aws:kms:REGION:ACCOUNT:key/KEY-ID or arn:aws:kms:REGION:ACCOUNT:alias/ALIAS-NAME
+fn extract_region_from_kms_arn(arn: &str) -> Result<String, CommonError> {
+    // ARN format: arn:aws:kms:REGION:ACCOUNT:key/KEY-ID
+    let parts: Vec<&str> = arn.split(':').collect();
+    if parts.len() >= 4 && parts[0] == "arn" && parts[1] == "aws" && parts[2] == "kms" {
+        Ok(parts[3].to_string())
+    } else {
+        Err(CommonError::Unknown(anyhow::anyhow!(
+            "Invalid KMS ARN format: {arn}"
+        )))
+    }
 }
 
 #[cfg(test)]
