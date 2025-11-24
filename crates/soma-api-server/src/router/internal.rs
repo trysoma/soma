@@ -20,7 +20,7 @@ pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {
 
 #[utoipa::path(
     get,
-    path = format!("{}/{}/health", SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("/{}/{}/health", SERVICE_ROUTE_KEY, API_VERSION_1),
     responses(
         (status = 200, description = "Service is healthy"),
         (status = 503, description = "Service unavailable - SDK server not ready"),
@@ -36,7 +36,7 @@ async fn route_health(State(ctx): State<Arc<InternalService>>) -> axum::http::St
 
 #[utoipa::path(
     get,
-    path = format!("{}/{}/runtime_config", SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("/{}/{}/runtime_config", SERVICE_ROUTE_KEY, API_VERSION_1),
     responses(
         (status = 200, description = "Runtime config", body = RuntimeConfig),
     ),
@@ -51,7 +51,7 @@ async fn route_runtime_config(
 
 #[utoipa::path(
     post,
-    path = format!("{}/{}/trigger_codegen", SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("/{}/{}/trigger_codegen", SERVICE_ROUTE_KEY, API_VERSION_1),
     responses(
         (status = 200, description = "Codegen triggered successfully", body = TriggerCodegenResponse),
         (status = 400, description = "Bad Request", body = CommonError),

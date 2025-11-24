@@ -49,7 +49,7 @@
 		"format:rs": "cargo fmt",
 		"lint": "biome check .",
 		"lint:ci": "biome ci .",
-		"lint:fix": "biome check --write .",
+		"lint:fix": "biome check --write --unsafe .",
 		"prepublishOnly": "napi prepublish -t npm --no-gh-release",
 		"test": "vitest run",
 		"test:coverage": "vitest run --coverage",

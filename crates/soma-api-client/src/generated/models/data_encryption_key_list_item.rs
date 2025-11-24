@@ -24,7 +24,12 @@ pub struct DataEncryptionKeyListItem {
 }
 
 impl DataEncryptionKeyListItem {
-    pub fn new(created_at: String, envelope_encryption_key_id: models::EnvelopeEncryptionKeyId, id: String, updated_at: String) -> DataEncryptionKeyListItem {
+    pub fn new(
+        created_at: String,
+        envelope_encryption_key_id: models::EnvelopeEncryptionKeyId,
+        id: String,
+        updated_at: String,
+    ) -> DataEncryptionKeyListItem {
         DataEncryptionKeyListItem {
             created_at,
             envelope_encryption_key_id: Box::new(envelope_encryption_key_id),
@@ -33,4 +38,3 @@ impl DataEncryptionKeyListItem {
         }
     }
 }
-

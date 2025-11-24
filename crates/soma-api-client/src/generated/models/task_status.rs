@@ -11,7 +11,7 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum TaskStatus {
     #[serde(rename = "submitted")]
@@ -32,7 +32,6 @@ pub enum TaskStatus {
     AuthRequired,
     #[serde(rename = "unknown")]
     Unknown,
-
 }
 
 impl std::fmt::Display for TaskStatus {
@@ -56,4 +55,3 @@ impl Default for TaskStatus {
         Self::Submitted
     }
 }
-

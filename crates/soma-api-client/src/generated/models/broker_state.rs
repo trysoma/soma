@@ -32,7 +32,16 @@ pub struct BrokerState {
 }
 
 impl BrokerState {
-    pub fn new(action: models::BrokerAction, created_at: String, credential_controller_type_id: String, id: String, metadata: std::collections::HashMap<String, serde_json::Value>, provider_controller_type_id: String, provider_instance_id: String, updated_at: String) -> BrokerState {
+    pub fn new(
+        action: models::BrokerAction,
+        created_at: String,
+        credential_controller_type_id: String,
+        id: String,
+        metadata: std::collections::HashMap<String, serde_json::Value>,
+        provider_controller_type_id: String,
+        provider_instance_id: String,
+        updated_at: String,
+    ) -> BrokerState {
         BrokerState {
             action: Box::new(action),
             created_at,
@@ -45,4 +54,3 @@ impl BrokerState {
         }
     }
 }
-

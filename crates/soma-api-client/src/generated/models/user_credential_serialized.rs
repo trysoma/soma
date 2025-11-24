@@ -32,7 +32,15 @@ pub struct UserCredentialSerialized {
 }
 
 impl UserCredentialSerialized {
-    pub fn new(created_at: String, data_encryption_key_id: String, id: uuid::Uuid, metadata: std::collections::HashMap<String, serde_json::Value>, type_id: String, updated_at: String, value: Option<serde_json::Value>) -> UserCredentialSerialized {
+    pub fn new(
+        created_at: String,
+        data_encryption_key_id: String,
+        id: uuid::Uuid,
+        metadata: std::collections::HashMap<String, serde_json::Value>,
+        type_id: String,
+        updated_at: String,
+        value: Option<serde_json::Value>,
+    ) -> UserCredentialSerialized {
         UserCredentialSerialized {
             created_at,
             data_encryption_key_id,
@@ -45,4 +53,3 @@ impl UserCredentialSerialized {
         }
     }
 }
-

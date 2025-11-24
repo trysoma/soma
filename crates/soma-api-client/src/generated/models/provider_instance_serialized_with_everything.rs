@@ -28,7 +28,13 @@ pub struct ProviderInstanceSerializedWithEverything {
 }
 
 impl ProviderInstanceSerializedWithEverything {
-    pub fn new(provider_instance: models::ProviderInstanceSerialized, resource_server_credential: models::ResourceServerCredentialSerialized, controller: models::ProviderControllerSerialized, credential_controller: models::ProviderCredentialControllerSerialized, functions: Vec<models::FunctionInstanceListItem>) -> ProviderInstanceSerializedWithEverything {
+    pub fn new(
+        provider_instance: models::ProviderInstanceSerialized,
+        resource_server_credential: models::ResourceServerCredentialSerialized,
+        controller: models::ProviderControllerSerialized,
+        credential_controller: models::ProviderCredentialControllerSerialized,
+        functions: Vec<models::FunctionInstanceListItem>,
+    ) -> ProviderInstanceSerializedWithEverything {
         ProviderInstanceSerializedWithEverything {
             provider_instance: Box::new(provider_instance),
             resource_server_credential: Box::new(resource_server_credential),
@@ -39,4 +45,3 @@ impl ProviderInstanceSerializedWithEverything {
         }
     }
 }
-

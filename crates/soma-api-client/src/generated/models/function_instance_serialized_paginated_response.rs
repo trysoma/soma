@@ -20,11 +20,12 @@ pub struct FunctionInstanceSerializedPaginatedResponse {
 }
 
 impl FunctionInstanceSerializedPaginatedResponse {
-    pub fn new(items: Vec<models::FunctionInstanceSerialized>) -> FunctionInstanceSerializedPaginatedResponse {
+    pub fn new(
+        items: Vec<models::FunctionInstanceSerialized>,
+    ) -> FunctionInstanceSerializedPaginatedResponse {
         FunctionInstanceSerializedPaginatedResponse {
             items,
             next_page_token: None,
         }
     }
 }
-

@@ -17,18 +17,33 @@ pub struct ProviderConfig {
     pub credential_controller_type_id: String,
     #[serde(rename = "display_name")]
     pub display_name: String,
-    #[serde(rename = "functions", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "functions",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub functions: Option<Option<Vec<String>>>,
     #[serde(rename = "provider_controller_type_id")]
     pub provider_controller_type_id: String,
     #[serde(rename = "resource_server_credential")]
     pub resource_server_credential: Box<models::CredentialConfig>,
-    #[serde(rename = "user_credential", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "user_credential",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub user_credential: Option<Option<Box<models::CredentialConfig>>>,
 }
 
 impl ProviderConfig {
-    pub fn new(credential_controller_type_id: String, display_name: String, provider_controller_type_id: String, resource_server_credential: models::CredentialConfig) -> ProviderConfig {
+    pub fn new(
+        credential_controller_type_id: String,
+        display_name: String,
+        provider_controller_type_id: String,
+        resource_server_credential: models::CredentialConfig,
+    ) -> ProviderConfig {
         ProviderConfig {
             credential_controller_type_id,
             display_name,
@@ -39,4 +54,3 @@ impl ProviderConfig {
         }
     }
 }
-

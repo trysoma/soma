@@ -23,7 +23,7 @@ impl Default for InvokeResult {
         Self::InvokeResultOneOf(Default::default())
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Type {
     #[serde(rename = "success")]
@@ -37,4 +37,3 @@ impl Default for Type {
         Self::Success
     }
 }
-

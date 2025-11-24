@@ -17,12 +17,20 @@ pub struct ProviderInstanceSerializedWithCredentials {
     pub provider_instance: Box<models::ProviderInstanceSerialized>,
     #[serde(rename = "resource_server_credential")]
     pub resource_server_credential: Box<models::ResourceServerCredentialSerialized>,
-    #[serde(rename = "user_credential", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "user_credential",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub user_credential: Option<Option<Box<models::UserCredentialSerialized>>>,
 }
 
 impl ProviderInstanceSerializedWithCredentials {
-    pub fn new(provider_instance: models::ProviderInstanceSerialized, resource_server_credential: models::ResourceServerCredentialSerialized) -> ProviderInstanceSerializedWithCredentials {
+    pub fn new(
+        provider_instance: models::ProviderInstanceSerialized,
+        resource_server_credential: models::ResourceServerCredentialSerialized,
+    ) -> ProviderInstanceSerializedWithCredentials {
         ProviderInstanceSerializedWithCredentials {
             provider_instance: Box::new(provider_instance),
             resource_server_credential: Box::new(resource_server_credential),
@@ -30,4 +38,3 @@ impl ProviderInstanceSerializedWithCredentials {
         }
     }
 }
-

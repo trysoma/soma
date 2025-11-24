@@ -23,4 +23,3 @@ impl Default for BrokerAction {
         Self::BrokerActionOneOf(Default::default())
     }
 }
-

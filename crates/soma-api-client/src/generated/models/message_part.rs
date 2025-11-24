@@ -22,7 +22,11 @@ pub struct MessagePart {
 }
 
 impl MessagePart {
-    pub fn new(metadata: std::collections::HashMap<String, serde_json::Value>, text: String, r#type: Type) -> MessagePart {
+    pub fn new(
+        metadata: std::collections::HashMap<String, serde_json::Value>,
+        text: String,
+        r#type: Type,
+    ) -> MessagePart {
         MessagePart {
             metadata,
             text,
@@ -30,7 +34,7 @@ impl MessagePart {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Type {
     #[serde(rename = "text-part")]
@@ -42,4 +46,3 @@ impl Default for Type {
         Self::TextPart
     }
 }
-

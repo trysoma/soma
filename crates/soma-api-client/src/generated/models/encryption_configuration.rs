@@ -20,11 +20,13 @@ pub struct EncryptionConfiguration {
 }
 
 impl EncryptionConfiguration {
-    pub fn new(encrypted_data_encryption_key: String, envelope_encryption_key_id: models::EnvelopeEncryptionKeyId) -> EncryptionConfiguration {
+    pub fn new(
+        encrypted_data_encryption_key: String,
+        envelope_encryption_key_id: models::EnvelopeEncryptionKeyId,
+    ) -> EncryptionConfiguration {
         EncryptionConfiguration {
             encrypted_data_encryption_key,
             envelope_encryption_key_id: Box::new(envelope_encryption_key_id),
         }
     }
 }
-

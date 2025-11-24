@@ -28,7 +28,14 @@ pub struct FunctionInstanceListItem {
 }
 
 impl FunctionInstanceListItem {
-    pub fn new(created_at: String, function_controller_type_id: String, provider_controller_type_id: String, provider_instance_id: String, updated_at: String, controller: models::FunctionControllerSerialized) -> FunctionInstanceListItem {
+    pub fn new(
+        created_at: String,
+        function_controller_type_id: String,
+        provider_controller_type_id: String,
+        provider_instance_id: String,
+        updated_at: String,
+        controller: models::FunctionControllerSerialized,
+    ) -> FunctionInstanceListItem {
         FunctionInstanceListItem {
             created_at,
             function_controller_type_id,
@@ -39,4 +46,3 @@ impl FunctionInstanceListItem {
         }
     }
 }
-

@@ -26,7 +26,13 @@ pub struct FunctionInstanceSerialized {
 }
 
 impl FunctionInstanceSerialized {
-    pub fn new(created_at: String, function_controller_type_id: String, provider_controller_type_id: String, provider_instance_id: String, updated_at: String) -> FunctionInstanceSerialized {
+    pub fn new(
+        created_at: String,
+        function_controller_type_id: String,
+        provider_controller_type_id: String,
+        provider_instance_id: String,
+        updated_at: String,
+    ) -> FunctionInstanceSerialized {
         FunctionInstanceSerialized {
             created_at,
             function_controller_type_id,
@@ -36,4 +42,3 @@ impl FunctionInstanceSerialized {
         }
     }
 }
-

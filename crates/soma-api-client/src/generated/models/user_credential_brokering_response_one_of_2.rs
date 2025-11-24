@@ -19,12 +19,10 @@ pub struct UserCredentialBrokeringResponseOneOf2 {
 
 impl UserCredentialBrokeringResponseOneOf2 {
     pub fn new(r#type: Type) -> UserCredentialBrokeringResponseOneOf2 {
-        UserCredentialBrokeringResponseOneOf2 {
-            r#type,
-        }
+        UserCredentialBrokeringResponseOneOf2 { r#type }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Type {
     #[serde(rename = "redirect")]
@@ -36,4 +34,3 @@ impl Default for Type {
         Self::Redirect
     }
 }
-

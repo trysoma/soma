@@ -19,9 +19,6 @@ pub struct BrokerActionOneOfRedirect {
 
 impl BrokerActionOneOfRedirect {
     pub fn new(url: String) -> BrokerActionOneOfRedirect {
-        BrokerActionOneOfRedirect {
-            url,
-        }
+        BrokerActionOneOfRedirect { url }
     }
 }
-

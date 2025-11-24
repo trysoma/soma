@@ -19,9 +19,6 @@ pub struct TriggerCodegenResponse {
 
 impl TriggerCodegenResponse {
     pub fn new(message: String) -> TriggerCodegenResponse {
-        TriggerCodegenResponse {
-            message,
-        }
+        TriggerCodegenResponse { message }
     }
 }
-

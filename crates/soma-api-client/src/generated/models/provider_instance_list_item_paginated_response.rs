@@ -20,11 +20,12 @@ pub struct ProviderInstanceListItemPaginatedResponse {
 }
 
 impl ProviderInstanceListItemPaginatedResponse {
-    pub fn new(items: Vec<models::ProviderInstanceListItem>) -> ProviderInstanceListItemPaginatedResponse {
+    pub fn new(
+        items: Vec<models::ProviderInstanceListItem>,
+    ) -> ProviderInstanceListItemPaginatedResponse {
         ProviderInstanceListItemPaginatedResponse {
             items,
             next_page_token: None,
         }
     }
 }
-

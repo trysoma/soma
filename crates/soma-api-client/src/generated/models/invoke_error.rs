@@ -19,9 +19,6 @@ pub struct InvokeError {
 
 impl InvokeError {
     pub fn new(message: String) -> InvokeError {
-        InvokeError {
-            message,
-        }
+        InvokeError { message }
     }
 }
-

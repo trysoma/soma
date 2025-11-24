@@ -17,12 +17,18 @@ pub struct CreateUserCredentialParamsInner {
     pub data_encryption_key_id: String,
     #[serde(rename = "metadata", skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, serde_json::Value>>,
-    #[serde(rename = "user_credential_configuration", deserialize_with = "Option::deserialize")]
+    #[serde(
+        rename = "user_credential_configuration",
+        deserialize_with = "Option::deserialize"
+    )]
     pub user_credential_configuration: Option<serde_json::Value>,
 }
 
 impl CreateUserCredentialParamsInner {
-    pub fn new(data_encryption_key_id: String, user_credential_configuration: Option<serde_json::Value>) -> CreateUserCredentialParamsInner {
+    pub fn new(
+        data_encryption_key_id: String,
+        user_credential_configuration: Option<serde_json::Value>,
+    ) -> CreateUserCredentialParamsInner {
         CreateUserCredentialParamsInner {
             data_encryption_key_id,
             metadata: None,
@@ -30,4 +36,3 @@ impl CreateUserCredentialParamsInner {
         }
     }
 }
-

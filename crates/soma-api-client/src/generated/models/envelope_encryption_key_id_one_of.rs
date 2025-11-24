@@ -21,13 +21,10 @@ pub struct EnvelopeEncryptionKeyIdOneOf {
 
 impl EnvelopeEncryptionKeyIdOneOf {
     pub fn new(arn: String, r#type: Type) -> EnvelopeEncryptionKeyIdOneOf {
-        EnvelopeEncryptionKeyIdOneOf {
-            arn,
-            r#type,
-        }
+        EnvelopeEncryptionKeyIdOneOf { arn, r#type }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Type {
     #[serde(rename = "aws_kms")]
@@ -39,4 +36,3 @@ impl Default for Type {
         Self::AwsKms
     }
 }
-

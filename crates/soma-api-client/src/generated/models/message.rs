@@ -30,7 +30,15 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn new(created_at: String, id: uuid::Uuid, metadata: std::collections::HashMap<String, serde_json::Value>, parts: Vec<models::MessagePart>, reference_task_ids: Vec<uuid::Uuid>, role: models::MessageRole, task_id: uuid::Uuid) -> Message {
+    pub fn new(
+        created_at: String,
+        id: uuid::Uuid,
+        metadata: std::collections::HashMap<String, serde_json::Value>,
+        parts: Vec<models::MessagePart>,
+        reference_task_ids: Vec<uuid::Uuid>,
+        role: models::MessageRole,
+        task_id: uuid::Uuid,
+    ) -> Message {
         Message {
             created_at,
             id,
@@ -42,4 +50,3 @@ impl Message {
         }
     }
 }
-

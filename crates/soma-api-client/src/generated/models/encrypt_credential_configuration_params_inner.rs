@@ -20,11 +20,13 @@ pub struct EncryptCredentialConfigurationParamsInner {
 }
 
 impl EncryptCredentialConfigurationParamsInner {
-    pub fn new(data_encryption_key_id: String, value: Option<serde_json::Value>) -> EncryptCredentialConfigurationParamsInner {
+    pub fn new(
+        data_encryption_key_id: String,
+        value: Option<serde_json::Value>,
+    ) -> EncryptCredentialConfigurationParamsInner {
         EncryptCredentialConfigurationParamsInner {
             data_encryption_key_id,
             value,
         }
     }
 }
-

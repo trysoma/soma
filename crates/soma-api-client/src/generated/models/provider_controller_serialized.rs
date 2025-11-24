@@ -28,7 +28,14 @@ pub struct ProviderControllerSerialized {
 }
 
 impl ProviderControllerSerialized {
-    pub fn new(categories: Vec<String>, credential_controllers: Vec<models::ProviderCredentialControllerSerialized>, documentation: String, functions: Vec<models::FunctionControllerSerialized>, name: String, type_id: String) -> ProviderControllerSerialized {
+    pub fn new(
+        categories: Vec<String>,
+        credential_controllers: Vec<models::ProviderCredentialControllerSerialized>,
+        documentation: String,
+        functions: Vec<models::FunctionControllerSerialized>,
+        name: String,
+        type_id: String,
+    ) -> ProviderControllerSerialized {
         ProviderControllerSerialized {
             categories,
             credential_controllers,
@@ -39,4 +46,3 @@ impl ProviderControllerSerialized {
         }
     }
 }
-

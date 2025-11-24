@@ -20,11 +20,12 @@ pub struct BridgeConfig {
 }
 
 impl BridgeConfig {
-    pub fn new(encryption: std::collections::HashMap<String, models::EncryptionConfiguration>) -> BridgeConfig {
+    pub fn new(
+        encryption: std::collections::HashMap<String, models::EncryptionConfiguration>,
+    ) -> BridgeConfig {
         BridgeConfig {
             encryption,
             providers: None,
         }
     }
 }
-

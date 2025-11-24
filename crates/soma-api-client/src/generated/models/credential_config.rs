@@ -19,7 +19,12 @@ pub struct CredentialConfig {
     pub id: String,
     #[serde(rename = "metadata", deserialize_with = "Option::deserialize")]
     pub metadata: Option<serde_json::Value>,
-    #[serde(rename = "next_rotation_time", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "next_rotation_time",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub next_rotation_time: Option<Option<String>>,
     #[serde(rename = "type_id")]
     pub type_id: String,
@@ -28,7 +33,13 @@ pub struct CredentialConfig {
 }
 
 impl CredentialConfig {
-    pub fn new(data_encryption_key_id: String, id: String, metadata: Option<serde_json::Value>, type_id: String, value: Option<serde_json::Value>) -> CredentialConfig {
+    pub fn new(
+        data_encryption_key_id: String,
+        id: String,
+        metadata: Option<serde_json::Value>,
+        type_id: String,
+        value: Option<serde_json::Value>,
+    ) -> CredentialConfig {
         CredentialConfig {
             data_encryption_key_id,
             id,
@@ -39,4 +50,3 @@ impl CredentialConfig {
         }
     }
 }
-

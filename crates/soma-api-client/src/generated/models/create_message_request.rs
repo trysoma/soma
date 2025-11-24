@@ -24,7 +24,12 @@ pub struct CreateMessageRequest {
 }
 
 impl CreateMessageRequest {
-    pub fn new(metadata: std::collections::HashMap<String, serde_json::Value>, parts: Vec<models::MessagePart>, reference_task_ids: Vec<uuid::Uuid>, role: models::MessageRole) -> CreateMessageRequest {
+    pub fn new(
+        metadata: std::collections::HashMap<String, serde_json::Value>,
+        parts: Vec<models::MessagePart>,
+        reference_task_ids: Vec<uuid::Uuid>,
+        role: models::MessageRole,
+    ) -> CreateMessageRequest {
         CreateMessageRequest {
             metadata,
             parts,
@@ -33,4 +38,3 @@ impl CreateMessageRequest {
         }
     }
 }
-

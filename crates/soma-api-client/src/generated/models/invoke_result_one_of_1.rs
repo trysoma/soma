@@ -21,13 +21,10 @@ pub struct InvokeResultOneOf1 {
 
 impl InvokeResultOneOf1 {
     pub fn new(message: String, r#type: Type) -> InvokeResultOneOf1 {
-        InvokeResultOneOf1 {
-            message,
-            r#type,
-        }
+        InvokeResultOneOf1 { message, r#type }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Type {
     #[serde(rename = "error")]
@@ -39,4 +36,3 @@ impl Default for Type {
         Self::Error
     }
 }
-

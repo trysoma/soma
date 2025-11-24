@@ -21,13 +21,10 @@ pub struct EnvelopeEncryptionKeyIdOneOf1 {
 
 impl EnvelopeEncryptionKeyIdOneOf1 {
     pub fn new(key_id: String, r#type: Type) -> EnvelopeEncryptionKeyIdOneOf1 {
-        EnvelopeEncryptionKeyIdOneOf1 {
-            key_id,
-            r#type,
-        }
+        EnvelopeEncryptionKeyIdOneOf1 { key_id, r#type }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Type {
     #[serde(rename = "local")]
@@ -39,4 +36,3 @@ impl Default for Type {
         Self::Local
     }
 }
-

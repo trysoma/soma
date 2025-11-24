@@ -19,9 +19,6 @@ pub struct UpdateProviderInstanceParamsInner {
 
 impl UpdateProviderInstanceParamsInner {
     pub fn new(display_name: String) -> UpdateProviderInstanceParamsInner {
-        UpdateProviderInstanceParamsInner {
-            display_name,
-        }
+        UpdateProviderInstanceParamsInner { display_name }
     }
 }
-

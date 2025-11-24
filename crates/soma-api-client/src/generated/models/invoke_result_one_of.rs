@@ -19,12 +19,10 @@ pub struct InvokeResultOneOf {
 
 impl InvokeResultOneOf {
     pub fn new(r#type: Type) -> InvokeResultOneOf {
-        InvokeResultOneOf {
-            r#type,
-        }
+        InvokeResultOneOf { r#type }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Type {
     #[serde(rename = "success")]
@@ -36,4 +34,3 @@ impl Default for Type {
         Self::Success
     }
 }
-

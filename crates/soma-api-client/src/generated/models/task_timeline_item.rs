@@ -24,7 +24,12 @@ pub struct TaskTimelineItem {
 }
 
 impl TaskTimelineItem {
-    pub fn new(created_at: String, event_payload: models::TaskTimelineItemPayload, id: uuid::Uuid, task_id: uuid::Uuid) -> TaskTimelineItem {
+    pub fn new(
+        created_at: String,
+        event_payload: models::TaskTimelineItemPayload,
+        id: uuid::Uuid,
+        task_id: uuid::Uuid,
+    ) -> TaskTimelineItem {
         TaskTimelineItem {
             created_at,
             event_payload: Box::new(event_payload),
@@ -33,4 +38,3 @@ impl TaskTimelineItem {
         }
     }
 }
-

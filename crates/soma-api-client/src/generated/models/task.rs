@@ -32,7 +32,15 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn new(context_id: uuid::Uuid, created_at: String, id: uuid::Uuid, metadata: std::collections::HashMap<String, serde_json::Value>, status: models::TaskStatus, status_timestamp: String, updated_at: String) -> Task {
+    pub fn new(
+        context_id: uuid::Uuid,
+        created_at: String,
+        id: uuid::Uuid,
+        metadata: std::collections::HashMap<String, serde_json::Value>,
+        status: models::TaskStatus,
+        status_timestamp: String,
+        updated_at: String,
+    ) -> Task {
         Task {
             context_id,
             created_at,
@@ -45,4 +53,3 @@ impl Task {
         }
     }
 }
-

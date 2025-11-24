@@ -13,9 +13,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CreateDataEncryptionKeyParams {
-    #[serde(rename = "encrypted_data_envelope_key", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "encrypted_data_envelope_key",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub encrypted_data_envelope_key: Option<String>,
-    #[serde(rename = "id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "id",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub id: Option<Option<String>>,
 }
 
@@ -27,4 +35,3 @@ impl CreateDataEncryptionKeyParams {
         }
     }
 }
-

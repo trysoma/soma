@@ -20,11 +20,13 @@ pub struct CreateMessageResponse {
 }
 
 impl CreateMessageResponse {
-    pub fn new(message: models::Message, timeline_item: models::TaskTimelineItem) -> CreateMessageResponse {
+    pub fn new(
+        message: models::Message,
+        timeline_item: models::TaskTimelineItem,
+    ) -> CreateMessageResponse {
         CreateMessageResponse {
             message: Box::new(message),
             timeline_item: Box::new(timeline_item),
         }
     }
 }
-

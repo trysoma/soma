@@ -30,7 +30,15 @@ pub struct ProviderCredentialControllerSerialized {
 }
 
 impl ProviderCredentialControllerSerialized {
-    pub fn new(configuration_schema: models::ConfigurationSchema, documentation: String, name: String, requires_brokering: bool, requires_resource_server_credential_refreshing: bool, requires_user_credential_refreshing: bool, type_id: String) -> ProviderCredentialControllerSerialized {
+    pub fn new(
+        configuration_schema: models::ConfigurationSchema,
+        documentation: String,
+        name: String,
+        requires_brokering: bool,
+        requires_resource_server_credential_refreshing: bool,
+        requires_user_credential_refreshing: bool,
+        type_id: String,
+    ) -> ProviderCredentialControllerSerialized {
         ProviderCredentialControllerSerialized {
             configuration_schema: Box::new(configuration_schema),
             documentation,
@@ -42,4 +50,3 @@ impl ProviderCredentialControllerSerialized {
         }
     }
 }
-

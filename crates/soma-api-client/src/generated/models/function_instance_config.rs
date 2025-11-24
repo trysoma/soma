@@ -22,7 +22,11 @@ pub struct FunctionInstanceConfig {
 }
 
 impl FunctionInstanceConfig {
-    pub fn new(function_controller: models::FunctionControllerSerialized, provider_controller: models::ProviderControllerSerialized, provider_instances: Vec<models::ProviderInstanceSerializedWithCredentials>) -> FunctionInstanceConfig {
+    pub fn new(
+        function_controller: models::FunctionControllerSerialized,
+        provider_controller: models::ProviderControllerSerialized,
+        provider_instances: Vec<models::ProviderInstanceSerializedWithCredentials>,
+    ) -> FunctionInstanceConfig {
         FunctionInstanceConfig {
             function_controller: Box::new(function_controller),
             provider_controller: Box::new(provider_controller),
@@ -30,4 +34,3 @@ impl FunctionInstanceConfig {
         }
     }
 }
-

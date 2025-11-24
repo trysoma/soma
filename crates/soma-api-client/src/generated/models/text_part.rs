@@ -20,11 +20,10 @@ pub struct TextPart {
 }
 
 impl TextPart {
-    pub fn new(metadata: std::collections::HashMap<String, serde_json::Value>, text: String) -> TextPart {
-        TextPart {
-            metadata,
-            text,
-        }
+    pub fn new(
+        metadata: std::collections::HashMap<String, serde_json::Value>,
+        text: String,
+    ) -> TextPart {
+        TextPart { metadata, text }
     }
 }
-

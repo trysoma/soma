@@ -11,14 +11,13 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum MessageRole {
     #[serde(rename = "user")]
     User,
     #[serde(rename = "agent")]
     Agent,
-
 }
 
 impl std::fmt::Display for MessageRole {
@@ -35,4 +34,3 @@ impl Default for MessageRole {
         Self::User
     }
 }
-

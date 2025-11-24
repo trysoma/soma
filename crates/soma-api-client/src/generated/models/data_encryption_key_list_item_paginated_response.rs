@@ -20,11 +20,12 @@ pub struct DataEncryptionKeyListItemPaginatedResponse {
 }
 
 impl DataEncryptionKeyListItemPaginatedResponse {
-    pub fn new(items: Vec<models::DataEncryptionKeyListItem>) -> DataEncryptionKeyListItemPaginatedResponse {
+    pub fn new(
+        items: Vec<models::DataEncryptionKeyListItem>,
+    ) -> DataEncryptionKeyListItemPaginatedResponse {
         DataEncryptionKeyListItemPaginatedResponse {
             items,
             next_page_token: None,
         }
     }
 }
-

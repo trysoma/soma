@@ -20,11 +20,12 @@ pub struct FunctionInstanceConfigPaginatedResponse {
 }
 
 impl FunctionInstanceConfigPaginatedResponse {
-    pub fn new(items: Vec<models::FunctionInstanceConfig>) -> FunctionInstanceConfigPaginatedResponse {
+    pub fn new(
+        items: Vec<models::FunctionInstanceConfig>,
+    ) -> FunctionInstanceConfigPaginatedResponse {
         FunctionInstanceConfigPaginatedResponse {
             items,
             next_page_token: None,
         }
     }
 }
-

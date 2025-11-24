@@ -28,7 +28,14 @@ pub struct FunctionControllerSerialized {
 }
 
 impl FunctionControllerSerialized {
-    pub fn new(categories: Vec<String>, documentation: String, name: String, output: std::collections::HashMap<String, serde_json::Value>, parameters: std::collections::HashMap<String, serde_json::Value>, type_id: String) -> FunctionControllerSerialized {
+    pub fn new(
+        categories: Vec<String>,
+        documentation: String,
+        name: String,
+        output: std::collections::HashMap<String, serde_json::Value>,
+        parameters: std::collections::HashMap<String, serde_json::Value>,
+        type_id: String,
+    ) -> FunctionControllerSerialized {
         FunctionControllerSerialized {
             categories,
             documentation,
@@ -39,4 +46,3 @@ impl FunctionControllerSerialized {
         }
     }
 }
-

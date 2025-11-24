@@ -20,11 +20,13 @@ pub struct ConfigurationSchema {
 }
 
 impl ConfigurationSchema {
-    pub fn new(resource_server: std::collections::HashMap<String, serde_json::Value>, user_credential: std::collections::HashMap<String, serde_json::Value>) -> ConfigurationSchema {
+    pub fn new(
+        resource_server: std::collections::HashMap<String, serde_json::Value>,
+        user_credential: std::collections::HashMap<String, serde_json::Value>,
+    ) -> ConfigurationSchema {
         ConfigurationSchema {
             resource_server,
             user_credential,
         }
     }
 }
-

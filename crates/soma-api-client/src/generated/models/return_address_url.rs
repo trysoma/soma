@@ -19,9 +19,6 @@ pub struct ReturnAddressUrl {
 
 impl ReturnAddressUrl {
     pub fn new(url: String) -> ReturnAddressUrl {
-        ReturnAddressUrl {
-            url,
-        }
+        ReturnAddressUrl { url }
     }
 }
-

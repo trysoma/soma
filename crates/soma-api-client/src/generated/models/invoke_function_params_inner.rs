@@ -19,9 +19,6 @@ pub struct InvokeFunctionParamsInner {
 
 impl InvokeFunctionParamsInner {
     pub fn new(params: Option<serde_json::Value>) -> InvokeFunctionParamsInner {
-        InvokeFunctionParamsInner {
-            params,
-        }
+        InvokeFunctionParamsInner { params }
     }
 }
-

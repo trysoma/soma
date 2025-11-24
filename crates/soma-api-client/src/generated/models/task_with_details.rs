@@ -15,9 +15,19 @@ use serde::{Deserialize, Serialize};
 pub struct TaskWithDetails {
     #[serde(rename = "messages")]
     pub messages: Vec<models::Message>,
-    #[serde(rename = "messages_next_page_token", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "messages_next_page_token",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub messages_next_page_token: Option<Option<String>>,
-    #[serde(rename = "status_message", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "status_message",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub status_message: Option<Option<Box<models::Message>>>,
     #[serde(rename = "task")]
     pub task: Box<models::Task>,
@@ -33,4 +43,3 @@ impl TaskWithDetails {
         }
     }
 }
-

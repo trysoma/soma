@@ -20,11 +20,12 @@ pub struct ProviderControllerSerializedPaginatedResponse {
 }
 
 impl ProviderControllerSerializedPaginatedResponse {
-    pub fn new(items: Vec<models::ProviderControllerSerialized>) -> ProviderControllerSerializedPaginatedResponse {
+    pub fn new(
+        items: Vec<models::ProviderControllerSerialized>,
+    ) -> ProviderControllerSerializedPaginatedResponse {
         ProviderControllerSerializedPaginatedResponse {
             items,
             next_page_token: None,
         }
     }
 }
-

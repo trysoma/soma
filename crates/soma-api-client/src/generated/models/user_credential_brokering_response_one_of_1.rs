@@ -34,7 +34,16 @@ pub struct UserCredentialBrokeringResponseOneOf1 {
 }
 
 impl UserCredentialBrokeringResponseOneOf1 {
-    pub fn new(created_at: String, data_encryption_key_id: String, id: uuid::Uuid, metadata: std::collections::HashMap<String, serde_json::Value>, type_id: String, updated_at: String, value: Option<serde_json::Value>, r#type: Type) -> UserCredentialBrokeringResponseOneOf1 {
+    pub fn new(
+        created_at: String,
+        data_encryption_key_id: String,
+        id: uuid::Uuid,
+        metadata: std::collections::HashMap<String, serde_json::Value>,
+        type_id: String,
+        updated_at: String,
+        value: Option<serde_json::Value>,
+        r#type: Type,
+    ) -> UserCredentialBrokeringResponseOneOf1 {
         UserCredentialBrokeringResponseOneOf1 {
             created_at,
             data_encryption_key_id,
@@ -48,7 +57,7 @@ impl UserCredentialBrokeringResponseOneOf1 {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Type {
     #[serde(rename = "user_credential")]
@@ -60,4 +69,3 @@ impl Default for Type {
         Self::UserCredential
     }
 }
-

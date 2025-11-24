@@ -17,12 +17,18 @@ pub struct CreateResourceServerCredentialParamsInner {
     pub data_encryption_key_id: String,
     #[serde(rename = "metadata", skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, serde_json::Value>>,
-    #[serde(rename = "resource_server_configuration", deserialize_with = "Option::deserialize")]
+    #[serde(
+        rename = "resource_server_configuration",
+        deserialize_with = "Option::deserialize"
+    )]
     pub resource_server_configuration: Option<serde_json::Value>,
 }
 
 impl CreateResourceServerCredentialParamsInner {
-    pub fn new(data_encryption_key_id: String, resource_server_configuration: Option<serde_json::Value>) -> CreateResourceServerCredentialParamsInner {
+    pub fn new(
+        data_encryption_key_id: String,
+        resource_server_configuration: Option<serde_json::Value>,
+    ) -> CreateResourceServerCredentialParamsInner {
         CreateResourceServerCredentialParamsInner {
             data_encryption_key_id,
             metadata: None,
@@ -30,4 +36,3 @@ impl CreateResourceServerCredentialParamsInner {
         }
     }
 }
-

@@ -23,7 +23,7 @@ impl Default for TaskTimelineItemPayload {
         Self::TaskTimelineItemPayloadOneOf(Default::default())
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Type {
     #[serde(rename = "task-status-update")]
@@ -37,4 +37,3 @@ impl Default for Type {
         Self::TaskStatusUpdate
     }
 }
-

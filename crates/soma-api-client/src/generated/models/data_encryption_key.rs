@@ -26,7 +26,13 @@ pub struct DataEncryptionKey {
 }
 
 impl DataEncryptionKey {
-    pub fn new(created_at: String, encrypted_data_encryption_key: String, envelope_encryption_key_id: models::EnvelopeEncryptionKeyId, id: String, updated_at: String) -> DataEncryptionKey {
+    pub fn new(
+        created_at: String,
+        encrypted_data_encryption_key: String,
+        envelope_encryption_key_id: models::EnvelopeEncryptionKeyId,
+        id: String,
+        updated_at: String,
+    ) -> DataEncryptionKey {
         DataEncryptionKey {
             created_at,
             encrypted_data_encryption_key,
@@ -36,4 +42,3 @@ impl DataEncryptionKey {
         }
     }
 }
-

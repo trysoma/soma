@@ -34,7 +34,17 @@ pub struct UserCredentialBrokeringResponseOneOf {
 }
 
 impl UserCredentialBrokeringResponseOneOf {
-    pub fn new(action: models::BrokerAction, created_at: String, credential_controller_type_id: String, id: String, metadata: std::collections::HashMap<String, serde_json::Value>, provider_controller_type_id: String, provider_instance_id: String, updated_at: String, r#type: Type) -> UserCredentialBrokeringResponseOneOf {
+    pub fn new(
+        action: models::BrokerAction,
+        created_at: String,
+        credential_controller_type_id: String,
+        id: String,
+        metadata: std::collections::HashMap<String, serde_json::Value>,
+        provider_controller_type_id: String,
+        provider_instance_id: String,
+        updated_at: String,
+        r#type: Type,
+    ) -> UserCredentialBrokeringResponseOneOf {
         UserCredentialBrokeringResponseOneOf {
             action: Box::new(action),
             created_at,
@@ -48,7 +58,7 @@ impl UserCredentialBrokeringResponseOneOf {
         }
     }
 }
-/// 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Type {
     #[serde(rename = "broker_state")]
@@ -60,4 +70,3 @@ impl Default for Type {
         Self::BrokerState
     }
 }
-

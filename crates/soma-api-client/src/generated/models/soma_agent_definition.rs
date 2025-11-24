@@ -13,7 +13,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SomaAgentDefinition {
-    #[serde(rename = "bridge", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "bridge",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub bridge: Option<Option<Box<models::BridgeConfig>>>,
     #[serde(rename = "version")]
     pub version: String,
@@ -27,4 +32,3 @@ impl SomaAgentDefinition {
         }
     }
 }
-

@@ -25,7 +25,10 @@ pub struct ProviderInstanceListItem {
     pub provider_controller_type_id: String,
     #[serde(rename = "resource_server_credential_id")]
     pub resource_server_credential_id: uuid::Uuid,
-    #[serde(rename = "return_on_successful_brokering", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "return_on_successful_brokering",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub return_on_successful_brokering: Option<Box<models::ReturnAddress>>,
     #[serde(rename = "status")]
     pub status: String,
@@ -42,7 +45,19 @@ pub struct ProviderInstanceListItem {
 }
 
 impl ProviderInstanceListItem {
-    pub fn new(created_at: String, credential_controller_type_id: String, display_name: String, id: String, provider_controller_type_id: String, resource_server_credential_id: uuid::Uuid, status: String, updated_at: String, controller: models::ProviderControllerSerialized, credential_controller: models::ProviderCredentialControllerSerialized, functions: Vec<models::FunctionInstanceListItem>) -> ProviderInstanceListItem {
+    pub fn new(
+        created_at: String,
+        credential_controller_type_id: String,
+        display_name: String,
+        id: String,
+        provider_controller_type_id: String,
+        resource_server_credential_id: uuid::Uuid,
+        status: String,
+        updated_at: String,
+        controller: models::ProviderControllerSerialized,
+        credential_controller: models::ProviderCredentialControllerSerialized,
+        functions: Vec<models::FunctionInstanceListItem>,
+    ) -> ProviderInstanceListItem {
         ProviderInstanceListItem {
             created_at,
             credential_controller_type_id,
@@ -60,4 +75,3 @@ impl ProviderInstanceListItem {
         }
     }
 }
-
