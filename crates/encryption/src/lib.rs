@@ -57,13 +57,13 @@ impl libsql::FromValue for EncryptedDataEncryptionKey {
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum EnvelopeEncryptionKeyId {
     AwsKms { arn: String },
-    Local { key_id: String },
+    Local { location: String },
 }
 
 #[derive(Clone, zeroize::Zeroize, zeroize::ZeroizeOnDrop)]
 pub enum EnvelopeEncryptionKeyContents {
     AwsKms { arn: String },
-    Local { key_id: String, key_bytes: Vec<u8> },
+    Local { location: String, key_bytes: Vec<u8> },
 }
 
 impl From<EnvelopeEncryptionKeyContents> for EnvelopeEncryptionKeyId {
@@ -73,10 +73,10 @@ impl From<EnvelopeEncryptionKeyContents> for EnvelopeEncryptionKeyId {
                 EnvelopeEncryptionKeyId::AwsKms { arn: arn.clone() }
             }
             EnvelopeEncryptionKeyContents::Local {
-                key_id,
+                location,
                 key_bytes: _,
             } => EnvelopeEncryptionKeyId::Local {
-                key_id: key_id.clone(),
+                location: location.clone(),
             },
         }
     }
@@ -158,15 +158,15 @@ impl CryptoService {
         let mut envelop_key_match = false;
 
         if let EnvelopeEncryptionKeyContents::Local {
-            key_id,
+            location,
             key_bytes: _,
         } = &envelope_encryption_key_contents
             && let EnvelopeEncryptionKeyId::Local {
-                key_id: data_encryption_key_id,
+                location: data_encryption_key_location,
                 ..
             } = &data_encryption_key.envelope_encryption_key_id
         {
-            envelop_key_match = key_id == data_encryption_key_id;
+            envelop_key_match = location == data_encryption_key_location;
         } else if let EnvelopeEncryptionKeyContents::AwsKms { arn } =
             &envelope_encryption_key_contents
             && let EnvelopeEncryptionKeyId::AwsKms {
@@ -331,7 +331,7 @@ pub fn get_or_create_local_encryption_key(
         }
 
         return Ok(EnvelopeEncryptionKeyContents::Local {
-            key_id: file_path.to_string_lossy().to_string(),
+            location: file_path.to_string_lossy().to_string(),
             key_bytes,
         });
     }
@@ -350,7 +350,7 @@ pub fn get_or_create_local_encryption_key(
     })?;
 
     Ok(EnvelopeEncryptionKeyContents::Local {
-        key_id: file_path.to_string_lossy().to_string(),
+        location: file_path.to_string_lossy().to_string(),
         key_bytes,
     })
 }
@@ -396,7 +396,7 @@ pub async fn encrypt_data_envelope_key(
             Ok(EncryptedDataEncryptionKey(encrypted_key))
         }
         EnvelopeEncryptionKeyContents::Local {
-            key_id: _,
+            location: _,
             key_bytes,
         } => {
             // --- Local AES-GCM path ---
@@ -476,7 +476,7 @@ pub async fn decrypt_data_envelope_key(
             Ok(DecryptedDataEnvelopeKey(plaintext.as_ref().to_vec()))
         }
         EnvelopeEncryptionKeyContents::Local {
-            key_id: _,
+            location: _,
             key_bytes,
         } => {
             // --- Local AES-GCM path ---
@@ -586,12 +586,12 @@ pub async fn create_data_encryption_key<R: DataEncryptionKeyRepositoryLike>(
                 EncryptedDataEncryptionKey(encoded)
             }
 
-            EnvelopeEncryptionKeyContents::Local { key_id, key_bytes } => {
+            EnvelopeEncryptionKeyContents::Local { location, key_bytes } => {
                 // --- Local path (no AWS involved) ---
                 if key_bytes.len() != 32 {
                     return Err(CommonError::Unknown(anyhow::anyhow!(
                         "Invalid KEK length in {} (expected 32 bytes, got {})",
-                        key_id,
+                        location,
                         key_bytes.len()
                     )));
                 }
@@ -825,7 +825,7 @@ mod tests {
         let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
         std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
 
-        let key_id = temp_file
+        let location = temp_file
             .path()
             .file_name()
             .and_then(|n| n.to_str())
@@ -833,7 +833,7 @@ mod tests {
             .to_string();
 
         let contents = EnvelopeEncryptionKeyContents::Local {
-            key_id,
+            location,
             key_bytes: kek_bytes.to_vec(),
         };
 

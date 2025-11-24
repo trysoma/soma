@@ -9,19 +9,20 @@ use crate::logic::{
     InvokeFunctionResponse, ListAvailableProvidersResponse, ListDataEncryptionKeysResponse,
     ListFunctionInstancesParams, ListFunctionInstancesResponse,
     ListProviderInstancesGroupedByFunctionParams, ListProviderInstancesGroupedByFunctionResponse,
-    ListProviderInstancesParams, ListProviderInstancesResponse, OnConfigChangeTx,
-    ResumeUserCredentialBrokeringParams, StartUserCredentialBrokeringParamsInner,
-    UpdateProviderInstanceParamsInner, UpdateProviderInstanceResponse,
-    UserCredentialBrokeringResponse, UserCredentialSerialized, WithCredentialControllerTypeId,
-    WithFunctionControllerTypeId, WithFunctionInstanceId, WithProviderControllerTypeId,
-    WithProviderInstanceId, create_data_encryption_key, create_provider_instance,
-    create_resource_server_credential, create_user_credential, delete_provider_instance,
-    disable_function, enable_function, encrypt_resource_server_configuration,
-    encrypt_user_credential_configuration, get_function_instances_openapi_spec,
-    get_provider_instance, invoke_function, list_available_providers, list_data_encryption_keys,
-    list_function_instances, list_provider_instances, list_provider_instances_grouped_by_function,
-    process_credential_rotations_with_window, resume_user_credential_brokering,
-    start_user_credential_brokering, update_provider_instance,
+    ListProviderInstancesParams, ListProviderInstancesResponse, MigrateEncryptionKeyParams,
+    MigrateEncryptionKeyResponse, OnConfigChangeTx, ResumeUserCredentialBrokeringParams,
+    StartUserCredentialBrokeringParamsInner, UpdateProviderInstanceParamsInner,
+    UpdateProviderInstanceResponse, UserCredentialBrokeringResponse, UserCredentialSerialized,
+    WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithFunctionInstanceId,
+    WithProviderControllerTypeId, WithProviderInstanceId, create_data_encryption_key,
+    create_provider_instance, create_resource_server_credential, create_user_credential,
+    delete_provider_instance, disable_function, enable_function,
+    encrypt_resource_server_configuration, encrypt_user_credential_configuration,
+    get_function_instances_openapi_spec, get_provider_instance, invoke_function,
+    list_available_providers, list_data_encryption_keys, list_function_instances,
+    list_provider_instances, list_provider_instances_grouped_by_function,
+    migrate_encryption_key, process_credential_rotations_with_window,
+    resume_user_credential_brokering, start_user_credential_brokering, update_provider_instance,
 };
 use crate::repository::Repository;
 use axum::Extension;
@@ -58,6 +59,7 @@ pub fn create_router() -> OpenApiRouter<BridgeService> {
         // Data encryption key endpoints
         .routes(routes!(route_create_data_encryption_key))
         .routes(routes!(route_list_data_encryption_keys))
+        .routes(routes!(route_migrate_encryption_key))
         // Configuration endpoints
         .routes(routes!(route_encrypt_resource_server_configuration))
         .routes(routes!(route_encrypt_user_credential_configuration))
@@ -249,6 +251,41 @@ async fn route_list_data_encryption_keys(
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListDataEncryptionKeysResponse, CommonError> {
     let res = list_data_encryption_keys(ctx.repository(), pagination).await;
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    post,
+    path = format!("{}/{}/{}/encryption/migrate", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    request_body = MigrateEncryptionKeyParams,
+    responses(
+        (status = 200, description = "Migrate encryption key", body = MigrateEncryptionKeyResponse),
+        (status = 400, description = "Bad Request", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    operation_id = "migrate-encryption-key",
+)]
+async fn route_migrate_encryption_key(
+    State(ctx): State<BridgeService>,
+    Json(params): Json<MigrateEncryptionKeyParams>,
+) -> JsonResponse<MigrateEncryptionKeyResponse, CommonError> {
+    // Parse the envelope encryption key IDs to get the actual keys
+    let from_envelope_key = ctx.envelope_encryption_key_contents();
+    let to_envelope_key = ctx.envelope_encryption_key_contents();
+
+    // TODO: In a real implementation, we'd need to support passing in different
+    // envelope encryption keys for the "to" key. For now, we assume both use
+    // the same key configured for the bridge.
+
+    let res = migrate_encryption_key(
+        from_envelope_key,
+        to_envelope_key,
+        ctx.on_config_change_tx(),
+        ctx.repository(),
+        params,
+    )
+    .await;
+
     JsonResponse::from(res)
 }
 
