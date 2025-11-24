@@ -1,29 +1,13 @@
-use std::sync::Arc;
-use std::time::Duration;
-
 use axum::Router;
-use bridge::logic::register_all_bridge_providers;
-use url::Url;
 use utoipa::openapi::OpenApi;
 
 use crate::ApiService;
-use crate::router::a2a::Agent2AgentServiceParams;
-use crate::router::task::TaskService;
-use crate::router::{a2a::Agent2AgentService};
-use shared::restate::admin_client::AdminClient;
-use shared::restate::invoke::RestateIngressClient;
-use crate::{logic::ConnectionManager, repository::Repository};
-use bridge::{
-    logic::{EnvelopeEncryptionKeyContents, OnConfigChangeTx},
-    router::bridge::{BridgeService, create_router as create_bridge_router},
-};
+use bridge::router::bridge::create_router as create_bridge_router;
 use shared::error::CommonError;
-use shared::soma_agent_definition::SomaAgentDefinitionLike;
 
 pub(crate) mod a2a;
 pub(crate) mod internal;
 pub(crate) mod task;
-
 
 pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonError> {
     let mut router = Router::new();
@@ -41,7 +25,6 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
     let (task_router, _) = task::create_router().split_for_parts();
     let task_router = task_router.with_state(api_service.task_service);
     router = router.merge(task_router);
-
 
     // bridge router
     let (bridge_router, _) = create_bridge_router().split_for_parts();

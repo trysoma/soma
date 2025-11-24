@@ -5,12 +5,9 @@ use axum::{
     response::Response,
     routing::any,
 };
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use utoipa::ToSchema;
-use utoipa_axum::{router::OpenApiRouter, routes};
-use vite_rs_axum_0_8::ViteServe;
 use std::time::Duration;
+use utoipa_axum::router::OpenApiRouter;
+use vite_rs_axum_0_8::ViteServe;
 
 use shared::error::CommonError;
 use tracing::info;
@@ -28,7 +25,9 @@ async fn ping_vite_dev_server() -> Result<(), CommonError> {
     if response.status().is_success() {
         Ok(())
     } else {
-        Err(CommonError::Unknown(anyhow::anyhow!("Failed to ping vite dev server")))
+        Err(CommonError::Unknown(anyhow::anyhow!(
+            "Failed to ping vite dev server"
+        )))
     }
 }
 
@@ -49,7 +48,6 @@ pub async fn wait_for_vite_dev_server_shutdown() -> Result<(), CommonError> {
     }
     Ok(())
 }
-
 
 /// Starts the Vite dev server (debug builds only)
 /// Returns a guard that stops the server when dropped
@@ -72,16 +70,13 @@ pub async fn stop_vite_dev_server() -> Result<(), CommonError> {
     Ok(())
 }
 
-
 #[cfg(debug_assertions)]
 pub fn create_vite_router() -> OpenApiRouter<()> {
     use vite_rs_axum_0_8::ViteServe;
 
     let vite = ViteServe::new(Assets::boxed());
 
-
-    let vite_router =
-        OpenApiRouter::new()
+    OpenApiRouter::new()
             // "/" handled explicitly
             .route(
                 "/",
@@ -93,10 +88,7 @@ pub fn create_vite_router() -> OpenApiRouter<()> {
             )
             // all other paths handled by SPA fallback
             .route("/{*path}", any(tanstack_spa_handler))
-            .with_state(vite);
-
-    
-    vite_router
+            .with_state(vite)
 }
 
 #[cfg(not(debug_assertions))]
@@ -107,7 +99,6 @@ const ROUTES_JSON: &[u8] = include_bytes!(concat!(
 
 #[cfg(not(debug_assertions))]
 pub fn create_vite_router() -> OpenApiRouter<()> {
-
     let vite = ViteServe::new(Assets::boxed());
 
     #[derive(Debug, Deserialize, Serialize, ToSchema)]

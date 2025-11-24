@@ -1,10 +1,10 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
+use std::collections::HashMap;
 use tera::{Context, Tera};
 
 /// TypeScript template loaded at compile time
-const TYPESCRIPT_TEMPLATE: &str = include_str!("typescript.ts");
+const TYPESCRIPT_TEMPLATE: &str = include_str!("typescript.ts.tera");
 
 /// Simplified data structures for code generation from API data
 #[derive(Debug, Clone)]
@@ -34,6 +34,8 @@ pub struct FunctionControllerData {
 struct ProviderData {
     name: String,
     interface_name: String,
+    sanitized_name: String,
+    camel_case_name: String,
     accounts: Vec<AccountData>,
 }
 
@@ -88,18 +90,20 @@ pub fn generate_typescript_code_from_api_data(
 
             for func_data in functions {
                 // Get parameter schema
-                let params_type = if let Some(schema) = &func_data.function_controller.params_json_schema {
-                    json_schema_to_typescript(schema, 0)?
-                } else {
-                    "void".to_string()
-                };
+                let params_type =
+                    if let Some(schema) = &func_data.function_controller.params_json_schema {
+                        json_schema_to_typescript(schema, 0)?
+                    } else {
+                        "void".to_string()
+                    };
 
                 // Get return schema
-                let return_type = if let Some(schema) = &func_data.function_controller.return_value_json_schema {
-                    json_schema_to_typescript(schema, 0)?
-                } else {
-                    "void".to_string()
-                };
+                let return_type =
+                    if let Some(schema) = &func_data.function_controller.return_value_json_schema {
+                        json_schema_to_typescript(schema, 0)?
+                    } else {
+                        "void".to_string()
+                    };
 
                 // Store provider instance ID from the first function
                 if provider_instance_id.is_empty() {
@@ -107,9 +111,8 @@ pub fn generate_typescript_code_from_api_data(
                 }
 
                 // Generate interface names
-                let function_name_pascal = to_pascal_case(&sanitize_identifier(
-                    &func_data.function_controller.type_id,
-                ));
+                let function_name_pascal =
+                    to_pascal_case(&sanitize_identifier(&func_data.function_controller.type_id));
                 let provider_name_pascal = to_pascal_case(&sanitize_identifier(&provider_type_id));
                 let params_type_name =
                     format!("{provider_name_pascal}{function_name_pascal}Params");
@@ -140,9 +143,13 @@ pub fn generate_typescript_code_from_api_data(
         }
 
         let provider_name_pascal = to_pascal_case(&sanitize_identifier(&provider_type_id));
+        let sanitized_name = sanitize_identifier(&provider_type_id);
+        let camel_case_name = to_camel_case(&provider_type_id);
         providers.push(ProviderData {
             name: provider_type_id.clone(),
             interface_name: provider_name_pascal,
+            sanitized_name,
+            camel_case_name,
             accounts,
         });
     }

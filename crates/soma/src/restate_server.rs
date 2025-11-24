@@ -1,6 +1,6 @@
 use anyhow::Context;
-use shared::error::CommonError;
 use shared::command::run_child_process;
+use shared::error::CommonError;
 use shared::subsystem::SubsystemHandle;
 use std::fs;
 use std::path::PathBuf;
@@ -8,8 +8,10 @@ use tokio::process::Command;
 use tokio::sync::broadcast;
 use tracing::{error, info};
 
-use soma_api_server::restate::{RestateServerParams, RestateServerLocalParams, RestateServerRemoteParams};
 use shared::port::is_port_in_use;
+use soma_api_server::restate::{
+    RestateServerLocalParams, RestateServerParams, RestateServerRemoteParams,
+};
 
 /// The embedded restate-server binary for the current platform
 /// This is included at compile time from the binary downloaded during build
@@ -156,7 +158,6 @@ pub fn ensure_restate_binary() -> Result<String, CommonError> {
     Ok("restate-server".to_string())
 }
 
-
 /// Starts the Restate server subsystem
 pub async fn start_restate_server(
     params: RestateServerParams,
@@ -258,7 +259,6 @@ async fn start_restate_server_remote(
     Ok(())
 }
 
-
 pub fn start_restate_subsystem(
     restate_params: RestateServerParams,
     shutdown_rx: broadcast::Receiver<()>,
@@ -279,4 +279,3 @@ pub fn start_restate_subsystem(
 
     Ok(handle)
 }
-

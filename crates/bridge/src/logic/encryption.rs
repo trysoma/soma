@@ -30,7 +30,9 @@ where
     if publish_on_change_evt {
         on_config_change_tx
             .send(OnConfigChangeEvt::DataEncryptionKeyAdded(dek.clone()))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
 
     Ok(dek)
@@ -50,7 +52,9 @@ where
     if publish_on_change_evt {
         on_config_change_tx
             .send(OnConfigChangeEvt::DataEncryptionKeyRemoved(id))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
 
     Ok(())

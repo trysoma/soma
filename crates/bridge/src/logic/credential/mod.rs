@@ -407,7 +407,9 @@ async fn process_broker_outcome(
                 .send(OnConfigChangeEvt::ProviderInstanceAdded(
                     provider_instance_with_creds,
                 ))
-                .await?;
+                .map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+                })?;
 
             if let Some(return_on_success) = &provider_instance.return_on_successful_brokering {
                 match return_on_success {
@@ -625,6 +627,7 @@ pub async fn credential_rotation_task<R>(
     repo: R,
     envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
     on_config_change_tx: OnConfigChangeTx,
+    mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
 ) where
     R: ProviderRepositoryLike + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
 {
@@ -633,23 +636,31 @@ pub async fn credential_rotation_task<R>(
     let mut timer = interval(Duration::from_secs(10 * 60)); // 10 minutes
 
     loop {
-        timer.tick().await;
+        tokio::select! {
+            _ = timer.tick() => {
+                tracing::info!("Starting credential rotation check");
 
-        tracing::info!("Starting credential rotation check");
+                if let Err(e) = process_credential_rotations_with_window(
+                    &repo,
+                    &on_config_change_tx,
+                    &envelope_encryption_key_contents,
+                    20,
+                )
+                .await
+                {
+                    tracing::error!("Error processing credential rotations: {:?}", e);
+                }
 
-        if let Err(e) = process_credential_rotations_with_window(
-            &repo,
-            &on_config_change_tx,
-            &envelope_encryption_key_contents,
-            20,
-        )
-        .await
-        {
-            tracing::error!("Error processing credential rotations: {:?}", e);
+                tracing::info!("Completed credential rotation check");
+            }
+            _ = shutdown_rx.recv() => {
+                tracing::info!("Credential rotation task shutdown requested");
+                break;
+            }
         }
-
-        tracing::info!("Completed credential rotation check");
     }
+
+    tracing::info!("Credential rotation task stopped");
 }
 
 pub async fn process_credential_rotations_with_window<R>(
@@ -787,7 +798,9 @@ where
                     user_credential: user_cred_rotation_result,
                 },
             ))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
 
     Ok::<(), CommonError>(())
@@ -981,7 +994,7 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
         let (_temp_file, kek) = create_temp_kek_file();
 
         // Create a data encryption key
@@ -1060,7 +1073,7 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
         let (_temp_file, kek) = create_temp_kek_file();
 
         let dek = create_data_encryption_key(
@@ -1152,7 +1165,7 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
         let (_temp_file, kek) = create_temp_kek_file();
 
         // Test with no provider instances

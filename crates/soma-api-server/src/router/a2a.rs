@@ -24,13 +24,14 @@ use shared::primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4}
 use shared::uds::{DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client};
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::{path::PathBuf, pin::Pin, sync::Arc};
+use std::{pin::Pin, sync::Arc};
 use tokio::sync::RwLock;
 use tracing::info;
 use url::Url;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
+use crate::a2a::ConstructAgentCardParams;
 use crate::a2a::{RepositoryTaskStore, construct_agent_card};
 use crate::logic::{
     self, ConnectionManager, CreateMessageRequest, UpdateTaskStatusRequest, WithTaskId,
@@ -39,7 +40,6 @@ use crate::logic::{
 use crate::repository::{CreateTask, Repository, TaskRepositoryLike};
 use shared::restate::admin_client::AdminClient;
 use shared::restate::invoke::{RestateIngressClient, construct_initial_object_id};
-use crate::a2a::ConstructAgentCardParams;
 use shared::soma_agent_definition::{SomaAgentDefinition, SomaAgentDefinitionLike};
 
 pub const PATH_PREFIX: &str = "/api";
@@ -154,11 +154,10 @@ impl A2aServiceLike for Agent2AgentService {
             "{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}"
         ));
 
-        let card =
-            construct_agent_card(ConstructAgentCardParams {
-                definition: soma_definition,
-                url: full_url.to_string(),
-            });
+        let card = construct_agent_card(ConstructAgentCardParams {
+            definition: soma_definition,
+            url: full_url.to_string(),
+        });
         Ok(card)
     }
 
@@ -351,11 +350,15 @@ impl AgentExecutor for ProxiedAgent {
             // Get agent metadata
             let socket_path = std::env::var("SOMA_SERVER_SOCK")
                 .unwrap_or_else(|_| DEFAULT_SOMA_SERVER_SOCK.to_string());
-            let mut sdk_client = create_soma_unix_socket_client(&socket_path).await.map_err(|e| {
-                Box::new(CommonError::Unknown(anyhow::anyhow!(
-                    "Failed to connect to SDK: {e}"
-                ))) as Box<dyn std::error::Error + Send + Sync + 'static>
-            })?;
+            let mut sdk_client =
+                create_soma_unix_socket_client(&socket_path)
+                    .await
+                    .map_err(|e| {
+                        Box::new(CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to connect to SDK: {e}"
+                        )))
+                            as Box<dyn std::error::Error + Send + Sync + 'static>
+                    })?;
             let metadata_response =
                 sdk_client
                     .metadata(tonic::Request::new(()))

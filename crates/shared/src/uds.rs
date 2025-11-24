@@ -2,9 +2,9 @@ use crate::error::CommonError;
 use std::path::Path;
 
 use hyper_util::rt::TokioIo;
+use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use tonic::transport::{Endpoint, Uri};
 use tower::service_fn;
-use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 
 /// Default Unix socket path for the SDK gRPC server
 pub const DEFAULT_SOMA_SERVER_SOCK: &str = "/tmp/soma-sdk.sock";
@@ -40,8 +40,6 @@ pub async fn create_unix_socket_client(
 
     Ok(channel)
 }
-
-
 
 /// Establish connection with retry logic
 pub async fn establish_connection_with_retry(socket_path: &str) -> Result<(), CommonError> {

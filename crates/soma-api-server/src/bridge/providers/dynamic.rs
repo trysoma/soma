@@ -232,7 +232,6 @@ impl FunctionControllerLike for DynamicFunctionController {
             )));
         };
 
-
         tracing::info!(
             "Invoking SDK function: provider={}, function={}, credential_type={}",
             self.provider_type_id,

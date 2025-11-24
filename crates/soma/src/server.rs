@@ -1,5 +1,5 @@
 use std::future::Future;
-use std::net::{SocketAddr, TcpListener};
+use std::net::SocketAddr;
 
 use axum::Router;
 use shared::error::CommonError;
@@ -7,7 +7,6 @@ use shared::port::find_free_port;
 use soma_api_server::ApiService;
 use tower_http::cors::CorsLayer;
 use tracing::info;
-
 
 pub struct StartAxumServerParams {
     pub host: String,
@@ -35,8 +34,6 @@ pub async fn start_axum_server(
 
     info!("Starting server on {}", addr);
 
-    
-    
     let handle = axum_server::Handle::new();
 
     // Build the main API router
@@ -44,7 +41,7 @@ pub async fn start_axum_server(
 
     // In debug mode, add the Vite dev server frontend
     #[cfg(debug_assertions)]
-    use soma_frontend::{start_vite_dev_server, stop_vite_dev_server, create_vite_router };
+    use soma_frontend::{create_vite_router, start_vite_dev_server, stop_vite_dev_server};
 
     #[cfg(debug_assertions)]
     let _vite_scope_guard = start_vite_dev_server();
@@ -52,9 +49,7 @@ pub async fn start_axum_server(
     #[cfg(debug_assertions)]
     {
         let (vite_router, _) = create_vite_router().split_for_parts();
-        router = Router::new()
-            .merge(router)
-            .merge(vite_router);
+        router = Router::new().merge(router).merge(vite_router);
     }
 
     // Add CORS layer
@@ -71,7 +66,11 @@ pub async fn start_axum_server(
     tokio::spawn(async move {
         let _ = system_shutdown_signal_rx.recv().await;
 
-        info!("Shutting down axum server");
+        info!("Shutting down axum server, waiting for in-flight requests to complete...");
+
+        // Initiate graceful shutdown (stops accepting new connections, waits for in-flight requests)
+        handle_clone.graceful_shutdown(Some(std::time::Duration::from_secs(30)));
+
         #[cfg(debug_assertions)]
         {
             drop(_vite_scope_guard);
@@ -81,21 +80,23 @@ pub async fn start_axum_server(
                 error!("Failed to stop vite dev server: {:?}", e);
             }
         }
-        handle_clone.shutdown();
-        info!("Axum server shut down");
+
+        info!("Axum server shut down gracefully");
     });
 
     info!("Server bound");
     Ok((server_fut, handle, addr))
 }
 
-
 #[cfg(test)]
 mod tests {
     use shared::port::find_free_port_with_bind;
 
     use super::*;
-    use std::io::{Error, ErrorKind};
+    use std::{
+        io::{Error, ErrorKind},
+        net::TcpListener,
+    };
 
     #[test]
     fn test_find_free_port_success() {

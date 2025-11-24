@@ -15,6 +15,11 @@ mod unix_impl {
     pub type UnixListenerStream = TokioUnixListenerStream;
 
     pub async fn bind_unix_listener(path: &PathBuf) -> Result<UnixListener> {
+        // Remove stale socket file if it exists
+        // This handles cases where the process crashed without cleanup
+        if path.exists() {
+            std::fs::remove_file(path)?;
+        }
         Ok(TokioUnixListener::bind(path)?)
     }
 
@@ -165,6 +170,11 @@ mod windows_impl {
     }
 
     pub async fn bind_unix_listener(path: &PathBuf) -> Result<UnixListener> {
+        // Remove stale socket file if it exists
+        // This handles cases where the process crashed without cleanup
+        if path.exists() {
+            std::fs::remove_file(path)?;
+        }
         UnixListener::bind(path).await
     }
 

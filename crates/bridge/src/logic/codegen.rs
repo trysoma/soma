@@ -1,9 +1,9 @@
 use crate::logic::{FunctionInstanceWithMetadata, get_function_instances};
 use crate::repository::ProviderRepositoryLike;
-use shared::error::CommonError;
-use tracing::{error, info};
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
+use shared::error::CommonError;
 use tonic::transport::Channel;
+use tracing::{error, info};
 
 /// Triggers bridge client generation via gRPC call to SDK server
 pub async fn trigger_bridge_client_generation(

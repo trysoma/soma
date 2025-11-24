@@ -29,7 +29,10 @@ impl SubsystemHandle {
     pub async fn wait_for_shutdown(self) {
         match self.shutdown_complete_rx.await {
             Ok(()) => info!("{} subsystem stopped gracefully", self.name),
-            Err(_) => error!("{} subsystem stopped without signaling completion", self.name),
+            Err(_) => error!(
+                "{} subsystem stopped without signaling completion",
+                self.name
+            ),
         }
     }
 
@@ -85,10 +88,7 @@ where
 }
 
 /// Spawn a subsystem task that can be manually controlled
-pub fn spawn_subsystem_manual<F>(
-    name: impl Into<String>,
-    task: F,
-) -> SubsystemHandle
+pub fn spawn_subsystem_manual<F>(name: impl Into<String>, task: F) -> SubsystemHandle
 where
     F: futures::Future<Output = ()> + Send + 'static,
 {

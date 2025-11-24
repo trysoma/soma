@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use shared::{
-    error::CommonError,
-    soma_agent_definition::SomaAgentDefinitionLike,
-};
+use shared::{error::CommonError, soma_agent_definition::SomaAgentDefinitionLike};
 use soma_api_client::{
     apis::{configuration::Configuration, default_api},
     models,
@@ -37,13 +34,14 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
         let mut keys = HashMap::new();
         let mut next_page_token: Option<String> = None;
         loop {
-            let response = default_api::list_data_encryption_keys(
-                api_config,
-                100,
-                next_page_token.as_deref(),
-            )
-            .await
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to list data encryption keys: {e:?}")))?;
+            let response =
+                default_api::list_data_encryption_keys(api_config, 100, next_page_token.as_deref())
+                    .await
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to list data encryption keys: {e:?}"
+                        ))
+                    })?;
 
             for key in response.items {
                 keys.insert(key.id.clone(), key);
@@ -69,12 +67,18 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
         if !existing_keys.contains_key(key_id) {
             let params = models::CreateDataEncryptionKeyParams {
                 id: Some(Some(key_id.clone())),
-                encrypted_data_envelope_key: Some(encryption_config.encrypted_data_encryption_key.clone()),
+                encrypted_data_envelope_key: Some(
+                    encryption_config.encrypted_data_encryption_key.clone(),
+                ),
             };
 
             default_api::create_data_encryption_key(api_config, params)
                 .await
-                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create data encryption key '{key_id}': {e:?}")))?;
+                .map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to create data encryption key '{key_id}': {e:?}"
+                    ))
+                })?;
         }
     }
 
@@ -94,7 +98,11 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                         None, // provider_controller_type_id filter
                     )
                     .await
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to list provider instances: {e:?}")))?;
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to list provider instances: {e:?}"
+                        ))
+                    })?;
 
                     for item in response.items {
                         instances.insert(item.id.clone(), item);
@@ -125,11 +133,10 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 let needs_recreate = if let Some(existing) = existing_providers.get(provider_id) {
                     // For API sync, we'll do a simple comparison - if anything changed, recreate
                     // This is simpler than detailed field-by-field comparison
-                    let basic_fields_changed = existing.provider_controller_type_id != *provider_controller_type_id
-                        || existing.credential_controller_type_id != *credential_controller_type_id
-                        || existing.display_name != provider_config.display_name;
 
-                    basic_fields_changed
+                    existing.provider_controller_type_id != *provider_controller_type_id
+                        || existing.credential_controller_type_id != *credential_controller_type_id
+                        || existing.display_name != provider_config.display_name
                 } else {
                     // Provider doesn't exist, needs creation
                     true
@@ -144,47 +151,57 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                         );
                         default_api::delete_provider_instance(api_config, provider_id)
                             .await
-                            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to delete provider instance '{provider_id}': {e:?}")))?;
+                            .map_err(|e| {
+                                CommonError::Unknown(anyhow::anyhow!(
+                                    "Failed to delete provider instance '{provider_id}': {e:?}"
+                                ))
+                            })?;
                     } else {
                         tracing::info!("Creating new provider '{}'", provider_id);
                     }
 
                     // Create resource server credential
-                    let resource_server_credential_params = models::CreateResourceServerCredentialParamsInner {
-                        data_encryption_key_id: provider_config
-                            .resource_server_credential
-                            .data_encryption_key_id
-                            .clone(),
-                        resource_server_configuration: Some(provider_config
-                            .resource_server_credential
-                            .value
-                            .clone()),
-                        metadata: provider_config
-                            .resource_server_credential
-                            .metadata
-                            .as_object()
-                            .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
-                    };
+                    let resource_server_credential_params =
+                        models::CreateResourceServerCredentialParamsInner {
+                            data_encryption_key_id: provider_config
+                                .resource_server_credential
+                                .data_encryption_key_id
+                                .clone(),
+                            resource_server_configuration: Some(
+                                provider_config.resource_server_credential.value.clone(),
+                            ),
+                            metadata: provider_config
+                                .resource_server_credential
+                                .metadata
+                                .as_object()
+                                .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
+                        };
 
-                    let resource_server_credential = default_api::create_resource_server_credential(
-                        api_config,
-                        provider_controller_type_id,
-                        credential_controller_type_id,
-                        resource_server_credential_params,
-                    )
-                    .await
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create resource server credential: {e:?}")))?;
+                    let resource_server_credential =
+                        default_api::create_resource_server_credential(
+                            api_config,
+                            provider_controller_type_id,
+                            credential_controller_type_id,
+                            resource_server_credential_params,
+                        )
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to create resource server credential: {e:?}"
+                            ))
+                        })?;
 
                     // Create user credential if provided
                     let user_credential_id = if let Some(user_cred_config) =
                         &provider_config.user_credential
                     {
                         let user_credential_params = models::CreateUserCredentialParamsInner {
-                            data_encryption_key_id: user_cred_config
-                                .data_encryption_key_id
-                                .clone(),
+                            data_encryption_key_id: user_cred_config.data_encryption_key_id.clone(),
                             user_credential_configuration: Some(user_cred_config.value.clone()),
-                            metadata: user_cred_config.metadata.as_object().map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
+                            metadata: user_cred_config
+                                .metadata
+                                .as_object()
+                                .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
                         };
 
                         let user_credential = default_api::create_user_credential(
@@ -194,7 +211,11 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                             user_credential_params,
                         )
                         .await
-                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create user credential: {e:?}")))?;
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to create user credential: {e:?}"
+                            ))
+                        })?;
 
                         Some(user_credential.id)
                     } else {
@@ -217,7 +238,11 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                         create_provider_params,
                     )
                     .await
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create provider instance '{provider_id}': {e:?}")))?;
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to create provider instance '{provider_id}': {e:?}"
+                        ))
+                    })?;
                 } else {
                     tracing::info!("Provider '{}' unchanged, preserving", provider_id);
                 }
@@ -234,7 +259,11 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                             Some(provider_id.as_str()),
                         )
                         .await
-                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to list function instances: {e:?}")))?;
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to list function instances: {e:?}"
+                            ))
+                        })?;
 
                         for item in response.items {
                             instances.insert(item.function_controller_type_id);
@@ -256,13 +285,13 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 // Disable functions not in yaml
                 for function_id in existing_functions.iter() {
                     if !yaml_functions.contains(function_id) {
-                        default_api::disable_function(
-                            api_config,
-                            provider_id,
-                            function_id,
-                        )
-                        .await
-                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to disable function '{function_id}': {e:?}")))?;
+                        default_api::disable_function(api_config, provider_id, function_id)
+                            .await
+                            .map_err(|e| {
+                                CommonError::Unknown(anyhow::anyhow!(
+                                    "Failed to disable function '{function_id}': {e:?}"
+                                ))
+                            })?;
                     }
                 }
 
@@ -276,23 +305,29 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                             serde_json::json!({}),
                         )
                         .await
-                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to enable function '{function_id}': {e:?}")))?;
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to enable function '{function_id}': {e:?}"
+                            ))
+                        })?;
                     }
                 }
             }
 
             // Delete provider instances not in yaml (only if status is "active")
             for (provider_id, existing) in existing_providers.iter() {
-                if !yaml_provider_ids.contains(provider_id)
-                    && existing.status == "active"
-                {
+                if !yaml_provider_ids.contains(provider_id) && existing.status == "active" {
                     tracing::info!(
                         "Deleting provider '{}' not in yaml (status: active)",
                         provider_id
                     );
                     default_api::delete_provider_instance(api_config, provider_id)
                         .await
-                        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to delete provider instance '{provider_id}': {e:?}")))?;
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to delete provider instance '{provider_id}': {e:?}"
+                            ))
+                        })?;
                 }
             }
         }

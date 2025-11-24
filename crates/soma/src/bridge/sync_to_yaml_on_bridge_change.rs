@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use bridge::logic::{OnConfigChangeEvt, OnConfigChangeRx, OnConfigChangeTx};
 use serde_json::json;
-use tokio::sync::mpsc;
-use tracing::info;
+use tokio::sync::broadcast;
+use tracing::{info, warn};
 
 use shared::error::CommonError;
 use shared::soma_agent_definition::SomaAgentDefinitionLike;
@@ -20,10 +20,17 @@ pub async fn sync_on_bridge_change(
 ) -> Result<(), CommonError> {
     loop {
         let event = match on_bridge_config_change_rx.recv().await {
-            Some(event) => event,
-            None => {
-                info!("Bridge config change receiver dropped");
+            Ok(event) => event,
+            Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                info!("Bridge config change receiver closed");
                 return Ok(());
+            }
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                warn!(
+                    "Bridge config change receiver lagged, skipped {} messages",
+                    skipped
+                );
+                continue;
             }
         };
 
@@ -243,7 +250,7 @@ pub fn start_sync_on_bridge_change(
     ),
     CommonError,
 > {
-    let (on_bridge_config_change_tx, on_bridge_config_change_rx) = mpsc::channel(10);
+    let (on_bridge_config_change_tx, on_bridge_config_change_rx) = broadcast::channel(100);
 
     let sync_on_bridge_change_fut = sync_on_bridge_change(
         on_bridge_config_change_rx,

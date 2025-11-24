@@ -14,15 +14,14 @@ fn main() {
     // Export it so the derive macro sees it
     println!("cargo:rustc-env=FRONTEND_APP_DIR={}", app_dir.display());
 
-    
-
     // Step 1: Generate OpenAPI spec
     println!("cargo:warning=Generating openapi spec in /openapi.json");
 
     let openapi_json_path = workspace_dir.join("openapi.json");
 
     let spec = soma_api_server::router::generate_openapi_spec();
-    let openapi_client_json = serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
+    let openapi_client_json =
+        serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
     fs::write(&openapi_json_path, openapi_client_json).expect("Failed to write openapi.json");
 
     // Step 2: Generate TypeScript client

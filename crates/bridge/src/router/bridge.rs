@@ -629,7 +629,10 @@ async fn route_enable_function(
     if res.is_ok() {
         let mut sdk_client_guard = ctx.sdk_client().lock().await;
         if let Some(ref mut client) = *sdk_client_guard {
-            if let Err(e) = crate::logic::codegen::trigger_bridge_client_generation(client, ctx.repository()).await {
+            if let Err(e) =
+                crate::logic::codegen::trigger_bridge_client_generation(client, ctx.repository())
+                    .await
+            {
                 tracing::warn!("Failed to trigger bridge client generation: {:?}", e);
             }
         }
@@ -674,7 +677,10 @@ async fn route_disable_function(
     if res.is_ok() {
         let mut sdk_client_guard = ctx.sdk_client().lock().await;
         if let Some(ref mut client) = *sdk_client_guard {
-            if let Err(e) = crate::logic::codegen::trigger_bridge_client_generation(client, ctx.repository()).await {
+            if let Err(e) =
+                crate::logic::codegen::trigger_bridge_client_generation(client, ctx.repository())
+                    .await
+            {
                 tracing::warn!("Failed to trigger bridge client generation: {:?}", e);
             }
         }
@@ -849,7 +855,13 @@ pub struct BridgeServiceInner {
     pub mcp_transport_tx:
         tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
     pub mcp_sse_ping_interval: Duration,
-    pub sdk_client: Arc<tokio::sync::Mutex<Option<sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<tonic::transport::Channel>>>>,
+    pub sdk_client: Arc<
+        tokio::sync::Mutex<
+            Option<
+                sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<tonic::transport::Channel>,
+            >,
+        >,
+    >,
 }
 
 impl BridgeServiceInner {
@@ -861,7 +873,15 @@ impl BridgeServiceInner {
             rmcp::transport::sse_server::SseServerTransport,
         >,
         mcp_sse_ping_interval: Duration,
-        sdk_client: Arc<tokio::sync::Mutex<Option<sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<tonic::transport::Channel>>>>,
+        sdk_client: Arc<
+            tokio::sync::Mutex<
+                Option<
+                    sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
+                        tonic::transport::Channel,
+                    >,
+                >,
+            >,
+        >,
     ) -> Self {
         Self {
             repository,
@@ -887,7 +907,15 @@ impl BridgeService {
             rmcp::transport::sse_server::SseServerTransport,
         >,
         mcp_sse_ping_interval: Duration,
-        sdk_client: Arc<tokio::sync::Mutex<Option<sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<tonic::transport::Channel>>>>,
+        sdk_client: Arc<
+            tokio::sync::Mutex<
+                Option<
+                    sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
+                        tonic::transport::Channel,
+                    >,
+                >,
+            >,
+        >,
     ) -> Result<Self, CommonError> {
         // Run initial credential rotation check for expired and soon-to-expire credentials (30 min window)
         info!("Running initial credential rotation check...");
@@ -936,7 +964,15 @@ impl BridgeService {
         &self.0.mcp_sessions
     }
 
-    pub fn sdk_client(&self) -> &Arc<tokio::sync::Mutex<Option<sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<tonic::transport::Channel>>>> {
+    pub fn sdk_client(
+        &self,
+    ) -> &Arc<
+        tokio::sync::Mutex<
+            Option<
+                sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<tonic::transport::Channel>,
+            >,
+        >,
+    > {
         &self.0.sdk_client
     }
 }

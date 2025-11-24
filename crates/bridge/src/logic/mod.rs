@@ -86,6 +86,7 @@ pub use instance::*;
 
 // on change events
 
+#[derive(Clone)]
 pub enum OnConfigChangeEvt {
     DataEncryptionKeyAdded(DataEncryptionKey),
     DataEncryptionKeyRemoved(String),
@@ -96,8 +97,8 @@ pub enum OnConfigChangeEvt {
     FunctionInstanceRemoved(String, String, String), // (function_controller_type_id, provider_controller_type_id, provider_instance_id)
 }
 
-pub type OnConfigChangeTx = tokio::sync::mpsc::Sender<OnConfigChangeEvt>;
-pub type OnConfigChangeRx = tokio::sync::mpsc::Receiver<OnConfigChangeEvt>;
+pub type OnConfigChangeTx = tokio::sync::broadcast::Sender<OnConfigChangeEvt>;
+pub type OnConfigChangeRx = tokio::sync::broadcast::Receiver<OnConfigChangeEvt>;
 
 pub trait StaticProviderCredentialControllerLike {
     fn static_type_id() -> &'static str;

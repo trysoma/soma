@@ -101,9 +101,9 @@ export interface ApproveClaim {
 
 export interface Bridge {
   
-  google_mail: GoogleMail;
+  "google_mail": GoogleMail;
   
-  approve-claim: ApproveClaim;
+  "approve-claim": ApproveClaim;
   
 }
 
@@ -111,7 +111,6 @@ export type BridgeDefinition = Bridge;
 
 export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
   const baseUrl = config?.SOMA_BASE_URL || process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000';
-
   
   const google_mail: GoogleMail = {
     
@@ -134,7 +133,7 @@ export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
     
   };
   
-  const approve-claim: ApproveClaim = {
+  const approve_claim: ApproveClaim = {
     
     "internal": {
       
@@ -158,9 +157,9 @@ export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
 
   return {
     
-    google_mail,
+    "google_mail": google_mail,
     
-    approve-claim,
+    "approve-claim": approve_claim,
     
   };
 }

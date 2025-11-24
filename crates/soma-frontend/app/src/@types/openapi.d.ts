@@ -884,6 +884,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Service unavailable - SDK server not ready */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     "get-internal-runtime-config": {

@@ -25,9 +25,7 @@ pub async fn cmd_codegen(
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(params.timeout_secs))
         .build()
-        .map_err(|e| {
-            CommonError::Unknown(anyhow::anyhow!("Failed to create HTTP client: {e}"))
-        })?;
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create HTTP client: {e}")))?;
 
     // Wait for API to be ready
     info!(
@@ -59,13 +57,14 @@ pub async fn cmd_codegen(
             Err(e) => {
                 if attempt == max_retries {
                     return Err(CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to connect to Soma API server after {} attempts: {:?}. Please ensure 'soma dev' is running.",
-                        max_retries,
-                        e
+                        "Failed to connect to Soma API server after {max_retries} attempts: {e:?}. Please ensure 'soma dev' is running."
                     )));
                 }
                 if attempt == 1 {
-                    info!("Waiting for server... (attempt {}/{})", attempt, max_retries);
+                    info!(
+                        "Waiting for server... (attempt {}/{})",
+                        attempt, max_retries
+                    );
                 }
                 tokio::time::sleep(Duration::from_secs(2)).await;
             }

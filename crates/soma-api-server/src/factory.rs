@@ -2,20 +2,24 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bridge::logic::{EnvelopeEncryptionKeyContents, OnConfigChangeTx, register_all_bridge_providers};
+use bridge::logic::{
+    EnvelopeEncryptionKeyContents, OnConfigChangeTx, register_all_bridge_providers,
+};
 use shared::error::CommonError;
 use shared::soma_agent_definition::SomaAgentDefinitionLike;
 use shared::subsystem::SubsystemHandle;
-use shared::uds::{create_soma_unix_socket_client, establish_connection_with_retry, DEFAULT_SOMA_SERVER_SOCK};
+use shared::uds::{
+    DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client, establish_connection_with_retry,
+};
 use tokio::sync::broadcast;
 use tracing::{error, info, warn};
 
 use crate::logic::ConnectionManager;
 use crate::repository::setup_repository;
 use crate::restate::RestateServerParams;
-use crate::{ApiService, InitRouterParams};
 use crate::sdk::{SdkRuntime, determine_sdk_runtime, sdk_provider_sync};
 use crate::subsystems::Subsystems;
+use crate::{ApiService, InitRouterParams};
 
 pub struct CreateApiServiceParams {
     pub project_dir: PathBuf,
@@ -58,15 +62,18 @@ pub async fn create_api_service(
     // Determine SDK runtime
     let sdk_runtime = match determine_sdk_runtime(&project_dir)? {
         Some(runtime) => runtime,
-        None => return Err(CommonError::Unknown(anyhow::anyhow!("No SDK runtime matched"))),
+        None => {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "No SDK runtime matched"
+            )));
+        }
     };
 
     // Setup database and repositories
     info!("Setting up database and repositories...");
     let connection_manager = ConnectionManager::new();
     let db_url = url::Url::parse(&db_conn_string)?;
-    let (_db, _conn, repository, bridge_repo) =
-        setup_repository(&db_url, &db_auth_token).await?;
+    let (_db, _conn, repository, bridge_repo) = setup_repository(&db_url, &db_auth_token).await?;
 
     // Restate server is started by caller (soma crate)
     // We just use the passed-in handle
@@ -114,6 +121,30 @@ pub async fn create_api_service(
             let metadata = response.into_inner();
             sdk_provider_sync::sync_providers_from_metadata(&metadata)?;
             info!("SDK providers synced successfully");
+
+            // Wait for SDK server healthcheck to pass before triggering bridge client generation
+            wait_for_sdk_healthcheck(&mut client).await?;
+
+            // Trigger initial bridge client generation on start
+            info!("Triggering initial bridge client generation...");
+            match bridge::logic::codegen::trigger_bridge_client_generation(
+                &mut client,
+                &bridge_repo,
+            )
+            .await
+            {
+                Ok(()) => {
+                    info!("Initial bridge client generation completed successfully");
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to trigger initial bridge client generation: {:?}",
+                        e
+                    );
+                    // Don't fail startup if codegen fails - it will be retried on bridge changes
+                }
+            }
+
             // Store client for reuse
             Arc::new(tokio::sync::Mutex::new(Some(client)))
         }
@@ -132,6 +163,10 @@ pub async fn create_api_service(
 
     // Create MCP transport channel
     let (mcp_transport_tx, mcp_transport_rx) = tokio::sync::mpsc::unbounded_channel();
+
+    // Subscribe to bridge config change events for bridge client generation listener
+    // Broadcast channels support multiple subscribers natively - no wrapper needed!
+    let bridge_client_gen_rx = on_bridge_config_change_tx.subscribe();
 
     // Register built-in bridge providers (google_mail, stripe, etc.) BEFORE creating API service
     info!("Registering built-in bridge providers...");
@@ -178,9 +213,19 @@ pub async fn create_api_service(
     // Start credential rotation
     info!("Starting credential rotation...");
     let credential_rotation_handle = start_credential_rotation_subsystem(
-        bridge_repo,
+        bridge_repo.clone(),
         envelope_encryption_key_contents,
-        on_bridge_config_change_tx,
+        on_bridge_config_change_tx.clone(),
+        system_shutdown_signal.subscribe(),
+    )?;
+
+    // Start bridge client generation listener
+    info!("Starting bridge client generation listener...");
+    let bridge_client_gen_handle = crate::bridge::start_bridge_client_generation_subsystem(
+        bridge_repo.clone(),
+        sdk_client.clone(),
+        bridge_client_gen_rx,
+        system_shutdown_signal.subscribe(),
     )?;
 
     Ok(ApiServiceBundle {
@@ -190,6 +235,7 @@ pub async fn create_api_service(
             sdk_sync: Some(sdk_sync_handle),
             mcp: Some(mcp_handle),
             credential_rotation: Some(credential_rotation_handle),
+            bridge_client_generation: Some(bridge_client_gen_handle),
         },
     })
 }
@@ -200,7 +246,7 @@ fn start_sdk_server_subsystem(
     sdk_port: u16,
     shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<SubsystemHandle, CommonError> {
-    use crate::sdk::{start_dev_sdk, StartDevSdkParams};
+    use crate::sdk::{StartDevSdkParams, start_dev_sdk};
 
     let (handle, signal) = SubsystemHandle::new("SDK Server");
 
@@ -228,10 +274,14 @@ fn start_sdk_server_subsystem(
 
 fn start_mcp_subsystem(
     bridge_service: bridge::router::bridge::BridgeService,
-    mcp_transport_rx: tokio::sync::mpsc::UnboundedReceiver<rmcp::transport::sse_server::SseServerTransport>,
+    mcp_transport_rx: tokio::sync::mpsc::UnboundedReceiver<
+        rmcp::transport::sse_server::SseServerTransport,
+    >,
     shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<SubsystemHandle, CommonError> {
-    use crate::bridge::connection_manager::{start_mcp_connection_manager, StartMcpConnectionManagerParams};
+    use crate::bridge::connection_manager::{
+        StartMcpConnectionManagerParams, start_mcp_connection_manager,
+    };
 
     let (handle, signal) = SubsystemHandle::new("MCP");
 
@@ -262,7 +312,7 @@ fn start_sdk_sync_subsystem(
     sdk_port: u16,
     shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<SubsystemHandle, CommonError> {
-    use crate::sdk::{sync_sdk_changes, SyncSdkChangesParams};
+    use crate::sdk::{SyncSdkChangesParams, sync_sdk_changes};
 
     let (handle, signal) = SubsystemHandle::new("SDK Sync");
 
@@ -288,10 +338,55 @@ fn start_sdk_sync_subsystem(
     Ok(handle)
 }
 
+/// Waits for SDK server healthcheck to pass, retrying up to max_iterations times
+async fn wait_for_sdk_healthcheck(
+    client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
+        tonic::transport::Channel,
+    >,
+) -> Result<(), CommonError> {
+    const MAX_ITERATIONS: u32 = 10;
+    const RETRY_DELAY_MS: u64 = 200;
+
+    info!("Waiting for SDK server healthcheck to pass...");
+
+    for attempt in 1..=MAX_ITERATIONS {
+        let health_request = tonic::Request::new(());
+        match client.health_check(health_request).await {
+            Ok(_) => {
+                info!("SDK server healthcheck passed");
+                return Ok(());
+            }
+            Err(e) => {
+                if attempt < MAX_ITERATIONS {
+                    warn!(
+                        "SDK server healthcheck not ready yet (attempt {}/{}): {:?}. Retrying...",
+                        attempt, MAX_ITERATIONS, e
+                    );
+                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
+                } else {
+                    error!(
+                        "SDK server healthcheck failed after {} attempts: {:?}",
+                        MAX_ITERATIONS, e
+                    );
+                    return Err(CommonError::Unknown(anyhow::anyhow!(
+                        "SDK server healthcheck failed after {MAX_ITERATIONS} attempts: {e}"
+                    )));
+                }
+            }
+        }
+    }
+
+    // Should never reach here, but handle it just in case
+    Err(CommonError::Unknown(anyhow::anyhow!(
+        "SDK server healthcheck failed after {MAX_ITERATIONS} attempts"
+    )))
+}
+
 fn start_credential_rotation_subsystem(
     bridge_repo: bridge::repository::Repository,
     envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
     on_bridge_change_tx: OnConfigChangeTx,
+    shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<SubsystemHandle, CommonError> {
     let (handle, signal) = SubsystemHandle::new("Credential Rotation");
 
@@ -300,6 +395,7 @@ fn start_credential_rotation_subsystem(
             bridge_repo,
             envelope_encryption_key_contents,
             on_bridge_change_tx,
+            shutdown_rx,
         )
         .await;
         signal.signal_with_message("stopped gracefully");

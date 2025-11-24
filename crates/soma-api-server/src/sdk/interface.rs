@@ -1,6 +1,6 @@
 use std::{future::Future, path::PathBuf, pin::Pin};
 
-use shared::{build_helpers::BuildEvent, error::CommonError, primitives::WrappedSchema};
+use shared::{error::CommonError, primitives::WrappedSchema};
 use tokio::sync::broadcast;
 
 pub struct Manifest {

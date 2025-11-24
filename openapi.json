@@ -20,6 +20,9 @@
         "responses": {
           "200": {
             "description": "Service is healthy"
+          },
+          "503": {
+            "description": "Service unavailable - SDK server not ready"
           }
         }
       }

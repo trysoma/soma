@@ -626,7 +626,12 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 	const createContext = useCallback((contextId: string) => {
 		setContexts((prev) => [
 			...prev,
-			{ createdAt: new Date(), id: contextId, tasks: [], taskNextToken: undefined },
+			{
+				createdAt: new Date(),
+				id: contextId,
+				tasks: [],
+				taskNextToken: undefined,
+			},
 		]);
 		setSelectedIds((prev) => ({ ...prev, contextId: contextId, taskId: null }));
 	}, []);

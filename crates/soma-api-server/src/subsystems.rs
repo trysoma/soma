@@ -6,6 +6,7 @@ pub struct Subsystems {
     pub sdk_sync: Option<SubsystemHandle>,
     pub mcp: Option<SubsystemHandle>,
     pub credential_rotation: Option<SubsystemHandle>,
+    pub bridge_client_generation: Option<SubsystemHandle>,
 }
 
 impl Subsystems {
@@ -22,6 +23,9 @@ impl Subsystems {
             handle.wait_for_shutdown().await;
         }
         if let Some(handle) = self.credential_rotation {
+            handle.wait_for_shutdown().await;
+        }
+        if let Some(handle) = self.bridge_client_generation {
             handle.wait_for_shutdown().await;
         }
 

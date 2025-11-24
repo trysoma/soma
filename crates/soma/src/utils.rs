@@ -176,8 +176,7 @@ pub async fn wait_for_soma_api_health_check(
     for _ in 0..max_retries {
         if start.elapsed() >= timeout {
             return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Health check timeout after {} seconds",
-                timeout_secs
+                "Health check timeout after {timeout_secs} seconds"
             )));
         }
 
@@ -201,7 +200,6 @@ pub async fn wait_for_soma_api_health_check(
     }
 
     Err(CommonError::Unknown(anyhow::anyhow!(
-        "Health check failed after {} retries",
-        max_retries
+        "Health check failed after {max_retries} retries"
     )))
 }

@@ -1032,7 +1032,7 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
         let (_temp_file, kek) = create_temp_kek_file();
 
         // Create a data encryption key
@@ -1212,7 +1212,7 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
         let (_temp_file, kek) = create_temp_kek_file();
 
         let dek = create_data_encryption_key(
@@ -1288,7 +1288,7 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
         let (_temp_file, kek) = create_temp_kek_file();
 
         let dek = create_data_encryption_key(
@@ -1387,7 +1387,7 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx) = tokio::sync::mpsc::channel(10);
+        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
         let (_temp_file, kek) = create_temp_kek_file();
 
         let dek = create_data_encryption_key(

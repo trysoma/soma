@@ -159,6 +159,7 @@ pub enum GetTaskByIdError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum HealthCheckError {
+    Status503(),
     UnknownValue(serde_json::Value),
 }
 

@@ -1,3 +1,5 @@
+use std::fs;
+use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -16,12 +18,14 @@ use shared::error::CommonError;
 use shared::port::find_free_port;
 use shared::soma_agent_definition::{SomaAgentDefinitionLike, YamlSomaAgentDefinition};
 
-use soma_api_server::restate::{RestateServerRemoteParams, RestateServerLocalParams, RestateServerParams};
-use soma_api_server::factory::{create_api_service, CreateApiServiceParams};
 use crate::bridge::start_bridge_sync_to_yaml_subsystem;
-use crate::utils::{CliConfig, get_config_file_path, construct_src_dir_absolute};
 use crate::server::{StartAxumServerParams, start_axum_server};
 use crate::utils::wait_for_soma_api_health_check;
+use crate::utils::{CliConfig, construct_src_dir_absolute};
+use soma_api_server::factory::{CreateApiServiceParams, create_api_service};
+use soma_api_server::restate::{
+    RestateServerLocalParams, RestateServerParams, RestateServerRemoteParams,
+};
 
 #[derive(Args, Debug, Clone)]
 #[group(multiple = false, required = false)]
@@ -126,7 +130,8 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     // let sdk_port = find_free_port(9080, 10080)?;
 
     // Setup encryption key
-    let envelope_encryption_key_contents = setup_encryption_key(params.key_encryption_key.clone())?;
+    let envelope_encryption_key_contents =
+        setup_encryption_key(params.key_encryption_key.clone(), &project_dir)?;
 
     // Load soma definition
     let soma_definition: Arc<dyn SomaAgentDefinitionLike> = load_soma_definition(&project_dir)?;
@@ -155,10 +160,8 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
 
     // Start bridge config change listener subsystem
     info!("Starting bridge config change listener...");
-    let (on_bridge_change_tx, bridge_sync_handle) = start_bridge_sync_to_yaml_subsystem(
-        soma_definition.clone(),
-        project_dir.clone(),
-    )?;
+    let (on_bridge_change_tx, bridge_sync_handle) =
+        start_bridge_sync_to_yaml_subsystem(soma_definition.clone(), project_dir.clone())?;
 
     // Create API service and start all subsystems
     info!("Initializing API service and starting all subsystems...");
@@ -179,7 +182,6 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
 
     let api_service = api_service_bundle.api_service;
     let subsystems = api_service_bundle.subsystems;
-
 
     info!("API service initialized and all subsystems started");
 
@@ -228,39 +230,39 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     wait_for_soma_api_health_check(&api_config, 30, 10).await?;
     info!("API service is ready");
 
-     // Sync bridge from soma definition (now all providers should be available)
-     info!("Syncing bridge from soma.yaml...");
-     crate::bridge::sync_yaml_to_api_on_start::sync_bridge_db_from_soma_definition_on_start(
-         &api_config,
-         &soma_definition,
-     )
-     .await?;
-     info!("Bridge sync completed");
- 
-     // Reload soma definition
-     soma_definition.reload().await?;
+    // Sync bridge from soma definition (now all providers should be available)
+    info!("Syncing bridge from soma.yaml...");
+    crate::bridge::sync_yaml_to_api_on_start::sync_bridge_db_from_soma_definition_on_start(
+        &api_config,
+        &soma_definition,
+    )
+    .await?;
+    info!("Bridge sync completed");
+
+    // Reload soma definition
+    soma_definition.reload().await?;
 
     // Shutdown monitoring thread - handles both unexpected exits and graceful shutdown
     let system_shutdown_signal_trigger_clone = system_shutdown_signal_trigger.clone();
     let mut shutdown_requested_rx = system_shutdown_signal_trigger.subscribe();
 
     // Convert subsystem handles to shutdown receivers
-    let mut shutdown_receivers: Vec<(&str, oneshot::Receiver<()>)> = vec![
-        ("axum_server", axum_shutdown_complete_signal_receiver),
-    ];
+    let mut shutdown_receivers: Vec<(&str, oneshot::Receiver<()>)> =
+        vec![("axum_server", axum_shutdown_complete_signal_receiver)];
 
     // Helper to convert SubsystemHandle to (name, receiver) pair
-    let mut add_subsystem_handle = |name: &'static str, handle: Option<shared::subsystem::SubsystemHandle>| {
-        if let Some(h) = handle {
-            let (tx, rx) = oneshot::channel();
-            let handle_name = name;
-            tokio::spawn(async move {
-                h.wait_for_shutdown().await;
-                let _ = tx.send(());
-            });
-            shutdown_receivers.push((handle_name, rx));
-        }
-    };
+    let mut add_subsystem_handle =
+        |name: &'static str, handle: Option<shared::subsystem::SubsystemHandle>| {
+            if let Some(h) = handle {
+                let (tx, rx) = oneshot::channel();
+                let handle_name = name;
+                tokio::spawn(async move {
+                    h.wait_for_shutdown().await;
+                    let _ = tx.send(());
+                });
+                shutdown_receivers.push((handle_name, rx));
+            }
+        };
 
     // Add all subsystems from the bundle
     add_subsystem_handle("bridge_sync_yaml", Some(bridge_sync_handle));
@@ -282,27 +284,28 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     ];
 
     // Systems that require graceful shutdown (we wait for these after shutdown is triggered)
-    let systems_requiring_graceful_shutdown: Vec<&str> = vec![
-        "restate",
-        "axum_server",
-        "sdk_server",
-        "mcp",
-        "sdk_sync",
-    ];
+    let systems_requiring_graceful_shutdown: Vec<&str> =
+        vec!["restate", "axum_server", "sdk_server", "mcp", "sdk_sync"];
 
     // Track which systems have completed
     use std::collections::HashSet;
     use std::sync::{Arc, Mutex};
+    use tokio::sync::Notify;
+
     let completed_systems: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
+    let completion_notify = Arc::new(Notify::new());
 
     // Spawn tasks to track each system's completion (these run independently)
     for (name, receiver) in shutdown_receivers {
         let name_str = name.to_string();
         let completed_systems_clone = completed_systems.clone();
+        let completion_notify_clone = completion_notify.clone();
         tokio::spawn(async move {
             let _ = receiver.await;
             let mut completed = completed_systems_clone.lock().unwrap();
             completed.insert(name_str);
+            drop(completed);
+            completion_notify_clone.notify_waiters();
         });
     }
 
@@ -317,14 +320,18 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         for name in systems_that_can_trigger_shutdown {
             let name_str = name.to_string();
             let completed_systems_clone = completed_systems.clone();
+            let completion_notify_clone = completion_notify.clone();
             let fut = async move {
                 loop {
-                    tokio::time::sleep(Duration::from_millis(100)).await;
-                    let completed = completed_systems_clone.lock().unwrap();
-                    if completed.contains(&name_str) {
-                        return Some(name_str);
+                    // Check if system has completed
+                    {
+                        let completed = completed_systems_clone.lock().unwrap();
+                        if completed.contains(&name_str) {
+                            return Some(name_str);
+                        }
                     }
-                    drop(completed);
+                    // Wait for notification instead of polling
+                    completion_notify_clone.notified().await;
                 }
             };
             trigger_futures.push(fut.boxed());
@@ -358,17 +365,21 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         let timeout_fut = tokio::time::sleep(Duration::from_secs(30));
         let completed_systems_for_check = completed_systems.clone();
         let systems_to_wait_for_check = systems_to_wait_for.clone();
+        let completion_notify_for_check = completion_notify.clone();
         let check_completion = async move {
             loop {
-                tokio::time::sleep(Duration::from_millis(100)).await;
-                let completed = completed_systems_for_check.lock().unwrap();
-                let all_complete = systems_to_wait_for_check
-                    .iter()
-                    .all(|name| completed.contains(name));
-                if all_complete {
-                    break;
+                // Check if all systems have completed
+                {
+                    let completed = completed_systems_for_check.lock().unwrap();
+                    let all_complete = systems_to_wait_for_check
+                        .iter()
+                        .all(|name| completed.contains(name));
+                    if all_complete {
+                        break;
+                    }
                 }
-                drop(completed);
+                // Wait for notification instead of polling
+                completion_notify_for_check.notified().await;
             }
         };
 
@@ -405,16 +416,49 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     Ok(())
 }
 
+/// Ensures .gitignore file includes master-encryption-key.bin
+fn ensure_gitignore_has_key(gitignore_path: &Path) -> Result<(), CommonError> {
+    const KEY_ENTRY: &str = "master-encryption-key.bin";
+
+    let content = if gitignore_path.exists() {
+        fs::read_to_string(gitignore_path)?
+    } else {
+        String::new()
+    };
+
+    // Check if the entry already exists
+    if content.lines().any(|line| line.trim() == KEY_ENTRY) {
+        return Ok(());
+    }
+
+    // Append the entry to .gitignore
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(gitignore_path)?;
+
+    if !content.is_empty() && !content.ends_with('\n') {
+        writeln!(file)?;
+    }
+    writeln!(file, "{KEY_ENTRY}")?;
+
+    Ok(())
+}
+
 /// Sets up the envelope encryption key
 fn setup_encryption_key(
     key_encryption_key: Option<String>,
+    project_dir: &Path,
 ) -> Result<EnvelopeEncryptionKeyContents, CommonError> {
-    let local_key_path = get_config_file_path()?
-        .parent()
-        .ok_or(CommonError::Unknown(anyhow::anyhow!(
-            "Failed to get config file path"
-        )))?
-        .join("local-key.bin");
+    // Ensure .soma directory exists
+    let soma_dir = project_dir.join(".soma");
+    fs::create_dir_all(&soma_dir)?;
+
+    // Ensure .soma/.gitignore exists and includes master-encryption-key.bin
+    let gitignore_path = soma_dir.join(".gitignore");
+    ensure_gitignore_has_key(&gitignore_path)?;
+
+    let local_key_path = soma_dir.join("master-encryption-key.bin");
 
     let envelope_encryption_key_contents = match key_encryption_key {
         Some(key_encryption_key) => match key_encryption_key.as_str() {

@@ -1,6 +1,6 @@
-pub mod types;
 pub mod codegen;
 pub mod codegen_impl;
+pub mod types;
 
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::ThreadsafeFunction;
@@ -10,13 +10,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::info;
 
+use codegen_impl::TypeScriptCodeGenerator;
 use sdk_core as core_types;
 use types as js_types;
-use codegen_impl::TypeScriptCodeGenerator;
 
 use once_cell::sync::OnceCell;
 
-static GRPC_SERVICE: OnceCell<Arc<core_types::GrpcService<TypeScriptCodeGenerator>>> = OnceCell::new();
+static GRPC_SERVICE: OnceCell<Arc<core_types::GrpcService<TypeScriptCodeGenerator>>> =
+    OnceCell::new();
 
 /// Start the gRPC server on a Unix socket with TypeScript code generation
 #[napi]
@@ -30,15 +31,17 @@ pub async fn start_grpc_server(socket_path: String, project_dir: String) -> Resu
         .await
         .map_err(|e| napi::Error::from_reason(e.to_string()))?;
 
-    GRPC_SERVICE.set(service)
+    GRPC_SERVICE
+        .set(service)
         .map_err(|_| napi::Error::from_reason("gRPC service already initialized"))?;
 
     Ok(())
 }
 
 fn get_grpc_service() -> Result<&'static Arc<core_types::GrpcService<TypeScriptCodeGenerator>>> {
-    GRPC_SERVICE.get()
-        .ok_or_else(|| napi::Error::from_reason("gRPC service not initialized - call start_grpc_server first"))
+    GRPC_SERVICE.get().ok_or_else(|| {
+        napi::Error::from_reason("gRPC service not initialized - call start_grpc_server first")
+    })
 }
 
 /// Add a provider controller to the running server

@@ -1,10 +1,25 @@
 use std::{sync::Arc, time::Duration};
 
-use ::bridge::{logic::{EnvelopeEncryptionKeyContents, OnConfigChangeTx}, router::bridge::BridgeService};
-use shared::{error::CommonError, restate::{admin_client::AdminClient, invoke::RestateIngressClient}, soma_agent_definition::SomaAgentDefinitionLike};
+use ::bridge::{
+    logic::{EnvelopeEncryptionKeyContents, OnConfigChangeTx},
+    router::bridge::BridgeService,
+};
+use shared::{
+    error::CommonError,
+    restate::{admin_client::AdminClient, invoke::RestateIngressClient},
+    soma_agent_definition::SomaAgentDefinitionLike,
+};
 use url::Url;
 
-use crate::{logic::ConnectionManager, repository::Repository, router::{a2a::{Agent2AgentService, Agent2AgentServiceParams}, internal, task::TaskService}};
+use crate::{
+    logic::ConnectionManager,
+    repository::Repository,
+    router::{
+        a2a::{Agent2AgentService, Agent2AgentServiceParams},
+        internal,
+        task::TaskService,
+    },
+};
 
 mod a2a;
 pub mod bridge;
@@ -15,7 +30,6 @@ pub mod restate;
 pub mod router;
 pub mod sdk;
 pub mod subsystems;
-
 
 #[derive(Clone)]
 pub struct ApiService {
@@ -39,7 +53,13 @@ pub struct InitRouterParams {
     pub envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
     pub bridge_repository: ::bridge::repository::Repository,
     pub mcp_sse_ping_interval: Duration,
-    pub sdk_client: Arc<tokio::sync::Mutex<Option<sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<tonic::transport::Channel>>>>,
+    pub sdk_client: Arc<
+        tokio::sync::Mutex<
+            Option<
+                sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<tonic::transport::Channel>,
+            >,
+        >,
+    >,
 }
 
 impl ApiService {
@@ -67,7 +87,6 @@ impl ApiService {
         .await?;
 
         let internal_service = Arc::new(internal::InternalService::new(bridge_service.clone()));
-
 
         Ok(Self {
             agent_service,

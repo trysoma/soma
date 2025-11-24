@@ -28,6 +28,12 @@ pub struct ConnectionManager {
     pub connections_by_task_id: Arc<DashMap<WrappedUuidV4, DashMap<WrappedUuidV4, Connection>>>,
 }
 
+impl Default for ConnectionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionManager {
     pub fn new() -> Self {
         Self {

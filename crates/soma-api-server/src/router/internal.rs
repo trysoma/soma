@@ -1,6 +1,8 @@
 use axum::extract::State;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tonic::Request;
+use tracing::{info, warn};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
@@ -22,13 +24,15 @@ pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {
     path = format!("{}/{}/health", PATH_PREFIX, API_VERSION_1),
     responses(
         (status = 200, description = "Service is healthy"),
+        (status = 503, description = "Service unavailable - SDK server not ready"),
     ),
     operation_id = "health-check",
 )]
-async fn route_health(
-    State(_ctx): State<Arc<InternalService>>,
-) -> axum::http::StatusCode {
-    axum::http::StatusCode::OK
+async fn route_health(State(ctx): State<Arc<InternalService>>) -> axum::http::StatusCode {
+    match ctx.check_health().await {
+        Ok(()) => axum::http::StatusCode::OK,
+        Err(_) => axum::http::StatusCode::SERVICE_UNAVAILABLE,
+    }
 }
 
 #[utoipa::path(
@@ -82,6 +86,33 @@ pub struct InternalService {
 impl InternalService {
     pub fn new(bridge_service: bridge::router::bridge::BridgeService) -> Self {
         Self { bridge_service }
+    }
+
+    /// Checks SDK server health
+    async fn check_health(&self) -> Result<(), CommonError> {
+        let mut sdk_client_guard = self.bridge_service.sdk_client().lock().await;
+
+        if let Some(ref mut client) = *sdk_client_guard {
+            // Call SDK health check
+            let request = Request::new(());
+            match client.health_check(request).await {
+                Ok(_) => {
+                    info!("SDK server health check passed");
+                    Ok(())
+                }
+                Err(e) => {
+                    warn!("SDK server health check failed: {:?}", e);
+                    Err(CommonError::Unknown(anyhow::anyhow!(
+                        "SDK server health check failed: {e}"
+                    )))
+                }
+            }
+        } else {
+            warn!("SDK client not available");
+            Err(CommonError::Unknown(anyhow::anyhow!(
+                "SDK client not available"
+            )))
+        }
     }
 
     pub async fn trigger_codegen(&self) -> Result<TriggerCodegenResponse, CommonError> {

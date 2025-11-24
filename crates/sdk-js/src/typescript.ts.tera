@@ -83,7 +83,7 @@ export interface {{ provider.interface_name }} {
 
 export interface Bridge {
   {% for provider in providers %}
-  {{ provider.name }}: {{ provider.interface_name }};
+  {{ provider.camel_case_name }}: {{ provider.interface_name }};
   {% endfor %}
 }
 
@@ -91,9 +91,8 @@ export type BridgeDefinition = Bridge;
 
 export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
   const baseUrl = config?.SOMA_BASE_URL || process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000';
-
   {% for provider in providers %}
-  const {{ provider.name }}: {{ provider.interface_name }} = {
+  const {{ provider.camel_case_name }}: {{ provider.interface_name }} = {
     {% for account in provider.accounts %}
     "{{ account.name }}": {
       {% for function in account.functions %}
@@ -117,7 +116,7 @@ export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
 
   return {
     {% for provider in providers %}
-    {{ provider.name }},
+    {{ provider.camel_case_name }}: {{ provider.camel_case_name }},
     {% endfor %}
   };
 }

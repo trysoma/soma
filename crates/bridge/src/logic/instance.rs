@@ -704,7 +704,9 @@ pub async fn create_provider_instance(
             .send(OnConfigChangeEvt::ProviderInstanceAdded(
                 provider_instance_with_credentials,
             ))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
 
     Ok(provider_instance_serialized)
@@ -771,7 +773,9 @@ pub async fn update_provider_instance(
             .send(OnConfigChangeEvt::ProviderInstanceAdded(
                 provider_instance_with_creds,
             ))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
 
     Ok(())
@@ -793,7 +797,9 @@ pub async fn delete_provider_instance(
             .send(OnConfigChangeEvt::ProviderInstanceRemoved(
                 params.provider_instance_id.clone(),
             ))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
     Ok(())
 }
@@ -1052,7 +1058,9 @@ pub async fn enable_function(
             .send(OnConfigChangeEvt::FunctionInstanceAdded(
                 function_instance_serialized.clone(),
             ))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
 
     Ok(function_instance_serialized)
@@ -1178,7 +1186,9 @@ pub async fn disable_function(
                     .clone(),
                 params.provider_instance_id.clone(),
             ))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
     Ok(())
 }

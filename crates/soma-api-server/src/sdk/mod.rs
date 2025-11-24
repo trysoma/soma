@@ -5,10 +5,12 @@ mod typescript;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use shared::build_helpers::BuildEvent;
 use shared::restate;
 use shared::subsystem::SubsystemHandle;
-use shared::uds::{DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client, establish_connection_with_retry, monitor_connection_health};
+use shared::uds::{
+    DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client, establish_connection_with_retry,
+    monitor_connection_health,
+};
 use tokio::sync::{broadcast, oneshot};
 use tracing::{error, info};
 
@@ -17,7 +19,6 @@ use shared::error::CommonError;
 use crate::restate::RestateServerParams;
 use interface::{ClientCtx, SdkClient};
 use typescript::Typescript;
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SdkRuntime {
@@ -98,14 +99,12 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
     Ok(())
 }
 
-
 pub fn start_sdk_server_subsystem(
     project_dir: PathBuf,
     sdk_runtime: SdkRuntime,
     sdk_port: u16,
     shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<SubsystemHandle, CommonError> {
-
     let (handle, signal) = SubsystemHandle::new("SDK Server");
 
     tokio::spawn(async move {
@@ -136,7 +135,6 @@ pub fn start_sdk_sync_subsystem(
     sdk_port: u16,
     shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<SubsystemHandle, CommonError> {
-
     let (handle, signal) = SubsystemHandle::new("SDK Sync");
 
     tokio::spawn(async move {
@@ -268,9 +266,7 @@ pub struct SyncSdkChangesParams {
 /// This function runs indefinitely, reconnecting when the server restarts
 /// and syncing providers on each reconnection
 #[allow(clippy::needless_return)]
-pub async fn sync_sdk_changes(
-    params: SyncSdkChangesParams,
-) -> Result<(), CommonError> {
+pub async fn sync_sdk_changes(params: SyncSdkChangesParams) -> Result<(), CommonError> {
     let SyncSdkChangesParams {
         socket_path,
         restate_params,
@@ -278,12 +274,8 @@ pub async fn sync_sdk_changes(
         mut system_shutdown_signal_rx,
     } = params;
 
-    let (
-        sync_shutdown_complete_tx,
-        sync_shutdown_complete_rx,
-    ) = oneshot::channel::<CommonError>();
-    let (system_shutdown_tx, system_shutdown_rx) =
-        tokio::sync::oneshot::channel::<()>();
+    let (sync_shutdown_complete_tx, sync_shutdown_complete_rx) = oneshot::channel::<CommonError>();
+    let (system_shutdown_tx, system_shutdown_rx) = tokio::sync::oneshot::channel::<()>();
     tokio::spawn(async move {
         tokio::select! {
             _ = system_shutdown_rx => {
@@ -344,8 +336,7 @@ async fn internal_sync_sdk_changes_loop(
                         // Register Restate deployments for each agent
                         if !agents.is_empty() {
                             if let Err(e) =
-                                register_agent_deployments(agents, &restate_params, sdk_port)
-                                    .await
+                                register_agent_deployments(agents, &restate_params, sdk_port).await
                             {
                                 error!("Failed to register agent deployments: {:?}", e);
                             }
@@ -364,8 +355,7 @@ async fn internal_sync_sdk_changes_loop(
                 error!("Failed to establish connection: {:?}", e);
                 let err =
                     CommonError::Unknown(anyhow::anyhow!("Failed to establish connection: {e:?}"));
-                let _ = sync_shutdown_complete_tx
-                    .send(err);
+                let _ = sync_shutdown_complete_tx.send(err);
                 return;
             }
             Err(_) => {
@@ -373,8 +363,7 @@ async fn internal_sync_sdk_changes_loop(
                 let err = CommonError::Unknown(anyhow::anyhow!(
                     "Failed to connect to SDK server within 10 seconds"
                 ));
-                let _ = sync_shutdown_complete_tx
-                    .send(err);
+                let _ = sync_shutdown_complete_tx.send(err);
                 return;
             }
         }

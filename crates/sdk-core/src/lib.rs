@@ -2,7 +2,6 @@ pub mod types;
 mod unix_socket;
 
 use arc_swap::ArcSwap;
-use once_cell::sync::Lazy;
 use shared::error::CommonError;
 use tracing_subscriber::EnvFilter;
 pub use types::*;
@@ -122,8 +121,8 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
                     result: Some(sdk_proto::generate_bridge_client_response::Result::Error(
                         sdk_proto::GenerateBridgeClientError {
                             message: e.to_string(),
-                        }
-                    ))
+                        },
+                    )),
                 }))
             }
         }
@@ -291,7 +290,6 @@ impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
             .find(|p| p.type_id == type_id)
             .cloned()
     }
-
 }
 
 /// Starts a gRPC server that handles function invocations over a Unix socket
@@ -382,4 +380,3 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcServiceWrapper<G> {
         self.0.generate_bridge_client(request).await
     }
 }
-
