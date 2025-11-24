@@ -51,9 +51,9 @@ jobs:
           git diff --cached --name-only --diff-filter=ACMR > /tmp/changed-files.txt
 
           # Also add the frontend dist directory (not tracked by git)
-          if [ -d "crates/soma/app/dist" ]; then
+          if [ -d "crates/soma-frontend/app/dist" ]; then
             echo "Adding frontend dist directory to artifact"
-            find crates/soma/app/dist -type f >> /tmp/changed-files.txt
+            find crates/soma-frontend/app/dist -type f >> /tmp/changed-files.txt
           fi
 
           if [ -s /tmp/changed-files.txt ]; then
