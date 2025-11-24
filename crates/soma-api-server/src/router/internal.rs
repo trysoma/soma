@@ -8,9 +8,8 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use shared::{adapters::openapi::JsonResponse, error::CommonError};
 
-pub const PATH_PREFIX: &str = "/_internal";
 pub const API_VERSION_1: &str = "v1";
-pub const SERVICE_ROUTE_KEY: &str = "";
+pub const SERVICE_ROUTE_KEY: &str = "_internal";
 
 pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {
     OpenApiRouter::new()
@@ -21,7 +20,7 @@ pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {
 
 #[utoipa::path(
     get,
-    path = format!("{}/{}/health", PATH_PREFIX, API_VERSION_1),
+    path = format!("{}/{}/health", SERVICE_ROUTE_KEY, API_VERSION_1),
     responses(
         (status = 200, description = "Service is healthy"),
         (status = 503, description = "Service unavailable - SDK server not ready"),
@@ -37,7 +36,7 @@ async fn route_health(State(ctx): State<Arc<InternalService>>) -> axum::http::St
 
 #[utoipa::path(
     get,
-    path = format!("{}/{}/runtime_config", PATH_PREFIX, API_VERSION_1),
+    path = format!("{}/{}/runtime_config", SERVICE_ROUTE_KEY, API_VERSION_1),
     responses(
         (status = 200, description = "Runtime config", body = RuntimeConfig),
     ),
@@ -52,7 +51,7 @@ async fn route_runtime_config(
 
 #[utoipa::path(
     post,
-    path = format!("{}/{}/trigger_codegen", PATH_PREFIX, API_VERSION_1),
+    path = format!("{}/{}/trigger_codegen", SERVICE_ROUTE_KEY, API_VERSION_1),
     responses(
         (status = 200, description = "Codegen triggered successfully", body = TriggerCodegenResponse),
         (status = 400, description = "Bad Request", body = CommonError),

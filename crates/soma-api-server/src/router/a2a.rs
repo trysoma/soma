@@ -79,9 +79,9 @@ pub struct Agent2AgentService {
 }
 
 pub struct Agent2AgentServiceParams {
-    pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub host: Url,
     pub connection_manager: ConnectionManager,
+    pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub repository: Repository,
     pub restate_ingress_client: RestateIngressClient,
     pub restate_admin_client: AdminClient,
@@ -90,9 +90,9 @@ pub struct Agent2AgentServiceParams {
 impl Agent2AgentService {
     pub fn new(params: Agent2AgentServiceParams) -> Self {
         let Agent2AgentServiceParams {
-            soma_definition,
             host,
             connection_manager,
+            soma_definition,
             repository,
             restate_ingress_client,
             restate_admin_client,
@@ -100,7 +100,6 @@ impl Agent2AgentService {
         // Create the agent executor
         let agent_executor = Arc::new(ProxiedAgent {
             connection_manager,
-            soma_definition: soma_definition.clone(),
             repository: repository.clone(),
             restate_ingress_client,
             restate_admin_client,
@@ -178,7 +177,6 @@ impl A2aServiceLike for Agent2AgentService {
 
 struct ProxiedAgent {
     connection_manager: ConnectionManager,
-    soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     repository: Repository,
     restate_ingress_client: RestateIngressClient,
     restate_admin_client: AdminClient,

@@ -389,6 +389,7 @@ impl AdminClient {
 struct SqlQueryRow {
     key: String,
     value_utf8: String,
+    #[allow(dead_code)]
     value: String,
 }
 
