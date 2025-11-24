@@ -244,6 +244,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/bridge/v1/encryption/migrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["migrate-encryption-key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bridge/v1/function-instances": {
         parameters: {
             query?: never;
@@ -688,6 +704,15 @@ export interface components {
         };
         Metadata: {
             [key: string]: unknown;
+        };
+        MigrateEncryptionKeyParams: {
+            from_envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKeyId"];
+            to_envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKeyId"];
+        };
+        MigrateEncryptionKeyResponse: {
+            migrated_data_encryption_keys: number;
+            migrated_resource_server_credentials: number;
+            migrated_user_credentials: number;
         };
         ProviderConfig: {
             credential_controller_type_id: string;
@@ -1424,6 +1449,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataEncryptionKey"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "migrate-encryption-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MigrateEncryptionKeyParams"];
+            };
+        };
+        responses: {
+            /** @description Migrate encryption key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MigrateEncryptionKeyResponse"];
                 };
             };
             /** @description Bad Request */

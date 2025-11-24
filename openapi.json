@@ -723,6 +723,53 @@
         }
       }
     },
+    "/api/bridge/v1/encryption/migrate": {
+      "post": {
+        "operationId": "migrate-encryption-key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigrateEncryptionKeyParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Migrate encryption key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrateEncryptionKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/bridge/v1/function-instances": {
       "get": {
         "operationId": "list-function-instances",
@@ -2838,6 +2885,43 @@
         "additionalProperties": {},
         "propertyNames": {
           "type": "string"
+        }
+      },
+      "MigrateEncryptionKeyParams": {
+        "type": "object",
+        "required": [
+          "from_envelope_encryption_key_id",
+          "to_envelope_encryption_key_id"
+        ],
+        "properties": {
+          "from_envelope_encryption_key_id": {
+            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+          },
+          "to_envelope_encryption_key_id": {
+            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+          }
+        }
+      },
+      "MigrateEncryptionKeyResponse": {
+        "type": "object",
+        "required": [
+          "migrated_resource_server_credentials",
+          "migrated_user_credentials",
+          "migrated_data_encryption_keys"
+        ],
+        "properties": {
+          "migrated_data_encryption_keys": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "migrated_resource_server_credentials": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "migrated_user_credentials": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       },
       "ProviderConfig": {

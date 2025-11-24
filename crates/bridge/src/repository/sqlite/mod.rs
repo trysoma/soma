@@ -2477,7 +2477,7 @@ mod tests {
         let dek = CreateDataEncryptionKey {
             id: "test-dek".to_string(),
             envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKeyId::Local {
-                key_id: "test".to_string(),
+                location: "test".to_string(),
             },
             encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
                 "test-encrypted-key".to_string(),
@@ -2595,7 +2595,7 @@ mod tests {
         let dek = CreateDataEncryptionKey {
             id: "test-dek".to_string(),
             envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKeyId::Local {
-                key_id: "test".to_string(),
+                location: "test".to_string(),
             },
             encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
                 "test-encrypted-key".to_string(),
@@ -2743,7 +2743,7 @@ mod tests {
         let dek = CreateDataEncryptionKey {
             id: "test-dek".to_string(),
             envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKeyId::Local {
-                key_id: "test".to_string(),
+                location: "test".to_string(),
             },
             encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
                 "test-encrypted-key".to_string(),

@@ -184,9 +184,9 @@ pub async fn sync_on_bridge_change(
                                     arn,
                                 }
                             }
-                            bridge::logic::EnvelopeEncryptionKeyId::Local { key_id } => {
+                            bridge::logic::EnvelopeEncryptionKeyId::Local { location } => {
                                 shared::soma_agent_definition::EnvelopeEncryptionKeyId::Local {
-                                    key_id,
+                                    key_id: location,
                                 }
                             }
                         },
