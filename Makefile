@@ -236,6 +236,12 @@ db-bridge-generate-migration: ## Create a new bridge database migration using At
 db-bridge-generate-hash: ## Update bridge database migration hash
 	$(MAKE) _db-generate-hash ENV=bridge
 
+db-encryption-generate-migration: ## Create a new encryption database migration using Atlas (usage: make db-encryption-generate-migration NAME=migration_name)
+	$(MAKE) _db-generate-migration ENV=encryption FILE_PATH=crates/encryption/dbs/encryption/schema.sql NAME=$(NAME)
+
+db-encryption-generate-hash: ## Update encryption database migration hash
+	$(MAKE) _db-generate-hash ENV=encryption
+
 db-soma-generate-migration: ## Create a new soma database migration using Atlas (usage: make db-soma-generate-migration NAME=migration_name)
 	$(MAKE) _db-generate-migration ENV=soma FILE_PATH=crates/soma/dbs/soma/schema.sql NAME=$(NAME)
 

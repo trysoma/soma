@@ -1,18 +1,18 @@
 -- name: create_resource_server_credential :exec
-INSERT INTO resource_server_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id)
+INSERT INTO resource_server_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: get_resource_server_credential_by_id :one
-SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
+SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias
 FROM resource_server_credential
 WHERE id = ?;
 
 -- name: create_user_credential :exec
-INSERT INTO user_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id)
+INSERT INTO user_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: get_user_credential_by_id :one
-SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
+SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias
 FROM user_credential
 WHERE id = ?;
 
@@ -23,13 +23,13 @@ DELETE FROM user_credential WHERE id = ?;
 DELETE FROM resource_server_credential WHERE id = ?;
 
 -- name: get_user_credentials :many
-SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
+SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias
 FROM user_credential WHERE (created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(sqlc.arg(page_size) AS INTEGER) + 1;
 
 -- name: get_resource_server_credentials :many
-SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
+SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias
 FROM resource_server_credential WHERE (created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(sqlc.arg(page_size) AS INTEGER) + 1;
@@ -77,7 +77,7 @@ SELECT
             'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.created_at),
             'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.updated_at),
             'next_rotation_time', CASE WHEN rsc.next_rotation_time IS NOT NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time) ELSE NULL END,
-            'data_encryption_key_id', rsc.data_encryption_key_id
+            'dek_alias', rsc.dek_alias
         )
         FROM resource_server_credential rsc
         WHERE rsc.id = pi.resource_server_credential_id
@@ -92,7 +92,7 @@ SELECT
             'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.created_at),
             'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.updated_at),
             'next_rotation_time', CASE WHEN uc.next_rotation_time IS NOT NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time) ELSE NULL END,
-            'data_encryption_key_id', uc.data_encryption_key_id
+            'dek_alias', uc.dek_alias
         )
         FROM user_credential uc
         WHERE uc.id = pi.user_credential_id
@@ -154,7 +154,7 @@ SELECT
     rsc.created_at as resource_server_credential_created_at,
     rsc.updated_at as resource_server_credential_updated_at,
     rsc.next_rotation_time as resource_server_credential_next_rotation_time,
-    rsc.data_encryption_key_id as resource_server_credential_data_encryption_key_id,
+    rsc.dek_alias as resource_server_credential_dek_alias,
     uc.id as user_credential_id,
     uc.type_id as user_credential_type_id,
     uc.metadata as user_credential_metadata,
@@ -162,47 +162,12 @@ SELECT
     uc.created_at as user_credential_created_at,
     uc.updated_at as user_credential_updated_at,
     uc.next_rotation_time as user_credential_next_rotation_time,
-    uc.data_encryption_key_id as user_credential_data_encryption_key_id
+    uc.dek_alias as user_credential_dek_alias
 FROM function_instance fi
 JOIN provider_instance pi ON fi.provider_instance_id = pi.id
 JOIN resource_server_credential rsc ON pi.resource_server_credential_id = rsc.id
 LEFT JOIN user_credential uc ON pi.user_credential_id = uc.id
 WHERE fi.function_controller_type_id = ? AND fi.provider_controller_type_id = ? AND fi.provider_instance_id = ?;
-
--- name: create_envelope_encryption_key :exec
-INSERT INTO envelope_encryption_key (id, key_type, local_location, aws_arn, aws_region, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?);
-
--- name: get_envelope_encryption_key_by_id :one
-SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
-FROM envelope_encryption_key
-WHERE id = ?;
-
--- name: get_envelope_encryption_keys :many
-SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
-FROM envelope_encryption_key
-ORDER BY created_at DESC;
-
--- name: delete_envelope_encryption_key :exec
-DELETE FROM envelope_encryption_key WHERE id = ?;
-
--- name: create_data_encryption_key :exec
-INSERT INTO data_encryption_key (id, envelope_encryption_key_id, encryption_key, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?);
-
--- name: get_data_encryption_key_by_id :one
-SELECT id, envelope_encryption_key_id, encryption_key, created_at, updated_at
-FROM data_encryption_key
-WHERE id = ?;
-
--- name: delete_data_encryption_key :exec
-DELETE FROM data_encryption_key WHERE id = ?;
-
--- name: get_data_encryption_keys :many
-SELECT id, envelope_encryption_key_id, created_at, updated_at
-FROM data_encryption_key WHERE (created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
-ORDER BY created_at DESC
-LIMIT CAST(sqlc.arg(page_size) AS INTEGER) + 1;
 
 -- name: get_provider_instances :many
 SELECT
@@ -239,7 +204,7 @@ SELECT
             'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.created_at),
             'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.updated_at),
             'next_rotation_time', CASE WHEN rsc.next_rotation_time IS NOT NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time) ELSE NULL END,
-            'data_encryption_key_id', rsc.data_encryption_key_id
+            'dek_alias', rsc.dek_alias
         )
         FROM resource_server_credential rsc
         WHERE rsc.id = pi.resource_server_credential_id
@@ -254,7 +219,7 @@ SELECT
             'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.created_at),
             'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.updated_at),
             'next_rotation_time', CASE WHEN uc.next_rotation_time IS NOT NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time) ELSE NULL END,
-            'data_encryption_key_id', uc.data_encryption_key_id
+            'dek_alias', uc.dek_alias
         )
         FROM user_credential uc
         WHERE uc.id = pi.user_credential_id
@@ -303,7 +268,7 @@ SELECT
                             WHEN rsc.next_rotation_time IS NOT NULL
                             THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time)
                             ELSE NULL END,
-                        'data_encryption_key_id', rsc.data_encryption_key_id
+                        'dek_alias', rsc.dek_alias
                     )
                     FROM resource_server_credential rsc
                     WHERE rsc.id = pi.resource_server_credential_id
@@ -322,7 +287,7 @@ SELECT
                             WHEN uc.next_rotation_time IS NOT NULL
                             THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time)
                             ELSE NULL END,
-                        'data_encryption_key_id', uc.data_encryption_key_id
+                        'dek_alias', uc.dek_alias
                     )
                     FROM user_credential uc
                     WHERE uc.id = pi.user_credential_id
@@ -408,7 +373,7 @@ SELECT
             WHEN rsc.next_rotation_time IS NOT NULL
             THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time)
             ELSE NULL END,
-        'data_encryption_key_id', rsc.data_encryption_key_id
+        'dek_alias', rsc.dek_alias
     ) AS TEXT) as resource_server_credential,
     CAST(COALESCE(
         CASE WHEN uc.id IS NOT NULL THEN
@@ -423,7 +388,7 @@ SELECT
                     WHEN uc.next_rotation_time IS NOT NULL
                     THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time)
                     ELSE NULL END,
-                'data_encryption_key_id', uc.data_encryption_key_id
+                'dek_alias', uc.dek_alias
             )
         ELSE NULL END,
     JSON('null')) AS TEXT) as user_credential

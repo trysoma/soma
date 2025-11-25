@@ -37,6 +37,7 @@ pub struct ApiService {
     pub task_service: Arc<TaskService>,
     pub bridge_service: BridgeService,
     pub internal_service: Arc<internal::InternalService>,
+    pub encryption_service: Arc<EncryptionService>,
 }
 
 pub struct InitRouterParams {
@@ -88,11 +89,14 @@ impl ApiService {
 
         let internal_service = Arc::new(internal::InternalService::new(bridge_service.clone()));
 
+        let encryption_service = Arc::new(EncryptionService::new(init_params.encryption_service.clone()));
+
         Ok(Self {
             agent_service,
             task_service,
             bridge_service,
             internal_service,
+            encryption_service,
         })
     }
 }

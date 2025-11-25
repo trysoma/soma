@@ -35,7 +35,7 @@ pub struct CreateResourceServerCredential {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub next_rotation_time: Option<WrappedChronoDateTime>,
-    pub data_encryption_key_id: String,
+    pub dek_alias: String,
 }
 
 impl From<ResourceServerCredentialSerialized> for CreateResourceServerCredential {
@@ -48,7 +48,7 @@ impl From<ResourceServerCredentialSerialized> for CreateResourceServerCredential
             created_at: cred.created_at,
             updated_at: cred.updated_at,
             next_rotation_time: cred.next_rotation_time,
-            data_encryption_key_id: cred.data_encryption_key_id,
+            dek_alias: cred.dek_alias,
         }
     }
 }
@@ -63,7 +63,7 @@ pub struct CreateUserCredential {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub next_rotation_time: Option<WrappedChronoDateTime>,
-    pub data_encryption_key_id: String,
+    pub dek_alias: String,
 }
 
 impl From<UserCredentialSerialized> for CreateUserCredential {
@@ -76,7 +76,7 @@ impl From<UserCredentialSerialized> for CreateUserCredential {
             created_at: cred.created_at,
             updated_at: cred.updated_at,
             next_rotation_time: cred.next_rotation_time,
-            data_encryption_key_id: cred.data_encryption_key_id,
+            dek_alias: cred.dek_alias,
         }
     }
 }

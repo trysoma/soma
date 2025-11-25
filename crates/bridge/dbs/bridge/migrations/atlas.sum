@@ -1,4 +1,5 @@
-h1:mNA31kM0DgBYn3ExwH6KR70dyzysaqgUFNf/LxAS6pc=
+h1:1ThkLISnLu15DSaVTNvjVou4k+0082pUq/gDXQEeinQ=
 20251117205157_init_bridge.sql h1:0s8Xk8f0OuB70RInRC3I1KO/E5cC+35k+TDLHlHz1I0=
 20251125083521_add_envelope_encryption_key_table.sql h1:MHpcyWk1srDkTga172MMw2JQfB+EuY9Pi3WV+VU+Rgw=
 20251125083714_rename_type_to_key_type.sql h1:qr0MSHesH3m/QwI5ngdRblW0hp++4XiHny+FdJthCWI=
+20251125134206_remove_encryption_tables_and_rename_to_dek_alias.sql h1:c9rT0rwk0ImrYl1DgkXO+c32Dr2VpQu2rnP4OObWS+I=

@@ -186,7 +186,7 @@ pub struct ResourceServerCredentialSerialized {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub next_rotation_time: Option<WrappedChronoDateTime>,
-    pub data_encryption_key_id: String,
+    pub dek_alias: String,
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
@@ -198,7 +198,7 @@ pub struct UserCredentialSerialized {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub next_rotation_time: Option<WrappedChronoDateTime>,
-    pub data_encryption_key_id: String,
+    pub dek_alias: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
