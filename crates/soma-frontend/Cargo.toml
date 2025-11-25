@@ -1,0 +1,21 @@
+[package]
+name = "soma-frontend"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+reqwest.workspace = true
+shared.workspace = true
+serde.workspace = true
+tokio.workspace = true
+vite-rs.workspace = true
+vite-rs-axum-0-8.workspace = true
+tracing.workspace = true
+utoipa.workspace = true
+utoipa-axum.workspace = true
+
+[build-dependencies]
+soma-api-server.workspace = true
+serde_json.workspace = true

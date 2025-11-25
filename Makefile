@@ -70,22 +70,22 @@ build-release: ## Build release binaries for Linux, Mac, and Windows
 	@echo "Note: Cross-compilation requires Docker and may take significant time."
 	@echo ""
 	@echo "Building for x86_64-unknown-linux-gnu (native)..."
-	cargo build --release --target x86_64-unknown-linux-gnu --workspace --exclude sdk-py
+	cargo build --release --target x86_64-unknown-linux-gnu --workspace 
 	@echo "✓ x86_64-unknown-linux-gnu built"
 	@echo ""
 	@echo "Temporarily disabling cargo config for cross-compilation..."
 	@mv .cargo/config.toml .cargo/config.toml.tmp 2>/dev/null || true
 	@echo "Building for aarch64-unknown-linux-gnu..."
-	-cross build --release --target aarch64-unknown-linux-gnu --workspace --exclude sdk-py && echo "✓ aarch64-unknown-linux-gnu built" || echo "⚠ aarch64-unknown-linux-gnu build failed (cross-compilation)"
+	-cross build --release --target aarch64-unknown-linux-gnu --workspace && echo "✓ aarch64-unknown-linux-gnu built" || echo "⚠ aarch64-unknown-linux-gnu build failed (cross-compilation)"
 	@echo ""
 	@echo "Building for x86_64-apple-darwin..."
-	-cross build --release --target x86_64-apple-darwin --workspace --exclude sdk-py && echo "✓ x86_64-apple-darwin built" || echo "⚠ x86_64-apple-darwin build failed (cross-compilation)"
+	-cross build --release --target x86_64-apple-darwin --workspace && echo "✓ x86_64-apple-darwin built" || echo "⚠ x86_64-apple-darwin build failed (cross-compilation)"
 	@echo ""
 	@echo "Building for aarch64-apple-darwin..."
-	-cross build --release --target aarch64-apple-darwin --workspace --exclude sdk-py && echo "✓ aarch64-apple-darwin built" || echo "⚠ aarch64-apple-darwin build failed (cross-compilation)"
+	-cross build --release --target aarch64-apple-darwin --workspace && echo "✓ aarch64-apple-darwin built" || echo "⚠ aarch64-apple-darwin build failed (cross-compilation)"
 	@echo ""
 	@echo "Building for x86_64-pc-windows-gnu..."
-	-cross build --release --target x86_64-pc-windows-gnu --workspace --exclude sdk-py && echo "✓ x86_64-pc-windows-gnu built" || echo "⚠ x86_64-pc-windows-gnu build failed (cross-compilation)"
+	-cross build --release --target x86_64-pc-windows-gnu --workspace && echo "✓ x86_64-pc-windows-gnu built" || echo "⚠ x86_64-pc-windows-gnu build failed (cross-compilation)"
 	@echo ""
 	@echo "Restoring cargo config..."
 	@mv .cargo/config.toml.tmp .cargo/config.toml 2>/dev/null || true
@@ -151,7 +151,7 @@ lint: lint-rs lint-js ## Run all linters (Rust + JS)
 
 lint-rs: ## Run Rust linters (clippy + fmt check)
 	@echo "Running cargo clippy..."
-	cargo clippy --all-targets --all-features -- -D warnings
+	cargo clippy --locked --all-targets --all-features -- -D warnings 
 	@echo "Checking Rust formatting..."
 	cargo fmt --all -- --check
 	@echo "✓ Rust linters passed"
@@ -181,7 +181,7 @@ lint-fix: lint-fix-rs lint-fix-js ## Run all linters with auto-fix (Rust + JS)
 
 lint-fix-rs: ## Run Rust linters with auto-fix
 	@echo "Running cargo clippy with --fix..."
-	cargo clippy --all-targets --all-features --fix --allow-dirty --allow-staged
+	cargo clippy --locked --all-targets --all-features --fix --allow-dirty --allow-staged
 	@echo "Formatting Rust code..."
 	cargo fmt --all
 	@echo "✓ Rust linters completed"
@@ -229,12 +229,21 @@ db-generate-rs-models: ## Generate Rust models from SQL queries using sqlc
 	@echo "Generating Rust models..."
 	cd crates/bridge && sqlc generate
 	@echo "✓ Rust models generated"
+	@echo "Generating Rust models..."
+	cd crates/encryption && sqlc generate
+	@echo "✓ Rust models generated"
 
 db-bridge-generate-migration: ## Create a new bridge database migration using Atlas (usage: make db-bridge-generate-migration NAME=migration_name)
 	$(MAKE) _db-generate-migration ENV=bridge FILE_PATH=crates/bridge/dbs/bridge/schema.sql NAME=$(NAME)
 
 db-bridge-generate-hash: ## Update bridge database migration hash
 	$(MAKE) _db-generate-hash ENV=bridge
+
+db-encryption-generate-migration: ## Create a new encryption database migration using Atlas (usage: make db-encryption-generate-migration NAME=migration_name)
+	$(MAKE) _db-generate-migration ENV=encryption FILE_PATH=crates/encryption/dbs/encryption/schema.sql NAME=$(NAME)
+
+db-encryption-generate-hash: ## Update encryption database migration hash
+	$(MAKE) _db-generate-hash ENV=encryption
 
 db-soma-generate-migration: ## Create a new soma database migration using Atlas (usage: make db-soma-generate-migration NAME=migration_name)
 	$(MAKE) _db-generate-migration ENV=soma FILE_PATH=crates/soma/dbs/soma/schema.sql NAME=$(NAME)
@@ -254,5 +263,5 @@ dev-insurance-claim-bot: ## Start the insurance claim bot
 		exit 1; \
 	fi
 	@echo "Starting insurance bot..."
-	cargo run --bin soma -- dev --src-dir ./js/examples/insurance-claim-bot --clean
+	cargo run --bin soma -- dev --cwd ./js/examples/insurance-claim-bot --clean
 	@echo "✓ Insurance bot started"

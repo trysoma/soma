@@ -176,9 +176,10 @@ impl ServerHandler for BridgeService {
         let _provider_controller_type_id = id_arr[0].to_string();
         let function_controller_type_id = id_arr[1].to_string();
         let provider_instance_id = id_arr[2].to_string();
+
         let function_instance = invoke_function(
             self.repository(),
-            self.envelope_encryption_key_contents(),
+            self.encryption_service(),
             InvokeFunctionParams {
                 provider_instance_id: provider_instance_id.clone(),
                 inner: WithFunctionInstanceId {

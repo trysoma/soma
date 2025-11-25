@@ -14,35 +14,120 @@ use async_trait::async_trait;
 pub struct SomaAgentDefinition {
     pub version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encryption: Option<EncryptionConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bridge: Option<BridgeConfig>,
+}
+
+/// Top-level encryption configuration
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, Default)]
+#[serde(rename_all = "snake_case")]
+pub struct EncryptionConfig {
+    /// Map of envelope key id (ARN or location) -> envelope key configuration with nested DEKs
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub envelope_keys: Option<HashMap<String, EnvelopeKeyConfig>>,
+    /// Map of alias name -> DEK id
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aliases: Option<HashMap<String, String>>,
+}
+
+/// Envelope encryption key configuration with nested DEKs
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum EnvelopeKeyConfig {
+    AwsKms {
+        arn: String,
+        region: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        deks: Option<HashMap<String, DekConfig>>,
+    },
+    Local {
+        location: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        deks: Option<HashMap<String, DekConfig>>,
+    },
+}
+
+impl EnvelopeKeyConfig {
+    /// Get mutable reference to the DEKs map, creating it if it doesn't exist
+    pub fn deks_mut(&mut self) -> &mut HashMap<String, DekConfig> {
+        match self {
+            EnvelopeKeyConfig::AwsKms { deks, .. } | EnvelopeKeyConfig::Local { deks, .. } => {
+                if deks.is_none() {
+                    *deks = Some(HashMap::new());
+                }
+                deks.as_mut().unwrap()
+            }
+        }
+    }
+
+    /// Get reference to the DEKs map
+    pub fn deks(&self) -> Option<&HashMap<String, DekConfig>> {
+        match self {
+            EnvelopeKeyConfig::AwsKms { deks, .. } | EnvelopeKeyConfig::Local { deks, .. } => {
+                deks.as_ref()
+            }
+        }
+    }
+}
+
+/// Data encryption key configuration
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct DekConfig {
+    pub encrypted_key: String,
+}
+
+// Keep old EnvelopeEncryptionKey for backwards compatibility during transition
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum EnvelopeEncryptionKey {
+    AwsKms { arn: String, region: String },
+    Local { location: String },
+}
+
+impl EnvelopeEncryptionKey {
+    /// Get the key id (ARN for KMS, location for local)
+    pub fn key_id(&self) -> String {
+        match self {
+            EnvelopeEncryptionKey::AwsKms { arn, .. } => arn.clone(),
+            EnvelopeEncryptionKey::Local { location } => location.clone(),
+        }
+    }
+}
+
+impl From<EnvelopeEncryptionKey> for EnvelopeKeyConfig {
+    fn from(key: EnvelopeEncryptionKey) -> Self {
+        match key {
+            EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeKeyConfig::AwsKms {
+                arn,
+                region,
+                deks: None,
+            },
+            EnvelopeEncryptionKey::Local { location } => EnvelopeKeyConfig::Local {
+                location,
+                deks: None,
+            },
+        }
+    }
+}
+
+impl From<EnvelopeKeyConfig> for EnvelopeEncryptionKey {
+    fn from(config: EnvelopeKeyConfig) -> Self {
+        match config {
+            EnvelopeKeyConfig::AwsKms { arn, region, .. } => {
+                EnvelopeEncryptionKey::AwsKms { arn, region }
+            }
+            EnvelopeKeyConfig::Local { location, .. } => EnvelopeEncryptionKey::Local { location },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct BridgeConfig {
-    pub encryption: BridgeEncryptionConfig,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub providers: Option<HashMap<String, ProviderConfig>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-#[serde(transparent)]
-pub struct BridgeEncryptionConfig(pub HashMap<String, EncryptionConfiguration>);
-
-// TODO: this is duplicated in the bridge crate
-#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
-#[serde(rename_all = "snake_case", tag = "type")]
-pub enum EnvelopeEncryptionKeyId {
-    AwsKms { arn: String },
-    Local { key_id: String },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct EncryptionConfiguration {
-    pub encrypted_data_encryption_key: String,
-    pub envelope_encryption_key_id: EnvelopeEncryptionKeyId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
@@ -67,20 +152,35 @@ pub struct CredentialConfig {
     pub value: serde_json::Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_rotation_time: Option<String>,
-    pub data_encryption_key_id: String,
+    pub dek_alias: String,
 }
 
 #[async_trait]
 pub trait SomaAgentDefinitionLike: Send + Sync {
     async fn get_definition(&self) -> Result<SomaAgentDefinition, CommonError>;
-    async fn add_data_encryption_key(
+
+    // Envelope key operations
+    async fn add_envelope_key(
         &self,
         key_id: String,
-        key: String,
-        envelope_encryption_key_id: EnvelopeEncryptionKeyId,
+        config: EnvelopeKeyConfig,
     ) -> Result<(), CommonError>;
-    async fn list_data_encryption_keys(&self) -> Result<Vec<EncryptionConfiguration>, CommonError>;
-    async fn remove_data_encryption_key(&self, key_id: String) -> Result<(), CommonError>;
+    async fn remove_envelope_key(&self, key_id: String) -> Result<(), CommonError>;
+
+    // DEK operations (DEKs are nested under their envelope key)
+    async fn add_dek(
+        &self,
+        envelope_key_id: String,
+        dek_id: String,
+        encrypted_key: String,
+    ) -> Result<(), CommonError>;
+    async fn remove_dek(&self, envelope_key_id: String, dek_id: String) -> Result<(), CommonError>;
+
+    // Alias operations
+    async fn add_alias(&self, alias: String, dek_id: String) -> Result<(), CommonError>;
+    async fn remove_alias(&self, alias: String) -> Result<(), CommonError>;
+
+    // Provider operations
     async fn add_provider(
         &self,
         provider_id: String,
@@ -92,6 +192,8 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
         provider_id: String,
         config: ProviderConfig,
     ) -> Result<(), CommonError>;
+
+    // Function instance operations
     async fn add_function_instance(
         &self,
         provider_controller_type_id: String,
@@ -104,6 +206,7 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
         function_controller_type_id: String,
         provider_instance_id: String,
     ) -> Result<(), CommonError>;
+
     async fn reload(&self) -> Result<(), CommonError>;
 }
 
@@ -149,6 +252,18 @@ impl YamlSomaAgentDefinition {
         })?;
         Ok(())
     }
+
+    fn ensure_encryption_config(definition: &mut SomaAgentDefinition) {
+        if definition.encryption.is_none() {
+            definition.encryption = Some(EncryptionConfig::default());
+        }
+    }
+
+    fn ensure_bridge_config(definition: &mut SomaAgentDefinition) {
+        if definition.bridge.is_none() {
+            definition.bridge = Some(BridgeConfig { providers: None });
+        }
+    }
 }
 
 #[async_trait]
@@ -164,62 +279,123 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         Ok(self.cached_definition.lock().await.clone())
     }
 
-    async fn add_data_encryption_key(
+    async fn add_envelope_key(
         &self,
         key_id: String,
-        key: String,
-        envelope_encryption_key_id: EnvelopeEncryptionKeyId,
+        config: EnvelopeKeyConfig,
     ) -> Result<(), CommonError> {
         let mut definition = self.cached_definition.lock().await;
-        if definition.bridge.is_none() {
-            definition.bridge = Some(BridgeConfig {
-                encryption: BridgeEncryptionConfig(HashMap::new()),
-                providers: None,
-            });
+        Self::ensure_encryption_config(&mut definition);
+
+        let encryption = definition.encryption.as_mut().unwrap();
+        if encryption.envelope_keys.is_none() {
+            encryption.envelope_keys = Some(HashMap::new());
         }
-        let bridge = match &mut definition.bridge {
-            Some(bridge) => bridge,
-            None => {
-                return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "Bridge configuration not found"
-                )));
-            }
-        };
-        bridge.encryption.0.insert(
-            key_id.clone(),
-            EncryptionConfiguration {
-                encrypted_data_encryption_key: key,
-                envelope_encryption_key_id,
-            },
-        );
-        info!("Data encryption key added to bridge: {:?}", key_id);
+
+        encryption
+            .envelope_keys
+            .as_mut()
+            .unwrap()
+            .insert(key_id.clone(), config);
+        info!("Envelope key added: {:?}", key_id);
         self.save(definition).await?;
         Ok(())
     }
 
-    async fn list_data_encryption_keys(&self) -> Result<Vec<EncryptionConfiguration>, CommonError> {
-        let definition = self.cached_definition.lock().await;
-        let bridge = match &definition.bridge {
-            Some(bridge) => bridge,
-            None => return Ok(vec![]),
-        };
-        Ok(bridge.encryption.0.values().cloned().collect())
-    }
-
-    async fn remove_data_encryption_key(&self, key_id: String) -> Result<(), CommonError> {
+    async fn remove_envelope_key(&self, key_id: String) -> Result<(), CommonError> {
         let mut definition = self.cached_definition.lock().await;
 
-        let bridge = match &mut definition.bridge {
-            Some(bridge) => bridge,
-            None => return Ok(()),
-        };
+        if let Some(encryption) = &mut definition.encryption {
+            if let Some(envelope_keys) = &mut encryption.envelope_keys {
+                envelope_keys.remove(&key_id);
+                info!("Envelope key removed: {:?}", key_id);
+                self.save(definition).await?;
+            }
+        }
+        Ok(())
+    }
 
-        match bridge.encryption.0.remove(&key_id) {
-            Some(_) => (),
-            None => return Ok(()),
-        };
-        info!("Data encryption key removed from bridge: {:?}", key_id);
+    async fn add_dek(
+        &self,
+        envelope_key_id: String,
+        dek_id: String,
+        encrypted_key: String,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_encryption_config(&mut definition);
+
+        let encryption = definition.encryption.as_mut().unwrap();
+        if encryption.envelope_keys.is_none() {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Envelope key {envelope_key_id} not found - cannot add DEK"
+            )));
+        }
+
+        let envelope_keys = encryption.envelope_keys.as_mut().unwrap();
+        let envelope_key = envelope_keys.get_mut(&envelope_key_id).ok_or_else(|| {
+            CommonError::Unknown(anyhow::anyhow!(
+                "Envelope key {envelope_key_id} not found - cannot add DEK"
+            ))
+        })?;
+
+        envelope_key
+            .deks_mut()
+            .insert(dek_id.clone(), DekConfig { encrypted_key });
+        info!(
+            "DEK {} added under envelope key {}",
+            dek_id, envelope_key_id
+        );
         self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_dek(&self, envelope_key_id: String, dek_id: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(encryption) = &mut definition.encryption {
+            if let Some(envelope_keys) = &mut encryption.envelope_keys {
+                if let Some(envelope_key) = envelope_keys.get_mut(&envelope_key_id) {
+                    envelope_key.deks_mut().remove(&dek_id);
+                    info!(
+                        "DEK {} removed from envelope key {}",
+                        dek_id, envelope_key_id
+                    );
+                    self.save(definition).await?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn add_alias(&self, alias: String, dek_id: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_encryption_config(&mut definition);
+
+        let encryption = definition.encryption.as_mut().unwrap();
+        if encryption.aliases.is_none() {
+            encryption.aliases = Some(HashMap::new());
+        }
+
+        encryption
+            .aliases
+            .as_mut()
+            .unwrap()
+            .insert(alias.clone(), dek_id);
+        info!("Alias added: {:?}", alias);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_alias(&self, alias: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(encryption) = &mut definition.encryption {
+            if let Some(aliases) = &mut encryption.aliases {
+                aliases.remove(&alias);
+                info!("Alias removed: {:?}", alias);
+                self.save(definition).await?;
+            }
+        }
         Ok(())
     }
 
@@ -229,25 +405,18 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         config: ProviderConfig,
     ) -> Result<(), CommonError> {
         let mut definition = self.cached_definition.lock().await;
-        if definition.bridge.is_none() {
-            definition.bridge = Some(BridgeConfig {
-                encryption: BridgeEncryptionConfig(HashMap::new()),
-                providers: Some(HashMap::new()),
-            });
-        }
-        let bridge = match &mut definition.bridge {
-            Some(bridge) => bridge,
-            None => {
-                return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "Bridge configuration not found"
-                )));
-            }
-        };
+        Self::ensure_bridge_config(&mut definition);
+
+        let bridge = definition.bridge.as_mut().unwrap();
         if bridge.providers.is_none() {
             bridge.providers = Some(HashMap::new());
         }
-        let providers = bridge.providers.as_mut().unwrap();
-        providers.insert(provider_id.clone(), config);
+
+        bridge
+            .providers
+            .as_mut()
+            .unwrap()
+            .insert(provider_id.clone(), config);
         info!("Provider added to bridge: {:?}", provider_id);
         self.save(definition).await?;
         Ok(())
@@ -256,22 +425,13 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
     async fn remove_provider(&self, provider_id: String) -> Result<(), CommonError> {
         let mut definition = self.cached_definition.lock().await;
 
-        let bridge = match &mut definition.bridge {
-            Some(bridge) => bridge,
-            None => return Ok(()),
-        };
-
-        let providers = match &mut bridge.providers {
-            Some(providers) => providers,
-            None => return Ok(()),
-        };
-
-        match providers.remove(&provider_id) {
-            Some(_) => (),
-            None => return Ok(()),
-        };
-        info!("Provider removed from bridge: {:?}", provider_id);
-        self.save(definition).await?;
+        if let Some(bridge) = &mut definition.bridge {
+            if let Some(providers) = &mut bridge.providers {
+                providers.remove(&provider_id);
+                info!("Provider removed from bridge: {:?}", provider_id);
+                self.save(definition).await?;
+            }
+        }
         Ok(())
     }
 
@@ -281,33 +441,14 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         config: ProviderConfig,
     ) -> Result<(), CommonError> {
         let mut definition = self.cached_definition.lock().await;
+        Self::ensure_bridge_config(&mut definition);
 
-        // Create bridge configuration if it doesn't exist (same as add_provider)
-        if definition.bridge.is_none() {
-            definition.bridge = Some(BridgeConfig {
-                encryption: BridgeEncryptionConfig(HashMap::new()),
-                providers: Some(HashMap::new()),
-            });
-        }
-
-        let bridge = match &mut definition.bridge {
-            Some(bridge) => bridge,
-            None => {
-                return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "Bridge configuration not found"
-                )));
-            }
-        };
-
-        // Create providers HashMap if it doesn't exist
+        let bridge = definition.bridge.as_mut().unwrap();
         if bridge.providers.is_none() {
             bridge.providers = Some(HashMap::new());
         }
 
-        let providers = match &mut bridge.providers {
-            Some(providers) => providers,
-            None => return Err(CommonError::Unknown(anyhow::anyhow!("Providers not found"))),
-        };
+        let providers = bridge.providers.as_mut().unwrap();
 
         match providers.get_mut(&provider_id) {
             Some(existing_config) => {

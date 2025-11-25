@@ -1,0 +1,64 @@
+[package]
+name = "soma-api-server"
+version.workspace = true
+edition.workspace = true
+
+
+[dependencies]
+a2a-rs.workspace = true
+bridge.workspace = true
+anyhow.workspace = true
+axum.workspace = true
+axum-server.workspace = true
+chrono.workspace = true
+clap.workspace = true
+clap_complete.workspace = true
+http.workspace = true
+humantime.workspace = true
+libsql.workspace = true
+restate-admin-rest-model.workspace = true
+restate-serde-util.workspace = true
+restate-types.workspace = true
+rmcp.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+shared.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tonic.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+sdk-proto.workspace = true
+url.workspace = true
+utoipa.workspace = true
+utoipa-axum.workspace = true
+uuid.workspace = true
+vite-rs.workspace = true
+vite-rs-axum-0-8.workspace = true
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+async-trait.workspace = true
+base64.workspace = true
+dashmap.workspace = true
+futures.workspace = true
+globset.workspace = true
+notify.workspace = true
+notify-debouncer-full.workspace = true
+schemars.workspace = true
+tokio-stream.workspace = true
+tokio-util.workspace = true
+urlencoding.workspace = true
+shared-macros.workspace = true
+dirs.workspace = true
+uds_windows.workspace = true
+zip.workspace = true
+tera.workspace = true
+encryption.workspace = true
+
+
+[dev-dependencies]
+tempfile.workspace = true

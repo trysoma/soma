@@ -99,10 +99,24 @@ sql:
               column: broker_state.updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
 
+            # envelope_encryption_key table
+            - db_type: text
+              column: envelope_encryption_key.id
+              rust_type: "String"
+            - db_type: text
+              column: envelope_encryption_key.key_type
+              rust_type: "String"
+            - db_type: datetime
+              column: envelope_encryption_key.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: envelope_encryption_key.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
             # data_encryption_key table
-            - db_type: json
+            - db_type: text
               column: data_encryption_key.envelope_encryption_key_id
-              rust_type: "crate::logic::encryption::EnvelopeEncryptionKeyId"
+              rust_type: "String"
             - db_type: text
               column: data_encryption_key.encryption_key
               rust_type: "crate::logic::encryption::EncryptedDataEncryptionKey"

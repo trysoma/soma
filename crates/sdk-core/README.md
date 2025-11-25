@@ -41,4 +41,3 @@ Starts a gRPC server that:
 ## Language Bindings
 
 - **Node.js**: See `crates/sdk-js`
-- **Python**: See `crates/sdk-py`

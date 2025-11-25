@@ -46,6 +46,14 @@ jobs:
           git-base: main
           comment-tag: bridge-db-quality
           display-name: Bridge Database
+      
+      - name: Validate Encryption database migrations
+        uses: ./.github/actions/atlas-migrate-lint
+        with:
+          env: encryption
+          git-base: main
+          comment-tag: encryption-db-quality
+          display-name: Encryption Database
 
   api-quality:
     name: API quality

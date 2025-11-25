@@ -41,15 +41,13 @@ pub async fn run_child_process(
 
     info!("🚀 Started {} (pid={:?})", process_name, child.id());
 
-    // Move sender into the select! so both branches can access it by cloning Option
-    // let mut shutdown_sender = shutdown_complete;
-
     let (status_tx, status_rx) = oneshot::channel::<Result<(), CommonError>>();
+    let process_name_clone = process_name.to_string();
 
-    if let Some(mut kill_signal_rx) = kill_signal {
-        let process_name_clone = process_name.to_string();
-
-        tokio::spawn(async move {
+    // Always spawn a monitoring task, whether we have a kill signal or not
+    tokio::spawn(async move {
+        if let Some(mut kill_signal_rx) = kill_signal {
+            // Wait for kill signal
             let _ = kill_signal_rx.recv().await;
             info!("🔪 Kill signal received for {}", process_name_clone);
 
@@ -119,10 +117,32 @@ pub async fn run_child_process(
                     }
                 }
             }
+        } else {
+            // No kill signal - just wait for process to exit naturally
+            match child.wait().await {
+                Ok(status) => {
+                    if status.success() {
+                        info!("✅ {} exited successfully", process_name_clone);
+                    } else {
+                        error!("❌ {} exited with status: {:?}", process_name_clone, status);
+                        let _ = status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
+                            "{process_name_clone} exited with non-zero status: {status:?}"
+                        ))));
+                        return;
+                    }
+                }
+                Err(err) => {
+                    error!("❌ Failed to wait for {}: {:?}", process_name_clone, err);
+                    let _ = status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
+                        "{process_name_clone} wait error: {err:?}"
+                    ))));
+                    return;
+                }
+            }
+        }
 
-            let _ = status_tx.send(Ok(()));
-        });
-    }
+        let _ = status_tx.send(Ok(()));
+    });
 
     let result = status_rx.await;
 
@@ -130,7 +150,7 @@ pub async fn run_child_process(
         Ok(Ok(())) => Ok(()),
         Ok(Err(e)) => Err(e),
         Err(_) => Err(CommonError::Unknown(anyhow::anyhow!(
-            "Failed to get status"
+            "Failed to get status for {process_name}"
         ))),
     }
 }

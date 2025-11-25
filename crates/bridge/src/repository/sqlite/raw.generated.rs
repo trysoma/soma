@@ -1,4 +1,5 @@
 
+
 #[allow(unused)]
 use serde::{Serialize, Deserialize};
   pub struct create_resource_server_credential_params<'a> {
@@ -23,7 +24,7 @@ use serde::{Serialize, Deserialize};
       pub next_rotation_time: &'a Option<
           shared::primitives::WrappedChronoDateTime
       >,
-      pub data_encryption_key_id: &'a 
+      pub dek_alias: &'a 
           String
       ,
   }
@@ -32,7 +33,7 @@ use serde::{Serialize, Deserialize};
     conn: &shared::libsql::Connection
     ,params: create_resource_server_credential_params<'_>
 ) -> Result<u64, libsql::Error> {
-    conn.execute(r#"INSERT INTO resource_server_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id)
+    conn.execute(r#"INSERT INTO resource_server_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
               <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
@@ -41,26 +42,26 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <crate::logic::Metadata as TryInto<libsql::Value>>::try_into(params.metadata.clone())
-                  .map_err(libsql::Error::ToSqlConversionFailure)?
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.value.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              match *params.next_rotation_time {
+              match params.next_rotation_time.clone() {
                 Some(value) => {
-                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value)
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
                 },
                 None => libsql::Value::Null,
               }
             ,
-              <String as TryInto<libsql::Value>>::try_into(params.data_encryption_key_id.clone())
+              <String as TryInto<libsql::Value>>::try_into(params.dek_alias.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
     ]).await
@@ -81,13 +82,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
       pub next_rotation_time:Option<shared::primitives::WrappedChronoDateTime> ,
-      pub data_encryption_key_id:String,
+      pub dek_alias:String,
   }
   pub async fn get_resource_server_credential_by_id(
       conn: &shared::libsql::Connection
       ,params: get_resource_server_credential_by_id_params<'_>
   ) -> Result<Option<Row_get_resource_server_credential_by_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
+      let mut stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias
 FROM resource_server_credential
 WHERE id = ?"#).await?;
       let res = stmt.query_row(
@@ -103,7 +104,7 @@ WHERE id = ?"#).await?;
                   created_at: row.get(4)?,
                   updated_at: row.get(5)?,
                   next_rotation_time: row.get(6)?,
-                  data_encryption_key_id: row.get(7)?,
+                  dek_alias: row.get(7)?,
               })),
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),
@@ -131,7 +132,7 @@ WHERE id = ?"#).await?;
       pub next_rotation_time: &'a Option<
           shared::primitives::WrappedChronoDateTime
       >,
-      pub data_encryption_key_id: &'a 
+      pub dek_alias: &'a 
           String
       ,
   }
@@ -140,7 +141,7 @@ WHERE id = ?"#).await?;
     conn: &shared::libsql::Connection
     ,params: create_user_credential_params<'_>
 ) -> Result<u64, libsql::Error> {
-    conn.execute(r#"INSERT INTO user_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id)
+    conn.execute(r#"INSERT INTO user_credential (id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
               <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
@@ -149,26 +150,26 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <crate::logic::Metadata as TryInto<libsql::Value>>::try_into(params.metadata.clone())
-                  .map_err(libsql::Error::ToSqlConversionFailure)?
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.value.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              match *params.next_rotation_time {
+              match params.next_rotation_time.clone() {
                 Some(value) => {
-                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value)
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
                 },
                 None => libsql::Value::Null,
               }
             ,
-              <String as TryInto<libsql::Value>>::try_into(params.data_encryption_key_id.clone())
+              <String as TryInto<libsql::Value>>::try_into(params.dek_alias.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
     ]).await
@@ -189,13 +190,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
       pub next_rotation_time:Option<shared::primitives::WrappedChronoDateTime> ,
-      pub data_encryption_key_id:String,
+      pub dek_alias:String,
   }
   pub async fn get_user_credential_by_id(
       conn: &shared::libsql::Connection
       ,params: get_user_credential_by_id_params<'_>
   ) -> Result<Option<Row_get_user_credential_by_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
+      let mut stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias
 FROM user_credential
 WHERE id = ?"#).await?;
       let res = stmt.query_row(
@@ -211,7 +212,7 @@ WHERE id = ?"#).await?;
                   created_at: row.get(4)?,
                   updated_at: row.get(5)?,
                   next_rotation_time: row.get(6)?,
-                  data_encryption_key_id: row.get(7)?,
+                  dek_alias: row.get(7)?,
               })),
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),
@@ -268,17 +269,17 @@ WHERE id = ?"#).await?;
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
       pub next_rotation_time:Option<shared::primitives::WrappedChronoDateTime> ,
-      pub data_encryption_key_id:String,
+      pub dek_alias:String,
   }
   pub async fn get_user_credentials(
       conn: &shared::libsql::Connection
       ,params: get_user_credentials_params<'_>
   ) -> Result<Vec<Row_get_user_credentials>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
+      let stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias
 FROM user_credential WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![(*params.cursor),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -290,7 +291,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
               created_at: row.get(4)?,
               updated_at: row.get(5)?,
               next_rotation_time: row.get(6)?,
-              data_encryption_key_id: row.get(7)?,
+              dek_alias: row.get(7)?,
           });
       }
 
@@ -315,17 +316,17 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
       pub next_rotation_time:Option<shared::primitives::WrappedChronoDateTime> ,
-      pub data_encryption_key_id:String,
+      pub dek_alias:String,
   }
   pub async fn get_resource_server_credentials(
       conn: &shared::libsql::Connection
       ,params: get_resource_server_credentials_params<'_>
   ) -> Result<Vec<Row_get_resource_server_credentials>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, data_encryption_key_id
+      let stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias
 FROM resource_server_credential WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![(*params.cursor),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -337,7 +338,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
               created_at: row.get(4)?,
               updated_at: row.get(5)?,
               next_rotation_time: row.get(6)?,
-              data_encryption_key_id: row.get(7)?,
+              dek_alias: row.get(7)?,
           });
       }
 
@@ -399,10 +400,10 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
                 None => libsql::Value::Null,
               }
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <String as TryInto<libsql::Value>>::try_into(params.provider_controller_type_id.clone())
@@ -532,7 +533,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
             'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.created_at),
             'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.updated_at),
             'next_rotation_time', CASE WHEN rsc.next_rotation_time IS NOT NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time) ELSE NULL END,
-            'data_encryption_key_id', rsc.data_encryption_key_id
+            'dek_alias', rsc.dek_alias
         )
         FROM resource_server_credential rsc
         WHERE rsc.id = pi.resource_server_credential_id
@@ -547,7 +548,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
             'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.created_at),
             'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.updated_at),
             'next_rotation_time', CASE WHEN uc.next_rotation_time IS NOT NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time) ELSE NULL END,
-            'data_encryption_key_id', uc.data_encryption_key_id
+            'dek_alias', uc.dek_alias
         )
         FROM user_credential uc
         WHERE uc.id = pi.user_credential_id
@@ -628,10 +629,10 @@ VALUES (?, ?, ?, ?, ?)"#, libsql::params![
               <String as TryInto<libsql::Value>>::try_into(params.provider_instance_id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
     ]).await
@@ -744,10 +745,10 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
               <String as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <String as TryInto<libsql::Value>>::try_into(params.provider_instance_id.clone())
@@ -760,7 +761,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <crate::logic::Metadata as TryInto<libsql::Value>>::try_into(params.metadata.clone())
-                  .map_err(libsql::Error::ToSqlConversionFailure)?
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.action.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
@@ -864,7 +865,7 @@ WHERE id = ?"#).await?;
       pub resource_server_credential_created_at:shared::primitives::WrappedChronoDateTime,
       pub resource_server_credential_updated_at:shared::primitives::WrappedChronoDateTime,
       pub resource_server_credential_next_rotation_time:Option<shared::primitives::WrappedChronoDateTime> ,
-      pub resource_server_credential_data_encryption_key_id:String,
+      pub resource_server_credential_dek_alias:String,
       pub user_credential_id:Option<shared::primitives::WrappedUuidV4> ,
       pub user_credential_type_id:Option<String> ,
       pub user_credential_metadata:Option<crate::logic::Metadata> ,
@@ -872,7 +873,7 @@ WHERE id = ?"#).await?;
       pub user_credential_created_at:Option<shared::primitives::WrappedChronoDateTime> ,
       pub user_credential_updated_at:Option<shared::primitives::WrappedChronoDateTime> ,
       pub user_credential_next_rotation_time:Option<shared::primitives::WrappedChronoDateTime> ,
-      pub user_credential_data_encryption_key_id:Option<String> ,
+      pub user_credential_dek_alias:Option<String> ,
   }
   pub async fn get_function_instance_with_credentials(
       conn: &shared::libsql::Connection
@@ -901,7 +902,7 @@ WHERE id = ?"#).await?;
     rsc.created_at as resource_server_credential_created_at,
     rsc.updated_at as resource_server_credential_updated_at,
     rsc.next_rotation_time as resource_server_credential_next_rotation_time,
-    rsc.data_encryption_key_id as resource_server_credential_data_encryption_key_id,
+    rsc.dek_alias as resource_server_credential_dek_alias,
     uc.id as user_credential_id,
     uc.type_id as user_credential_type_id,
     uc.metadata as user_credential_metadata,
@@ -909,7 +910,7 @@ WHERE id = ?"#).await?;
     uc.created_at as user_credential_created_at,
     uc.updated_at as user_credential_updated_at,
     uc.next_rotation_time as user_credential_next_rotation_time,
-    uc.data_encryption_key_id as user_credential_data_encryption_key_id
+    uc.dek_alias as user_credential_dek_alias
 FROM function_instance fi
 JOIN provider_instance pi ON fi.provider_instance_id = pi.id
 JOIN resource_server_credential rsc ON pi.resource_server_credential_id = rsc.id
@@ -943,7 +944,7 @@ WHERE fi.function_controller_type_id = ? AND fi.provider_controller_type_id = ? 
                   resource_server_credential_created_at: row.get(19)?,
                   resource_server_credential_updated_at: row.get(20)?,
                   resource_server_credential_next_rotation_time: row.get(21)?,
-                  resource_server_credential_data_encryption_key_id: row.get(22)?,
+                  resource_server_credential_dek_alias: row.get(22)?,
                   user_credential_id: row.get(23)?,
                   user_credential_type_id: row.get(24)?,
                   user_credential_metadata: row.get(25)?,
@@ -951,145 +952,11 @@ WHERE fi.function_controller_type_id = ? AND fi.provider_controller_type_id = ? 
                   user_credential_created_at: row.get(27)?,
                   user_credential_updated_at: row.get(28)?,
                   user_credential_next_rotation_time: row.get(29)?,
-                  user_credential_data_encryption_key_id: row.get(30)?,
+                  user_credential_dek_alias: row.get(30)?,
               })),
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),
       }
-  }
-  pub struct create_data_encryption_key_params<'a> {
-      pub id: &'a 
-          String
-      ,
-      pub envelope_encryption_key_id: &'a 
-          crate::logic::encryption::EnvelopeEncryptionKeyId
-      ,
-      pub encryption_key: &'a 
-          crate::logic::encryption::EncryptedDataEncryptionKey
-      ,
-      pub created_at: &'a 
-          shared::primitives::WrappedChronoDateTime
-      ,
-      pub updated_at: &'a 
-          shared::primitives::WrappedChronoDateTime
-      ,
-  }
-
-  pub async fn create_data_encryption_key(
-    conn: &shared::libsql::Connection
-    ,params: create_data_encryption_key_params<'_>
-) -> Result<u64, libsql::Error> {
-    conn.execute(r#"INSERT INTO data_encryption_key (id, envelope_encryption_key_id, encryption_key, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?)"#, libsql::params![
-              <String as TryInto<libsql::Value>>::try_into(params.id.clone())
-                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
-            ,
-              <crate::logic::encryption::EnvelopeEncryptionKeyId as TryInto<libsql::Value>>::try_into(params.envelope_encryption_key_id.clone())
-                  .map_err(libsql::Error::ToSqlConversionFailure)?
-            ,
-              <crate::logic::encryption::EncryptedDataEncryptionKey as TryInto<libsql::Value>>::try_into(params.encryption_key.clone())
-                  .map_err(libsql::Error::ToSqlConversionFailure)?
-            ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
-                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
-            ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
-                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
-            ,
-    ]).await
-}
-  pub struct get_data_encryption_key_by_id_params<'a> {
-      pub id: &'a 
-          String
-      ,
-  }
-    #[derive(Serialize, Deserialize, Debug)]
-
-  #[allow(non_camel_case_types)]
-  pub struct Row_get_data_encryption_key_by_id {
-      pub id:String,
-      pub envelope_encryption_key_id:crate::logic::encryption::EnvelopeEncryptionKeyId,
-      pub encryption_key:crate::logic::encryption::EncryptedDataEncryptionKey,
-      pub created_at:shared::primitives::WrappedChronoDateTime,
-      pub updated_at:shared::primitives::WrappedChronoDateTime,
-  }
-  pub async fn get_data_encryption_key_by_id(
-      conn: &shared::libsql::Connection
-      ,params: get_data_encryption_key_by_id_params<'_>
-  ) -> Result<Option<Row_get_data_encryption_key_by_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, encryption_key, created_at, updated_at
-FROM data_encryption_key
-WHERE id = ?"#).await?;
-      let res = stmt.query_row(
-          libsql::params![params.id.clone(),],
-      ).await;
-
-      match res {
-          Ok(row) => Ok(Some(Row_get_data_encryption_key_by_id {
-                  id: row.get(0)?,
-                  envelope_encryption_key_id: row.get(1)?,
-                  encryption_key: row.get(2)?,
-                  created_at: row.get(3)?,
-                  updated_at: row.get(4)?,
-              })),
-          Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
-          Err(e) => Err(e),
-      }
-  }
-  pub struct delete_data_encryption_key_params<'a> {
-      pub id: &'a 
-          String
-      ,
-  }
-
-  pub async fn delete_data_encryption_key(
-    conn: &shared::libsql::Connection
-    ,params: delete_data_encryption_key_params<'_>
-) -> Result<u64, libsql::Error> {
-    conn.execute(r#"DELETE FROM data_encryption_key WHERE id = ?"#, libsql::params![
-              <String as TryInto<libsql::Value>>::try_into(params.id.clone())
-                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
-            ,
-    ]).await
-}
-  pub struct get_data_encryption_keys_params<'a> {
-      pub cursor: &'a Option<
-          shared::primitives::WrappedChronoDateTime
-      >,
-      pub page_size: &'a 
-          i64
-      ,
-  }
-    #[derive(Serialize, Deserialize, Debug)]
-
-  #[allow(non_camel_case_types)]
-  pub struct Row_get_data_encryption_keys {
-      pub id:String,
-      pub envelope_encryption_key_id:crate::logic::encryption::EnvelopeEncryptionKeyId,
-      pub created_at:shared::primitives::WrappedChronoDateTime,
-      pub updated_at:shared::primitives::WrappedChronoDateTime,
-  }
-  pub async fn get_data_encryption_keys(
-      conn: &shared::libsql::Connection
-      ,params: get_data_encryption_keys_params<'_>
-  ) -> Result<Vec<Row_get_data_encryption_keys>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, created_at, updated_at
-FROM data_encryption_key WHERE (created_at < ?1 OR ?1 IS NULL)
-ORDER BY created_at DESC
-LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![(*params.cursor),(*params.page_size),]).await?;
-      let mut mapped = vec![];
-
-      while let Some(row) = rows.next().await? {
-          mapped.push(Row_get_data_encryption_keys {
-              id: row.get(0)?,
-              envelope_encryption_key_id: row.get(1)?,
-              created_at: row.get(2)?,
-              updated_at: row.get(3)?,
-          });
-      }
-
-      Ok(mapped)
   }
   pub struct get_provider_instances_params<'a> {
       pub cursor: &'a Option<
@@ -1161,7 +1028,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
             'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.created_at),
             'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', rsc.updated_at),
             'next_rotation_time', CASE WHEN rsc.next_rotation_time IS NOT NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time) ELSE NULL END,
-            'data_encryption_key_id', rsc.data_encryption_key_id
+            'dek_alias', rsc.dek_alias
         )
         FROM resource_server_credential rsc
         WHERE rsc.id = pi.resource_server_credential_id
@@ -1176,7 +1043,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
             'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.created_at),
             'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', uc.updated_at),
             'next_rotation_time', CASE WHEN uc.next_rotation_time IS NOT NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time) ELSE NULL END,
-            'data_encryption_key_id', uc.data_encryption_key_id
+            'dek_alias', uc.dek_alias
         )
         FROM user_credential uc
         WHERE uc.id = pi.user_credential_id
@@ -1188,7 +1055,7 @@ WHERE (pi.created_at < ?1 OR ?1 IS NULL)
   AND (CAST(pi.provider_controller_type_id = ?3 AS TEXT) OR ?3 IS NULL)
 ORDER BY pi.created_at DESC
 LIMIT CAST(?4 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![(*params.cursor),params.status.clone(),params.provider_controller_type_id.clone(),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.status.clone(),params.provider_controller_type_id.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -1242,7 +1109,7 @@ WHERE (created_at < ?1 OR ?1 IS NULL)
   AND (CAST(provider_instance_id = ?2 AS TEXT) OR ?2 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![(*params.cursor),params.provider_instance_id.clone(),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.provider_instance_id.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -1300,7 +1167,7 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
                             WHEN rsc.next_rotation_time IS NOT NULL
                             THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time)
                             ELSE NULL END,
-                        'data_encryption_key_id', rsc.data_encryption_key_id
+                        'dek_alias', rsc.dek_alias
                     )
                     FROM resource_server_credential rsc
                     WHERE rsc.id = pi.resource_server_credential_id
@@ -1319,7 +1186,7 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
                             WHEN uc.next_rotation_time IS NOT NULL
                             THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time)
                             ELSE NULL END,
-                        'data_encryption_key_id', uc.data_encryption_key_id
+                        'dek_alias', uc.dek_alias
                     )
                     FROM user_credential uc
                     WHERE uc.id = pi.user_credential_id
@@ -1411,17 +1278,17 @@ WHERE id = ?5"#, libsql::params![
                 None => libsql::Value::Null,
               }
             ,
-              match *params.next_rotation_time {
+              match params.next_rotation_time.clone() {
                 Some(value) => {
-                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value)
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
                 },
                 None => libsql::Value::Null,
               }
             ,
-              match *params.updated_at {
+              match params.updated_at.clone() {
                 Some(value) => {
-                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value)
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
                 },
                 None => libsql::Value::Null,
@@ -1488,17 +1355,17 @@ WHERE id = ?5"#, libsql::params![
                 None => libsql::Value::Null,
               }
             ,
-              match *params.next_rotation_time {
+              match params.next_rotation_time.clone() {
                 Some(value) => {
-                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value)
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
                 },
                 None => libsql::Value::Null,
               }
             ,
-              match *params.updated_at {
+              match params.updated_at.clone() {
                 Some(value) => {
-                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value)
+                  <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(value.clone())
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
                 },
                 None => libsql::Value::Null,
@@ -1562,7 +1429,7 @@ WHERE id = ?5"#, libsql::params![
             WHEN rsc.next_rotation_time IS NOT NULL
             THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time)
             ELSE NULL END,
-        'data_encryption_key_id', rsc.data_encryption_key_id
+        'dek_alias', rsc.dek_alias
     ) AS TEXT) as resource_server_credential,
     CAST(COALESCE(
         CASE WHEN uc.id IS NOT NULL THEN
@@ -1577,7 +1444,7 @@ WHERE id = ?5"#, libsql::params![
                     WHEN uc.next_rotation_time IS NOT NULL
                     THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time)
                     ELSE NULL END,
-                'data_encryption_key_id', uc.data_encryption_key_id
+                'dek_alias', uc.dek_alias
             )
         ELSE NULL END,
     JSON('null')) AS TEXT) as user_credential
@@ -1595,7 +1462,7 @@ WHERE (pi.created_at < ?1 OR ?1 IS NULL)
   )
 ORDER BY pi.created_at DESC
 LIMIT CAST(?4 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![(*params.cursor),params.status.clone(),(*params.rotation_window_end),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.status.clone(),params.rotation_window_end.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {

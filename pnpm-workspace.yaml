@@ -1,6 +1,6 @@
 packages:
   - "crates/sdk-js"
-  - "crates/soma/app"
+  - "crates/soma-frontend/app"
   - "js/packages/*"
   - "js/examples/*"
 onlyBuiltDependencies:

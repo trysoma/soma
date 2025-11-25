@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 a2a-rs.workspace = true
 bridge.workspace = true
+encryption.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 axum-server.workspace = true
@@ -20,9 +21,6 @@ clap_complete.workspace = true
 http.workspace = true
 humantime.workspace = true
 libsql.workspace = true
-restate-admin-rest-model.workspace = true
-restate-serde-util.workspace = true
-restate-types.workspace = true
 rmcp.workspace = true
 reqwest.workspace = true
 serde.workspace = true
@@ -42,8 +40,6 @@ url.workspace = true
 utoipa.workspace = true
 utoipa-axum.workspace = true
 uuid.workspace = true
-vite-rs.workspace = true
-vite-rs-axum-0-8.workspace = true
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 async-trait.workspace = true
 base64.workspace = true
@@ -52,7 +48,6 @@ futures.workspace = true
 globset.workspace = true
 notify.workspace = true
 notify-debouncer-full.workspace = true
-restate-sdk.workspace = true
 schemars.workspace = true
 tokio-stream.workspace = true
 tokio-util.workspace = true
@@ -62,6 +57,9 @@ dirs.workspace = true
 uds_windows.workspace = true
 zip.workspace = true
 tera.workspace = true
+soma-api-server.workspace = true
+soma-api-client.workspace = true
+soma-frontend.workspace = true
 
 
 [dev-dependencies]

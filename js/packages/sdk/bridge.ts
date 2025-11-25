@@ -1,6 +1,5 @@
 import type { FunctionController, ProviderController } from "@trysoma/sdk-core";
-import type z from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
+import z from "zod";
 
 interface CreateSomaFunctionParams<InputType, OutputType> {
 	inputSchema: z.ZodSchema<InputType>;
@@ -20,8 +19,8 @@ export function createSomaFunction<InputType, OutputType>(
 		providerController: params.providerController,
 		functionController: {
 			...params.functionController,
-			parameters: JSON.stringify(zodToJsonSchema(params.inputSchema)),
-			output: JSON.stringify(zodToJsonSchema(params.outputSchema)),
+			parameters: JSON.stringify(z.toJSONSchema(params.inputSchema)),
+			output: JSON.stringify(z.toJSONSchema(params.outputSchema)),
 		},
 	};
 }

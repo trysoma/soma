@@ -353,7 +353,6 @@ impl<T: ToSchema + Serialize> PartialSchema for PaginatedResponse<T> {
                         .schema_type(utoipa::openapi::schema::Type::String),
                 )
                 .required("items")
-                .required("next_page_token")
                 .build(),
         ))
     }

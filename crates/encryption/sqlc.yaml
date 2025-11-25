@@ -1,0 +1,61 @@
+version: "2"
+plugins:
+  - name: sqlc-gen-from-template
+    process:
+      cmd: "sqlc-gen-from-template"
+sql:
+  - engine: "sqlite"
+    schema: "./dbs/encryption/schema.sql"
+    queries: "./dbs/encryption/queries"
+    codegen:
+      - out: "src/repository/sqlite"
+        plugin: "sqlc-gen-from-template"
+        options:
+          template: "./../../rust_rusqlite.go.tmpl"
+          filename: "raw.generated.rs"
+          cache_statements: true
+          use_serde: true
+          overrides:
+            # envelope_encryption_key table
+            - db_type: text
+              column: envelope_encryption_key.id
+              rust_type: "String"
+            - db_type: text
+              column: envelope_encryption_key.key_type
+              rust_type: "crate::repository::EnvelopeEncryptionKeyType"
+            - db_type: datetime
+              column: envelope_encryption_key.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: envelope_encryption_key.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # data_encryption_key table
+            - db_type: text
+              column: data_encryption_key.envelope_encryption_key_id
+              rust_type: "String"
+            - db_type: text
+              column: data_encryption_key.encryption_key
+              rust_type: "crate::logic::dek::EncryptedDataEncryptionKey"
+            - db_type: datetime
+              column: data_encryption_key.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: data_encryption_key.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # query parameters for pagination
+            - column: get_data_encryption_keys.cursor
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # data_encryption_key_alias table
+            - db_type: text
+              column: data_encryption_key_alias.alias
+              rust_type: "String"
+            - db_type: text
+              column: data_encryption_key_alias.data_encryption_key_id
+              rust_type: "String"
+            - db_type: datetime
+              column: data_encryption_key_alias.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+

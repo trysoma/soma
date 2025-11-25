@@ -3,8 +3,8 @@ use crate::logic::api_key::{ApiKeyController, ApiKeyStaticCredentialConfiguratio
 use crate::logic::credential::{
     ResourceServerCredentialSerialized, StaticCredentialConfigurationLike, UserCredentialSerialized,
 };
-use crate::logic::encryption::DecryptionService;
 use crate::logic::*;
+use ::encryption::logic::crypto_services::DecryptionService;
 use async_trait::async_trait;
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};

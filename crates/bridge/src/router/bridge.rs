@@ -1,33 +1,32 @@
 use crate::logic::{
-    BrokerAction, BrokerInput, CreateDataEncryptionKeyParams, CreateDataEncryptionKeyResponse,
-    CreateProviderInstanceParamsInner, CreateProviderInstanceResponse,
+    BrokerAction, BrokerInput, CreateProviderInstanceParamsInner, CreateProviderInstanceResponse,
     CreateResourceServerCredentialParamsInner, CreateResourceServerCredentialResponse,
     CreateUserCredentialParamsInner, CreateUserCredentialResponse, DisableFunctionParamsInner,
     DisableFunctionResponse, EnableFunctionParamsInner, EnableFunctionResponse,
     EncryptCredentialConfigurationParamsInner, EncryptedCredentialConfigurationResponse,
-    EnvelopeEncryptionKeyContents, GetProviderInstanceResponse, InvokeFunctionParamsInner,
-    InvokeFunctionResponse, ListAvailableProvidersResponse, ListDataEncryptionKeysResponse,
-    ListFunctionInstancesParams, ListFunctionInstancesResponse,
+    GetProviderInstanceResponse, InvokeFunctionParamsInner, InvokeFunctionResponse,
+    ListAvailableProvidersResponse, ListFunctionInstancesParams, ListFunctionInstancesResponse,
     ListProviderInstancesGroupedByFunctionParams, ListProviderInstancesGroupedByFunctionResponse,
     ListProviderInstancesParams, ListProviderInstancesResponse, OnConfigChangeTx,
     ResumeUserCredentialBrokeringParams, StartUserCredentialBrokeringParamsInner,
     UpdateProviderInstanceParamsInner, UpdateProviderInstanceResponse,
     UserCredentialBrokeringResponse, UserCredentialSerialized, WithCredentialControllerTypeId,
     WithFunctionControllerTypeId, WithFunctionInstanceId, WithProviderControllerTypeId,
-    WithProviderInstanceId, create_data_encryption_key, create_provider_instance,
-    create_resource_server_credential, create_user_credential, delete_provider_instance,
-    disable_function, enable_function, encrypt_resource_server_configuration,
-    encrypt_user_credential_configuration, get_function_instances_openapi_spec,
-    get_provider_instance, invoke_function, list_available_providers, list_data_encryption_keys,
-    list_function_instances, list_provider_instances, list_provider_instances_grouped_by_function,
-    process_credential_rotations_with_window, resume_user_credential_brokering,
-    start_user_credential_brokering, update_provider_instance,
+    WithProviderInstanceId, create_provider_instance, create_resource_server_credential,
+    create_user_credential, delete_provider_instance, disable_function, enable_function,
+    encrypt_resource_server_configuration, encrypt_user_credential_configuration,
+    get_function_instances_openapi_spec, get_provider_instance, invoke_function,
+    list_available_providers, list_function_instances, list_provider_instances,
+    list_provider_instances_grouped_by_function, process_credential_rotations_with_window,
+    resume_user_credential_brokering, start_user_credential_brokering, update_provider_instance,
 };
+use crate::repository::ProviderRepositoryLike;
 use crate::repository::Repository;
 use axum::Extension;
 use axum::extract::{Json, NestedPath, Path, Query, State};
 use axum::response::sse::{Event, KeepAlive};
 use axum::response::{IntoResponse, Response, Sse};
+use encryption::logic::crypto_services::CryptoCache;
 use http::StatusCode;
 use http::request::Parts;
 use rmcp::{
@@ -55,10 +54,7 @@ pub fn create_router() -> OpenApiRouter<BridgeService> {
     OpenApiRouter::new()
         // Provider endpoints
         .routes(routes!(route_list_available_providers))
-        // Data encryption key endpoints
-        .routes(routes!(route_create_data_encryption_key))
-        .routes(routes!(route_list_data_encryption_keys))
-        // Configuration endpoints
+        // Configuration encryption endpoints
         .routes(routes!(route_encrypt_resource_server_configuration))
         .routes(routes!(route_encrypt_user_credential_configuration))
         // Resource server credential endpoints
@@ -204,56 +200,7 @@ async fn route_get_provider_instance(
 }
 
 // ============================================================================
-// Data encryption key endpoints
-// ============================================================================
-
-#[utoipa::path(
-    post,
-    path = format!("{}/{}/{}/encryption/data-encryption-key", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    request_body = CreateDataEncryptionKeyParams,
-    responses(
-        (status = 200, description = "Create data encryption key", body = CreateDataEncryptionKeyResponse),
-        (status = 400, description = "Bad Request", body = CommonError),
-        (status = 500, description = "Internal Server Error", body = CommonError),
-    ),
-    operation_id = "create-data-encryption-key",
-)]
-async fn route_create_data_encryption_key(
-    State(ctx): State<BridgeService>,
-    Json(params): Json<CreateDataEncryptionKeyParams>,
-) -> JsonResponse<CreateDataEncryptionKeyResponse, CommonError> {
-    let res = create_data_encryption_key(
-        ctx.envelope_encryption_key_contents(),
-        ctx.on_config_change_tx(),
-        ctx.repository(),
-        params,
-        true,
-    )
-    .await;
-    JsonResponse::from(res)
-}
-
-#[utoipa::path(
-    get,
-    path = format!("{}/{}/{}/encryption/data-encryption-key", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    params(
-        PaginationRequest
-    ),
-    responses(
-        (status = 200, description = "List data encryption keys", body = ListDataEncryptionKeysResponse),
-    ),
-    operation_id = "list-data-encryption-keys",
-)]
-async fn route_list_data_encryption_keys(
-    State(ctx): State<BridgeService>,
-    Query(pagination): Query<PaginationRequest>,
-) -> JsonResponse<ListDataEncryptionKeysResponse, CommonError> {
-    let res = list_data_encryption_keys(ctx.repository(), pagination).await;
-    JsonResponse::from(res)
-}
-
-// ============================================================================
-// Configuration endpoints
+// Configuration encryption endpoints
 // ============================================================================
 
 #[utoipa::path(
@@ -265,7 +212,7 @@ async fn route_list_data_encryption_keys(
         ("credential_controller_type_id" = String, Path, description = "Credential controller type ID"),
     ),
     responses(
-        (status = 200, description = "Encrypt provider configuration", body = EncryptedCredentialConfigurationResponse),
+        (status = 200, description = "Encrypt resource server configuration", body = EncryptedCredentialConfigurationResponse),
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -277,8 +224,7 @@ async fn route_encrypt_resource_server_configuration(
     Json(params): Json<EncryptCredentialConfigurationParamsInner>,
 ) -> JsonResponse<EncryptedCredentialConfigurationResponse, CommonError> {
     let res = encrypt_resource_server_configuration(
-        ctx.envelope_encryption_key_contents(),
-        ctx.repository(),
+        ctx.encryption_service(),
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
             inner: WithCredentialControllerTypeId {
@@ -304,7 +250,6 @@ async fn route_encrypt_resource_server_configuration(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
-
     operation_id = "encrypt-user-credential-configuration",
 )]
 async fn route_encrypt_user_credential_configuration(
@@ -313,8 +258,7 @@ async fn route_encrypt_user_credential_configuration(
     Json(params): Json<EncryptCredentialConfigurationParamsInner>,
 ) -> JsonResponse<EncryptedCredentialConfigurationResponse, CommonError> {
     let res = encrypt_user_credential_configuration(
-        ctx.envelope_encryption_key_contents(),
-        ctx.repository(),
+        ctx.encryption_service(),
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
             inner: WithCredentialControllerTypeId {
@@ -326,6 +270,7 @@ async fn route_encrypt_user_credential_configuration(
     .await;
     JsonResponse::from(res)
 }
+
 // ============================================================================
 // Resource server credential endpoints
 // ============================================================================
@@ -542,11 +487,22 @@ async fn generic_oauth_callback(
     // Create broker input
     let broker_input = BrokerInput::Oauth2AuthorizationCodeFlow { code };
 
+    // Validate that the broker state exists (fetched for validation only)
+    let _broker_state = match ctx.repository().get_broker_state_by_id(&state).await {
+        Ok(Some(state)) => state,
+        Ok(None) => {
+            return respond_err!(CommonError::Unknown(anyhow::anyhow!(
+                "Broker state not found: {state}"
+            )));
+        }
+        Err(e) => return respond_err!(e),
+    };
+
     // Resume the user credential brokering flow
     let res = resume_user_credential_brokering(
         ctx.on_config_change_tx(),
         ctx.repository(),
-        ctx.envelope_encryption_key_contents(),
+        ctx.encryption_service(),
         ResumeUserCredentialBrokeringParams {
             broker_state_id: state,
             input: broker_input,
@@ -624,6 +580,7 @@ async fn route_enable_function(
         true,
     )
     .await;
+
     JsonResponse::from(res)
 }
 
@@ -658,6 +615,7 @@ async fn route_disable_function(
         true,
     )
     .await;
+
     JsonResponse::from(res)
 }
 
@@ -683,7 +641,7 @@ async fn route_invoke_function(
 ) -> JsonResponse<InvokeFunctionResponse, CommonError> {
     let res = invoke_function(
         ctx.repository(),
-        ctx.envelope_encryption_key_contents(),
+        ctx.encryption_service(),
         WithProviderInstanceId {
             provider_instance_id: provider_instance_id.clone(),
             inner: WithFunctionInstanceId {
@@ -815,14 +773,10 @@ async fn route_get_function_instances_openapi_spec(
     JsonResponse::from(res)
 }
 
-// ============================================================================
-// Service
-// ============================================================================
-
 pub struct BridgeServiceInner {
     pub repository: Repository,
     pub on_config_change_tx: OnConfigChangeTx,
-    pub envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+    pub encryption_service: CryptoCache,
     pub mcp_sessions: rmcp::transport::sse_server::TxStore,
     pub mcp_transport_tx:
         tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
@@ -833,7 +787,7 @@ impl BridgeServiceInner {
     pub fn new(
         repository: Repository,
         on_config_change_tx: OnConfigChangeTx,
-        envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+        encryption_service: CryptoCache,
         mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<
             rmcp::transport::sse_server::SseServerTransport,
         >,
@@ -842,7 +796,7 @@ impl BridgeServiceInner {
         Self {
             repository,
             on_config_change_tx,
-            envelope_encryption_key_contents,
+            encryption_service,
             mcp_sessions: Default::default(),
             mcp_transport_tx,
             mcp_sse_ping_interval,
@@ -857,30 +811,33 @@ impl BridgeService {
     pub async fn new(
         repository: Repository,
         on_config_change_tx: OnConfigChangeTx,
-        envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+        encryption_service: CryptoCache,
         mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<
             rmcp::transport::sse_server::SseServerTransport,
         >,
         mcp_sse_ping_interval: Duration,
     ) -> Result<Self, CommonError> {
+        // Initialize the service inner first to get the map
+        let inner = BridgeServiceInner::new(
+            repository,
+            on_config_change_tx,
+            encryption_service,
+            mcp_transport_tx,
+            mcp_sse_ping_interval,
+        );
+
         // Run initial credential rotation check for expired and soon-to-expire credentials (30 min window)
         info!("Running initial credential rotation check...");
         process_credential_rotations_with_window(
-            &repository,
-            &on_config_change_tx,
-            &envelope_encryption_key_contents,
+            &inner.repository,
+            &inner.on_config_change_tx,
+            &inner.encryption_service,
             30,
         )
         .await?;
         info!("Initial credential rotation check complete");
 
-        Ok(Self(Arc::new(BridgeServiceInner::new(
-            repository,
-            on_config_change_tx,
-            envelope_encryption_key_contents,
-            mcp_transport_tx,
-            mcp_sse_ping_interval,
-        ))))
+        Ok(Self(Arc::new(inner)))
     }
 
     pub fn repository(&self) -> &Repository {
@@ -891,8 +848,8 @@ impl BridgeService {
         &self.0.on_config_change_tx
     }
 
-    pub fn envelope_encryption_key_contents(&self) -> &EnvelopeEncryptionKeyContents {
-        &self.0.envelope_encryption_key_contents
+    pub fn encryption_service(&self) -> &CryptoCache {
+        &self.0.encryption_service
     }
 
     pub fn mcp_transport_tx(

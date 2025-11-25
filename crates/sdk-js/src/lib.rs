@@ -1,3 +1,5 @@
+pub mod codegen;
+pub mod codegen_impl;
 pub mod types;
 
 use napi::bindgen_prelude::*;
@@ -8,19 +10,38 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::info;
 
+use codegen_impl::TypeScriptCodeGenerator;
 use sdk_core as core_types;
 use types as js_types;
 
-/// Start the gRPC server on a Unix socket (without initial providers)
-#[napi]
-pub async fn start_grpc_server(socket_path: String) -> Result<()> {
-    let path = PathBuf::from(socket_path);
+use once_cell::sync::OnceCell;
 
-    core_types::start_grpc_server(vec![], path)
+static GRPC_SERVICE: OnceCell<Arc<core_types::GrpcService<TypeScriptCodeGenerator>>> =
+    OnceCell::new();
+
+/// Start the gRPC server on a Unix socket with TypeScript code generation
+#[napi]
+pub async fn start_grpc_server(socket_path: String, project_dir: String) -> Result<()> {
+    let socket_path = PathBuf::from(socket_path);
+    let project_dir = PathBuf::from(project_dir);
+
+    let code_generator = TypeScriptCodeGenerator::new(project_dir);
+
+    let service = core_types::start_grpc_server(vec![], socket_path, code_generator)
         .await
         .map_err(|e| napi::Error::from_reason(e.to_string()))?;
 
+    GRPC_SERVICE
+        .set(service)
+        .map_err(|_| napi::Error::from_reason("gRPC service already initialized"))?;
+
     Ok(())
+}
+
+fn get_grpc_service() -> Result<&'static Arc<core_types::GrpcService<TypeScriptCodeGenerator>>> {
+    GRPC_SERVICE.get().ok_or_else(|| {
+        napi::Error::from_reason("gRPC service not initialized - call start_grpc_server first")
+    })
 }
 
 /// Add a provider controller to the running server
@@ -100,20 +121,20 @@ pub fn add_provider(provider: js_types::ProviderController) -> Result<()> {
         credential_controllers,
     };
 
-    core_types::get_grpc_service().add_provider(core_provider);
+    get_grpc_service()?.add_provider(core_provider);
     Ok(())
 }
 
 /// Remove a provider controller by type_id
 #[napi]
 pub fn remove_provider(type_id: String) -> Result<bool> {
-    Ok(core_types::get_grpc_service().remove_provider(&type_id))
+    Ok(get_grpc_service()?.remove_provider(&type_id))
 }
 
 /// Update a provider controller (removes old and inserts new)
 #[napi]
 pub fn update_provider(provider: js_types::ProviderController) -> Result<bool> {
-    let current_provider = core_types::get_grpc_service().get_provider(&provider.type_id);
+    let current_provider = get_grpc_service()?.get_provider(&provider.type_id);
     let current_provider = if let Some(current_provider) = current_provider {
         current_provider
     } else {
@@ -193,7 +214,7 @@ pub fn update_provider(provider: js_types::ProviderController) -> Result<bool> {
         credential_controllers,
     };
 
-    Ok(core_types::get_grpc_service().update_provider(core_provider))
+    Ok(get_grpc_service()?.update_provider(core_provider))
 }
 
 /// Add a function controller to a specific provider
@@ -275,13 +296,13 @@ pub fn add_function(
         }),
     };
 
-    Ok(core_types::get_grpc_service().add_function(&provider_type_id, core_function))
+    Ok(get_grpc_service()?.add_function(&provider_type_id, core_function))
 }
 
 /// Remove a function controller from a specific provider
 #[napi]
 pub fn remove_function(provider_type_id: String, function_name: String) -> Result<bool> {
-    Ok(core_types::get_grpc_service().remove_function(&provider_type_id, &function_name))
+    Ok(get_grpc_service()?.remove_function(&provider_type_id, &function_name))
 }
 
 /// Update a function controller (removes old and inserts new)
@@ -344,7 +365,7 @@ pub fn update_function(
         }),
     };
 
-    Ok(core_types::get_grpc_service().update_function(&provider_type_id, core_function))
+    Ok(get_grpc_service()?.update_function(&provider_type_id, core_function))
 }
 
 #[napi]
@@ -355,16 +376,16 @@ pub fn add_agent(agent: js_types::Agent) -> Result<bool> {
         name: agent.name,
         description: agent.description,
     };
-    Ok(core_types::get_grpc_service().add_agent(core_agent))
+    Ok(get_grpc_service()?.add_agent(core_agent))
 }
 
-/// Remove a function controller from a specific provider
+/// Remove an agent by id
 #[napi]
 pub fn remove_agent(id: String) -> Result<bool> {
-    Ok(core_types::get_grpc_service().remove_agent(&id))
+    Ok(get_grpc_service()?.remove_agent(&id))
 }
 
-/// Remove a function controller from a specific provider
+/// Update an agent (removes old and inserts new)
 #[napi]
 pub fn update_agent(agent: js_types::Agent) -> Result<bool> {
     let core_agent = core_types::Agent {
@@ -373,5 +394,5 @@ pub fn update_agent(agent: js_types::Agent) -> Result<bool> {
         name: agent.name,
         description: agent.description,
     };
-    Ok(core_types::get_grpc_service().update_agent(core_agent))
+    Ok(get_grpc_service()?.update_agent(core_agent))
 }

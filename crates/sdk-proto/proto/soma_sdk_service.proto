@@ -8,6 +8,7 @@ service SomaSdkService {
   rpc Metadata(google.protobuf.Empty) returns (MetadataResponse);
   rpc HealthCheck(google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc InvokeFunction(InvokeFunctionRequest) returns (InvokeFunctionResponse);
+  rpc GenerateBridgeClient(GenerateBridgeClientRequest) returns (GenerateBridgeClientResponse);
 }
 
 message InvokeFunctionRequest {
@@ -102,4 +103,42 @@ message FunctionController {
   string description = 2;
   string parameters = 3;
   string output = 4;
+}
+
+message GenerateBridgeClientRequest {
+  repeated FunctionInstanceData function_instances = 1;
+}
+
+message GenerateBridgeClientResponse {
+  oneof result {
+    GenerateBridgeClientSuccess success = 1;
+    GenerateBridgeClientError error = 2;
+  }
+}
+
+message GenerateBridgeClientSuccess {
+  string message = 1;
+}
+
+message GenerateBridgeClientError {
+  string message = 1;
+}
+
+message FunctionInstanceData {
+  string provider_instance_id = 1;
+  string provider_instance_display_name = 2;
+  ProviderControllerData provider_controller = 3;
+  FunctionControllerData function_controller = 4;
+}
+
+message ProviderControllerData {
+  string type_id = 1;
+  string display_name = 2;
+}
+
+message FunctionControllerData {
+  string type_id = 1;
+  string display_name = 2;
+  string params_json_schema = 3;
+  string return_value_json_schema = 4;
 }

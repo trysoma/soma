@@ -14,11 +14,13 @@ once_cell.workspace = true
 sdk-core.workspace = true
 sdk-proto.workspace = true
 tokio.workspace = true
+tonic.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 shared.workspace = true
+tera.workspace = true
 
 [build-dependencies]
 napi-build.workspace = true

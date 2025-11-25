@@ -1,13 +1,9 @@
-mod a2a;
+mod bridge;
 mod cli;
-mod codegen;
 mod commands;
-mod logic;
-mod mcp;
-mod repository;
-mod router;
+mod restate_server;
+mod server;
 mod utils;
-mod vite;
 
 use clap::Parser;
 

@@ -17,6 +17,8 @@ use shared::{
 use tracing::info;
 use utoipa::ToSchema;
 
+use ::encryption::logic::crypto_services::{DecryptionService, EncryptionService};
+
 use crate::{
     logic::{
         Metadata, OnConfigChangeEvt, OnConfigChangeTx, ProviderControllerLike,
@@ -24,10 +26,6 @@ use crate::{
         controller::{
             WithCredentialControllerTypeId, WithProviderControllerTypeId,
             get_credential_controller, get_provider_controller,
-        },
-        encryption::{
-            DecryptionService, EncryptionService, EnvelopeEncryptionKeyContents,
-            get_crypto_service, get_decryption_service, get_encryption_service,
         },
         instance::{
             ProviderInstanceSerialized, ProviderInstanceSerializedWithCredentials, ReturnAddress,
@@ -186,7 +184,7 @@ pub struct ResourceServerCredentialSerialized {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub next_rotation_time: Option<WrappedChronoDateTime>,
-    pub data_encryption_key_id: String,
+    pub dek_alias: String,
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
@@ -198,7 +196,7 @@ pub struct UserCredentialSerialized {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub next_rotation_time: Option<WrappedChronoDateTime>,
-    pub data_encryption_key_id: String,
+    pub dek_alias: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
@@ -206,7 +204,7 @@ pub struct CreateResourceServerCredentialParamsInner {
     // NOTE: serialized values are always already encrypted, only encrypt_provider_configuration accepts raw values
     pub resource_server_configuration: WrappedJsonValue,
     pub metadata: Option<Metadata>,
-    pub data_encryption_key_id: String,
+    pub dek_alias: String,
 }
 pub type CreateResourceServerCredentialParams = WithProviderControllerTypeId<
     WithCredentialControllerTypeId<CreateResourceServerCredentialParamsInner>,
@@ -246,7 +244,7 @@ pub async fn create_resource_server_credential(
         created_at: now,
         updated_at: now,
         next_rotation_time,
-        data_encryption_key_id: params.inner.inner.data_encryption_key_id,
+        dek_alias: params.inner.inner.dek_alias,
     };
 
     // Save to database
@@ -264,7 +262,7 @@ pub async fn create_resource_server_credential(
 pub struct CreateUserCredentialParamsInner {
     pub user_credential_configuration: WrappedJsonValue,
     pub metadata: Option<Metadata>,
-    pub data_encryption_key_id: String,
+    pub dek_alias: String,
 }
 pub type CreateUserCredentialParams =
     WithProviderControllerTypeId<WithCredentialControllerTypeId<CreateUserCredentialParamsInner>>;
@@ -303,7 +301,7 @@ pub async fn create_user_credential(
         created_at: now,
         updated_at: now,
         next_rotation_time,
-        data_encryption_key_id: params.inner.inner.data_encryption_key_id,
+        dek_alias: params.inner.inner.dek_alias,
     };
 
     // Save to database
@@ -351,7 +349,7 @@ async fn process_broker_outcome(
                     )));
                 }
             };
-            let data_encryption_key_id = resource_server_cred.data_encryption_key_id;
+            let dek_alias = resource_server_cred.dek_alias;
             let user_credential = create_user_credential(
                 repo,
                 CreateUserCredentialParams {
@@ -359,7 +357,7 @@ async fn process_broker_outcome(
                     inner: WithCredentialControllerTypeId {
                         credential_controller_type_id: credential_controller.type_id().to_string(),
                         inner: CreateUserCredentialParamsInner {
-                            data_encryption_key_id,
+                            dek_alias,
                             user_credential_configuration: user_credential.value(),
                             metadata: Some(metadata.clone()),
                         },
@@ -407,7 +405,9 @@ async fn process_broker_outcome(
                 .send(OnConfigChangeEvt::ProviderInstanceAdded(
                     provider_instance_with_creds,
                 ))
-                .await?;
+                .map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+                })?;
 
             if let Some(return_on_success) = &provider_instance.return_on_successful_brokering {
                 match return_on_success {
@@ -536,12 +536,11 @@ pub struct ResumeUserCredentialBrokeringParams {
 pub async fn resume_user_credential_brokering<R>(
     on_config_change_tx: &OnConfigChangeTx,
     repo: &R,
-    key_encryption_key_contents: &EnvelopeEncryptionKeyContents,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
     params: ResumeUserCredentialBrokeringParams,
 ) -> Result<UserCredentialBrokeringResponse, CommonError>
 where
-    R: crate::repository::ProviderRepositoryLike
-        + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
+    R: crate::repository::ProviderRepositoryLike,
 {
     // Fetch broker state from database
     let broker_state = repo
@@ -583,14 +582,13 @@ where
             "Resource server credential not found for provider instance"
         )))?;
 
-    let crypto_service = get_crypto_service(
-        key_encryption_key_contents,
-        repo,
-        &resource_server_cred.data_encryption_key_id,
-    )
-    .await?;
-    let encryption_service = get_encryption_service(&crypto_service)?;
-    let decryption_service = get_decryption_service(&crypto_service)?;
+    // Get encryption/decryption services from the cache using the DEK alias
+    let encryption_service = crypto_cache
+        .get_encryption_service(&resource_server_cred.dek_alias)
+        .await?;
+    let decryption_service = crypto_cache
+        .get_decryption_service(&resource_server_cred.dek_alias)
+        .await?;
     let (action, outcome) = user_credential_broker
         .resume(
             &decryption_service,
@@ -623,43 +621,52 @@ where
 /// This function is designed to be called in its own tokio::spawn
 pub async fn credential_rotation_task<R>(
     repo: R,
-    envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+    crypto_cache: encryption::logic::crypto_services::CryptoCache,
     on_config_change_tx: OnConfigChangeTx,
+    mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
 ) where
-    R: ProviderRepositoryLike + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
+    R: ProviderRepositoryLike,
 {
     use tokio::time::{Duration, interval};
 
     let mut timer = interval(Duration::from_secs(10 * 60)); // 10 minutes
 
     loop {
-        timer.tick().await;
+        tokio::select! {
+            _ = timer.tick() => {
+                tracing::info!("Starting credential rotation check");
 
-        tracing::info!("Starting credential rotation check");
+                if let Err(e) = process_credential_rotations_with_window(
+                    &repo,
+                    &on_config_change_tx,
+                    &crypto_cache,
+                    20,
+                )
+                .await
+                {
+                    tracing::error!("Error processing credential rotations: {:?}", e);
+                }
 
-        if let Err(e) = process_credential_rotations_with_window(
-            &repo,
-            &on_config_change_tx,
-            &envelope_encryption_key_contents,
-            20,
-        )
-        .await
-        {
-            tracing::error!("Error processing credential rotations: {:?}", e);
+                tracing::info!("Completed credential rotation check");
+            }
+            _ = shutdown_rx.recv() => {
+                tracing::info!("Credential rotation task shutdown requested");
+                break;
+            }
         }
-
-        tracing::info!("Completed credential rotation check");
     }
+
+    tracing::info!("Credential rotation task stopped");
 }
 
 pub async fn process_credential_rotations_with_window<R>(
     repo: &R,
     on_config_change_tx: &OnConfigChangeTx,
-    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
     window_minutes: i64,
 ) -> Result<(), CommonError>
 where
-    R: ProviderRepositoryLike + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
+    R: ProviderRepositoryLike,
 {
     // Calculate rotation window
     let now = WrappedChronoDateTime::now();
@@ -700,7 +707,7 @@ where
                 process_credential_rotation(
                     repo,
                     on_config_change_tx,
-                    envelope_encryption_key_contents,
+                    crypto_cache,
                     pi,
                     &rotation_window_end,
                     true,
@@ -721,13 +728,13 @@ where
 pub async fn process_credential_rotation<R>(
     repo: &R,
     on_config_change_tx: &OnConfigChangeTx,
-    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
     pi: &ProviderInstanceSerializedWithCredentials,
     rotation_window_end: &WrappedChronoDateTime,
     publish_update: bool,
 ) -> Result<(), CommonError>
 where
-    R: ProviderRepositoryLike + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
+    R: ProviderRepositoryLike,
 {
     let mut resource_server_rotated = false;
     let mut user_cred_rotated = false;
@@ -740,7 +747,7 @@ where
                     resource_server_rotated = true;
                     rotate_resource_server_credential(
                         repo,
-                        envelope_encryption_key_contents,
+                        crypto_cache,
                         &pi.provider_instance,
                         &pi.resource_server_credential,
                     )
@@ -761,7 +768,7 @@ where
                     Some(
                         rotate_user_credential(
                             repo,
-                            envelope_encryption_key_contents,
+                            crypto_cache,
                             &pi.provider_instance,
                             &resource_server_cred_rotation_result,
                             user_cred,
@@ -787,7 +794,9 @@ where
                     user_credential: user_cred_rotation_result,
                 },
             ))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
 
     Ok::<(), CommonError>(())
@@ -795,21 +804,20 @@ where
 
 async fn rotate_resource_server_credential<R>(
     repo: &R,
-    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
     provider_instance: &ProviderInstanceSerialized,
     resource_server_cred: &ResourceServerCredentialSerialized,
 ) -> Result<ResourceServerCredentialSerialized, CommonError>
 where
-    R: ProviderRepositoryLike + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
+    R: ProviderRepositoryLike,
 {
-    let crypto_service = get_crypto_service(
-        envelope_encryption_key_contents,
-        repo,
-        &resource_server_cred.data_encryption_key_id,
-    )
-    .await?;
-    let encryption_service = get_encryption_service(&crypto_service)?;
-    let decryption_service = get_decryption_service(&crypto_service)?;
+    // Get encryption/decryption services from the cache using the DEK alias
+    let encryption_service = crypto_cache
+        .get_encryption_service(&resource_server_cred.dek_alias)
+        .await?;
+    let decryption_service = crypto_cache
+        .get_decryption_service(&resource_server_cred.dek_alias)
+        .await?;
 
     let provider_controller =
         get_provider_controller(&provider_instance.provider_controller_type_id)?;
@@ -863,23 +871,21 @@ where
 
 async fn rotate_user_credential<R>(
     repo: &R,
-    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
     provider_instance: &ProviderInstanceSerialized,
     resource_server_cred: &ResourceServerCredentialSerialized,
     user_cred: &UserCredentialSerialized,
 ) -> Result<UserCredentialSerialized, CommonError>
 where
-    R: ProviderRepositoryLike + crate::logic::encryption::DataEncryptionKeyRepositoryLike,
+    R: ProviderRepositoryLike,
 {
-    // todo: we assume resource server credential and user credential use the same data encryption key id
-    let crypto_service = get_crypto_service(
-        envelope_encryption_key_contents,
-        repo,
-        &resource_server_cred.data_encryption_key_id,
-    )
-    .await?;
-    let encryption_service = get_encryption_service(&crypto_service)?;
-    let decryption_service = get_decryption_service(&crypto_service)?;
+    // Get encryption/decryption services from the cache - user and resource credentials may use different DEKs
+    let encryption_service = crypto_cache
+        .get_encryption_service(&user_cred.dek_alias)
+        .await?;
+    let decryption_service = crypto_cache
+        .get_decryption_service(&user_cred.dek_alias)
+        .await?;
 
     let provider_controller =
         get_provider_controller(&provider_instance.provider_controller_type_id)?;
@@ -939,41 +945,14 @@ mod tests {
         Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
         Oauth2AuthorizationCodeFlowUserCredential, OauthAuthFlowController,
     };
-    use crate::logic::encryption::{
-        CreateDataEncryptionKeyParams, EnvelopeEncryptionKeyContents, create_data_encryption_key,
-        get_crypto_service, get_encryption_service,
-    };
 
     use shared::primitives::SqlMigrationLoader;
-
-    fn create_temp_kek_file() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
-        use rand::RngCore;
-        let mut kek_bytes = [0u8; 32];
-        rand::thread_rng().fill_bytes(&mut kek_bytes);
-
-        let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
-        std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
-
-        let key_id = temp_file
-            .path()
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("test-key")
-            .to_string();
-
-        let contents = EnvelopeEncryptionKeyContents::Local {
-            key_id,
-            key_bytes: kek_bytes.to_vec(),
-        };
-
-        (temp_file, contents)
-    }
 
     #[tokio::test]
     async fn test_create_resource_server_credential() {
         shared::setup_test!();
 
-        let repo = {
+        let _repo = {
             let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
                 crate::repository::Repository::load_sql_migrations(),
             ])
@@ -981,25 +960,14 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx) = tokio::sync::mpsc::channel(10);
-        let (_temp_file, kek) = create_temp_kek_file();
 
-        // Create a data encryption key
-        let dek = create_data_encryption_key(
-            &kek,
-            &tx,
-            &repo,
-            CreateDataEncryptionKeyParams {
-                id: Some("test-dek".to_string()),
-                encrypted_data_envelope_key: None,
-            },
-            false,
-        )
-        .await
-        .unwrap();
-
-        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
-        let encryption_service = get_encryption_service(&crypto_service).unwrap();
+        // Use the test helper to set up encryption services
+        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+        let encryption_service = setup
+            .crypto_cache
+            .get_encryption_service(&setup.dek_alias)
+            .await
+            .unwrap();
 
         // Create encrypted resource server configuration
         let controller = OauthAuthFlowController {
@@ -1052,7 +1020,7 @@ mod tests {
     async fn test_create_user_credential() {
         shared::setup_test!();
 
-        let repo = {
+        let _repo = {
             let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
                 crate::repository::Repository::load_sql_migrations(),
             ])
@@ -1060,24 +1028,14 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx) = tokio::sync::mpsc::channel(10);
-        let (_temp_file, kek) = create_temp_kek_file();
 
-        let dek = create_data_encryption_key(
-            &kek,
-            &tx,
-            &repo,
-            CreateDataEncryptionKeyParams {
-                id: Some("test-dek".to_string()),
-                encrypted_data_envelope_key: None,
-            },
-            false,
-        )
-        .await
-        .unwrap();
-
-        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
-        let encryption_service = get_encryption_service(&crypto_service).unwrap();
+        // Use the test helper to set up encryption services
+        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+        let encryption_service = setup
+            .crypto_cache
+            .get_encryption_service(&setup.dek_alias)
+            .await
+            .unwrap();
 
         let controller = OauthAuthFlowController {
             static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
@@ -1152,11 +1110,14 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx) = tokio::sync::mpsc::channel(10);
-        let (_temp_file, kek) = create_temp_kek_file();
+        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
+
+        // Use the test helper to set up encryption services
+        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
 
         // Test with no provider instances
-        let result = process_credential_rotations_with_window(&repo, &tx, &kek, 20).await;
+        let result =
+            process_credential_rotations_with_window(&repo, &tx, &setup.crypto_cache, 20).await;
 
         // Should succeed even with no credentials
         assert!(result.is_ok());

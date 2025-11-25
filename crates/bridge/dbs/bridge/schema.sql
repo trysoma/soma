@@ -1,11 +1,3 @@
-CREATE TABLE IF NOT EXISTS data_encryption_key (
-    id TEXT PRIMARY KEY,
-    envelope_encryption_key_id JSON NOT NULL,
-    encryption_key TEXT NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS resource_server_credential (
     id TEXT PRIMARY KEY,
     type_id TEXT NOT NULL,
@@ -14,8 +6,7 @@ CREATE TABLE IF NOT EXISTS resource_server_credential (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     next_rotation_time DATETIME,
-    data_encryption_key_id TEXT NOT NULL,
-    FOREIGN KEY (data_encryption_key_id) REFERENCES data_encryption_key(id)
+    dek_alias TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS user_credential (
@@ -26,8 +17,7 @@ CREATE TABLE IF NOT EXISTS user_credential (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     next_rotation_time DATETIME,
-    data_encryption_key_id TEXT NOT NULL,
-    FOREIGN KEY (data_encryption_key_id) REFERENCES data_encryption_key(id)
+    dek_alias TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS provider_instance (

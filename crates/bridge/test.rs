@@ -7512,7 +7512,6 @@ mod logic {
 }
 mod providers {
     pub mod google_mail {
-        use bridge_macros::define_provider;
         use serde::{Serialize, Deserialize};
         use crate::logic::*;
         use shared::{

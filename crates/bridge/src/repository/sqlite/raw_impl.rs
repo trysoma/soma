@@ -10,7 +10,7 @@ use shared::error::CommonError;
 
 // Import generated Row types from parent module
 use super::{
-    Row_get_broker_state_by_id, Row_get_data_encryption_key_by_id, Row_get_function_instance_by_id,
+    Row_get_broker_state_by_id, Row_get_function_instance_by_id,
     Row_get_function_instance_with_credentials, Row_get_provider_instance_by_id,
     Row_get_provider_instances, Row_get_provider_instances_grouped_by_function_controller_type_id,
     Row_get_resource_server_credential_by_id, Row_get_resource_server_credentials,
@@ -80,7 +80,7 @@ impl TryFrom<Row_get_resource_server_credential_by_id> for ResourceServerCredent
             created_at: row.created_at,
             updated_at: row.updated_at,
             next_rotation_time: row.next_rotation_time,
-            data_encryption_key_id: row.data_encryption_key_id,
+            dek_alias: row.dek_alias,
         })
     }
 }
@@ -96,7 +96,7 @@ impl TryFrom<Row_get_user_credential_by_id> for UserCredentialSerialized {
             created_at: row.created_at,
             updated_at: row.updated_at,
             next_rotation_time: row.next_rotation_time,
-            data_encryption_key_id: row.data_encryption_key_id,
+            dek_alias: row.dek_alias,
         })
     }
 }
@@ -112,7 +112,7 @@ impl TryFrom<Row_get_user_credentials> for UserCredentialSerialized {
             created_at: row.created_at,
             updated_at: row.updated_at,
             next_rotation_time: row.next_rotation_time,
-            data_encryption_key_id: row.data_encryption_key_id,
+            dek_alias: row.dek_alias,
         })
     }
 }
@@ -128,7 +128,7 @@ impl TryFrom<Row_get_resource_server_credentials> for ResourceServerCredentialSe
             created_at: row.created_at,
             updated_at: row.updated_at,
             next_rotation_time: row.next_rotation_time,
-            data_encryption_key_id: row.data_encryption_key_id,
+            dek_alias: row.dek_alias,
         })
     }
 }
@@ -296,8 +296,8 @@ impl TryFrom<Row_get_function_instance_with_credentials>
                     }
                 },
                 next_rotation_time: row.user_credential_next_rotation_time,
-                data_encryption_key_id: match row.user_credential_data_encryption_key_id {
-                    Some(data_encryption_key_id) => data_encryption_key_id,
+                dek_alias: match row.user_credential_dek_alias {
+                    Some(dek_alias) => dek_alias,
                     None => {
                         return Err(CommonError::Unknown(anyhow::anyhow!(
                             "user credential data encryption key id is required"
@@ -343,22 +343,9 @@ impl TryFrom<Row_get_function_instance_with_credentials>
                 created_at: row.resource_server_credential_created_at,
                 updated_at: row.resource_server_credential_updated_at,
                 next_rotation_time: row.resource_server_credential_next_rotation_time,
-                data_encryption_key_id: row.resource_server_credential_data_encryption_key_id,
+                dek_alias: row.resource_server_credential_dek_alias,
             },
             user_credential,
-        })
-    }
-}
-
-impl TryFrom<Row_get_data_encryption_key_by_id> for crate::logic::DataEncryptionKey {
-    type Error = CommonError;
-    fn try_from(row: Row_get_data_encryption_key_by_id) -> Result<Self, Self::Error> {
-        Ok(crate::logic::DataEncryptionKey {
-            id: row.id,
-            envelope_encryption_key_id: row.envelope_encryption_key_id,
-            encrypted_data_encryption_key: row.encryption_key,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
         })
     }
 }

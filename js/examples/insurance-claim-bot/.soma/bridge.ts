@@ -62,24 +62,24 @@ async function invokeBridgeFunction<TParams, TResult>(
 
 
 
-export type ApproveClaimApproveClaimParams = string;
-export type ApproveClaimApproveClaimResult = string;
+export type ApproveClaimApproveClaimParams = { claim: { amount: number; category: string; date: string; email: string; reason: string } };
+export type ApproveClaimApproveClaimResult = { approved: boolean };
 
 
 
 
 
-export type GoogleMailGoogleMailSendEmailParams = { body: string; subject: string; to: string };
-export type GoogleMailGoogleMailSendEmailResult = { message_id: string };
+export type StripeStripeProcessRefundParams = { refund_id: string };
+export type StripeStripeProcessRefundResult = { success: boolean };
 
 
 
 
 
-// Provider: approveClaim
-export interface ApproveClaimProvider {
+// Provider: approve-claim
+export interface ApproveClaim {
   
-  "internal": {
+  "test": {
     
     approveClaim: (params: ApproveClaimApproveClaimParams) => Promise<ApproveClaimApproveClaimResult>;
     
@@ -87,12 +87,12 @@ export interface ApproveClaimProvider {
   
 }
 
-// Provider: googleMail
-export interface GoogleMailProvider {
+// Provider: stripe
+export interface Stripe {
   
-  "daniel@trysoma.ai": {
+  "internal": {
     
-    sendEmail: (params: GoogleMailGoogleMailSendEmailParams) => Promise<GoogleMailGoogleMailSendEmailResult>;
+    processRefund: (params: StripeStripeProcessRefundParams) => Promise<StripeStripeProcessRefundResult>;
     
   };
   
@@ -101,9 +101,9 @@ export interface GoogleMailProvider {
 
 export interface Bridge {
   
-  approveClaim: ApproveClaimProvider;
+  approveClaim: ApproveClaim;
   
-  googleMail: GoogleMailProvider;
+  stripe: Stripe;
   
 }
 
@@ -111,19 +111,18 @@ export type BridgeDefinition = Bridge;
 
 export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
   const baseUrl = config?.SOMA_BASE_URL || process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000';
-
   
-  const approveClaim: ApproveClaimProvider = {
+  const approveClaim: ApproveClaim = {
     
-    "internal": {
+    "test": {
       
       approveClaim: async (params: ApproveClaimApproveClaimParams): Promise<ApproveClaimApproveClaimResult> => {
         return invokeBridgeFunction<ApproveClaimApproveClaimParams, ApproveClaimApproveClaimResult>(
           ctx,
+          'approve-claim',
+          'test',
           'approveClaim',
-          'internal',
-          'approveClaim',
-          '6acd6431-6f56-48b6-8fa7-acc56b990c22',
+          '94131f8d-66c0-45c0-856f-eafbd8aab791',
           'approve-claim',
           params,
           baseUrl
@@ -134,18 +133,18 @@ export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
     
   };
   
-  const googleMail: GoogleMailProvider = {
+  const stripe: Stripe = {
     
-    "daniel@trysoma.ai": {
+    "internal": {
       
-      sendEmail: async (params: GoogleMailGoogleMailSendEmailParams): Promise<GoogleMailGoogleMailSendEmailResult> => {
-        return invokeBridgeFunction<GoogleMailGoogleMailSendEmailParams, GoogleMailGoogleMailSendEmailResult>(
+      processRefund: async (params: StripeStripeProcessRefundParams): Promise<StripeStripeProcessRefundResult> => {
+        return invokeBridgeFunction<StripeStripeProcessRefundParams, StripeStripeProcessRefundResult>(
           ctx,
-          'googleMail',
-          'daniel@trysoma.ai',
-          'sendEmail',
-          '136e3705-6a55-42a3-881a-c4bad62db88c',
-          'google_mail_send_email',
+          'stripe',
+          'internal',
+          'processRefund',
+          'dc14fe03-944a-433f-a5a6-3c5895ba3026',
+          'stripe_process_refund',
           params,
           baseUrl
         );
@@ -158,9 +157,9 @@ export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
 
   return {
     
-    approveClaim,
+    approveClaim: approveClaim,
     
-    googleMail,
+    stripe: stripe,
     
   };
 }

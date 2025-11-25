@@ -29,11 +29,11 @@ use crate::{
             get_function_controller, get_provider_controller,
         },
         credential::{ResourceServerCredentialSerialized, UserCredentialSerialized},
-        encryption::{EnvelopeEncryptionKeyContents, get_crypto_service, get_decryption_service},
     },
     repository::ProviderRepositoryLike,
     router::bridge::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY},
 };
+use encryption::logic::crypto_services::CryptoCache;
 
 /// Sanitizes a display name to only contain alphanumeric characters and dashes.
 /// This is useful for creating valid OpenAPI operation IDs and other identifiers.
@@ -704,7 +704,9 @@ pub async fn create_provider_instance(
             .send(OnConfigChangeEvt::ProviderInstanceAdded(
                 provider_instance_with_credentials,
             ))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
 
     Ok(provider_instance_serialized)
@@ -771,7 +773,9 @@ pub async fn update_provider_instance(
             .send(OnConfigChangeEvt::ProviderInstanceAdded(
                 provider_instance_with_creds,
             ))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
 
     Ok(())
@@ -793,7 +797,9 @@ pub async fn delete_provider_instance(
             .send(OnConfigChangeEvt::ProviderInstanceRemoved(
                 params.provider_instance_id.clone(),
             ))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
     Ok(())
 }
@@ -1052,7 +1058,9 @@ pub async fn enable_function(
             .send(OnConfigChangeEvt::FunctionInstanceAdded(
                 function_instance_serialized.clone(),
             ))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
 
     Ok(function_instance_serialized)
@@ -1068,7 +1076,7 @@ pub type InvokeFunctionResponse = InvokeResult;
 
 pub async fn invoke_function(
     repo: &crate::repository::Repository,
-    envelope_encryption_key_contents: &EnvelopeEncryptionKeyContents,
+    encryption_service: &CryptoCache,
     params: InvokeFunctionParams,
 ) -> Result<InvokeFunctionResponse, CommonError> {
     // Get provider instance to retrieve provider_controller_type_id
@@ -1092,17 +1100,14 @@ pub async fn invoke_function(
             "Function instance not found"
         )))?;
 
-    // TODO: we assume user and resource credentials are encrypted with the same data encryption key
-    // this could change in future as the sql tables permit different data encryption keys for user and resource credentials
-    let crypto_service = get_crypto_service(
-        envelope_encryption_key_contents,
-        repo,
-        &function_instance_with_credentials
-            .resource_server_credential
-            .data_encryption_key_id,
-    )
-    .await?;
-    let decryption_service = get_decryption_service(&crypto_service)?;
+    // Get decryption service from the encryption service cache using the DEK alias
+    let decryption_service = encryption_service
+        .get_decryption_service(
+            &function_instance_with_credentials
+                .resource_server_credential
+                .dek_alias,
+        )
+        .await?;
     let provder_controller = get_provider_controller(
         &function_instance_with_credentials
             .provider_instance
@@ -1178,7 +1183,9 @@ pub async fn disable_function(
                     .clone(),
                 params.provider_instance_id.clone(),
             ))
-            .await?;
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
     }
     Ok(())
 }

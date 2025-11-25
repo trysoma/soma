@@ -14,6 +14,103 @@
     "version": "0.2.0"
   },
   "paths": {
+    "/_internal/v1/health": {
+      "get": {
+        "operationId": "health-check",
+        "responses": {
+          "200": {
+            "description": "Service is healthy"
+          },
+          "503": {
+            "description": "Service unavailable - SDK server not ready"
+          }
+        }
+      }
+    },
+    "/_internal/v1/runtime_config": {
+      "get": {
+        "operationId": "get-internal-runtime-config",
+        "responses": {
+          "200": {
+            "description": "Runtime config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/_internal/v1/trigger_codegen": {
+      "post": {
+        "operationId": "trigger-codegen",
+        "responses": {
+          "200": {
+            "description": "Codegen triggered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerCodegenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/a2a/v1": {
+      "post": {
+        "operationId": "json_rpc",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonrpcRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/a2a/v1/.well-known/agent.json": {
       "get": {
         "operationId": "agent_card",
@@ -310,7 +407,7 @@
         },
         "responses": {
           "200": {
-            "description": "Encrypt provider configuration",
+            "description": "Encrypt resource server configuration",
             "content": {
               "application/json": {
                 "schema": {
@@ -543,89 +640,6 @@
         }
       }
     },
-    "/api/bridge/v1/encryption/data-encryption-key": {
-      "get": {
-        "operationId": "list-data-encryption-keys",
-        "parameters": [
-          {
-            "name": "page_size",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            },
-            "style": "form"
-          },
-          {
-            "name": "next_page_token",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "style": "form"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List data encryption keys",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataEncryptionKeyListItemPaginatedResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "operationId": "create-data-encryption-key",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateDataEncryptionKeyParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Create data encryption key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataEncryptionKey"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/bridge/v1/function-instances": {
       "get": {
         "operationId": "list-function-instances",
@@ -676,6 +690,33 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/function-instances/openapi.json": {
+      "get": {
+        "operationId": "get-function-instances-openapi-spec",
+        "responses": {
+          "200": {
+            "description": "Get function instances openapi spec",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -764,6 +805,40 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/mcp": {
+      "get": {
+        "tags": [
+          "bridge"
+        ],
+        "operationId": "listen-to-mcp-sse",
+        "responses": {
+          "200": {
+            "description": "MCP server running"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "bridge"
+        ],
+        "operationId": "trigger-mcp-message",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WrappedClientJsonRpcMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "MCP server running"
           }
         }
       }
@@ -1238,7 +1313,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WrappedJsonValue"
+                  "$ref": "#/components/schemas/InvokeResult"
                 }
               }
             }
@@ -1266,67 +1341,14 @@
         }
       }
     },
-    "/api/frontend/v1/runtime_config": {
-      "get": {
-        "operationId": "get-frontend-env",
-        "responses": {
-          "200": {
-            "description": "Runtime config",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RuntimeConfig"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/mcp/v1/task/{task_id}": {
-      "get": {
-        "tags": [
-          "mcp"
-        ],
-        "operationId": "listen-to-mcp-sse",
-        "parameters": [
-          {
-            "name": "task_id",
-            "in": "path",
-            "description": "Task ID",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "MCP server running"
-          }
-        }
-      },
+    "/api/encryption/v1/dek/alias": {
       "post": {
-        "tags": [
-          "mcp"
-        ],
-        "operationId": "trigger-mcp-message",
-        "parameters": [
-          {
-            "name": "task_id",
-            "in": "path",
-            "description": "Task ID",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
-            }
-          }
-        ],
+        "operationId": "create-dek-alias",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/WrappedClientJsonRpcMessage"
+                "$ref": "#/components/schemas/CreateDekAliasRequest"
               }
             }
           },
@@ -1334,7 +1356,992 @@
         },
         "responses": {
           "200": {
-            "description": "MCP server running"
+            "description": "Create DEK alias",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEncryptionKeyAlias"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/encryption/v1/dek/alias/{alias}": {
+      "get": {
+        "operationId": "get-dek-by-alias-or-id",
+        "parameters": [
+          {
+            "name": "alias",
+            "in": "path",
+            "description": "DEK alias or ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get DEK by alias or ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEncryptionKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "update-dek-alias",
+        "parameters": [
+          {
+            "name": "alias",
+            "in": "path",
+            "description": "DEK alias",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAliasParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Update DEK alias",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEncryptionKeyAlias"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-dek-alias",
+        "parameters": [
+          {
+            "name": "alias",
+            "in": "path",
+            "description": "DEK alias",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delete DEK alias"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/encryption/v1/envelope": {
+      "get": {
+        "operationId": "list-envelope-encryption-keys",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List envelope encryption keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeEncryptionKeyPaginatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "create-envelope-encryption-key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnvelopeEncryptionKey"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Create envelope encryption key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvelopeEncryptionKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/encryption/v1/envelope/{envelope_id}/dek": {
+      "get": {
+        "operationId": "list-data-encryption-keys-by-envelope",
+        "parameters": [
+          {
+            "name": "envelope_id",
+            "in": "path",
+            "description": "Envelope encryption key ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List data encryption keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEncryptionKeyListItemPaginatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "create-data-encryption-key",
+        "parameters": [
+          {
+            "name": "envelope_id",
+            "in": "path",
+            "description": "Envelope encryption key ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDataEncryptionKeyParamsRoute"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Create data encryption key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEncryptionKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/encryption/v1/envelope/{envelope_id}/dek/import": {
+      "post": {
+        "operationId": "import-data-encryption-key",
+        "parameters": [
+          {
+            "name": "envelope_id",
+            "in": "path",
+            "description": "Envelope encryption key ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportDataEncryptionKeyParamsRoute"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Import data encryption key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEncryptionKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/encryption/v1/envelope/{envelope_id}/dek/{dek_id}/migrate": {
+      "post": {
+        "operationId": "migrate-data-encryption-key",
+        "parameters": [
+          {
+            "name": "envelope_id",
+            "in": "path",
+            "description": "Envelope encryption key ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dek_id",
+            "in": "path",
+            "description": "Data encryption key ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigrateDataEncryptionKeyParamsRoute"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Migrate data encryption key"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/encryption/v1/envelope/{envelope_id}/migrate": {
+      "post": {
+        "operationId": "migrate-all-data-encryption-keys",
+        "parameters": [
+          {
+            "name": "envelope_id",
+            "in": "path",
+            "description": "Envelope encryption key ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigrateAllDataEncryptionKeysParamsRoute"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Migrate all data encryption keys"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -1969,13 +2976,7 @@
       },
       "BridgeConfig": {
         "type": "object",
-        "required": [
-          "encryption"
-        ],
         "properties": {
-          "encryption": {
-            "$ref": "#/components/schemas/BridgeEncryptionConfig"
-          },
           "providers": {
             "type": [
               "object",
@@ -1988,15 +2989,6 @@
               "type": "string"
             }
           }
-        }
-      },
-      "BridgeEncryptionConfig": {
-        "type": "object",
-        "additionalProperties": {
-          "$ref": "#/components/schemas/EncryptionConfiguration"
-        },
-        "propertyNames": {
-          "type": "string"
         }
       },
       "BrokerAction": {
@@ -2100,8 +3092,7 @@
       "ContextInfoPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -2115,17 +3106,13 @@
           }
         }
       },
-      "CreateDataEncryptionKeyParams": {
+      "CreateDataEncryptionKeyParamsRoute": {
         "type": "object",
         "properties": {
-          "encrypted_data_envelope_key": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/EncryptedDataEncryptionKey"
-              }
+          "encrypted_dek": {
+            "type": [
+              "string",
+              "null"
             ]
           },
           "id": {
@@ -2133,6 +3120,21 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "CreateDekAliasRequest": {
+        "type": "object",
+        "required": [
+          "dek_id",
+          "alias"
+        ],
+        "properties": {
+          "alias": {
+            "type": "string"
+          },
+          "dek_id": {
+            "type": "string"
           }
         }
       },
@@ -2225,10 +3227,10 @@
         "type": "object",
         "required": [
           "resource_server_configuration",
-          "data_encryption_key_id"
+          "dek_alias"
         ],
         "properties": {
-          "data_encryption_key_id": {
+          "dek_alias": {
             "type": "string"
           },
           "metadata": {
@@ -2250,10 +3252,10 @@
         "type": "object",
         "required": [
           "user_credential_configuration",
-          "data_encryption_key_id"
+          "dek_alias"
         ],
         "properties": {
-          "data_encryption_key_id": {
+          "dek_alias": {
             "type": "string"
           },
           "metadata": {
@@ -2278,10 +3280,10 @@
           "type_id",
           "metadata",
           "value",
-          "data_encryption_key_id"
+          "dek_alias"
         ],
         "properties": {
-          "data_encryption_key_id": {
+          "dek_alias": {
             "type": "string"
           },
           "id": {
@@ -2317,13 +3319,33 @@
             "$ref": "#/components/schemas/EncryptedDataEncryptionKey"
           },
           "envelope_encryption_key_id": {
-            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+            "$ref": "#/components/schemas/EnvelopeEncryptionKey"
           },
           "id": {
             "type": "string"
           },
           "updated_at": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
+      "DataEncryptionKeyAlias": {
+        "type": "object",
+        "description": "Data encryption key alias struct",
+        "required": [
+          "alias",
+          "data_encryption_key_id",
+          "created_at"
+        ],
+        "properties": {
+          "alias": {
+            "type": "string"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "data_encryption_key_id": {
+            "type": "string"
           }
         }
       },
@@ -2340,7 +3362,7 @@
             "$ref": "#/components/schemas/WrappedChronoDateTime"
           },
           "envelope_encryption_key_id": {
-            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+            "$ref": "#/components/schemas/EnvelopeEncryptionKey"
           },
           "id": {
             "type": "string"
@@ -2353,8 +3375,7 @@
       "DataEncryptionKeyListItemPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -2368,52 +3389,88 @@
           }
         }
       },
+      "DekConfig": {
+        "type": "object",
+        "description": "Data encryption key configuration",
+        "required": [
+          "encrypted_key"
+        ],
+        "properties": {
+          "encrypted_key": {
+            "type": "string"
+          }
+        }
+      },
       "EnableFunctionParamsInner": {
         "type": "object"
       },
       "EncryptCredentialConfigurationParamsInner": {
         "type": "object",
+        "description": "Parameters for encrypting credential configuration.\nUses dek_alias to look up the DEK to use for encryption.",
         "required": [
           "value",
-          "data_encryption_key_id"
+          "dek_alias"
         ],
         "properties": {
-          "data_encryption_key_id": {
-            "type": "string"
+          "dek_alias": {
+            "type": "string",
+            "description": "The DEK alias to use for encryption (resolved to actual DEK id internally)"
           },
           "value": {
-            "$ref": "#/components/schemas/WrappedJsonValue"
+            "$ref": "#/components/schemas/WrappedJsonValue",
+            "description": "The raw credential configuration value to encrypt"
           }
         }
       },
       "EncryptedDataEncryptionKey": {
         "type": "string"
       },
-      "EncryptionConfiguration": {
+      "EncryptionConfig": {
         "type": "object",
-        "required": [
-          "encrypted_data_encryption_key",
-          "envelope_encryption_key_id"
-        ],
+        "description": "Top-level encryption configuration",
         "properties": {
-          "encrypted_data_encryption_key": {
-            "type": "string"
+          "aliases": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Map of alias name -> DEK id",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           },
-          "envelope_encryption_key_id": {
-            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+          "envelope_keys": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Map of envelope key id (ARN or location) -> envelope key configuration with nested DEKs",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EnvelopeKeyConfig"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           }
         }
       },
-      "EnvelopeEncryptionKeyId": {
+      "EnvelopeEncryptionKey": {
         "oneOf": [
           {
             "type": "object",
             "required": [
               "arn",
+              "region",
               "type"
             ],
             "properties": {
               "arn": {
+                "type": "string"
+              },
+              "region": {
                 "type": "string"
               },
               "type": {
@@ -2427,11 +3484,11 @@
           {
             "type": "object",
             "required": [
-              "key_id",
+              "location",
               "type"
             ],
             "properties": {
-              "key_id": {
+              "location": {
                 "type": "string"
               },
               "type": {
@@ -2443,6 +3500,92 @@
             }
           }
         ]
+      },
+      "EnvelopeEncryptionKeyPaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnvelopeEncryptionKey"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
+      "EnvelopeKeyConfig": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "arn",
+              "region",
+              "type"
+            ],
+            "properties": {
+              "arn": {
+                "type": "string"
+              },
+              "deks": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/DekConfig"
+                },
+                "propertyNames": {
+                  "type": "string"
+                }
+              },
+              "region": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "aws_kms"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "location",
+              "type"
+            ],
+            "properties": {
+              "deks": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/DekConfig"
+                },
+                "propertyNames": {
+                  "type": "string"
+                }
+              },
+              "location": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "local"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Envelope encryption key configuration with nested DEKs"
       },
       "Error": {
         "type": "object",
@@ -2515,8 +3658,7 @@
       "FunctionInstanceConfigPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -2578,8 +3720,7 @@
       "FunctionInstanceSerializedPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -2589,6 +3730,34 @@
             }
           },
           "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
+      "ImportDataEncryptionKeyParamsRoute": {
+        "type": "object",
+        "required": [
+          "encrypted_data_encryption_key"
+        ],
+        "properties": {
+          "encrypted_data_encryption_key": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "InvokeError": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
             "type": "string"
           }
         }
@@ -2603,6 +3772,52 @@
             "$ref": "#/components/schemas/WrappedJsonValue"
           }
         }
+      },
+      "InvokeResult": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WrappedJsonValue"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "success"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InvokeError"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "error"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
       },
       "JsonSchema": {
         "type": "object",
@@ -2702,6 +3917,28 @@
           "type": "string"
         }
       },
+      "MigrateAllDataEncryptionKeysParamsRoute": {
+        "type": "object",
+        "required": [
+          "to_envelope_encryption_key_id"
+        ],
+        "properties": {
+          "to_envelope_encryption_key_id": {
+            "type": "string"
+          }
+        }
+      },
+      "MigrateDataEncryptionKeyParamsRoute": {
+        "type": "object",
+        "required": [
+          "to_envelope_encryption_key_id"
+        ],
+        "properties": {
+          "to_envelope_encryption_key_id": {
+            "type": "string"
+          }
+        }
+      },
       "ProviderConfig": {
         "type": "object",
         "required": [
@@ -2787,8 +4024,7 @@
       "ProviderControllerSerializedPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -2869,8 +4105,7 @@
       "ProviderInstanceListItemPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -3006,13 +4241,13 @@
           "value",
           "created_at",
           "updated_at",
-          "data_encryption_key_id"
+          "dek_alias"
         ],
         "properties": {
           "created_at": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
           },
-          "data_encryption_key_id": {
+          "dek_alias": {
             "type": "string"
           },
           "id": {
@@ -3084,16 +4319,9 @@
       "SomaAgentDefinition": {
         "type": "object",
         "required": [
-          "project",
-          "agent",
-          "description",
-          "name",
           "version"
         ],
         "properties": {
-          "agent": {
-            "type": "string"
-          },
           "bridge": {
             "oneOf": [
               {
@@ -3104,14 +4332,15 @@
               }
             ]
           },
-          "description": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "project": {
-            "type": "string"
+          "encryption": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EncryptionConfig"
+              }
+            ]
           },
           "version": {
             "type": "string"
@@ -3177,8 +4406,7 @@
       "TaskPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -3253,8 +4481,7 @@
       "TaskTimelineItemPaginatedResponse": {
         "type": "object",
         "required": [
-          "items",
-          "next_page_token"
+          "items"
         ],
         "properties": {
           "items": {
@@ -3363,8 +4590,30 @@
           }
         }
       },
+      "TriggerCodegenResponse": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
       "TupleUnit": {
         "default": null
+      },
+      "UpdateAliasParams": {
+        "type": "object",
+        "required": [
+          "new_dek_id"
+        ],
+        "properties": {
+          "new_dek_id": {
+            "type": "string"
+          }
+        }
       },
       "UpdateProviderInstanceParamsInner": {
         "type": "object",
@@ -3467,13 +4716,13 @@
           "value",
           "created_at",
           "updated_at",
-          "data_encryption_key_id"
+          "dek_alias"
         ],
         "properties": {
           "created_at": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
           },
-          "data_encryption_key_id": {
+          "dek_alias": {
             "type": "string"
           },
           "id": {

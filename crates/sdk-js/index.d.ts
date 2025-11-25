@@ -36,6 +36,20 @@ export interface FunctionController {
 	output: string;
 }
 
+export interface FunctionControllerData {
+	typeId: string;
+	displayName: string;
+	paramsJsonSchema: string;
+	returnValueJsonSchema: string;
+}
+
+export interface FunctionInstanceData {
+	providerInstanceId: string;
+	providerInstanceDisplayName: string;
+	providerController?: ProviderControllerData;
+	functionController?: FunctionControllerData;
+}
+
 /**
  * Add a function controller to a specific provider
  *
@@ -49,6 +63,23 @@ export interface FunctionMetadata {
 	description: string;
 	parameters: string;
 	output: string;
+}
+
+export interface GenerateBridgeClientError {
+	message: string;
+}
+
+export interface GenerateBridgeClientRequest {
+	functionInstances: Array<FunctionInstanceData>;
+}
+
+export interface GenerateBridgeClientResponse {
+	success?: GenerateBridgeClientSuccess;
+	error?: GenerateBridgeClientError;
+}
+
+export interface GenerateBridgeClientSuccess {
+	message: string;
 }
 
 export interface InvokeError {
@@ -101,6 +132,11 @@ export interface ProviderController {
 	credentialControllers: Array<ProviderCredentialController>;
 }
 
+export interface ProviderControllerData {
+	typeId: string;
+	displayName: string;
+}
+
 export type ProviderCredentialController =
 	| { type: "NoAuth" }
 	| { type: "ApiKey" }
@@ -113,7 +149,7 @@ export type ProviderCredentialController =
 			field0: Oauth2JwtBearerAssertionFlowConfiguration;
 	  };
 
-/** Remove a function controller from a specific provider */
+/** Remove an agent by id */
 export declare function removeAgent(id: string): boolean;
 
 /** Remove a function controller from a specific provider */
@@ -125,10 +161,13 @@ export declare function removeFunction(
 /** Remove a provider controller by type_id */
 export declare function removeProvider(typeId: string): boolean;
 
-/** Start the gRPC server on a Unix socket (without initial providers) */
-export declare function startGrpcServer(socketPath: string): Promise<void>;
+/** Start the gRPC server on a Unix socket with TypeScript code generation */
+export declare function startGrpcServer(
+	socketPath: string,
+	projectDir: string,
+): Promise<void>;
 
-/** Remove a function controller from a specific provider */
+/** Update an agent (removes old and inserts new) */
 export declare function updateAgent(agent: Agent): boolean;
 
 /** Update a function controller (removes old and inserts new) */

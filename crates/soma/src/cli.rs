@@ -5,9 +5,9 @@ use tracing::error;
 use crate::{
     commands::{
         self, codegen::CodegenParams, completions::CompletionShell, dev::DevParams,
-        init::InitParams, internal::InternalCommands,
+        encryption::EncKeyParams, init::InitParams,
     },
-    utils::config::get_or_init_cli_config,
+    utils::get_or_init_cli_config,
 };
 
 pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -40,11 +40,11 @@ pub enum Commands {
         /// Shell to generate completions for
         shell: CompletionShell,
     },
+    /// Manage encryption keys
+    #[command(name = "enc-key")]
+    EncKey(EncKeyParams),
     /// Initialize a new Soma project
     Init(InitParams),
-    /// Internal development commands
-    #[command(subcommand)]
-    Internal(InternalCommands),
     /// Show Soma version
     Version,
 }
@@ -61,8 +61,8 @@ pub async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
         Commands::Dev(params) => commands::dev::cmd_dev(params, &mut config).await,
         Commands::Codegen(params) => commands::codegen::cmd_codegen(params, &mut config).await,
         Commands::Completions { shell } => commands::completions::cmd_completions(shell),
+        Commands::EncKey(params) => commands::encryption::cmd_enc_key(params, &mut config).await,
         Commands::Init(params) => commands::init::cmd_init(params).await,
-        Commands::Internal(command) => commands::internal::cmd_internal(command, &mut config).await,
         Commands::Version => {
             println!("Soma CLI version: {CLI_VERSION}");
             Ok(())

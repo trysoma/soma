@@ -82,14 +82,14 @@ jobs:
       - name: Cache frontend build
         uses: actions/cache@v4
         with:
-          path: crates/soma/app/dist
-          key: frontend-dist-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'crates/soma/app/**/*.ts', 'crates/soma/app/**/*.tsx', 'crates/soma/app/**/*.css', 'crates/soma/app/package.json', 'crates/soma/app/vite.config.ts', 'crates/soma/app/tsconfig.json') }}
+          path: crates/soma-frontend/app/dist
+          key: frontend-dist-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'crates/soma-frontend/app/**/*.ts', 'crates/soma-frontend/app/**/*.tsx', 'crates/soma-frontend/app/**/*.css', 'crates/soma-frontend/app/package.json', 'crates/soma-frontend/app/vite.config.ts', 'crates/soma-frontend/app/tsconfig.json') }}
           restore-keys: |
             frontend-dist-${{ runner.os }}-
   
       - name: Build frontend
         run: |
-          cd crates/soma/app
+          cd crates/soma-frontend/app
           pnpm run build
         shell: bash
   

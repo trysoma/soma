@@ -15,10 +15,6 @@ use crate::logic::Metadata;
 use crate::logic::credential::{
     BrokerState, ResourceServerCredentialSerialized, UserCredentialSerialized,
 };
-use crate::logic::encryption::{
-    DataEncryptionKey, DataEncryptionKeyListItem, EncryptedDataEncryptionKey,
-    EnvelopeEncryptionKeyId,
-};
 use crate::logic::instance::{
     FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
     ProviderInstanceSerialized, ProviderInstanceSerializedWithCredentials,
@@ -35,7 +31,7 @@ pub struct CreateResourceServerCredential {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub next_rotation_time: Option<WrappedChronoDateTime>,
-    pub data_encryption_key_id: String,
+    pub dek_alias: String,
 }
 
 impl From<ResourceServerCredentialSerialized> for CreateResourceServerCredential {
@@ -48,7 +44,7 @@ impl From<ResourceServerCredentialSerialized> for CreateResourceServerCredential
             created_at: cred.created_at,
             updated_at: cred.updated_at,
             next_rotation_time: cred.next_rotation_time,
-            data_encryption_key_id: cred.data_encryption_key_id,
+            dek_alias: cred.dek_alias,
         }
     }
 }
@@ -63,7 +59,7 @@ pub struct CreateUserCredential {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
     pub next_rotation_time: Option<WrappedChronoDateTime>,
-    pub data_encryption_key_id: String,
+    pub dek_alias: String,
 }
 
 impl From<UserCredentialSerialized> for CreateUserCredential {
@@ -76,7 +72,7 @@ impl From<UserCredentialSerialized> for CreateUserCredential {
             created_at: cred.created_at,
             updated_at: cred.updated_at,
             next_rotation_time: cred.next_rotation_time,
-            data_encryption_key_id: cred.data_encryption_key_id,
+            dek_alias: cred.dek_alias,
         }
     }
 }
@@ -160,28 +156,6 @@ impl From<BrokerState> for CreateBrokerState {
             credential_controller_type_id: bs.credential_controller_type_id,
             metadata: bs.metadata,
             action: WrappedJsonValue::new(action_json),
-        }
-    }
-}
-
-// Repository parameter structs for data encryption key
-#[derive(Debug)]
-pub struct CreateDataEncryptionKey {
-    pub id: String,
-    pub envelope_encryption_key_id: EnvelopeEncryptionKeyId,
-    pub encryption_key: EncryptedDataEncryptionKey,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-impl From<DataEncryptionKey> for CreateDataEncryptionKey {
-    fn from(dek: DataEncryptionKey) -> Self {
-        CreateDataEncryptionKey {
-            id: dek.id,
-            envelope_encryption_key_id: dek.envelope_encryption_key_id,
-            encryption_key: dek.encrypted_data_encryption_key,
-            created_at: dek.created_at,
-            updated_at: dek.updated_at,
         }
     }
 }
@@ -288,23 +262,6 @@ pub trait ProviderRepositoryLike {
     async fn get_broker_state_by_id(&self, id: &str) -> Result<Option<BrokerState>, CommonError>;
 
     async fn delete_broker_state(&self, id: &str) -> Result<(), CommonError>;
-
-    async fn create_data_encryption_key(
-        &self,
-        params: &CreateDataEncryptionKey,
-    ) -> Result<(), CommonError>;
-
-    async fn get_data_encryption_key_by_id(
-        &self,
-        id: &str,
-    ) -> Result<Option<DataEncryptionKey>, CommonError>;
-
-    async fn delete_data_encryption_key(&self, id: &str) -> Result<(), CommonError>;
-
-    async fn list_data_encryption_keys(
-        &self,
-        pagination: &PaginationRequest,
-    ) -> Result<PaginatedResponse<DataEncryptionKeyListItem>, CommonError>;
 
     async fn list_provider_instances(
         &self,
