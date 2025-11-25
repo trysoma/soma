@@ -124,9 +124,9 @@ where
             region: region.clone(),
         },
         EnvelopeEncryptionKey::Local { location } => {
-            crate::logic::envelope::get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(
-                location,
-            ))?
+            crate::logic::envelope::get_or_create_local_envelope_encryption_key(
+                &std::path::PathBuf::from(location),
+            )?
         }
     };
 

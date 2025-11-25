@@ -9,3 +9,46 @@ encryption:
           encrypted_key: eM4T9b6FfE4VVQh3A3zIT1hz9hujxjf5DYktUdvYllhNum79safLUtF9YL4jwSXN2dDFv/L90XZAyuI4
   aliases:
     default: b0e59d65-ef35-4305-9fe6-f80c6d5f8c99
+bridge:
+  providers:
+    dc14fe03-944a-433f-a5a6-3c5895ba3026:
+      provider_controller_type_id: stripe
+      credential_controller_type_id: api_key
+      display_name: internal
+      resource_server_credential:
+        id: 55933a58-d4f5-490c-af31-d4cd0431946e
+        type_id: resource_server_api_key
+        metadata: {}
+        value:
+          api_key: 9jNbvmHGX05FLKp7psflU1TZ7BCK7LB5o/a3cc10UQ==
+          metadata: {}
+        dek_alias: default
+      user_credential:
+        id: fc8e72d3-01cd-4ab8-871a-9b245eeb2e3c
+        type_id: user_api_key
+        metadata: {}
+        value:
+          metadata: {}
+        dek_alias: default
+      functions:
+      - stripe_process_refund
+    94131f8d-66c0-45c0-856f-eafbd8aab791:
+      provider_controller_type_id: approve-claim
+      credential_controller_type_id: no_auth
+      display_name: test
+      resource_server_credential:
+        id: 10a18b9e-9715-4999-97c7-8e05cd122df5
+        type_id: resource_server_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        dek_alias: default
+      user_credential:
+        id: a9ba9c9c-9c63-471f-9a7d-694d8d59aa26
+        type_id: user_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        dek_alias: default
+      functions:
+      - approve-claim

@@ -104,9 +104,8 @@ where
     cache.invalidate_cache(&dek_id);
 
     // Publish event to trigger cache refresh
-    let _ = on_change_tx.send(EncryptionKeyEvent::DataEncryptionKeyAliasRemoved {
-        alias: alias_name,
-    });
+    let _ =
+        on_change_tx.send(EncryptionKeyEvent::DataEncryptionKeyAliasRemoved { alias: alias_name });
 
     Ok(())
 }

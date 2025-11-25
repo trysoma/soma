@@ -228,7 +228,10 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
 
     // Reload soma definition (with error handling to avoid crashes on race conditions)
     if let Err(e) = soma_definition.reload().await {
-        error!("Failed to reload soma definition after bridge sync: {:?}. Continuing with cached definition.", e);
+        error!(
+            "Failed to reload soma definition after bridge sync: {:?}. Continuing with cached definition.",
+            e
+        );
         // Don't fail the entire process - the cached definition should still be valid
     }
 
