@@ -10,9 +10,10 @@ use shared::{
 
 pub use sqlite::Repository;
 
+use crate::logic::secret::Secret;
 use crate::logic::task::{
-    Message, MessagePart, MessageRole, Task, TaskEventUpdateType, TaskStatus, TaskTimelineItem,
-    TaskTimelineItemPayload, TaskWithDetails,
+    Message, MessagePart, MessageRole, Task, TaskEventUpdateType, TaskStatus,
+    TaskTimelineItem, TaskTimelineItemPayload, TaskWithDetails,
 };
 
 // Repository parameter structs
@@ -116,6 +117,25 @@ impl TryFrom<Message> for CreateMessage {
     }
 }
 
+// Secret repository parameter structs
+#[derive(Debug)]
+pub struct CreateSecret {
+    pub id: WrappedUuidV4,
+    pub key: String,
+    pub encrypted_secret: String,
+    pub dek_alias: String,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+#[derive(Debug)]
+pub struct UpdateSecret {
+    pub id: WrappedUuidV4,
+    pub encrypted_secret: String,
+    pub dek_alias: String,
+    pub updated_at: WrappedChronoDateTime,
+}
+
 // Repository trait
 #[allow(async_fn_in_trait)]
 pub trait TaskRepositoryLike {
@@ -154,6 +174,34 @@ pub trait TaskRepositoryLike {
         task_id: &WrappedUuidV4,
         pagination: &PaginationRequest,
     ) -> Result<PaginatedResponse<Message>, CommonError>;
+}
+
+// Secret repository trait
+pub trait SecretRepositoryLike: Send + Sync {
+    fn create_secret(
+        &self,
+        params: &CreateSecret,
+    ) -> impl std::future::Future<Output = Result<(), CommonError>> + Send;
+    fn update_secret(
+        &self,
+        params: &UpdateSecret,
+    ) -> impl std::future::Future<Output = Result<(), CommonError>> + Send;
+    fn delete_secret(
+        &self,
+        id: &WrappedUuidV4,
+    ) -> impl std::future::Future<Output = Result<(), CommonError>> + Send;
+    fn get_secret_by_id(
+        &self,
+        id: &WrappedUuidV4,
+    ) -> impl std::future::Future<Output = Result<Option<Secret>, CommonError>> + Send;
+    fn get_secret_by_key(
+        &self,
+        key: &str,
+    ) -> impl std::future::Future<Output = Result<Option<Secret>, CommonError>> + Send;
+    fn get_secrets(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> impl std::future::Future<Output = Result<PaginatedResponse<Secret>, CommonError>> + Send;
 }
 
 // Repository setup utilities

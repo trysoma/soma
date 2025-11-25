@@ -1,0 +1,222 @@
+use encryption::logic::crypto_services::{CryptoCache, EncryptedString};
+use shared::error::CommonError;
+use shared::primitives::PaginationRequest;
+use shared::subsystem::SubsystemHandle;
+use tokio::sync::broadcast;
+use tracing::{error, info, warn};
+
+use crate::logic::on_change_pubsub::SecretChangeRx;
+use crate::repository::SecretRepositoryLike;
+
+/// A decrypted secret ready to be sent to the SDK
+#[derive(Debug, Clone)]
+pub struct DecryptedSecret {
+    pub key: String,
+    pub value: String,
+}
+
+/// Fetch all secrets from the database and decrypt them
+pub async fn fetch_and_decrypt_all_secrets<R: SecretRepositoryLike>(
+    repository: &R,
+    crypto_cache: &CryptoCache,
+) -> Result<Vec<DecryptedSecret>, CommonError> {
+    let mut all_secrets = Vec::new();
+    let mut page_token = None;
+
+    // Paginate through all secrets
+    loop {
+        let pagination = PaginationRequest {
+            page_size: 100,
+            next_page_token: page_token.clone(),
+        };
+
+        let page = repository.get_secrets(&pagination).await?;
+
+        for secret in page.items {
+            // Get decryption service for this secret's DEK alias
+            match crypto_cache.get_decryption_service(&secret.dek_alias).await {
+                Ok(decryption_service) => {
+                    // Decrypt the secret value
+                    match decryption_service
+                        .decrypt_data(EncryptedString(secret.encrypted_secret))
+                        .await
+                    {
+                        Ok(decrypted_value) => {
+                            all_secrets.push(DecryptedSecret {
+                                key: secret.key,
+                                value: decrypted_value,
+                            });
+                        }
+                        Err(e) => {
+                            warn!(
+                                "Failed to decrypt secret '{}': {:?}. Skipping.",
+                                secret.key, e
+                            );
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to get decryption service for DEK alias '{}': {:?}. Skipping secret '{}'.",
+                        secret.dek_alias, e, secret.key
+                    );
+                }
+            }
+        }
+
+        page_token = page.next_page_token;
+        if page_token.is_none() {
+            break;
+        }
+    }
+
+    Ok(all_secrets)
+}
+
+/// Sync secrets to the SDK via gRPC
+pub async fn sync_secrets_to_sdk(
+    sdk_client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
+        tonic::transport::Channel,
+    >,
+    secrets: Vec<DecryptedSecret>,
+) -> Result<(), CommonError> {
+    let proto_secrets: Vec<sdk_proto::Secret> = secrets
+        .into_iter()
+        .map(|s| sdk_proto::Secret {
+            key: s.key,
+            value: s.value,
+        })
+        .collect();
+
+    let request = tonic::Request::new(sdk_proto::SetSecretsRequest {
+        secrets: proto_secrets,
+    });
+
+    let response = sdk_client.set_secrets(request).await.map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!("Failed to call set_secrets RPC: {e}"))
+    })?;
+
+    let inner = response.into_inner();
+    if inner.success {
+        info!("Successfully synced secrets to SDK: {}", inner.message);
+        Ok(())
+    } else {
+        Err(CommonError::Unknown(anyhow::anyhow!(
+            "SDK rejected secrets: {}",
+            inner.message
+        )))
+    }
+}
+
+pub struct SecretSyncParams<R: SecretRepositoryLike> {
+    pub repository: R,
+    pub crypto_cache: CryptoCache,
+    pub socket_path: String,
+    pub secret_change_rx: SecretChangeRx,
+    pub shutdown_rx: broadcast::Receiver<()>,
+}
+
+/// Run the secret sync loop - listens for secret changes and syncs to SDK
+pub async fn run_secret_sync_loop<R: SecretRepositoryLike + Clone + Send + Sync + 'static>(
+    params: SecretSyncParams<R>,
+) -> Result<(), CommonError> {
+    let SecretSyncParams {
+        repository,
+        crypto_cache,
+        socket_path,
+        mut secret_change_rx,
+        mut shutdown_rx,
+    } = params;
+
+    info!("Starting secret sync loop");
+
+    loop {
+        tokio::select! {
+            // Handle secret change events
+            event = secret_change_rx.recv() => {
+                match event {
+                    Ok(evt) => {
+                        info!("Secret change event received: {:?}", evt);
+
+                        // On any secret change, re-sync all secrets
+                        // This is simpler than tracking individual changes and ensures consistency
+                        match sync_all_secrets(&repository, &crypto_cache, &socket_path).await {
+                            Ok(()) => {
+                                info!("Secrets re-synced after change event");
+                            }
+                            Err(e) => {
+                                error!("Failed to re-sync secrets after change: {:?}", e);
+                            }
+                        }
+                    }
+                    Err(broadcast::error::RecvError::Closed) => {
+                        info!("Secret change channel closed, stopping secret sync");
+                        break;
+                    }
+                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                        warn!("Secret change channel lagged, skipped {} messages. Re-syncing all secrets.", skipped);
+                        // Re-sync all secrets to ensure we're in a consistent state
+                        if let Err(e) = sync_all_secrets(&repository, &crypto_cache, &socket_path).await {
+                            error!("Failed to re-sync secrets after lag: {:?}", e);
+                        }
+                    }
+                }
+            }
+            // Handle shutdown
+            _ = shutdown_rx.recv() => {
+                info!("Shutdown signal received, stopping secret sync");
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Helper to sync all secrets to SDK
+async fn sync_all_secrets<R: SecretRepositoryLike + Send + Sync>(
+    repository: &R,
+    crypto_cache: &CryptoCache,
+    socket_path: &str,
+) -> Result<(), CommonError> {
+    // Fetch and decrypt all secrets
+    let secrets = fetch_and_decrypt_all_secrets(repository, crypto_cache).await?;
+    info!("Fetched {} secrets to sync", secrets.len());
+
+    // Connect to SDK and sync
+    let mut client = shared::uds::create_soma_unix_socket_client(socket_path).await?;
+    sync_secrets_to_sdk(&mut client, secrets).await
+}
+
+/// Start the secret sync subsystem
+pub fn start_secret_sync_subsystem<R: SecretRepositoryLike + Clone + Send + Sync + 'static>(
+    repository: R,
+    crypto_cache: CryptoCache,
+    socket_path: String,
+    secret_change_rx: SecretChangeRx,
+    shutdown_rx: broadcast::Receiver<()>,
+) -> Result<SubsystemHandle, CommonError> {
+    let (handle, signal) = SubsystemHandle::new("Secret Sync");
+
+    tokio::spawn(async move {
+        match run_secret_sync_loop(SecretSyncParams {
+            repository,
+            crypto_cache,
+            socket_path,
+            secret_change_rx,
+            shutdown_rx,
+        })
+        .await
+        {
+            Ok(()) => {
+                signal.signal_with_message("stopped gracefully");
+            }
+            Err(e) => {
+                error!("Secret sync stopped with error: {:?}", e);
+                signal.signal();
+            }
+        }
+    });
+
+    Ok(handle)
+}

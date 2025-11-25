@@ -379,6 +379,50 @@ pub fn add_agent(agent: js_types::Agent) -> Result<bool> {
     Ok(get_grpc_service()?.add_agent(core_agent))
 }
 
+/// Set the secret handler callback that will be called when secrets are synced from Soma
+/// The callback receives an array of secrets and should inject them into process.env
+#[napi]
+pub fn set_secret_handler(
+    callback: ThreadsafeFunction<Vec<js_types::Secret>, Promise<js_types::SetSecretsResponse>>,
+) -> Result<()> {
+    let callback = Arc::new(callback);
+
+    let handler: core_types::SecretHandler = Arc::new(move |secrets: Vec<core_types::Secret>| {
+        let callback = Arc::clone(&callback);
+        Box::pin(async move {
+            // Convert core secrets to JS secrets
+            let js_secrets: Vec<js_types::Secret> = secrets
+                .into_iter()
+                .map(|s| js_types::Secret {
+                    key: s.key,
+                    value: s.value,
+                })
+                .collect();
+
+            // Call the JS callback
+            let result = callback
+                .call_async(Ok(js_secrets))
+                .await
+                .map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!("Failed to call secret handler: {e}"))
+                })?
+                .await
+                .map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!("Secret handler failed: {e}"))
+                })?;
+
+            Ok(core_types::SetSecretsResponse {
+                success: result.success,
+                message: result.message,
+            })
+        })
+    });
+
+    get_grpc_service()?.set_secret_handler(handler);
+    info!("Secret handler registered");
+    Ok(())
+}
+
 /// Remove an agent by id
 #[napi]
 pub fn remove_agent(id: String) -> Result<bool> {

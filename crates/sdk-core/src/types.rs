@@ -475,3 +475,52 @@ impl From<Agent> for sdk_proto::Agent {
         }
     }
 }
+
+/// A secret with a key and decrypted value
+#[derive(Debug, Clone)]
+pub struct Secret {
+    pub key: String,
+    pub value: String,
+}
+
+impl From<sdk_proto::Secret> for Secret {
+    fn from(proto: sdk_proto::Secret) -> Self {
+        Self {
+            key: proto.key,
+            value: proto.value,
+        }
+    }
+}
+
+impl From<Secret> for sdk_proto::Secret {
+    fn from(secret: Secret) -> Self {
+        Self {
+            key: secret.key,
+            value: secret.value,
+        }
+    }
+}
+
+/// Response from setting secrets
+#[derive(Debug, Clone)]
+pub struct SetSecretsResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+impl From<SetSecretsResponse> for sdk_proto::SetSecretsResponse {
+    fn from(response: SetSecretsResponse) -> Self {
+        Self {
+            success: response.success,
+            message: response.message,
+        }
+    }
+}
+
+/// Type alias for the secret handler callback
+pub type SecretHandler = Arc<
+    dyn Fn(Vec<Secret>) -> BoxFuture<'static, Result<SetSecretsResponse, CommonError>>
+        + Send
+        + Sync
+        + 'static,
+>;

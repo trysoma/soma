@@ -398,6 +398,55 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
 
     info!("Bridge synced from soma definition");
 
+    // 3. Sync secrets
+    if let Some(secrets) = &soma_definition.secrets {
+        use std::collections::HashSet;
+
+        // Get existing secrets
+        let existing_secrets: HashSet<String> = {
+            let mut keys = HashSet::new();
+            let mut next_page_token: Option<String> = None;
+            loop {
+                let response = default_api::list_secrets(api_config, 100, next_page_token.as_deref())
+                    .await
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!("Failed to list secrets: {e:?}"))
+                    })?;
+
+                for secret in response.secrets {
+                    keys.insert(secret.key);
+                }
+                let next_token = response.next_page_token.flatten();
+                if next_token.is_none() {
+                    break;
+                }
+                next_page_token = next_token;
+            }
+            keys
+        };
+
+        // Import secrets from yaml (secrets are already encrypted in soma.yaml)
+        for (key, secret_config) in secrets {
+            if !existing_secrets.contains(key) {
+                let import_req = models::ImportSecretRequest {
+                    key: key.clone(),
+                    encrypted_value: secret_config.value.clone(),
+                    dek_alias: secret_config.dek_alias.clone(),
+                };
+                default_api::import_secret(api_config, import_req)
+                    .await
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to import secret '{key}': {e:?}"
+                        ))
+                    })?;
+                info!("Imported secret '{}'", key);
+            }
+        }
+    }
+
+    info!("Secrets synced from soma definition");
+
     Ok(())
 }
 

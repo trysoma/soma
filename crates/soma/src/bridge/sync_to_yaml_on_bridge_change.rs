@@ -8,8 +8,8 @@ use serde_json::json;
 use tracing::{info, warn};
 
 use shared::error::CommonError;
-use shared::soma_agent_definition::{EnvelopeKeyConfig, SomaAgentDefinitionLike};
-use soma_api_server::logic::on_change_pubsub::{SomaChangeEvt, SomaChangeRx};
+use shared::soma_agent_definition::{EnvelopeKeyConfig, SecretConfig, SomaAgentDefinitionLike};
+use soma_api_server::logic::on_change_pubsub::{SecretChangeEvt, SomaChangeEvt, SomaChangeRx};
 
 /// Watches for unified soma change events and updates soma.yaml accordingly
 pub async fn sync_on_soma_change(
@@ -36,6 +36,9 @@ pub async fn sync_on_soma_change(
             }
             SomaChangeEvt::Encryption(encryption_evt) => {
                 handle_encryption_event(encryption_evt, &soma_definition).await?;
+            }
+            SomaChangeEvt::Secret(secret_evt) => {
+                handle_secret_event(secret_evt, &soma_definition).await?;
             }
         }
     }
@@ -281,6 +284,35 @@ async fn handle_encryption_event(
             info!("DEK alias updated: {:?} -> {:?}", alias, dek_id);
             // HashMap.insert overwrites existing entries, so add_alias works for updates
             soma_definition.add_alias(alias, dek_id).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn handle_secret_event(
+    event: SecretChangeEvt,
+    soma_definition: &Arc<dyn SomaAgentDefinitionLike>,
+) -> Result<(), CommonError> {
+    match event {
+        SecretChangeEvt::Created(secret) => {
+            info!("Secret created: {:?}", secret.key);
+            let config = SecretConfig {
+                value: secret.encrypted_secret,
+                dek_alias: secret.dek_alias,
+            };
+            soma_definition.add_secret(secret.key, config).await?;
+        }
+        SecretChangeEvt::Updated(secret) => {
+            info!("Secret updated: {:?}", secret.key);
+            let config = SecretConfig {
+                value: secret.encrypted_secret,
+                dek_alias: secret.dek_alias,
+            };
+            soma_definition.update_secret(secret.key, config).await?;
+        }
+        SecretChangeEvt::Deleted { id: _, key } => {
+            info!("Secret deleted: {:?}", key);
+            soma_definition.remove_secret(key).await?;
         }
     }
     Ok(())

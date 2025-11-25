@@ -29,6 +29,7 @@ pub struct GrpcService<G: SdkCodeGenerator> {
     providers: ArcSwap<Vec<ProviderController>>,
     agents: ArcSwap<Vec<Agent>>,
     code_generator: Arc<G>,
+    secret_handler: ArcSwap<Option<SecretHandler>>,
 }
 
 #[tonic::async_trait]
@@ -127,6 +128,44 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
             }
         }
     }
+
+    async fn set_secrets(
+        &self,
+        request: Request<sdk_proto::SetSecretsRequest>,
+    ) -> Result<Response<sdk_proto::SetSecretsResponse>, Status> {
+        info!("set_secrets called with {} secrets", request.get_ref().secrets.len());
+
+        let proto_req = request.into_inner();
+        let secrets: Vec<Secret> = proto_req.secrets.into_iter().map(Into::into).collect();
+
+        // Get the secret handler
+        let handler_guard = self.secret_handler.load();
+        let handler = match handler_guard.as_ref() {
+            Some(h) => h.clone(),
+            None => {
+                info!("No secret handler registered");
+                return Ok(Response::new(sdk_proto::SetSecretsResponse {
+                    success: false,
+                    message: "No secret handler registered".to_string(),
+                }));
+            }
+        };
+
+        // Call the handler
+        match handler(secrets).await {
+            Ok(response) => {
+                info!("set_secrets completed successfully: {}", response.message);
+                Ok(Response::new(response.into()))
+            }
+            Err(e) => {
+                info!("set_secrets failed: {}", e);
+                Ok(Response::new(sdk_proto::SetSecretsResponse {
+                    success: false,
+                    message: format!("Failed to set secrets: {e}"),
+                }))
+            }
+        }
+    }
 }
 
 impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
@@ -135,7 +174,13 @@ impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
             providers: ArcSwap::from_pointee(providers),
             agents: ArcSwap::from_pointee(agents),
             code_generator: Arc::new(code_generator),
+            secret_handler: ArcSwap::from_pointee(None),
         }
+    }
+
+    /// Set the secret handler callback that will be invoked when secrets are synced
+    pub fn set_secret_handler(&self, handler: SecretHandler) {
+        self.secret_handler.store(Arc::new(Some(handler)));
     }
 
     /// Add a new provider controller
@@ -378,5 +423,12 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcServiceWrapper<G> {
         request: Request<sdk_proto::GenerateBridgeClientRequest>,
     ) -> Result<Response<sdk_proto::GenerateBridgeClientResponse>, Status> {
         self.0.generate_bridge_client(request).await
+    }
+
+    async fn set_secrets(
+        &self,
+        request: Request<sdk_proto::SetSecretsRequest>,
+    ) -> Result<Response<sdk_proto::SetSecretsResponse>, Status> {
+        self.0.set_secrets(request).await
     }
 }

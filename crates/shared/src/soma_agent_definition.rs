@@ -17,6 +17,18 @@ pub struct SomaAgentDefinition {
     pub encryption: Option<EncryptionConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bridge: Option<BridgeConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secrets: Option<HashMap<String, SecretConfig>>,
+}
+
+/// Configuration for a secret stored in soma.yaml
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SecretConfig {
+    /// The encrypted value of the secret
+    pub value: String,
+    /// The DEK alias used to encrypt this secret
+    pub dek_alias: String,
 }
 
 /// Top-level encryption configuration
@@ -206,6 +218,19 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
         function_controller_type_id: String,
         provider_instance_id: String,
     ) -> Result<(), CommonError>;
+
+    // Secret operations
+    async fn add_secret(
+        &self,
+        key: String,
+        config: SecretConfig,
+    ) -> Result<(), CommonError>;
+    async fn update_secret(
+        &self,
+        key: String,
+        config: SecretConfig,
+    ) -> Result<(), CommonError>;
+    async fn remove_secret(&self, key: String) -> Result<(), CommonError>;
 
     async fn reload(&self) -> Result<(), CommonError>;
 }
@@ -539,6 +564,51 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             function_controller_type_id, provider_controller_type_id, provider_instance_id
         );
         self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn add_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if definition.secrets.is_none() {
+            definition.secrets = Some(HashMap::new());
+        }
+
+        definition
+            .secrets
+            .as_mut()
+            .unwrap()
+            .insert(key.clone(), config);
+        info!("Secret added: {:?}", key);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn update_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if definition.secrets.is_none() {
+            definition.secrets = Some(HashMap::new());
+        }
+
+        definition
+            .secrets
+            .as_mut()
+            .unwrap()
+            .insert(key.clone(), config);
+        info!("Secret updated: {:?}", key);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_secret(&self, key: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(secrets) = &mut definition.secrets {
+            secrets.remove(&key);
+            info!("Secret removed: {:?}", key);
+            self.save(definition).await?;
+        }
         Ok(())
     }
 }

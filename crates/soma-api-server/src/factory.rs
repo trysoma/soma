@@ -84,6 +84,10 @@ pub async fn create_api_service(
         _,
     ) = tokio::sync::broadcast::channel(100);
 
+    // Create secret event channel
+    let (secret_change_tx, secret_change_rx) =
+        crate::logic::on_change_pubsub::create_secret_change_channel(100);
+
     // Create the unified soma change channel
     let (soma_change_tx, _soma_change_rx) = create_soma_change_channel(100);
 
@@ -101,6 +105,7 @@ pub async fn create_api_service(
             soma_change_tx_clone,
             on_bridge_config_change_rx,
             encryption_change_rx,
+            secret_change_rx,
             pubsub_shutdown_rx,
         )
         .await;
@@ -215,6 +220,7 @@ pub async fn create_api_service(
         mcp_sse_ping_interval: Duration::from_secs(10),
         sdk_client: sdk_client.clone(),
         on_encryption_change_tx: encryption_change_tx.clone(),
+        on_secret_change_tx: secret_change_tx.clone(),
         encryption_repository: encryption_repo.clone(),
     })
     .await?;
@@ -231,7 +237,7 @@ pub async fn create_api_service(
     // Start SDK sync watcher
     info!("Starting SDK sync watcher...");
     let sdk_sync_handle = start_sdk_sync_subsystem(
-        socket_path,
+        socket_path.clone(),
         restate_params,
         sdk_port,
         system_shutdown_signal.subscribe(),
@@ -255,6 +261,48 @@ pub async fn create_api_service(
         system_shutdown_signal.subscribe(),
     )?;
 
+    // Start secret sync subsystem
+    info!("Starting secret sync subsystem...");
+    let secret_sync_rx = secret_change_tx.subscribe();
+    let secret_sync_handle = crate::logic::secret_sync::start_secret_sync_subsystem(
+        repository.clone(),
+        crypto_cache.clone(),
+        socket_path.clone(),
+        secret_sync_rx,
+        system_shutdown_signal.subscribe(),
+    )?;
+
+    // Perform initial secret sync to SDK
+    info!("Performing initial secret sync to SDK...");
+    match crate::logic::secret_sync::fetch_and_decrypt_all_secrets(&repository, &crypto_cache).await
+    {
+        Ok(secrets) => {
+            if !secrets.is_empty() {
+                info!("Found {} secrets to sync to SDK", secrets.len());
+                if let Ok(mut client) =
+                    shared::uds::create_soma_unix_socket_client(&socket_path).await
+                {
+                    match crate::logic::secret_sync::sync_secrets_to_sdk(&mut client, secrets).await
+                    {
+                        Ok(()) => {
+                            info!("Initial secret sync completed successfully");
+                        }
+                        Err(e) => {
+                            warn!("Failed to perform initial secret sync: {:?}", e);
+                            // Don't fail startup - secrets will be synced on next change
+                        }
+                    }
+                }
+            } else {
+                info!("No secrets to sync on startup");
+            }
+        }
+        Err(e) => {
+            warn!("Failed to fetch secrets for initial sync: {:?}", e);
+            // Don't fail startup - secrets will be synced on next change
+        }
+    }
+
     Ok(ApiServiceBundle {
         api_service,
         subsystems: Subsystems {
@@ -263,6 +311,7 @@ pub async fn create_api_service(
             mcp: Some(mcp_handle),
             credential_rotation: Some(credential_rotation_handle),
             bridge_client_generation: Some(bridge_client_gen_handle),
+            secret_sync: Some(secret_sync_handle),
         },
         soma_change_tx,
     })

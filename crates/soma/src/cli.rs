@@ -5,7 +5,7 @@ use tracing::error;
 use crate::{
     commands::{
         self, codegen::CodegenParams, completions::CompletionShell, dev::DevParams,
-        encryption::EncKeyParams, init::InitParams,
+        encryption::EncKeyParams, init::InitParams, secret::SecretParams,
     },
     utils::get_or_init_cli_config,
 };
@@ -45,6 +45,8 @@ pub enum Commands {
     EncKey(EncKeyParams),
     /// Initialize a new Soma project
     Init(InitParams),
+    /// Manage secrets
+    Secret(SecretParams),
     /// Show Soma version
     Version,
 }
@@ -63,6 +65,7 @@ pub async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
         Commands::Completions { shell } => commands::completions::cmd_completions(shell),
         Commands::EncKey(params) => commands::encryption::cmd_enc_key(params, &mut config).await,
         Commands::Init(params) => commands::init::cmd_init(params).await,
+        Commands::Secret(params) => commands::secret::cmd_secret(params, &mut config).await,
         Commands::Version => {
             println!("Soma CLI version: {CLI_VERSION}");
             Ok(())

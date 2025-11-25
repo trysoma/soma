@@ -139,3 +139,19 @@ pub struct GenerateBridgeClientSuccess {
 pub struct GenerateBridgeClientError {
     pub message: String,
 }
+
+/// A secret with a key and decrypted value
+#[derive(Debug, Clone)]
+#[napi(object)]
+pub struct Secret {
+    pub key: String,
+    pub value: String,
+}
+
+/// Response from setting secrets
+#[derive(Debug, Clone)]
+#[napi(object)]
+pub struct SetSecretsResponse {
+    pub success: bool,
+    pub message: String,
+}

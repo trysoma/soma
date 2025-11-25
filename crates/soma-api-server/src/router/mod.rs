@@ -8,6 +8,7 @@ use shared::error::CommonError;
 
 pub(crate) mod a2a;
 pub(crate) mod internal;
+pub(crate) mod secret;
 pub(crate) mod task;
 
 pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonError> {
@@ -42,6 +43,11 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
     let encryption_router = encryption_router.with_state(api_service.encryption_service.clone());
     router = router.merge(encryption_router);
 
+    // secret router
+    let (secret_router, _) = secret::create_router().split_for_parts();
+    let secret_router = secret_router.with_state(api_service.secret_service);
+    router = router.merge(secret_router);
+
     Ok(router)
 }
 
@@ -51,9 +57,11 @@ pub fn generate_openapi_spec() -> OpenApi {
     let (_, bridge_spec) = create_bridge_router().split_for_parts();
     let (_, internal_spec) = internal::create_router().split_for_parts();
     let (_, encryption_spec) = create_encryption_router().split_for_parts();
+    let (_, secret_spec) = secret::create_router().split_for_parts();
     spec.merge(task_spec);
     spec.merge(bridge_spec);
     spec.merge(internal_spec);
     spec.merge(encryption_spec);
+    spec.merge(secret_spec);
     spec
 }

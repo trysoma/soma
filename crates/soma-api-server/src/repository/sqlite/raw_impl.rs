@@ -1,4 +1,5 @@
 use crate::{
+    logic::secret::Secret,
     logic::task::{MessagePart, Metadata, TaskTimelineItemPayload, TaskWithDetails},
     repository::{CommonError, Message, Task, TaskTimelineItem},
 };
@@ -6,8 +7,8 @@ use base64::Engine;
 use shared::primitives::WrappedUuidV4;
 
 use super::{
-    Row_get_messages_by_task_id, Row_get_task_by_id, Row_get_task_timeline_items, Row_get_tasks,
-    Row_get_tasks_by_context_id,
+    Row_get_messages_by_task_id, Row_get_secret_by_id, Row_get_secret_by_key, Row_get_secrets,
+    Row_get_task_by_id, Row_get_task_timeline_items, Row_get_tasks, Row_get_tasks_by_context_id,
 };
 
 // Task conversions
@@ -130,6 +131,49 @@ impl TryFrom<Row_get_messages_by_task_id> for Message {
             metadata,
             parts,
             created_at: row.created_at,
+        })
+    }
+}
+
+// Secret conversions
+impl TryFrom<Row_get_secret_by_id> for Secret {
+    type Error = CommonError;
+    fn try_from(row: Row_get_secret_by_id) -> Result<Self, Self::Error> {
+        Ok(Secret {
+            id: row.id,
+            key: row.key,
+            encrypted_secret: row.encrypted_secret,
+            dek_alias: row.dek_alias,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        })
+    }
+}
+
+impl TryFrom<Row_get_secret_by_key> for Secret {
+    type Error = CommonError;
+    fn try_from(row: Row_get_secret_by_key) -> Result<Self, Self::Error> {
+        Ok(Secret {
+            id: row.id,
+            key: row.key,
+            encrypted_secret: row.encrypted_secret,
+            dek_alias: row.dek_alias,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        })
+    }
+}
+
+impl TryFrom<Row_get_secrets> for Secret {
+    type Error = CommonError;
+    fn try_from(row: Row_get_secrets) -> Result<Self, Self::Error> {
+        Ok(Secret {
+            id: row.id,
+            key: row.key,
+            encrypted_secret: row.encrypted_secret,
+            dek_alias: row.dek_alias,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
         })
     }
 }

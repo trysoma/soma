@@ -65,20 +65,19 @@ use serde::{Serialize, Deserialize};
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.parts.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
     ]).await
 }
-  #[allow(dead_code)]
   pub struct get_messages_by_task_id_params<'a> {
-      pub task_id: &'a
+      pub task_id: &'a 
           shared::primitives::WrappedUuidV4
       ,
       pub cursor: &'a Option<
           shared::primitives::WrappedChronoDateTime
       >,
-      pub page_size: &'a
+      pub page_size: &'a 
           i64
       ,
   }
@@ -94,15 +93,14 @@ use serde::{Serialize, Deserialize};
       pub parts:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,
   }
-  #[allow(dead_code)]
   pub async fn get_messages_by_task_id(
       conn: &shared::libsql::Connection
       ,params: get_messages_by_task_id_params<'_>
   ) -> Result<Vec<Row_get_messages_by_task_id>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, task_id, reference_task_ids, role, metadata, parts, created_at FROM message WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
+      let mut stmt = conn.prepare(r#"SELECT id, task_id, reference_task_ids, role, metadata, parts, created_at FROM message WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.task_id.clone(),(*params.cursor),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.task_id.clone(),params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -114,6 +112,238 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
               metadata: row.get(4)?,
               parts: row.get(5)?,
               created_at: row.get(6)?,
+          });
+      }
+
+      Ok(mapped)
+  }
+  pub struct insert_secret_params<'a> {
+      pub id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+      pub key: &'a 
+          String
+      ,
+      pub encrypted_secret: &'a 
+          String
+      ,
+      pub dek_alias: &'a 
+          String
+      ,
+      pub created_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+      pub updated_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+  }
+
+  pub async fn insert_secret(
+    conn: &shared::libsql::Connection
+    ,params: insert_secret_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"INSERT INTO secret (
+    id,
+    key,
+    encrypted_secret,
+    dek_alias,
+    created_at,
+    updated_at
+) VALUES (
+    ?1,
+    ?2,
+    ?3,
+    ?4,
+    ?5,
+    ?6
+)"#, libsql::params![
+              <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.key.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.encrypted_secret.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.dek_alias.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct update_secret_params<'a> {
+      pub encrypted_secret: &'a 
+          String
+      ,
+      pub dek_alias: &'a 
+          String
+      ,
+      pub updated_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+      pub id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+  }
+
+  pub async fn update_secret(
+    conn: &shared::libsql::Connection
+    ,params: update_secret_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"UPDATE secret SET
+    encrypted_secret = ?1,
+    dek_alias = ?2,
+    updated_at = ?3
+WHERE id = ?4"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.encrypted_secret.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.dek_alias.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct delete_secret_params<'a> {
+      pub id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+  }
+
+  pub async fn delete_secret(
+    conn: &shared::libsql::Connection
+    ,params: delete_secret_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"DELETE FROM secret WHERE id = ?1"#, libsql::params![
+              <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct get_secret_by_id_params<'a> {
+      pub id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_secret_by_id {
+      pub id:shared::primitives::WrappedUuidV4,
+      pub key:String,
+      pub encrypted_secret:String,
+      pub dek_alias:String,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn get_secret_by_id(
+      conn: &shared::libsql::Connection
+      ,params: get_secret_by_id_params<'_>
+  ) -> Result<Option<Row_get_secret_by_id>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT id, "key", encrypted_secret, dek_alias, created_at, updated_at FROM secret WHERE id = ?1"#).await?;
+      let res = stmt.query_row(
+          libsql::params![params.id.clone(),],
+      ).await;
+
+      match res {
+          Ok(row) => Ok(Some(Row_get_secret_by_id {
+                  id: row.get(0)?,
+                  key: row.get(1)?,
+                  encrypted_secret: row.get(2)?,
+                  dek_alias: row.get(3)?,
+                  created_at: row.get(4)?,
+                  updated_at: row.get(5)?,
+              })),
+          Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
+          Err(e) => Err(e),
+      }
+  }
+  pub struct get_secret_by_key_params<'a> {
+      pub key: &'a 
+          String
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_secret_by_key {
+      pub id:shared::primitives::WrappedUuidV4,
+      pub key:String,
+      pub encrypted_secret:String,
+      pub dek_alias:String,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn get_secret_by_key(
+      conn: &shared::libsql::Connection
+      ,params: get_secret_by_key_params<'_>
+  ) -> Result<Option<Row_get_secret_by_key>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT id, "key", encrypted_secret, dek_alias, created_at, updated_at FROM secret WHERE key = ?1"#).await?;
+      let res = stmt.query_row(
+          libsql::params![params.key.clone(),],
+      ).await;
+
+      match res {
+          Ok(row) => Ok(Some(Row_get_secret_by_key {
+                  id: row.get(0)?,
+                  key: row.get(1)?,
+                  encrypted_secret: row.get(2)?,
+                  dek_alias: row.get(3)?,
+                  created_at: row.get(4)?,
+                  updated_at: row.get(5)?,
+              })),
+          Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
+          Err(e) => Err(e),
+      }
+  }
+  pub struct get_secrets_params<'a> {
+      pub cursor: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub page_size: &'a 
+          i64
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_secrets {
+      pub id:shared::primitives::WrappedUuidV4,
+      pub key:String,
+      pub encrypted_secret:String,
+      pub dek_alias:String,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn get_secrets(
+      conn: &shared::libsql::Connection
+      ,params: get_secrets_params<'_>
+  ) -> Result<Vec<Row_get_secrets>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT id, "key", encrypted_secret, dek_alias, created_at, updated_at FROM secret WHERE (created_at < ?1 OR ?1 IS NULL)
+ORDER BY created_at DESC
+LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
+      let mut mapped = vec![];
+
+      while let Some(row) = rows.next().await? {
+          mapped.push(Row_get_secrets {
+              id: row.get(0)?,
+              key: row.get(1)?,
+              encrypted_secret: row.get(2)?,
+              dek_alias: row.get(3)?,
+              created_at: row.get(4)?,
+              updated_at: row.get(5)?,
           });
       }
 
@@ -173,16 +403,16 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
               <crate::repository::TaskStatus as TryInto<libsql::Value>>::try_into(params.status.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.status_timestamp)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.status_timestamp.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.metadata.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
     ]).await
@@ -221,10 +451,10 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
                 None => libsql::Value::Null,
               }
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.status_timestamp)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.status_timestamp.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.updated_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
@@ -279,7 +509,7 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.event_payload.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(*params.created_at)
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
     ]).await
@@ -309,10 +539,10 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_tasks_params<'_>
   ) -> Result<Vec<Row_get_tasks>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
+      let mut stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![(*params.cursor),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -349,10 +579,10 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_unique_contexts_params<'_>
   ) -> Result<Vec<Row_get_unique_contexts>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT DISTINCT context_id, created_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
+      let mut stmt = conn.prepare(r#"SELECT DISTINCT context_id, created_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![(*params.cursor),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -392,10 +622,10 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_tasks_by_context_id_params<'_>
   ) -> Result<Vec<Row_get_tasks_by_context_id>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE context_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
+      let mut stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE context_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.context_id.clone(),(*params.cursor),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.context_id.clone(),params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
@@ -438,10 +668,10 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_task_timeline_items_params<'_>
   ) -> Result<Vec<Row_get_task_timeline_items>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, task_id, event_update_type, event_payload, created_at FROM task_timeline WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
+      let mut stmt = conn.prepare(r#"SELECT id, task_id, event_update_type, event_payload, created_at FROM task_timeline WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.task_id.clone(),(*params.cursor),(*params.page_size),]).await?;
+      let mut rows = stmt.query(libsql::params![params.task_id.clone(),params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {

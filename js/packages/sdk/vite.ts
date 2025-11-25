@@ -245,7 +245,7 @@ function generateStandaloneServer(
 	const hasAgents = agentIndex > 0;
 
 	return `// Auto-generated standalone server
-import { addFunction, addProvider, addAgent, startGrpcServer } from '@trysoma/sdk';
+import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler } from '@trysoma/sdk';
 import * as restate from '@restatedev/restate-sdk';
 import * as http2 from 'http2';
 
@@ -265,6 +265,17 @@ startGrpcServer(socketPath, projectDir).catch(err => {
 // Wait a bit for server to initialize
 await new Promise(resolve => setTimeout(resolve, 100));
 console.log(\`gRPC server started on \${socketPath}\`);
+
+// Register secret handler to inject secrets into process.env
+setSecretHandler(async (secrets) => {
+  console.log(\`Received \${secrets.length} secrets from Soma\`);
+  for (const secret of secrets) {
+    process.env[secret.key] = secret.value;
+    console.log(\`  Set process.env.\${secret.key}\`);
+  }
+  return { success: true, message: \`Injected \${secrets.length} secrets into process.env\` };
+});
+console.log('Secret handler registered');
 
 // Register all providers and functions
 ${functionRegistrations.join("\n")}

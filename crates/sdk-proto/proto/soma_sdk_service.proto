@@ -9,6 +9,8 @@ service SomaSdkService {
   rpc HealthCheck(google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc InvokeFunction(InvokeFunctionRequest) returns (InvokeFunctionResponse);
   rpc GenerateBridgeClient(GenerateBridgeClientRequest) returns (GenerateBridgeClientResponse);
+  // Sync secrets to the SDK - secrets are injected into process.env
+  rpc SetSecrets(SetSecretsRequest) returns (SetSecretsResponse);
 }
 
 message InvokeFunctionRequest {
@@ -141,4 +143,19 @@ message FunctionControllerData {
   string display_name = 2;
   string params_json_schema = 3;
   string return_value_json_schema = 4;
+}
+
+// Secret messages for syncing secrets to the SDK
+message Secret {
+  string key = 1;
+  string value = 2;  // Decrypted value
+}
+
+message SetSecretsRequest {
+  repeated Secret secrets = 1;
+}
+
+message SetSecretsResponse {
+  bool success = 1;
+  string message = 2;
 }
