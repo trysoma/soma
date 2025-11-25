@@ -261,7 +261,7 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
           String
       ,
       pub encryption_key: &'a 
-          crate::EncryptedDataEncryptionKey
+          crate::logic::dek::EncryptedDataEncryptionKey
       ,
       pub created_at: &'a 
           shared::primitives::WrappedChronoDateTime
@@ -283,7 +283,7 @@ VALUES (?, ?, ?, ?, ?)"#, libsql::params![
               <String as TryInto<libsql::Value>>::try_into(params.envelope_encryption_key_id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <crate::EncryptedDataEncryptionKey as TryInto<libsql::Value>>::try_into(params.encryption_key.clone())
+              <crate::logic::dek::EncryptedDataEncryptionKey as TryInto<libsql::Value>>::try_into(params.encryption_key.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
@@ -305,7 +305,7 @@ VALUES (?, ?, ?, ?, ?)"#, libsql::params![
   pub struct Row_get_data_encryption_key_by_id {
       pub id:String,
       pub envelope_encryption_key_id:String,
-      pub encryption_key:crate::EncryptedDataEncryptionKey,
+      pub encryption_key:crate::logic::dek::EncryptedDataEncryptionKey,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
   }
@@ -343,7 +343,7 @@ WHERE id = ?"#).await?;
   pub struct Row_get_data_encryption_key_by_id_with_envelope {
       pub id:String,
       pub envelope_encryption_key_id:String,
-      pub encryption_key:crate::EncryptedDataEncryptionKey,
+      pub encryption_key:crate::logic::dek::EncryptedDataEncryptionKey,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
       pub key_type:crate::repository::EnvelopeEncryptionKeyType,
@@ -450,7 +450,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
   pub struct Row_get_all_data_encryption_keys_with_envelope_keys {
       pub id:String,
       pub envelope_encryption_key_id:String,
-      pub encryption_key:crate::EncryptedDataEncryptionKey,
+      pub encryption_key:crate::logic::dek::EncryptedDataEncryptionKey,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
       pub key_type:crate::repository::EnvelopeEncryptionKeyType,
@@ -566,7 +566,7 @@ WHERE alias = ?"#).await?;
   pub struct Row_get_data_encryption_key_by_alias {
       pub id:String,
       pub envelope_encryption_key_id:String,
-      pub encryption_key:crate::EncryptedDataEncryptionKey,
+      pub encryption_key:crate::logic::dek::EncryptedDataEncryptionKey,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
   }

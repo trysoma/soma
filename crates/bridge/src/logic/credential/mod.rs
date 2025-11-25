@@ -17,7 +17,7 @@ use shared::{
 use tracing::info;
 use utoipa::ToSchema;
 
-use ::encryption::{DecryptionService, EncryptionService};
+use ::encryption::logic::crypto_services::{DecryptionService, EncryptionService};
 
 use crate::{
     logic::{
@@ -536,7 +536,7 @@ pub struct ResumeUserCredentialBrokeringParams {
 pub async fn resume_user_credential_brokering<R>(
     on_config_change_tx: &OnConfigChangeTx,
     repo: &R,
-    crypto_cache: &encryption::CryptoCache,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
     params: ResumeUserCredentialBrokeringParams,
 ) -> Result<UserCredentialBrokeringResponse, CommonError>
 where
@@ -621,7 +621,7 @@ where
 /// This function is designed to be called in its own tokio::spawn
 pub async fn credential_rotation_task<R>(
     repo: R,
-    crypto_cache: encryption::CryptoCache,
+    crypto_cache: encryption::logic::crypto_services::CryptoCache,
     on_config_change_tx: OnConfigChangeTx,
     mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
 ) where
@@ -662,7 +662,7 @@ pub async fn credential_rotation_task<R>(
 pub async fn process_credential_rotations_with_window<R>(
     repo: &R,
     on_config_change_tx: &OnConfigChangeTx,
-    crypto_cache: &encryption::CryptoCache,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
     window_minutes: i64,
 ) -> Result<(), CommonError>
 where
@@ -728,7 +728,7 @@ where
 pub async fn process_credential_rotation<R>(
     repo: &R,
     on_config_change_tx: &OnConfigChangeTx,
-    crypto_cache: &encryption::CryptoCache,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
     pi: &ProviderInstanceSerializedWithCredentials,
     rotation_window_end: &WrappedChronoDateTime,
     publish_update: bool,
@@ -804,7 +804,7 @@ where
 
 async fn rotate_resource_server_credential<R>(
     repo: &R,
-    crypto_cache: &encryption::CryptoCache,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
     provider_instance: &ProviderInstanceSerialized,
     resource_server_cred: &ResourceServerCredentialSerialized,
 ) -> Result<ResourceServerCredentialSerialized, CommonError>
@@ -871,7 +871,7 @@ where
 
 async fn rotate_user_credential<R>(
     repo: &R,
-    crypto_cache: &encryption::CryptoCache,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
     provider_instance: &ProviderInstanceSerialized,
     resource_server_cred: &ResourceServerCredentialSerialized,
     user_cred: &UserCredentialSerialized,

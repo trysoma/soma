@@ -387,7 +387,7 @@ impl EncryptionKeyRepositoryLike for Repository {
 
 // Implement the encryption crate's DataEncryptionKeyRepositoryLike trait
 #[async_trait::async_trait]
-impl crate::DataEncryptionKeyRepositoryLike for Repository {
+impl crate::repository::DataEncryptionKeyRepositoryLike for Repository {
     async fn create_data_encryption_key(
         &self,
         data_encryption_key: &DataEncryptionKey,
@@ -613,9 +613,8 @@ impl SqlMigrationLoader for Repository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        DataEncryptionKey, EncryptedDataEncryptionKey, EnvelopeEncryptionKey,
-    };
+    use crate::logic::dek::{DataEncryptionKey, EncryptedDataEncryptionKey};
+    use crate::logic::envelope::EnvelopeEncryptionKey;
     use crate::repository::{
         CreateDataEncryptionKey, CreateEnvelopeEncryptionKey, DataEncryptionKeyAlias,
     };

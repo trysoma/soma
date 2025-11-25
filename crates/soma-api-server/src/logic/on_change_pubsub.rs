@@ -1,5 +1,5 @@
 use bridge::logic::OnConfigChangeEvt as BridgeOnConfigChangeEvt;
-use encryption::EncryptionKeyEvent;
+use encryption::logic::EncryptionKeyEvent;
 use tokio::sync::broadcast;
 use tracing::{info, warn};
 
@@ -29,7 +29,7 @@ pub fn create_soma_change_channel(capacity: usize) -> (SomaChangeTx, SomaChangeR
 pub async fn run_change_pubsub(
     soma_change_tx: SomaChangeTx,
     mut bridge_change_rx: bridge::logic::OnConfigChangeRx,
-    mut encryption_change_rx: encryption::EncryptionKeyEventReceiver,
+    mut encryption_change_rx: encryption::logic::EncryptionKeyEventReceiver,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) {
     info!("Starting unified change pubsub system");

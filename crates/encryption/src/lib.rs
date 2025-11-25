@@ -1,10 +1,12 @@
-pub mod repository;
 pub mod logic;
+pub mod repository;
 pub mod router;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::logic::envelope::{EnvelopeEncryptionKeyContents, EnvelopeEncryptionKey, encrypt_dek, decrypt_dek};
+    use crate::logic::dek::{DataEncryptionKey, EncryptedDataEncryptionKey};
+    use crate::logic::crypto_services::{CryptoService, EncryptionService, DecryptionService};
 
     const TEST_KMS_KEY_ARN: &str =
         "arn:aws:kms:eu-west-2:914788356809:alias/unsafe-github-action-soma-test-key";

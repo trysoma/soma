@@ -1,4 +1,4 @@
-use encryption::CryptoCache;
+use encryption::logic::crypto_services::CryptoCache;
 use serde::{Deserialize, Serialize};
 use shared::{error::CommonError, primitives::WrappedJsonValue};
 use utoipa::ToSchema;

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use encryption::DecryptionService;
+use encryption::logic::crypto_services::DecryptionService;
 use bridge::logic::FunctionControllerLike;
 use bridge::logic::InvokeError;
 use bridge::logic::InvokeResult;

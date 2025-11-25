@@ -36,7 +36,7 @@ sql:
               rust_type: "String"
             - db_type: text
               column: data_encryption_key.encryption_key
-              rust_type: "crate::EncryptedDataEncryptionKey"
+              rust_type: "crate::logic::dek::EncryptedDataEncryptionKey"
             - db_type: datetime
               column: data_encryption_key.created_at
               rust_type: "shared::primitives::WrappedChronoDateTime"

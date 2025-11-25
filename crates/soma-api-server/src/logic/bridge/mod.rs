@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bridge::logic::{OnConfigChangeEvt, OnConfigChangeRx, OnConfigChangeTx};
-use encryption::CryptoCache;
+use encryption::logic::crypto_services::CryptoCache;
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use shared::{error::CommonError, subsystem::SubsystemHandle};
 use tokio::sync::Mutex;

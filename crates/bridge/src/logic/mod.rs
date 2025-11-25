@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 // Re-export encryption types for use within the bridge crate
-pub use ::encryption::{DecryptionService, EncryptionService};
+pub use ::encryption::logic::crypto_services::{DecryptionService, EncryptionService};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shared::{

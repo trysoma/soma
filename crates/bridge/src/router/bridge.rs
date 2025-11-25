@@ -30,7 +30,7 @@ use axum::Extension;
 use axum::extract::{Json, NestedPath, Path, Query, State};
 use axum::response::sse::{Event, KeepAlive};
 use axum::response::{IntoResponse, Response, Sse};
-use encryption::CryptoCache;
+use encryption::logic::crypto_services::CryptoCache;
 use http::StatusCode;
 use http::request::Parts;
 use rmcp::{

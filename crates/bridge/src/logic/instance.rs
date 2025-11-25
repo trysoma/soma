@@ -33,7 +33,7 @@ use crate::{
     repository::ProviderRepositoryLike,
     router::bridge::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY},
 };
-use encryption::CryptoCache;
+use encryption::logic::crypto_services::CryptoCache;
 
 /// Sanitizes a display name to only contain alphanumeric characters and dashes.
 /// This is useful for creating valid OpenAPI operation IDs and other identifiers.

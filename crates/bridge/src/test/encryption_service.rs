@@ -1,7 +1,8 @@
-use encryption::{
-    CryptoCache, CryptoService, DataEncryptionKey, DecryptionService,
-    EncryptionService, EnvelopeEncryptionKeyContents,
+use encryption::logic::crypto_services::{
+    CryptoCache, CryptoService, DecryptionService, EncryptionService,
 };
+use encryption::logic::dek::DataEncryptionKey;
+use encryption::logic::envelope::EnvelopeEncryptionKeyContents;
 use encryption::repository::{DataEncryptionKeyRepositoryLike, EncryptionKeyRepositoryLike};
 use shared::primitives::{WrappedChronoDateTime, SqlMigrationLoader};
 
@@ -14,7 +15,7 @@ pub fn create_temp_kek_file() -> (tempfile::TempDir, EnvelopeEncryptionKeyConten
     let path = temp_dir.path().join("test-kek");
 
     // Use get_or_create_local_envelope_encryption_key to generate and write the key
-    let contents = encryption::get_or_create_local_envelope_encryption_key(&path)
+    let contents = encryption::logic::envelope::get_or_create_local_envelope_encryption_key(&path)
         .expect("Failed to create local encryption key");
 
     (temp_dir, contents)
@@ -35,14 +36,14 @@ pub async fn create_test_dek(
     let plaintext_dek = unsafe { String::from_utf8_unchecked(dek_bytes.to_vec()) };
 
     // Encrypt the DEK with the envelope key
-    let encrypted_dek = encryption::encrypt_dek(envelope_key_contents, plaintext_dek)
+    let encrypted_dek = encryption::logic::envelope::encrypt_dek(envelope_key_contents, plaintext_dek)
         .await
         .expect("Failed to encrypt DEK");
 
     let now = WrappedChronoDateTime::now();
     let dek = DataEncryptionKey {
         id: uuid::Uuid::new_v4().to_string(),
-        envelope_encryption_key_id: encryption::EnvelopeEncryptionKey::from(envelope_key_contents.clone()),
+        envelope_encryption_key_id: encryption::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone()),
         encrypted_data_encryption_key: encrypted_dek,
         created_at: now,
         updated_at: now,
@@ -93,10 +94,10 @@ pub async fn setup_test_encryption(alias: &str) -> TestEncryptionSetup {
 
     // First create the envelope encryption key
     let (key_type, local_location, aws_arn, aws_region) = match &dek.envelope_encryption_key_id {
-        encryption::EnvelopeEncryptionKey::Local { location } => {
+        encryption::logic::envelope::EnvelopeEncryptionKey::Local { location } => {
             (encryption::repository::EnvelopeEncryptionKeyType::Local, Some(location.clone()), None, None)
         }
-        encryption::EnvelopeEncryptionKey::AwsKms { arn, region } => {
+        encryption::logic::envelope::EnvelopeEncryptionKey::AwsKms { arn, region } => {
             (encryption::repository::EnvelopeEncryptionKeyType::AwsKms, None, Some(arn.clone()), Some(region.clone()))
         }
     };

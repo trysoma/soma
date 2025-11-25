@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use ::encryption::{DecryptionService, EncryptedString, EncryptionService};
+use ::encryption::logic::crypto_services::{DecryptionService, EncryptedString, EncryptionService};
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 use serde_json::json;

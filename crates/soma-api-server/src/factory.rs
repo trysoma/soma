@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bridge::logic::{OnConfigChangeTx, register_all_bridge_providers};
-use encryption::CryptoCache;
+use encryption::logic::crypto_services::CryptoCache;
 use shared::error::CommonError;
 use shared::soma_agent_definition::SomaAgentDefinitionLike;
 use shared::subsystem::SubsystemHandle;
@@ -78,7 +78,7 @@ pub async fn create_api_service(
         tokio::sync::broadcast::channel(100);
 
     // Create encryption event channel
-    let (encryption_change_tx, encryption_change_rx): (encryption::EncryptionKeyEventSender, _) =
+    let (encryption_change_tx, encryption_change_rx): (encryption::logic::EncryptionKeyEventSender, _) =
         tokio::sync::broadcast::channel(100);
 
     // Create the unified soma change channel
@@ -87,7 +87,7 @@ pub async fn create_api_service(
     // Initialize the crypto cache from the encryption repository
     info!("Initializing crypto cache...");
     let crypto_cache = CryptoCache::new(encryption_repo.clone());
-    encryption::init_crypto_cache(&crypto_cache).await?;
+    encryption::logic::crypto_services::init_crypto_cache(&crypto_cache).await?;
 
     // Start the unified change pubsub forwarder
     info!("Starting unified change pubsub...");

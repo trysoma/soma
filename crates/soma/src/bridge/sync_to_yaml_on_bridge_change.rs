@@ -2,7 +2,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use bridge::logic::OnConfigChangeEvt;
-use encryption::EncryptionKeyEvent;
+use encryption::logic::EncryptionKeyEvent;
+use encryption::logic::envelope::EnvelopeEncryptionKey;
 use serde_json::json;
 use tracing::{info, warn};
 
@@ -228,10 +229,10 @@ async fn handle_encryption_event(
             info!("Envelope encryption key added: {:?}", eek.id());
             let key_id = eek.id();
             let config = match eek {
-                encryption::EnvelopeEncryptionKey::AwsKms { arn, region } => {
+                EnvelopeEncryptionKey::AwsKms { arn, region } => {
                     EnvelopeKeyConfig::AwsKms { arn, region, deks: None }
                 }
-                encryption::EnvelopeEncryptionKey::Local { location } => {
+                EnvelopeEncryptionKey::Local { location } => {
                     EnvelopeKeyConfig::Local { location, deks: None }
                 }
             };

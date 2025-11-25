@@ -7,9 +7,7 @@ use shared::{error::CommonError, primitives::{PaginationRequest, WrappedChronoDa
 use utoipa::ToSchema;
 
 use crate::repository::DataEncryptionKeyRepositoryLike;
-use crate::{
-    EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents
-};
+use crate::logic::envelope::{EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents};
 use super::{EncryptionKeyEventSender, EncryptionKeyEvent};
 
 
@@ -522,7 +520,7 @@ mod tests {
         let (_temp_file, local_key) = create_temp_local_key();
 
         // Create envelope key first
-        let envelope_key = crate::EnvelopeEncryptionKey::Local {
+        let envelope_key = EnvelopeEncryptionKey::Local {
             location: match &local_key {
                 EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
                 _ => panic!("Expected local key"),
@@ -553,7 +551,7 @@ mod tests {
         assert_eq!(dek.id, "test-dek-local");
         assert!(matches!(
             dek.envelope_encryption_key_id,
-            crate::EnvelopeEncryptionKey::Local { .. }
+            EnvelopeEncryptionKey::Local { .. }
         ));
 
         // Verify the DEK exists in the database
@@ -576,7 +574,7 @@ mod tests {
         let (_temp_file, local_key) = create_temp_local_key();
 
         // Create envelope key first
-        let envelope_key = crate::EnvelopeEncryptionKey::Local {
+        let envelope_key = EnvelopeEncryptionKey::Local {
             location: match &local_key {
                 EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
                 _ => panic!("Expected local key"),
@@ -628,7 +626,7 @@ mod tests {
         let aws_key = get_aws_kms_key();
 
         // Create envelope key first
-        let envelope_key = crate::EnvelopeEncryptionKey::AwsKms {
+        let envelope_key = EnvelopeEncryptionKey::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
         };
@@ -657,7 +655,7 @@ mod tests {
         assert_eq!(dek.id, "test-dek-aws");
         assert!(matches!(
             dek.envelope_encryption_key_id,
-            crate::EnvelopeEncryptionKey::AwsKms { .. }
+            EnvelopeEncryptionKey::AwsKms { .. }
         ));
 
         // Verify the DEK exists in the database
@@ -677,7 +675,7 @@ mod tests {
 
         let (_temp_file, local_key_contents) = create_temp_local_key();
         let envelope_key = if let EnvelopeEncryptionKeyContents::Local { location, .. } = &local_key_contents {
-            crate::EnvelopeEncryptionKey::Local { location: location.clone() }
+            EnvelopeEncryptionKey::Local { location: location.clone() }
         } else {
             panic!("Expected local key");
         };
@@ -726,7 +724,7 @@ mod tests {
         let (_temp_file, local_key) = create_temp_local_key();
 
         // Create envelope key first
-        let envelope_key = crate::EnvelopeEncryptionKey::Local {
+        let envelope_key = EnvelopeEncryptionKey::Local {
             location: match &local_key {
                 EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
                 _ => panic!("Expected local key"),

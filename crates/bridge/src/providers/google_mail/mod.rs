@@ -11,7 +11,7 @@ use crate::logic::credential::{
     ResourceServerCredentialSerialized, StaticCredentialConfigurationLike, UserCredentialSerialized,
 };
 use crate::logic::*;
-use ::encryption::DecryptionService;
+use ::encryption::logic::crypto_services::DecryptionService;
 use async_trait::async_trait;
 use base64::Engine;
 use schemars::{JsonSchema, schema_for};

@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use ::bridge::router::bridge::BridgeService;
 use bridge::logic::OnConfigChangeTx;
-use encryption::{CryptoCache, EncryptionKeyEventSender, EncryptionService};
+use encryption::logic::{EncryptionKeyEventSender, crypto_services::CryptoCache};
 use shared::{
     error::CommonError,
     restate::{admin_client::AdminClient, invoke::RestateIngressClient},
