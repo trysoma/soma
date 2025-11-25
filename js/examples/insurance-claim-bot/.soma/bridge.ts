@@ -62,8 +62,8 @@ async function invokeBridgeFunction<TParams, TResult>(
 
 
 
-export type ApproveClaimApproveClaimParams = string;
-export type ApproveClaimApproveClaimResult = string;
+export type ApproveClaimApproveClaimParams = { claim: { amount: number; category: string; date: string; email: string; reason: string } };
+export type ApproveClaimApproveClaimResult = { approved: boolean };
 
 
 

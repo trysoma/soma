@@ -16,7 +16,7 @@ bridge:
       credential_controller_type_id: api_key
       display_name: internal
       resource_server_credential:
-        id: 55933a58-d4f5-490c-af31-d4cd0431946e
+        id: b7d8e0ac-7e00-4930-8747-cd5078fcf841
         type_id: resource_server_api_key
         metadata: {}
         value:
@@ -24,7 +24,7 @@ bridge:
           metadata: {}
         dek_alias: default
       user_credential:
-        id: fc8e72d3-01cd-4ab8-871a-9b245eeb2e3c
+        id: 9ec52c9d-800f-47c6-a521-65e6d039473d
         type_id: user_api_key
         metadata: {}
         value:
@@ -37,14 +37,14 @@ bridge:
       credential_controller_type_id: no_auth
       display_name: test
       resource_server_credential:
-        id: 10a18b9e-9715-4999-97c7-8e05cd122df5
+        id: b280c576-b03a-4ea7-873c-146ba954fdbf
         type_id: resource_server_no_auth
         metadata: {}
         value:
           metadata: {}
         dek_alias: default
       user_credential:
-        id: a9ba9c9c-9c63-471f-9a7d-694d8d59aa26
+        id: 7e4ed69e-09ac-4fb9-8bb8-f5004f58d916
         type_id: user_no_auth
         metadata: {}
         value:
