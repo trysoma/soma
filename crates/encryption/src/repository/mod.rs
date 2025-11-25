@@ -2,6 +2,8 @@ mod sqlite;
 
 pub use sqlite::Repository;
 
+use std::str::FromStr;
+
 use shared::{
     error::CommonError,
     primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime},
@@ -25,9 +27,12 @@ impl EnvelopeEncryptionKeyType {
             EnvelopeEncryptionKeyType::AwsKms => "aws_kms",
         }
     }
+}
 
-    /// Parse from string representation
-    pub fn from_str(s: &str) -> Result<Self, CommonError> {
+impl std::str::FromStr for EnvelopeEncryptionKeyType {
+    type Err = CommonError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "local" => Ok(EnvelopeEncryptionKeyType::Local),
             "aws_kms" => Ok(EnvelopeEncryptionKeyType::AwsKms),

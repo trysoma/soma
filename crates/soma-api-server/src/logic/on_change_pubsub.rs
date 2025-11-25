@@ -11,6 +11,7 @@ pub type EncryptionEvt = EncryptionKeyEvent;
 
 /// Unified change event for all Soma services
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum SomaChangeEvt {
     Bridge(BridgeEvt),
     Encryption(EncryptionEvt),

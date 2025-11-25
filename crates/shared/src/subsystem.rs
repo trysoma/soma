@@ -63,7 +63,7 @@ impl SubsystemShutdownSignal {
 /// Spawn a subsystem task with automatic shutdown handling
 pub fn spawn_subsystem<F>(
     name: impl Into<String>,
-    system_shutdown_rx: broadcast::Receiver<()>,
+    _system_shutdown_rx: broadcast::Receiver<()>,
     task: F,
 ) -> SubsystemHandle
 where

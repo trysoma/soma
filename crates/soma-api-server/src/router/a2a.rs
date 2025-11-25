@@ -178,6 +178,7 @@ impl A2aServiceLike for Agent2AgentService {
 
 struct ProxiedAgent {
     connection_manager: ConnectionManager,
+    #[allow(dead_code)]
     soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     repository: Repository,
     restate_ingress_client: RestateIngressClient,

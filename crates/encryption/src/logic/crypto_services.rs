@@ -446,8 +446,10 @@ mod tests {
     use shared::test_utils::repository::setup_in_memory_database;
     use tokio::sync::broadcast;
 
+    #[allow(dead_code)]
     const TEST_KMS_KEY_ARN: &str =
         "arn:aws:kms:eu-west-2:914788356809:alias/unsafe-github-action-soma-test-key";
+    #[allow(dead_code)]
     const TEST_KMS_REGION: &str = "eu-west-2";
 
     #[tokio::test]
@@ -751,8 +753,8 @@ mod tests {
         let repo = Repository::new(conn);
 
         // Initialize cache
-        let mut cache = CryptoCache::new(repo);
-        init_crypto_cache(&mut cache).await.unwrap();
+        let cache = CryptoCache::new(repo);
+        init_crypto_cache(&cache).await.unwrap();
 
         // Try to get non-existent DEK
         let result = get_encryption_service(&cache, "non-existent-dek").await;
@@ -771,8 +773,8 @@ mod tests {
         let repo = Repository::new(conn);
 
         // Initialize cache
-        let mut cache = CryptoCache::new(repo);
-        init_crypto_cache(&mut cache).await.unwrap();
+        let cache = CryptoCache::new(repo);
+        init_crypto_cache(&cache).await.unwrap();
 
         // Try to get non-existent DEK
         let result = get_decryption_service(&cache, "non-existent-dek").await;

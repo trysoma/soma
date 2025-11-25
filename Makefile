@@ -151,7 +151,7 @@ lint: lint-rs lint-js ## Run all linters (Rust + JS)
 
 lint-rs: ## Run Rust linters (clippy + fmt check)
 	@echo "Running cargo clippy..."
-	cargo clippy --all-targets --all-features -- -D warnings --locked
+	cargo clippy --locked --all-targets --all-features -- -D warnings 
 	@echo "Checking Rust formatting..."
 	cargo fmt --all -- --check
 	@echo "✓ Rust linters passed"
@@ -181,7 +181,7 @@ lint-fix: lint-fix-rs lint-fix-js ## Run all linters with auto-fix (Rust + JS)
 
 lint-fix-rs: ## Run Rust linters with auto-fix
 	@echo "Running cargo clippy with --fix..."
-	cargo clippy --all-targets --all-features --fix --allow-dirty --allow-staged --locked
+	cargo clippy --locked --all-targets --all-features --fix --allow-dirty --allow-staged
 	@echo "Formatting Rust code..."
 	cargo fmt --all
 	@echo "✓ Rust linters completed"
@@ -228,6 +228,9 @@ db-generate-rs-models: ## Generate Rust models from SQL queries using sqlc
 	cd crates/soma && sqlc generate
 	@echo "Generating Rust models..."
 	cd crates/bridge && sqlc generate
+	@echo "✓ Rust models generated"
+	@echo "Generating Rust models..."
+	cd crates/encryption && sqlc generate
 	@echo "✓ Rust models generated"
 
 db-bridge-generate-migration: ## Create a new bridge database migration using Atlas (usage: make db-bridge-generate-migration NAME=migration_name)

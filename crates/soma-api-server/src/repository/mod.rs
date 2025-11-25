@@ -117,6 +117,7 @@ impl TryFrom<Message> for CreateMessage {
 }
 
 // Repository trait
+#[allow(async_fn_in_trait)]
 pub trait TaskRepositoryLike {
     async fn create_task(&self, params: &CreateTask) -> Result<(), CommonError>;
     async fn update_task_status(&self, params: &UpdateTaskStatus) -> Result<(), CommonError>;

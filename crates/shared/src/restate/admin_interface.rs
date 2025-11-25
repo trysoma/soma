@@ -13,6 +13,7 @@ use restate_types::identifiers::{DeploymentId, LambdaARN};
 use restate_types::schema::deployment::ProtocolType;
 use restate_types::schema::service::ServiceMetadata;
 
+#[allow(async_fn_in_trait)]
 pub trait AdminClientInterface {
     /// Check if the admin service is healthy by invoking /health
     async fn health(&self) -> reqwest::Result<Envelope<()>>;

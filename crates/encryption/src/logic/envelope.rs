@@ -1509,8 +1509,8 @@ mod tests {
             location: location.clone(),
         };
 
-        // Create AWS KMS key
-        let aws_key_contents = get_aws_kms_key();
+        // Create AWS KMS key (verifies AWS credentials are available)
+        let _aws_key_contents = get_aws_kms_key();
         let envelope_key_aws = EnvelopeEncryptionKey::AwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),

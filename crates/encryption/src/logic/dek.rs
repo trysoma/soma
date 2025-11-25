@@ -10,24 +10,15 @@ use shared::{
 use utoipa::ToSchema;
 
 use super::{EncryptionKeyEvent, EncryptionKeyEventSender};
-use crate::logic::envelope::{EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents};
+use crate::logic::envelope::{
+    EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents, WithEnvelopeEncryptionKeyId,
+};
 use crate::repository::DataEncryptionKeyRepositoryLike;
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct ImportDekParamsInner {
     pub id: Option<String>,
     pub encrypted_data_encryption_key: EncryptedDataEncryptionKey,
-}
-
-#[derive(Serialize, Deserialize, Clone, ToSchema)]
-pub struct MigrateDataEncryptionKeyParams {
-    pub data_encryption_key_id: String,
-    pub to_envelope_encryption_key_id: String,
-}
-
-pub struct WithEnvelopeEncryptionKeyId<T> {
-    pub envelope_encryption_key_id: String,
-    pub inner: T,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -634,8 +625,8 @@ mod tests {
         let repo = Repository::new(conn);
         let (tx, _rx) = broadcast::channel(100);
 
-        // Get AWS KMS key
-        let aws_key = get_aws_kms_key();
+        // Get AWS KMS key (verifies AWS credentials are available)
+        let _aws_key = get_aws_kms_key();
 
         // Create envelope key first
         let envelope_key = EnvelopeEncryptionKey::AwsKms {

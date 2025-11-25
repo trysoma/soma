@@ -12,6 +12,7 @@ use shared::{adapters::openapi::JsonResponse, error::CommonError};
 
 pub const PATH_PREFIX: &str = "/_internal";
 pub const API_VERSION_1: &str = "v1";
+#[allow(dead_code)]
 pub const SERVICE_ROUTE_KEY: &str = "";
 
 pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {

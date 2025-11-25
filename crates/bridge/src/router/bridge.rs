@@ -487,9 +487,8 @@ async fn generic_oauth_callback(
     // Create broker input
     let broker_input = BrokerInput::Oauth2AuthorizationCodeFlow { code };
 
-    // Get the envelope encryption key from the broker state's DEK
-    // First, get the broker state to find the DEK
-    let broker_state = match ctx.repository().get_broker_state_by_id(&state).await {
+    // Validate that the broker state exists (fetched for validation only)
+    let _broker_state = match ctx.repository().get_broker_state_by_id(&state).await {
         Ok(Some(state)) => state,
         Ok(None) => {
             return respond_err!(CommonError::Unknown(anyhow::anyhow!(
