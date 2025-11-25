@@ -73,7 +73,7 @@ where
     // Publish event to trigger cache refresh
     let _ = on_change_tx.send(EncryptionKeyEvent::DataEncryptionKeyAliasAdded {
         alias: alias_name,
-        dek_id: dek_id,
+        dek_id,
     });
 
     Ok(alias)
