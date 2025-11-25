@@ -12,8 +12,8 @@ pub use sqlite::Repository;
 
 use crate::logic::secret::Secret;
 use crate::logic::task::{
-    Message, MessagePart, MessageRole, Task, TaskEventUpdateType, TaskStatus,
-    TaskTimelineItem, TaskTimelineItemPayload, TaskWithDetails,
+    Message, MessagePart, MessageRole, Task, TaskEventUpdateType, TaskStatus, TaskTimelineItem,
+    TaskTimelineItemPayload, TaskWithDetails,
 };
 
 // Repository parameter structs

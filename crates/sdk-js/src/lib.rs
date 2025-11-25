@@ -407,9 +407,7 @@ pub fn set_secret_handler(
                     CommonError::Unknown(anyhow::anyhow!("Failed to call secret handler: {e}"))
                 })?
                 .await
-                .map_err(|e| {
-                    CommonError::Unknown(anyhow::anyhow!("Secret handler failed: {e}"))
-                })?;
+                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Secret handler failed: {e}")))?;
 
             Ok(core_types::SetSecretsResponse {
                 success: result.success,

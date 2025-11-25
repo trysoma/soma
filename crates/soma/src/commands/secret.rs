@@ -36,7 +36,10 @@ pub enum SecretCommands {
     },
 }
 
-pub async fn cmd_secret(params: SecretParams, _cli_config: &mut CliConfig) -> Result<(), CommonError> {
+pub async fn cmd_secret(
+    params: SecretParams,
+    _cli_config: &mut CliConfig,
+) -> Result<(), CommonError> {
     match params.command {
         SecretCommands::Set { key, value } => {
             cmd_secret_set(key, value, &params.api_url, params.timeout_secs).await
@@ -100,15 +103,13 @@ pub async fn cmd_secret_set(
     if let Some(secret) = existing_secret {
         // Update existing secret
         info!("Updating existing secret: {}", key);
-        let update_req = models::UpdateSecretRequest {
-            raw_value: value,
-        };
+        let update_req = models::UpdateSecretRequest { raw_value: value };
         default_api::update_secret(&api_config, &secret.id.to_string(), update_req)
             .await
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to update secret '{key}': {e:?}"))
             })?;
-        println!("Updated secret: {}", key);
+        println!("Updated secret: {key}");
     } else {
         // Create new secret
         info!("Creating new secret: {}", key);
@@ -122,7 +123,7 @@ pub async fn cmd_secret_set(
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to create secret '{key}': {e:?}"))
             })?;
-        println!("Created secret: {}", key);
+        println!("Created secret: {key}");
     }
 
     Ok(())
@@ -154,11 +155,11 @@ pub async fn cmd_secret_unset(
                 .map_err(|e| {
                     CommonError::Unknown(anyhow::anyhow!("Failed to delete secret '{key}': {e:?}"))
                 })?;
-            println!("Deleted secret: {}", key);
+            println!("Deleted secret: {key}");
             Ok(())
         }
         None => Err(CommonError::NotFound {
-            msg: format!("Secret with key '{}' not found", key),
+            msg: format!("Secret with key '{key}' not found"),
             lookup_id: key,
             source: None,
         }),

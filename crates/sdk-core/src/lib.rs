@@ -133,7 +133,10 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         &self,
         request: Request<sdk_proto::SetSecretsRequest>,
     ) -> Result<Response<sdk_proto::SetSecretsResponse>, Status> {
-        info!("set_secrets called with {} secrets", request.get_ref().secrets.len());
+        info!(
+            "set_secrets called with {} secrets",
+            request.get_ref().secrets.len()
+        );
 
         let proto_req = request.into_inner();
         let secrets: Vec<Secret> = proto_req.secrets.into_iter().map(Into::into).collect();

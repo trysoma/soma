@@ -77,8 +77,8 @@ pub async fn create_secret<R: SecretRepositoryLike>(
         key: request.key.clone(),
         encrypted_secret: encrypted_secret.0.clone(),
         dek_alias: request.dek_alias.clone(),
-        created_at: now.clone(),
-        updated_at: now.clone(),
+        created_at: now,
+        updated_at: now,
     };
 
     let create_params = CreateSecret {
@@ -86,7 +86,7 @@ pub async fn create_secret<R: SecretRepositoryLike>(
         key: request.key,
         encrypted_secret: encrypted_secret.0,
         dek_alias: request.dek_alias,
-        created_at: now.clone(),
+        created_at: now,
         updated_at: now,
     };
 
@@ -114,7 +114,7 @@ pub async fn update_secret<R: SecretRepositoryLike>(
     // First verify the secret exists and get its dek_alias
     let existing = repository.get_secret_by_id(&id).await?;
     let existing = existing.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Secret with id {} not found", id),
+        msg: format!("Secret with id {id} not found"),
         lookup_id: id.to_string(),
         source: None,
     })?;
@@ -133,7 +133,7 @@ pub async fn update_secret<R: SecretRepositoryLike>(
         id: id.clone(),
         encrypted_secret: encrypted_secret.0.clone(),
         dek_alias: existing.dek_alias.clone(),
-        updated_at: now.clone(),
+        updated_at: now,
     };
 
     repository.update_secret(&update_params).await?;
@@ -167,7 +167,7 @@ pub async fn delete_secret<R: SecretRepositoryLike>(
     // First verify the secret exists and get its key
     let existing = repository.get_secret_by_id(&id).await?;
     let existing = existing.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Secret with id {} not found", id),
+        msg: format!("Secret with id {id} not found"),
         lookup_id: id.to_string(),
         source: None,
     })?;
@@ -194,7 +194,7 @@ pub async fn get_secret_by_id<R: SecretRepositoryLike>(
 ) -> Result<GetSecretResponse, CommonError> {
     let secret = repository.get_secret_by_id(&id).await?;
     let secret = secret.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Secret with id {} not found", id),
+        msg: format!("Secret with id {id} not found"),
         lookup_id: id.to_string(),
         source: None,
     })?;
@@ -208,7 +208,7 @@ pub async fn get_secret_by_key<R: SecretRepositoryLike>(
 ) -> Result<GetSecretResponse, CommonError> {
     let secret = repository.get_secret_by_key(&key).await?;
     let secret = secret.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Secret with key {} not found", key),
+        msg: format!("Secret with key {key} not found"),
         lookup_id: key.clone(),
         source: None,
     })?;
@@ -250,8 +250,8 @@ pub async fn import_secret<R: SecretRepositoryLike>(
         key: request.key.clone(),
         encrypted_secret: request.encrypted_value.clone(),
         dek_alias: request.dek_alias.clone(),
-        created_at: now.clone(),
-        updated_at: now.clone(),
+        created_at: now,
+        updated_at: now,
     };
 
     let create_params = CreateSecret {
@@ -259,7 +259,7 @@ pub async fn import_secret<R: SecretRepositoryLike>(
         key: request.key,
         encrypted_secret: request.encrypted_value,
         dek_alias: request.dek_alias,
-        created_at: now.clone(),
+        created_at: now,
         updated_at: now,
     };
 
@@ -497,8 +497,8 @@ mod tests {
         // Create multiple secrets
         for i in 0..3 {
             let create_request = CreateSecretRequest {
-                key: format!("secret-key-{}", i),
-                raw_value: format!("secret-value-{}", i),
+                key: format!("secret-key-{i}"),
+                raw_value: format!("secret-value-{i}"),
                 dek_alias: encryption_setup.dek_alias.clone(),
             };
 
@@ -537,7 +537,7 @@ mod tests {
         assert!(result.is_err());
         match result.unwrap_err() {
             CommonError::NotFound { .. } => {}
-            e => panic!("Expected NotFound error, got: {:?}", e),
+            e => panic!("Expected NotFound error, got: {e:?}"),
         }
     }
 
@@ -564,7 +564,10 @@ mod tests {
         assert!(fetched.is_ok());
         let fetched_secret = fetched.unwrap();
         assert_eq!(fetched_secret.key, "my-imported-secret");
-        assert_eq!(fetched_secret.encrypted_secret, "pre-encrypted-value-from-yaml");
+        assert_eq!(
+            fetched_secret.encrypted_secret,
+            "pre-encrypted-value-from-yaml"
+        );
         assert_eq!(fetched_secret.dek_alias, "test-alias");
     }
 

@@ -2396,8 +2396,8 @@ mod tests {
         for i in 0..5 {
             sleep(Duration::from_millis(10)); // Ensure different timestamps
             let secret_id = WrappedUuidV4::new();
-            let key = format!("secret-key-{}", i);
-            let encrypted_secret = format!("encrypted-{}", i);
+            let key = format!("secret-key-{i}");
+            let encrypted_secret = format!("encrypted-{i}");
             let dek_alias = "dek-1".to_string();
             let created_at = WrappedChronoDateTime::now();
             let updated_at = WrappedChronoDateTime::now();
