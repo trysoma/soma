@@ -24,7 +24,17 @@ pub enum EncryptionKeyEvent {
         from_envelope_key: EnvelopeEncryptionKey,
         to_envelope_key: EnvelopeEncryptionKey,
     },
-    DataEncryptionKeyAliasChanged, // Alias created, updated, or deleted
+    DataEncryptionKeyAliasAdded {
+        alias: String,
+        dek_id: String,
+    },
+    DataEncryptionKeyAliasRemoved {
+        alias: String,
+    },
+    DataEncryptionKeyAliasUpdated {
+        alias: String,
+        dek_id: String,
+    },
 }
 
 pub type EncryptionKeyEventSender = tokio::sync::broadcast::Sender<EncryptionKeyEvent>;

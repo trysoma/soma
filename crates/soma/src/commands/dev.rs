@@ -226,8 +226,11 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     .await?;
     info!("Bridge sync completed");
 
-    // Reload soma definition
-    soma_definition.reload().await?;
+    // Reload soma definition (with error handling to avoid crashes on race conditions)
+    if let Err(e) = soma_definition.reload().await {
+        error!("Failed to reload soma definition after bridge sync: {:?}. Continuing with cached definition.", e);
+        // Don't fail the entire process - the cached definition should still be valid
+    }
 
     // Shutdown monitoring thread - handles both unexpected exits and graceful shutdown
     let system_shutdown_signal_trigger_clone = system_shutdown_signal_trigger.clone();

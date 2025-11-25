@@ -810,6 +810,17 @@ pub fn get_or_create_local_envelope_encryption_key(
     let mut key_bytes = vec![0u8; 32];
     rand::thread_rng().fill_bytes(&mut key_bytes);
 
+    // Ensure parent directory exists
+    if let Some(parent) = file_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!(
+                "Failed to create parent directory for KEK file at {}: {}",
+                file_path.display(),
+                e
+            ))
+        })?;
+    }
+
     // Write the key to file
     std::fs::write(file_path, &key_bytes).map_err(|e| {
         CommonError::Unknown(anyhow::anyhow!(

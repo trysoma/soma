@@ -211,7 +211,7 @@ runs:
         if [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
           if grep -q "^SF:" "$OUTPUT_FILE"; then
             mkdir -p "$HTML_DIR"
-            genhtml "$OUTPUT_FILE" --output-directory "$HTML_DIR" --ignore-errors source --prefix $(pwd)
+            genhtml "$OUTPUT_FILE" --output-directory "$HTML_DIR" --ignore-errors source,range --synthesize-missing --prefix $(pwd)
             echo "✓ HTML report generated at $HTML_DIR/index.html"
           else
             echo "⚠ Coverage file exists but contains no valid coverage records"

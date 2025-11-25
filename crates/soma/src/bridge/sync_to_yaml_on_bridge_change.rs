@@ -269,10 +269,18 @@ async fn handle_encryption_event(
             // This is a complex operation - for now just log it
             // The new DEK should have been added via DataEncryptionKeyAdded event
         }
-        EncryptionKeyEvent::DataEncryptionKeyAliasChanged => {
-            info!("DEK alias changed");
-            // This is a generic event - we'd need more info to update properly
-            // Individual alias add/remove events would be more useful here
+        EncryptionKeyEvent::DataEncryptionKeyAliasAdded { alias, dek_id } => {
+            info!("DEK alias added: {:?} -> {:?}", alias, dek_id);
+            soma_definition.add_alias(alias, dek_id).await?;
+        }
+        EncryptionKeyEvent::DataEncryptionKeyAliasRemoved { alias } => {
+            info!("DEK alias removed: {:?}", alias);
+            soma_definition.remove_alias(alias).await?;
+        }
+        EncryptionKeyEvent::DataEncryptionKeyAliasUpdated { alias, dek_id } => {
+            info!("DEK alias updated: {:?} -> {:?}", alias, dek_id);
+            // HashMap.insert overwrites existing entries, so add_alias works for updates
+            soma_definition.add_alias(alias, dek_id).await?;
         }
     }
     Ok(())

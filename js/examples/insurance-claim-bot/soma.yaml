@@ -1,1 +1,9 @@
 version: 0.0.2
+encryption:
+  envelope_keys:
+    /Users/danielblignaut/Development/soma/soma/./js/examples/insurance-claim-bot/.soma/envelope-key.bin:
+      type: local
+      location: /Users/danielblignaut/Development/soma/soma/./js/examples/insurance-claim-bot/.soma/envelope-key.bin
+      deks:
+        a32657c2-d279-4580-82c8-2b5a08250d63:
+          encrypted_key: K1RzyxeIgxNF8FcG/vkhMnGE5Ic/g8hDQeP1/VO0rFgSEuB+DcSMJiY3gNQ/Y8HbIy3/P3Kas5BujGyO

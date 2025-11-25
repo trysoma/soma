@@ -71,7 +71,10 @@ where
     cache.invalidate_cache(&alias_name);
 
     // Publish event to trigger cache refresh
-    let _ = on_change_tx.send(EncryptionKeyEvent::DataEncryptionKeyAliasChanged);
+    let _ = on_change_tx.send(EncryptionKeyEvent::DataEncryptionKeyAliasAdded {
+        alias: alias_name,
+        dek_id: dek_id,
+    });
 
     Ok(alias)
 }
@@ -101,7 +104,9 @@ where
     cache.invalidate_cache(&dek_id);
 
     // Publish event to trigger cache refresh
-    let _ = on_change_tx.send(EncryptionKeyEvent::DataEncryptionKeyAliasChanged);
+    let _ = on_change_tx.send(EncryptionKeyEvent::DataEncryptionKeyAliasRemoved {
+        alias: alias_name,
+    });
 
     Ok(())
 }
@@ -148,7 +153,10 @@ where
     cache.invalidate_cache(&new_dek_id);
 
     // Publish event to trigger cache refresh
-    let _ = on_change_tx.send(EncryptionKeyEvent::DataEncryptionKeyAliasChanged);
+    let _ = on_change_tx.send(EncryptionKeyEvent::DataEncryptionKeyAliasUpdated {
+        alias: alias_name.clone(),
+        dek_id: new_dek_id,
+    });
 
     let updated_alias = DataEncryptionKeyAlias {
         alias: alias_name,
@@ -180,9 +188,11 @@ where
     }
 
     // Neither alias nor ID found
-    Err(CommonError::Unknown(anyhow::anyhow!(
-        "Data encryption key not found with alias or ID: {alias_or_id}"
-    )))
+    Err(CommonError::NotFound {
+        msg: "Data encryption key not found with alias or ID".to_string(),
+        lookup_id: alias_or_id.to_string(),
+        source: None,
+    })
 }
 
 /// List all aliases for a specific DEK
