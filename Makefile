@@ -151,7 +151,7 @@ lint: lint-rs lint-js ## Run all linters (Rust + JS)
 
 lint-rs: ## Run Rust linters (clippy + fmt check)
 	@echo "Running cargo clippy..."
-	cargo clippy --all-targets --all-features -- -D warnings
+	cargo clippy --all-targets --all-features -- -D warnings --locked
 	@echo "Checking Rust formatting..."
 	cargo fmt --all -- --check
 	@echo "✓ Rust linters passed"
@@ -181,7 +181,7 @@ lint-fix: lint-fix-rs lint-fix-js ## Run all linters with auto-fix (Rust + JS)
 
 lint-fix-rs: ## Run Rust linters with auto-fix
 	@echo "Running cargo clippy with --fix..."
-	cargo clippy --all-targets --all-features --fix --allow-dirty --allow-staged
+	cargo clippy --all-targets --all-features --fix --allow-dirty --allow-staged --locked
 	@echo "Formatting Rust code..."
 	cargo fmt --all
 	@echo "✓ Rust linters completed"

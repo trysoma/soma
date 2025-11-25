@@ -259,8 +259,8 @@ async fn handle_encryption_event(
         EncryptionKeyEvent::DataEncryptionKeyMigrated {
             old_dek_id,
             new_dek_id,
-            from_envelope_key,
-            to_envelope_key,
+            from_envelope_key: _,
+            to_envelope_key: _,
         } => {
             info!(
                 "Data encryption key migrated: {:?} -> {:?}",
