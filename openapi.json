@@ -2559,7 +2559,7 @@
             "$ref": "#/components/schemas/EncryptedDataEncryptionKey"
           },
           "envelope_encryption_key_id": {
-            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+            "$ref": "#/components/schemas/EnvelopeEncryptionKey"
           },
           "id": {
             "type": "string"
@@ -2582,7 +2582,7 @@
             "$ref": "#/components/schemas/WrappedChronoDateTime"
           },
           "envelope_encryption_key_id": {
-            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+            "$ref": "#/components/schemas/EnvelopeEncryptionKey"
           },
           "id": {
             "type": "string"
@@ -2666,11 +2666,11 @@
             "type": "string"
           },
           "envelope_encryption_key_id": {
-            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+            "$ref": "#/components/schemas/EnvelopeEncryptionKey"
           }
         }
       },
-      "EnvelopeEncryptionKeyId": {
+      "EnvelopeEncryptionKey": {
         "oneOf": [
           {
             "type": "object",
@@ -3053,10 +3053,10 @@
         ],
         "properties": {
           "from_envelope_encryption_key_id": {
-            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+            "$ref": "#/components/schemas/EnvelopeEncryptionKey"
           },
           "to_envelope_encryption_key_id": {
-            "$ref": "#/components/schemas/EnvelopeEncryptionKeyId"
+            "$ref": "#/components/schemas/EnvelopeEncryptionKey"
           }
         }
       },

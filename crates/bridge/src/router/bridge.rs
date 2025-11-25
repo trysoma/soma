@@ -314,13 +314,13 @@ async fn route_create_data_encryption_key(
             // For AWS KMS, we have ARN and region from the DEK
             // For local, we need to load the key bytes from the file
             let key_contents = match &dek.envelope_encryption_key_id {
-                crate::logic::encryption::EnvelopeEncryptionKeyId::AwsKms { arn, region } => {
+                crate::logic::encryption::EnvelopeEncryptionKey::AwsKms { arn, region } => {
                     EnvelopeEncryptionKeyContents::AwsKms {
                         arn: arn.clone(),
                         region: region.clone(),
                     }
                 }
-                crate::logic::encryption::EnvelopeEncryptionKeyId::Local { location } => {
+                crate::logic::encryption::EnvelopeEncryptionKey::Local { location } => {
                     match encryption::get_or_create_local_encryption_key(
                         &std::path::PathBuf::from(location),
                     ) {
@@ -1255,11 +1255,11 @@ fn get_envelope_key_identifier(key: &EnvelopeEncryptionKeyContents) -> String {
     }
 }
 
-/// Get identifier (ARN or location) from EnvelopeEncryptionKeyId
-fn get_envelope_key_id_identifier(key_id: &crate::logic::encryption::EnvelopeEncryptionKeyId) -> String {
+/// Get identifier (ARN or location) from EnvelopeEncryptionKey
+fn get_envelope_key_id_identifier(key_id: &crate::logic::encryption::EnvelopeEncryptionKey) -> String {
     match key_id {
-        crate::logic::encryption::EnvelopeEncryptionKeyId::AwsKms { arn, .. } => arn.clone(),
-        crate::logic::encryption::EnvelopeEncryptionKeyId::Local { location } => location.clone(),
+        crate::logic::encryption::EnvelopeEncryptionKey::AwsKms { arn, .. } => arn.clone(),
+        crate::logic::encryption::EnvelopeEncryptionKey::Local { location } => location.clone(),
     }
 }
 
@@ -1406,10 +1406,10 @@ impl BridgeService {
             })
     }
 
-    /// Get envelope encryption key contents by EnvelopeEncryptionKeyId
+    /// Get envelope encryption key contents by EnvelopeEncryptionKey
     pub fn get_envelope_encryption_key_contents_by_id(
         &self,
-        key_id: &crate::logic::encryption::EnvelopeEncryptionKeyId,
+        key_id: &crate::logic::encryption::EnvelopeEncryptionKey,
     ) -> Result<EnvelopeEncryptionKeyContents, CommonError> {
         let identifier = get_envelope_key_id_identifier(key_id);
         self.get_envelope_encryption_key_contents(&identifier)

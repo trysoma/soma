@@ -179,14 +179,14 @@ pub async fn sync_on_bridge_change(
                         data_encryption_key.id,
                         data_encryption_key.encrypted_data_encryption_key.0,
                         match data_encryption_key.envelope_encryption_key_id {
-                            bridge::logic::EnvelopeEncryptionKeyId::AwsKms { arn, region } => {
-                                shared::soma_agent_definition::EnvelopeEncryptionKeyId::AwsKms {
+                            bridge::logic::EnvelopeEncryptionKey::AwsKms { arn, region } => {
+                                shared::soma_agent_definition::EnvelopeEncryptionKey::AwsKms {
                                     arn,
                                     region,
                                 }
                             }
-                            bridge::logic::EnvelopeEncryptionKeyId::Local { location } => {
-                                shared::soma_agent_definition::EnvelopeEncryptionKeyId::Local {
+                            bridge::logic::EnvelopeEncryptionKey::Local { location } => {
+                                shared::soma_agent_definition::EnvelopeEncryptionKey::Local {
                                     location,
                                 }
                             }

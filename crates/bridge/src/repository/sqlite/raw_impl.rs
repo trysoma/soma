@@ -350,16 +350,66 @@ impl TryFrom<Row_get_function_instance_with_credentials>
     }
 }
 
-impl TryFrom<Row_get_data_encryption_key_by_id> for crate::logic::DataEncryptionKey {
+// Conversion from repository EnvelopeEncryptionKey row types to logic EnvelopeEncryptionKey enum
+use crate::logic::encryption::EnvelopeEncryptionKey as LogicEnvelopeEncryptionKey;
+use super::{
+    Row_get_envelope_encryption_key_by_id,
+    Row_get_envelope_encryption_keys,
+};
+
+impl TryFrom<Row_get_envelope_encryption_key_by_id> for LogicEnvelopeEncryptionKey {
     type Error = CommonError;
-    fn try_from(row: Row_get_data_encryption_key_by_id) -> Result<Self, Self::Error> {
-        Ok(crate::logic::DataEncryptionKey {
-            id: row.id,
-            envelope_encryption_key_id: row.envelope_encryption_key_id,
-            encrypted_data_encryption_key: row.encryption_key,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
-        })
+
+    fn try_from(row: Row_get_envelope_encryption_key_by_id) -> Result<Self, Self::Error> {
+        match row.key_type.as_str() {
+            "aws_kms" => {
+                let arn = row.aws_arn.ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("AWS KMS key missing ARN"))
+                })?;
+                let region = row.aws_region.ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("AWS KMS key missing region"))
+                })?;
+                Ok(LogicEnvelopeEncryptionKey::AwsKms { arn, region })
+            }
+            "local" => {
+                let location = row.local_location.ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("Local key missing location"))
+                })?;
+                Ok(LogicEnvelopeEncryptionKey::Local { location })
+            }
+            _ => Err(CommonError::Unknown(anyhow::anyhow!(
+                "Invalid key_type: {}",
+                row.key_type
+            ))),
+        }
+    }
+}
+
+impl TryFrom<Row_get_envelope_encryption_keys> for LogicEnvelopeEncryptionKey {
+    type Error = CommonError;
+
+    fn try_from(row: Row_get_envelope_encryption_keys) -> Result<Self, Self::Error> {
+        match row.key_type.as_str() {
+            "aws_kms" => {
+                let arn = row.aws_arn.ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("AWS KMS key missing ARN"))
+                })?;
+                let region = row.aws_region.ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("AWS KMS key missing region"))
+                })?;
+                Ok(LogicEnvelopeEncryptionKey::AwsKms { arn, region })
+            }
+            "local" => {
+                let location = row.local_location.ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("Local key missing location"))
+                })?;
+                Ok(LogicEnvelopeEncryptionKey::Local { location })
+            }
+            _ => Err(CommonError::Unknown(anyhow::anyhow!(
+                "Invalid key_type: {}",
+                row.key_type
+            ))),
+        }
     }
 }
 

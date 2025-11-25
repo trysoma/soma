@@ -12,7 +12,8 @@ pub use generated::*;
 use crate::logic::credential::{
     BrokerState, ResourceServerCredentialSerialized, UserCredentialSerialized,
 };
-use crate::logic::encryption::{DataEncryptionKey, DataEncryptionKeyListItem};
+use crate::logic::encryption::{DataEncryptionKey, DataEncryptionKeyListItem, EnvelopeEncryptionKey as LogicEnvelopeEncryptionKey};
+use crate::repository::CreateEnvelopeEncryptionKey;
 use crate::logic::instance::{
     FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
     ProviderInstanceSerializedWithCredentials, ProviderInstanceSerializedWithFunctions,
@@ -548,7 +549,157 @@ impl ProviderRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
+        // Convert the row to DataEncryptionKey, converting envelope_encryption_key_id string to EnvelopeEncryptionKey
+        if let Some(row) = result {
+            // Get the envelope encryption key to determine the type - use generated function directly to avoid recursion
+            use crate::repository::sqlite::generated::get_envelope_encryption_key_by_id;
+            use crate::repository::sqlite::generated::get_envelope_encryption_key_by_id_params;
+
+            let sqlc_params = get_envelope_encryption_key_by_id_params {
+                id: &row.envelope_encryption_key_id,
+            };
+
+            let envelope_key_result = get_envelope_encryption_key_by_id(&self.conn, sqlc_params)
+                .await
+                .context("Failed to get envelope encryption key by id")
+                .map_err(|e| CommonError::Repository {
+                    msg: e.to_string(),
+                    source: Some(e),
+                })?;
+
+            let envelope_key_id = match envelope_key_result {
+                Some(key) => {
+                    if key.key_type == "aws_kms" {
+                        LogicEnvelopeEncryptionKey::AwsKms {
+                            arn: key.aws_arn.ok_or_else(|| {
+                                CommonError::Repository {
+                                    msg: "AWS KMS key missing ARN".to_string(),
+                                    source: None,
+                                }
+                            })?,
+                            region: key.aws_region.ok_or_else(|| {
+                                CommonError::Repository {
+                                    msg: "AWS KMS key missing region".to_string(),
+                                    source: None,
+                                }
+                            })?,
+                        }
+                    } else {
+                        LogicEnvelopeEncryptionKey::Local {
+                            location: key.local_location.ok_or_else(|| {
+                                CommonError::Repository {
+                                    msg: "Local key missing location".to_string(),
+                                    source: None,
+                                }
+                            })?,
+                        }
+                    }
+                }
+                None => {
+                    return Err(CommonError::Repository {
+                        msg: format!(
+                            "Envelope encryption key {} not found",
+                            row.envelope_encryption_key_id
+                        ),
+                        source: None,
+                    });
+                }
+            };
+            Ok(Some(DataEncryptionKey {
+                id: row.id,
+                envelope_encryption_key_id: envelope_key_id,
+                encrypted_data_encryption_key: row.encryption_key,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn create_envelope_encryption_key(
+        &self,
+        params: &CreateEnvelopeEncryptionKey,
+    ) -> Result<(), CommonError> {
+        use crate::repository::sqlite::generated::create_envelope_encryption_key;
+        use crate::repository::sqlite::generated::create_envelope_encryption_key_params;
+
+        let sqlc_params = create_envelope_encryption_key_params {
+            id: &params.id,
+            key_type: &params.key_type,
+            local_location: &params.local_location,
+            aws_arn: &params.aws_arn,
+            aws_region: &params.aws_region,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+        };
+
+        create_envelope_encryption_key(&self.conn, sqlc_params)
+            .await
+            .context("Failed to create envelope encryption key")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn get_envelope_encryption_key_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<LogicEnvelopeEncryptionKey>, CommonError> {
+        use crate::repository::sqlite::generated::get_envelope_encryption_key_by_id;
+        use crate::repository::sqlite::generated::get_envelope_encryption_key_by_id_params;
+
+        let sqlc_params = get_envelope_encryption_key_by_id_params {
+            id: &id.to_string(),
+        };
+
+        let result = get_envelope_encryption_key_by_id(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get envelope encryption key by id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
         result.map(|row| row.try_into()).transpose()
+    }
+
+    async fn list_envelope_encryption_keys(
+        &self,
+    ) -> Result<Vec<LogicEnvelopeEncryptionKey>, CommonError> {
+        use crate::repository::sqlite::generated::get_envelope_encryption_keys;
+
+        let rows = get_envelope_encryption_keys(&self.conn)
+            .await
+            .context("Failed to list envelope encryption keys")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        rows.into_iter()
+            .map(|row| row.try_into())
+            .collect()
+    }
+
+    async fn delete_envelope_encryption_key(&self, id: &str) -> Result<(), CommonError> {
+        use crate::repository::sqlite::generated::delete_envelope_encryption_key;
+        use crate::repository::sqlite::generated::delete_envelope_encryption_key_params;
+
+        let sqlc_params = delete_envelope_encryption_key_params {
+            id: &id.to_string(),
+        };
+
+        delete_envelope_encryption_key(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete envelope encryption key")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
     }
 
     async fn delete_data_encryption_key(&self, id: &str) -> Result<(), CommonError> {
@@ -605,15 +756,71 @@ impl ProviderRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Vec<DataEncryptionKeyListItem> = rows
-            .into_iter()
-            .map(|row| DataEncryptionKeyListItem {
+        // Convert envelope_encryption_key_id string to EnvelopeEncryptionKey for each item
+        let mut items = Vec::new();
+        for row in rows {
+            // Get the envelope encryption key to determine the type
+            use crate::repository::sqlite::generated::get_envelope_encryption_key_by_id;
+            use crate::repository::sqlite::generated::get_envelope_encryption_key_by_id_params;
+
+            let sqlc_params = get_envelope_encryption_key_by_id_params {
+                id: &row.envelope_encryption_key_id,
+            };
+
+            let envelope_key_result = get_envelope_encryption_key_by_id(&self.conn, sqlc_params)
+                .await
+                .context("Failed to get envelope encryption key by id")
+                .map_err(|e| CommonError::Repository {
+                    msg: e.to_string(),
+                    source: Some(e),
+                })?;
+
+            let envelope_key_id = match envelope_key_result {
+                Some(key) => {
+                    if key.key_type == "aws_kms" {
+                        LogicEnvelopeEncryptionKey::AwsKms {
+                            arn: key.aws_arn.ok_or_else(|| {
+                                CommonError::Repository {
+                                    msg: "AWS KMS key missing ARN".to_string(),
+                                    source: None,
+                                }
+                            })?,
+                            region: key.aws_region.ok_or_else(|| {
+                                CommonError::Repository {
+                                    msg: "AWS KMS key missing region".to_string(),
+                                    source: None,
+                                }
+                            })?,
+                        }
+                    } else {
+                        LogicEnvelopeEncryptionKey::Local {
+                            location: key.local_location.ok_or_else(|| {
+                                CommonError::Repository {
+                                    msg: "Local key missing location".to_string(),
+                                    source: None,
+                                }
+                            })?,
+                        }
+                    }
+                }
+                None => {
+                    return Err(CommonError::Repository {
+                        msg: format!(
+                            "Envelope encryption key {} not found",
+                            row.envelope_encryption_key_id
+                        ),
+                        source: None,
+                    });
+                }
+            };
+
+            items.push(DataEncryptionKeyListItem {
                 id: row.id,
-                envelope_encryption_key_id: row.envelope_encryption_key_id,
+                envelope_encryption_key_id: envelope_key_id,
                 created_at: row.created_at,
                 updated_at: row.updated_at,
-            })
-            .collect();
+            });
+        }
 
         Ok(PaginatedResponse::from_items_with_extra(
             items,
@@ -1061,7 +1268,7 @@ impl encryption::DataEncryptionKeyRepositoryLike for Repository {
 mod tests {
     use super::*;
     use crate::logic::{
-        DataEncryptionKey, EncryptedDataEncryptionKey, EnvelopeEncryptionKeyId, Metadata,
+        DataEncryptionKey, EncryptedDataEncryptionKey, EnvelopeEncryptionKey, Metadata,
         ProviderInstanceSerialized, credential::BrokerAction, instance::FunctionInstanceSerialized,
     };
     use crate::repository::{
@@ -1078,7 +1285,7 @@ mod tests {
         let dek_id = uuid::Uuid::new_v4().to_string();
         let dek = DataEncryptionKey {
             id: dek_id.clone(),
-            envelope_encryption_key_id: EnvelopeEncryptionKeyId::AwsKms {
+            envelope_encryption_key_id: EnvelopeEncryptionKey::AwsKms {
                 arn: "arn:aws:kms:us-east-1:123456789012:key/test-key".to_string(),
                 region: "us-east-1".to_string(),
             },
@@ -1860,7 +2067,7 @@ mod tests {
         let now = WrappedChronoDateTime::now();
         let dek = DataEncryptionKey {
             id: uuid::Uuid::new_v4().to_string(),
-            envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
+            envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKey::AwsKms {
                 arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
                     .to_string(),
                 region: "us-east-1".to_string(),
@@ -1890,13 +2097,13 @@ mod tests {
             dek.encrypted_data_encryption_key.0
         );
         match retrieved.envelope_encryption_key_id {
-            crate::logic::EnvelopeEncryptionKeyId::AwsKms { arn, region: _ } => {
+            crate::logic::EnvelopeEncryptionKey::AwsKms { arn, region: _ } => {
                 assert_eq!(
                     arn,
                     "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
                 );
             }
-            crate::logic::EnvelopeEncryptionKeyId::Local { .. } => {
+            crate::logic::EnvelopeEncryptionKey::Local { .. } => {
                 panic!("Expected AwsKms variant");
             }
         }
@@ -1912,7 +2119,7 @@ mod tests {
         let now = WrappedChronoDateTime::now();
         let dek = DataEncryptionKey {
             id: uuid::Uuid::new_v4().to_string(),
-            envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
+            envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKey::AwsKms {
                 arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
                     .to_string(),
                 region: "us-east-1".to_string(),
@@ -1974,7 +2181,7 @@ mod tests {
         for i in 0..3 {
             let dek = DataEncryptionKey {
                 id: format!("dek-{i}"),
-                envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
+                envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKey::AwsKms {
                     arn: format!("arn:aws:kms:us-east-1:123456789012:key/key-{i}"),
                     region: "us-east-1".to_string(),
                 },
@@ -2029,7 +2236,7 @@ mod tests {
             let now = WrappedChronoDateTime::now();
             let dek = DataEncryptionKey {
                 id: format!("dek-{i}"),
-                envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
+                envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKey::AwsKms {
                     arn: format!("arn:aws:kms:us-east-1:123456789012:key/key-{i}"),
                     region: "us-east-1".to_string(),
                 },
@@ -2102,7 +2309,7 @@ mod tests {
         let now = WrappedChronoDateTime::now();
         let dek = DataEncryptionKey {
             id: uuid::Uuid::new_v4().to_string(),
-            envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKeyId::AwsKms {
+            envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKey::AwsKms {
                 arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
                     .to_string(),
                 region: "us-east-1".to_string(),
@@ -2482,7 +2689,7 @@ mod tests {
         let now = shared::primitives::WrappedChronoDateTime::now();
         let dek = CreateDataEncryptionKey {
             id: "test-dek".to_string(),
-            envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKeyId::Local {
+            envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKey::Local {
                 location: "test".to_string(),
             },
             encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
@@ -2600,7 +2807,7 @@ mod tests {
         let now = shared::primitives::WrappedChronoDateTime::now();
         let dek = CreateDataEncryptionKey {
             id: "test-dek".to_string(),
-            envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKeyId::Local {
+            envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKey::Local {
                 location: "test".to_string(),
             },
             encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
@@ -2748,7 +2955,7 @@ mod tests {
         let now = shared::primitives::WrappedChronoDateTime::now();
         let dek = CreateDataEncryptionKey {
             id: "test-dek".to_string(),
-            envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKeyId::Local {
+            envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKey::Local {
                 location: "test".to_string(),
             },
             encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(

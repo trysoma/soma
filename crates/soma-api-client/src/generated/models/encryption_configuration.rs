@@ -16,11 +16,11 @@ pub struct EncryptionConfiguration {
     #[serde(rename = "encrypted_data_encryption_key")]
     pub encrypted_data_encryption_key: String,
     #[serde(rename = "envelope_encryption_key_id")]
-    pub envelope_encryption_key_id: Box<models::EnvelopeEncryptionKeyId>,
+    pub envelope_encryption_key_id: Box<models::EnvelopeEncryptionKey>,
 }
 
 impl EncryptionConfiguration {
-    pub fn new(encrypted_data_encryption_key: String, envelope_encryption_key_id: models::EnvelopeEncryptionKeyId) -> EncryptionConfiguration {
+    pub fn new(encrypted_data_encryption_key: String, envelope_encryption_key_id: models::EnvelopeEncryptionKey) -> EncryptionConfiguration {
         EncryptionConfiguration {
             encrypted_data_encryption_key,
             envelope_encryption_key_id: Box::new(envelope_encryption_key_id),

@@ -33,7 +33,7 @@ pub struct BridgeEncryptionConfig(pub HashMap<String, EncryptionConfiguration>);
 // TODO: this is duplicated in the bridge crate
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type")]
-pub enum EnvelopeEncryptionKeyId {
+pub enum EnvelopeEncryptionKey {
     AwsKms { arn: String, region: String },
     Local { location: String },
 }
@@ -42,7 +42,7 @@ pub enum EnvelopeEncryptionKeyId {
 #[serde(rename_all = "snake_case")]
 pub struct EncryptionConfiguration {
     pub encrypted_data_encryption_key: String,
-    pub envelope_encryption_key_id: EnvelopeEncryptionKeyId,
+    pub envelope_encryption_key_id: EnvelopeEncryptionKey,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
@@ -77,7 +77,7 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
         &self,
         key_id: String,
         key: String,
-        envelope_encryption_key_id: EnvelopeEncryptionKeyId,
+        envelope_encryption_key_id: EnvelopeEncryptionKey,
     ) -> Result<(), CommonError>;
     async fn list_data_encryption_keys(&self) -> Result<Vec<EncryptionConfiguration>, CommonError>;
     async fn remove_data_encryption_key(&self, key_id: String) -> Result<(), CommonError>;
@@ -168,7 +168,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         &self,
         key_id: String,
         key: String,
-        envelope_encryption_key_id: EnvelopeEncryptionKeyId,
+        envelope_encryption_key_id: EnvelopeEncryptionKey,
     ) -> Result<(), CommonError> {
         let mut definition = self.cached_definition.lock().await;
         if definition.bridge.is_none() {

@@ -55,9 +55,18 @@ impl libsql::FromValue for EncryptedDataEncryptionKey {
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type")]
-pub enum EnvelopeEncryptionKeyId {
+pub enum EnvelopeEncryptionKey {
     AwsKms { arn: String, region: String },
     Local { location: String },
+}
+
+impl EnvelopeEncryptionKey {
+    pub fn id(&self) -> String {
+        match self {
+            EnvelopeEncryptionKey::AwsKms { arn, region } => format!("aws_kms_{}", arn),
+            EnvelopeEncryptionKey::Local { location } => format!("local_{}", location),
+        }
+    }
 }
 
 #[derive(Clone, zeroize::Zeroize, zeroize::ZeroizeOnDrop)]
@@ -66,11 +75,11 @@ pub enum EnvelopeEncryptionKeyContents {
     Local { location: String, key_bytes: Vec<u8> },
 }
 
-impl From<EnvelopeEncryptionKeyContents> for EnvelopeEncryptionKeyId {
+impl From<EnvelopeEncryptionKeyContents> for EnvelopeEncryptionKey {
     fn from(contents: EnvelopeEncryptionKeyContents) -> Self {
         match &contents {
             EnvelopeEncryptionKeyContents::AwsKms { arn, region } => {
-                EnvelopeEncryptionKeyId::AwsKms { 
+                EnvelopeEncryptionKey::AwsKms { 
                     arn: arn.clone(),
                     region: region.clone(),
                 }
@@ -78,14 +87,14 @@ impl From<EnvelopeEncryptionKeyContents> for EnvelopeEncryptionKeyId {
             EnvelopeEncryptionKeyContents::Local {
                 location,
                 key_bytes: _,
-            } => EnvelopeEncryptionKeyId::Local {
+            } => EnvelopeEncryptionKey::Local {
                 location: location.clone(),
             },
         }
     }
 }
 
-impl TryInto<libsql::Value> for EnvelopeEncryptionKeyId {
+impl TryInto<libsql::Value> for EnvelopeEncryptionKey {
     type Error = Box<dyn std::error::Error + Send + Sync>;
     fn try_into(self) -> Result<libsql::Value, Self::Error> {
         let json_value = serde_json::to_value(&self)?;
@@ -94,15 +103,15 @@ impl TryInto<libsql::Value> for EnvelopeEncryptionKeyId {
     }
 }
 
-impl TryFrom<libsql::Value> for EnvelopeEncryptionKeyId {
+impl TryFrom<libsql::Value> for EnvelopeEncryptionKey {
     type Error = Box<dyn std::error::Error + Send + Sync>;
     fn try_from(value: libsql::Value) -> Result<Self, Self::Error> {
         match value {
             libsql::Value::Text(s) => {
-                let json_value: EnvelopeEncryptionKeyId = serde_json::from_str(&s)?;
+                let json_value: EnvelopeEncryptionKey = serde_json::from_str(&s)?;
                 Ok(json_value)
             }
-            _ => Err("Expected Text value for EnvelopeEncryptionKeyId".into()),
+            _ => Err("Expected Text value for EnvelopeEncryptionKey".into()),
         }
     }
 }
@@ -121,14 +130,14 @@ pub fn extract_region_from_kms_arn(arn: &str) -> Result<String, CommonError> {
     }
 }
 
-impl libsql::FromValue for EnvelopeEncryptionKeyId {
+impl libsql::FromValue for EnvelopeEncryptionKey {
     fn from_sql(val: libsql::Value) -> libsql::Result<Self>
     where
         Self: Sized,
     {
         match val {
             libsql::Value::Text(s) => {
-                let json_value: EnvelopeEncryptionKeyId =
+                let json_value: EnvelopeEncryptionKey =
                     serde_json::from_str(&s).map_err(|_e| libsql::Error::InvalidColumnType)?;
                 Ok(json_value)
             }
@@ -141,7 +150,7 @@ impl libsql::FromValue for EnvelopeEncryptionKeyId {
 #[derive(Clone, Serialize, Deserialize, ToSchema)]
 pub struct DataEncryptionKey {
     pub id: String,
-    pub envelope_encryption_key_id: EnvelopeEncryptionKeyId,
+    pub envelope_encryption_key_id: EnvelopeEncryptionKey,
     pub encrypted_data_encryption_key: EncryptedDataEncryptionKey,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
@@ -150,7 +159,7 @@ pub struct DataEncryptionKey {
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct DataEncryptionKeyListItem {
     pub id: String,
-    pub envelope_encryption_key_id: EnvelopeEncryptionKeyId,
+    pub envelope_encryption_key_id: EnvelopeEncryptionKey,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
 }
@@ -178,7 +187,7 @@ impl CryptoService {
             location,
             key_bytes: _,
         } = &envelope_encryption_key_contents
-            && let EnvelopeEncryptionKeyId::Local {
+            && let EnvelopeEncryptionKey::Local {
                 location: data_encryption_key_location,
                 ..
             } = &data_encryption_key.envelope_encryption_key_id
@@ -186,7 +195,7 @@ impl CryptoService {
             envelop_key_match = location == data_encryption_key_location;
         } else if let EnvelopeEncryptionKeyContents::AwsKms { arn, region } =
             &envelope_encryption_key_contents
-            && let EnvelopeEncryptionKeyId::AwsKms {
+            && let EnvelopeEncryptionKey::AwsKms {
                 arn: data_encryption_key_arn,
                 region: data_encryption_key_region,
                 ..
@@ -973,7 +982,7 @@ mod tests {
         let now = WrappedChronoDateTime::now();
         let data_encryption_key = DataEncryptionKey {
             id: uuid::Uuid::new_v4().to_string(),
-            envelope_encryption_key_id: EnvelopeEncryptionKeyId::from(parent_key.clone()),
+            envelope_encryption_key_id: EnvelopeEncryptionKey::from(parent_key.clone()),
             encrypted_data_encryption_key: EncryptedDataEncryptionKey(encrypted_key),
             created_at: now,
             updated_at: now,

@@ -18,7 +18,7 @@ pub struct DataEncryptionKey {
     #[serde(rename = "encrypted_data_encryption_key")]
     pub encrypted_data_encryption_key: String,
     #[serde(rename = "envelope_encryption_key_id")]
-    pub envelope_encryption_key_id: Box<models::EnvelopeEncryptionKeyId>,
+    pub envelope_encryption_key_id: Box<models::EnvelopeEncryptionKey>,
     #[serde(rename = "id")]
     pub id: String,
     #[serde(rename = "updated_at")]
@@ -26,7 +26,7 @@ pub struct DataEncryptionKey {
 }
 
 impl DataEncryptionKey {
-    pub fn new(created_at: String, encrypted_data_encryption_key: String, envelope_encryption_key_id: models::EnvelopeEncryptionKeyId, id: String, updated_at: String) -> DataEncryptionKey {
+    pub fn new(created_at: String, encrypted_data_encryption_key: String, envelope_encryption_key_id: models::EnvelopeEncryptionKey, id: String, updated_at: String) -> DataEncryptionKey {
         DataEncryptionKey {
             created_at,
             encrypted_data_encryption_key,

@@ -14,13 +14,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MigrateEncryptionKeyParams {
     #[serde(rename = "from_envelope_encryption_key_id")]
-    pub from_envelope_encryption_key_id: Box<models::EnvelopeEncryptionKeyId>,
+    pub from_envelope_encryption_key_id: Box<models::EnvelopeEncryptionKey>,
     #[serde(rename = "to_envelope_encryption_key_id")]
-    pub to_envelope_encryption_key_id: Box<models::EnvelopeEncryptionKeyId>,
+    pub to_envelope_encryption_key_id: Box<models::EnvelopeEncryptionKey>,
 }
 
 impl MigrateEncryptionKeyParams {
-    pub fn new(from_envelope_encryption_key_id: models::EnvelopeEncryptionKeyId, to_envelope_encryption_key_id: models::EnvelopeEncryptionKeyId) -> MigrateEncryptionKeyParams {
+    pub fn new(from_envelope_encryption_key_id: models::EnvelopeEncryptionKey, to_envelope_encryption_key_id: models::EnvelopeEncryptionKey) -> MigrateEncryptionKeyParams {
         MigrateEncryptionKeyParams {
             from_envelope_encryption_key_id: Box::new(from_envelope_encryption_key_id),
             to_envelope_encryption_key_id: Box::new(to_envelope_encryption_key_id),

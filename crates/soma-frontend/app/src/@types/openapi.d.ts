@@ -643,13 +643,13 @@ export interface components {
         DataEncryptionKey: {
             created_at: components["schemas"]["WrappedChronoDateTime"];
             encrypted_data_encryption_key: components["schemas"]["EncryptedDataEncryptionKey"];
-            envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKeyId"];
+            envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKey"];
             id: string;
             updated_at: components["schemas"]["WrappedChronoDateTime"];
         };
         DataEncryptionKeyListItem: {
             created_at: components["schemas"]["WrappedChronoDateTime"];
-            envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKeyId"];
+            envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKey"];
             id: string;
             updated_at: components["schemas"]["WrappedChronoDateTime"];
         };
@@ -673,9 +673,9 @@ export interface components {
         EncryptedDataEncryptionKey: string;
         EncryptionConfiguration: {
             encrypted_data_encryption_key: string;
-            envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKeyId"];
+            envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKey"];
         };
-        EnvelopeEncryptionKeyId: {
+        EnvelopeEncryptionKey: {
             arn: string;
             region: string;
             /** @enum {string} */
@@ -769,8 +769,8 @@ export interface components {
             to: string;
         };
         MigrateEncryptionKeyParams: {
-            from_envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKeyId"];
-            to_envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKeyId"];
+            from_envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKey"];
+            to_envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKey"];
         };
         MigrateEncryptionKeyResponse: {
             migrated_data_encryption_keys: number;

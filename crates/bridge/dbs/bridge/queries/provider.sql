@@ -169,6 +169,23 @@ JOIN resource_server_credential rsc ON pi.resource_server_credential_id = rsc.id
 LEFT JOIN user_credential uc ON pi.user_credential_id = uc.id
 WHERE fi.function_controller_type_id = ? AND fi.provider_controller_type_id = ? AND fi.provider_instance_id = ?;
 
+-- name: create_envelope_encryption_key :exec
+INSERT INTO envelope_encryption_key (id, key_type, local_location, aws_arn, aws_region, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+-- name: get_envelope_encryption_key_by_id :one
+SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
+FROM envelope_encryption_key
+WHERE id = ?;
+
+-- name: get_envelope_encryption_keys :many
+SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
+FROM envelope_encryption_key
+ORDER BY created_at DESC;
+
+-- name: delete_envelope_encryption_key :exec
+DELETE FROM envelope_encryption_key WHERE id = ?;
+
 -- name: create_data_encryption_key :exec
 INSERT INTO data_encryption_key (id, envelope_encryption_key_id, encryption_key, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?);
