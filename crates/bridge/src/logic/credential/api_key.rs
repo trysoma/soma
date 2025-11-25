@@ -7,7 +7,7 @@ use shared::{
     primitives::{WrappedJsonValue, WrappedSchema},
 };
 
-use encryption::logic::crypto_services::{DecryptionService, EncryptedString, EncryptionService};
+use ::encryption::{DecryptionService, EncryptedString, EncryptionService};
 use crate::logic::{
     ConfigurationSchema, Metadata,
     ProviderCredentialControllerLike, ResourceServerCredentialLike,

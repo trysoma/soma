@@ -1,12 +1,14 @@
 pub mod controller;
 pub mod credential;
+pub mod credential_encryption;
 pub mod instance;
 pub mod mcp;
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use encryption::logic::crypto_services::{DecryptionService, EncryptionService};
+// Re-export encryption types for use within the bridge crate
+pub use ::encryption::{DecryptionService, EncryptionService};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shared::{
@@ -80,6 +82,7 @@ impl libsql::FromValue for Metadata {
 // Re-export commonly used types and functions
 pub use controller::*;
 pub use credential::*;
+pub use credential_encryption::*;
 pub use instance::*;
 
 // on change events

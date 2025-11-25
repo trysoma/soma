@@ -4,6 +4,7 @@ use crate::logic::{
     CreateResourceServerCredentialParamsInner, CreateResourceServerCredentialResponse,
     CreateUserCredentialParamsInner, CreateUserCredentialResponse, DisableFunctionParamsInner,
     DisableFunctionResponse, EnableFunctionParamsInner, EnableFunctionResponse,
+    EncryptCredentialConfigurationParamsInner, EncryptedCredentialConfigurationResponse,
     GetProviderInstanceResponse, InvokeFunctionParamsInner,
     InvokeFunctionResponse, ListAvailableProvidersResponse,
     ListFunctionInstancesParams, ListFunctionInstancesResponse,
@@ -16,6 +17,7 @@ use crate::logic::{
     WithProviderControllerTypeId, WithProviderInstanceId,
     create_provider_instance, create_resource_server_credential, create_user_credential,
     delete_provider_instance, disable_function, enable_function,
+    encrypt_resource_server_configuration, encrypt_user_credential_configuration,
     get_function_instances_openapi_spec, get_provider_instance, invoke_function,
     list_available_providers, list_function_instances,
     list_provider_instances, list_provider_instances_grouped_by_function,
@@ -58,6 +60,9 @@ pub fn create_router() -> OpenApiRouter<BridgeService> {
     OpenApiRouter::new()
         // Provider endpoints
         .routes(routes!(route_list_available_providers))
+        // Configuration encryption endpoints
+        .routes(routes!(route_encrypt_resource_server_configuration))
+        .routes(routes!(route_encrypt_user_credential_configuration))
         // Resource server credential endpoints
         .routes(routes!(route_create_resource_server_credential))
         // User credential endpoints
@@ -194,6 +199,78 @@ async fn route_get_provider_instance(
         WithProviderInstanceId {
             provider_instance_id: provider_instance_id.clone(),
             inner: (),
+        },
+    )
+    .await;
+    JsonResponse::from(res)
+}
+
+// ============================================================================
+// Configuration encryption endpoints
+// ============================================================================
+
+#[utoipa::path(
+    post,
+    path = format!("{}/{}/{}/available-providers/{{provider_controller_type_id}}/available-credentials/{{credential_controller_type_id}}/credential/resource-server/encrypt", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    request_body = EncryptCredentialConfigurationParamsInner,
+    params(
+        ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
+        ("credential_controller_type_id" = String, Path, description = "Credential controller type ID"),
+    ),
+    responses(
+        (status = 200, description = "Encrypt resource server configuration", body = EncryptedCredentialConfigurationResponse),
+        (status = 400, description = "Bad Request", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    operation_id = "encrypt-resource-server-configuration",
+)]
+async fn route_encrypt_resource_server_configuration(
+    State(ctx): State<BridgeService>,
+    Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
+    Json(params): Json<EncryptCredentialConfigurationParamsInner>,
+) -> JsonResponse<EncryptedCredentialConfigurationResponse, CommonError> {
+    let res = encrypt_resource_server_configuration(
+        ctx.encryption_service(),
+        WithProviderControllerTypeId {
+            provider_controller_type_id: provider_controller_type_id.clone(),
+            inner: WithCredentialControllerTypeId {
+                credential_controller_type_id: credential_controller_type_id.clone(),
+                inner: params,
+            },
+        },
+    )
+    .await;
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    post,
+    path = format!("{}/{}/{}/available-providers/{{provider_controller_type_id}}/available-credentials/{{credential_controller_type_id}}/credential/user-credential/encrypt", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    request_body = EncryptCredentialConfigurationParamsInner,
+    params(
+        ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
+        ("credential_controller_type_id" = String, Path, description = "Credential controller type ID"),
+    ),
+    responses(
+        (status = 200, description = "Encrypt user credential configuration", body = EncryptedCredentialConfigurationResponse),
+        (status = 400, description = "Bad Request", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    operation_id = "encrypt-user-credential-configuration",
+)]
+async fn route_encrypt_user_credential_configuration(
+    State(ctx): State<BridgeService>,
+    Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
+    Json(params): Json<EncryptCredentialConfigurationParamsInner>,
+) -> JsonResponse<EncryptedCredentialConfigurationResponse, CommonError> {
+    let res = encrypt_user_credential_configuration(
+        ctx.encryption_service(),
+        WithProviderControllerTypeId {
+            provider_controller_type_id: provider_controller_type_id.clone(),
+            inner: WithCredentialControllerTypeId {
+                credential_controller_type_id: credential_controller_type_id.clone(),
+                inner: params,
+            },
         },
     )
     .await;

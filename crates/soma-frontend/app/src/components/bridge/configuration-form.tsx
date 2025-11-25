@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import "@/styles/rjsf-overrides.css";
 import { Check, Link, X } from "lucide-react";
+
+// Default DEK alias to use for encrypting credentials
+const DEFAULT_DEK_ALIAS = "default";
 import type { components } from "@/@types/openapi";
 import {
 	Accordion,
@@ -477,19 +480,6 @@ const ResourceServerConfigurationForm = ({
 		);
 	}
 
-	// Get encryption keys
-	const { data: dataEncryptionKeys } = $api.useQuery(
-		"get",
-		"/api/bridge/v1/encryption/data-encryption-key",
-		{
-			params: {
-				query: {
-					page_size: 1,
-				},
-			},
-		},
-	);
-
 	// Mutations
 	const encryptConfigMutation = $api.useMutation(
 		"post",
@@ -585,16 +575,6 @@ const ResourceServerConfigurationForm = ({
 		setIsSubmitting(true);
 
 		try {
-			// Get the first encryption key
-			const encryptionKeyId = dataEncryptionKeys?.items?.[0]?.id;
-			if (!encryptionKeyId) {
-				setFormErrors([
-					"No encryption key available. Please enable Bridge MCP first.",
-				]);
-				setIsSubmitting(false);
-				return;
-			}
-
 			// Prepare form data for submission
 			const formData = (data.formData as Record<string, any>) || {};
 
@@ -694,7 +674,7 @@ const ResourceServerConfigurationForm = ({
 						},
 					},
 					body: {
-						data_encryption_key_id: encryptionKeyId,
+						dek_alias: DEFAULT_DEK_ALIAS,
 						value: resourceServerData,
 					},
 				});
@@ -709,7 +689,7 @@ const ResourceServerConfigurationForm = ({
 						},
 					},
 					body: {
-						data_encryption_key_id: encryptionKeyId,
+						dek_alias: DEFAULT_DEK_ALIAS,
 						resource_server_configuration: encryptedResourceServerConfig,
 						metadata: null,
 					},
@@ -733,7 +713,7 @@ const ResourceServerConfigurationForm = ({
 							},
 						},
 						body: {
-							data_encryption_key_id: encryptionKeyId,
+							dek_alias: DEFAULT_DEK_ALIAS,
 							value: userCredentialData,
 						},
 					});
@@ -747,7 +727,7 @@ const ResourceServerConfigurationForm = ({
 						},
 					},
 					body: {
-						data_encryption_key_id: encryptionKeyId,
+						dek_alias: DEFAULT_DEK_ALIAS,
 						user_credential_configuration: encryptedUserCredentialConfig,
 						metadata: null,
 					},

@@ -207,29 +207,12 @@ const FunctionsTable = ({
 function EnableFunctionsPage() {
 	const navigate = useNavigate();
 
-	// Query data encryption keys
-	const {
-		data: dataEncryptionKeys,
-		isLoading: isLoadingKeys,
-		refetch: refetchKeys,
-	} = $api.useQuery("get", "/api/bridge/v1/encryption/data-encryption-key", {
-		params: {
-			query: {
-				page_size: 100,
-			},
-		},
-	});
-
-	// Check if we have any encryption keys
-	const hasEncryptionKeys =
-		dataEncryptionKeys?.items && dataEncryptionKeys.items.length > 0;
-
 	const [selectedProviderFilter, setSelectedProviderFilter] = useState("");
 	const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("");
 	const [providerSearchQuery, setProviderSearchQuery] = useState("");
 	const [categorySearchQuery, setCategorySearchQuery] = useState("");
 
-	// Query provider instances grouped by function (only when keys exist)
+	// Query provider instances grouped by function
 	// This query uses server-side filtering via provider_controller_type_id and function_category
 	const {
 		data: functionInstanceData,
@@ -252,7 +235,6 @@ function EnableFunctionsPage() {
 			},
 		},
 		{
-			enabled: hasEncryptionKeys,
 			// Keep previous data while fetching new data to prevent flashing
 			placeholderData: (previousData) => previousData,
 		},
@@ -269,31 +251,7 @@ function EnableFunctionsPage() {
 				},
 			},
 		},
-		{
-			enabled: hasEncryptionKeys,
-		},
 	);
-
-	// Mutation to create data encryption key
-	const createKeyMutation = $api.useMutation(
-		"post",
-		"/api/bridge/v1/encryption/data-encryption-key",
-	);
-
-	// Handler to create default encryption key
-	const handleEnableBridge = async () => {
-		try {
-			await createKeyMutation.mutateAsync({
-				body: {
-					id: "default",
-				},
-			});
-			// Refetch keys after creation
-			await refetchKeys();
-		} catch (error) {
-			console.error("Failed to create encryption key:", error);
-		}
-	};
 
 	// Transform function instance data into available functions
 	const availableFunctions = useMemo(() => {
@@ -399,7 +357,7 @@ function EnableFunctionsPage() {
 	};
 
 	// If loading, show loading state
-	if (isLoadingKeys || (hasEncryptionKeys && isLoadingFunctions)) {
+	if (isLoadingFunctions) {
 		return (
 			<PageLayout>
 				<PageHeaderWithAction
@@ -409,35 +367,6 @@ function EnableFunctionsPage() {
 				<div className="flex items-center justify-center min-h-[400px]">
 					<p className="text-muted-foreground">Loading...</p>
 				</div>
-			</PageLayout>
-		);
-	}
-
-	// If no encryption keys exist, show setup screen
-	if (!hasEncryptionKeys) {
-		return (
-			<PageLayout>
-				<PageHeaderWithAction
-					title="Enable Functions"
-					description="Browse and enable available MCP functions"
-					actions={
-						<Button
-							onClick={handleEnableBridge}
-							disabled={createKeyMutation.isPending}
-						>
-							{createKeyMutation.isPending
-								? "Enabling..."
-								: "Enable Bridge MCP"}
-						</Button>
-					}
-				/>
-				{createKeyMutation.isError && (
-					<div className="p-4">
-						<p className="text-sm text-destructive">
-							Failed to enable Bridge MCP. Please try again.
-						</p>
-					</div>
-				)}
 			</PageLayout>
 		);
 	}

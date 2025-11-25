@@ -2,36 +2,6 @@ pub mod repository;
 pub mod logic;
 pub mod router;
 
-// Re-export everything from logic modules
-pub use logic::*;
-pub use logic::dek;
-pub use logic::envelope;
-pub use logic::crypto_services;
-
-// Re-export types for convenience
-pub use logic::dek::{
-    DataEncryptionKey, DataEncryptionKeyListItem, EncryptedDataEncryptionKey,
-    DecryptedDataEncryptionKey,
-    CreateDekParams, CreateDekInnerParams, CreateDataEncryptionKeyResponse,
-    ImportDekParams, ImportDekParamsInner, ImportDekResponse,
-    ListDekParams, ListDekResponse,
-    DeleteDekParams, DeleteDekResponse,
-    WithEnvelopeEncryptionKeyId,
-};
-pub use logic::envelope::{
-    EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents,
-    CreateEnvelopeEncryptionKeyParams, CreateEnvelopeEncryptionKeyResponse,
-    DeleteEnvelopeEncryptionKeyParams, DeleteEnvelopeEncryptionKeyResponse,
-    MigrateDataEncryptionKeyParams, MigrateDataEncryptionKeyResponse,
-    get_local_envelope_encryption_key, get_or_create_local_envelope_encryption_key, encrypt_dek, decrypt_dek,
-};
-pub use logic::crypto_services::{
-    CryptoService, EncryptionService, DecryptionService, EncryptedString, CryptoCache,
-    get_crypto_service, get_encryption_service, get_decryption_service,
-    get_encryption_service_cached, get_decryption_service_cached, init_crypto_cache,
-};
-pub use repository::DataEncryptionKeyRepositoryLike;
-
 #[cfg(test)]
 mod tests {
     use super::*;

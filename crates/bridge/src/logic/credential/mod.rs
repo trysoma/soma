@@ -17,7 +17,7 @@ use shared::{
 use tracing::info;
 use utoipa::ToSchema;
 
-use encryption::logic::crypto_services::{DecryptionService, EncryptionService};
+use ::encryption::{DecryptionService, EncryptionService};
 
 use crate::{
     logic::{

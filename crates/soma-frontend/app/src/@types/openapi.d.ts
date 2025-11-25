@@ -164,6 +164,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["encrypt-resource-server-configuration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential": {
         parameters: {
             query?: never;
@@ -190,6 +206,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["start-user-credential-brokering"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["encrypt-user-credential-configuration"];
         delete?: never;
         options?: never;
         head?: never;
@@ -672,6 +704,16 @@ export interface components {
             encrypted_key: string;
         };
         EnableFunctionParamsInner: Record<string, never>;
+        /**
+         * @description Parameters for encrypting credential configuration.
+         *     Uses dek_alias to look up the DEK to use for encryption.
+         */
+        EncryptCredentialConfigurationParamsInner: {
+            /** @description The DEK alias to use for encryption (resolved to actual DEK id internally) */
+            dek_alias: string;
+            /** @description The raw credential configuration value to encrypt */
+            value: components["schemas"]["WrappedJsonValue"];
+        };
         EncryptedDataEncryptionKey: string;
         /** @description Top-level encryption configuration */
         EncryptionConfig: {
@@ -1306,6 +1348,53 @@ export interface operations {
             };
         };
     };
+    "encrypt-resource-server-configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider controller type ID */
+                provider_controller_type_id: string;
+                /** @description Credential controller type ID */
+                credential_controller_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EncryptCredentialConfigurationParamsInner"];
+            };
+        };
+        responses: {
+            /** @description Encrypt resource server configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WrappedJsonValue"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     "create-user-credential": {
         parameters: {
             query?: never;
@@ -1378,6 +1467,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserCredentialBrokeringResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "encrypt-user-credential-configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider controller type ID */
+                provider_controller_type_id: string;
+                /** @description Credential controller type ID */
+                credential_controller_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EncryptCredentialConfigurationParamsInner"];
+            };
+        };
+        responses: {
+            /** @description Encrypt user credential configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WrappedJsonValue"];
                 };
             };
             /** @description Bad Request */

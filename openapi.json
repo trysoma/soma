@@ -372,6 +372,73 @@
         }
       }
     },
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt": {
+      "post": {
+        "operationId": "encrypt-resource-server-configuration",
+        "parameters": [
+          {
+            "name": "provider_controller_type_id",
+            "in": "path",
+            "description": "Provider controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "credential_controller_type_id",
+            "in": "path",
+            "description": "Credential controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptCredentialConfigurationParamsInner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Encrypt resource server configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WrappedJsonValue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential": {
       "post": {
         "operationId": "create-user-credential",
@@ -479,6 +546,73 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UserCredentialBrokeringResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt": {
+      "post": {
+        "operationId": "encrypt-user-credential-configuration",
+        "parameters": [
+          {
+            "name": "provider_controller_type_id",
+            "in": "path",
+            "description": "Provider controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "credential_controller_type_id",
+            "in": "path",
+            "description": "Credential controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptCredentialConfigurationParamsInner"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Encrypt user credential configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WrappedJsonValue"
                 }
               }
             }
@@ -3269,6 +3403,24 @@
       },
       "EnableFunctionParamsInner": {
         "type": "object"
+      },
+      "EncryptCredentialConfigurationParamsInner": {
+        "type": "object",
+        "description": "Parameters for encrypting credential configuration.\nUses dek_alias to look up the DEK to use for encryption.",
+        "required": [
+          "value",
+          "dek_alias"
+        ],
+        "properties": {
+          "dek_alias": {
+            "type": "string",
+            "description": "The DEK alias to use for encryption (resolved to actual DEK id internally)"
+          },
+          "value": {
+            "$ref": "#/components/schemas/WrappedJsonValue",
+            "description": "The raw credential configuration value to encrypt"
+          }
+        }
       },
       "EncryptedDataEncryptionKey": {
         "type": "string"
