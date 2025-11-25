@@ -15,10 +15,6 @@ use crate::logic::Metadata;
 use crate::logic::credential::{
     BrokerState, ResourceServerCredentialSerialized, UserCredentialSerialized,
 };
-use crate::logic::encryption::{
-    DataEncryptionKey, DataEncryptionKeyListItem, EncryptedDataEncryptionKey,
-    EnvelopeEncryptionKey as LogicEnvelopeEncryptionKey,
-};
 use crate::logic::instance::{
     FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
     ProviderInstanceSerialized, ProviderInstanceSerializedWithCredentials,
@@ -164,69 +160,6 @@ impl From<BrokerState> for CreateBrokerState {
     }
 }
 
-// Repository parameter structs for envelope encryption key
-#[derive(Debug, Clone)]
-pub struct EnvelopeEncryptionKey {
-    pub id: String,
-    pub key_type: String, // "local" or "aws_kms"
-    pub local_location: Option<String>,
-    pub aws_arn: Option<String>,
-    pub aws_region: Option<String>,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-#[derive(Debug)]
-pub struct CreateEnvelopeEncryptionKey {
-    pub id: String,
-    pub key_type: String, // "local" or "aws_kms"
-    pub local_location: Option<String>,
-    pub aws_arn: Option<String>,
-    pub aws_region: Option<String>,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-impl From<EnvelopeEncryptionKey> for CreateEnvelopeEncryptionKey {
-    fn from(key: EnvelopeEncryptionKey) -> Self {
-        CreateEnvelopeEncryptionKey {
-            id: key.id,
-            key_type: key.key_type,
-            local_location: key.local_location,
-            aws_arn: key.aws_arn,
-            aws_region: key.aws_region,
-            created_at: key.created_at,
-            updated_at: key.updated_at,
-        }
-    }
-}
-
-// Repository parameter structs for data encryption key
-#[derive(Debug)]
-pub struct CreateDataEncryptionKey {
-    pub id: String,
-    pub envelope_encryption_key_id: String, // Now a string reference to envelope_encryption_key.id
-    pub encryption_key: EncryptedDataEncryptionKey,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-impl From<DataEncryptionKey> for CreateDataEncryptionKey {
-    fn from(dek: DataEncryptionKey) -> Self {
-        // Convert EnvelopeEncryptionKey enum to string identifier
-        let envelope_key_id = match &dek.envelope_encryption_key_id {
-            LogicEnvelopeEncryptionKey::AwsKms { arn, .. } => arn.clone(),
-            LogicEnvelopeEncryptionKey::Local { location } => location.clone(),
-        };
-        CreateDataEncryptionKey {
-            id: dek.id,
-            envelope_encryption_key_id: envelope_key_id,
-            encryption_key: dek.encrypted_data_encryption_key,
-            created_at: dek.created_at,
-            updated_at: dek.updated_at,
-        }
-    }
-}
 
 // Repository return struct for grouped provider instances
 #[derive(Debug)]
@@ -331,23 +264,6 @@ pub trait ProviderRepositoryLike {
 
     async fn delete_broker_state(&self, id: &str) -> Result<(), CommonError>;
 
-    async fn create_data_encryption_key(
-        &self,
-        params: &CreateDataEncryptionKey,
-    ) -> Result<(), CommonError>;
-
-    async fn get_data_encryption_key_by_id(
-        &self,
-        id: &str,
-    ) -> Result<Option<DataEncryptionKey>, CommonError>;
-
-    async fn delete_data_encryption_key(&self, id: &str) -> Result<(), CommonError>;
-
-    async fn list_data_encryption_keys(
-        &self,
-        pagination: &PaginationRequest,
-    ) -> Result<PaginatedResponse<DataEncryptionKeyListItem>, CommonError>;
-
     async fn list_provider_instances(
         &self,
         pagination: &PaginationRequest,
@@ -391,20 +307,4 @@ pub trait ProviderRepositoryLike {
         rotation_window_end: Option<&WrappedChronoDateTime>,
     ) -> Result<PaginatedResponse<ProviderInstanceSerializedWithCredentials>, CommonError>;
 
-    // Envelope encryption key methods
-    async fn create_envelope_encryption_key(
-        &self,
-        params: &CreateEnvelopeEncryptionKey,
-    ) -> Result<(), CommonError>;
-
-    async fn get_envelope_encryption_key_by_id(
-        &self,
-        id: &str,
-    ) -> Result<Option<LogicEnvelopeEncryptionKey>, CommonError>;
-
-    async fn list_envelope_encryption_keys(
-        &self,
-    ) -> Result<Vec<LogicEnvelopeEncryptionKey>, CommonError>;
-
-    async fn delete_envelope_encryption_key(&self, id: &str) -> Result<(), CommonError>;
 }

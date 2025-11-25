@@ -1,13 +1,13 @@
 pub mod codegen;
 pub mod controller;
 pub mod credential;
-pub mod encryption;
 pub mod instance;
 pub mod mcp;
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use encryption::logic::crypto_services::{DecryptionService, EncryptionService};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shared::{
@@ -81,15 +81,12 @@ impl libsql::FromValue for Metadata {
 // Re-export commonly used types and functions
 pub use controller::*;
 pub use credential::*;
-pub use encryption::*;
 pub use instance::*;
 
 // on change events
 
 #[derive(Clone)]
 pub enum OnConfigChangeEvt {
-    DataEncryptionKeyAdded(DataEncryptionKey),
-    DataEncryptionKeyRemoved(String),
     ProviderInstanceAdded(ProviderInstanceSerializedWithCredentials),
     ProviderInstanceRemoved(String),
     ProviderInstanceUpdated(ProviderInstanceSerializedWithCredentials),

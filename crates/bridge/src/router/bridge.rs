@@ -1,34 +1,26 @@
 use crate::logic::{
-    BrokerAction, BrokerInput, CreateDataEncryptionKeyResponse,
+    BrokerAction, BrokerInput,
     CreateProviderInstanceParamsInner, CreateProviderInstanceResponse,
     CreateResourceServerCredentialParamsInner, CreateResourceServerCredentialResponse,
     CreateUserCredentialParamsInner, CreateUserCredentialResponse, DisableFunctionParamsInner,
     DisableFunctionResponse, EnableFunctionParamsInner, EnableFunctionResponse,
-    EncryptCredentialConfigurationParamsInner, EncryptedCredentialConfigurationResponse,
-    EnvelopeEncryptionKeyContents, GetProviderInstanceResponse, InvokeFunctionParamsInner,
-    InvokeFunctionResponse, ListAvailableProvidersResponse, ListDataEncryptionKeysResponse,
+    GetProviderInstanceResponse, InvokeFunctionParamsInner,
+    InvokeFunctionResponse, ListAvailableProvidersResponse,
     ListFunctionInstancesParams, ListFunctionInstancesResponse,
     ListProviderInstancesGroupedByFunctionParams, ListProviderInstancesGroupedByFunctionResponse,
-    ListProviderInstancesParams, ListProviderInstancesResponse, MigrateEncryptionKeyParams,
-    MigrateEncryptionKeyResponse, OnConfigChangeTx, ResumeUserCredentialBrokeringParams,
+    ListProviderInstancesParams, ListProviderInstancesResponse,
+    OnConfigChangeTx, ResumeUserCredentialBrokeringParams,
     StartUserCredentialBrokeringParamsInner, UpdateProviderInstanceParamsInner,
     UpdateProviderInstanceResponse, UserCredentialBrokeringResponse, UserCredentialSerialized,
     WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithFunctionInstanceId,
-    WithProviderControllerTypeId, WithProviderInstanceId, create_data_encryption_key,
+    WithProviderControllerTypeId, WithProviderInstanceId,
     create_provider_instance, create_resource_server_credential, create_user_credential,
     delete_provider_instance, disable_function, enable_function,
-    encrypt_resource_server_configuration, encrypt_user_credential_configuration,
     get_function_instances_openapi_spec, get_provider_instance, invoke_function,
-    list_available_providers, list_data_encryption_keys, list_function_instances,
+    list_available_providers, list_function_instances,
     list_provider_instances, list_provider_instances_grouped_by_function,
-    migrate_encryption_key, process_credential_rotations_with_window,
+    process_credential_rotations_with_window,
     resume_user_credential_brokering, start_user_credential_brokering, update_provider_instance,
-};
-use crate::logic::encryption::{
-    CreateDataEncryptionKeyParamsBridge, DeleteDataEncryptionKeyByIdentifierParams,
-    MigrateEncryptionKeyByIdentifierParams, migrate_encryption_key_by_identifier,
-    find_envelope_encryption_key_by_arn, find_envelope_encryption_key_by_location,
-    CreateDataEncryptionKeyParams,
 };
 use crate::repository::ProviderRepositoryLike;
 use crate::repository::Repository;
@@ -36,6 +28,7 @@ use axum::Extension;
 use axum::extract::{Json, NestedPath, Path, Query, State};
 use axum::response::sse::{Event, KeepAlive};
 use axum::response::{IntoResponse, Response, Sse};
+use encryption::CryptoCache;
 use http::StatusCode;
 use http::request::Parts;
 use rmcp::{
@@ -65,15 +58,6 @@ pub fn create_router() -> OpenApiRouter<BridgeService> {
     OpenApiRouter::new()
         // Provider endpoints
         .routes(routes!(route_list_available_providers))
-        // Data encryption key endpoints
-        .routes(routes!(route_create_data_encryption_key))
-        .routes(routes!(route_list_data_encryption_keys))
-        .routes(routes!(route_migrate_encryption_key))
-        .routes(routes!(route_migrate_encryption_key_by_identifier))
-        .routes(routes!(route_delete_data_encryption_key_by_identifier))
-        // Configuration endpoints
-        .routes(routes!(route_encrypt_resource_server_configuration))
-        .routes(routes!(route_encrypt_user_credential_configuration))
         // Resource server credential endpoints
         .routes(routes!(route_create_resource_server_credential))
         // User credential endpoints
@@ -216,423 +200,6 @@ async fn route_get_provider_instance(
     JsonResponse::from(res)
 }
 
-// ============================================================================
-// Data encryption key endpoints
-// ============================================================================
-
-#[utoipa::path(
-    post,
-    path = format!("{}/{}/{}/encryption/data-encryption-key", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    request_body = CreateDataEncryptionKeyParamsBridge,
-    responses(
-        (status = 200, description = "Create data encryption key", body = CreateDataEncryptionKeyResponse),
-        (status = 400, description = "Bad Request", body = CommonError),
-        (status = 500, description = "Internal Server Error", body = CommonError),
-    ),
-    operation_id = "create-data-encryption-key",
-)]
-async fn route_create_data_encryption_key(
-    State(ctx): State<BridgeService>,
-    Json(params): Json<CreateDataEncryptionKeyParamsBridge>,
-) -> JsonResponse<CreateDataEncryptionKeyResponse, CommonError> {
-    // Determine which envelope encryption key to use
-    let envelope_key = if let Some(ref identifier) = params.envelope_encryption_key_identifier {
-        // Try to get the key from the map
-        match ctx.get_envelope_encryption_key_contents(identifier) {
-            Ok(key) => key,
-            Err(_) => {
-                // Key not in map, need to add it
-                // For AWS KMS, construct from ARN and region
-                // For local, load from file
-                let key_contents = if identifier.starts_with("arn:aws:kms:") {
-                    // Use provided region if available, otherwise extract from ARN
-                    let region = if let Some(ref provided_region) = params.aws_region {
-                        provided_region.clone()
-                    } else {
-                        match encryption::extract_region_from_kms_arn(identifier) {
-                            Ok(region_from_arn) => region_from_arn,
-                            Err(_) => {
-                                return JsonResponse::from(Err(CommonError::Unknown(anyhow::anyhow!(
-                                    "Invalid AWS KMS ARN format: {identifier}. Please provide ARN in format: arn:aws:kms:REGION:ACCOUNT:key/KEY-ID or provide aws_region parameter"
-                                ))));
-                            }
-                        }
-                    };
-                    EnvelopeEncryptionKeyContents::AwsKms {
-                        arn: identifier.clone(),
-                        region,
-                    }
-                } else {
-                    // Local key - load from file
-                    match encryption::get_or_create_local_encryption_key(
-                        &std::path::PathBuf::from(identifier),
-                    ) {
-                        Ok(key) => key,
-                        Err(e) => return JsonResponse::from(Err(e)),
-                    }
-                };
-                // Add to map
-                if let Err(e) = ctx.add_envelope_encryption_key_contents(key_contents.clone()) {
-                    return JsonResponse::from(Err(e));
-                }
-                key_contents
-            }
-        }
-    } else {
-        // Use default key (first one in map)
-        match ctx.0.envelope_encryption_key_contents.load().values().next() {
-            Some(key) => key.clone(),
-            None => {
-                return JsonResponse::from(Err(CommonError::Unknown(anyhow::anyhow!(
-                    "No envelope encryption key configured and none specified"
-                ))));
-            }
-        }
-    };
-
-    // Convert bridge params to encryption params
-    let encryption_params = CreateDataEncryptionKeyParams {
-        id: params.id.clone(),
-        encrypted_data_envelope_key: params.encrypted_data_envelope_key.clone(),
-    };
-
-    let res = create_data_encryption_key(
-        &envelope_key,
-        ctx.on_config_change_tx(),
-        ctx.repository(),
-        encryption_params,
-        true,
-    )
-    .await;
-
-    // After creating the DEK, add the parent encryption key to the map if not already present
-    if let Ok(dek) = &res {
-        let identifier = get_envelope_key_id_identifier(&dek.envelope_encryption_key_id);
-        // Check if key exists, if not, we need to construct it from the DEK's envelope_encryption_key_id
-        if ctx.get_envelope_encryption_key_contents(&identifier).is_err() {
-            // Key not in map, need to add it
-            // For AWS KMS, we have ARN and region from the DEK
-            // For local, we need to load the key bytes from the file
-            let key_contents = match &dek.envelope_encryption_key_id {
-                crate::logic::encryption::EnvelopeEncryptionKey::AwsKms { arn, region } => {
-                    EnvelopeEncryptionKeyContents::AwsKms {
-                        arn: arn.clone(),
-                        region: region.clone(),
-                    }
-                }
-                crate::logic::encryption::EnvelopeEncryptionKey::Local { location } => {
-                    match encryption::get_or_create_local_encryption_key(
-                        &std::path::PathBuf::from(location),
-                    ) {
-                        Ok(key) => key,
-                        Err(e) => return JsonResponse::from(Err(e)),
-                    }
-                }
-            };
-            if let Err(e) = ctx.add_envelope_encryption_key_contents(key_contents) {
-                return JsonResponse::from(Err(e));
-            }
-        }
-    }
-
-    JsonResponse::from(res)
-}
-
-#[utoipa::path(
-    get,
-    path = format!("{}/{}/{}/encryption/data-encryption-key", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    params(
-        PaginationRequest
-    ),
-    responses(
-        (status = 200, description = "List data encryption keys", body = ListDataEncryptionKeysResponse),
-    ),
-    operation_id = "list-data-encryption-keys",
-)]
-async fn route_list_data_encryption_keys(
-    State(ctx): State<BridgeService>,
-    Query(pagination): Query<PaginationRequest>,
-) -> JsonResponse<ListDataEncryptionKeysResponse, CommonError> {
-    let res = list_data_encryption_keys(ctx.repository(), pagination).await;
-    JsonResponse::from(res)
-}
-
-#[utoipa::path(
-    post,
-    path = format!("{}/{}/{}/encryption/migrate", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    request_body = MigrateEncryptionKeyParams,
-    responses(
-        (status = 200, description = "Migrate encryption key", body = MigrateEncryptionKeyResponse),
-        (status = 400, description = "Bad Request", body = CommonError),
-        (status = 500, description = "Internal Server Error", body = CommonError),
-    ),
-    operation_id = "migrate-encryption-key",
-)]
-async fn route_migrate_encryption_key(
-    State(ctx): State<BridgeService>,
-    Json(params): Json<MigrateEncryptionKeyParams>,
-) -> JsonResponse<MigrateEncryptionKeyResponse, CommonError> {
-    // Get the envelope encryption key contents from the IDs
-    let from_envelope_key = match ctx.get_envelope_encryption_key_contents_by_id(
-        &params.from_envelope_encryption_key_id,
-    ) {
-        Ok(key) => key,
-        Err(e) => return JsonResponse::from(Err(e)),
-    };
-    let to_envelope_key = match ctx.get_envelope_encryption_key_contents_by_id(
-        &params.to_envelope_encryption_key_id,
-    ) {
-        Ok(key) => key,
-        Err(e) => return JsonResponse::from(Err(e)),
-    };
-
-    let res = migrate_encryption_key(
-        &from_envelope_key,
-        &to_envelope_key,
-        ctx.on_config_change_tx(),
-        ctx.repository(),
-        params,
-    )
-    .await;
-
-    JsonResponse::from(res)
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct DeleteDataEncryptionKeyByIdentifierResponse {
-    pub deleted_count: usize,
-}
-
-#[utoipa::path(
-    post,
-    path = format!("{}/{}/{}/encryption/migrate-by-identifier", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    request_body = MigrateEncryptionKeyByIdentifierParams,
-    responses(
-        (status = 200, description = "Migrate encryption key by identifier", body = MigrateEncryptionKeyResponse),
-        (status = 400, description = "Bad Request", body = CommonError),
-        (status = 500, description = "Internal Server Error", body = CommonError),
-    ),
-    operation_id = "migrate-encryption-key-by-identifier",
-)]
-async fn route_migrate_encryption_key_by_identifier(
-    State(ctx): State<BridgeService>,
-    Json(params): Json<MigrateEncryptionKeyByIdentifierParams>,
-) -> JsonResponse<MigrateEncryptionKeyResponse, CommonError> {
-    // Use a default key for the bridge parameter (not used in the actual migration logic)
-    let default_key = match ctx.0.envelope_encryption_key_contents.load().keys().next() {
-        Some(key_id) => {
-            match ctx.get_envelope_encryption_key_contents(key_id) {
-                Ok(key) => key,
-                Err(_) => {
-                    // Fallback: create a dummy key (shouldn't happen in practice)
-                    EnvelopeEncryptionKeyContents::Local {
-                        location: "/tmp/dummy".to_string(),
-                        key_bytes: vec![0u8; 32],
-                    }
-                }
-            }
-        }
-        None => {
-            return JsonResponse::from(Err(CommonError::Unknown(anyhow::anyhow!(
-                "No envelope encryption key configured"
-            ))));
-        }
-    };
-
-    let res = migrate_encryption_key_by_identifier(
-        &default_key,
-        ctx.on_config_change_tx(),
-        ctx.repository(),
-        params,
-    )
-    .await;
-
-    JsonResponse::from(res)
-}
-
-#[utoipa::path(
-    delete,
-    path = format!("{}/{}/{}/encryption/data-encryption-key/by-identifier", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    request_body = DeleteDataEncryptionKeyByIdentifierParams,
-    responses(
-        (status = 200, description = "Delete data encryption keys by identifier", body = DeleteDataEncryptionKeyByIdentifierResponse),
-        (status = 400, description = "Bad Request", body = CommonError),
-        (status = 500, description = "Internal Server Error", body = CommonError),
-    ),
-    operation_id = "delete-data-encryption-key-by-identifier",
-)]
-async fn route_delete_data_encryption_key_by_identifier(
-    State(ctx): State<BridgeService>,
-    Json(params): Json<DeleteDataEncryptionKeyByIdentifierParams>,
-) -> JsonResponse<DeleteDataEncryptionKeyByIdentifierResponse, CommonError> {
-    // Check if any DEKs are using this parent encryption key
-    let envelope_key_id = if params.identifier.starts_with("arn:aws:kms:") {
-        match find_envelope_encryption_key_by_arn(ctx.repository(), &params.identifier).await {
-            Ok(Some(key_id)) => key_id,
-            Ok(None) => {
-                return JsonResponse::from(Err(CommonError::Unknown(anyhow::anyhow!(
-                    "No data encryption key found with ARN: {}",
-                    params.identifier
-                ))));
-            }
-            Err(e) => return JsonResponse::from(Err(e)),
-        }
-    } else {
-        match find_envelope_encryption_key_by_location(ctx.repository(), &params.identifier).await {
-            Ok(Some(key_id)) => key_id,
-            Ok(None) => {
-                return JsonResponse::from(Err(CommonError::Unknown(anyhow::anyhow!(
-                    "No data encryption key found with location: {}",
-                    params.identifier
-                ))));
-            }
-            Err(e) => return JsonResponse::from(Err(e)),
-        }
-    };
-
-    // Check if any DEKs are using this envelope encryption key
-    use shared::primitives::PaginationRequest;
-    let mut has_deks = false;
-    let mut page_token = None;
-    loop {
-        let deks = match crate::logic::encryption::list_data_encryption_keys(
-            ctx.repository(),
-            PaginationRequest {
-                page_size: 100,
-                next_page_token: page_token.clone(),
-            },
-        )
-        .await
-        {
-            Ok(deks) => deks,
-            Err(e) => return JsonResponse::from(Err(e)),
-        };
-
-        for dek_item in &deks.items {
-            if crate::logic::encryption::matches_envelope_key_id(&dek_item.envelope_encryption_key_id, &envelope_key_id) {
-                has_deks = true;
-                break;
-            }
-        }
-
-        if has_deks || deks.next_page_token.is_none() {
-            break;
-        }
-        page_token = deks.next_page_token;
-    }
-
-    if has_deks {
-        return JsonResponse::from(Err(CommonError::Unknown(anyhow::anyhow!(
-            "Cannot remove parent encryption key '{}': some database secrets are currently encrypted with data encryption keys that use this parent encryption key. Please migrate the encryption keys first.",
-            params.identifier
-        ))));
-    }
-
-    // No DEKs using this key, safe to remove
-    // Remove from the map
-    match ctx.remove_envelope_encryption_key_contents(&params.identifier) {
-        Ok(_) => {}
-        Err(e) => return JsonResponse::from(Err(e)),
-    }
-
-    // Return success (no DEKs to delete since we're removing the parent key, not DEKs)
-    JsonResponse::from(Ok(DeleteDataEncryptionKeyByIdentifierResponse {
-        deleted_count: 0,
-    }))
-}
-
-// ============================================================================
-// Configuration endpoints
-// ============================================================================
-
-#[utoipa::path(
-    post,
-    path = format!("{}/{}/{}/available-providers/{{provider_controller_type_id}}/available-credentials/{{credential_controller_type_id}}/credential/resource-server/encrypt", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    request_body = EncryptCredentialConfigurationParamsInner,
-    params(
-        ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
-        ("credential_controller_type_id" = String, Path, description = "Credential controller type ID"),
-    ),
-    responses(
-        (status = 200, description = "Encrypt provider configuration", body = EncryptedCredentialConfigurationResponse),
-        (status = 400, description = "Bad Request", body = CommonError),
-        (status = 500, description = "Internal Server Error", body = CommonError),
-    ),
-    operation_id = "encrypt-resource-server-configuration",
-)]
-async fn route_encrypt_resource_server_configuration(
-    State(ctx): State<BridgeService>,
-    Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
-    Json(params): Json<EncryptCredentialConfigurationParamsInner>,
-) -> JsonResponse<EncryptedCredentialConfigurationResponse, CommonError> {
-    // Get the envelope encryption key contents from the DEK ID
-    let envelope_key = match ctx
-        .get_envelope_encryption_key_contents_from_dek_id(&params.data_encryption_key_id)
-        .await
-    {
-        Ok(key) => key,
-        Err(e) => return JsonResponse::from(Err(e)),
-    };
-
-    let res = encrypt_resource_server_configuration(
-        &envelope_key,
-        ctx.repository(),
-        WithProviderControllerTypeId {
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            inner: WithCredentialControllerTypeId {
-                credential_controller_type_id: credential_controller_type_id.clone(),
-                inner: params,
-            },
-        },
-    )
-    .await;
-    JsonResponse::from(res)
-}
-
-#[utoipa::path(
-    post,
-    path = format!("{}/{}/{}/available-providers/{{provider_controller_type_id}}/available-credentials/{{credential_controller_type_id}}/credential/user-credential/encrypt", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    request_body = EncryptCredentialConfigurationParamsInner,
-    params(
-        ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
-        ("credential_controller_type_id" = String, Path, description = "Credential controller type ID"),
-    ),
-    responses(
-        (status = 200, description = "Encrypt user credential configuration", body = EncryptedCredentialConfigurationResponse),
-        (status = 400, description = "Bad Request", body = CommonError),
-        (status = 500, description = "Internal Server Error", body = CommonError),
-    ),
-
-    operation_id = "encrypt-user-credential-configuration",
-)]
-async fn route_encrypt_user_credential_configuration(
-    State(ctx): State<BridgeService>,
-    Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
-    Json(params): Json<EncryptCredentialConfigurationParamsInner>,
-) -> JsonResponse<EncryptedCredentialConfigurationResponse, CommonError> {
-    // Get the envelope encryption key contents from the DEK ID
-    let envelope_key = match ctx
-        .get_envelope_encryption_key_contents_from_dek_id(&params.data_encryption_key_id)
-        .await
-    {
-        Ok(key) => key,
-        Err(e) => return JsonResponse::from(Err(e)),
-    };
-
-    let res = encrypt_user_credential_configuration(
-        &envelope_key,
-        ctx.repository(),
-        WithProviderControllerTypeId {
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            inner: WithCredentialControllerTypeId {
-                credential_controller_type_id: credential_controller_type_id.clone(),
-                inner: params,
-            },
-        },
-    )
-    .await;
-    JsonResponse::from(res)
-}
 // ============================================================================
 // Resource server credential endpoints
 // ============================================================================
@@ -861,51 +428,11 @@ async fn generic_oauth_callback(
         Err(e) => return respond_err!(e),
     };
     
-    // Get the provider instance to find the resource server credential's DEK
-    let provider_instance = match ctx
-        .repository()
-        .get_provider_instance_by_id(&broker_state.provider_instance_id)
-        .await
-    {
-        Ok(Some(instance)) => instance,
-        Ok(None) => {
-            return respond_err!(CommonError::Unknown(anyhow::anyhow!(
-                "Provider instance not found: {}",
-                broker_state.provider_instance_id
-            )));
-        }
-        Err(e) => return respond_err!(e),
-    };
-    
-    let resource_server_cred = match ctx
-        .repository()
-        .get_resource_server_credential_by_id(
-            &provider_instance.provider_instance.resource_server_credential_id,
-        )
-        .await
-    {
-        Ok(Some(cred)) => cred,
-        Ok(None) => {
-            return respond_err!(CommonError::Unknown(anyhow::anyhow!(
-                "Resource server credential not found"
-            )));
-        }
-        Err(e) => return respond_err!(e),
-    };
-
-    let envelope_key = match ctx
-        .get_envelope_encryption_key_contents_from_dek_id(&resource_server_cred.data_encryption_key_id)
-        .await
-    {
-        Ok(key) => key,
-        Err(e) => return respond_err!(e),
-    };
-
     // Resume the user credential brokering flow
     let res = resume_user_credential_brokering(
         ctx.on_config_change_tx(),
         ctx.repository(),
-        &envelope_key,
+        ctx.encryption_service(),
         ResumeUserCredentialBrokeringParams {
             broker_state_id: state,
             input: broker_input,
@@ -1068,50 +595,9 @@ async fn route_invoke_function(
     Path((provider_instance_id, function_controller_type_id)): Path<(String, String)>,
     Json(params): Json<InvokeFunctionParamsInner>,
 ) -> JsonResponse<InvokeFunctionResponse, CommonError> {
-    // Get the envelope encryption key from the function instance's DEK
-    // The invoke_function will get the DEK from the function instance, but we need the parent key
-    // For now, we'll get it from the provider instance's resource server credential
-    let provider_instance = match ctx
-        .repository()
-        .get_provider_instance_by_id(&provider_instance_id)
-        .await
-    {
-        Ok(Some(instance)) => instance,
-        Ok(None) => {
-            return JsonResponse::from(Err(CommonError::Unknown(anyhow::anyhow!(
-                "Provider instance not found: {provider_instance_id}"
-            ))));
-        }
-        Err(e) => return JsonResponse::from(Err(e)),
-    };
-    
-    let resource_server_cred = match ctx
-        .repository()
-        .get_resource_server_credential_by_id(
-            &provider_instance.provider_instance.resource_server_credential_id,
-        )
-        .await
-    {
-        Ok(Some(cred)) => cred,
-        Ok(None) => {
-            return JsonResponse::from(Err(CommonError::Unknown(anyhow::anyhow!(
-                "Resource server credential not found"
-            ))));
-        }
-        Err(e) => return JsonResponse::from(Err(e)),
-    };
-
-    let envelope_key = match ctx
-        .get_envelope_encryption_key_contents_from_dek_id(&resource_server_cred.data_encryption_key_id)
-        .await
-    {
-        Ok(key) => key,
-        Err(e) => return JsonResponse::from(Err(e)),
-    };
-
     let res = invoke_function(
         ctx.repository(),
-        &envelope_key,
+        ctx.encryption_service(),
         WithProviderInstanceId {
             provider_instance_id: provider_instance_id.clone(),
             inner: WithFunctionInstanceId {
@@ -1243,31 +729,10 @@ async fn route_get_function_instances_openapi_spec(
     JsonResponse::from(res)
 }
 
-// ============================================================================
-// Service
-// ============================================================================
-
-/// Get identifier (ARN or location) from EnvelopeEncryptionKeyContents
-fn get_envelope_key_identifier(key: &EnvelopeEncryptionKeyContents) -> String {
-    match key {
-        EnvelopeEncryptionKeyContents::AwsKms { arn, .. } => arn.clone(),
-        EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
-    }
-}
-
-/// Get identifier (ARN or location) from EnvelopeEncryptionKey
-fn get_envelope_key_id_identifier(key_id: &crate::logic::encryption::EnvelopeEncryptionKey) -> String {
-    match key_id {
-        crate::logic::encryption::EnvelopeEncryptionKey::AwsKms { arn, .. } => arn.clone(),
-        crate::logic::encryption::EnvelopeEncryptionKey::Local { location } => location.clone(),
-    }
-}
-
 pub struct BridgeServiceInner {
     pub repository: Repository,
     pub on_config_change_tx: OnConfigChangeTx,
-    /// Map of envelope encryption key contents by identifier (ARN for AWS KMS, location for local)
-    pub envelope_encryption_key_contents: ArcSwap<HashMap<String, EnvelopeEncryptionKeyContents>>,
+    pub encryption_service: CryptoCache,
     pub mcp_sessions: rmcp::transport::sse_server::TxStore,
     pub mcp_transport_tx:
         tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
@@ -1285,7 +750,7 @@ impl BridgeServiceInner {
     pub fn new(
         repository: Repository,
         on_config_change_tx: OnConfigChangeTx,
-        envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+        encryption_service: CryptoCache,
         mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<
             rmcp::transport::sse_server::SseServerTransport,
         >,
@@ -1300,15 +765,11 @@ impl BridgeServiceInner {
             >,
         >,
     ) -> Self {
-        // Initialize map with the initial envelope encryption key
-        let identifier = get_envelope_key_identifier(&envelope_encryption_key_contents);
-        let mut map = HashMap::new();
-        map.insert(identifier, envelope_encryption_key_contents);
         
         Self {
             repository,
             on_config_change_tx,
-            envelope_encryption_key_contents: ArcSwap::from_pointee(map),
+            encryption_service,
             mcp_sessions: Default::default(),
             mcp_transport_tx,
             mcp_sse_ping_interval,
@@ -1324,7 +785,7 @@ impl BridgeService {
     pub async fn new(
         repository: Repository,
         on_config_change_tx: OnConfigChangeTx,
-        envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+        encryption_service: CryptoCache,
         mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<
             rmcp::transport::sse_server::SseServerTransport,
         >,
@@ -1343,35 +804,18 @@ impl BridgeService {
         let inner = BridgeServiceInner::new(
             repository,
             on_config_change_tx,
-            envelope_encryption_key_contents,
+            encryption_service,
             mcp_transport_tx,
             mcp_sse_ping_interval,
             sdk_client,
         );
-        
-        // Get the initial key for credential rotation check
-        let initial_key_identifier = {
-            let map = inner.envelope_encryption_key_contents.load();
-            // Get the first (and only) key from the map
-            map.keys().next().ok_or_else(|| {
-                CommonError::Unknown(anyhow::anyhow!(
-                    "No envelope encryption key found in map during initialization"
-                ))
-            })?.clone()
-        };
-        let initial_key = inner.envelope_encryption_key_contents.load()
-            .get(&initial_key_identifier).ok_or_else(|| {
-                CommonError::Unknown(anyhow::anyhow!(
-                    "Initial envelope encryption key not found"
-                ))
-            })?.clone();
         
         // Run initial credential rotation check for expired and soon-to-expire credentials (30 min window)
         info!("Running initial credential rotation check...");
         process_credential_rotations_with_window(
             &inner.repository,
             &inner.on_config_change_tx,
-            &initial_key,
+            &inner.encryption_service,
             30,
         )
         .await?;
@@ -1388,79 +832,10 @@ impl BridgeService {
         &self.0.on_config_change_tx
     }
 
-    /// Get envelope encryption key contents by identifier (ARN or location)
-    /// Returns an error if the key is not found in the map
-    pub fn get_envelope_encryption_key_contents(
-        &self,
-        identifier: &str,
-    ) -> Result<EnvelopeEncryptionKeyContents, CommonError> {
-        self.0
-            .envelope_encryption_key_contents
-            .load()
-            .get(identifier)
-            .cloned()
-            .ok_or_else(|| {
-                CommonError::Unknown(anyhow::anyhow!(
-                    "Envelope encryption key not found for identifier: {identifier}"
-                ))
-            })
+    pub fn encryption_service(&self) -> &CryptoCache {
+        &self.0.encryption_service
     }
 
-    /// Get envelope encryption key contents by EnvelopeEncryptionKey
-    pub fn get_envelope_encryption_key_contents_by_id(
-        &self,
-        key_id: &crate::logic::encryption::EnvelopeEncryptionKey,
-    ) -> Result<EnvelopeEncryptionKeyContents, CommonError> {
-        let identifier = get_envelope_key_id_identifier(key_id);
-        self.get_envelope_encryption_key_contents(&identifier)
-    }
-
-    /// Get envelope encryption key contents from a data encryption key ID
-    /// Looks up the DEK, extracts its envelope encryption key ID, and returns the key contents
-    pub async fn get_envelope_encryption_key_contents_from_dek_id(
-        &self,
-        dek_id: &str,
-    ) -> Result<EnvelopeEncryptionKeyContents, CommonError> {
-        use crate::logic::encryption::DataEncryptionKeyRepositoryLike;
-        let dek = DataEncryptionKeyRepositoryLike::get_data_encryption_key_by_id(
-            self.repository(),
-            dek_id,
-        )
-        .await?
-        .ok_or_else(|| {
-            CommonError::Unknown(anyhow::anyhow!(
-                "Data encryption key not found: {dek_id}"
-            ))
-        })?;
-        self.get_envelope_encryption_key_contents_by_id(&dek.envelope_encryption_key_id)
-    }
-
-    /// Add or update envelope encryption key contents in the map
-    pub fn add_envelope_encryption_key_contents(
-        &self,
-        key: EnvelopeEncryptionKeyContents,
-    ) -> Result<(), CommonError> {
-        let identifier = get_envelope_key_identifier(&key);
-        // Copy-modify-store pattern for ArcSwap
-        let current_map = self.0.envelope_encryption_key_contents.load();
-        let mut new_map = HashMap::clone(&*current_map);
-        new_map.insert(identifier, key);
-        self.0.envelope_encryption_key_contents.store(Arc::new(new_map));
-        Ok(())
-    }
-
-    /// Remove envelope encryption key contents from the map
-    pub fn remove_envelope_encryption_key_contents(
-        &self,
-        identifier: &str,
-    ) -> Result<(), CommonError> {
-        // Copy-modify-store pattern for ArcSwap
-        let current_map = self.0.envelope_encryption_key_contents.load();
-        let mut new_map = HashMap::clone(&*current_map);
-        new_map.remove(identifier);
-        self.0.envelope_encryption_key_contents.store(Arc::new(new_map));
-        Ok(())
-    }
 
     pub fn mcp_transport_tx(
         &self,

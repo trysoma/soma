@@ -10,7 +10,7 @@ use shared::error::CommonError;
 
 // Import generated Row types from parent module
 use super::{
-    Row_get_broker_state_by_id, Row_get_data_encryption_key_by_id, Row_get_function_instance_by_id,
+    Row_get_broker_state_by_id, Row_get_function_instance_by_id,
     Row_get_function_instance_with_credentials, Row_get_provider_instance_by_id,
     Row_get_provider_instances, Row_get_provider_instances_grouped_by_function_controller_type_id,
     Row_get_resource_server_credential_by_id, Row_get_resource_server_credentials,
@@ -80,7 +80,7 @@ impl TryFrom<Row_get_resource_server_credential_by_id> for ResourceServerCredent
             created_at: row.created_at,
             updated_at: row.updated_at,
             next_rotation_time: row.next_rotation_time,
-            data_encryption_key_id: row.data_encryption_key_id,
+            dek_alias: row.dek_alias,
         })
     }
 }
@@ -96,7 +96,7 @@ impl TryFrom<Row_get_user_credential_by_id> for UserCredentialSerialized {
             created_at: row.created_at,
             updated_at: row.updated_at,
             next_rotation_time: row.next_rotation_time,
-            data_encryption_key_id: row.data_encryption_key_id,
+            dek_alias: row.dek_alias,
         })
     }
 }
@@ -112,7 +112,7 @@ impl TryFrom<Row_get_user_credentials> for UserCredentialSerialized {
             created_at: row.created_at,
             updated_at: row.updated_at,
             next_rotation_time: row.next_rotation_time,
-            data_encryption_key_id: row.data_encryption_key_id,
+            dek_alias: row.dek_alias,
         })
     }
 }
@@ -128,7 +128,7 @@ impl TryFrom<Row_get_resource_server_credentials> for ResourceServerCredentialSe
             created_at: row.created_at,
             updated_at: row.updated_at,
             next_rotation_time: row.next_rotation_time,
-            data_encryption_key_id: row.data_encryption_key_id,
+            dek_alias: row.dek_alias,
         })
     }
 }
@@ -296,8 +296,8 @@ impl TryFrom<Row_get_function_instance_with_credentials>
                     }
                 },
                 next_rotation_time: row.user_credential_next_rotation_time,
-                data_encryption_key_id: match row.user_credential_data_encryption_key_id {
-                    Some(data_encryption_key_id) => data_encryption_key_id,
+                dek_alias: match row.user_credential_dek_alias {
+                    Some(dek_alias) => dek_alias,
                     None => {
                         return Err(CommonError::Unknown(anyhow::anyhow!(
                             "user credential data encryption key id is required"
@@ -343,75 +343,13 @@ impl TryFrom<Row_get_function_instance_with_credentials>
                 created_at: row.resource_server_credential_created_at,
                 updated_at: row.resource_server_credential_updated_at,
                 next_rotation_time: row.resource_server_credential_next_rotation_time,
-                data_encryption_key_id: row.resource_server_credential_data_encryption_key_id,
+                dek_alias: row.resource_server_credential_dek_alias,
             },
             user_credential,
         })
     }
 }
 
-// Conversion from repository EnvelopeEncryptionKey row types to logic EnvelopeEncryptionKey enum
-use crate::logic::encryption::EnvelopeEncryptionKey as LogicEnvelopeEncryptionKey;
-use super::{
-    Row_get_envelope_encryption_key_by_id,
-    Row_get_envelope_encryption_keys,
-};
-
-impl TryFrom<Row_get_envelope_encryption_key_by_id> for LogicEnvelopeEncryptionKey {
-    type Error = CommonError;
-
-    fn try_from(row: Row_get_envelope_encryption_key_by_id) -> Result<Self, Self::Error> {
-        match row.key_type.as_str() {
-            "aws_kms" => {
-                let arn = row.aws_arn.ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("AWS KMS key missing ARN"))
-                })?;
-                let region = row.aws_region.ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("AWS KMS key missing region"))
-                })?;
-                Ok(LogicEnvelopeEncryptionKey::AwsKms { arn, region })
-            }
-            "local" => {
-                let location = row.local_location.ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("Local key missing location"))
-                })?;
-                Ok(LogicEnvelopeEncryptionKey::Local { location })
-            }
-            _ => Err(CommonError::Unknown(anyhow::anyhow!(
-                "Invalid key_type: {}",
-                row.key_type
-            ))),
-        }
-    }
-}
-
-impl TryFrom<Row_get_envelope_encryption_keys> for LogicEnvelopeEncryptionKey {
-    type Error = CommonError;
-
-    fn try_from(row: Row_get_envelope_encryption_keys) -> Result<Self, Self::Error> {
-        match row.key_type.as_str() {
-            "aws_kms" => {
-                let arn = row.aws_arn.ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("AWS KMS key missing ARN"))
-                })?;
-                let region = row.aws_region.ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("AWS KMS key missing region"))
-                })?;
-                Ok(LogicEnvelopeEncryptionKey::AwsKms { arn, region })
-            }
-            "local" => {
-                let location = row.local_location.ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("Local key missing location"))
-                })?;
-                Ok(LogicEnvelopeEncryptionKey::Local { location })
-            }
-            _ => Err(CommonError::Unknown(anyhow::anyhow!(
-                "Invalid key_type: {}",
-                row.key_type
-            ))),
-        }
-    }
-}
 
 // Helper struct to deserialize provider instance from grouped query JSON
 #[derive(serde::Deserialize, Debug)]

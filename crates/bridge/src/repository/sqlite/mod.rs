@@ -12,14 +12,12 @@ pub use generated::*;
 use crate::logic::credential::{
     BrokerState, ResourceServerCredentialSerialized, UserCredentialSerialized,
 };
-use crate::logic::encryption::{DataEncryptionKey, DataEncryptionKeyListItem, EnvelopeEncryptionKey as LogicEnvelopeEncryptionKey};
-use crate::repository::CreateEnvelopeEncryptionKey;
 use crate::logic::instance::{
     FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
     ProviderInstanceSerializedWithCredentials, ProviderInstanceSerializedWithFunctions,
 };
 use crate::repository::{
-    CreateBrokerState, CreateDataEncryptionKey, CreateFunctionInstance, CreateProviderInstance,
+    CreateBrokerState, CreateFunctionInstance, CreateProviderInstance,
     CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
 };
 use anyhow::Context;
@@ -58,7 +56,7 @@ impl ProviderRepositoryLike for Repository {
             created_at: &params.created_at,
             updated_at: &params.updated_at,
             next_rotation_time: &params.next_rotation_time,
-            data_encryption_key_id: &params.data_encryption_key_id,
+            dek_alias: &params.dek_alias,
         };
 
         create_resource_server_credential(&self.conn, sqlc_params)
@@ -100,7 +98,7 @@ impl ProviderRepositoryLike for Repository {
             created_at: &params.created_at,
             updated_at: &params.updated_at,
             next_rotation_time: &params.next_rotation_time,
-            data_encryption_key_id: &params.data_encryption_key_id,
+            dek_alias: &params.dek_alias,
         };
 
         create_user_credential(&self.conn, sqlc_params)
@@ -511,324 +509,6 @@ impl ProviderRepositoryLike for Repository {
         Ok(())
     }
 
-    async fn create_data_encryption_key(
-        &self,
-        params: &CreateDataEncryptionKey,
-    ) -> Result<(), CommonError> {
-        let sqlc_params = create_data_encryption_key_params {
-            id: &params.id,
-            envelope_encryption_key_id: &params.envelope_encryption_key_id,
-            encryption_key: &params.encryption_key,
-            created_at: &params.created_at,
-            updated_at: &params.updated_at,
-        };
-
-        create_data_encryption_key(&self.conn, sqlc_params)
-            .await
-            .context("Failed to create data encryption key")
-            .map_err(|e| CommonError::Repository {
-                msg: e.to_string(),
-                source: Some(e),
-            })?;
-        Ok(())
-    }
-
-    async fn get_data_encryption_key_by_id(
-        &self,
-        id: &str,
-    ) -> Result<Option<DataEncryptionKey>, CommonError> {
-        let sqlc_params = get_data_encryption_key_by_id_params {
-            id: &id.to_string(),
-        };
-
-        let result = get_data_encryption_key_by_id(&self.conn, sqlc_params)
-            .await
-            .context("Failed to get data encryption key by id")
-            .map_err(|e| CommonError::Repository {
-                msg: e.to_string(),
-                source: Some(e),
-            })?;
-
-        // Convert the row to DataEncryptionKey, converting envelope_encryption_key_id string to EnvelopeEncryptionKey
-        if let Some(row) = result {
-            // Get the envelope encryption key to determine the type - use generated function directly to avoid recursion
-            use crate::repository::sqlite::generated::get_envelope_encryption_key_by_id;
-            use crate::repository::sqlite::generated::get_envelope_encryption_key_by_id_params;
-
-            let sqlc_params = get_envelope_encryption_key_by_id_params {
-                id: &row.envelope_encryption_key_id,
-            };
-
-            let envelope_key_result = get_envelope_encryption_key_by_id(&self.conn, sqlc_params)
-                .await
-                .context("Failed to get envelope encryption key by id")
-                .map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e),
-                })?;
-
-            let envelope_key_id = match envelope_key_result {
-                Some(key) => {
-                    if key.key_type == "aws_kms" {
-                        LogicEnvelopeEncryptionKey::AwsKms {
-                            arn: key.aws_arn.ok_or_else(|| {
-                                CommonError::Repository {
-                                    msg: "AWS KMS key missing ARN".to_string(),
-                                    source: None,
-                                }
-                            })?,
-                            region: key.aws_region.ok_or_else(|| {
-                                CommonError::Repository {
-                                    msg: "AWS KMS key missing region".to_string(),
-                                    source: None,
-                                }
-                            })?,
-                        }
-                    } else {
-                        LogicEnvelopeEncryptionKey::Local {
-                            location: key.local_location.ok_or_else(|| {
-                                CommonError::Repository {
-                                    msg: "Local key missing location".to_string(),
-                                    source: None,
-                                }
-                            })?,
-                        }
-                    }
-                }
-                None => {
-                    return Err(CommonError::Repository {
-                        msg: format!(
-                            "Envelope encryption key {} not found",
-                            row.envelope_encryption_key_id
-                        ),
-                        source: None,
-                    });
-                }
-            };
-            Ok(Some(DataEncryptionKey {
-                id: row.id,
-                envelope_encryption_key_id: envelope_key_id,
-                encrypted_data_encryption_key: row.encryption_key,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
-            }))
-        } else {
-            Ok(None)
-        }
-    }
-
-    async fn create_envelope_encryption_key(
-        &self,
-        params: &CreateEnvelopeEncryptionKey,
-    ) -> Result<(), CommonError> {
-        use crate::repository::sqlite::generated::create_envelope_encryption_key;
-        use crate::repository::sqlite::generated::create_envelope_encryption_key_params;
-
-        let sqlc_params = create_envelope_encryption_key_params {
-            id: &params.id,
-            key_type: &params.key_type,
-            local_location: &params.local_location,
-            aws_arn: &params.aws_arn,
-            aws_region: &params.aws_region,
-            created_at: &params.created_at,
-            updated_at: &params.updated_at,
-        };
-
-        create_envelope_encryption_key(&self.conn, sqlc_params)
-            .await
-            .context("Failed to create envelope encryption key")
-            .map_err(|e| CommonError::Repository {
-                msg: e.to_string(),
-                source: Some(e),
-            })?;
-        Ok(())
-    }
-
-    async fn get_envelope_encryption_key_by_id(
-        &self,
-        id: &str,
-    ) -> Result<Option<LogicEnvelopeEncryptionKey>, CommonError> {
-        use crate::repository::sqlite::generated::get_envelope_encryption_key_by_id;
-        use crate::repository::sqlite::generated::get_envelope_encryption_key_by_id_params;
-
-        let sqlc_params = get_envelope_encryption_key_by_id_params {
-            id: &id.to_string(),
-        };
-
-        let result = get_envelope_encryption_key_by_id(&self.conn, sqlc_params)
-            .await
-            .context("Failed to get envelope encryption key by id")
-            .map_err(|e| CommonError::Repository {
-                msg: e.to_string(),
-                source: Some(e),
-            })?;
-
-        result.map(|row| row.try_into()).transpose()
-    }
-
-    async fn list_envelope_encryption_keys(
-        &self,
-    ) -> Result<Vec<LogicEnvelopeEncryptionKey>, CommonError> {
-        use crate::repository::sqlite::generated::get_envelope_encryption_keys;
-
-        let rows = get_envelope_encryption_keys(&self.conn)
-            .await
-            .context("Failed to list envelope encryption keys")
-            .map_err(|e| CommonError::Repository {
-                msg: e.to_string(),
-                source: Some(e),
-            })?;
-
-        rows.into_iter()
-            .map(|row| row.try_into())
-            .collect()
-    }
-
-    async fn delete_envelope_encryption_key(&self, id: &str) -> Result<(), CommonError> {
-        use crate::repository::sqlite::generated::delete_envelope_encryption_key;
-        use crate::repository::sqlite::generated::delete_envelope_encryption_key_params;
-
-        let sqlc_params = delete_envelope_encryption_key_params {
-            id: &id.to_string(),
-        };
-
-        delete_envelope_encryption_key(&self.conn, sqlc_params)
-            .await
-            .context("Failed to delete envelope encryption key")
-            .map_err(|e| CommonError::Repository {
-                msg: e.to_string(),
-                source: Some(e),
-            })?;
-        Ok(())
-    }
-
-    async fn delete_data_encryption_key(&self, id: &str) -> Result<(), CommonError> {
-        let sqlc_params = delete_data_encryption_key_params {
-            id: &id.to_string(),
-        };
-
-        delete_data_encryption_key(&self.conn, sqlc_params)
-            .await
-            .context("Failed to delete data encryption key")
-            .map_err(|e| CommonError::Repository {
-                msg: e.to_string(),
-                source: Some(e),
-            })?;
-        Ok(())
-    }
-
-    async fn list_data_encryption_keys(
-        &self,
-        pagination: &PaginationRequest,
-    ) -> Result<PaginatedResponse<DataEncryptionKeyListItem>, CommonError> {
-        // Decode the base64 token to get the datetime cursor
-        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
-            let decoded_parts =
-                decode_pagination_token(token).map_err(|e| CommonError::Repository {
-                    msg: format!("Invalid pagination token: {e}"),
-                    source: Some(e.into()),
-                })?;
-            if decoded_parts.is_empty() {
-                None
-            } else {
-                Some(
-                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
-                        .map_err(|e| CommonError::Repository {
-                            msg: format!("Invalid datetime in pagination token: {e}"),
-                            source: Some(e.into()),
-                        })?,
-                )
-            }
-        } else {
-            None
-        };
-
-        let sqlc_params = get_data_encryption_keys_params {
-            cursor: &cursor_datetime,
-            page_size: &pagination.page_size,
-        };
-
-        let rows = get_data_encryption_keys(&self.conn, sqlc_params)
-            .await
-            .context("Failed to get data encryption keys")
-            .map_err(|e| CommonError::Repository {
-                msg: e.to_string(),
-                source: Some(e),
-            })?;
-
-        // Convert envelope_encryption_key_id string to EnvelopeEncryptionKey for each item
-        let mut items = Vec::new();
-        for row in rows {
-            // Get the envelope encryption key to determine the type
-            use crate::repository::sqlite::generated::get_envelope_encryption_key_by_id;
-            use crate::repository::sqlite::generated::get_envelope_encryption_key_by_id_params;
-
-            let sqlc_params = get_envelope_encryption_key_by_id_params {
-                id: &row.envelope_encryption_key_id,
-            };
-
-            let envelope_key_result = get_envelope_encryption_key_by_id(&self.conn, sqlc_params)
-                .await
-                .context("Failed to get envelope encryption key by id")
-                .map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e),
-                })?;
-
-            let envelope_key_id = match envelope_key_result {
-                Some(key) => {
-                    if key.key_type == "aws_kms" {
-                        LogicEnvelopeEncryptionKey::AwsKms {
-                            arn: key.aws_arn.ok_or_else(|| {
-                                CommonError::Repository {
-                                    msg: "AWS KMS key missing ARN".to_string(),
-                                    source: None,
-                                }
-                            })?,
-                            region: key.aws_region.ok_or_else(|| {
-                                CommonError::Repository {
-                                    msg: "AWS KMS key missing region".to_string(),
-                                    source: None,
-                                }
-                            })?,
-                        }
-                    } else {
-                        LogicEnvelopeEncryptionKey::Local {
-                            location: key.local_location.ok_or_else(|| {
-                                CommonError::Repository {
-                                    msg: "Local key missing location".to_string(),
-                                    source: None,
-                                }
-                            })?,
-                        }
-                    }
-                }
-                None => {
-                    return Err(CommonError::Repository {
-                        msg: format!(
-                            "Envelope encryption key {} not found",
-                            row.envelope_encryption_key_id
-                        ),
-                        source: None,
-                    });
-                }
-            };
-
-            items.push(DataEncryptionKeyListItem {
-                id: row.id,
-                envelope_encryption_key_id: envelope_key_id,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
-            });
-        }
-
-        Ok(PaginatedResponse::from_items_with_extra(
-            items,
-            pagination,
-            |item| vec![item.created_at.get_inner().to_rfc3339()],
-        ))
-    }
-
     async fn list_provider_instances(
         &self,
         pagination: &PaginationRequest,
@@ -1165,7 +845,7 @@ async fn manual_get_provider_instances_grouped_by_function_controller_type_id(
                             WHEN rsc.next_rotation_time IS NOT NULL
                             THEN strftime('%Y-%m-%dT%H:%M:%fZ', rsc.next_rotation_time)
                             ELSE NULL END,
-                        'data_encryption_key_id', rsc.data_encryption_key_id
+                        'dek_alias', rsc.dek_alias
                     )
                     FROM resource_server_credential rsc
                     WHERE rsc.id = pi.resource_server_credential_id
@@ -1184,7 +864,7 @@ async fn manual_get_provider_instances_grouped_by_function_controller_type_id(
                             WHEN uc.next_rotation_time IS NOT NULL
                             THEN strftime('%Y-%m-%dT%H:%M:%fZ', uc.next_rotation_time)
                             ELSE NULL END,
-                        'data_encryption_key_id', uc.data_encryption_key_id
+                        'dek_alias', uc.dek_alias
                     )
                     FROM user_credential uc
                     WHERE uc.id = pi.user_credential_id
@@ -1231,48 +911,16 @@ impl SqlMigrationLoader for Repository {
     }
 }
 
-// Implement the encryption crate's DataEncryptionKeyRepositoryLike trait
-#[async_trait::async_trait]
-impl encryption::DataEncryptionKeyRepositoryLike for Repository {
-    async fn create_data_encryption_key(
-        &self,
-        data_encryption_key: &encryption::DataEncryptionKey,
-    ) -> Result<(), CommonError> {
-        <Self as ProviderRepositoryLike>::create_data_encryption_key(
-            self,
-            &CreateDataEncryptionKey::from(data_encryption_key.clone()),
-        )
-        .await
-    }
-
-    async fn get_data_encryption_key_by_id(
-        &self,
-        id: &str,
-    ) -> Result<Option<encryption::DataEncryptionKey>, CommonError> {
-        <Self as ProviderRepositoryLike>::get_data_encryption_key_by_id(self, id).await
-    }
-
-    async fn list_data_encryption_keys(
-        &self,
-        params: &PaginationRequest,
-    ) -> Result<PaginatedResponse<encryption::DataEncryptionKeyListItem>, CommonError> {
-        <Self as ProviderRepositoryLike>::list_data_encryption_keys(self, params).await
-    }
-
-    async fn delete_data_encryption_key(&self, id: &str) -> Result<(), CommonError> {
-        <Self as ProviderRepositoryLike>::delete_data_encryption_key(self, id).await
-    }
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::logic::{
-        DataEncryptionKey, EncryptedDataEncryptionKey, EnvelopeEncryptionKey, Metadata,
+        Metadata,
         ProviderInstanceSerialized, credential::BrokerAction, instance::FunctionInstanceSerialized,
     };
     use crate::repository::{
-        BrokerState, CreateBrokerState, CreateDataEncryptionKey, CreateFunctionInstance,
+        BrokerState, CreateBrokerState, CreateFunctionInstance,
         CreateProviderInstance, CreateResourceServerCredential, CreateUserCredential,
         ProviderRepositoryLike, ResourceServerCredentialSerialized, UserCredentialSerialized,
     };
@@ -1281,24 +929,10 @@ mod tests {
     };
     use shared::test_utils::repository::setup_in_memory_database;
 
-    async fn create_test_dek(repo: &Repository, now: WrappedChronoDateTime) -> String {
-        let dek_id = uuid::Uuid::new_v4().to_string();
-        let dek = DataEncryptionKey {
-            id: dek_id.clone(),
-            envelope_encryption_key_id: EnvelopeEncryptionKey::AwsKms {
-                arn: "arn:aws:kms:us-east-1:123456789012:key/test-key".to_string(),
-                region: "us-east-1".to_string(),
-            },
-            encrypted_data_encryption_key: EncryptedDataEncryptionKey(
-                "test_encrypted_key".to_string(),
-            ),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_data_encryption_key(&CreateDataEncryptionKey::from(dek))
-            .await
-            .unwrap();
-        dek_id
+    /// Helper to create a test DEK alias for tests.
+    /// Since bridge repository no longer manages DEKs, we just return a test alias string.
+    fn create_test_dek_alias() -> String {
+        format!("test-dek-{}", uuid::Uuid::new_v4())
     }
 
     #[tokio::test]
@@ -1309,7 +943,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         let credential = ResourceServerCredentialSerialized {
             id: WrappedUuidV4::new(),
@@ -1323,7 +957,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id,
+            dek_alias: dek_alias,
         };
 
         let create_params = CreateResourceServerCredential::from(credential.clone());
@@ -1350,7 +984,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         let credential = UserCredentialSerialized {
             id: WrappedUuidV4::new(),
@@ -1366,7 +1000,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: Some(now),
-            data_encryption_key_id: dek_id,
+            dek_alias: dek_alias,
         };
 
         let create_params = CreateUserCredential::from(credential.clone());
@@ -1391,7 +1025,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         // Create resource server credential
         let resource_server_cred = ResourceServerCredentialSerialized {
@@ -1402,7 +1036,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),
@@ -1419,7 +1053,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
             .await
@@ -1469,7 +1103,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         // Create resource server credential
         let resource_server_cred = ResourceServerCredentialSerialized {
@@ -1480,7 +1114,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),
@@ -1497,7 +1131,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
             .await
@@ -1561,7 +1195,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         // Create resource server credential
         let resource_server_cred = ResourceServerCredentialSerialized {
@@ -1572,7 +1206,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),
@@ -1589,7 +1223,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
             .await
@@ -1653,7 +1287,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),
@@ -1670,7 +1304,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
             .await
@@ -1759,7 +1393,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),
@@ -1775,7 +1409,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
             .await
@@ -1875,7 +1509,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id,
+            dek_alias: dek_id,
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),
@@ -1955,7 +1589,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id,
+            dek_alias: dek_id,
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),
@@ -2407,7 +2041,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),
@@ -2427,7 +2061,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
             .await
@@ -2542,7 +2176,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),
@@ -2562,7 +2196,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
             .await
@@ -2710,7 +2344,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: "test-dek".to_string(),
+            dek_alias: "test-dek".to_string(),
         };
         repo.create_resource_server_credential(&rsc_params_1)
             .await
@@ -2725,7 +2359,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: "test-dek".to_string(),
+            dek_alias: "test-dek".to_string(),
         };
         repo.create_resource_server_credential(&rsc_params_2)
             .await
@@ -2828,7 +2462,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: "test-dek".to_string(),
+            dek_alias: "test-dek".to_string(),
         };
         repo.create_resource_server_credential(&rsc_params_1)
             .await
@@ -2843,7 +2477,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: "test-dek".to_string(),
+            dek_alias: "test-dek".to_string(),
         };
         repo.create_resource_server_credential(&rsc_params_2)
             .await
@@ -2976,7 +2610,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: "test-dek".to_string(),
+            dek_alias: "test-dek".to_string(),
         };
         repo.create_resource_server_credential(&rsc_params_1)
             .await
@@ -2991,7 +2625,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: "test-dek".to_string(),
+            dek_alias: "test-dek".to_string(),
         };
         repo.create_resource_server_credential(&rsc_params_2)
             .await
@@ -3006,7 +2640,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: "test-dek".to_string(),
+            dek_alias: "test-dek".to_string(),
         };
         repo.create_resource_server_credential(&rsc_params_3)
             .await
@@ -3129,7 +2763,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(rsc1.clone()))
             .await
@@ -3143,7 +2777,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(rsc2.clone()))
             .await
@@ -3288,7 +2922,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: Some(initial_rotation_time),
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(rsc.clone()))
             .await
@@ -3467,7 +3101,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: Some(initial_rotation_time),
-            data_encryption_key_id: dek_id.clone(),
+            dek_alias: dek_alias.clone(),
         };
         repo.create_user_credential(&CreateUserCredential::from(uc.clone()))
             .await

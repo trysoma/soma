@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use encryption::logic::crypto_services::{DecryptionService, EncryptedString, EncryptionService};
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -9,8 +10,7 @@ use shared::{
 
 use crate::logic::{
     BrokerAction, BrokerInput, BrokerOutcome, BrokerState, ConfigurationSchema, Credential,
-    DecryptionService, EncryptedString, EncryptionService, Metadata,
-    ProviderCredentialControllerLike, ResourceServerCredentialLike,
+    Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike,
     ResourceServerCredentialSerialized, RotateableControllerUserCredentialLike,
     RotateableCredentialLike, StaticCredentialConfigurationLike,
     StaticProviderCredentialControllerLike, UserCredentialBrokerLike, UserCredentialLike,
@@ -560,7 +560,7 @@ impl RotateableControllerUserCredentialLike for OauthAuthFlowController {
             created_at: user_cred.created_at,
             updated_at: now,
             next_rotation_time: Some(next_rotation_time),
-            data_encryption_key_id: user_cred.data_encryption_key_id.clone(),
+            dek_alias: user_cred.dek_alias.clone(),
         };
 
         Ok(serialized)
@@ -932,7 +932,7 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
             created_at: user_cred.created_at,
             updated_at: now_dt,
             next_rotation_time: Some(next_rotation_time),
-            data_encryption_key_id: user_cred.data_encryption_key_id.clone(),
+            dek_alias: user_cred.dek_alias.clone(),
         };
 
         Ok(serialized)
@@ -957,10 +957,7 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::logic::encryption::{
-        CreateDataEncryptionKeyParams, EnvelopeEncryptionKeyContents, create_data_encryption_key,
-        get_crypto_service, get_decryption_service, get_encryption_service,
-    };
+    use encryption::logic::envelope::EnvelopeEncryptionKeyContents;
     use shared::primitives::{SqlMigrationLoader, WrappedUuidV4};
 
     fn create_temp_kek_file() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
@@ -1086,7 +1083,7 @@ mod tests {
             created_at: WrappedChronoDateTime::now(),
             updated_at: WrappedChronoDateTime::now(),
             next_rotation_time: None,
-            data_encryption_key_id: dek.id.clone(),
+            dek_alias: dek.id.clone(),
         };
 
         // Create encrypted user credential
@@ -1130,7 +1127,7 @@ mod tests {
             created_at: WrappedChronoDateTime::now(),
             updated_at: WrappedChronoDateTime::now(),
             next_rotation_time: Some(expiry),
-            data_encryption_key_id: dek.id.clone(),
+            dek_alias: dek.id.clone(),
         };
 
         // Note: This test would require mocking the HTTP requests to actually test rotation
@@ -1360,7 +1357,7 @@ mod tests {
             created_at: WrappedChronoDateTime::now(),
             updated_at: WrappedChronoDateTime::now(),
             next_rotation_time: None,
-            data_encryption_key_id: dek.id.clone(),
+            dek_alias: dek.id.clone(),
         };
 
         let decrypted = controller
