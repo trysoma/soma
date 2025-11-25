@@ -4,7 +4,7 @@ use encryption::logic::crypto_services::{
 use encryption::logic::dek::DataEncryptionKey;
 use encryption::logic::envelope::EnvelopeEncryptionKeyContents;
 use encryption::repository::{DataEncryptionKeyRepositoryLike, EncryptionKeyRepositoryLike};
-use shared::primitives::{WrappedChronoDateTime, SqlMigrationLoader};
+use shared::primitives::{SqlMigrationLoader, WrappedChronoDateTime};
 
 /// Creates a temporary KEK file in the system temp directory for local encryption tests
 pub fn create_temp_kek_file() -> (tempfile::TempDir, EnvelopeEncryptionKeyContents) {
@@ -36,14 +36,17 @@ pub async fn create_test_dek(
     let plaintext_dek = unsafe { String::from_utf8_unchecked(dek_bytes.to_vec()) };
 
     // Encrypt the DEK with the envelope key
-    let encrypted_dek = encryption::logic::envelope::encrypt_dek(envelope_key_contents, plaintext_dek)
-        .await
-        .expect("Failed to encrypt DEK");
+    let encrypted_dek =
+        encryption::logic::envelope::encrypt_dek(envelope_key_contents, plaintext_dek)
+            .await
+            .expect("Failed to encrypt DEK");
 
     let now = WrappedChronoDateTime::now();
     let dek = DataEncryptionKey {
         id: uuid::Uuid::new_v4().to_string(),
-        envelope_encryption_key_id: encryption::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone()),
+        envelope_encryption_key_id: encryption::logic::envelope::EnvelopeEncryptionKey::from(
+            envelope_key_contents.clone(),
+        ),
         encrypted_data_encryption_key: encrypted_dek,
         created_at: now,
         updated_at: now,
@@ -94,12 +97,18 @@ pub async fn setup_test_encryption(alias: &str) -> TestEncryptionSetup {
 
     // First create the envelope encryption key
     let (key_type, local_location, aws_arn, aws_region) = match &dek.envelope_encryption_key_id {
-        encryption::logic::envelope::EnvelopeEncryptionKey::Local { location } => {
-            (encryption::repository::EnvelopeEncryptionKeyType::Local, Some(location.clone()), None, None)
-        }
-        encryption::logic::envelope::EnvelopeEncryptionKey::AwsKms { arn, region } => {
-            (encryption::repository::EnvelopeEncryptionKeyType::AwsKms, None, Some(arn.clone()), Some(region.clone()))
-        }
+        encryption::logic::envelope::EnvelopeEncryptionKey::Local { location } => (
+            encryption::repository::EnvelopeEncryptionKeyType::Local,
+            Some(location.clone()),
+            None,
+            None,
+        ),
+        encryption::logic::envelope::EnvelopeEncryptionKey::AwsKms { arn, region } => (
+            encryption::repository::EnvelopeEncryptionKeyType::AwsKms,
+            None,
+            Some(arn.clone()),
+            Some(region.clone()),
+        ),
     };
 
     encryption_repo

@@ -71,15 +71,18 @@ pub async fn create_api_service(
     info!("Setting up database and repositories...");
     let connection_manager = ConnectionManager::new();
     let db_url = url::Url::parse(&db_conn_string)?;
-    let (_db, _conn, repository, bridge_repo, encryption_repo) = setup_repository(&db_url, &db_auth_token).await?;
+    let (_db, _conn, repository, bridge_repo, encryption_repo) =
+        setup_repository(&db_url, &db_auth_token).await?;
 
     // Create the bridge config change channel
     let (on_bridge_config_change_tx, on_bridge_config_change_rx): (OnConfigChangeTx, _) =
         tokio::sync::broadcast::channel(100);
 
     // Create encryption event channel
-    let (encryption_change_tx, encryption_change_rx): (encryption::logic::EncryptionKeyEventSender, _) =
-        tokio::sync::broadcast::channel(100);
+    let (encryption_change_tx, encryption_change_rx): (
+        encryption::logic::EncryptionKeyEventSender,
+        _,
+    ) = tokio::sync::broadcast::channel(100);
 
     // Create the unified soma change channel
     let (soma_change_tx, _soma_change_rx) = create_soma_change_channel(100);

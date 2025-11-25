@@ -3,14 +3,15 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use shared::{error::CommonError, primitives::{PaginationRequest, WrappedChronoDateTime}};
+use shared::{
+    error::CommonError,
+    primitives::{PaginationRequest, WrappedChronoDateTime},
+};
 use utoipa::ToSchema;
 
-use crate::repository::DataEncryptionKeyRepositoryLike;
+use super::{EncryptionKeyEvent, EncryptionKeyEventSender};
 use crate::logic::envelope::{EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents};
-use super::{EncryptionKeyEventSender, EncryptionKeyEvent};
-
-
+use crate::repository::DataEncryptionKeyRepositoryLike;
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct ImportDekParamsInner {
@@ -44,7 +45,6 @@ pub type ListDekResponse = shared::primitives::PaginatedResponse<DataEncryptionK
 pub type DeleteDekParams = String;
 pub type DeleteDekResponse = ();
 pub type MigrateDekResponse = ();
-
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
 #[serde(transparent)]
@@ -83,7 +83,6 @@ impl libsql::FromValue for EncryptedDataEncryptionKey {
     }
 }
 
-
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct DataEncryptionKey {
     pub id: String,
@@ -101,7 +100,6 @@ pub struct DataEncryptionKeyListItem {
     pub updated_at: WrappedChronoDateTime,
 }
 
-
 // Low-level function to create a DEK (without event publishing)
 pub(crate) async fn create_data_encryption_key_internal<R>(
     repo: &R,
@@ -110,11 +108,11 @@ pub(crate) async fn create_data_encryption_key_internal<R>(
 where
     R: DataEncryptionKeyRepositoryLike + crate::repository::EncryptionKeyRepositoryLike,
 {
-    use rand::RngCore;
     use aes_gcm::{
         Aes256Gcm, Nonce,
         aead::{Aead, KeyInit, OsRng},
     };
+    use rand::RngCore;
     use shared::primitives::WrappedChronoDateTime;
 
     // Look up the envelope encryption key from the database
@@ -130,21 +128,20 @@ where
 
     // Get the envelope key contents based on its type
     let key_encryption_key = match &envelope_key {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => {
-            EnvelopeEncryptionKeyContents::AwsKms {
-                arn: arn.clone(),
-                region: region.clone(),
-            }
-        }
+        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: arn.clone(),
+            region: region.clone(),
+        },
         EnvelopeEncryptionKey::Local { location } => {
-            crate::logic::envelope::get_local_envelope_encryption_key(
-                &std::path::PathBuf::from(location),
-            )?
+            crate::logic::envelope::get_local_envelope_encryption_key(&std::path::PathBuf::from(
+                location,
+            ))?
         }
     };
 
     let id = params
-        .inner.id
+        .inner
+        .id
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
     let encrypted_data_encryption_key = match params.inner.encrypted_dek {
@@ -153,7 +150,10 @@ where
             EnvelopeEncryptionKeyContents::AwsKms { arn, region } => {
                 // --- AWS KMS path ---
                 let mut config = aws_config::load_from_env().await;
-                config = config.to_builder().region(aws_config::Region::new(region.clone())).build();
+                config = config
+                    .to_builder()
+                    .region(aws_config::Region::new(region.clone()))
+                    .build();
                 let kms_client = aws_sdk_kms::Client::new(&config);
 
                 let output = kms_client
@@ -181,7 +181,10 @@ where
                 EncryptedDataEncryptionKey(encoded)
             }
 
-            EnvelopeEncryptionKeyContents::Local { location, key_bytes } => {
+            EnvelopeEncryptionKeyContents::Local {
+                location,
+                key_bytes,
+            } => {
                 // --- Local path (no AWS involved) ---
                 if key_bytes.len() != 32 {
                     return Err(CommonError::Unknown(anyhow::anyhow!(
@@ -210,10 +213,8 @@ where
                 combined.extend_from_slice(&nonce_bytes);
                 combined.extend_from_slice(&ciphertext);
 
-                let encoded = base64::Engine::encode(
-                    &base64::engine::general_purpose::STANDARD,
-                    &combined,
-                );
+                let encoded =
+                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &combined);
                 EncryptedDataEncryptionKey(encoded)
             }
         },
@@ -229,8 +230,7 @@ where
         updated_at: now,
     };
 
-    DataEncryptionKeyRepositoryLike::create_data_encryption_key(repo, &data_encryption_key)
-        .await?;
+    DataEncryptionKeyRepositoryLike::create_data_encryption_key(repo, &data_encryption_key).await?;
 
     Ok(data_encryption_key)
 }
@@ -284,16 +284,14 @@ where
 
     // Get the envelope key contents based on its type
     let key_encryption_key = match &envelope_key {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => {
-            EnvelopeEncryptionKeyContents::AwsKms {
-                arn: arn.clone(),
-                region: region.clone(),
-            }
-        }
+        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: arn.clone(),
+            region: region.clone(),
+        },
         EnvelopeEncryptionKey::Local { location } => {
-            crate::logic::envelope::get_local_envelope_encryption_key(
-                &std::path::PathBuf::from(location),
-            )?
+            crate::logic::envelope::get_local_envelope_encryption_key(&std::path::PathBuf::from(
+                location,
+            ))?
         }
     };
 
@@ -307,7 +305,8 @@ where
         })?;
 
     let id = params
-        .inner.id
+        .inner
+        .id
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
     let now = WrappedChronoDateTime::now();
@@ -320,13 +319,14 @@ where
         updated_at: now,
     };
 
-    DataEncryptionKeyRepositoryLike::create_data_encryption_key(repo, &data_encryption_key)
-        .await?;
+    DataEncryptionKeyRepositoryLike::create_data_encryption_key(repo, &data_encryption_key).await?;
 
     // Publish event if requested - include encrypted key value in event
     if publish_on_change_evt {
         on_change_tx
-            .send(EncryptionKeyEvent::DataEncryptionKeyAdded(data_encryption_key.clone()))
+            .send(EncryptionKeyEvent::DataEncryptionKeyAdded(
+                data_encryption_key.clone(),
+            ))
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to send encryption key event: {e}"))
             })?;
@@ -374,13 +374,18 @@ where
     let mut all_matching_items = Vec::new();
 
     loop {
-        let deks = repo.list_data_encryption_keys(&PaginationRequest {
-            page_size: 100,
-            next_page_token: page_token.clone(),
-        }).await?;
+        let deks = repo
+            .list_data_encryption_keys(&PaginationRequest {
+                page_size: 100,
+                next_page_token: page_token.clone(),
+            })
+            .await?;
 
         for dek_item in &deks.items {
-            if matches_envelope_key_id(&dek_item.envelope_encryption_key_id, envelope_encryption_key_id) {
+            if matches_envelope_key_id(
+                &dek_item.envelope_encryption_key_id,
+                envelope_encryption_key_id,
+            ) {
                 all_matching_items.push(dek_item.clone());
             }
         }
@@ -414,14 +419,17 @@ where
 }
 
 /// Helper function to check if two envelope encryption keys match
-fn matches_envelope_key_id(
-    id1: &EnvelopeEncryptionKey,
-    id2: &EnvelopeEncryptionKey,
-) -> bool {
+fn matches_envelope_key_id(id1: &EnvelopeEncryptionKey, id2: &EnvelopeEncryptionKey) -> bool {
     match (id1, id2) {
         (
-            EnvelopeEncryptionKey::AwsKms { arn: arn1, region: region1 },
-            EnvelopeEncryptionKey::AwsKms { arn: arn2, region: region2 },
+            EnvelopeEncryptionKey::AwsKms {
+                arn: arn1,
+                region: region1,
+            },
+            EnvelopeEncryptionKey::AwsKms {
+                arn: arn2,
+                region: region2,
+            },
         ) => arn1 == arn2 && region1 == region2,
         (
             EnvelopeEncryptionKey::Local { location: loc1 },
@@ -470,10 +478,10 @@ where
 mod tests {
     use super::*;
     use crate::repository::{EncryptionKeyRepositoryLike, Repository};
+    use rand::RngCore;
     use shared::primitives::{PaginationRequest, SqlMigrationLoader};
     use shared::test_utils::repository::setup_in_memory_database;
     use tokio::sync::broadcast;
-    use rand::RngCore;
 
     const TEST_KMS_KEY_ARN: &str =
         "arn:aws:kms:eu-west-2:914788356809:alias/unsafe-github-action-soma-test-key";
@@ -530,7 +538,9 @@ mod tests {
             envelope_key.clone(),
             shared::primitives::WrappedChronoDateTime::now(),
         ));
-        repo.create_envelope_encryption_key(&create_params).await.unwrap();
+        repo.create_envelope_encryption_key(&create_params)
+            .await
+            .unwrap();
 
         // Create a data encryption key
         let dek = create_data_encryption_key(
@@ -584,7 +594,9 @@ mod tests {
             envelope_key.clone(),
             shared::primitives::WrappedChronoDateTime::now(),
         ));
-        repo.create_envelope_encryption_key(&create_params).await.unwrap();
+        repo.create_envelope_encryption_key(&create_params)
+            .await
+            .unwrap();
 
         // Create a data encryption key
         let dek = create_data_encryption_key(
@@ -634,7 +646,9 @@ mod tests {
             envelope_key.clone(),
             shared::primitives::WrappedChronoDateTime::now(),
         ));
-        repo.create_envelope_encryption_key(&create_params).await.unwrap();
+        repo.create_envelope_encryption_key(&create_params)
+            .await
+            .unwrap();
 
         // Create a data encryption key
         let dek = create_data_encryption_key(
@@ -674,16 +688,21 @@ mod tests {
         let (tx, _rx) = broadcast::channel(100);
 
         let (_temp_file, local_key_contents) = create_temp_local_key();
-        let envelope_key = if let EnvelopeEncryptionKeyContents::Local { location, .. } = &local_key_contents {
-            EnvelopeEncryptionKey::Local { location: location.clone() }
-        } else {
-            panic!("Expected local key");
-        };
+        let envelope_key =
+            if let EnvelopeEncryptionKeyContents::Local { location, .. } = &local_key_contents {
+                EnvelopeEncryptionKey::Local {
+                    location: location.clone(),
+                }
+            } else {
+                panic!("Expected local key");
+            };
         let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
             envelope_key.clone(),
             shared::primitives::WrappedChronoDateTime::now(),
         ));
-        repo.create_envelope_encryption_key(&create_params).await.unwrap();
+        repo.create_envelope_encryption_key(&create_params)
+            .await
+            .unwrap();
 
         let dek = create_data_encryption_key(
             &tx,
@@ -706,7 +725,9 @@ mod tests {
         assert_eq!(retrieved.unwrap().id, dek.id);
 
         // Test getting non-existent DEK
-        let not_found = get_data_encryption_key_by_id(&repo, "non-existent").await.unwrap();
+        let not_found = get_data_encryption_key_by_id(&repo, "non-existent")
+            .await
+            .unwrap();
         assert!(not_found.is_none());
     }
 
@@ -734,7 +755,9 @@ mod tests {
             envelope_key.clone(),
             shared::primitives::WrappedChronoDateTime::now(),
         ));
-        repo.create_envelope_encryption_key(&create_params).await.unwrap();
+        repo.create_envelope_encryption_key(&create_params)
+            .await
+            .unwrap();
 
         // Create multiple DEKs
         let dek1 = create_data_encryption_key(
@@ -787,4 +810,3 @@ mod tests {
         assert!(ids.contains(&dek2.id));
     }
 }
-

@@ -963,7 +963,11 @@ mod tests {
 
         // Use the test helper to set up encryption services
         let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
-        let encryption_service = setup.crypto_cache.get_encryption_service(&setup.dek_alias).await.unwrap();
+        let encryption_service = setup
+            .crypto_cache
+            .get_encryption_service(&setup.dek_alias)
+            .await
+            .unwrap();
 
         // Create encrypted resource server configuration
         let controller = OauthAuthFlowController {
@@ -1027,7 +1031,11 @@ mod tests {
 
         // Use the test helper to set up encryption services
         let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
-        let encryption_service = setup.crypto_cache.get_encryption_service(&setup.dek_alias).await.unwrap();
+        let encryption_service = setup
+            .crypto_cache
+            .get_encryption_service(&setup.dek_alias)
+            .await
+            .unwrap();
 
         let controller = OauthAuthFlowController {
             static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
@@ -1108,7 +1116,8 @@ mod tests {
         let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
 
         // Test with no provider instances
-        let result = process_credential_rotations_with_window(&repo, &tx, &setup.crypto_cache, 20).await;
+        let result =
+            process_credential_rotations_with_window(&repo, &tx, &setup.crypto_cache, 20).await;
 
         // Should succeed even with no credentials
         assert!(result.is_ok());

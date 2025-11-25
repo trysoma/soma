@@ -11,15 +11,16 @@ pub use generated::*;
 
 use crate::logic::dek::{DataEncryptionKey, DataEncryptionKeyListItem};
 use crate::logic::envelope::EnvelopeEncryptionKey;
-use crate::repository::{CreateDataEncryptionKey, CreateEnvelopeEncryptionKey, EncryptionKeyRepositoryLike};
+use crate::repository::{
+    CreateDataEncryptionKey, CreateEnvelopeEncryptionKey, EncryptionKeyRepositoryLike,
+};
 use anyhow::Context;
 use base64::Engine;
 use shared::primitives::WrappedChronoDateTime;
 use shared::{
     error::CommonError,
     primitives::{
-        PaginatedResponse, PaginationRequest, SqlMigrationLoader,
-        decode_pagination_token,
+        PaginatedResponse, PaginationRequest, SqlMigrationLoader, decode_pagination_token,
     },
 };
 use shared_macros::load_atlas_sql_migrations;
@@ -122,9 +123,7 @@ impl EncryptionKeyRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        rows.into_iter()
-            .map(|row| row.try_into())
-            .collect()
+        rows.into_iter().map(|row| row.try_into()).collect()
     }
 
     async fn list_envelope_encryption_keys_paginated(
@@ -170,11 +169,14 @@ impl EncryptionKeyRepositoryLike for Repository {
             })?;
 
         // Extract created_at values for pagination token generation
-        let created_at_values: Vec<WrappedChronoDateTime> = rows.iter().map(|row| row.created_at.clone()).collect();
+        let created_at_values: Vec<WrappedChronoDateTime> =
+            rows.iter().map(|row| row.created_at).collect();
 
         // Convert rows to items using TryFrom
-        let items: Result<Vec<EnvelopeEncryptionKey>, CommonError> =
-            rows.into_iter().map(EnvelopeEncryptionKey::try_from).collect();
+        let items: Result<Vec<EnvelopeEncryptionKey>, CommonError> = rows
+            .into_iter()
+            .map(EnvelopeEncryptionKey::try_from)
+            .collect();
         let items = items?;
 
         // Check if we got more items than requested (page_size + 1)
@@ -190,7 +192,7 @@ impl EncryptionKeyRepositoryLike for Repository {
         let next_page_token = if has_more && !items.is_empty() {
             // The last item corresponds to created_at at the same index
             created_at_values.get(items.len() - 1).map(|created_at| {
-                let key_parts = vec![created_at.get_inner().to_rfc3339()];
+                let key_parts = [created_at.get_inner().to_rfc3339()];
                 let composite_key = key_parts.join("__");
                 base64::engine::general_purpose::STANDARD.encode(composite_key.as_bytes())
             })
@@ -353,9 +355,11 @@ impl EncryptionKeyRepositoryLike for Repository {
             let envelope_key_id = match envelope_key_result {
                 Some(key_row) => {
                     // Convert Row to EnvelopeEncryptionKey using TryFrom
-                    EnvelopeEncryptionKey::try_from(key_row).map_err(|e| CommonError::Repository {
-                        msg: format!("Failed to convert envelope key: {e}"),
-                        source: Some(e.into()),
+                    EnvelopeEncryptionKey::try_from(key_row).map_err(|e| {
+                        CommonError::Repository {
+                            msg: format!("Failed to convert envelope key: {e}"),
+                            source: Some(e.into()),
+                        }
                     })?
                 }
                 None => {
@@ -495,21 +499,22 @@ impl crate::repository::DataEncryptionKeyRepositoryLike for Repository {
                     id: &row.envelope_encryption_key_id,
                 };
 
-                let envelope_key_result = get_envelope_encryption_key_by_id(&self.conn, envelope_sqlc_params)
-                    .await
-                    .context("Failed to get envelope encryption key by id")
-                    .map_err(|e| CommonError::Repository {
-                        msg: e.to_string(),
-                        source: Some(e),
-                    })?;
+                let envelope_key_result =
+                    get_envelope_encryption_key_by_id(&self.conn, envelope_sqlc_params)
+                        .await
+                        .context("Failed to get envelope encryption key by id")
+                        .map_err(|e| CommonError::Repository {
+                            msg: e.to_string(),
+                            source: Some(e),
+                        })?;
 
                 let envelope_key_id = match envelope_key_result {
-                    Some(key_row) => {
-                        EnvelopeEncryptionKey::try_from(key_row).map_err(|e| CommonError::Repository {
+                    Some(key_row) => EnvelopeEncryptionKey::try_from(key_row).map_err(|e| {
+                        CommonError::Repository {
                             msg: format!("Failed to convert envelope key: {e}"),
                             source: Some(e.into()),
-                        })?
-                    }
+                        }
+                    })?,
                     None => {
                         return Err(CommonError::Repository {
                             msg: format!(
@@ -613,7 +618,7 @@ impl SqlMigrationLoader for Repository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::logic::dek::{DataEncryptionKey, EncryptedDataEncryptionKey};
+    use crate::logic::dek::EncryptedDataEncryptionKey;
     use crate::logic::envelope::EnvelopeEncryptionKey;
     use crate::repository::{
         CreateDataEncryptionKey, CreateEnvelopeEncryptionKey, DataEncryptionKeyAlias,
@@ -621,11 +626,7 @@ mod tests {
     use shared::primitives::{PaginationRequest, SqlMigrationLoader, WrappedChronoDateTime};
     use shared::test_utils::repository::setup_in_memory_database;
 
-    async fn create_test_envelope_key_aws(
-        repo: &Repository,
-        id: &str,
-        now: WrappedChronoDateTime,
-    ) {
+    async fn create_test_envelope_key_aws(repo: &Repository, id: &str, now: WrappedChronoDateTime) {
         let params = CreateEnvelopeEncryptionKey {
             id: id.to_string(),
             key_type: crate::repository::EnvelopeEncryptionKeyType::AwsKms,
@@ -748,8 +749,14 @@ mod tests {
         assert_eq!(keys.len(), 3);
 
         // We should have 2 AWS keys and 1 local key
-        let aws_count = keys.iter().filter(|k| matches!(k, EnvelopeEncryptionKey::AwsKms { .. })).count();
-        let local_count = keys.iter().filter(|k| matches!(k, EnvelopeEncryptionKey::Local { .. })).count();
+        let aws_count = keys
+            .iter()
+            .filter(|k| matches!(k, EnvelopeEncryptionKey::AwsKms { .. }))
+            .count();
+        let local_count = keys
+            .iter()
+            .filter(|k| matches!(k, EnvelopeEncryptionKey::Local { .. }))
+            .count();
         assert_eq!(aws_count, 2);
         assert_eq!(local_count, 1);
     }
@@ -768,21 +775,23 @@ mod tests {
         create_test_envelope_key_aws(&repo, key_id, now).await;
 
         // Verify it exists
-        assert!(repo
-            .get_envelope_encryption_key_by_id(key_id)
-            .await
-            .unwrap()
-            .is_some());
+        assert!(
+            repo.get_envelope_encryption_key_by_id(key_id)
+                .await
+                .unwrap()
+                .is_some()
+        );
 
         // Delete it
         repo.delete_envelope_encryption_key(key_id).await.unwrap();
 
         // Verify it's gone
-        assert!(repo
-            .get_envelope_encryption_key_by_id(key_id)
-            .await
-            .unwrap()
-            .is_none());
+        assert!(
+            repo.get_envelope_encryption_key_by_id(key_id)
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -924,7 +933,7 @@ mod tests {
             // Add small delay to ensure different timestamps
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
             now = WrappedChronoDateTime::now();
-            create_test_dek(&repo, &format!("dek-{}", i), envelope_key_id, now).await;
+            create_test_dek(&repo, &format!("dek-{i}"), envelope_key_id, now).await;
         }
 
         // First page
@@ -935,7 +944,10 @@ mod tests {
         let result = repo.list_data_encryption_keys(&pagination).await.unwrap();
 
         assert_eq!(result.items.len(), 2, "First page should have 2 items");
-        assert!(result.next_page_token.is_some(), "Should have next page token");
+        assert!(
+            result.next_page_token.is_some(),
+            "Should have next page token"
+        );
 
         // Second page
         let pagination = PaginationRequest {
@@ -945,7 +957,10 @@ mod tests {
         let result = repo.list_data_encryption_keys(&pagination).await.unwrap();
 
         assert_eq!(result.items.len(), 2, "Second page should have 2 items");
-        assert!(result.next_page_token.is_some(), "Should have next page token for third page");
+        assert!(
+            result.next_page_token.is_some(),
+            "Should have next page token for third page"
+        );
     }
 
     #[tokio::test]
@@ -966,21 +981,23 @@ mod tests {
         create_test_dek(&repo, dek_id, envelope_key_id, now).await;
 
         // Verify it exists
-        assert!(repo
-            .get_data_encryption_key_by_id(dek_id)
-            .await
-            .unwrap()
-            .is_some());
+        assert!(
+            repo.get_data_encryption_key_by_id(dek_id)
+                .await
+                .unwrap()
+                .is_some()
+        );
 
         // Delete it
         repo.delete_data_encryption_key(dek_id).await.unwrap();
 
         // Verify it's gone
-        assert!(repo
-            .get_data_encryption_key_by_id(dek_id)
-            .await
-            .unwrap()
-            .is_none());
+        assert!(
+            repo.get_data_encryption_key_by_id(dek_id)
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -1168,7 +1185,10 @@ mod tests {
         create_test_dek(&repo, dek_id_2, envelope_key_id_local, now).await;
 
         // Get all DEKs with envelope keys using the new query
-        let deks = repo.get_all_data_encryption_keys_with_envelope_keys().await.unwrap();
+        let deks = repo
+            .get_all_data_encryption_keys_with_envelope_keys()
+            .await
+            .unwrap();
 
         assert_eq!(deks.len(), 2);
 
@@ -1216,9 +1236,11 @@ mod tests {
             data_encryption_key_id: dek_id.to_string(),
             created_at: now,
         };
-        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias)
-            .await
-            .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+            &repo, &alias,
+        )
+        .await
+        .unwrap();
 
         // Retrieve alias
         let retrieved = crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_alias_by_alias(
@@ -1254,18 +1276,21 @@ mod tests {
             data_encryption_key_id: dek_id.to_string(),
             created_at: now,
         };
-        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias)
-            .await
-            .unwrap();
-
-        // Get DEK by alias
-        let dek = crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_by_alias(
-            &repo,
-            "my-app-key",
+        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+            &repo, &alias,
         )
         .await
-        .unwrap()
         .unwrap();
+
+        // Get DEK by alias
+        let dek =
+            crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_by_alias(
+                &repo,
+                "my-app-key",
+            )
+            .await
+            .unwrap()
+            .unwrap();
 
         assert_eq!(dek.id, dek_id);
         assert_eq!(dek.encrypted_data_encryption_key.0, "test_encrypted_key");
@@ -1312,20 +1337,27 @@ mod tests {
             created_at: now,
         };
 
-        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias1)
-            .await
-            .unwrap();
-        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias2)
-            .await
-            .unwrap();
-        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias3)
-            .await
-            .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+            &repo, &alias1,
+        )
+        .await
+        .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+            &repo, &alias2,
+        )
+        .await
+        .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+            &repo, &alias3,
+        )
+        .await
+        .unwrap();
 
         // List all aliases for the DEK
-        let aliases = crate::repository::DataEncryptionKeyRepositoryLike::list_aliases_for_dek(&repo, dek_id)
-            .await
-            .unwrap();
+        let aliases =
+            crate::repository::DataEncryptionKeyRepositoryLike::list_aliases_for_dek(&repo, dek_id)
+                .await
+                .unwrap();
 
         assert_eq!(aliases.len(), 3);
         let alias_names: Vec<String> = aliases.iter().map(|a| a.alias.clone()).collect();
@@ -1355,9 +1387,11 @@ mod tests {
             data_encryption_key_id: dek_id.to_string(),
             created_at: now,
         };
-        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias)
-            .await
-            .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+            &repo, &alias,
+        )
+        .await
+        .unwrap();
 
         // Verify it exists
         assert!(crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_alias_by_alias(
@@ -1369,9 +1403,12 @@ mod tests {
         .is_some());
 
         // Delete it
-        crate::repository::DataEncryptionKeyRepositoryLike::delete_data_encryption_key_alias(&repo, "my-app-key")
-            .await
-            .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::delete_data_encryption_key_alias(
+            &repo,
+            "my-app-key",
+        )
+        .await
+        .unwrap();
 
         // Verify it's gone
         assert!(crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_alias_by_alias(
@@ -1410,12 +1447,16 @@ mod tests {
             created_at: now,
         };
 
-        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias1)
-            .await
-            .unwrap();
-        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias2)
-            .await
-            .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+            &repo, &alias1,
+        )
+        .await
+        .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+            &repo, &alias2,
+        )
+        .await
+        .unwrap();
 
         // Verify aliases exist
         assert!(crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_alias_by_alias(
@@ -1432,9 +1473,11 @@ mod tests {
         .is_some());
 
         // Delete the DEK
-        crate::repository::DataEncryptionKeyRepositoryLike::delete_data_encryption_key(&repo, dek_id)
-            .await
-            .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::delete_data_encryption_key(
+            &repo, dek_id,
+        )
+        .await
+        .unwrap();
 
         // Verify aliases are automatically deleted due to CASCADE
         assert!(crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_alias_by_alias(
@@ -1474,12 +1517,13 @@ mod tests {
             .unwrap();
         let repo = Repository::new(conn);
 
-        let result = crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_by_alias(
-            &repo,
-            "nonexistent-alias",
-        )
-        .await
-        .unwrap();
+        let result =
+            crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_by_alias(
+                &repo,
+                "nonexistent-alias",
+            )
+            .await
+            .unwrap();
         assert!(result.is_none());
     }
 
@@ -1506,9 +1550,11 @@ mod tests {
             data_encryption_key_id: dek_id_1.to_string(),
             created_at: now,
         };
-        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias1)
-            .await
-            .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+            &repo, &alias1,
+        )
+        .await
+        .unwrap();
 
         // Try to create the same alias for second DEK
         let alias2 = DataEncryptionKeyAlias {
@@ -1517,7 +1563,10 @@ mod tests {
             created_at: now,
         };
         let result =
-            crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias2).await;
+            crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+                &repo, &alias2,
+            )
+            .await;
 
         // Should fail due to unique constraint on alias
         assert!(result.is_err());
@@ -1552,28 +1601,34 @@ mod tests {
             created_at: now,
         };
 
-        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias1)
-            .await
-            .unwrap();
-        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias2)
-            .await
-            .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+            &repo, &alias1,
+        )
+        .await
+        .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+            &repo, &alias2,
+        )
+        .await
+        .unwrap();
 
         // Get DEKs by their aliases
-        let dek1 = crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_by_alias(
-            &repo,
-            "dek-1-alias",
-        )
-        .await
-        .unwrap()
-        .unwrap();
-        let dek2 = crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_by_alias(
-            &repo,
-            "dek-2-alias",
-        )
-        .await
-        .unwrap()
-        .unwrap();
+        let dek1 =
+            crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_by_alias(
+                &repo,
+                "dek-1-alias",
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        let dek2 =
+            crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_by_alias(
+                &repo,
+                "dek-2-alias",
+            )
+            .await
+            .unwrap()
+            .unwrap();
 
         assert_eq!(dek1.id, dek_id_1);
         assert_eq!(dek2.id, dek_id_2);
@@ -1595,9 +1650,10 @@ mod tests {
         create_test_dek(&repo, dek_id, envelope_key_id, now).await;
 
         // List aliases (should be empty)
-        let aliases = crate::repository::DataEncryptionKeyRepositoryLike::list_aliases_for_dek(&repo, dek_id)
-            .await
-            .unwrap();
+        let aliases =
+            crate::repository::DataEncryptionKeyRepositoryLike::list_aliases_for_dek(&repo, dek_id)
+                .await
+                .unwrap();
         assert_eq!(aliases.len(), 0);
     }
 
@@ -1624,9 +1680,11 @@ mod tests {
             data_encryption_key_id: dek_id_1.to_string(),
             created_at: now,
         };
-        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(&repo, &alias)
-            .await
-            .unwrap();
+        crate::repository::DataEncryptionKeyRepositoryLike::create_data_encryption_key_alias(
+            &repo, &alias,
+        )
+        .await
+        .unwrap();
 
         // Verify it points to dek_id_1
         let retrieved = crate::repository::DataEncryptionKeyRepositoryLike::get_data_encryption_key_alias_by_alias(
@@ -1640,9 +1698,7 @@ mod tests {
 
         // Update alias to point to dek_id_2
         crate::repository::DataEncryptionKeyRepositoryLike::update_data_encryption_key_alias(
-            &repo,
-            "my-alias",
-            dek_id_2,
+            &repo, "my-alias", dek_id_2,
         )
         .await
         .unwrap();

@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use ::encryption::logic::crypto_services::{DecryptionService, EncryptedString, EncryptionService};
+use async_trait::async_trait;
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -1008,8 +1008,16 @@ mod tests {
 
         // Use the test helper to set up encryption services
         let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
-        let encryption_service = setup.crypto_cache.get_encryption_service(&setup.dek_alias).await.unwrap();
-        let decryption_service = setup.crypto_cache.get_decryption_service(&setup.dek_alias).await.unwrap();
+        let encryption_service = setup
+            .crypto_cache
+            .get_encryption_service(&setup.dek_alias)
+            .await
+            .unwrap();
+        let decryption_service = setup
+            .crypto_cache
+            .get_decryption_service(&setup.dek_alias)
+            .await
+            .unwrap();
 
         // Create a controller
         let controller = OauthAuthFlowController {
@@ -1173,7 +1181,11 @@ mod tests {
 
         // Use the test helper to set up encryption services
         let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
-        let encryption_service = setup.crypto_cache.get_encryption_service(&setup.dek_alias).await.unwrap();
+        let encryption_service = setup
+            .crypto_cache
+            .get_encryption_service(&setup.dek_alias)
+            .await
+            .unwrap();
 
         let controller = OauthAuthFlowController {
             static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
@@ -1235,8 +1247,16 @@ mod tests {
 
         // Use the test helper to set up encryption services
         let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
-        let encryption_service = setup.crypto_cache.get_encryption_service(&setup.dek_alias).await.unwrap();
-        let decryption_service = setup.crypto_cache.get_decryption_service(&setup.dek_alias).await.unwrap();
+        let encryption_service = setup
+            .crypto_cache
+            .get_encryption_service(&setup.dek_alias)
+            .await
+            .unwrap();
+        let decryption_service = setup
+            .crypto_cache
+            .get_decryption_service(&setup.dek_alias)
+            .await
+            .unwrap();
 
         let controller = OauthAuthFlowController {
             static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
@@ -1320,7 +1340,11 @@ mod tests {
 
         // Use the test helper to set up encryption services
         let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
-        let encryption_service = setup.crypto_cache.get_encryption_service(&setup.dek_alias).await.unwrap();
+        let encryption_service = setup
+            .crypto_cache
+            .get_encryption_service(&setup.dek_alias)
+            .await
+            .unwrap();
 
         let controller = Oauth2JwtBearerAssertionFlowController {
             static_credentials: Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration {

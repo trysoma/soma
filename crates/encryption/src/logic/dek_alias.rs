@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use shared::{error::CommonError, primitives::WrappedChronoDateTime};
 use utoipa::ToSchema;
 
-use crate::repository::{DataEncryptionKeyAlias, DataEncryptionKeyRepositoryLike};
-use super::{DataEncryptionKey, EncryptionKeyEvent, EncryptionKeyEventSender};
 use super::crypto_services::CryptoCache;
+use super::{DataEncryptionKey, EncryptionKeyEvent, EncryptionKeyEventSender};
+use crate::repository::{DataEncryptionKeyAlias, DataEncryptionKeyRepositoryLike};
 
 // Parameter types following the pattern from dek.rs
 pub struct WithDekId<T> {
@@ -90,9 +90,7 @@ where
     let alias_record = repo
         .get_data_encryption_key_alias_by_alias(&alias_name)
         .await?
-        .ok_or_else(|| {
-            CommonError::Unknown(anyhow::anyhow!("Alias not found: {}", alias_name))
-        })?;
+        .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("Alias not found: {alias_name}")))?;
 
     let dek_id = alias_record.data_encryption_key_id.clone();
 
@@ -123,9 +121,7 @@ where
     let existing_alias = repo
         .get_data_encryption_key_alias_by_alias(&alias_name)
         .await?
-        .ok_or_else(|| {
-            CommonError::Unknown(anyhow::anyhow!("Alias not found: {}", alias_name))
-        })?;
+        .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("Alias not found: {alias_name}")))?;
 
     let old_dek_id = existing_alias.data_encryption_key_id.clone();
 
@@ -185,8 +181,7 @@ where
 
     // Neither alias nor ID found
     Err(CommonError::Unknown(anyhow::anyhow!(
-        "Data encryption key not found with alias or ID: {}",
-        alias_or_id
+        "Data encryption key not found with alias or ID: {alias_or_id}"
     )))
 }
 

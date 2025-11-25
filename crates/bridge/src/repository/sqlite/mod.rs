@@ -911,18 +911,17 @@ impl SqlMigrationLoader for Repository {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::logic::{
-        Metadata,
-        ProviderInstanceSerialized, credential::BrokerAction, instance::FunctionInstanceSerialized,
+        Metadata, ProviderInstanceSerialized, credential::BrokerAction,
+        instance::FunctionInstanceSerialized,
     };
     use crate::repository::{
-        BrokerState, CreateBrokerState, CreateFunctionInstance,
-        CreateProviderInstance, CreateResourceServerCredential, CreateUserCredential,
-        ProviderRepositoryLike, ResourceServerCredentialSerialized, UserCredentialSerialized,
+        BrokerState, CreateBrokerState, CreateFunctionInstance, CreateProviderInstance,
+        CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
+        ResourceServerCredentialSerialized, UserCredentialSerialized,
     };
     use shared::primitives::{
         SqlMigrationLoader, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4,
@@ -957,7 +956,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            dek_alias: dek_alias,
+            dek_alias,
         };
 
         let create_params = CreateResourceServerCredential::from(credential.clone());
@@ -1000,7 +999,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: Some(now),
-            dek_alias: dek_alias,
+            dek_alias,
         };
 
         let create_params = CreateUserCredential::from(credential.clone());
@@ -1509,7 +1508,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            dek_alias: dek_alias,
+            dek_alias,
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),
@@ -1589,7 +1588,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            dek_alias: dek_alias,
+            dek_alias,
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),

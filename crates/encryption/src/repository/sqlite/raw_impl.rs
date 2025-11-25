@@ -2,11 +2,9 @@ use shared::error::CommonError;
 
 // Import generated Row types from parent module
 use super::{
-    Row_get_envelope_encryption_key_by_id,
-    Row_get_envelope_encryption_keys,
-    Row_get_envelope_encryption_keys_paginated,
     Row_get_all_data_encryption_keys_with_envelope_keys,
-    Row_get_data_encryption_key_by_id_with_envelope,
+    Row_get_data_encryption_key_by_id_with_envelope, Row_get_envelope_encryption_key_by_id,
+    Row_get_envelope_encryption_keys, Row_get_envelope_encryption_keys_paginated,
 };
 
 // Conversion from repository EnvelopeEncryptionKey row types to logic EnvelopeEncryptionKey enum
@@ -90,7 +88,9 @@ use crate::logic::dek::DataEncryptionKey as LogicDataEncryptionKey;
 impl TryFrom<Row_get_all_data_encryption_keys_with_envelope_keys> for LogicDataEncryptionKey {
     type Error = CommonError;
 
-    fn try_from(row: Row_get_all_data_encryption_keys_with_envelope_keys) -> Result<Self, Self::Error> {
+    fn try_from(
+        row: Row_get_all_data_encryption_keys_with_envelope_keys,
+    ) -> Result<Self, Self::Error> {
         // Convert envelope encryption key from row fields
         let envelope_encryption_key_id = match row.key_type {
             crate::repository::EnvelopeEncryptionKeyType::AwsKms => {
@@ -152,4 +152,3 @@ impl TryFrom<Row_get_data_encryption_key_by_id_with_envelope> for LogicDataEncry
         })
     }
 }
-

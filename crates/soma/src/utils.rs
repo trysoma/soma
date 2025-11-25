@@ -218,8 +218,7 @@ pub async fn create_and_wait_for_api_client(
 
     if !connected {
         return Err(CommonError::Unknown(anyhow::anyhow!(
-            "Failed to connect to Soma API server. Please ensure 'soma dev' is running at {}",
-            api_url
+            "Failed to connect to Soma API server. Please ensure 'soma dev' is running at {api_url}"
         )));
     }
 

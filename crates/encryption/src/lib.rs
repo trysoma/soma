@@ -4,9 +4,11 @@ pub mod router;
 
 #[cfg(test)]
 mod tests {
-    use crate::logic::envelope::{EnvelopeEncryptionKeyContents, EnvelopeEncryptionKey, encrypt_dek, decrypt_dek};
+    use crate::logic::crypto_services::{CryptoService, DecryptionService, EncryptionService};
     use crate::logic::dek::{DataEncryptionKey, EncryptedDataEncryptionKey};
-    use crate::logic::crypto_services::{CryptoService, EncryptionService, DecryptionService};
+    use crate::logic::envelope::{
+        EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents, decrypt_dek, encrypt_dek,
+    };
 
     const TEST_KMS_KEY_ARN: &str =
         "arn:aws:kms:eu-west-2:914788356809:alias/unsafe-github-action-soma-test-key";
@@ -227,7 +229,10 @@ mod tests {
         };
 
         let mut config = aws_config::load_from_env().await;
-        config = config.to_builder().region(aws_config::Region::new(TEST_KMS_REGION.to_string())).build();
+        config = config
+            .to_builder()
+            .region(aws_config::Region::new(TEST_KMS_REGION.to_string()))
+            .build();
         let kms_client = aws_sdk_kms::Client::new(&config);
 
         // Generate a 256-bit data key using AWS KMS

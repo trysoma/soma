@@ -1,27 +1,23 @@
 use crate::logic::{
-    BrokerAction, BrokerInput,
-    CreateProviderInstanceParamsInner, CreateProviderInstanceResponse,
+    BrokerAction, BrokerInput, CreateProviderInstanceParamsInner, CreateProviderInstanceResponse,
     CreateResourceServerCredentialParamsInner, CreateResourceServerCredentialResponse,
     CreateUserCredentialParamsInner, CreateUserCredentialResponse, DisableFunctionParamsInner,
     DisableFunctionResponse, EnableFunctionParamsInner, EnableFunctionResponse,
     EncryptCredentialConfigurationParamsInner, EncryptedCredentialConfigurationResponse,
-    GetProviderInstanceResponse, InvokeFunctionParamsInner,
-    InvokeFunctionResponse, ListAvailableProvidersResponse,
-    ListFunctionInstancesParams, ListFunctionInstancesResponse,
+    GetProviderInstanceResponse, InvokeFunctionParamsInner, InvokeFunctionResponse,
+    ListAvailableProvidersResponse, ListFunctionInstancesParams, ListFunctionInstancesResponse,
     ListProviderInstancesGroupedByFunctionParams, ListProviderInstancesGroupedByFunctionResponse,
-    ListProviderInstancesParams, ListProviderInstancesResponse,
-    OnConfigChangeTx, ResumeUserCredentialBrokeringParams,
-    StartUserCredentialBrokeringParamsInner, UpdateProviderInstanceParamsInner,
-    UpdateProviderInstanceResponse, UserCredentialBrokeringResponse, UserCredentialSerialized,
-    WithCredentialControllerTypeId, WithFunctionControllerTypeId, WithFunctionInstanceId,
-    WithProviderControllerTypeId, WithProviderInstanceId,
-    create_provider_instance, create_resource_server_credential, create_user_credential,
-    delete_provider_instance, disable_function, enable_function,
+    ListProviderInstancesParams, ListProviderInstancesResponse, OnConfigChangeTx,
+    ResumeUserCredentialBrokeringParams, StartUserCredentialBrokeringParamsInner,
+    UpdateProviderInstanceParamsInner, UpdateProviderInstanceResponse,
+    UserCredentialBrokeringResponse, UserCredentialSerialized, WithCredentialControllerTypeId,
+    WithFunctionControllerTypeId, WithFunctionInstanceId, WithProviderControllerTypeId,
+    WithProviderInstanceId, create_provider_instance, create_resource_server_credential,
+    create_user_credential, delete_provider_instance, disable_function, enable_function,
     encrypt_resource_server_configuration, encrypt_user_credential_configuration,
     get_function_instances_openapi_spec, get_provider_instance, invoke_function,
-    list_available_providers, list_function_instances,
-    list_provider_instances, list_provider_instances_grouped_by_function,
-    process_credential_rotations_with_window,
+    list_available_providers, list_function_instances, list_provider_instances,
+    list_provider_instances_grouped_by_function, process_credential_rotations_with_window,
     resume_user_credential_brokering, start_user_credential_brokering, update_provider_instance,
 };
 use crate::repository::ProviderRepositoryLike;
@@ -42,11 +38,9 @@ use rmcp::{
 };
 use serde::{Deserialize, Serialize};
 use shared::{adapters::openapi::JsonResponse, error::CommonError, primitives::PaginationRequest};
-use std::collections::HashMap;
 use std::io;
 use std::sync::Arc;
 use std::time::Duration;
-use arc_swap::ArcSwap;
 use tracing::info;
 use utoipa::openapi::OpenApi;
 use utoipa::{IntoParams, PartialSchema, ToSchema};
@@ -504,7 +498,7 @@ async fn generic_oauth_callback(
         }
         Err(e) => return respond_err!(e),
     };
-    
+
     // Resume the user credential brokering flow
     let res = resume_user_credential_brokering(
         ctx.on_config_change_tx(),

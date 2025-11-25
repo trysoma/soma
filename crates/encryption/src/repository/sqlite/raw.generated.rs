@@ -127,7 +127,7 @@ WHERE id = ?"#).await?;
   pub async fn get_envelope_encryption_keys(
       conn: &shared::libsql::Connection
   ) -> Result<Vec<Row_get_envelope_encryption_keys>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
 FROM envelope_encryption_key
 ORDER BY created_at DESC"#).await?;
       let mut rows = stmt.query(libsql::params![]).await?;
@@ -171,7 +171,7 @@ ORDER BY created_at DESC"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_envelope_encryption_keys_paginated_params<'_>
   ) -> Result<Vec<Row_get_envelope_encryption_keys_paginated>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
 FROM envelope_encryption_key 
 WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
@@ -217,7 +217,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_data_encryption_keys_by_envelope_key_id_params<'_>
   ) -> Result<Vec<Row_get_data_encryption_keys_by_envelope_key_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, created_at, updated_at
 FROM data_encryption_key 
 WHERE envelope_encryption_key_id = ?
   AND (created_at < ?2 OR ?2 IS NULL)
@@ -425,7 +425,7 @@ WHERE dek.id = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_data_encryption_keys_params<'_>
   ) -> Result<Vec<Row_get_data_encryption_keys>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, created_at, updated_at
 FROM data_encryption_key 
 WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
@@ -461,7 +461,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
   pub async fn get_all_data_encryption_keys_with_envelope_keys(
       conn: &shared::libsql::Connection
   ) -> Result<Vec<Row_get_all_data_encryption_keys_with_envelope_keys>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT
+      let stmt = conn.prepare(r#"SELECT
     dek.id,
     dek.envelope_encryption_key_id,
     dek.encryption_key,
@@ -627,7 +627,7 @@ WHERE alias.alias = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: list_aliases_for_dek_params<'_>
   ) -> Result<Vec<Row_list_aliases_for_dek>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT alias, data_encryption_key_id, created_at
+      let stmt = conn.prepare(r#"SELECT alias, data_encryption_key_id, created_at
 FROM data_encryption_key_alias
 WHERE data_encryption_key_id = ?
 ORDER BY created_at ASC"#).await?;

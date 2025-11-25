@@ -1,14 +1,16 @@
+use dashmap::DashMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
-use utoipa::ToSchema;
 use std::sync::Arc;
-use dashmap::DashMap;
+use utoipa::ToSchema;
 
 use crate::logic::dek::{DataEncryptionKey, DecryptedDataEncryptionKey};
-use crate::logic::envelope::{EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents, decrypt_dek, get_local_envelope_encryption_key, get_or_create_local_envelope_encryption_key};
+use crate::logic::envelope::{
+    EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents, decrypt_dek,
+    get_local_envelope_encryption_key, get_or_create_local_envelope_encryption_key,
+};
 use crate::repository::DataEncryptionKeyRepositoryLike;
-
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema, ToSchema)]
 #[serde(transparent)]
@@ -47,7 +49,8 @@ impl CryptoService {
                 ..
             } = &data_encryption_key.envelope_encryption_key_id
         {
-            envelop_key_match = arn == data_encryption_key_arn && region == data_encryption_key_region;
+            envelop_key_match =
+                arn == data_encryption_key_arn && region == data_encryption_key_region;
         }
 
         if !envelop_key_match {
@@ -184,7 +187,8 @@ pub async fn get_crypto_service<R: DataEncryptionKeyRepositoryLike>(
     data_encryption_key_id_or_alias: &str,
 ) -> Result<CryptoService, CommonError> {
     // Use get_by_alias_or_id to support both aliases and direct IDs
-    let data_encryption_key = crate::logic::dek_alias::get_by_alias_or_id(repo, data_encryption_key_id_or_alias).await?;
+    let data_encryption_key =
+        crate::logic::dek_alias::get_by_alias_or_id(repo, data_encryption_key_id_or_alias).await?;
 
     let crypto_service = CryptoService::new(
         envelope_encryption_key_contents.clone(),
@@ -209,12 +213,18 @@ pub fn get_decryption_service_from_crypto(
 }
 
 /// Get an encryption service from the cache by DEK ID
-pub async fn get_encryption_service(cache: &CryptoCache, dek_id: &str) -> Result<EncryptionService, CommonError> {
+pub async fn get_encryption_service(
+    cache: &CryptoCache,
+    dek_id: &str,
+) -> Result<EncryptionService, CommonError> {
     get_encryption_service_cached(cache, dek_id).await
 }
 
 /// Get a decryption service from the cache by DEK ID
-pub async fn get_decryption_service(cache: &CryptoCache, dek_id: &str) -> Result<DecryptionService, CommonError> {
+pub async fn get_decryption_service(
+    cache: &CryptoCache,
+    dek_id: &str,
+) -> Result<DecryptionService, CommonError> {
     get_decryption_service_cached(cache, dek_id).await
 }
 
@@ -243,8 +253,8 @@ impl CryptoCache {
     /// This removes both encryption and decryption services for the given DEK,
     /// forcing them to be recreated on the next access
     pub fn invalidate_cache(&self, dek_id: &str) {
-        let encryption_key = format!("encryption.{}", dek_id);
-        let decryption_key = format!("decryption.{}", dek_id);
+        let encryption_key = format!("encryption.{dek_id}");
+        let decryption_key = format!("decryption.{dek_id}");
 
         self.encryption_services.remove(&encryption_key);
         self.decryption_services.remove(&decryption_key);
@@ -258,12 +268,18 @@ impl CryptoCache {
     }
 
     /// Get an encryption service from the cache by DEK ID or alias
-    pub async fn get_encryption_service(&self, dek_id_or_alias: &str) -> Result<EncryptionService, CommonError> {
+    pub async fn get_encryption_service(
+        &self,
+        dek_id_or_alias: &str,
+    ) -> Result<EncryptionService, CommonError> {
         get_encryption_service_cached(self, dek_id_or_alias).await
     }
 
     /// Get a decryption service from the cache by DEK ID or alias
-    pub async fn get_decryption_service(&self, dek_id_or_alias: &str) -> Result<DecryptionService, CommonError> {
+    pub async fn get_decryption_service(
+        &self,
+        dek_id_or_alias: &str,
+    ) -> Result<DecryptionService, CommonError> {
         get_decryption_service_cached(self, dek_id_or_alias).await
     }
 }
@@ -271,13 +287,14 @@ impl CryptoCache {
 /// Initialize the crypto cache with all data encryption keys and their services
 pub async fn init_crypto_cache(cache: &CryptoCache) -> Result<(), CommonError> {
     use shared::primitives::PaginationRequest;
-    
+
     // Get all data encryption keys by paginating through them
     let mut page_token = None;
     let mut all_deks = Vec::new();
 
     loop {
-        let deks = cache.repository
+        let deks = cache
+            .repository
             .list_data_encryption_keys(&PaginationRequest {
                 page_size: 100,
                 next_page_token: page_token.clone(),
@@ -286,7 +303,11 @@ pub async fn init_crypto_cache(cache: &CryptoCache) -> Result<(), CommonError> {
 
         for dek_item in &deks.items {
             // Get full DEK with encrypted key
-            if let Some(dek) = cache.repository.get_data_encryption_key_by_id(&dek_item.id).await? {
+            if let Some(dek) = cache
+                .repository
+                .get_data_encryption_key_by_id(&dek_item.id)
+                .await?
+            {
                 all_deks.push(dek);
             }
         }
@@ -318,35 +339,43 @@ pub async fn init_crypto_cache(cache: &CryptoCache) -> Result<(), CommonError> {
 
         // Create and cache encryption service
         let encryption_service = EncryptionService::new(crypto_service.clone());
-        cache.encryption_services.insert(format!("encryption.{}", crypto_service.data_encryption_key.id), encryption_service);
+        cache.encryption_services.insert(
+            format!("encryption.{}", crypto_service.data_encryption_key.id),
+            encryption_service,
+        );
 
         // Create and cache decryption service
         let decryption_service = DecryptionService::new(crypto_service);
-        cache.decryption_services.insert(format!("decryption.{}", dek.id), decryption_service);
+        cache
+            .decryption_services
+            .insert(format!("decryption.{}", dek.id), decryption_service);
     }
 
     Ok(())
 }
 
 /// Get an encryption service from the cache by DEK ID or alias
-pub async fn get_encryption_service_cached(cache: &CryptoCache, dek_id_or_alias: &str) -> Result<EncryptionService, CommonError> {
+pub async fn get_encryption_service_cached(
+    cache: &CryptoCache,
+    dek_id_or_alias: &str,
+) -> Result<EncryptionService, CommonError> {
     // Try to get from cache using the provided key (could be ID or alias)
-    let cache_key = format!("encryption.{}", dek_id_or_alias);
+    let cache_key = format!("encryption.{dek_id_or_alias}");
     if let Some(service) = cache.encryption_services.get(&cache_key) {
         return Ok((*service).clone());
     }
 
     // Not in cache, resolve the alias or ID to get the actual DEK
-    let dek = crate::logic::dek_alias::get_by_alias_or_id(cache.repository.as_ref(), dek_id_or_alias).await?;
+    let dek =
+        crate::logic::dek_alias::get_by_alias_or_id(cache.repository.as_ref(), dek_id_or_alias)
+            .await?;
 
     // Get envelope encryption key contents
     let envelope_key_contents = match &dek.envelope_encryption_key_id {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => {
-            EnvelopeEncryptionKeyContents::AwsKms {
-                arn: arn.clone(),
-                region: region.clone(),
-            }
-        }
+        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: arn.clone(),
+            region: region.clone(),
+        },
         EnvelopeEncryptionKey::Local { location } => {
             get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
@@ -359,30 +388,35 @@ pub async fn get_encryption_service_cached(cache: &CryptoCache, dek_id_or_alias:
     let encryption_service = EncryptionService::new(crypto_service.clone());
 
     // Cache it using the key that was requested (could be alias or ID)
-    cache.encryption_services.insert(cache_key, encryption_service.clone());
+    cache
+        .encryption_services
+        .insert(cache_key, encryption_service.clone());
 
     Ok(encryption_service)
 }
 
 /// Get a decryption service from the cache by DEK ID or alias
-pub async fn get_decryption_service_cached(cache: &CryptoCache, dek_id_or_alias: &str) -> Result<DecryptionService, CommonError> {
+pub async fn get_decryption_service_cached(
+    cache: &CryptoCache,
+    dek_id_or_alias: &str,
+) -> Result<DecryptionService, CommonError> {
     // Try to get from cache using the provided key (could be ID or alias)
-    let cache_key = format!("decryption.{}", dek_id_or_alias);
+    let cache_key = format!("decryption.{dek_id_or_alias}");
     if let Some(service) = cache.decryption_services.get(&cache_key) {
         return Ok((*service).clone());
     }
 
     // Not in cache, resolve the alias or ID to get the actual DEK
-    let dek = crate::logic::dek_alias::get_by_alias_or_id(cache.repository.as_ref(), dek_id_or_alias).await?;
+    let dek =
+        crate::logic::dek_alias::get_by_alias_or_id(cache.repository.as_ref(), dek_id_or_alias)
+            .await?;
 
     // Get envelope encryption key contents
     let envelope_key_contents = match &dek.envelope_encryption_key_id {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => {
-            EnvelopeEncryptionKeyContents::AwsKms {
-                arn: arn.clone(),
-                region: region.clone(),
-            }
-        }
+        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: arn.clone(),
+            region: region.clone(),
+        },
         EnvelopeEncryptionKey::Local { location } => {
             get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
@@ -395,7 +429,9 @@ pub async fn get_decryption_service_cached(cache: &CryptoCache, dek_id_or_alias:
     let decryption_service = DecryptionService::new(crypto_service);
 
     // Cache it using the key that was requested (could be alias or ID)
-    cache.decryption_services.insert(cache_key, decryption_service.clone());
+    cache
+        .decryption_services
+        .insert(cache_key, decryption_service.clone());
 
     Ok(decryption_service)
 }
@@ -403,9 +439,9 @@ pub async fn get_decryption_service_cached(cache: &CryptoCache, dek_id_or_alias:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::logic::dek::{CreateDekParams, CreateDekInnerParams};
-    use crate::logic::envelope::{get_or_create_local_envelope_encryption_key, encrypt_dek};
-    use crate::repository::{Repository, EncryptionKeyRepositoryLike};
+    use crate::logic::dek::{CreateDekInnerParams, CreateDekParams};
+    use crate::logic::envelope::{encrypt_dek, get_or_create_local_envelope_encryption_key};
+    use crate::repository::{EncryptionKeyRepositoryLike, Repository};
     use shared::primitives::{SqlMigrationLoader, WrappedChronoDateTime};
     use shared::test_utils::repository::setup_in_memory_database;
     use tokio::sync::broadcast;
@@ -428,12 +464,15 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
         let path = temp_dir.path().join("test-key");
         let envelope_key_contents = get_or_create_local_envelope_encryption_key(&path).unwrap();
-        let envelope_key = crate::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone());
+        let envelope_key =
+            crate::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone());
         let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
             envelope_key.clone(),
             WrappedChronoDateTime::now(),
         ));
-        EncryptionKeyRepositoryLike::create_envelope_encryption_key(&repo, &create_params).await.unwrap();
+        EncryptionKeyRepositoryLike::create_envelope_encryption_key(&repo, &create_params)
+            .await
+            .unwrap();
 
         // Create DEK
         let dek = crate::logic::dek::create_data_encryption_key(
@@ -447,7 +486,9 @@ mod tests {
                 },
             },
             false,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
 
         // Test getting crypto service
         let crypto_service = get_crypto_service(&envelope_key_contents, &repo, &dek.id)
@@ -474,25 +515,34 @@ mod tests {
         rand::thread_rng().fill_bytes(&mut dek_bytes);
         // Convert to string for encrypt_dek (it will be decrypted back to bytes)
         let dek_string = unsafe { String::from_utf8_unchecked(dek_bytes.clone()) };
-        
-        let encrypted_dek = encrypt_dek(&envelope_key_contents, dek_string).await.unwrap();
+
+        let encrypted_dek = encrypt_dek(&envelope_key_contents, dek_string)
+            .await
+            .unwrap();
         let dek = crate::logic::dek::DataEncryptionKey {
             id: "test-dek".to_string(),
-            envelope_encryption_key_id: crate::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone()),
+            envelope_encryption_key_id: crate::logic::envelope::EnvelopeEncryptionKey::from(
+                envelope_key_contents.clone(),
+            ),
             encrypted_data_encryption_key: encrypted_dek,
             created_at: WrappedChronoDateTime::now(),
             updated_at: WrappedChronoDateTime::now(),
         };
 
         // Create crypto service
-        let crypto_service = CryptoService::new(envelope_key_contents.clone(), dek).await.unwrap();
+        let crypto_service = CryptoService::new(envelope_key_contents.clone(), dek)
+            .await
+            .unwrap();
 
         // Test getting encryption service
         let encryption_service = get_encryption_service_from_crypto(&crypto_service).unwrap();
         assert!(matches!(encryption_service, EncryptionService(_)));
 
         // Test encryption service can encrypt data
-        let encrypted = encryption_service.encrypt_data("test message".to_string()).await.unwrap();
+        let encrypted = encryption_service
+            .encrypt_data("test message".to_string())
+            .await
+            .unwrap();
         assert!(!encrypted.0.is_empty());
     }
 
@@ -510,18 +560,24 @@ mod tests {
         rand::thread_rng().fill_bytes(&mut dek_bytes);
         // Convert to string for encrypt_dek (it will be decrypted back to bytes)
         let dek_string = unsafe { String::from_utf8_unchecked(dek_bytes.clone()) };
-        
-        let encrypted_dek = encrypt_dek(&envelope_key_contents, dek_string).await.unwrap();
+
+        let encrypted_dek = encrypt_dek(&envelope_key_contents, dek_string)
+            .await
+            .unwrap();
         let dek = crate::logic::dek::DataEncryptionKey {
             id: "test-dek".to_string(),
-            envelope_encryption_key_id: crate::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone()),
+            envelope_encryption_key_id: crate::logic::envelope::EnvelopeEncryptionKey::from(
+                envelope_key_contents.clone(),
+            ),
             encrypted_data_encryption_key: encrypted_dek,
             created_at: WrappedChronoDateTime::now(),
             updated_at: WrappedChronoDateTime::now(),
         };
 
         // Create crypto service
-        let crypto_service = CryptoService::new(envelope_key_contents.clone(), dek).await.unwrap();
+        let crypto_service = CryptoService::new(envelope_key_contents.clone(), dek)
+            .await
+            .unwrap();
 
         // Test getting decryption service
         let decryption_service = get_decryption_service_from_crypto(&crypto_service).unwrap();
@@ -529,7 +585,10 @@ mod tests {
 
         // Test decryption service can decrypt data
         let encryption_service = get_encryption_service_from_crypto(&crypto_service).unwrap();
-        let encrypted = encryption_service.encrypt_data("test message".to_string()).await.unwrap();
+        let encrypted = encryption_service
+            .encrypt_data("test message".to_string())
+            .await
+            .unwrap();
         let decrypted = decryption_service.decrypt_data(encrypted).await.unwrap();
         assert_eq!(decrypted, "test message");
     }
@@ -548,12 +607,15 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
         let path = temp_dir.path().join("test-key");
         let envelope_key_contents = get_or_create_local_envelope_encryption_key(&path).unwrap();
-        let envelope_key = crate::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone());
+        let envelope_key =
+            crate::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone());
         let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
             envelope_key.clone(),
             WrappedChronoDateTime::now(),
         ));
-        EncryptionKeyRepositoryLike::create_envelope_encryption_key(&repo, &create_params).await.unwrap();
+        EncryptionKeyRepositoryLike::create_envelope_encryption_key(&repo, &create_params)
+            .await
+            .unwrap();
 
         // Create multiple DEKs
         let dek1 = crate::logic::dek::create_data_encryption_key(
@@ -567,7 +629,9 @@ mod tests {
                 },
             },
             false,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
 
         let dek2 = crate::logic::dek::create_data_encryption_key(
             &tx,
@@ -580,7 +644,9 @@ mod tests {
                 },
             },
             false,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
 
         // Initialize cache
         let cache = CryptoCache::new(repo.clone());
@@ -591,8 +657,14 @@ mod tests {
         let encryption_service2 = get_encryption_service(&cache, &dek2.id).await.unwrap();
 
         // Verify they work
-        let encrypted1 = encryption_service1.encrypt_data("message 1".to_string()).await.unwrap();
-        let encrypted2 = encryption_service2.encrypt_data("message 2".to_string()).await.unwrap();
+        let encrypted1 = encryption_service1
+            .encrypt_data("message 1".to_string())
+            .await
+            .unwrap();
+        let encrypted2 = encryption_service2
+            .encrypt_data("message 2".to_string())
+            .await
+            .unwrap();
         assert!(!encrypted1.0.is_empty());
         assert!(!encrypted2.0.is_empty());
         assert_ne!(encrypted1.0, encrypted2.0); // Different nonces should produce different ciphertexts
@@ -622,19 +694,22 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
         let path = temp_dir.path().join("test-key");
         let envelope_key_contents = get_or_create_local_envelope_encryption_key(&path).unwrap();
-        let envelope_key = crate::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone());
+        let envelope_key =
+            crate::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone());
         let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
             envelope_key.clone(),
             WrappedChronoDateTime::now(),
         ));
-        EncryptionKeyRepositoryLike::create_envelope_encryption_key(&repo, &create_params).await.unwrap();
+        EncryptionKeyRepositoryLike::create_envelope_encryption_key(&repo, &create_params)
+            .await
+            .unwrap();
 
         // Initialize cache
         let cache = CryptoCache::new(repo.clone());
         init_crypto_cache(&cache).await.unwrap();
 
         // Create a new DEK after cache initialization
-        let dek2 = crate::logic::dek::create_data_encryption_key(       
+        let dek2 = crate::logic::dek::create_data_encryption_key(
             &tx,
             &repo,
             CreateDekParams {
@@ -645,16 +720,24 @@ mod tests {
                 },
             },
             false,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
 
         // Should be able to get it (cache miss, loads from DB)
         let encryption_service = get_encryption_service(&cache, &dek2.id).await.unwrap();
-        let encrypted = encryption_service.encrypt_data("test".to_string()).await.unwrap();
+        let encrypted = encryption_service
+            .encrypt_data("test".to_string())
+            .await
+            .unwrap();
         assert!(!encrypted.0.is_empty());
 
         // Now it should be cached
         let encryption_service2 = get_encryption_service(&cache, &dek2.id).await.unwrap();
-        let encrypted2 = encryption_service2.encrypt_data("test2".to_string()).await.unwrap();
+        let encrypted2 = encryption_service2
+            .encrypt_data("test2".to_string())
+            .await
+            .unwrap();
         assert!(!encrypted2.0.is_empty());
     }
 

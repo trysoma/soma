@@ -275,7 +275,7 @@ WHERE id = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_user_credentials_params<'_>
   ) -> Result<Vec<Row_get_user_credentials>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias
+      let stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias
 FROM user_credential WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
@@ -322,7 +322,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_resource_server_credentials_params<'_>
   ) -> Result<Vec<Row_get_resource_server_credentials>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias
+      let stmt = conn.prepare(r#"SELECT id, type_id, metadata, value, created_at, updated_at, next_rotation_time, dek_alias
 FROM resource_server_credential WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
@@ -994,7 +994,7 @@ WHERE fi.function_controller_type_id = ? AND fi.provider_controller_type_id = ? 
       conn: &shared::libsql::Connection
       ,params: get_provider_instances_params<'_>
   ) -> Result<Vec<Row_get_provider_instances>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT
+      let stmt = conn.prepare(r#"SELECT
     pi.id,
     pi.display_name,
     pi.resource_server_credential_id,
@@ -1103,7 +1103,7 @@ LIMIT CAST(?4 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_function_instances_params<'_>
   ) -> Result<Vec<Row_get_function_instances>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT function_controller_type_id, provider_controller_type_id, provider_instance_id, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT function_controller_type_id, provider_controller_type_id, provider_instance_id, created_at, updated_at
 FROM function_instance
 WHERE (created_at < ?1 OR ?1 IS NULL)
   AND (CAST(provider_instance_id = ?2 AS TEXT) OR ?2 IS NULL)
@@ -1140,7 +1140,7 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_provider_instances_grouped_by_function_controller_type_id_params<'_>
   ) -> Result<Vec<Row_get_provider_instances_grouped_by_function_controller_type_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT
+      let stmt = conn.prepare(r#"SELECT
     fi.function_controller_type_id,
     CAST(
         JSON_GROUP_ARRAY(
@@ -1409,7 +1409,7 @@ WHERE id = ?5"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_provider_instances_with_credentials_params<'_>
   ) -> Result<Vec<Row_get_provider_instances_with_credentials>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT
+      let stmt = conn.prepare(r#"SELECT
     pi.id,
     pi.display_name,
     pi.provider_controller_type_id,

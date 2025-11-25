@@ -391,7 +391,9 @@ impl AgentExecutor for ProxiedAgent {
                 match task.status.state {
                     a2a_rs::types::TaskState::Submitted => task_logic::TaskStatus::Submitted,
                     a2a_rs::types::TaskState::Working => task_logic::TaskStatus::Working,
-                    a2a_rs::types::TaskState::InputRequired => task_logic::TaskStatus::InputRequired,
+                    a2a_rs::types::TaskState::InputRequired => {
+                        task_logic::TaskStatus::InputRequired
+                    }
                     a2a_rs::types::TaskState::Completed => task_logic::TaskStatus::Completed,
                     a2a_rs::types::TaskState::Canceled => task_logic::TaskStatus::Canceled,
                     a2a_rs::types::TaskState::Failed => task_logic::TaskStatus::Failed,

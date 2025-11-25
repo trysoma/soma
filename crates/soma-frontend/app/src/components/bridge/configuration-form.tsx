@@ -8,6 +8,7 @@ import { Check, Link, X } from "lucide-react";
 
 // Default DEK alias to use for encrypting credentials
 const DEFAULT_DEK_ALIAS = "default";
+
 import type { components } from "@/@types/openapi";
 import {
 	Accordion,

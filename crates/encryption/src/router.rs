@@ -1,28 +1,21 @@
-use crate::logic::{
-    create_envelope_encryption_key,
-    list_envelope_encryption_keys,
-    EncryptionKeyEventSender,
+use crate::logic::dek::DataEncryptionKey;
+use crate::logic::dek::{
+    CreateDataEncryptionKeyResponse, CreateDekInnerParams, CreateDekParams, ImportDekParams,
+    ImportDekParamsInner, ImportDekResponse, ListDekParams, ListDekResponse,
+    create_data_encryption_key, import_data_encryption_key, list_data_encryption_keys,
+};
+use crate::logic::dek_alias::{
+    CreateAliasInnerParams, CreateAliasParams, CreateAliasResponse, UpdateAliasParams,
+    UpdateAliasResponse, create_alias, delete_alias, get_by_alias_or_id, update_alias,
 };
 use crate::logic::envelope::{
     CreateEnvelopeEncryptionKeyParams, CreateEnvelopeEncryptionKeyResponse,
-    ListEnvelopeEncryptionKeysResponse,
+    ListEnvelopeEncryptionKeysResponse, migrate_all_data_encryption_keys_for_envelope,
     migrate_data_encryption_key_for_envelope,
-    migrate_all_data_encryption_keys_for_envelope,
 };
-use crate::logic::dek::{
-    CreateDekParams, CreateDekInnerParams, CreateDataEncryptionKeyResponse,
-    ImportDekParams, ImportDekParamsInner, ImportDekResponse,
-    ListDekParams, ListDekResponse,
-    create_data_encryption_key,
-    import_data_encryption_key,
-    list_data_encryption_keys,
+use crate::logic::{
+    EncryptionKeyEventSender, create_envelope_encryption_key, list_envelope_encryption_keys,
 };
-use crate::logic::dek_alias::{
-    CreateAliasParams, CreateAliasInnerParams, CreateAliasResponse,
-    UpdateAliasParams, UpdateAliasResponse,
-    create_alias, update_alias, delete_alias, get_by_alias_or_id,
-};
-use crate::logic::dek::DataEncryptionKey;
 use crate::repository::Repository;
 use axum::extract::{Json, Path, Query, State};
 use serde::{Deserialize, Serialize};
@@ -75,13 +68,8 @@ async fn route_create_envelope_encryption_key(
     State(ctx): State<EncryptionService>,
     Json(params): Json<CreateEnvelopeEncryptionKeyParams>,
 ) -> JsonResponse<CreateEnvelopeEncryptionKeyResponse, CommonError> {
-    let res = create_envelope_encryption_key(
-        ctx.on_change_tx(),
-        ctx.repository(),
-        params,
-        true,
-    )
-    .await;
+    let res =
+        create_envelope_encryption_key(ctx.on_change_tx(), ctx.repository(), params, true).await;
     JsonResponse::from(res)
 }
 
@@ -149,13 +137,8 @@ async fn route_create_data_encryption_key(
             encrypted_dek: params.encrypted_dek,
         },
     };
-    let res = create_data_encryption_key(
-        ctx.on_change_tx(),
-        ctx.repository(),
-        create_params,
-        true,
-    )
-    .await;
+    let res =
+        create_data_encryption_key(ctx.on_change_tx(), ctx.repository(), create_params, true).await;
     JsonResponse::from(res)
 }
 
@@ -197,13 +180,8 @@ async fn route_import_data_encryption_key(
             ),
         },
     };
-    let res = import_data_encryption_key(
-        ctx.on_change_tx(),
-        ctx.repository(),
-        import_params,
-        true,
-    )
-    .await;
+    let res =
+        import_data_encryption_key(ctx.on_change_tx(), ctx.repository(), import_params, true).await;
     JsonResponse::from(res)
 }
 
@@ -405,7 +383,14 @@ async fn route_update_dek_alias(
     Path(alias): Path<String>,
     Json(params): Json<UpdateAliasParams>,
 ) -> JsonResponse<UpdateAliasResponse, CommonError> {
-    let res = update_alias(ctx.on_change_tx(), ctx.repository(), ctx.cache(), alias, params).await;
+    let res = update_alias(
+        ctx.on_change_tx(),
+        ctx.repository(),
+        ctx.cache(),
+        alias,
+        params,
+    )
+    .await;
     JsonResponse::from(res)
 }
 
@@ -473,4 +458,3 @@ impl EncryptionService {
         self.0.cache.as_ref()
     }
 }
-

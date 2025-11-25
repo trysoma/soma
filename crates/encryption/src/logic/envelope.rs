@@ -8,15 +8,20 @@ use aes_gcm::{
 use rand::RngCore;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use shared::{error::CommonError, primitives::{PaginationRequest, WrappedChronoDateTime}};
-use utoipa::ToSchema;
+use shared::{
+    error::CommonError,
+    primitives::{PaginationRequest, WrappedChronoDateTime},
+};
 use std::path::PathBuf;
+use utoipa::ToSchema;
 
-use crate::logic::dek::{DataEncryptionKey, EncryptedDataEncryptionKey, DecryptedDataEncryptionKey};
-use crate::repository::{EncryptionKeyRepositoryLike, CreateEnvelopeEncryptionKey, DataEncryptionKeyRepositoryLike};
-use super::{EncryptionKeyEventSender, EncryptionKeyEvent};
-
-
+use super::{EncryptionKeyEvent, EncryptionKeyEventSender};
+use crate::logic::dek::{
+    DataEncryptionKey, DecryptedDataEncryptionKey, EncryptedDataEncryptionKey,
+};
+use crate::repository::{
+    CreateEnvelopeEncryptionKey, DataEncryptionKeyRepositoryLike, EncryptionKeyRepositoryLike,
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type")]
@@ -36,15 +41,21 @@ impl EnvelopeEncryptionKey {
 
 #[derive(Clone, zeroize::Zeroize, zeroize::ZeroizeOnDrop)]
 pub enum EnvelopeEncryptionKeyContents {
-    AwsKms { arn: String, region: String },
-    Local { location: String, key_bytes: Vec<u8> },
+    AwsKms {
+        arn: String,
+        region: String,
+    },
+    Local {
+        location: String,
+        key_bytes: Vec<u8>,
+    },
 }
 
 impl From<EnvelopeEncryptionKeyContents> for EnvelopeEncryptionKey {
     fn from(contents: EnvelopeEncryptionKeyContents) -> Self {
         match &contents {
             EnvelopeEncryptionKeyContents::AwsKms { arn, region } => {
-                EnvelopeEncryptionKey::AwsKms { 
+                EnvelopeEncryptionKey::AwsKms {
                     arn: arn.clone(),
                     region: region.clone(),
                 }
@@ -117,7 +128,8 @@ impl libsql::FromValue for EnvelopeEncryptionKey {
 pub type CreateEnvelopeEncryptionKeyParams = EnvelopeEncryptionKey;
 pub type CreateEnvelopeEncryptionKeyResponse = EnvelopeEncryptionKey;
 pub type ListEnvelopeEncryptionKeysParams = shared::primitives::PaginationRequest;
-pub type ListEnvelopeEncryptionKeysResponse = shared::primitives::PaginatedResponse<EnvelopeEncryptionKey>;
+pub type ListEnvelopeEncryptionKeysResponse =
+    shared::primitives::PaginatedResponse<EnvelopeEncryptionKey>;
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct WithEnvelopeEncryptionKeyId<T> {
@@ -163,7 +175,9 @@ pub async fn create_envelope_encryption_key(
     // Publish event if publish_on_change_evt is true
     if publish_on_change_evt {
         on_change_tx
-            .send(EncryptionKeyEvent::EnvelopeEncryptionKeyAdded(params.clone()))
+            .send(EncryptionKeyEvent::EnvelopeEncryptionKeyAdded(
+                params.clone(),
+            ))
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to send encryption key event: {e}"))
             })?;
@@ -231,14 +245,20 @@ pub async fn delete_envelope_encryption_key(
     }
 
     // Safe to delete
-    repo.delete_envelope_encryption_key(&params.envelope_encryption_key_id).await?;
+    repo.delete_envelope_encryption_key(&params.envelope_encryption_key_id)
+        .await?;
 
-    info!("Deleted envelope encryption key: {}", params.envelope_encryption_key_id);
+    info!(
+        "Deleted envelope encryption key: {}",
+        params.envelope_encryption_key_id
+    );
 
     // Publish event if publish_on_change_evt is true
     if publish_on_change_evt {
         on_change_tx
-            .send(EncryptionKeyEvent::EnvelopeEncryptionKeyRemoved(params.envelope_encryption_key_id.clone()))
+            .send(EncryptionKeyEvent::EnvelopeEncryptionKeyRemoved(
+                params.envelope_encryption_key_id.clone(),
+            ))
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to send encryption key event: {e}"))
             })?;
@@ -275,12 +295,10 @@ pub async fn migrate_data_encryption_key(
 
     // Step 2: Convert to EnvelopeEncryptionKeyContents for encryption
     let to_envelope_key_contents = match &to_envelope_key {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => {
-            EnvelopeEncryptionKeyContents::AwsKms {
-                arn: arn.clone(),
-                region: region.clone(),
-            }
-        }
+        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: arn.clone(),
+            region: region.clone(),
+        },
         EnvelopeEncryptionKey::Local { location } => {
             // Load the key bytes from the file
             get_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
@@ -289,8 +307,7 @@ pub async fn migrate_data_encryption_key(
 
     info!(
         "Migrating data encryption key {} to envelope key {}",
-        params.data_encryption_key_id,
-        params.to_envelope_encryption_key_id
+        params.data_encryption_key_id, params.to_envelope_encryption_key_id
     );
 
     // Step 3: Get the existing DEK
@@ -327,13 +344,13 @@ pub async fn migrate_data_encryption_key(
             let output = kms_client
                 .encrypt()
                 .key_id(arn)
-                .plaintext(aws_sdk_kms::primitives::Blob::new(decrypted_dek.0.as_slice()))
+                .plaintext(aws_sdk_kms::primitives::Blob::new(
+                    decrypted_dek.0.as_slice(),
+                ))
                 .send()
                 .await
                 .map_err(|e| {
-                    CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to encrypt DEK with AWS KMS: {e}"
-                    ))
+                    CommonError::Unknown(anyhow::anyhow!("Failed to encrypt DEK with AWS KMS: {e}"))
                 })?;
 
             let ciphertext_blob = output.ciphertext_blob().ok_or_else(|| {
@@ -348,7 +365,10 @@ pub async fn migrate_data_encryption_key(
             );
             EncryptedDataEncryptionKey(encoded)
         }
-        EnvelopeEncryptionKeyContents::Local { location: _, key_bytes } => {
+        EnvelopeEncryptionKeyContents::Local {
+            location: _,
+            key_bytes,
+        } => {
             // Use local AES-GCM to encrypt
             if key_bytes.len() != 32 {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
@@ -364,18 +384,18 @@ pub async fn migrate_data_encryption_key(
             rand::thread_rng().fill_bytes(&mut nonce_bytes);
             let nonce = Nonce::from_slice(&nonce_bytes);
 
-            let ciphertext = cipher.encrypt(nonce, decrypted_dek.0.as_slice()).map_err(|e| {
-                CommonError::Unknown(anyhow::anyhow!("Failed to encrypt DEK locally: {e}"))
-            })?;
+            let ciphertext = cipher
+                .encrypt(nonce, decrypted_dek.0.as_slice())
+                .map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!("Failed to encrypt DEK locally: {e}"))
+                })?;
 
             let mut combined = Vec::with_capacity(12 + ciphertext.len());
             combined.extend_from_slice(&nonce_bytes);
             combined.extend_from_slice(&ciphertext);
 
-            let encoded = base64::Engine::encode(
-                &base64::engine::general_purpose::STANDARD,
-                &combined,
-            );
+            let encoded =
+                base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &combined);
             EncryptedDataEncryptionKey(encoded)
         }
     };
@@ -392,11 +412,7 @@ pub async fn migrate_data_encryption_key(
         updated_at: now,
     };
 
-    DataEncryptionKeyRepositoryLike::create_data_encryption_key(
-        repo,
-        &new_dek,
-    )
-    .await?;
+    DataEncryptionKeyRepositoryLike::create_data_encryption_key(repo, &new_dek).await?;
 
     // Step 7: Delete the old DEK
     DataEncryptionKeyRepositoryLike::delete_data_encryption_key(
@@ -468,19 +484,16 @@ where
         .await?
         .ok_or_else(|| {
             CommonError::Unknown(anyhow::anyhow!(
-                "Envelope encryption key not found: {}",
-                from_envelope_encryption_key_id
+                "Envelope encryption key not found: {from_envelope_encryption_key_id}"
             ))
         })?;
 
     // Convert to EnvelopeEncryptionKeyContents
     let from_envelope_key_contents = match &from_envelope_key {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => {
-            EnvelopeEncryptionKeyContents::AwsKms {
-                arn: arn.clone(),
-                region: region.clone(),
-            }
-        }
+        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: arn.clone(),
+            region: region.clone(),
+        },
         EnvelopeEncryptionKey::Local { location } => {
             get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
@@ -521,19 +534,16 @@ where
         .await?
         .ok_or_else(|| {
             CommonError::Unknown(anyhow::anyhow!(
-                "Envelope encryption key not found: {}",
-                from_envelope_encryption_key_id
+                "Envelope encryption key not found: {from_envelope_encryption_key_id}"
             ))
         })?;
 
     // Convert to EnvelopeEncryptionKeyContents
     let from_envelope_key_contents = match &from_envelope_key {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => {
-            EnvelopeEncryptionKeyContents::AwsKms {
-                arn: arn.clone(),
-                region: region.clone(),
-            }
-        }
+        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: arn.clone(),
+            region: region.clone(),
+        },
         EnvelopeEncryptionKey::Local { location } => {
             get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
@@ -568,8 +578,8 @@ pub async fn migrate_all_data_encryption_keys<R>(
 where
     R: EncryptionKeyRepositoryLike + DataEncryptionKeyRepositoryLike,
 {
-    use tracing::info;
     use shared::primitives::PaginationRequest;
+    use tracing::info;
 
     // Get the "to" envelope encryption key from the repository
     let to_envelope_key = repo
@@ -584,12 +594,10 @@ where
 
     // Convert to EnvelopeEncryptionKeyContents for encryption
     let _to_envelope_key_contents = match &to_envelope_key {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => {
-            EnvelopeEncryptionKeyContents::AwsKms {
-                arn: arn.clone(),
-                region: region.clone(),
-            }
-        }
+        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: arn.clone(),
+            region: region.clone(),
+        },
         EnvelopeEncryptionKey::Local { location } => {
             get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
@@ -621,11 +629,9 @@ where
 
         for dek_item in &deks.items {
             // Get full DEK to check envelope key match
-            if let Some(dek) = DataEncryptionKeyRepositoryLike::get_data_encryption_key_by_id(
-                repo,
-                &dek_item.id,
-            )
-            .await?
+            if let Some(dek) =
+                DataEncryptionKeyRepositoryLike::get_data_encryption_key_by_id(repo, &dek_item.id)
+                    .await?
             {
                 if matches_envelope_key_id(&dek.envelope_encryption_key_id, from_envelope_key_id) {
                     all_deks.push(dek);
@@ -665,14 +671,17 @@ where
 }
 
 /// Helper function to check if two envelope encryption keys match
-pub fn matches_envelope_key_id(
-    id1: &EnvelopeEncryptionKey,
-    id2: &EnvelopeEncryptionKey,
-) -> bool {
+pub fn matches_envelope_key_id(id1: &EnvelopeEncryptionKey, id2: &EnvelopeEncryptionKey) -> bool {
     match (id1, id2) {
         (
-            EnvelopeEncryptionKey::AwsKms { arn: arn1, region: region1 },
-            EnvelopeEncryptionKey::AwsKms { arn: arn2, region: region2 },
+            EnvelopeEncryptionKey::AwsKms {
+                arn: arn1,
+                region: region1,
+            },
+            EnvelopeEncryptionKey::AwsKms {
+                arn: arn2,
+                region: region2,
+            },
         ) => arn1 == arn2 && region1 == region2,
         (
             EnvelopeEncryptionKey::Local { location: loc1 },
@@ -693,7 +702,10 @@ where
     let keys = repo.list_envelope_encryption_keys().await?;
 
     for key in keys {
-        if let EnvelopeEncryptionKey::AwsKms { arn: stored_arn, .. } = &key {
+        if let EnvelopeEncryptionKey::AwsKms {
+            arn: stored_arn, ..
+        } = &key
+        {
             if stored_arn == arn {
                 return Ok(Some(key));
             }
@@ -714,7 +726,10 @@ where
     let keys = repo.list_envelope_encryption_keys().await?;
 
     for key in keys {
-        if let EnvelopeEncryptionKey::Local { location: stored_location } = &key {
+        if let EnvelopeEncryptionKey::Local {
+            location: stored_location,
+        } = &key
+        {
             if stored_location == location {
                 return Ok(Some(key));
             }
@@ -818,22 +833,21 @@ pub async fn encrypt_dek(
         EnvelopeEncryptionKeyContents::AwsKms { arn, region } => {
             // Create AWS KMS client with specific region
             let mut config = aws_config::load_from_env().await;
-            config = config.to_builder().region(aws_config::Region::new(region.clone())).build();
+            config = config
+                .to_builder()
+                .region(aws_config::Region::new(region.clone()))
+                .build();
             let kms_client = aws_sdk_kms::Client::new(&config);
 
             // Encrypt the DEK using AWS KMS
             let encrypt_output = kms_client
                 .encrypt()
                 .key_id(arn)
-                .plaintext(aws_sdk_kms::primitives::Blob::new(
-                    dek.as_bytes(),
-                ))
+                .plaintext(aws_sdk_kms::primitives::Blob::new(dek.as_bytes()))
                 .send()
                 .await
                 .map_err(|e| {
-                    CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to encrypt DEK with AWS KMS: {e}"
-                    ))
+                    CommonError::Unknown(anyhow::anyhow!("Failed to encrypt DEK with AWS KMS: {e}"))
                 })?;
 
             // Get the encrypted ciphertext blob
@@ -870,21 +884,17 @@ pub async fn encrypt_dek(
             OsRng.fill_bytes(&mut nonce_bytes);
             let nonce = Nonce::from_slice(&nonce_bytes);
 
-            let ciphertext = cipher
-                .encrypt(nonce, dek.as_bytes())
-                .map_err(|e| {
-                    CommonError::Unknown(anyhow::anyhow!("Local DEK encryption failed: {e}"))
-                })?;
+            let ciphertext = cipher.encrypt(nonce, dek.as_bytes()).map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Local DEK encryption failed: {e}"))
+            })?;
 
             // Combine nonce + ciphertext
             let mut combined = Vec::with_capacity(nonce_bytes.len() + ciphertext.len());
             combined.extend_from_slice(&nonce_bytes);
             combined.extend_from_slice(&ciphertext);
 
-            let encoded = base64::Engine::encode(
-                &base64::engine::general_purpose::STANDARD,
-                &combined,
-            );
+            let encoded =
+                base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &combined);
             Ok(EncryptedDataEncryptionKey(encoded))
         }
     }
@@ -898,9 +908,12 @@ pub async fn decrypt_dek(
         EnvelopeEncryptionKeyContents::AwsKms { arn, region } => {
             // Create AWS KMS client with specific region
             let mut config = aws_config::load_from_env().await;
-            config = config.to_builder().region(aws_config::Region::new(region.clone())).build();
+            config = config
+                .to_builder()
+                .region(aws_config::Region::new(region.clone()))
+                .build();
             let kms_client = aws_sdk_kms::Client::new(&config);
-            
+
             // Decode the base64 encrypted DEK
             let ciphertext_blob = base64::Engine::decode(
                 &base64::engine::general_purpose::STANDARD,
@@ -920,9 +933,7 @@ pub async fn decrypt_dek(
                 .send()
                 .await
                 .map_err(|e| {
-                    CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to decrypt DEK with AWS KMS: {e}"
-                    ))
+                    CommonError::Unknown(anyhow::anyhow!("Failed to decrypt DEK with AWS KMS: {e}"))
                 })?;
 
             // Get the decrypted plaintext as raw bytes
@@ -981,11 +992,11 @@ pub async fn decrypt_dek(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::logic::dek;
     use crate::repository::Repository;
     use shared::primitives::SqlMigrationLoader;
     use shared::test_utils::repository::setup_in_memory_database;
     use tokio::sync::broadcast;
-    use crate::logic::dek;
 
     const TEST_KMS_KEY_ARN: &str =
         "arn:aws:kms:eu-west-2:914788356809:alias/unsafe-github-action-soma-test-key";
@@ -1102,17 +1113,24 @@ mod tests {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
         };
-        create_envelope_encryption_key(&tx, &repo, aws_key.clone(), false).await.unwrap();
+        create_envelope_encryption_key(&tx, &repo, aws_key.clone(), false)
+            .await
+            .unwrap();
 
         // Test finding existing key
-        let found = find_envelope_encryption_key_by_arn(&repo, TEST_KMS_KEY_ARN).await.unwrap();
+        let found = find_envelope_encryption_key_by_arn(&repo, TEST_KMS_KEY_ARN)
+            .await
+            .unwrap();
         assert!(found.is_some());
         assert!(matches_envelope_key_id(&found.unwrap(), &aws_key));
 
         // Test finding non-existent key
-        let not_found = find_envelope_encryption_key_by_arn(&repo, "arn:aws:kms:us-east-1:123456789012:key/nonexistent")
-            .await
-            .unwrap();
+        let not_found = find_envelope_encryption_key_by_arn(
+            &repo,
+            "arn:aws:kms:us-east-1:123456789012:key/nonexistent",
+        )
+        .await
+        .unwrap();
         assert!(not_found.is_none());
     }
 
@@ -1127,18 +1145,23 @@ mod tests {
         let (tx, _rx) = broadcast::channel(100);
 
         let (_temp_file, local_key_contents) = create_temp_local_key();
-        let location = if let EnvelopeEncryptionKeyContents::Local { location, .. } = &local_key_contents {
-            location.clone()
-        } else {
-            panic!("Expected local key");
-        };
+        let location =
+            if let EnvelopeEncryptionKeyContents::Local { location, .. } = &local_key_contents {
+                location.clone()
+            } else {
+                panic!("Expected local key");
+            };
         let local_key = EnvelopeEncryptionKey::Local {
             location: location.clone(),
         };
-        create_envelope_encryption_key(&tx, &repo, local_key.clone(), false).await.unwrap();
+        create_envelope_encryption_key(&tx, &repo, local_key.clone(), false)
+            .await
+            .unwrap();
 
         // Test finding existing key
-        let found = find_envelope_encryption_key_by_location(&repo, &location).await.unwrap();
+        let found = find_envelope_encryption_key_by_location(&repo, &location)
+            .await
+            .unwrap();
         assert!(found.is_some());
         assert!(matches_envelope_key_id(&found.unwrap(), &local_key));
 
@@ -1161,7 +1184,11 @@ mod tests {
         let key1 = get_or_create_local_envelope_encryption_key(&path).unwrap();
         assert!(path.exists());
         assert!(matches!(key1, EnvelopeEncryptionKeyContents::Local { .. }));
-        if let EnvelopeEncryptionKeyContents::Local { location, key_bytes } = &key1 {
+        if let EnvelopeEncryptionKeyContents::Local {
+            location,
+            key_bytes,
+        } = &key1
+        {
             assert_eq!(location, &path.to_string_lossy().to_string());
             assert_eq!(key_bytes.len(), 32);
         }
@@ -1169,8 +1196,16 @@ mod tests {
         // Test loading existing key
         let key2 = get_or_create_local_envelope_encryption_key(&path).unwrap();
         assert!(matches!(key2, EnvelopeEncryptionKeyContents::Local { .. }));
-        if let EnvelopeEncryptionKeyContents::Local { location: loc2, key_bytes: bytes2 } = &key2 {
-            if let EnvelopeEncryptionKeyContents::Local { location: loc1, key_bytes: bytes1 } = &key1 {
+        if let EnvelopeEncryptionKeyContents::Local {
+            location: loc2,
+            key_bytes: bytes2,
+        } = &key2
+        {
+            if let EnvelopeEncryptionKeyContents::Local {
+                location: loc1,
+                key_bytes: bytes1,
+            } = &key1
+            {
                 assert_eq!(loc1, loc2);
                 assert_eq!(bytes1, bytes2); // Should be the same key
             }
@@ -1197,20 +1232,17 @@ mod tests {
             location: location.clone(),
         };
 
-        let result = create_envelope_encryption_key(
-            &tx,
-            &repo,
-            envelope_key.clone(),
-            false,
-        )
-        .await;
+        let result = create_envelope_encryption_key(&tx, &repo, envelope_key.clone(), false).await;
 
         assert!(result.is_ok());
         let created = result.unwrap();
         assert!(matches!(created, EnvelopeEncryptionKey::Local { .. }));
 
         // Verify it exists in the database
-        let retrieved = repo.get_envelope_encryption_key_by_id(&location).await.unwrap();
+        let retrieved = repo
+            .get_envelope_encryption_key_by_id(&location)
+            .await
+            .unwrap();
         assert!(retrieved.is_some());
     }
 
@@ -1229,20 +1261,17 @@ mod tests {
             region: TEST_KMS_REGION.to_string(),
         };
 
-        let result = create_envelope_encryption_key(
-            &tx,
-            &repo,
-            envelope_key.clone(),
-            false,
-        )
-        .await;
+        let result = create_envelope_encryption_key(&tx, &repo, envelope_key.clone(), false).await;
 
         assert!(result.is_ok());
         let created = result.unwrap();
         assert!(matches!(created, EnvelopeEncryptionKey::AwsKms { .. }));
 
         // Verify it exists in the database
-        let retrieved = repo.get_envelope_encryption_key_by_id(TEST_KMS_KEY_ARN).await.unwrap();
+        let retrieved = repo
+            .get_envelope_encryption_key_by_id(TEST_KMS_KEY_ARN)
+            .await
+            .unwrap();
         assert!(retrieved.is_some());
     }
 
@@ -1286,7 +1315,10 @@ mod tests {
         assert!(result.is_ok());
 
         // Verify it's deleted
-        let retrieved = repo.get_envelope_encryption_key_by_id(&location).await.unwrap();
+        let retrieved = repo
+            .get_envelope_encryption_key_by_id(&location)
+            .await
+            .unwrap();
         assert!(retrieved.is_none());
     }
 
@@ -1346,11 +1378,12 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         // Check the error message using Debug format which includes the full anyhow error
-        let err_msg = format!("{:?}", err);
+        let err_msg = format!("{err:?}");
         assert!(
-            err_msg.contains("still using it") || err_msg.contains("is still using it") || err_msg.contains("Cannot delete"),
-            "Error message should mention DEK is still using the envelope key. Got: {}",
-            err_msg
+            err_msg.contains("still using it")
+                || err_msg.contains("is still using it")
+                || err_msg.contains("Cannot delete"),
+            "Error message should mention DEK is still using the envelope key. Got: {err_msg}"
         );
     }
 
@@ -1409,7 +1442,9 @@ mod tests {
 
         // Create cache
         let cache = crate::logic::crypto_services::CryptoCache::new(repo.clone());
-        crate::logic::crypto_services::init_crypto_cache(&cache).await.unwrap();
+        crate::logic::crypto_services::init_crypto_cache(&cache)
+            .await
+            .unwrap();
 
         // Migrate to the second key
         let result = migrate_data_encryption_key(
@@ -1428,7 +1463,9 @@ mod tests {
         assert!(result.is_ok());
 
         // Verify the old DEK is gone
-        let old_dek = dek::get_data_encryption_key_by_id(&repo, &dek.id).await.unwrap();
+        let old_dek = dek::get_data_encryption_key_by_id(&repo, &dek.id)
+            .await
+            .unwrap();
         assert!(old_dek.is_none());
 
         // Verify a new DEK exists with the new envelope key
@@ -1445,9 +1482,10 @@ mod tests {
         .await
         .unwrap();
 
-        let migrated_dek = deks.items.iter().find(|d| {
-            matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key2)
-        });
+        let migrated_dek = deks
+            .items
+            .iter()
+            .find(|d| matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key2));
         assert!(migrated_dek.is_some());
     }
 
@@ -1504,7 +1542,9 @@ mod tests {
 
         // Create cache
         let cache = crate::logic::crypto_services::CryptoCache::new(repo.clone());
-        crate::logic::crypto_services::init_crypto_cache(&cache).await.unwrap();
+        crate::logic::crypto_services::init_crypto_cache(&cache)
+            .await
+            .unwrap();
 
         // Migrate to AWS KMS
         let result = migrate_data_encryption_key(
@@ -1523,7 +1563,9 @@ mod tests {
         assert!(result.is_ok());
 
         // Verify the old DEK is gone
-        let old_dek = dek::get_data_encryption_key_by_id(&repo, &dek.id).await.unwrap();
+        let old_dek = dek::get_data_encryption_key_by_id(&repo, &dek.id)
+            .await
+            .unwrap();
         assert!(old_dek.is_none());
 
         // Verify a new DEK exists with AWS KMS
@@ -1540,9 +1582,10 @@ mod tests {
         .await
         .unwrap();
 
-        let migrated_dek = deks.items.iter().find(|d| {
-            matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key_aws)
-        });
+        let migrated_dek = deks
+            .items
+            .iter()
+            .find(|d| matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key_aws));
         assert!(migrated_dek.is_some());
     }
 
@@ -1586,7 +1629,9 @@ mod tests {
 
         // Create cache
         let cache = crate::logic::crypto_services::CryptoCache::new(repo.clone());
-        crate::logic::crypto_services::init_crypto_cache(&cache).await.unwrap();
+        crate::logic::crypto_services::init_crypto_cache(&cache)
+            .await
+            .unwrap();
 
         // Migrate to the same AWS KMS key (re-encrypt)
         let result = migrate_data_encryption_key(
@@ -1605,7 +1650,9 @@ mod tests {
         assert!(result.is_ok());
 
         // Verify the old DEK is gone
-        let old_dek = dek::get_data_encryption_key_by_id(&repo, &dek.id).await.unwrap();
+        let old_dek = dek::get_data_encryption_key_by_id(&repo, &dek.id)
+            .await
+            .unwrap();
         assert!(old_dek.is_none());
 
         // Verify a new DEK exists
@@ -1622,9 +1669,10 @@ mod tests {
         .await
         .unwrap();
 
-        let migrated_dek = deks.items.iter().find(|d| {
-            matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key_aws)
-        });
+        let migrated_dek = deks
+            .items
+            .iter()
+            .find(|d| matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key_aws));
         assert!(migrated_dek.is_some());
     }
 
@@ -1681,7 +1729,9 @@ mod tests {
 
         // Create cache
         let cache = crate::logic::crypto_services::CryptoCache::new(repo.clone());
-        crate::logic::crypto_services::init_crypto_cache(&cache).await.unwrap();
+        crate::logic::crypto_services::init_crypto_cache(&cache)
+            .await
+            .unwrap();
 
         // Migrate to local key
         let result = migrate_data_encryption_key(
@@ -1700,7 +1750,9 @@ mod tests {
         assert!(result.is_ok());
 
         // Verify the old DEK is gone
-        let old_dek = dek::get_data_encryption_key_by_id(&repo, &dek.id).await.unwrap();
+        let old_dek = dek::get_data_encryption_key_by_id(&repo, &dek.id)
+            .await
+            .unwrap();
         assert!(old_dek.is_none());
 
         // Verify a new DEK exists with local key
@@ -1717,9 +1769,10 @@ mod tests {
         .await
         .unwrap();
 
-        let migrated_dek = deks.items.iter().find(|d| {
-            matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key_local)
-        });
+        let migrated_dek = deks
+            .items
+            .iter()
+            .find(|d| matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key_local));
         assert!(migrated_dek.is_some());
     }
 
@@ -1778,15 +1831,29 @@ mod tests {
 
         // Create and initialize cache
         let cache = crate::logic::crypto_services::CryptoCache::new(repo.clone());
-        crate::logic::crypto_services::init_crypto_cache(&cache).await.unwrap();
+        crate::logic::crypto_services::init_crypto_cache(&cache)
+            .await
+            .unwrap();
 
         // Get encryption service - this should cache it
-        let encryption_service1 = crate::logic::crypto_services::get_encryption_service(&cache, &dek.id).await.unwrap();
-        let _encrypted1 = encryption_service1.encrypt_data("test message".to_string()).await.unwrap();
+        let encryption_service1 =
+            crate::logic::crypto_services::get_encryption_service(&cache, &dek.id)
+                .await
+                .unwrap();
+        let _encrypted1 = encryption_service1
+            .encrypt_data("test message".to_string())
+            .await
+            .unwrap();
 
         // Verify it's cached by getting it again (should be the same instance)
-        let encryption_service2 = crate::logic::crypto_services::get_encryption_service(&cache, &dek.id).await.unwrap();
-        let _encrypted2 = encryption_service2.encrypt_data("test message 2".to_string()).await.unwrap();
+        let encryption_service2 =
+            crate::logic::crypto_services::get_encryption_service(&cache, &dek.id)
+                .await
+                .unwrap();
+        let _encrypted2 = encryption_service2
+            .encrypt_data("test message 2".to_string())
+            .await
+            .unwrap();
 
         // Migrate to the second key
         let result = migrate_data_encryption_key(
@@ -1818,23 +1885,43 @@ mod tests {
         .await
         .unwrap();
 
-        let migrated_dek = deks.items.iter().find(|d| {
-            matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key2)
-        }).unwrap();
+        let migrated_dek = deks
+            .items
+            .iter()
+            .find(|d| matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key2))
+            .unwrap();
 
         // Verify old DEK cache is invalidated (should not be accessible)
-        let old_dek_result = crate::logic::crypto_services::get_encryption_service(&cache, &dek.id).await;
-        assert!(old_dek_result.is_err() || old_dek_result.unwrap_err().to_string().contains("not found"));
+        let old_dek_result =
+            crate::logic::crypto_services::get_encryption_service(&cache, &dek.id).await;
+        assert!(
+            old_dek_result.is_err()
+                || old_dek_result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("not found")
+        );
 
         // Verify new DEK can be accessed (cache miss, will load from DB)
-        let new_encryption_service = crate::logic::crypto_services::get_encryption_service(&cache, &migrated_dek.id).await.unwrap();
-        let new_encrypted = new_encryption_service.encrypt_data("new test message".to_string()).await.unwrap();
+        let new_encryption_service =
+            crate::logic::crypto_services::get_encryption_service(&cache, &migrated_dek.id)
+                .await
+                .unwrap();
+        let new_encrypted = new_encryption_service
+            .encrypt_data("new test message".to_string())
+            .await
+            .unwrap();
         assert!(!new_encrypted.0.is_empty());
 
         // Verify decryption works with new service
-        let decryption_service = crate::logic::crypto_services::get_decryption_service(&cache, &migrated_dek.id).await.unwrap();
-        let decrypted = decryption_service.decrypt_data(new_encrypted).await.unwrap();
+        let decryption_service =
+            crate::logic::crypto_services::get_decryption_service(&cache, &migrated_dek.id)
+                .await
+                .unwrap();
+        let decrypted = decryption_service
+            .decrypt_data(new_encrypted)
+            .await
+            .unwrap();
         assert_eq!(decrypted, "new test message");
     }
 }
-

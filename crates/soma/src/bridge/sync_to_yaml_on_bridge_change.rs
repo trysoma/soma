@@ -25,10 +25,7 @@ pub async fn sync_on_soma_change(
                 return Ok(());
             }
             Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
-                warn!(
-                    "Soma change receiver lagged, skipped {} messages",
-                    skipped
-                );
+                warn!("Soma change receiver lagged, skipped {} messages", skipped);
                 continue;
             }
         };
@@ -229,32 +226,27 @@ async fn handle_encryption_event(
             info!("Envelope encryption key added: {:?}", eek.id());
             let key_id = eek.id();
             let config = match eek {
-                EnvelopeEncryptionKey::AwsKms { arn, region } => {
-                    EnvelopeKeyConfig::AwsKms { arn, region, deks: None }
-                }
-                EnvelopeEncryptionKey::Local { location } => {
-                    EnvelopeKeyConfig::Local { location, deks: None }
-                }
+                EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeKeyConfig::AwsKms {
+                    arn,
+                    region,
+                    deks: None,
+                },
+                EnvelopeEncryptionKey::Local { location } => EnvelopeKeyConfig::Local {
+                    location,
+                    deks: None,
+                },
             };
-            soma_definition
-                .add_envelope_key(key_id, config)
-                .await?;
+            soma_definition.add_envelope_key(key_id, config).await?;
         }
         EncryptionKeyEvent::EnvelopeEncryptionKeyRemoved(eek_id) => {
             info!("Envelope encryption key removed: {:?}", eek_id);
-            soma_definition
-                .remove_envelope_key(eek_id)
-                .await?;
+            soma_definition.remove_envelope_key(eek_id).await?;
         }
         EncryptionKeyEvent::DataEncryptionKeyAdded(dek) => {
             info!("Data encryption key added: {:?}", dek.id);
             let envelope_key_id = dek.envelope_encryption_key_id.id();
             soma_definition
-                .add_dek(
-                    envelope_key_id,
-                    dek.id,
-                    dek.encrypted_data_encryption_key.0,
-                )
+                .add_dek(envelope_key_id, dek.id, dek.encrypted_data_encryption_key.0)
                 .await?;
         }
         EncryptionKeyEvent::DataEncryptionKeyRemoved(dek_id) => {
@@ -264,8 +256,16 @@ async fn handle_encryption_event(
             // TODO: Consider changing the event to include envelope_key_id
             warn!("DEK removed event doesn't include envelope_key_id - skipping yaml sync for now");
         }
-        EncryptionKeyEvent::DataEncryptionKeyMigrated { old_dek_id, new_dek_id, from_envelope_key, to_envelope_key } => {
-            info!("Data encryption key migrated: {:?} -> {:?}", old_dek_id, new_dek_id);
+        EncryptionKeyEvent::DataEncryptionKeyMigrated {
+            old_dek_id,
+            new_dek_id,
+            from_envelope_key,
+            to_envelope_key,
+        } => {
+            info!(
+                "Data encryption key migrated: {:?} -> {:?}",
+                old_dek_id, new_dek_id
+            );
             // This is a complex operation - for now just log it
             // The new DEK should have been added via DataEncryptionKeyAdded event
         }

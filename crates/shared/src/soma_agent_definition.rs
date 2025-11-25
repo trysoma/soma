@@ -99,8 +99,15 @@ impl EnvelopeEncryptionKey {
 impl From<EnvelopeEncryptionKey> for EnvelopeKeyConfig {
     fn from(key: EnvelopeEncryptionKey) -> Self {
         match key {
-            EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeKeyConfig::AwsKms { arn, region, deks: None },
-            EnvelopeEncryptionKey::Local { location } => EnvelopeKeyConfig::Local { location, deks: None },
+            EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeKeyConfig::AwsKms {
+                arn,
+                region,
+                deks: None,
+            },
+            EnvelopeEncryptionKey::Local { location } => EnvelopeKeyConfig::Local {
+                location,
+                deks: None,
+            },
         }
     }
 }
@@ -108,7 +115,9 @@ impl From<EnvelopeEncryptionKey> for EnvelopeKeyConfig {
 impl From<EnvelopeKeyConfig> for EnvelopeEncryptionKey {
     fn from(config: EnvelopeKeyConfig) -> Self {
         match config {
-            EnvelopeKeyConfig::AwsKms { arn, region, .. } => EnvelopeEncryptionKey::AwsKms { arn, region },
+            EnvelopeKeyConfig::AwsKms { arn, region, .. } => {
+                EnvelopeEncryptionKey::AwsKms { arn, region }
+            }
             EnvelopeKeyConfig::Local { location, .. } => EnvelopeEncryptionKey::Local { location },
         }
     }
@@ -252,9 +261,7 @@ impl YamlSomaAgentDefinition {
 
     fn ensure_bridge_config(definition: &mut SomaAgentDefinition) {
         if definition.bridge.is_none() {
-            definition.bridge = Some(BridgeConfig {
-                providers: None,
-            });
+            definition.bridge = Some(BridgeConfig { providers: None });
         }
     }
 }
@@ -285,7 +292,11 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             encryption.envelope_keys = Some(HashMap::new());
         }
 
-        encryption.envelope_keys.as_mut().unwrap().insert(key_id.clone(), config);
+        encryption
+            .envelope_keys
+            .as_mut()
+            .unwrap()
+            .insert(key_id.clone(), config);
         info!("Envelope key added: {:?}", key_id);
         self.save(definition).await?;
         Ok(())
@@ -316,21 +327,24 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         let encryption = definition.encryption.as_mut().unwrap();
         if encryption.envelope_keys.is_none() {
             return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Envelope key {} not found - cannot add DEK",
-                envelope_key_id
+                "Envelope key {envelope_key_id} not found - cannot add DEK"
             )));
         }
 
         let envelope_keys = encryption.envelope_keys.as_mut().unwrap();
         let envelope_key = envelope_keys.get_mut(&envelope_key_id).ok_or_else(|| {
             CommonError::Unknown(anyhow::anyhow!(
-                "Envelope key {} not found - cannot add DEK",
-                envelope_key_id
+                "Envelope key {envelope_key_id} not found - cannot add DEK"
             ))
         })?;
 
-        envelope_key.deks_mut().insert(dek_id.clone(), DekConfig { encrypted_key });
-        info!("DEK {} added under envelope key {}", dek_id, envelope_key_id);
+        envelope_key
+            .deks_mut()
+            .insert(dek_id.clone(), DekConfig { encrypted_key });
+        info!(
+            "DEK {} added under envelope key {}",
+            dek_id, envelope_key_id
+        );
         self.save(definition).await?;
         Ok(())
     }
@@ -342,7 +356,10 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             if let Some(envelope_keys) = &mut encryption.envelope_keys {
                 if let Some(envelope_key) = envelope_keys.get_mut(&envelope_key_id) {
                     envelope_key.deks_mut().remove(&dek_id);
-                    info!("DEK {} removed from envelope key {}", dek_id, envelope_key_id);
+                    info!(
+                        "DEK {} removed from envelope key {}",
+                        dek_id, envelope_key_id
+                    );
                     self.save(definition).await?;
                 }
             }
@@ -359,7 +376,11 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             encryption.aliases = Some(HashMap::new());
         }
 
-        encryption.aliases.as_mut().unwrap().insert(alias.clone(), dek_id);
+        encryption
+            .aliases
+            .as_mut()
+            .unwrap()
+            .insert(alias.clone(), dek_id);
         info!("Alias added: {:?}", alias);
         self.save(definition).await?;
         Ok(())
@@ -391,7 +412,11 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             bridge.providers = Some(HashMap::new());
         }
 
-        bridge.providers.as_mut().unwrap().insert(provider_id.clone(), config);
+        bridge
+            .providers
+            .as_mut()
+            .unwrap()
+            .insert(provider_id.clone(), config);
         info!("Provider added to bridge: {:?}", provider_id);
         self.save(definition).await?;
         Ok(())

@@ -160,7 +160,6 @@ impl From<BrokerState> for CreateBrokerState {
     }
 }
 
-
 // Repository return struct for grouped provider instances
 #[derive(Debug)]
 pub struct ProviderInstancesGroupedByFunctionControllerTypeId {
@@ -306,5 +305,4 @@ pub trait ProviderRepositoryLike {
         status: Option<&str>,
         rotation_window_end: Option<&WrappedChronoDateTime>,
     ) -> Result<PaginatedResponse<ProviderInstanceSerializedWithCredentials>, CommonError>;
-
 }

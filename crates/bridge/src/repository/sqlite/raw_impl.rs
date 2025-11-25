@@ -350,7 +350,6 @@ impl TryFrom<Row_get_function_instance_with_credentials>
     }
 }
 
-
 // Helper struct to deserialize provider instance from grouped query JSON
 #[derive(serde::Deserialize, Debug)]
 struct ProviderInstanceFromGroupedQuery {

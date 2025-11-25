@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use shared::{error::CommonError, soma_agent_definition::{EnvelopeKeyConfig, SomaAgentDefinitionLike}};
+use shared::{
+    error::CommonError,
+    soma_agent_definition::{EnvelopeKeyConfig, SomaAgentDefinitionLike},
+};
 use soma_api_client::{
     apis::{configuration::Configuration, default_api},
     models,
@@ -61,7 +64,8 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
             for (key_id, envelope_key_config) in envelope_keys {
                 // Create envelope key if it doesn't exist
                 if !existing_envelope_keys.contains_key(key_id) {
-                    let envelope_key = envelope_key_config_to_api_model(key_id, envelope_key_config);
+                    let envelope_key =
+                        envelope_key_config_to_api_model(key_id, envelope_key_config);
                     default_api::create_envelope_encryption_key(api_config, envelope_key)
                         .await
                         .map_err(|e| {
@@ -253,35 +257,33 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                         })?;
 
                     // Create user credential if provided
-                    let user_credential_id = if let Some(user_cred_config) =
-                        &provider_config.user_credential
-                    {
-                        let user_credential_params = models::CreateUserCredentialParamsInner {
-                            dek_alias: user_cred_config.dek_alias.clone(),
-                            user_credential_configuration: Some(user_cred_config.value.clone()),
-                            metadata: user_cred_config
-                                .metadata
-                                .as_object()
-                                .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
+                    let user_credential_id =
+                        if let Some(user_cred_config) = &provider_config.user_credential {
+                            let user_credential_params = models::CreateUserCredentialParamsInner {
+                                dek_alias: user_cred_config.dek_alias.clone(),
+                                user_credential_configuration: Some(user_cred_config.value.clone()),
+                                metadata: user_cred_config.metadata.as_object().map(|m| {
+                                    m.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+                                }),
+                            };
+
+                            let user_credential = default_api::create_user_credential(
+                                api_config,
+                                provider_controller_type_id,
+                                credential_controller_type_id,
+                                user_credential_params,
+                            )
+                            .await
+                            .map_err(|e| {
+                                CommonError::Unknown(anyhow::anyhow!(
+                                    "Failed to create user credential: {e:?}"
+                                ))
+                            })?;
+
+                            Some(user_credential.id)
+                        } else {
+                            None
                         };
-
-                        let user_credential = default_api::create_user_credential(
-                            api_config,
-                            provider_controller_type_id,
-                            credential_controller_type_id,
-                            user_credential_params,
-                        )
-                        .await
-                        .map_err(|e| {
-                            CommonError::Unknown(anyhow::anyhow!(
-                                "Failed to create user credential: {e:?}"
-                            ))
-                        })?;
-
-                        Some(user_credential.id)
-                    } else {
-                        None
-                    };
 
                     // Create provider instance
                     let create_provider_params = models::CreateProviderInstanceParamsInner {

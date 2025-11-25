@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use encryption::logic::crypto_services::DecryptionService;
 use bridge::logic::FunctionControllerLike;
 use bridge::logic::InvokeError;
 use bridge::logic::InvokeResult;
@@ -17,6 +16,7 @@ use bridge::logic::no_auth::NoAuthController;
 use bridge::logic::no_auth::NoAuthStaticCredentialConfiguration;
 use bridge::logic::oauth::Oauth2JwtBearerAssertionFlowController;
 use bridge::logic::oauth::OauthAuthFlowController;
+use encryption::logic::crypto_services::DecryptionService;
 use serde_json::json;
 use shared::primitives::WrappedJsonValue;
 use shared::primitives::WrappedSchema;

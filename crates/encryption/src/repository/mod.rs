@@ -4,9 +4,7 @@ pub use sqlite::Repository;
 
 use shared::{
     error::CommonError,
-    primitives::{
-        PaginatedResponse, PaginationRequest, WrappedChronoDateTime,
-    },
+    primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime},
 };
 
 use crate::logic::dek::{DataEncryptionKey, DataEncryptionKeyListItem, EncryptedDataEncryptionKey};
@@ -34,8 +32,7 @@ impl EnvelopeEncryptionKeyType {
             "local" => Ok(EnvelopeEncryptionKeyType::Local),
             "aws_kms" => Ok(EnvelopeEncryptionKeyType::AwsKms),
             _ => Err(CommonError::Unknown(anyhow::anyhow!(
-                "Invalid key_type: {}",
-                s
+                "Invalid key_type: {s}"
             ))),
         }
     }
@@ -274,4 +271,3 @@ pub trait DataEncryptionKeyRepositoryLike: Send + Sync {
         new_dek_id: &str,
     ) -> Result<(), CommonError>;
 }
-

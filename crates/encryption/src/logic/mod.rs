@@ -1,16 +1,15 @@
 // Encryption logic module for managing envelope and data encryption keys
 // This module provides high-level operations for encryption key management
 
-pub mod dek;
-pub mod envelope;
 pub mod crypto_services;
+pub mod dek;
 pub mod dek_alias;
+pub mod envelope;
 
-pub use dek::*;
-pub use envelope::*;
 pub use crypto_services::*;
+pub use dek::*;
 pub use dek_alias::*;
-
+pub use envelope::*;
 
 // Event types for encryption key changes
 #[derive(Clone, Debug)]
@@ -30,4 +29,3 @@ pub enum EncryptionKeyEvent {
 
 pub type EncryptionKeyEventSender = tokio::sync::broadcast::Sender<EncryptionKeyEvent>;
 pub type EncryptionKeyEventReceiver = tokio::sync::broadcast::Receiver<EncryptionKeyEvent>;
-

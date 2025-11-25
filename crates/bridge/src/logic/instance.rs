@@ -1102,7 +1102,11 @@ pub async fn invoke_function(
 
     // Get decryption service from the encryption service cache using the DEK alias
     let decryption_service = encryption_service
-        .get_decryption_service(&function_instance_with_credentials.resource_server_credential.dek_alias)
+        .get_decryption_service(
+            &function_instance_with_credentials
+                .resource_server_credential
+                .dek_alias,
+        )
         .await?;
     let provder_controller = get_provider_controller(
         &function_instance_with_credentials

@@ -1,5 +1,3 @@
-use std::fs;
-use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -406,7 +404,9 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
 }
 
 /// Loads the soma definition from the source directory
-fn load_soma_definition(project_dir: &Path) -> Result<Arc<dyn SomaAgentDefinitionLike>, CommonError> {
+fn load_soma_definition(
+    project_dir: &Path,
+) -> Result<Arc<dyn SomaAgentDefinitionLike>, CommonError> {
     let path_to_soma_definition = project_dir.join("soma.yaml");
 
     if !path_to_soma_definition.exists() {
@@ -418,4 +418,3 @@ fn load_soma_definition(project_dir: &Path) -> Result<Arc<dyn SomaAgentDefinitio
     let soma_definition = YamlSomaAgentDefinition::load_from_file(path_to_soma_definition)?;
     Ok(Arc::new(soma_definition))
 }
-
