@@ -1,5 +1,5 @@
 use crate::{
-    logic::{MessagePart, Metadata, TaskTimelineItemPayload, TaskWithDetails},
+    logic::task::{MessagePart, Metadata, TaskTimelineItemPayload, TaskWithDetails},
     repository::{CommonError, Message, Task, TaskTimelineItem},
 };
 use base64::Engine;

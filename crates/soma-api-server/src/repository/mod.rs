@@ -10,7 +10,7 @@ use shared::{
 
 pub use sqlite::Repository;
 
-use crate::logic::{
+use crate::logic::task::{
     Message, MessagePart, MessageRole, Task, TaskEventUpdateType, TaskStatus, TaskTimelineItem,
     TaskTimelineItemPayload, TaskWithDetails,
 };
@@ -131,7 +131,7 @@ pub trait TaskRepositoryLike {
     async fn get_unique_contexts(
         &self,
         pagination: &PaginationRequest,
-    ) -> Result<PaginatedResponse<crate::logic::ContextInfo>, CommonError>;
+    ) -> Result<PaginatedResponse<crate::logic::task::ContextInfo>, CommonError>;
     async fn get_tasks_by_context_id(
         &self,
         context_id: &WrappedUuidV4,
@@ -172,17 +172,20 @@ pub async fn setup_repository(
         shared::libsql::Connection,
         Repository,
         bridge::repository::Repository,
+        encryption::repository::Repository,
     ),
     CommonError,
 > {
     let migrations = merge_nested_migrations(vec![
         Repository::load_sql_migrations(),
         bridge::repository::Repository::load_sql_migrations(),
+        <encryption::repository::Repository as SqlMigrationLoader>::load_sql_migrations(),
     ]);
     let auth_conn_string = inject_auth_token_to_db_url(conn_string, auth_token)?;
     let (db, conn) = establish_db_connection(&auth_conn_string, Some(migrations)).await?;
 
     let repo = Repository::new(conn.clone());
     let bridge_repo = bridge::repository::Repository::new(conn.clone());
-    Ok((db, conn, repo, bridge_repo))
+    let encryption_repo = encryption::repository::Repository::new(conn.clone());
+    Ok((db, conn, repo, bridge_repo, encryption_repo))
 }

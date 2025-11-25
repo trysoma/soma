@@ -1,9 +1,8 @@
 use std::{sync::Arc, time::Duration};
 
-use ::bridge::{
-    logic::{EnvelopeEncryptionKeyContents, OnConfigChangeTx},
-    router::bridge::BridgeService,
-};
+use ::bridge::router::bridge::BridgeService;
+use bridge::logic::OnConfigChangeTx;
+use encryption::{CryptoCache, EncryptionKeyEventSender, EncryptionService};
 use shared::{
     error::CommonError,
     restate::{admin_client::AdminClient, invoke::RestateIngressClient},
@@ -12,7 +11,7 @@ use shared::{
 use url::Url;
 
 use crate::{
-    logic::ConnectionManager,
+    logic::task::ConnectionManager,
     repository::Repository,
     router::{
         a2a::{Agent2AgentService, Agent2AgentServiceParams},
@@ -21,8 +20,6 @@ use crate::{
     },
 };
 
-mod a2a;
-pub mod bridge;
 pub mod factory;
 pub mod logic;
 pub mod repository;
@@ -37,10 +34,10 @@ pub struct ApiService {
     pub task_service: Arc<TaskService>,
     pub bridge_service: BridgeService,
     pub internal_service: Arc<internal::InternalService>,
-    pub encryption_service: Arc<EncryptionService>,
+    pub encryption_service: encryption::router::EncryptionService,
 }
 
-pub struct InitRouterParams {
+pub struct InitApiServiceParams {
     pub host: String,
     pub port: u16,
     pub connection_manager: ConnectionManager,
@@ -51,7 +48,9 @@ pub struct InitRouterParams {
     pub restate_ingress_client: RestateIngressClient,
     pub restate_admin_client: AdminClient,
     pub on_bridge_config_change_tx: OnConfigChangeTx,
-    pub envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+    pub on_encryption_change_tx: EncryptionKeyEventSender,
+    pub encryption_repository: encryption::repository::Repository,
+    pub crypto_cache: CryptoCache,
     pub bridge_repository: ::bridge::repository::Repository,
     pub mcp_sse_ping_interval: Duration,
     pub sdk_client: Arc<
@@ -64,7 +63,12 @@ pub struct InitRouterParams {
 }
 
 impl ApiService {
-    pub async fn new(init_params: InitRouterParams) -> Result<Self, CommonError> {
+    pub async fn new(init_params: InitApiServiceParams) -> Result<Self, CommonError> {
+        let encryption_service = encryption::router::EncryptionService::new(
+            init_params.encryption_repository.clone(),
+            init_params.on_encryption_change_tx.clone(),
+            init_params.crypto_cache.clone(),
+        );
         let agent_service = Arc::new(Agent2AgentService::new(Agent2AgentServiceParams {
             soma_definition: init_params.soma_definition.clone(),
             host: Url::parse(format!("http://{}:{}", init_params.host, init_params.port).as_str())?,
@@ -80,16 +84,16 @@ impl ApiService {
         let bridge_service = BridgeService::new(
             init_params.bridge_repository.clone(),
             init_params.on_bridge_config_change_tx.clone(),
-            init_params.envelope_encryption_key_contents.clone(),
+            init_params.crypto_cache.clone(),
             init_params.mcp_transport_tx,
             init_params.mcp_sse_ping_interval,
-            init_params.sdk_client.clone(),
         )
         .await?;
 
-        let internal_service = Arc::new(internal::InternalService::new(bridge_service.clone()));
-
-        let encryption_service = Arc::new(EncryptionService::new(init_params.encryption_service.clone()));
+        let internal_service = Arc::new(internal::InternalService::new(
+            bridge_service.clone(),
+            init_params.sdk_client.clone(),
+        ));
 
         Ok(Self {
             agent_service,

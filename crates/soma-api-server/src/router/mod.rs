@@ -3,6 +3,7 @@ use utoipa::openapi::OpenApi;
 
 use crate::ApiService;
 use bridge::router::bridge::create_router as create_bridge_router;
+use encryption::router::create_router as create_encryption_router;
 use shared::error::CommonError;
 
 pub(crate) mod a2a;
@@ -36,6 +37,11 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
     let internal_router = internal_router.with_state(api_service.internal_service);
     router = router.merge(internal_router);
 
+    // encryption router
+    let (encryption_router, _) = create_encryption_router().split_for_parts();
+    let encryption_router = encryption_router.with_state(api_service.encryption_service.clone());
+    router = router.merge(encryption_router);
+
     Ok(router)
 }
 
@@ -44,9 +50,10 @@ pub fn generate_openapi_spec() -> OpenApi {
     let (_, task_spec) = task::create_router().split_for_parts();
     let (_, bridge_spec) = create_bridge_router().split_for_parts();
     let (_, internal_spec) = internal::create_router().split_for_parts();
+    let (_, encryption_spec) = create_encryption_router().split_for_parts();
     spec.merge(task_spec);
     spec.merge(bridge_spec);
     spec.merge(internal_spec);
-
+    spec.merge(encryption_spec);
     spec
 }

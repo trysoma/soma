@@ -13,7 +13,7 @@ use serde::{Serialize, Deserialize};
           shared::primitives::WrappedJsonValue
       ,
       pub role: &'a 
-          crate::logic::MessageRole
+          crate::logic::task::MessageRole
       ,
       pub metadata: &'a 
           shared::primitives::WrappedJsonValue
@@ -56,7 +56,7 @@ use serde::{Serialize, Deserialize};
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.reference_task_ids.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <crate::logic::MessageRole as TryInto<libsql::Value>>::try_into(params.role.clone())
+              <crate::logic::task::MessageRole as TryInto<libsql::Value>>::try_into(params.role.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.metadata.clone())
@@ -89,7 +89,7 @@ use serde::{Serialize, Deserialize};
       pub id:shared::primitives::WrappedUuidV4,
       pub task_id:shared::primitives::WrappedUuidV4,
       pub reference_task_ids:shared::primitives::WrappedJsonValue,
-      pub role:crate::logic::MessageRole,
+      pub role:crate::logic::task::MessageRole,
       pub metadata:shared::primitives::WrappedJsonValue,
       pub parts:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,

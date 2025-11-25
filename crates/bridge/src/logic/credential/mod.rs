@@ -621,7 +621,7 @@ where
 /// This function is designed to be called in its own tokio::spawn
 pub async fn credential_rotation_task<R>(
     repo: R,
-    encryption_service: encryption::CryptoCache,
+    crypto_cache: encryption::CryptoCache,
     on_config_change_tx: OnConfigChangeTx,
     mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
 ) where
@@ -639,7 +639,7 @@ pub async fn credential_rotation_task<R>(
                 if let Err(e) = process_credential_rotations_with_window(
                     &repo,
                     &on_config_change_tx,
-                    &encryption_service,
+                    &crypto_cache,
                     20,
                 )
                 .await
@@ -662,7 +662,7 @@ pub async fn credential_rotation_task<R>(
 pub async fn process_credential_rotations_with_window<R>(
     repo: &R,
     on_config_change_tx: &OnConfigChangeTx,
-    encryption_service: &encryption::CryptoCache,
+    crypto_cache: &encryption::CryptoCache,
     window_minutes: i64,
 ) -> Result<(), CommonError>
 where
@@ -707,7 +707,7 @@ where
                 process_credential_rotation(
                     repo,
                     on_config_change_tx,
-                    encryption_service,
+                    crypto_cache,
                     pi,
                     &rotation_window_end,
                     true,
@@ -728,7 +728,7 @@ where
 pub async fn process_credential_rotation<R>(
     repo: &R,
     on_config_change_tx: &OnConfigChangeTx,
-    encryption_service: &encryption::CryptoCache,
+    crypto_cache: &encryption::CryptoCache,
     pi: &ProviderInstanceSerializedWithCredentials,
     rotation_window_end: &WrappedChronoDateTime,
     publish_update: bool,
@@ -747,7 +747,7 @@ where
                     resource_server_rotated = true;
                     rotate_resource_server_credential(
                         repo,
-                        encryption_service,
+                        crypto_cache,
                         &pi.provider_instance,
                         &pi.resource_server_credential,
                     )
@@ -768,7 +768,7 @@ where
                     Some(
                         rotate_user_credential(
                             repo,
-                            encryption_service,
+                            crypto_cache,
                             &pi.provider_instance,
                             &resource_server_cred_rotation_result,
                             user_cred,
@@ -945,38 +945,14 @@ mod tests {
         Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
         Oauth2AuthorizationCodeFlowUserCredential, OauthAuthFlowController,
     };
-    use encryption::logic::envelope::EnvelopeEncryptionKeyContents;
 
     use shared::primitives::SqlMigrationLoader;
-
-    fn create_temp_kek_file() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
-        use rand::RngCore;
-        let mut kek_bytes = [0u8; 32];
-        rand::thread_rng().fill_bytes(&mut kek_bytes);
-
-        let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
-        std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
-
-        let location = temp_file
-            .path()
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("test-key")
-            .to_string();
-
-        let contents = EnvelopeEncryptionKeyContents::Local {
-            location,
-            key_bytes: kek_bytes.to_vec(),
-        };
-
-        (temp_file, contents)
-    }
 
     #[tokio::test]
     async fn test_create_resource_server_credential() {
         shared::setup_test!();
 
-        let repo = {
+        let _repo = {
             let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
                 crate::repository::Repository::load_sql_migrations(),
             ])
@@ -984,25 +960,10 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
-        let (_temp_file, kek) = create_temp_kek_file();
 
-        // Create a data encryption key
-        let dek = create_data_encryption_key(
-            &kek,
-            &tx,
-            &repo,
-            CreateDataEncryptionKeyParams {
-                id: Some("test-dek".to_string()),
-                encrypted_data_envelope_key: None,
-            },
-            false,
-        )
-        .await
-        .unwrap();
-
-        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
-        let encryption_service = get_encryption_service(&crypto_service).unwrap();
+        // Use the test helper to set up encryption services
+        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+        let encryption_service = setup.crypto_cache.get_encryption_service(&setup.dek_alias).await.unwrap();
 
         // Create encrypted resource server configuration
         let controller = OauthAuthFlowController {
@@ -1055,7 +1016,7 @@ mod tests {
     async fn test_create_user_credential() {
         shared::setup_test!();
 
-        let repo = {
+        let _repo = {
             let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
                 crate::repository::Repository::load_sql_migrations(),
             ])
@@ -1063,24 +1024,10 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
-        let (_temp_file, kek) = create_temp_kek_file();
 
-        let dek = create_data_encryption_key(
-            &kek,
-            &tx,
-            &repo,
-            CreateDataEncryptionKeyParams {
-                id: Some("test-dek".to_string()),
-                encrypted_data_envelope_key: None,
-            },
-            false,
-        )
-        .await
-        .unwrap();
-
-        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
-        let encryption_service = get_encryption_service(&crypto_service).unwrap();
+        // Use the test helper to set up encryption services
+        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+        let encryption_service = setup.crypto_cache.get_encryption_service(&setup.dek_alias).await.unwrap();
 
         let controller = OauthAuthFlowController {
             static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
@@ -1156,10 +1103,12 @@ mod tests {
             crate::repository::Repository::new(conn)
         };
         let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
-        let (_temp_file, kek) = create_temp_kek_file();
+
+        // Use the test helper to set up encryption services
+        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
 
         // Test with no provider instances
-        let result = process_credential_rotations_with_window(&repo, &tx, &kek, 20).await;
+        let result = process_credential_rotations_with_window(&repo, &tx, &setup.crypto_cache, 20).await;
 
         // Should succeed even with no credentials
         assert!(result.is_ok());

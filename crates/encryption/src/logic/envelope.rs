@@ -283,7 +283,7 @@ pub async fn migrate_data_encryption_key(
         }
         EnvelopeEncryptionKey::Local { location } => {
             // Load the key bytes from the file
-            get_or_create_local_encryption_key(&std::path::PathBuf::from(location))?
+            get_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
     };
 
@@ -482,7 +482,7 @@ where
             }
         }
         EnvelopeEncryptionKey::Local { location } => {
-            get_or_create_local_encryption_key(&std::path::PathBuf::from(location))?
+            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
     };
 
@@ -535,7 +535,7 @@ where
             }
         }
         EnvelopeEncryptionKey::Local { location } => {
-            get_or_create_local_encryption_key(&std::path::PathBuf::from(location))?
+            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
     };
 
@@ -591,7 +591,7 @@ where
             }
         }
         EnvelopeEncryptionKey::Local { location } => {
-            get_or_create_local_encryption_key(&std::path::PathBuf::from(location))?
+            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
     };
 
@@ -724,10 +724,47 @@ where
     Ok(None)
 }
 
+/// Load a local encryption key from a file path.
+/// If the file doesn't exist, returns an error.
+/// This function will NOT create a new key if the file doesn't exist.
+pub fn get_local_envelope_encryption_key(
+    file_path: &PathBuf,
+) -> Result<EnvelopeEncryptionKeyContents, CommonError> {
+    // Check if file exists
+    if !file_path.exists() {
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Local KEK file not found at {}",
+            file_path.display()
+        )));
+    }
+
+    // Read the key from file
+    let key_bytes = std::fs::read(file_path).map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!(
+            "Failed to read local KEK file at {}: {}",
+            file_path.display(),
+            e
+        ))
+    })?;
+
+    if key_bytes.len() != 32 {
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Invalid local KEK length in file {}: expected 32 bytes, got {}",
+            file_path.display(),
+            key_bytes.len()
+        )));
+    }
+
+    Ok(EnvelopeEncryptionKeyContents::Local {
+        location: file_path.to_string_lossy().to_string(),
+        key_bytes,
+    })
+}
+
 /// Generate or load a local encryption key from a file path.
 /// If the file already exists, it reads and returns the key.
 /// If the file doesn't exist, it generates a new 32-byte key, saves it, and returns it.
-pub fn get_or_create_local_encryption_key(
+pub fn get_or_create_local_envelope_encryption_key(
     file_path: &PathBuf,
 ) -> Result<EnvelopeEncryptionKeyContents, CommonError> {
     // If file exists, read and return the key
@@ -1113,7 +1150,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_or_create_local_encryption_key() {
+    async fn test_get_or_create_local_envelope_encryption_key() {
         shared::setup_test!();
 
         // Use a persistent temp directory so the file doesn't get deleted
@@ -1121,7 +1158,7 @@ mod tests {
         let path = temp_dir.path().join("test-key");
 
         // Test creating new key
-        let key1 = get_or_create_local_encryption_key(&path).unwrap();
+        let key1 = get_or_create_local_envelope_encryption_key(&path).unwrap();
         assert!(path.exists());
         assert!(matches!(key1, EnvelopeEncryptionKeyContents::Local { .. }));
         if let EnvelopeEncryptionKeyContents::Local { location, key_bytes } = &key1 {
@@ -1130,7 +1167,7 @@ mod tests {
         }
 
         // Test loading existing key
-        let key2 = get_or_create_local_encryption_key(&path).unwrap();
+        let key2 = get_or_create_local_envelope_encryption_key(&path).unwrap();
         assert!(matches!(key2, EnvelopeEncryptionKeyContents::Local { .. }));
         if let EnvelopeEncryptionKeyContents::Local { location: loc2, key_bytes: bytes2 } = &key2 {
             if let EnvelopeEncryptionKeyContents::Local { location: loc1, key_bytes: bytes1 } = &key1 {

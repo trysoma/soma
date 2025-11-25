@@ -3,7 +3,7 @@ use std::sync::Arc;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
-    logic::{
+    logic::task::{
         ConnectionManager, CreateMessageRequest, CreateMessageResponse, GetTaskResponse,
         GetTaskTimelineItemsResponse, ListTasksResponse, ListUniqueContextsResponse,
         UpdateTaskStatusRequest, UpdateTaskStatusResponse, WithContextId, WithTaskId,

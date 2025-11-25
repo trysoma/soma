@@ -6,7 +6,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 
 use crate::logic::dek::{DataEncryptionKey, DecryptedDataEncryptionKey};
-use crate::logic::envelope::{EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents, decrypt_dek, get_or_create_local_encryption_key};
+use crate::logic::envelope::{EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents, decrypt_dek, get_local_envelope_encryption_key, get_or_create_local_envelope_encryption_key};
 use crate::repository::DataEncryptionKeyRepositoryLike;
 
 
@@ -219,6 +219,7 @@ pub async fn get_decryption_service(cache: &CryptoCache, dek_id: &str) -> Result
 }
 
 /// Crypto cache structure for managing encryption and decryption services
+#[derive(Clone)]
 pub struct CryptoCache {
     encryption_services: DashMap<String, EncryptionService>,
     decryption_services: DashMap<String, DecryptionService>,
@@ -308,7 +309,7 @@ pub async fn init_crypto_cache(cache: &CryptoCache) -> Result<(), CommonError> {
             }
             EnvelopeEncryptionKey::Local { location } => {
                 // Load the key bytes from the file
-                get_or_create_local_encryption_key(&std::path::PathBuf::from(location))?
+                get_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
             }
         };
 
@@ -347,7 +348,7 @@ pub async fn get_encryption_service_cached(cache: &CryptoCache, dek_id_or_alias:
             }
         }
         EnvelopeEncryptionKey::Local { location } => {
-            get_or_create_local_encryption_key(&std::path::PathBuf::from(location))?
+            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
     };
 
@@ -383,7 +384,7 @@ pub async fn get_decryption_service_cached(cache: &CryptoCache, dek_id_or_alias:
             }
         }
         EnvelopeEncryptionKey::Local { location } => {
-            get_or_create_local_encryption_key(&std::path::PathBuf::from(location))?
+            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
     };
 
@@ -403,7 +404,7 @@ pub async fn get_decryption_service_cached(cache: &CryptoCache, dek_id_or_alias:
 mod tests {
     use super::*;
     use crate::logic::dek::{CreateDekParams, CreateDekInnerParams};
-    use crate::logic::envelope::{get_or_create_local_encryption_key, encrypt_dek};
+    use crate::logic::envelope::{get_or_create_local_envelope_encryption_key, encrypt_dek};
     use crate::repository::{Repository, EncryptionKeyRepositoryLike};
     use shared::primitives::{SqlMigrationLoader, WrappedChronoDateTime};
     use shared::test_utils::repository::setup_in_memory_database;
@@ -426,7 +427,7 @@ mod tests {
         // Create envelope key
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
         let path = temp_dir.path().join("test-key");
-        let envelope_key_contents = get_or_create_local_encryption_key(&path).unwrap();
+        let envelope_key_contents = get_or_create_local_envelope_encryption_key(&path).unwrap();
         let envelope_key = crate::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone());
         let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
             envelope_key.clone(),
@@ -465,7 +466,7 @@ mod tests {
 
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
         let path = temp_dir.path().join("test-key");
-        let envelope_key_contents = get_or_create_local_encryption_key(&path).unwrap();
+        let envelope_key_contents = get_or_create_local_envelope_encryption_key(&path).unwrap();
 
         // Create a test DEK - generate 32 random bytes
         use rand::RngCore;
@@ -501,7 +502,7 @@ mod tests {
 
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
         let path = temp_dir.path().join("test-key");
-        let envelope_key_contents = get_or_create_local_encryption_key(&path).unwrap();
+        let envelope_key_contents = get_or_create_local_envelope_encryption_key(&path).unwrap();
 
         // Create a test DEK - generate 32 random bytes
         use rand::RngCore;
@@ -546,7 +547,7 @@ mod tests {
         // Create envelope key
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
         let path = temp_dir.path().join("test-key");
-        let envelope_key_contents = get_or_create_local_encryption_key(&path).unwrap();
+        let envelope_key_contents = get_or_create_local_envelope_encryption_key(&path).unwrap();
         let envelope_key = crate::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone());
         let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
             envelope_key.clone(),
@@ -620,7 +621,7 @@ mod tests {
         // Create envelope key
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
         let path = temp_dir.path().join("test-key");
-        let envelope_key_contents = get_or_create_local_encryption_key(&path).unwrap();
+        let envelope_key_contents = get_or_create_local_envelope_encryption_key(&path).unwrap();
         let envelope_key = crate::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone());
         let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
             envelope_key.clone(),

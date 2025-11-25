@@ -164,22 +164,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["encrypt-resource-server-configuration"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential": {
         parameters: {
             query?: never;
@@ -206,86 +190,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["start-user-credential-brokering"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["encrypt-user-credential-configuration"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/bridge/v1/encryption/data-encryption-key": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list-data-encryption-keys"];
-        put?: never;
-        post: operations["create-data-encryption-key"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/bridge/v1/encryption/data-encryption-key/by-identifier": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["delete-data-encryption-key-by-identifier"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/bridge/v1/encryption/migrate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["migrate-encryption-key"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/bridge/v1/encryption/migrate-by-identifier": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["migrate-encryption-key-by-identifier"];
         delete?: never;
         options?: never;
         head?: never;
@@ -452,6 +356,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/encryption/v1/dek/alias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create-dek-alias"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encryption/v1/dek/alias/{alias}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get-dek-by-alias-or-id"];
+        put: operations["update-dek-alias"];
+        post?: never;
+        delete: operations["delete-dek-alias"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encryption/v1/envelope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list-envelope-encryption-keys"];
+        put?: never;
+        post: operations["create-envelope-encryption-key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encryption/v1/envelope/{envelope_id}/dek": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list-data-encryption-keys-by-envelope"];
+        put?: never;
+        post: operations["create-data-encryption-key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encryption/v1/envelope/{envelope_id}/dek/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["import-data-encryption-key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encryption/v1/envelope/{envelope_id}/dek/{dek_id}/migrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["migrate-data-encryption-key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/encryption/v1/envelope/{envelope_id}/migrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["migrate-all-data-encryption-keys"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/task/v1": {
         parameters: {
             query?: never;
@@ -554,13 +570,9 @@ export interface components {
     schemas: {
         AgentCard: Record<string, never>;
         BridgeConfig: {
-            encryption: components["schemas"]["BridgeEncryptionConfig"];
             providers?: {
                 [key: string]: components["schemas"]["ProviderConfig"];
             } | null;
-        };
-        BridgeEncryptionConfig: {
-            [key: string]: components["schemas"]["EncryptionConfiguration"];
         };
         BrokerAction: {
             Redirect: {
@@ -589,21 +601,13 @@ export interface components {
             items: components["schemas"]["ContextInfo"][];
             next_page_token?: string;
         };
-        /** @description Bridge-specific version of CreateDataEncryptionKeyParams that includes envelope encryption key identifier */
-        CreateDataEncryptionKeyParamsBridge: {
-            /**
-             * @description Optional AWS region (only used when envelope_encryption_key_identifier is an AWS KMS ARN)
-             *     If not provided, region will be extracted from the ARN
-             */
-            aws_region?: string | null;
-            encrypted_data_envelope_key?: null | components["schemas"]["EncryptedDataEncryptionKey"];
-            /**
-             * @description Optional envelope encryption key identifier (ARN for AWS KMS, location for local)
-             *     If not provided, uses the default key from the bridge configuration
-             */
-            envelope_encryption_key_identifier?: string | null;
-            /** @description Optional ID for the data encryption key (auto-generated if not provided) */
+        CreateDataEncryptionKeyParamsRoute: {
+            encrypted_dek?: string | null;
             id?: string | null;
+        };
+        CreateDekAliasRequest: {
+            alias: string;
+            dek_id: string;
         };
         CreateMessageRequest: {
             metadata: components["schemas"]["Metadata"];
@@ -623,17 +627,17 @@ export interface components {
             user_credential_id?: null | components["schemas"]["WrappedUuidV4"];
         };
         CreateResourceServerCredentialParamsInner: {
-            data_encryption_key_id: string;
+            dek_alias: string;
             metadata?: null | components["schemas"]["Metadata"];
             resource_server_configuration: components["schemas"]["WrappedJsonValue"];
         };
         CreateUserCredentialParamsInner: {
-            data_encryption_key_id: string;
+            dek_alias: string;
             metadata?: null | components["schemas"]["Metadata"];
             user_credential_configuration: components["schemas"]["WrappedJsonValue"];
         };
         CredentialConfig: {
-            data_encryption_key_id: string;
+            dek_alias: string;
             id: string;
             metadata: unknown;
             next_rotation_time?: string | null;
@@ -647,6 +651,12 @@ export interface components {
             id: string;
             updated_at: components["schemas"]["WrappedChronoDateTime"];
         };
+        /** @description Data encryption key alias struct */
+        DataEncryptionKeyAlias: {
+            alias: string;
+            created_at: components["schemas"]["WrappedChronoDateTime"];
+            data_encryption_key_id: string;
+        };
         DataEncryptionKeyListItem: {
             created_at: components["schemas"]["WrappedChronoDateTime"];
             envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKey"];
@@ -657,23 +667,22 @@ export interface components {
             items: components["schemas"]["DataEncryptionKeyListItem"][];
             next_page_token?: string;
         };
-        /** @description Parameters for deleting data encryption keys by envelope encryption key identifier */
-        DeleteDataEncryptionKeyByIdentifierParams: {
-            /** @description Encryption key identifier (ARN for AWS KMS, location path for local) */
-            identifier: string;
-        };
-        DeleteDataEncryptionKeyByIdentifierResponse: {
-            deleted_count: number;
+        /** @description Data encryption key configuration */
+        DekConfig: {
+            encrypted_key: string;
         };
         EnableFunctionParamsInner: Record<string, never>;
-        EncryptCredentialConfigurationParamsInner: {
-            data_encryption_key_id: string;
-            value: components["schemas"]["WrappedJsonValue"];
-        };
         EncryptedDataEncryptionKey: string;
-        EncryptionConfiguration: {
-            encrypted_data_encryption_key: string;
-            envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKey"];
+        /** @description Top-level encryption configuration */
+        EncryptionConfig: {
+            /** @description Map of alias name -> DEK id */
+            aliases?: {
+                [key: string]: string;
+            } | null;
+            /** @description Map of envelope key id (ARN or location) -> envelope key configuration with nested DEKs */
+            envelope_keys?: {
+                [key: string]: components["schemas"]["EnvelopeKeyConfig"];
+            } | null;
         };
         EnvelopeEncryptionKey: {
             arn: string;
@@ -681,6 +690,27 @@ export interface components {
             /** @enum {string} */
             type: "aws_kms";
         } | {
+            location: string;
+            /** @enum {string} */
+            type: "local";
+        };
+        EnvelopeEncryptionKeyPaginatedResponse: {
+            items: components["schemas"]["EnvelopeEncryptionKey"][];
+            next_page_token?: string;
+        };
+        /** @description Envelope encryption key configuration with nested DEKs */
+        EnvelopeKeyConfig: {
+            arn: string;
+            deks?: {
+                [key: string]: components["schemas"]["DekConfig"];
+            } | null;
+            region: string;
+            /** @enum {string} */
+            type: "aws_kms";
+        } | {
+            deks?: {
+                [key: string]: components["schemas"]["DekConfig"];
+            } | null;
             location: string;
             /** @enum {string} */
             type: "local";
@@ -720,6 +750,10 @@ export interface components {
             items: components["schemas"]["FunctionInstanceSerialized"][];
             next_page_token?: string;
         };
+        ImportDataEncryptionKeyParamsRoute: {
+            encrypted_data_encryption_key: string;
+            id?: string | null;
+        };
         InvokeError: {
             message: string;
         };
@@ -758,24 +792,11 @@ export interface components {
         Metadata: {
             [key: string]: unknown;
         };
-        /**
-         * @description Parameters for migrating encryption keys by ARN/location
-         *     This allows passing just the identifier (ARN or location) and the bridge will look up the full key details
-         */
-        MigrateEncryptionKeyByIdentifierParams: {
-            /** @description Source encryption key identifier (ARN for AWS KMS, location path for local) */
-            from: string;
-            /** @description Target encryption key identifier (ARN for AWS KMS, location path for local) */
-            to: string;
+        MigrateAllDataEncryptionKeysParamsRoute: {
+            to_envelope_encryption_key_id: string;
         };
-        MigrateEncryptionKeyParams: {
-            from_envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKey"];
-            to_envelope_encryption_key_id: components["schemas"]["EnvelopeEncryptionKey"];
-        };
-        MigrateEncryptionKeyResponse: {
-            migrated_data_encryption_keys: number;
-            migrated_resource_server_credentials: number;
-            migrated_user_credentials: number;
+        MigrateDataEncryptionKeyParamsRoute: {
+            to_envelope_encryption_key_id: string;
         };
         ProviderConfig: {
             credential_controller_type_id: string;
@@ -839,7 +860,7 @@ export interface components {
         };
         ResourceServerCredentialSerialized: {
             created_at: components["schemas"]["WrappedChronoDateTime"];
-            data_encryption_key_id: string;
+            dek_alias: string;
             id: components["schemas"]["WrappedUuidV4"];
             metadata: components["schemas"]["Metadata"];
             next_rotation_time?: null | components["schemas"]["WrappedChronoDateTime"];
@@ -857,6 +878,7 @@ export interface components {
         RuntimeConfig: Record<string, never>;
         SomaAgentDefinition: {
             bridge?: null | components["schemas"]["BridgeConfig"];
+            encryption?: null | components["schemas"]["EncryptionConfig"];
             version: string;
         };
         StartUserCredentialBrokeringParamsInner: {
@@ -914,6 +936,9 @@ export interface components {
         };
         /** @default null */
         TupleUnit: unknown;
+        UpdateAliasParams: {
+            new_dek_id: string;
+        };
         UpdateProviderInstanceParamsInner: {
             display_name: string;
         };
@@ -933,7 +958,7 @@ export interface components {
         };
         UserCredentialSerialized: {
             created_at: components["schemas"]["WrappedChronoDateTime"];
-            data_encryption_key_id: string;
+            dek_alias: string;
             id: components["schemas"]["WrappedUuidV4"];
             metadata: components["schemas"]["Metadata"];
             next_rotation_time?: null | components["schemas"]["WrappedChronoDateTime"];
@@ -1281,53 +1306,6 @@ export interface operations {
             };
         };
     };
-    "encrypt-resource-server-configuration": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Provider controller type ID */
-                provider_controller_type_id: string;
-                /** @description Credential controller type ID */
-                credential_controller_type_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EncryptCredentialConfigurationParamsInner"];
-            };
-        };
-        responses: {
-            /** @description Encrypt provider configuration */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WrappedJsonValue"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
     "create-user-credential": {
         parameters: {
             query?: never;
@@ -1400,244 +1378,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserCredentialBrokeringResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    "encrypt-user-credential-configuration": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Provider controller type ID */
-                provider_controller_type_id: string;
-                /** @description Credential controller type ID */
-                credential_controller_type_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EncryptCredentialConfigurationParamsInner"];
-            };
-        };
-        responses: {
-            /** @description Encrypt user credential configuration */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WrappedJsonValue"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    "list-data-encryption-keys": {
-        parameters: {
-            query: {
-                page_size: number;
-                next_page_token?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List data encryption keys */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DataEncryptionKeyListItemPaginatedResponse"];
-                };
-            };
-        };
-    };
-    "create-data-encryption-key": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateDataEncryptionKeyParamsBridge"];
-            };
-        };
-        responses: {
-            /** @description Create data encryption key */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DataEncryptionKey"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    "delete-data-encryption-key-by-identifier": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DeleteDataEncryptionKeyByIdentifierParams"];
-            };
-        };
-        responses: {
-            /** @description Delete data encryption keys by identifier */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeleteDataEncryptionKeyByIdentifierResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    "migrate-encryption-key": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MigrateEncryptionKeyParams"];
-            };
-        };
-        responses: {
-            /** @description Migrate encryption key */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MigrateEncryptionKeyResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    "migrate-encryption-key-by-identifier": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MigrateEncryptionKeyByIdentifierParams"];
-            };
-        };
-        responses: {
-            /** @description Migrate encryption key by identifier */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MigrateEncryptionKeyResponse"];
                 };
             };
             /** @description Bad Request */
@@ -2159,6 +1899,856 @@ export interface operations {
             };
             /** @description Internal Server Error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "create-dek-alias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDekAliasRequest"];
+            };
+        };
+        responses: {
+            /** @description Create DEK alias */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataEncryptionKeyAlias"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "get-dek-by-alias-or-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description DEK alias or ID */
+                alias: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Get DEK by alias or ID */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataEncryptionKey"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "update-dek-alias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description DEK alias */
+                alias: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAliasParams"];
+            };
+        };
+        responses: {
+            /** @description Update DEK alias */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataEncryptionKeyAlias"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "delete-dek-alias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description DEK alias */
+                alias: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Delete DEK alias */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "list-envelope-encryption-keys": {
+        parameters: {
+            query: {
+                page_size: number;
+                next_page_token?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List envelope encryption keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeEncryptionKeyPaginatedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "create-envelope-encryption-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnvelopeEncryptionKey"];
+            };
+        };
+        responses: {
+            /** @description Create envelope encryption key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeEncryptionKey"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "list-data-encryption-keys-by-envelope": {
+        parameters: {
+            query: {
+                page_size: number;
+                next_page_token?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Envelope encryption key ID */
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List data encryption keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataEncryptionKeyListItemPaginatedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "create-data-encryption-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Envelope encryption key ID */
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDataEncryptionKeyParamsRoute"];
+            };
+        };
+        responses: {
+            /** @description Create data encryption key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataEncryptionKey"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "import-data-encryption-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Envelope encryption key ID */
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportDataEncryptionKeyParamsRoute"];
+            };
+        };
+        responses: {
+            /** @description Import data encryption key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataEncryptionKey"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "migrate-data-encryption-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Envelope encryption key ID */
+                envelope_id: string;
+                /** @description Data encryption key ID */
+                dek_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MigrateDataEncryptionKeyParamsRoute"];
+            };
+        };
+        responses: {
+            /** @description Migrate data encryption key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "migrate-all-data-encryption-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Envelope encryption key ID */
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MigrateAllDataEncryptionKeysParamsRoute"];
+            };
+        };
+        responses: {
+            /** @description Migrate all data encryption keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

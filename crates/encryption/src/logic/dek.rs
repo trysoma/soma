@@ -139,7 +139,7 @@ where
             }
         }
         EnvelopeEncryptionKey::Local { location } => {
-            crate::logic::envelope::get_or_create_local_encryption_key(
+            crate::logic::envelope::get_local_envelope_encryption_key(
                 &std::path::PathBuf::from(location),
             )?
         }
@@ -293,7 +293,7 @@ where
             }
         }
         EnvelopeEncryptionKey::Local { location } => {
-            crate::logic::envelope::get_or_create_local_encryption_key(
+            crate::logic::envelope::get_local_envelope_encryption_key(
                 &std::path::PathBuf::from(location),
             )?
         }

@@ -1,5 +1,6 @@
 pub mod codegen;
 pub mod completions;
 pub mod dev;
-pub mod encryption;
+// TODO: Re-enable encryption key management commands
+// pub mod encryption;
 pub mod init;

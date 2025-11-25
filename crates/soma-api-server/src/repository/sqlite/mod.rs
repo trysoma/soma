@@ -9,7 +9,7 @@ mod generated {
 
 pub use generated::*;
 
-use crate::logic::TaskWithDetails;
+use crate::logic::task::TaskWithDetails;
 use crate::repository::{
     CreateMessage, CreateTask, CreateTaskTimelineItem, Message, Task, TaskRepositoryLike,
     TaskTimelineItem, UpdateTaskStatus,
@@ -151,7 +151,7 @@ impl TaskRepositoryLike for Repository {
     async fn get_unique_contexts(
         &self,
         pagination: &PaginationRequest,
-    ) -> Result<PaginatedResponse<crate::logic::ContextInfo>, CommonError> {
+    ) -> Result<PaginatedResponse<crate::logic::task::ContextInfo>, CommonError> {
         // Decode the base64 token to get the datetime cursor
         let cursor_datetime = if let Some(token) = &pagination.next_page_token {
             let decoded_parts =
@@ -187,9 +187,9 @@ impl TaskRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Vec<crate::logic::ContextInfo> = rows
+        let items: Vec<crate::logic::task::ContextInfo> = rows
             .into_iter()
-            .map(|row| crate::logic::ContextInfo {
+            .map(|row| crate::logic::task::ContextInfo {
                 context_id: row.context_id,
                 created_at: row.created_at,
             })
@@ -408,7 +408,7 @@ impl SqlMigrationLoader for Repository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::logic::{
+    use crate::logic::task::{
         Message, MessagePart, MessageRole, MessageTaskTimelineItem, Metadata, TaskEventUpdateType,
         TaskStatus, TaskStatusUpdateTaskTimelineItem, TaskTimelineItemPayload, TextPart,
     };

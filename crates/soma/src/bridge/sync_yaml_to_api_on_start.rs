@@ -1,26 +1,22 @@
 use std::sync::Arc;
 
-use shared::{error::CommonError, soma_agent_definition::SomaAgentDefinitionLike};
+use shared::{error::CommonError, soma_agent_definition::{EnvelopeKeyConfig, SomaAgentDefinitionLike}};
 use soma_api_client::{
     apis::{configuration::Configuration, default_api},
     models,
 };
 use tracing::info;
 
-/// Synchronizes the bridge database with the soma.yaml definition.
+/// Synchronizes encryption and bridge data from soma.yaml to the API on startup.
 ///
 /// This function performs a smart sync that:
-/// 1. Syncs data encryption keys (adds missing, removes extra)
-/// 2. For each provider in soma.yaml:
-///    - Checks if provider instance exists in DB
-///    - If not, creates it with all credentials
-///    - If exists but credentials/config changed, recreates it
-///    - If exists and unchanged, preserves it (including runtime fields like return_on_successful_brokering)
-/// 3. Removes provider instances not in soma.yaml (only if status is "active")
-/// 4. Syncs function instances for each provider
+/// 1. Syncs envelope encryption keys (creates missing)
+/// 2. Syncs data encryption keys (imports missing DEKs under each envelope key)
+/// 3. Syncs DEK aliases (creates missing)
+/// 4. Syncs provider instances with credentials (using dek_alias)
+/// 5. Syncs function instances for each provider
 ///
-/// All operations are performed via API calls to the soma-api-server to ensure
-/// proper separation of concerns and consistency with the rest of the system.
+/// All operations are performed via API calls to the soma-api-server.
 pub async fn sync_bridge_db_from_soma_definition_on_start(
     api_config: &Configuration,
     soma_definition_provider: &Arc<dyn SomaAgentDefinitionLike>,
@@ -28,57 +24,129 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
     let soma_definition = soma_definition_provider.get_definition().await?;
     use std::collections::{HashMap, HashSet};
 
-    // 1. Sync data encryption keys
-    // Get all existing keys
-    let existing_keys = {
-        let mut keys = HashMap::new();
-        let mut next_page_token: Option<String> = None;
-        loop {
-            let response =
-                default_api::list_data_encryption_keys(api_config, 100, next_page_token.as_deref())
+    // 1. Sync encryption configuration
+    if let Some(encryption_config) = &soma_definition.encryption {
+        // 1a. Sync envelope encryption keys
+        if let Some(envelope_keys) = &encryption_config.envelope_keys {
+            // Get existing envelope keys
+            let existing_envelope_keys: HashMap<String, models::EnvelopeEncryptionKey> = {
+                let mut keys = HashMap::new();
+                let mut next_page_token: Option<String> = None;
+                loop {
+                    let response = default_api::list_envelope_encryption_keys(
+                        api_config,
+                        100,
+                        next_page_token.as_deref(),
+                    )
                     .await
                     .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(
-                            "Failed to list data encryption keys: {e:?}"
+                            "Failed to list envelope encryption keys: {e:?}"
                         ))
                     })?;
 
-            for key in response.items {
-                keys.insert(key.id.clone(), key);
-            }
-            if response.next_page_token.is_none() {
-                break;
-            }
-            next_page_token = response.next_page_token;
-        }
-        keys
-    };
-
-    // Get keys from soma definition
-    let yaml_keys: HashMap<String, _> = soma_definition
-        .bridge
-        .as_ref()
-        .map(|b| &b.encryption.0)
-        .map(|enc| enc.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
-        .unwrap_or_default();
-
-    // Create/update keys from yaml (but don't delete yet - wait until after providers are synced)
-    for (key_id, encryption_config) in &yaml_keys {
-        if !existing_keys.contains_key(key_id) {
-            let params = models::CreateDataEncryptionKeyParams {
-                id: Some(Some(key_id.clone())),
-                encrypted_data_envelope_key: Some(
-                    encryption_config.encrypted_data_encryption_key.clone(),
-                ),
+                    for key in response.items {
+                        let key_id = get_envelope_key_id(&key);
+                        keys.insert(key_id, key);
+                    }
+                    if response.next_page_token.is_none() {
+                        break;
+                    }
+                    next_page_token = response.next_page_token;
+                }
+                keys
             };
 
-            default_api::create_data_encryption_key(api_config, params)
-                .await
-                .map_err(|e| {
-                    CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to create data encryption key '{key_id}': {e:?}"
-                    ))
-                })?;
+            // Create missing envelope keys and sync their DEKs
+            for (key_id, envelope_key_config) in envelope_keys {
+                // Create envelope key if it doesn't exist
+                if !existing_envelope_keys.contains_key(key_id) {
+                    let envelope_key = envelope_key_config_to_api_model(key_id, envelope_key_config);
+                    default_api::create_envelope_encryption_key(api_config, envelope_key)
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to create envelope encryption key '{key_id}': {e:?}"
+                            ))
+                        })?;
+                    info!("Created envelope encryption key: {}", key_id);
+                }
+
+                // 1b. Sync DEKs for this envelope key
+                if let Some(deks) = envelope_key_config.deks() {
+                    // Get existing DEKs for this envelope key
+                    let existing_deks: HashSet<String> = {
+                        let mut dek_ids = HashSet::new();
+                        let mut next_page_token: Option<String> = None;
+                        loop {
+                            let response = default_api::list_data_encryption_keys_by_envelope(
+                                api_config,
+                                key_id,
+                                100,
+                                next_page_token.as_deref(),
+                            )
+                            .await
+                            .map_err(|e| {
+                                CommonError::Unknown(anyhow::anyhow!(
+                                    "Failed to list DEKs for envelope key '{key_id}': {e:?}"
+                                ))
+                            })?;
+
+                            for dek in response.items {
+                                dek_ids.insert(dek.id);
+                            }
+                            if response.next_page_token.is_none() {
+                                break;
+                            }
+                            next_page_token = response.next_page_token;
+                        }
+                        dek_ids
+                    };
+
+                    // Import missing DEKs
+                    for (dek_id, dek_config) in deks {
+                        if !existing_deks.contains(dek_id) {
+                            let import_params = models::ImportDataEncryptionKeyParamsRoute {
+                                id: Some(Some(dek_id.clone())),
+                                encrypted_data_encryption_key: dek_config.encrypted_key.clone(),
+                            };
+                            default_api::import_data_encryption_key(api_config, key_id, import_params)
+                                .await
+                                .map_err(|e| {
+                                    CommonError::Unknown(anyhow::anyhow!(
+                                        "Failed to import DEK '{dek_id}' under envelope key '{key_id}': {e:?}"
+                                    ))
+                                })?;
+                            info!("Imported DEK '{}' under envelope key '{}'", dek_id, key_id);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 1c. Sync DEK aliases
+        if let Some(aliases) = &encryption_config.aliases {
+            for (alias, dek_id) in aliases {
+                // Check if alias exists by trying to get DEK by alias
+                let alias_exists = default_api::get_dek_by_alias_or_id(api_config, alias)
+                    .await
+                    .is_ok();
+
+                if !alias_exists {
+                    let create_alias_req = models::CreateDekAliasRequest {
+                        alias: alias.clone(),
+                        dek_id: dek_id.clone(),
+                    };
+                    default_api::create_dek_alias(api_config, create_alias_req)
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to create DEK alias '{alias}' -> '{dek_id}': {e:?}"
+                            ))
+                        })?;
+                    info!("Created DEK alias '{}' -> '{}'", alias, dek_id);
+                }
+            }
         }
     }
 
@@ -131,14 +199,10 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
 
                 // Check if provider exists and if it needs updating
                 let needs_recreate = if let Some(existing) = existing_providers.get(provider_id) {
-                    // For API sync, we'll do a simple comparison - if anything changed, recreate
-                    // This is simpler than detailed field-by-field comparison
-
                     existing.provider_controller_type_id != *provider_controller_type_id
                         || existing.credential_controller_type_id != *credential_controller_type_id
                         || existing.display_name != provider_config.display_name
                 } else {
-                    // Provider doesn't exist, needs creation
                     true
                 };
 
@@ -163,10 +227,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                     // Create resource server credential
                     let resource_server_credential_params =
                         models::CreateResourceServerCredentialParamsInner {
-                            data_encryption_key_id: provider_config
-                                .resource_server_credential
-                                .data_encryption_key_id
-                                .clone(),
+                            dek_alias: provider_config.resource_server_credential.dek_alias.clone(),
                             resource_server_configuration: Some(
                                 provider_config.resource_server_credential.value.clone(),
                             ),
@@ -196,7 +257,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                         &provider_config.user_credential
                     {
                         let user_credential_params = models::CreateUserCredentialParamsInner {
-                            data_encryption_key_id: user_cred_config.data_encryption_key_id.clone(),
+                            dek_alias: user_cred_config.dek_alias.clone(),
                             user_credential_configuration: Some(user_cred_config.value.clone()),
                             metadata: user_cred_config
                                 .metadata
@@ -333,13 +394,41 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
         }
     }
 
-    // 3. Delete unused data encryption keys (after providers are synced, so credentials are cleaned up)
-    // Note: The API doesn't expose credential listing endpoints for checking key usage,
-    // so we'll skip automatic deletion of unused keys for now. This is safer anyway as it
-    // prevents accidental deletion of keys that might be in use.
-    // Keys can be manually deleted via the API if needed.
-
     info!("Bridge synced from soma definition");
 
     Ok(())
+}
+
+/// Extract the key ID from an EnvelopeEncryptionKey API model
+fn get_envelope_key_id(key: &models::EnvelopeEncryptionKey) -> String {
+    match key {
+        models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(aws_kms) => aws_kms.arn.clone(),
+        models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(local) => local.location.clone(),
+    }
+}
+
+/// Convert EnvelopeKeyConfig from soma.yaml to API model
+fn envelope_key_config_to_api_model(
+    _key_id: &str,
+    config: &EnvelopeKeyConfig,
+) -> models::EnvelopeEncryptionKey {
+    match config {
+        EnvelopeKeyConfig::AwsKms { arn, region, .. } => {
+            models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(Box::new(
+                models::EnvelopeEncryptionKeyOneOf {
+                    arn: arn.clone(),
+                    region: region.clone(),
+                    r#type: models::envelope_encryption_key_one_of::Type::AwsKms,
+                },
+            ))
+        }
+        EnvelopeKeyConfig::Local { location, .. } => {
+            models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(Box::new(
+                models::EnvelopeEncryptionKeyOneOf1 {
+                    location: location.clone(),
+                    r#type: models::envelope_encryption_key_one_of_1::Type::Local,
+                },
+            ))
+        }
+    }
 }

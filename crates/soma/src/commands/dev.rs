@@ -5,8 +5,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bridge::logic::EnvelopeEncryptionKeyContents;
-use bridge::logic::get_or_create_local_encryption_key;
 use clap::Args;
 use clap::Parser;
 use tokio::sync::broadcast;
@@ -75,12 +73,6 @@ pub struct DevParams {
 
     #[arg(
         long,
-        default_value = "local",
-        help = "The type of key encryption key to use. Valid values are 'local' or a valid AWS KMS ARN (arn:aws:kms:region:account-id:key/key-id)."
-    )]
-    pub key_encryption_key: Option<String>,
-    #[arg(
-        long,
         help = "Delete the Restate data directory, local sqlite DB before starting (only applies to local Restate instances and local sqlite DB)"
     )]
     pub clean: bool,
@@ -129,10 +121,6 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     // Find free port for SDK server
     // let sdk_port = find_free_port(9080, 10080)?;
 
-    // Setup encryption key
-    let envelope_encryption_key_contents =
-        setup_encryption_key(params.key_encryption_key.clone(), &project_dir)?;
-
     // Load soma definition
     let soma_definition: Arc<dyn SomaAgentDefinitionLike> = load_soma_definition(&project_dir)?;
 
@@ -158,11 +146,6 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         system_shutdown_signal_trigger.subscribe(),
     )?;
 
-    // Start bridge config change listener subsystem
-    info!("Starting bridge config change listener...");
-    let (on_bridge_change_tx, bridge_sync_handle) =
-        start_bridge_sync_to_yaml_subsystem(soma_definition.clone(), project_dir.clone())?;
-
     // Create API service and start all subsystems
     info!("Initializing API service and starting all subsystems...");
     let api_service_bundle = create_api_service(CreateApiServiceParams {
@@ -174,11 +157,17 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         db_auth_token: params.db_auth_token.clone(),
         soma_definition: soma_definition.clone(),
         restate_params: restate_params.clone(),
-        envelope_encryption_key_contents,
         system_shutdown_signal: system_shutdown_signal_trigger.clone(),
-        on_bridge_config_change_tx: on_bridge_change_tx.clone(),
     })
     .await?;
+
+    // Start bridge config change listener subsystem (uses unified change channel from factory)
+    info!("Starting bridge config change listener...");
+    let bridge_sync_handle = start_bridge_sync_to_yaml_subsystem(
+        soma_definition.clone(),
+        project_dir.clone(),
+        api_service_bundle.soma_change_tx.subscribe(),
+    )?;
 
     let api_service = api_service_bundle.api_service;
     let subsystems = api_service_bundle.subsystems;
@@ -416,82 +405,6 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     Ok(())
 }
 
-/// Ensures .gitignore file includes master-encryption-key.bin
-fn ensure_gitignore_has_key(gitignore_path: &Path) -> Result<(), CommonError> {
-    const KEY_ENTRY: &str = "master-encryption-key.bin";
-
-    let content = if gitignore_path.exists() {
-        fs::read_to_string(gitignore_path)?
-    } else {
-        String::new()
-    };
-
-    // Check if the entry already exists
-    if content.lines().any(|line| line.trim() == KEY_ENTRY) {
-        return Ok(());
-    }
-
-    // Append the entry to .gitignore
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(gitignore_path)?;
-
-    if !content.is_empty() && !content.ends_with('\n') {
-        writeln!(file)?;
-    }
-    writeln!(file, "{KEY_ENTRY}")?;
-
-    Ok(())
-}
-
-/// Sets up the envelope encryption key
-fn setup_encryption_key(
-    key_encryption_key: Option<String>,
-    project_dir: &Path,
-) -> Result<EnvelopeEncryptionKeyContents, CommonError> {
-    // Ensure .soma directory exists
-    let soma_dir = project_dir.join(".soma");
-    fs::create_dir_all(&soma_dir)?;
-
-    // Ensure .soma/.gitignore exists and includes master-encryption-key.bin
-    let gitignore_path = soma_dir.join(".gitignore");
-    ensure_gitignore_has_key(&gitignore_path)?;
-
-    let local_key_path = soma_dir.join("master-encryption-key.bin");
-
-    let envelope_encryption_key_contents = match key_encryption_key {
-        Some(key_encryption_key) => match key_encryption_key.as_str() {
-            "local" => get_or_create_local_encryption_key(&local_key_path)?,
-            _ => {
-                if is_valid_kms_arn(&key_encryption_key) {
-                    let region = extract_region_from_kms_arn(&key_encryption_key)?;
-                    EnvelopeEncryptionKeyContents::AwsKms {
-                        arn: key_encryption_key,
-                        region,
-                    }
-                } else {
-                    return Err(CommonError::Unknown(anyhow::anyhow!(
-                        "Invalid AWS KMS ARN: {key_encryption_key}"
-                    )));
-                }
-            }
-        },
-        None => get_or_create_local_encryption_key(&local_key_path)?,
-    };
-
-    if matches!(
-        envelope_encryption_key_contents,
-        EnvelopeEncryptionKeyContents::Local { .. }
-    ) {
-        warn!(
-            "Local key encryption key is for getting started quickly. Please use a valid AWS KMS ARN for production."
-        );
-    }
-
-    Ok(envelope_encryption_key_contents)
-}
-
 /// Loads the soma definition from the source directory
 fn load_soma_definition(project_dir: &Path) -> Result<Arc<dyn SomaAgentDefinitionLike>, CommonError> {
     let path_to_soma_definition = project_dir.join("soma.yaml");
@@ -506,54 +419,3 @@ fn load_soma_definition(project_dir: &Path) -> Result<Arc<dyn SomaAgentDefinitio
     Ok(Arc::new(soma_definition))
 }
 
-/// Validates if a string is a valid AWS KMS ARN (testable)
-pub fn is_valid_kms_arn(arn: &str) -> bool {
-    arn.starts_with("arn:aws:kms:")
-}
-
-/// Extract AWS region from a KMS ARN
-/// ARN format: arn:aws:kms:REGION:ACCOUNT:key/KEY-ID or arn:aws:kms:REGION:ACCOUNT:alias/ALIAS-NAME
-fn extract_region_from_kms_arn(arn: &str) -> Result<String, CommonError> {
-    // ARN format: arn:aws:kms:REGION:ACCOUNT:key/KEY-ID
-    let parts: Vec<&str> = arn.split(':').collect();
-    if parts.len() >= 4 && parts[0] == "arn" && parts[1] == "aws" && parts[2] == "kms" {
-        Ok(parts[3].to_string())
-    } else {
-        Err(CommonError::Unknown(anyhow::anyhow!(
-            "Invalid KMS ARN format: {arn}"
-        )))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_is_valid_kms_arn_with_valid_arn() {
-        let arn = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012";
-        assert!(is_valid_kms_arn(arn));
-    }
-
-    #[test]
-    fn test_is_valid_kms_arn_with_invalid_arn() {
-        let arn = "arn:aws:s3:::my-bucket";
-        assert!(!is_valid_kms_arn(arn));
-    }
-
-    #[test]
-    fn test_is_valid_kms_arn_with_random_string() {
-        let arn = "not-an-arn";
-        assert!(!is_valid_kms_arn(arn));
-    }
-
-    #[test]
-    fn test_is_valid_kms_arn_empty_string() {
-        assert!(!is_valid_kms_arn(""));
-    }
-
-    #[test]
-    fn test_is_valid_kms_arn_local() {
-        assert!(!is_valid_kms_arn("local"));
-    }
-}

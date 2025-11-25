@@ -1276,7 +1276,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         // Create resource server credential
         let resource_server_cred = ResourceServerCredentialSerialized {
@@ -1382,7 +1382,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         // Setup credentials and provider instance
         let resource_server_cred = ResourceServerCredentialSerialized {
@@ -1498,7 +1498,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         // Create resource server credential for broker state
         let resource_server_cred = ResourceServerCredentialSerialized {
@@ -1509,7 +1509,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            dek_alias: dek_id,
+            dek_alias: dek_alias,
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),
@@ -1578,7 +1578,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         // Create resource server credential
         let resource_server_cred = ResourceServerCredentialSerialized {
@@ -1589,7 +1589,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             next_rotation_time: None,
-            dek_alias: dek_id,
+            dek_alias: dek_alias,
         };
         repo.create_resource_server_credential(&CreateResourceServerCredential::from(
             resource_server_cred.clone(),
@@ -1682,341 +1682,6 @@ mod tests {
             .await
             .unwrap();
         assert!(result.is_none());
-
-        // Test getting nonexistent data encryption key
-        let result = repo
-            .get_data_encryption_key_by_id(&uuid::Uuid::new_v4().to_string())
-            .await
-            .unwrap();
-        assert!(result.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_create_and_get_data_encryption_key() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek = DataEncryptionKey {
-            id: uuid::Uuid::new_v4().to_string(),
-            envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKey::AwsKms {
-                arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
-                    .to_string(),
-                region: "us-east-1".to_string(),
-            },
-            encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(
-                "encrypted_key_data".to_string(),
-            ),
-            created_at: now,
-            updated_at: now,
-        };
-
-        let create_params = CreateDataEncryptionKey::from(dek.clone());
-        repo.create_data_encryption_key(&create_params)
-            .await
-            .unwrap();
-
-        // Verify it was created
-        let retrieved = repo
-            .get_data_encryption_key_by_id(&dek.id)
-            .await
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(retrieved.id, dek.id);
-        assert_eq!(
-            retrieved.encrypted_data_encryption_key.0,
-            dek.encrypted_data_encryption_key.0
-        );
-        match retrieved.envelope_encryption_key_id {
-            crate::logic::EnvelopeEncryptionKey::AwsKms { arn, region: _ } => {
-                assert_eq!(
-                    arn,
-                    "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
-                );
-            }
-            crate::logic::EnvelopeEncryptionKey::Local { .. } => {
-                panic!("Expected AwsKms variant");
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn test_delete_data_encryption_key() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek = DataEncryptionKey {
-            id: uuid::Uuid::new_v4().to_string(),
-            envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKey::AwsKms {
-                arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
-                    .to_string(),
-                region: "us-east-1".to_string(),
-            },
-            encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(
-                "encrypted_key_data".to_string(),
-            ),
-            created_at: now,
-            updated_at: now,
-        };
-
-        let create_params = CreateDataEncryptionKey::from(dek.clone());
-        repo.create_data_encryption_key(&create_params)
-            .await
-            .unwrap();
-
-        // Verify it was created
-        let retrieved = repo.get_data_encryption_key_by_id(&dek.id).await.unwrap();
-        assert!(retrieved.is_some());
-
-        // Delete the data encryption key
-        repo.delete_data_encryption_key(&dek.id).await.unwrap();
-
-        // Verify it was deleted
-        let deleted = repo.get_data_encryption_key_by_id(&dek.id).await.unwrap();
-
-        assert!(deleted.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_list_data_encryption_keys_empty() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-
-        let result = repo.list_data_encryption_keys(&pagination).await.unwrap();
-
-        assert_eq!(result.items.len(), 0);
-        assert!(result.next_page_token.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_list_data_encryption_keys_single_page() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        // Create 3 data encryption keys
-        let now = WrappedChronoDateTime::now();
-        let mut deks = vec![];
-
-        for i in 0..3 {
-            let dek = DataEncryptionKey {
-                id: format!("dek-{i}"),
-                envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKey::AwsKms {
-                    arn: format!("arn:aws:kms:us-east-1:123456789012:key/key-{i}"),
-                    region: "us-east-1".to_string(),
-                },
-                encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(format!(
-                    "encrypted_key_{i}"
-                )),
-                created_at: now,
-                updated_at: now,
-            };
-            deks.push(dek.clone());
-            repo.create_data_encryption_key(&CreateDataEncryptionKey::from(dek))
-                .await
-                .unwrap();
-
-            // Sleep briefly to ensure different timestamps
-            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        }
-
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-
-        let result = repo.list_data_encryption_keys(&pagination).await.unwrap();
-
-        assert_eq!(result.items.len(), 3);
-        assert!(result.next_page_token.is_none());
-
-        // Verify that the encrypted_data_encryption_key is not returned (check struct fields)
-        for item in &result.items {
-            assert!(item.id.starts_with("dek-"));
-            // The DataEncryptionKeyListItem struct doesn't have encrypted_data_encryption_key field
-        }
-    }
-
-    #[tokio::test]
-    async fn test_list_data_encryption_keys_pagination() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        // Create 5 data encryption keys with different timestamps
-        let mut deks = vec![];
-
-        for i in 0..5 {
-            // Sleep briefly BEFORE each creation to ensure different timestamps
-            if i > 0 {
-                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-            }
-
-            let now = WrappedChronoDateTime::now();
-            let dek = DataEncryptionKey {
-                id: format!("dek-{i}"),
-                envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKey::AwsKms {
-                    arn: format!("arn:aws:kms:us-east-1:123456789012:key/key-{i}"),
-                    region: "us-east-1".to_string(),
-                },
-                encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(format!(
-                    "encrypted_key_{i}"
-                )),
-                created_at: now,
-                updated_at: now,
-            };
-            deks.push(dek.clone());
-            repo.create_data_encryption_key(&CreateDataEncryptionKey::from(dek))
-                .await
-                .unwrap();
-        }
-
-        // First page with page size of 2
-        let pagination = PaginationRequest {
-            page_size: 2,
-            next_page_token: None,
-        };
-
-        let first_page = repo.list_data_encryption_keys(&pagination).await.unwrap();
-
-        assert_eq!(first_page.items.len(), 2);
-        assert!(first_page.next_page_token.is_some());
-
-        // Second page using the token from first page
-        let pagination = PaginationRequest {
-            page_size: 2,
-            next_page_token: first_page.next_page_token.clone(),
-        };
-
-        let second_page = repo.list_data_encryption_keys(&pagination).await.unwrap();
-
-        assert_eq!(second_page.items.len(), 2);
-        assert!(second_page.next_page_token.is_some());
-
-        // Third page
-        let pagination = PaginationRequest {
-            page_size: 2,
-            next_page_token: second_page.next_page_token.clone(),
-        };
-
-        let third_page = repo.list_data_encryption_keys(&pagination).await.unwrap();
-
-        assert_eq!(third_page.items.len(), 1);
-        assert!(third_page.next_page_token.is_none());
-
-        // Verify no duplicates across pages
-        let mut all_ids = vec![];
-        all_ids.extend(first_page.items.iter().map(|i| i.id.clone()));
-        all_ids.extend(second_page.items.iter().map(|i| i.id.clone()));
-        all_ids.extend(third_page.items.iter().map(|i| i.id.clone()));
-
-        let mut unique_ids = all_ids.clone();
-        unique_ids.sort();
-        unique_ids.dedup();
-
-        assert_eq!(all_ids.len(), unique_ids.len());
-        assert_eq!(unique_ids.len(), 5);
-    }
-
-    #[tokio::test]
-    async fn test_list_data_encryption_keys_does_not_include_encryption_key() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek = DataEncryptionKey {
-            id: uuid::Uuid::new_v4().to_string(),
-            envelope_encryption_key_id: crate::logic::EnvelopeEncryptionKey::AwsKms {
-                arn: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
-                    .to_string(),
-                region: "us-east-1".to_string(),
-            },
-            encrypted_data_encryption_key: crate::logic::EncryptedDataEncryptionKey(
-                "super_secret_encrypted_key_data".to_string(),
-            ),
-            created_at: now,
-            updated_at: now,
-        };
-
-        let create_params = CreateDataEncryptionKey::from(dek.clone());
-        repo.create_data_encryption_key(&create_params)
-            .await
-            .unwrap();
-
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-
-        let result = repo.list_data_encryption_keys(&pagination).await.unwrap();
-
-        assert_eq!(result.items.len(), 1);
-        let list_item = &result.items[0];
-
-        // Verify the fields that ARE present
-        assert_eq!(list_item.id, dek.id);
-        assert_eq!(list_item.created_at, dek.created_at);
-        assert_eq!(list_item.updated_at, dek.updated_at);
-
-        // The DataEncryptionKeyListItem type doesn't have the encrypted_data_encryption_key field,
-        // so we can't accidentally return it. This is verified at compile time.
-
-        // To verify the sensitive data isn't there, we can check by getting the full object
-        // and ensuring the list item doesn't contain the encrypted key
-        let full_dek = repo
-            .get_data_encryption_key_by_id(&dek.id)
-            .await
-            .unwrap()
-            .unwrap();
-
-        // The full DEK has the encrypted key
-        assert_eq!(
-            full_dek.encrypted_data_encryption_key.0,
-            "super_secret_encrypted_key_data"
-        );
-
-        // But the list item type doesn't have this field at all
-        // (compile-time safety through type system)
-    }
-
-    #[tokio::test]
-    async fn test_list_data_encryption_keys_invalid_pagination_token() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: Some("invalid_token".to_string()),
-        };
-
-        let result = repo.list_data_encryption_keys(&pagination).await;
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            CommonError::Repository { msg, .. } => {
-                assert!(msg.contains("Invalid pagination token"));
-            }
-            _ => panic!("Expected Repository error"),
-        }
     }
 
     #[tokio::test]
@@ -2027,7 +1692,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         // Create resource server credential with JSON fields
         let resource_server_cred = ResourceServerCredentialSerialized {
@@ -2162,7 +1827,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         // Create resource server credential with JSON fields
         let resource_server_cred = ResourceServerCredentialSerialized {
@@ -2319,20 +1984,8 @@ mod tests {
         .unwrap();
         let repo = Repository::new(conn);
 
-        // Create test data encryption key
+        // No need to create DEK - bridge repository doesn't manage encryption keys
         let now = shared::primitives::WrappedChronoDateTime::now();
-        let dek = CreateDataEncryptionKey {
-            id: "test-dek".to_string(),
-            envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKey::Local {
-                location: "test".to_string(),
-            },
-            encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
-                "test-encrypted-key".to_string(),
-            ),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_data_encryption_key(&dek).await.unwrap();
 
         // Create resource server credentials
         let rsc_id_1 = shared::primitives::WrappedUuidV4::new();
@@ -2437,20 +2090,8 @@ mod tests {
         .unwrap();
         let repo = Repository::new(conn);
 
-        // Create test data encryption key
+        // No need to create DEK - bridge repository doesn't manage encryption keys
         let now = shared::primitives::WrappedChronoDateTime::now();
-        let dek = CreateDataEncryptionKey {
-            id: "test-dek".to_string(),
-            envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKey::Local {
-                location: "test".to_string(),
-            },
-            encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
-                "test-encrypted-key".to_string(),
-            ),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_data_encryption_key(&dek).await.unwrap();
 
         // Create resource server credentials
         let rsc_id_1 = shared::primitives::WrappedUuidV4::new();
@@ -2585,20 +2226,8 @@ mod tests {
         .unwrap();
         let repo = Repository::new(conn);
 
-        // Create test data encryption key
+        // No need to create DEK - bridge repository doesn't manage encryption keys
         let now = shared::primitives::WrappedChronoDateTime::now();
-        let dek = CreateDataEncryptionKey {
-            id: "test-dek".to_string(),
-            envelope_encryption_key_id: crate::logic::encryption::EnvelopeEncryptionKey::Local {
-                location: "test".to_string(),
-            },
-            encryption_key: crate::logic::encryption::EncryptedDataEncryptionKey(
-                "test-encrypted-key".to_string(),
-            ),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_data_encryption_key(&dek).await.unwrap();
 
         // Create resource server credentials for provider instances
         let rsc_id_1 = shared::primitives::WrappedUuidV4::new();
@@ -2752,7 +2381,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         // Create resource server credentials
         let rsc1 = ResourceServerCredentialSerialized {
@@ -2903,7 +2532,7 @@ mod tests {
             .unwrap();
         let repo = Repository::new(conn);
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         // Create initial resource server credential
         let initial_value = WrappedJsonValue::new(serde_json::json!({
@@ -3077,7 +2706,7 @@ mod tests {
             .unwrap();
         let repo = Repository::new(conn);
         let now = WrappedChronoDateTime::now();
-        let dek_id = create_test_dek(&repo, now).await;
+        let dek_alias = create_test_dek_alias();
 
         // Create initial user credential
         let initial_value = WrappedJsonValue::new(serde_json::json!({

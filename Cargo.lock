@@ -955,7 +955,6 @@ dependencies = [
  "async-trait",
  "axum 0.8.6",
  "base64 0.22.1",
- "bridge-macros",
  "chrono",
  "ctor",
  "encryption",
@@ -970,7 +969,6 @@ dependencies = [
  "reqwest",
  "rmcp",
  "schemars 1.0.4",
- "sdk-proto",
  "serde",
  "serde_json",
  "sha2",
@@ -982,25 +980,12 @@ dependencies = [
  "tokio-graceful-shutdown",
  "tokio-stream",
  "tokio-util",
- "tonic 0.13.1",
  "tower-http 0.6.6",
  "tracing",
  "urlencoding",
  "utoipa",
  "utoipa-axum",
  "uuid",
- "workspace-hack",
-]
-
-[[package]]
-name = "bridge-macros"
-version = "0.0.1"
-dependencies = [
- "convert_case 0.8.0",
- "paste",
- "proc-macro2",
- "quote",
- "syn 2.0.110",
  "workspace-hack",
 ]
 
@@ -5613,6 +5598,7 @@ dependencies = [
  "clap_complete",
  "dashmap",
  "dirs",
+ "encryption",
  "futures",
  "globset",
  "http 1.3.1",

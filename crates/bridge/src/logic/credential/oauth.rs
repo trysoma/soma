@@ -957,31 +957,7 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
 #[cfg(test)]
 mod tests {
     use super::*;
-    use encryption::logic::envelope::EnvelopeEncryptionKeyContents;
     use shared::primitives::{SqlMigrationLoader, WrappedUuidV4};
-
-    fn create_temp_kek_file() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
-        use rand::RngCore;
-        let mut kek_bytes = [0u8; 32];
-        rand::thread_rng().fill_bytes(&mut kek_bytes);
-
-        let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
-        std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
-
-        let location = temp_file
-            .path()
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("test-key")
-            .to_string();
-
-        let contents = EnvelopeEncryptionKeyContents::Local {
-            location,
-            key_bytes: kek_bytes.to_vec(),
-        };
-
-        (temp_file, contents)
-    }
 
     #[tokio::test]
     async fn test_oauth_authorization_code_flow_next_rotation_time() {
@@ -1021,7 +997,7 @@ mod tests {
     async fn test_oauth_authorization_code_flow_rotate_user_credential() {
         shared::setup_test!();
 
-        let repo = {
+        let _repo = {
             let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
                 crate::repository::Repository::load_sql_migrations(),
             ])
@@ -1029,26 +1005,11 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
-        let (_temp_file, kek) = create_temp_kek_file();
 
-        // Create a data encryption key
-        let dek = create_data_encryption_key(
-            &kek,
-            &tx,
-            &repo,
-            CreateDataEncryptionKeyParams {
-                id: Some("test-dek".to_string()),
-                encrypted_data_envelope_key: None,
-            },
-            false,
-        )
-        .await
-        .unwrap();
-
-        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
-        let encryption_service = get_encryption_service(&crypto_service).unwrap();
-        let decryption_service = get_decryption_service(&crypto_service).unwrap();
+        // Use the test helper to set up encryption services
+        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+        let encryption_service = setup.crypto_cache.get_encryption_service(&setup.dek_alias).await.unwrap();
+        let decryption_service = setup.crypto_cache.get_decryption_service(&setup.dek_alias).await.unwrap();
 
         // Create a controller
         let controller = OauthAuthFlowController {
@@ -1083,7 +1044,7 @@ mod tests {
             created_at: WrappedChronoDateTime::now(),
             updated_at: WrappedChronoDateTime::now(),
             next_rotation_time: None,
-            dek_alias: dek.id.clone(),
+            dek_alias: setup.dek_alias.clone(),
         };
 
         // Create encrypted user credential
@@ -1127,7 +1088,7 @@ mod tests {
             created_at: WrappedChronoDateTime::now(),
             updated_at: WrappedChronoDateTime::now(),
             next_rotation_time: Some(expiry),
-            dek_alias: dek.id.clone(),
+            dek_alias: setup.dek_alias.clone(),
         };
 
         // Note: This test would require mocking the HTTP requests to actually test rotation
@@ -1201,7 +1162,7 @@ mod tests {
     async fn test_encrypt_decrypt_oauth_resource_server_credentials() {
         shared::setup_test!();
 
-        let repo = {
+        let _repo = {
             let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
                 crate::repository::Repository::load_sql_migrations(),
             ])
@@ -1209,24 +1170,10 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
-        let (_temp_file, kek) = create_temp_kek_file();
 
-        let dek = create_data_encryption_key(
-            &kek,
-            &tx,
-            &repo,
-            CreateDataEncryptionKeyParams {
-                id: Some("test-dek".to_string()),
-                encrypted_data_envelope_key: None,
-            },
-            false,
-        )
-        .await
-        .unwrap();
-
-        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
-        let encryption_service = get_encryption_service(&crypto_service).unwrap();
+        // Use the test helper to set up encryption services
+        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+        let encryption_service = setup.crypto_cache.get_encryption_service(&setup.dek_alias).await.unwrap();
 
         let controller = OauthAuthFlowController {
             static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
@@ -1277,7 +1224,7 @@ mod tests {
     async fn test_encrypt_decrypt_oauth_user_credentials() {
         shared::setup_test!();
 
-        let repo = {
+        let _repo = {
             let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
                 crate::repository::Repository::load_sql_migrations(),
             ])
@@ -1285,25 +1232,11 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
-        let (_temp_file, kek) = create_temp_kek_file();
 
-        let dek = create_data_encryption_key(
-            &kek,
-            &tx,
-            &repo,
-            CreateDataEncryptionKeyParams {
-                id: Some("test-dek".to_string()),
-                encrypted_data_envelope_key: None,
-            },
-            false,
-        )
-        .await
-        .unwrap();
-
-        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
-        let encryption_service = get_encryption_service(&crypto_service).unwrap();
-        let decryption_service = get_decryption_service(&crypto_service).unwrap();
+        // Use the test helper to set up encryption services
+        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+        let encryption_service = setup.crypto_cache.get_encryption_service(&setup.dek_alias).await.unwrap();
+        let decryption_service = setup.crypto_cache.get_decryption_service(&setup.dek_alias).await.unwrap();
 
         let controller = OauthAuthFlowController {
             static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
@@ -1357,7 +1290,7 @@ mod tests {
             created_at: WrappedChronoDateTime::now(),
             updated_at: WrappedChronoDateTime::now(),
             next_rotation_time: None,
-            dek_alias: dek.id.clone(),
+            dek_alias: setup.dek_alias.clone(),
         };
 
         let decrypted = controller
@@ -1376,7 +1309,7 @@ mod tests {
     async fn test_oauth_jwt_bearer_encrypt_decrypt_credentials() {
         shared::setup_test!();
 
-        let repo = {
+        let _repo = {
             let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
                 crate::repository::Repository::load_sql_migrations(),
             ])
@@ -1384,24 +1317,10 @@ mod tests {
             .unwrap();
             crate::repository::Repository::new(conn)
         };
-        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
-        let (_temp_file, kek) = create_temp_kek_file();
 
-        let dek = create_data_encryption_key(
-            &kek,
-            &tx,
-            &repo,
-            CreateDataEncryptionKeyParams {
-                id: Some("test-dek".to_string()),
-                encrypted_data_envelope_key: None,
-            },
-            false,
-        )
-        .await
-        .unwrap();
-
-        let crypto_service = get_crypto_service(&kek, &repo, &dek.id).await.unwrap();
-        let encryption_service = get_encryption_service(&crypto_service).unwrap();
+        // Use the test helper to set up encryption services
+        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+        let encryption_service = setup.crypto_cache.get_encryption_service(&setup.dek_alias).await.unwrap();
 
         let controller = Oauth2JwtBearerAssertionFlowController {
             static_credentials: Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration {

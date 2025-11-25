@@ -1,4 +1,3 @@
-pub mod codegen;
 pub mod controller;
 pub mod credential;
 pub mod instance;
@@ -85,7 +84,7 @@ pub use instance::*;
 
 // on change events
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum OnConfigChangeEvt {
     ProviderInstanceAdded(ProviderInstanceSerializedWithCredentials),
     ProviderInstanceRemoved(String),

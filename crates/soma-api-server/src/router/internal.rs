@@ -1,8 +1,10 @@
 use axum::extract::State;
+use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tonic::Request;
-use tracing::{info, warn};
+use tokio::sync::Mutex;
+use tonic::transport::Channel;
+use tracing::warn;
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
@@ -81,32 +83,26 @@ async fn runtime_config() -> Result<RuntimeConfig, CommonError> {
 
 pub struct InternalService {
     bridge_service: bridge::router::bridge::BridgeService,
+    sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
 }
 
 impl InternalService {
-    pub fn new(bridge_service: bridge::router::bridge::BridgeService) -> Self {
-        Self { bridge_service }
+    pub fn new(
+        bridge_service: bridge::router::bridge::BridgeService,
+        sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+    ) -> Self {
+        Self {
+            bridge_service,
+            sdk_client,
+        }
     }
 
     /// Checks SDK server health
     async fn check_health(&self) -> Result<(), CommonError> {
-        let mut sdk_client_guard = self.bridge_service.sdk_client().lock().await;
+        let mut sdk_client_guard = self.sdk_client.lock().await;
 
         if let Some(ref mut client) = *sdk_client_guard {
-            // Call SDK health check
-            let request = Request::new(());
-            match client.health_check(request).await {
-                Ok(_) => {
-                    info!("SDK server health check passed");
-                    Ok(())
-                }
-                Err(e) => {
-                    warn!("SDK server health check failed: {:?}", e);
-                    Err(CommonError::Unknown(anyhow::anyhow!(
-                        "SDK server health check failed: {e}"
-                    )))
-                }
-            }
+            crate::logic::internal::check_sdk_health(client).await
         } else {
             warn!("SDK client not available");
             Err(CommonError::Unknown(anyhow::anyhow!(
@@ -116,20 +112,14 @@ impl InternalService {
     }
 
     pub async fn trigger_codegen(&self) -> Result<TriggerCodegenResponse, CommonError> {
-        // Get SDK client from bridge service
-        let mut sdk_client_guard = self.bridge_service.sdk_client().lock().await;
+        let mut sdk_client_guard = self.sdk_client.lock().await;
 
         if let Some(ref mut client) = *sdk_client_guard {
-            // Trigger bridge client generation
-            bridge::logic::codegen::trigger_bridge_client_generation(
-                client,
-                self.bridge_service.repository(),
-            )
-            .await?;
+            let message =
+                crate::logic::internal::trigger_codegen(client, self.bridge_service.repository())
+                    .await?;
 
-            Ok(TriggerCodegenResponse {
-                message: "Bridge client generation completed successfully".to_string(),
-            })
+            Ok(TriggerCodegenResponse { message })
         } else {
             Err(CommonError::Unknown(anyhow::anyhow!(
                 "SDK client not available. Please ensure the SDK server is running."

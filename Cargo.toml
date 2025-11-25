@@ -164,7 +164,6 @@ soma-api-client = { path = "./crates/soma-api-client" }
 soma-frontend = { path = "./crates/soma-frontend" }
 soma = { path = "./crates/soma" }
 bridge = { path = "./crates/bridge" }
-bridge-macros = { path = "./crates/bridge-macros" }
 encryption = { path = "./crates/encryption" }
 sdk-core = { path = "./crates/sdk-core" }
 sdk-proto = { path = "./crates/sdk-proto" }

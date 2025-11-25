@@ -2,9 +2,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bridge::logic::{
-    EnvelopeEncryptionKeyContents, OnConfigChangeTx, register_all_bridge_providers,
-};
+use bridge::logic::{OnConfigChangeTx, register_all_bridge_providers};
+use encryption::CryptoCache;
 use shared::error::CommonError;
 use shared::soma_agent_definition::SomaAgentDefinitionLike;
 use shared::subsystem::SubsystemHandle;
@@ -14,12 +13,13 @@ use shared::uds::{
 use tokio::sync::broadcast;
 use tracing::{error, info, warn};
 
-use crate::logic::ConnectionManager;
+use crate::logic::on_change_pubsub::{SomaChangeTx, create_soma_change_channel, run_change_pubsub};
+use crate::logic::task::ConnectionManager;
 use crate::repository::setup_repository;
 use crate::restate::RestateServerParams;
 use crate::sdk::{SdkRuntime, determine_sdk_runtime, sdk_provider_sync};
 use crate::subsystems::Subsystems;
-use crate::{ApiService, InitRouterParams};
+use crate::{ApiService, InitApiServiceParams};
 
 pub struct CreateApiServiceParams {
     pub project_dir: PathBuf,
@@ -30,14 +30,14 @@ pub struct CreateApiServiceParams {
     pub db_auth_token: Option<String>,
     pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub restate_params: RestateServerParams,
-    pub envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
     pub system_shutdown_signal: broadcast::Sender<()>,
-    pub on_bridge_config_change_tx: OnConfigChangeTx,
 }
 
 pub struct ApiServiceBundle {
     pub api_service: ApiService,
     pub subsystems: Subsystems,
+    /// Unified change channel for external listeners to subscribe to bridge and encryption events
+    pub soma_change_tx: SomaChangeTx,
 }
 
 /// Creates the API service and starts all subsystems
@@ -54,9 +54,7 @@ pub async fn create_api_service(
         db_auth_token,
         soma_definition,
         restate_params,
-        envelope_encryption_key_contents,
         system_shutdown_signal,
-        on_bridge_config_change_tx,
     } = params;
 
     // Determine SDK runtime
@@ -73,7 +71,37 @@ pub async fn create_api_service(
     info!("Setting up database and repositories...");
     let connection_manager = ConnectionManager::new();
     let db_url = url::Url::parse(&db_conn_string)?;
-    let (_db, _conn, repository, bridge_repo) = setup_repository(&db_url, &db_auth_token).await?;
+    let (_db, _conn, repository, bridge_repo, encryption_repo) = setup_repository(&db_url, &db_auth_token).await?;
+
+    // Create the bridge config change channel
+    let (on_bridge_config_change_tx, on_bridge_config_change_rx): (OnConfigChangeTx, _) =
+        tokio::sync::broadcast::channel(100);
+
+    // Create encryption event channel
+    let (encryption_change_tx, encryption_change_rx): (encryption::EncryptionKeyEventSender, _) =
+        tokio::sync::broadcast::channel(100);
+
+    // Create the unified soma change channel
+    let (soma_change_tx, _soma_change_rx) = create_soma_change_channel(100);
+
+    // Initialize the crypto cache from the encryption repository
+    info!("Initializing crypto cache...");
+    let crypto_cache = CryptoCache::new(encryption_repo.clone());
+    encryption::init_crypto_cache(&crypto_cache).await?;
+
+    // Start the unified change pubsub forwarder
+    info!("Starting unified change pubsub...");
+    let soma_change_tx_clone = soma_change_tx.clone();
+    let pubsub_shutdown_rx = system_shutdown_signal.subscribe();
+    tokio::spawn(async move {
+        run_change_pubsub(
+            soma_change_tx_clone,
+            on_bridge_config_change_rx,
+            encryption_change_rx,
+            pubsub_shutdown_rx,
+        )
+        .await;
+    });
 
     // Restate server is started by caller (soma crate)
     // We just use the passed-in handle
@@ -127,7 +155,7 @@ pub async fn create_api_service(
 
             // Trigger initial bridge client generation on start
             info!("Triggering initial bridge client generation...");
-            match bridge::logic::codegen::trigger_bridge_client_generation(
+            match crate::logic::bridge::codegen::trigger_bridge_client_generation(
                 &mut client,
                 &bridge_repo,
             )
@@ -169,7 +197,7 @@ pub async fn create_api_service(
 
     // Initialize API service
     info!("Initializing API service...");
-    let api_service = ApiService::new(InitRouterParams {
+    let api_service = ApiService::new(InitApiServiceParams {
         host: host.clone(),
         port,
         connection_manager: connection_manager.clone(),
@@ -179,10 +207,12 @@ pub async fn create_api_service(
         restate_ingress_client: restate_params.get_ingress_client()?,
         restate_admin_client: restate_admin_client.clone(),
         on_bridge_config_change_tx: on_bridge_config_change_tx.clone(),
-        envelope_encryption_key_contents: envelope_encryption_key_contents.clone(),
+        crypto_cache: crypto_cache.clone(),
         bridge_repository: bridge_repo.clone(),
         mcp_sse_ping_interval: Duration::from_secs(10),
         sdk_client: sdk_client.clone(),
+        on_encryption_change_tx: encryption_change_tx.clone(),
+        encryption_repository: encryption_repo.clone(),
     })
     .await?;
     info!("API service initialized");
@@ -208,14 +238,14 @@ pub async fn create_api_service(
     info!("Starting credential rotation...");
     let credential_rotation_handle = start_credential_rotation_subsystem(
         bridge_repo.clone(),
-        envelope_encryption_key_contents,
+        crypto_cache.clone(),
         on_bridge_config_change_tx.clone(),
         system_shutdown_signal.subscribe(),
     )?;
 
     // Start bridge client generation listener
     info!("Starting bridge client generation listener...");
-    let bridge_client_gen_handle = crate::bridge::start_bridge_client_generation_subsystem(
+    let bridge_client_gen_handle = crate::logic::bridge::start_bridge_client_generation_subsystem(
         bridge_repo.clone(),
         sdk_client.clone(),
         bridge_client_gen_rx,
@@ -231,6 +261,7 @@ pub async fn create_api_service(
             credential_rotation: Some(credential_rotation_handle),
             bridge_client_generation: Some(bridge_client_gen_handle),
         },
+        soma_change_tx,
     })
 }
 
@@ -273,7 +304,7 @@ fn start_mcp_subsystem(
     >,
     shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<SubsystemHandle, CommonError> {
-    use crate::bridge::connection_manager::{
+    use crate::logic::bridge::connection_manager::{
         StartMcpConnectionManagerParams, start_mcp_connection_manager,
     };
 
@@ -378,7 +409,7 @@ async fn wait_for_sdk_healthcheck(
 
 fn start_credential_rotation_subsystem(
     bridge_repo: bridge::repository::Repository,
-    envelope_encryption_key_contents: EnvelopeEncryptionKeyContents,
+    crypto_cache: CryptoCache,
     on_bridge_change_tx: OnConfigChangeTx,
     shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<SubsystemHandle, CommonError> {
@@ -387,7 +418,7 @@ fn start_credential_rotation_subsystem(
     tokio::spawn(async move {
         bridge::logic::credential_rotation_task(
             bridge_repo,
-            envelope_encryption_key_contents,
+            crypto_cache,
             on_bridge_change_tx,
             shutdown_rx,
         )

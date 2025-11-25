@@ -511,19 +511,6 @@ async fn route_enable_function(
     )
     .await;
 
-    // Trigger bridge client generation if function was enabled successfully
-    if res.is_ok() {
-        let mut sdk_client_guard = ctx.sdk_client().lock().await;
-        if let Some(ref mut client) = *sdk_client_guard {
-            if let Err(e) =
-                crate::logic::codegen::trigger_bridge_client_generation(client, ctx.repository())
-                    .await
-            {
-                tracing::warn!("Failed to trigger bridge client generation: {:?}", e);
-            }
-        }
-    }
-
     JsonResponse::from(res)
 }
 
@@ -558,19 +545,6 @@ async fn route_disable_function(
         true,
     )
     .await;
-
-    // Trigger bridge client generation if function was disabled successfully
-    if res.is_ok() {
-        let mut sdk_client_guard = ctx.sdk_client().lock().await;
-        if let Some(ref mut client) = *sdk_client_guard {
-            if let Err(e) =
-                crate::logic::codegen::trigger_bridge_client_generation(client, ctx.repository())
-                    .await
-            {
-                tracing::warn!("Failed to trigger bridge client generation: {:?}", e);
-            }
-        }
-    }
 
     JsonResponse::from(res)
 }
@@ -737,13 +711,6 @@ pub struct BridgeServiceInner {
     pub mcp_transport_tx:
         tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
     pub mcp_sse_ping_interval: Duration,
-    pub sdk_client: Arc<
-        tokio::sync::Mutex<
-            Option<
-                sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<tonic::transport::Channel>,
-            >,
-        >,
-    >,
 }
 
 impl BridgeServiceInner {
@@ -755,17 +722,7 @@ impl BridgeServiceInner {
             rmcp::transport::sse_server::SseServerTransport,
         >,
         mcp_sse_ping_interval: Duration,
-        sdk_client: Arc<
-            tokio::sync::Mutex<
-                Option<
-                    sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
-                        tonic::transport::Channel,
-                    >,
-                >,
-            >,
-        >,
     ) -> Self {
-        
         Self {
             repository,
             on_config_change_tx,
@@ -773,7 +730,6 @@ impl BridgeServiceInner {
             mcp_sessions: Default::default(),
             mcp_transport_tx,
             mcp_sse_ping_interval,
-            sdk_client,
         }
     }
 }
@@ -790,15 +746,6 @@ impl BridgeService {
             rmcp::transport::sse_server::SseServerTransport,
         >,
         mcp_sse_ping_interval: Duration,
-        sdk_client: Arc<
-            tokio::sync::Mutex<
-                Option<
-                    sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
-                        tonic::transport::Channel,
-                    >,
-                >,
-            >,
-        >,
     ) -> Result<Self, CommonError> {
         // Initialize the service inner first to get the map
         let inner = BridgeServiceInner::new(
@@ -807,9 +754,8 @@ impl BridgeService {
             encryption_service,
             mcp_transport_tx,
             mcp_sse_ping_interval,
-            sdk_client,
         );
-        
+
         // Run initial credential rotation check for expired and soon-to-expire credentials (30 min window)
         info!("Running initial credential rotation check...");
         process_credential_rotations_with_window(
@@ -836,7 +782,6 @@ impl BridgeService {
         &self.0.encryption_service
     }
 
-
     pub fn mcp_transport_tx(
         &self,
     ) -> &tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport> {
@@ -849,18 +794,6 @@ impl BridgeService {
 
     pub fn mcp_sessions(&self) -> &rmcp::transport::sse_server::TxStore {
         &self.0.mcp_sessions
-    }
-
-    pub fn sdk_client(
-        &self,
-    ) -> &Arc<
-        tokio::sync::Mutex<
-            Option<
-                sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<tonic::transport::Channel>,
-            >,
-        >,
-    > {
-        &self.0.sdk_client
     }
 }
 

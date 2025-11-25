@@ -59,44 +59,18 @@ fn main() {
         panic!("Generated lib.rs not found at: {}", generated_lib.display());
     }
 
-    // Copy generated src files to our src/generated directory
-    // This allows mod declarations in the generated lib.rs to resolve correctly
-    let generated_src = output_dir.join("src");
-    let crate_root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
-    let target_src = crate_root.join("src").join("generated");
+    // Strip inner attributes from generated lib.rs so it can be used with include!()
+    // Inner attributes (#![...]) can only appear at the crate root, not in included files
+    let lib_content = fs::read_to_string(&generated_lib).unwrap();
+    let filtered_content: String = lib_content
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("#!["))
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(&generated_lib, filtered_content).unwrap();
 
-    // Remove old generated src if it exists
-    if target_src.exists() {
-        fs::remove_dir_all(&target_src).unwrap_or_else(|e| {
-            eprintln!("Warning: Failed to remove old generated src: {e}");
-        });
-    }
-
-    // Copy the entire src directory
-    copy_dir_all(&generated_src, &target_src).unwrap_or_else(|e| {
-        panic!("Failed to copy generated src files: {e}");
-    });
-
-    eprintln!("Generated source files copied to: {}", target_src.display());
+    eprintln!("Generated files available at: {}", output_dir.display());
 
     // Tell Cargo to rerun this build script if the OpenAPI spec changes
     println!("cargo:rerun-if-changed=build.rs");
-}
-
-/// Recursively copy a directory
-fn copy_dir_all(src: &PathBuf, dst: &PathBuf) -> std::io::Result<()> {
-    fs::create_dir_all(dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let path = entry.path();
-        let file_name = path.file_name().unwrap();
-        let dst_path = dst.join(file_name);
-
-        if path.is_dir() {
-            copy_dir_all(&path, &dst_path)?;
-        } else {
-            fs::copy(&path, &dst_path)?;
-        }
-    }
-    Ok(())
 }

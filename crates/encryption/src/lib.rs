@@ -23,7 +23,7 @@ pub use logic::envelope::{
     CreateEnvelopeEncryptionKeyParams, CreateEnvelopeEncryptionKeyResponse,
     DeleteEnvelopeEncryptionKeyParams, DeleteEnvelopeEncryptionKeyResponse,
     MigrateDataEncryptionKeyParams, MigrateDataEncryptionKeyResponse,
-    get_or_create_local_encryption_key, encrypt_dek, decrypt_dek,
+    get_local_envelope_encryption_key, get_or_create_local_envelope_encryption_key, encrypt_dek, decrypt_dek,
 };
 pub use logic::crypto_services::{
     CryptoService, EncryptionService, DecryptionService, EncryptedString, CryptoCache,

@@ -359,9 +359,9 @@ async fn route_create_dek_alias(
 
 #[utoipa::path(
     get,
-    path = format!("{}/{}/{}/dek/alias/{{alias_or_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/dek/alias/{{alias}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     params(
-        ("alias_or_id" = String, Path, description = "DEK alias or ID"),
+        ("alias" = String, Path, description = "DEK alias or ID"),
     ),
     responses(
         (status = 200, description = "Get DEK by alias or ID", body = DataEncryptionKey),
@@ -440,7 +440,7 @@ async fn route_delete_dek_alias(
 
 #[derive(Clone)]
 pub struct EncryptionServiceInner {
-    pub repository: Arc<Repository>,
+    pub repository: Repository,
     pub on_change_tx: EncryptionKeyEventSender,
     pub cache: Arc<crate::logic::crypto_services::CryptoCache>,
 }
@@ -450,7 +450,7 @@ pub struct EncryptionService(pub Arc<EncryptionServiceInner>);
 
 impl EncryptionService {
     pub fn new(
-        repository: Arc<Repository>,
+        repository: Repository,
         on_change_tx: EncryptionKeyEventSender,
         cache: crate::logic::crypto_services::CryptoCache,
     ) -> Self {
@@ -462,7 +462,7 @@ impl EncryptionService {
     }
 
     pub fn repository(&self) -> &Repository {
-        self.0.repository.as_ref()
+        &self.0.repository
     }
 
     pub fn on_change_tx(&self) -> &EncryptionKeyEventSender {

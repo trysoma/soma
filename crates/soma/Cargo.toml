@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 a2a-rs.workspace = true
 bridge.workspace = true
+encryption.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 axum-server.workspace = true

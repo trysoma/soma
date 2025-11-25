@@ -31,11 +31,11 @@ use url::Url;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use crate::a2a::ConstructAgentCardParams;
-use crate::a2a::{RepositoryTaskStore, construct_agent_card};
-use crate::logic::{
-    self, ConnectionManager, CreateMessageRequest, UpdateTaskStatusRequest, WithTaskId,
-    update_task_status,
+use crate::logic::a2a::ConstructAgentCardParams;
+use crate::logic::a2a::{RepositoryTaskStore, construct_agent_card};
+use crate::logic::task::{
+    self as task_logic, ConnectionManager, CreateMessageRequest, UpdateTaskStatusRequest,
+    WithTaskId, update_task_status,
 };
 use crate::repository::{CreateTask, Repository, TaskRepositoryLike};
 use shared::restate::admin_client::AdminClient;
@@ -288,8 +288,8 @@ impl AgentExecutor for ProxiedAgent {
                     .create_task(&CreateTask {
                         id: task_id.clone(),
                         context_id: WrappedUuidV4::from_str(&task.context_id).unwrap(),
-                        // todo: convert to logic::TaskStatus
-                        status: logic::TaskStatus::from(task.status.state.to_string()),
+                        // todo: convert to task_logic::TaskStatus
+                        status: task_logic::TaskStatus::from(task.status.state.to_string()),
                         status_timestamp: WrappedChronoDateTime::now(),
                         metadata: WrappedJsonValue::new(serde_json::to_value(
                             task.metadata.clone(),
@@ -309,7 +309,7 @@ impl AgentExecutor for ProxiedAgent {
             info!("Invoking runtime agent with task: {:?}", task);
 
             // assume the latest timelineitem is the one for processing
-            let message = logic::create_message(
+            let message = task_logic::create_message(
                 &self.repository,
                 &self.connection_manager,
                 WithTaskId {
@@ -317,19 +317,19 @@ impl AgentExecutor for ProxiedAgent {
                     inner: CreateMessageRequest {
                         reference_task_ids: vec![],
                         role: match message.role {
-                            a2a_rs::types::MessageRole::User => logic::MessageRole::User,
-                            a2a_rs::types::MessageRole::Agent => logic::MessageRole::Agent,
+                            a2a_rs::types::MessageRole::User => task_logic::MessageRole::User,
+                            a2a_rs::types::MessageRole::Agent => task_logic::MessageRole::Agent,
                         },
-                        metadata: logic::Metadata::new(),
+                        metadata: task_logic::Metadata::new(),
                         // parts: vec![],
                         parts: message
                             .parts
                             .iter()
                             .map(|part| match part {
                                 a2a_rs::types::Part::TextPart(text_part) => {
-                                    logic::MessagePart::TextPart(logic::TextPart {
+                                    task_logic::MessagePart::TextPart(task_logic::TextPart {
                                         text: text_part.text.clone(),
-                                        metadata: logic::Metadata::new(),
+                                        metadata: task_logic::Metadata::new(),
                                     })
                                 }
                                 _ => unreachable!("unsupported part type"),
@@ -389,20 +389,20 @@ impl AgentExecutor for ProxiedAgent {
             } else {
                 // Convert from a2a_rs TaskState to logic TaskStatus
                 match task.status.state {
-                    a2a_rs::types::TaskState::Submitted => logic::TaskStatus::Submitted,
-                    a2a_rs::types::TaskState::Working => logic::TaskStatus::Working,
-                    a2a_rs::types::TaskState::InputRequired => logic::TaskStatus::InputRequired,
-                    a2a_rs::types::TaskState::Completed => logic::TaskStatus::Completed,
-                    a2a_rs::types::TaskState::Canceled => logic::TaskStatus::Canceled,
-                    a2a_rs::types::TaskState::Failed => logic::TaskStatus::Failed,
-                    a2a_rs::types::TaskState::Rejected => logic::TaskStatus::Rejected,
-                    a2a_rs::types::TaskState::AuthRequired => logic::TaskStatus::AuthRequired,
-                    a2a_rs::types::TaskState::Unknown => logic::TaskStatus::Unknown,
+                    a2a_rs::types::TaskState::Submitted => task_logic::TaskStatus::Submitted,
+                    a2a_rs::types::TaskState::Working => task_logic::TaskStatus::Working,
+                    a2a_rs::types::TaskState::InputRequired => task_logic::TaskStatus::InputRequired,
+                    a2a_rs::types::TaskState::Completed => task_logic::TaskStatus::Completed,
+                    a2a_rs::types::TaskState::Canceled => task_logic::TaskStatus::Canceled,
+                    a2a_rs::types::TaskState::Failed => task_logic::TaskStatus::Failed,
+                    a2a_rs::types::TaskState::Rejected => task_logic::TaskStatus::Rejected,
+                    a2a_rs::types::TaskState::AuthRequired => task_logic::TaskStatus::AuthRequired,
+                    a2a_rs::types::TaskState::Unknown => task_logic::TaskStatus::Unknown,
                 }
             };
 
             match task_status {
-                logic::TaskStatus::Submitted => {
+                task_logic::TaskStatus::Submitted => {
                     info!("New task detected, invoking entrypoint handler");
 
                     let body: serde_json::Value = json!({
@@ -416,7 +416,7 @@ impl AgentExecutor for ProxiedAgent {
                         WithTaskId {
                             task_id: task_id.clone(),
                             inner: UpdateTaskStatusRequest {
-                                status: logic::TaskStatus::Working,
+                                status: task_logic::TaskStatus::Working,
                                 message: None,
                             },
                         },
