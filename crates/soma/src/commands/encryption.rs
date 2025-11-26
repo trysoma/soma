@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use clap::{Args, Subcommand};
 use shared::error::CommonError;
 use soma_api_client::apis::default_api;
@@ -56,9 +54,9 @@ pub enum AddKeyType {
     },
     /// Add a local encryption key
     Local {
-        /// Local key location (relative to cwd or absolute path)
+        /// Local key file name (must be a file name, not a path)
         #[arg(long)]
-        location: String,
+        file_name: String,
     },
 }
 
@@ -71,8 +69,8 @@ pub enum RmKeyType {
     },
     /// Remove a local encryption key
     Local {
-        /// Local key location (relative to cwd or absolute path, used as ID)
-        location: String,
+        /// Local key file name (used as ID)
+        file_name: String,
     },
 }
 
@@ -181,7 +179,7 @@ pub async fn cmd_enc_key_add(
             let envelope_id = match &created_key {
                 models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(key) => key.arn.clone(),
                 models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(key) => {
-                    key.location.clone()
+                    key.file_name.clone()
                 }
             };
 
@@ -200,19 +198,19 @@ pub async fn cmd_enc_key_add(
 
             Ok(())
         }
-        AddKeyType::Local { location } => {
-            // Convert relative path to absolute path
-            let absolute_location = resolve_location(&location)?;
-            let location_str = absolute_location.to_string_lossy().to_string();
+        AddKeyType::Local { file_name } => {
+            // Validate that file_name is not a path
+            validate_file_name(&file_name)?;
+
             info!(
-                "Adding local envelope encryption key at location: {}",
-                absolute_location.display()
+                "Adding local envelope encryption key with file name: {}",
+                file_name
             );
 
             // Create the envelope encryption key using the API client
             let envelope_key = models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(
                 Box::new(models::EnvelopeEncryptionKeyOneOf1::new(
-                    location_str.clone(),
+                    file_name.clone(),
                     models::envelope_encryption_key_one_of_1::Type::Local,
                 )),
             );
@@ -229,7 +227,7 @@ pub async fn cmd_enc_key_add(
             let envelope_id = match &created_key {
                 models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(key) => key.arn.clone(),
                 models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(key) => {
-                    key.location.clone()
+                    key.file_name.clone()
                 }
             };
 
@@ -264,15 +262,11 @@ pub async fn cmd_enc_key_rm(
             info!("Checking AWS KMS encryption key: {}", arn);
             arn
         }
-        RmKeyType::Local { location } => {
-            // Convert relative path to absolute path for consistency
-            let absolute_location = resolve_location(&location)?;
-            let location_str = absolute_location.to_string_lossy().to_string();
-            info!(
-                "Checking local encryption key at location: {}",
-                absolute_location.display()
-            );
-            location_str
+        RmKeyType::Local { file_name } => {
+            // Validate that file_name is not a path
+            validate_file_name(&file_name)?;
+            info!("Checking local encryption key: {}", file_name);
+            file_name
         }
     };
 
@@ -335,19 +329,19 @@ pub async fn cmd_enc_key_migrate(
     // Create API client and wait for server to be ready
     let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
 
-    // Resolve local paths to absolute paths
+    // Validate local file names (non-ARN identifiers)
     let from_identifier = if from.starts_with("arn:aws:kms:") {
         from.clone()
     } else {
-        let absolute_location = resolve_location(&from)?;
-        absolute_location.to_string_lossy().to_string()
+        validate_file_name(&from)?;
+        from.clone()
     };
 
     let to_identifier = if to.starts_with("arn:aws:kms:") {
         to.clone()
     } else {
-        let absolute_location = resolve_location(&to)?;
-        absolute_location.to_string_lossy().to_string()
+        validate_file_name(&to)?;
+        to.clone()
     };
 
     info!("Source envelope key: {}", from_identifier);
@@ -368,20 +362,23 @@ pub async fn cmd_enc_key_migrate(
     Ok(())
 }
 
-/// Resolve a location string to an absolute path
-/// If the path is already absolute, return it as is
-/// If the path is relative, resolve it relative to the current working directory
-fn resolve_location(location: &str) -> Result<PathBuf, CommonError> {
-    let path = PathBuf::from(location);
-
-    if path.is_absolute() {
-        Ok(path)
-    } else {
-        let current_dir = std::env::current_dir().map_err(|e| {
-            CommonError::Unknown(anyhow::anyhow!(
-                "Failed to get current working directory: {e}"
-            ))
-        })?;
-        Ok(current_dir.join(path))
+/// Validate that a string is a file name (not a path)
+/// Returns an error if the string contains path separators
+fn validate_file_name(file_name: &str) -> Result<(), CommonError> {
+    // Check for path separators
+    if file_name.contains('/') || file_name.contains('\\') {
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "Invalid file name '{}': must be a file name, not a path. Use just the file name (e.g., 'local.key').",
+            file_name
+        )));
     }
+
+    // Check if it's empty
+    if file_name.is_empty() {
+        return Err(CommonError::Unknown(anyhow::anyhow!(
+            "File name cannot be empty"
+        )));
+    }
+
+    Ok(())
 }

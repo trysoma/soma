@@ -25,10 +25,10 @@ impl TryFrom<Row_get_envelope_encryption_key_by_id> for LogicEnvelopeEncryptionK
                 Ok(LogicEnvelopeEncryptionKey::AwsKms { arn, region })
             }
             crate::repository::EnvelopeEncryptionKeyType::Local => {
-                let location = row.local_location.ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("Local key missing location"))
+                let file_name = row.local_file_name.ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("Local key missing file_name"))
                 })?;
-                Ok(LogicEnvelopeEncryptionKey::Local { location })
+                Ok(LogicEnvelopeEncryptionKey::Local { file_name })
             }
         }
     }
@@ -49,10 +49,10 @@ impl TryFrom<Row_get_envelope_encryption_keys> for LogicEnvelopeEncryptionKey {
                 Ok(LogicEnvelopeEncryptionKey::AwsKms { arn, region })
             }
             crate::repository::EnvelopeEncryptionKeyType::Local => {
-                let location = row.local_location.ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("Local key missing location"))
+                let file_name = row.local_file_name.ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("Local key missing file_name"))
                 })?;
-                Ok(LogicEnvelopeEncryptionKey::Local { location })
+                Ok(LogicEnvelopeEncryptionKey::Local { file_name })
             }
         }
     }
@@ -73,10 +73,10 @@ impl TryFrom<Row_get_envelope_encryption_keys_paginated> for LogicEnvelopeEncryp
                 Ok(LogicEnvelopeEncryptionKey::AwsKms { arn, region })
             }
             crate::repository::EnvelopeEncryptionKeyType::Local => {
-                let location = row.local_location.ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("Local key missing location"))
+                let file_name = row.local_file_name.ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("Local key missing file_name"))
                 })?;
-                Ok(LogicEnvelopeEncryptionKey::Local { location })
+                Ok(LogicEnvelopeEncryptionKey::Local { file_name })
             }
         }
     }
@@ -103,10 +103,10 @@ impl TryFrom<Row_get_all_data_encryption_keys_with_envelope_keys> for LogicDataE
                 LogicEnvelopeEncryptionKey::AwsKms { arn, region }
             }
             crate::repository::EnvelopeEncryptionKeyType::Local => {
-                let location = row.local_location.ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("Local key missing location"))
+                let file_name = row.local_file_name.ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("Local key missing file_name"))
                 })?;
-                LogicEnvelopeEncryptionKey::Local { location }
+                LogicEnvelopeEncryptionKey::Local { file_name }
             }
         };
 
@@ -136,10 +136,10 @@ impl TryFrom<Row_get_data_encryption_key_by_id_with_envelope> for LogicDataEncry
                 LogicEnvelopeEncryptionKey::AwsKms { arn, region }
             }
             crate::repository::EnvelopeEncryptionKeyType::Local => {
-                let location = row.local_location.ok_or_else(|| {
-                    CommonError::Unknown(anyhow::anyhow!("Local key missing location"))
+                let file_name = row.local_file_name.ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("Local key missing file_name"))
                 })?;
-                LogicEnvelopeEncryptionKey::Local { location }
+                LogicEnvelopeEncryptionKey::Local { file_name }
             }
         };
 

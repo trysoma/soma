@@ -455,7 +455,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
 fn get_envelope_key_id(key: &models::EnvelopeEncryptionKey) -> String {
     match key {
         models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(aws_kms) => aws_kms.arn.clone(),
-        models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(local) => local.location.clone(),
+        models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(local) => local.file_name.clone(),
     }
 }
 
@@ -474,10 +474,10 @@ fn envelope_key_config_to_api_model(
                 },
             ))
         }
-        EnvelopeKeyConfig::Local { location, .. } => {
+        EnvelopeKeyConfig::Local { file_name, .. } => {
             models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(Box::new(
                 models::EnvelopeEncryptionKeyOneOf1 {
-                    location: location.clone(),
+                    file_name: file_name.clone(),
                     r#type: models::envelope_encryption_key_one_of_1::Type::Local,
                 },
             ))

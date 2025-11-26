@@ -4042,11 +4042,11 @@
           {
             "type": "object",
             "required": [
-              "location",
+              "file_name",
               "type"
             ],
             "properties": {
-              "location": {
+              "file_name": {
                 "type": "string"
               },
               "type": {
@@ -4115,7 +4115,7 @@
           {
             "type": "object",
             "required": [
-              "location",
+              "file_name",
               "type"
             ],
             "properties": {
@@ -4131,7 +4131,7 @@
                   "type": "string"
                 }
               },
-              "location": {
+              "file_name": {
                 "type": "string"
               },
               "type": {

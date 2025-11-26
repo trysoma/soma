@@ -9,7 +9,7 @@ use serde::{Serialize, Deserialize};
       pub key_type: &'a 
           crate::repository::EnvelopeEncryptionKeyType
       ,
-      pub local_location: &'a Option<
+      pub local_file_name: &'a Option<
           String
       >,
       pub aws_arn: &'a Option<
@@ -30,7 +30,7 @@ use serde::{Serialize, Deserialize};
     conn: &shared::libsql::Connection
     ,params: create_envelope_encryption_key_params<'_>
 ) -> Result<u64, libsql::Error> {
-    conn.execute(r#"INSERT INTO envelope_encryption_key (id, key_type, local_location, aws_arn, aws_region, created_at, updated_at)
+    conn.execute(r#"INSERT INTO envelope_encryption_key (id, key_type, local_file_name, aws_arn, aws_region, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
               <String as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
@@ -38,7 +38,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
               <crate::repository::EnvelopeEncryptionKeyType as TryInto<libsql::Value>>::try_into(params.key_type.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              match params.local_location.clone() {
+              match params.local_file_name.clone() {
                 Some(value) => {
                   <String as TryInto<libsql::Value>>::try_into(value.clone())
                       .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
@@ -81,7 +81,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
   pub struct Row_get_envelope_encryption_key_by_id {
       pub id:String,
       pub key_type:crate::repository::EnvelopeEncryptionKeyType,
-      pub local_location:Option<String> ,
+      pub local_file_name:Option<String> ,
       pub aws_arn:Option<String> ,
       pub aws_region:Option<String> ,
       pub created_at:shared::primitives::WrappedChronoDateTime,
@@ -91,7 +91,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_envelope_encryption_key_by_id_params<'_>
   ) -> Result<Option<Row_get_envelope_encryption_key_by_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, key_type, local_file_name, aws_arn, aws_region, created_at, updated_at
 FROM envelope_encryption_key
 WHERE id = ?"#).await?;
       let res = stmt.query_row(
@@ -102,7 +102,7 @@ WHERE id = ?"#).await?;
           Ok(row) => Ok(Some(Row_get_envelope_encryption_key_by_id {
                   id: row.get(0)?,
                   key_type: row.get(1)?,
-                  local_location: row.get(2)?,
+                  local_file_name: row.get(2)?,
                   aws_arn: row.get(3)?,
                   aws_region: row.get(4)?,
                   created_at: row.get(5)?,
@@ -118,7 +118,7 @@ WHERE id = ?"#).await?;
   pub struct Row_get_envelope_encryption_keys {
       pub id:String,
       pub key_type:crate::repository::EnvelopeEncryptionKeyType,
-      pub local_location:Option<String> ,
+      pub local_file_name:Option<String> ,
       pub aws_arn:Option<String> ,
       pub aws_region:Option<String> ,
       pub created_at:shared::primitives::WrappedChronoDateTime,
@@ -127,7 +127,7 @@ WHERE id = ?"#).await?;
   pub async fn get_envelope_encryption_keys(
       conn: &shared::libsql::Connection
   ) -> Result<Vec<Row_get_envelope_encryption_keys>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, key_type, local_file_name, aws_arn, aws_region, created_at, updated_at
 FROM envelope_encryption_key
 ORDER BY created_at DESC"#).await?;
       let mut rows = stmt.query(libsql::params![]).await?;
@@ -137,7 +137,7 @@ ORDER BY created_at DESC"#).await?;
           mapped.push(Row_get_envelope_encryption_keys {
               id: row.get(0)?,
               key_type: row.get(1)?,
-              local_location: row.get(2)?,
+              local_file_name: row.get(2)?,
               aws_arn: row.get(3)?,
               aws_region: row.get(4)?,
               created_at: row.get(5)?,
@@ -161,7 +161,7 @@ ORDER BY created_at DESC"#).await?;
   pub struct Row_get_envelope_encryption_keys_paginated {
       pub id:String,
       pub key_type:crate::repository::EnvelopeEncryptionKeyType,
-      pub local_location:Option<String> ,
+      pub local_file_name:Option<String> ,
       pub aws_arn:Option<String> ,
       pub aws_region:Option<String> ,
       pub created_at:shared::primitives::WrappedChronoDateTime,
@@ -171,8 +171,8 @@ ORDER BY created_at DESC"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_envelope_encryption_keys_paginated_params<'_>
   ) -> Result<Vec<Row_get_envelope_encryption_keys_paginated>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
-FROM envelope_encryption_key 
+      let mut stmt = conn.prepare(r#"SELECT id, key_type, local_file_name, aws_arn, aws_region, created_at, updated_at
+FROM envelope_encryption_key
 WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
@@ -183,7 +183,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
           mapped.push(Row_get_envelope_encryption_keys_paginated {
               id: row.get(0)?,
               key_type: row.get(1)?,
-              local_location: row.get(2)?,
+              local_file_name: row.get(2)?,
               aws_arn: row.get(3)?,
               aws_region: row.get(4)?,
               created_at: row.get(5)?,
@@ -217,7 +217,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_data_encryption_keys_by_envelope_key_id_params<'_>
   ) -> Result<Vec<Row_get_data_encryption_keys_by_envelope_key_id>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, created_at, updated_at
 FROM data_encryption_key 
 WHERE envelope_encryption_key_id = ?
   AND (created_at < ?2 OR ?2 IS NULL)
@@ -347,7 +347,7 @@ WHERE id = ?"#).await?;
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
       pub key_type:crate::repository::EnvelopeEncryptionKeyType,
-      pub local_location:Option<String> ,
+      pub local_file_name:Option<String> ,
       pub aws_arn:Option<String> ,
       pub aws_region:Option<String> ,
   }
@@ -355,14 +355,14 @@ WHERE id = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_data_encryption_key_by_id_with_envelope_params<'_>
   ) -> Result<Option<Row_get_data_encryption_key_by_id_with_envelope>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT 
+      let mut stmt = conn.prepare(r#"SELECT
     dek.id,
     dek.envelope_encryption_key_id,
     dek.encryption_key,
     dek.created_at,
     dek.updated_at,
     eek.key_type,
-    eek.local_location,
+    eek.local_file_name,
     eek.aws_arn,
     eek.aws_region
 FROM data_encryption_key dek
@@ -380,7 +380,7 @@ WHERE dek.id = ?"#).await?;
                   created_at: row.get(3)?,
                   updated_at: row.get(4)?,
                   key_type: row.get(5)?,
-                  local_location: row.get(6)?,
+                  local_file_name: row.get(6)?,
                   aws_arn: row.get(7)?,
                   aws_region: row.get(8)?,
               })),
@@ -425,7 +425,7 @@ WHERE dek.id = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_data_encryption_keys_params<'_>
   ) -> Result<Vec<Row_get_data_encryption_keys>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, envelope_encryption_key_id, created_at, updated_at
 FROM data_encryption_key 
 WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
@@ -454,21 +454,21 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
       pub key_type:crate::repository::EnvelopeEncryptionKeyType,
-      pub local_location:Option<String> ,
+      pub local_file_name:Option<String> ,
       pub aws_arn:Option<String> ,
       pub aws_region:Option<String> ,
   }
   pub async fn get_all_data_encryption_keys_with_envelope_keys(
       conn: &shared::libsql::Connection
   ) -> Result<Vec<Row_get_all_data_encryption_keys_with_envelope_keys>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT
+      let mut stmt = conn.prepare(r#"SELECT
     dek.id,
     dek.envelope_encryption_key_id,
     dek.encryption_key,
     dek.created_at,
     dek.updated_at,
     eek.key_type,
-    eek.local_location,
+    eek.local_file_name,
     eek.aws_arn,
     eek.aws_region
 FROM data_encryption_key dek
@@ -484,7 +484,7 @@ JOIN envelope_encryption_key eek ON dek.envelope_encryption_key_id = eek.id"#).a
               created_at: row.get(3)?,
               updated_at: row.get(4)?,
               key_type: row.get(5)?,
-              local_location: row.get(6)?,
+              local_file_name: row.get(6)?,
               aws_arn: row.get(7)?,
               aws_region: row.get(8)?,
           });
@@ -627,7 +627,7 @@ WHERE alias.alias = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: list_aliases_for_dek_params<'_>
   ) -> Result<Vec<Row_list_aliases_for_dek>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT alias, data_encryption_key_id, created_at
+      let mut stmt = conn.prepare(r#"SELECT alias, data_encryption_key_id, created_at
 FROM data_encryption_key_alias
 WHERE data_encryption_key_id = ?
 ORDER BY created_at ASC"#).await?;

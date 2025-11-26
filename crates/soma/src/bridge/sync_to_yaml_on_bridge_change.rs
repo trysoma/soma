@@ -234,8 +234,8 @@ async fn handle_encryption_event(
                     region,
                     deks: None,
                 },
-                EnvelopeEncryptionKey::Local { location } => EnvelopeKeyConfig::Local {
-                    location,
+                EnvelopeEncryptionKey::Local { file_name } => EnvelopeKeyConfig::Local {
+                    file_name,
                     deks: None,
                 },
             };

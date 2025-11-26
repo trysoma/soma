@@ -71,7 +71,7 @@ impl EncryptionKeyRepositoryLike for Repository {
         let sqlc_params = create_envelope_encryption_key_params {
             id: &params.id,
             key_type: &params.key_type,
-            local_location: &params.local_location,
+            local_file_name: &params.local_file_name,
             aws_arn: &params.aws_arn,
             aws_region: &params.aws_region,
             created_at: &params.created_at,
@@ -630,7 +630,7 @@ mod tests {
         let params = CreateEnvelopeEncryptionKey {
             id: id.to_string(),
             key_type: crate::repository::EnvelopeEncryptionKeyType::AwsKms,
-            local_location: None,
+            local_file_name: None,
             aws_arn: Some("arn:aws:kms:eu-west-2:123456789012:key/test-key".to_string()),
             aws_region: Some("eu-west-2".to_string()),
             created_at: now,
@@ -647,7 +647,7 @@ mod tests {
         let params = CreateEnvelopeEncryptionKey {
             id: id.to_string(),
             key_type: crate::repository::EnvelopeEncryptionKeyType::Local,
-            local_location: Some("/path/to/key".to_string()),
+            local_file_name: Some("test.key".to_string()),
             aws_arn: None,
             aws_region: None,
             created_at: now,
@@ -722,8 +722,8 @@ mod tests {
             .unwrap();
 
         match retrieved {
-            EnvelopeEncryptionKey::Local { location } => {
-                assert_eq!(location, "/path/to/key");
+            EnvelopeEncryptionKey::Local { file_name } => {
+                assert_eq!(file_name, "test.key");
             }
             _ => panic!("Expected local key"),
         }
@@ -876,8 +876,8 @@ mod tests {
 
         // Verify envelope key ID matches
         match retrieved.envelope_encryption_key_id {
-            EnvelopeEncryptionKey::Local { location } => {
-                assert_eq!(location, "/path/to/key");
+            EnvelopeEncryptionKey::Local { file_name } => {
+                assert_eq!(file_name, "test.key");
             }
             _ => panic!("Expected local key"),
         }
@@ -1207,8 +1207,8 @@ mod tests {
         let dek_2 = deks.iter().find(|d| d.id == dek_id_2).unwrap();
         assert_eq!(dek_2.id, dek_id_2);
         match &dek_2.envelope_encryption_key_id {
-            EnvelopeEncryptionKey::Local { location } => {
-                assert_eq!(location, "/path/to/key");
+            EnvelopeEncryptionKey::Local { file_name } => {
+                assert_eq!(file_name, "test.key");
             }
             _ => panic!("Expected local key"),
         }
