@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use ::bridge::router::bridge::BridgeService;
 use bridge::logic::OnConfigChangeTx;
@@ -67,6 +67,7 @@ pub struct InitApiServiceParams {
             >,
         >,
     >,
+    pub local_envelope_encryption_key_path: PathBuf,
 }
 
 impl ApiService {
@@ -75,6 +76,7 @@ impl ApiService {
             init_params.encryption_repository.clone(),
             init_params.on_encryption_change_tx.clone(),
             init_params.crypto_cache.clone(),
+            init_params.local_envelope_encryption_key_path.clone(),
         );
         let agent_service = Arc::new(Agent2AgentService::new(Agent2AgentServiceParams {
             soma_definition: init_params.soma_definition.clone(),

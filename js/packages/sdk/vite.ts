@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { type ChildProcess, spawn } from "node:child_process";
 import {
 	existsSync,
@@ -10,7 +11,12 @@ import {
 } from "node:fs";
 import { join, parse, relative, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { defineConfig, type Plugin } from "vite";
+import type {
+	NormalizedOutputOptions,
+	OutputBundle,
+	OutputChunk,
+} from "rollup";
+import { defineConfig, type Plugin, type ViteDevServer } from "vite";
 
 /**
  * Manifest structure types
@@ -451,11 +457,11 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 			shell: true,
 		});
 
-		serverProcess.on("error", (err) => {
+		serverProcess.on("error", (err: Error) => {
 			console.error("Failed to start SDK server:", err);
 		});
 
-		serverProcess.on("exit", (code) => {
+		serverProcess.on("exit", (code: number | null) => {
 			if (code !== null && code !== 0) {
 				console.error(`SDK server exited with code ${code}`);
 			}
@@ -465,7 +471,7 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 	return {
 		name: "soma-standalone-server",
 
-		configureServer(devServer) {
+		configureServer(devServer: ViteDevServer) {
 			// Generate standalone file on startup
 			regenerateStandalone();
 
@@ -475,7 +481,7 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 
 			devServer.watcher.add([functionsDir, agentsDir]);
 
-			devServer.watcher.on("add", (file) => {
+			devServer.watcher.on("add", (file: string) => {
 				if (file.includes("/functions/") || file.includes("/agents/")) {
 					console.log(`New file detected: ${file}`);
 					regenerateStandalone();
@@ -485,7 +491,7 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 				}
 			});
 
-			devServer.watcher.on("unlink", (file) => {
+			devServer.watcher.on("unlink", (file: string) => {
 				if (file.includes("/functions/") || file.includes("/agents/")) {
 					console.log(`File removed: ${file}`);
 					regenerateStandalone();
@@ -495,7 +501,7 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 				}
 			});
 
-			devServer.watcher.on("change", (file) => {
+			devServer.watcher.on("change", (file: string) => {
 				if (file.includes("/functions/") || file.includes("/agents/")) {
 					console.log(`File changed: ${file}`);
 					regenerateStandalone();
@@ -532,7 +538,7 @@ function generateManifestPlugin(baseDir: string): Plugin {
 	return {
 		name: "soma-manifest-generator",
 
-		async writeBundle(options, bundle) {
+		async writeBundle(options: NormalizedOutputOptions, bundle: OutputBundle) {
 			const outDir = options.dir || ".soma/build/js";
 			const manifest: Manifest = {
 				function_controllers: [],
@@ -696,9 +702,7 @@ function generateManifestPlugin(baseDir: string): Plugin {
 			}
 
 			// Convert provider controllers map to array
-			manifest.provider_controllers = Array.from(
-				seenProviderControllers.values(),
-			);
+			manifest.provider_controllers = [...seenProviderControllers.values()];
 
 			// Write manifest.json
 			const manifestPath = resolve(outDir, "manifest.json");
@@ -782,10 +786,7 @@ export function createSomaViteConfig(baseDir: string) {
 						preserveModules: false,
 						manualChunks: undefined,
 					},
-					treeshake: {
-						preset: "recommended",
-						moduleSideEffects: false,
-					},
+					treeshake: "recommended",
 				},
 			},
 			resolve: {

@@ -205,6 +205,7 @@ pub async fn create_api_service(
 
     // Initialize API service
     info!("Initializing API service...");
+    let local_envelope_encryption_key_path = project_dir.join(".soma/envelope-encryption-keys");
     let api_service = ApiService::new(InitApiServiceParams {
         host: host.clone(),
         port,
@@ -222,6 +223,7 @@ pub async fn create_api_service(
         on_encryption_change_tx: encryption_change_tx.clone(),
         on_secret_change_tx: secret_change_tx.clone(),
         encryption_repository: encryption_repo.clone(),
+        local_envelope_encryption_key_path,
     })
     .await?;
     info!("API service initialized");

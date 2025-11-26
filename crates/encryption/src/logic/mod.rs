@@ -23,6 +23,7 @@ pub enum EncryptionKeyEvent {
         new_dek_id: String,
         from_envelope_key: EnvelopeEncryptionKey,
         to_envelope_key: EnvelopeEncryptionKey,
+        aliases: Vec<String>, // Aliases that were copied from old DEK to new DEK
     },
     DataEncryptionKeyAliasAdded {
         alias: String,

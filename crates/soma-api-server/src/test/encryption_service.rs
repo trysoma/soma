@@ -152,10 +152,12 @@ pub async fn setup_test_encryption(alias: &str) -> TestEncryptionSetup {
     // The cache will populate on-demand when services are requested
 
     // Create the EncryptionService for router use
+    let temp_dir = tempfile::tempdir().unwrap().path().into();
     let encryption_service = encryption::router::EncryptionService::new(
         encryption_repo,
         encryption_event_tx.clone(),
         cache.clone(),
+        temp_dir,
     );
 
     TestEncryptionSetup {

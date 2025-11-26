@@ -160,12 +160,19 @@ pub type MigrateAllDataEncryptionKeysResponse = ();
 
 /// Create a new envelope encryption key
 pub async fn create_envelope_encryption_key(
+    local_envelope_encryption_key_path: &PathBuf,
     on_change_tx: &EncryptionKeyEventSender,
     repo: &impl EncryptionKeyRepositoryLike,
     params: CreateEnvelopeEncryptionKeyParams,
     publish_on_change_evt: bool,
 ) -> Result<CreateEnvelopeEncryptionKeyResponse, CommonError> {
     let now = WrappedChronoDateTime::now();
+
+    if let EnvelopeEncryptionKey::Local { file_name } = &params {
+        get_or_create_local_envelope_encryption_key(
+            &local_envelope_encryption_key_path.join(file_name),
+        )?;
+    }
 
     // Convert EnvelopeEncryptionKey to repository params using From implementation
     let create_params = CreateEnvelopeEncryptionKey::from((params.clone(), now));
@@ -414,7 +421,29 @@ pub async fn migrate_data_encryption_key(
 
     DataEncryptionKeyRepositoryLike::create_data_encryption_key(repo, &new_dek).await?;
 
-    // Step 7: Delete the old DEK
+    // Step 7: Get all aliases from old DEK before updating them
+    use crate::logic::dek_alias::{UpdateAliasParams, list_aliases_for_dek, update_alias};
+    let old_aliases = list_aliases_for_dek(repo, &params.data_encryption_key_id).await?;
+
+    // Step 8: Update all aliases to point to new DEK (instead of creating duplicates)
+    for alias in &old_aliases {
+        // Update the alias to point to the new DEK instead of creating a duplicate
+        update_alias(
+            on_change_tx,
+            repo,
+            cache,
+            alias.alias.clone(),
+            UpdateAliasParams {
+                new_dek_id: new_dek_id.clone(),
+            },
+        )
+        .await?;
+    }
+
+    // Collect aliases that were updated (for migration event)
+    let updated_aliases: Vec<String> = old_aliases.iter().map(|a| a.alias.clone()).collect();
+
+    // Step 9: Delete the old DEK (aliases now point to new DEK, so they won't be cascade deleted)
     DataEncryptionKeyRepositoryLike::delete_data_encryption_key(
         repo,
         &params.data_encryption_key_id,
@@ -451,6 +480,7 @@ pub async fn migrate_data_encryption_key(
                 new_dek_id: new_dek_id.clone(),
                 from_envelope_key: old_dek.envelope_encryption_key_id.clone(),
                 to_envelope_key: to_envelope_key.clone(),
+                aliases: updated_aliases.clone(),
             })
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to send encryption key event: {e}"))
@@ -1124,7 +1154,8 @@ mod tests {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
         };
-        create_envelope_encryption_key(&tx, &repo, aws_key.clone(), false)
+        let temp_dir = tempfile::tempdir().unwrap().path().into();
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, aws_key.clone(), false)
             .await
             .unwrap();
 
@@ -1165,7 +1196,9 @@ mod tests {
         let local_key = EnvelopeEncryptionKey::Local {
             file_name: file_name.clone(),
         };
-        create_envelope_encryption_key(&tx, &repo, local_key.clone(), false)
+        let temp_dir = tempfile::tempdir().unwrap().path().into();
+
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, local_key.clone(), false)
             .await
             .unwrap();
 
@@ -1242,8 +1275,11 @@ mod tests {
         let envelope_key = EnvelopeEncryptionKey::Local {
             file_name: file_name.clone(),
         };
+        let temp_dir = tempfile::tempdir().unwrap().path().into();
 
-        let result = create_envelope_encryption_key(&tx, &repo, envelope_key.clone(), false).await;
+        let result =
+            create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key.clone(), false)
+                .await;
 
         assert!(result.is_ok());
         let created = result.unwrap();
@@ -1271,8 +1307,11 @@ mod tests {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
         };
+        let temp_dir = tempfile::tempdir().unwrap().path().into();
 
-        let result = create_envelope_encryption_key(&tx, &repo, envelope_key.clone(), false).await;
+        let result =
+            create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key.clone(), false)
+                .await;
 
         assert!(result.is_ok());
         let created = result.unwrap();
@@ -1305,9 +1344,10 @@ mod tests {
         let envelope_key = EnvelopeEncryptionKey::Local {
             file_name: file_name.clone(),
         };
+        let temp_dir = tempfile::tempdir().unwrap().path().into();
 
         // Create the key
-        create_envelope_encryption_key(&tx, &repo, envelope_key.clone(), false)
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key.clone(), false)
             .await
             .unwrap();
 
@@ -1352,9 +1392,10 @@ mod tests {
         let envelope_key = EnvelopeEncryptionKey::Local {
             file_name: file_name.clone(),
         };
+        let temp_dir = tempfile::tempdir().unwrap().path().into();
 
         // Create the envelope key
-        create_envelope_encryption_key(&tx, &repo, envelope_key.clone(), false)
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key.clone(), false)
             .await
             .unwrap();
 
@@ -1428,10 +1469,11 @@ mod tests {
         };
 
         // Create both envelope keys
-        create_envelope_encryption_key(&tx, &repo, envelope_key1.clone(), false)
+        let temp_dir = tempfile::tempdir().unwrap().path().into();
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key1.clone(), false)
             .await
             .unwrap();
-        create_envelope_encryption_key(&tx, &repo, envelope_key2.clone(), false)
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key2.clone(), false)
             .await
             .unwrap();
 
@@ -1528,10 +1570,12 @@ mod tests {
         };
 
         // Create both envelope keys
-        create_envelope_encryption_key(&tx, &repo, envelope_key_local.clone(), false)
+        let temp_dir = tempfile::tempdir().unwrap().path().into();
+
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key_local.clone(), false)
             .await
             .unwrap();
-        create_envelope_encryption_key(&tx, &repo, envelope_key_aws.clone(), false)
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key_aws.clone(), false)
             .await
             .unwrap();
 
@@ -1618,7 +1662,8 @@ mod tests {
         };
 
         // Create envelope key
-        create_envelope_encryption_key(&tx, &repo, envelope_key_aws.clone(), false)
+        let temp_dir = tempfile::tempdir().unwrap().path().into();
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key_aws.clone(), false)
             .await
             .unwrap();
 
@@ -1715,10 +1760,11 @@ mod tests {
         };
 
         // Create both envelope keys
-        create_envelope_encryption_key(&tx, &repo, envelope_key_aws.clone(), false)
+        let temp_dir = tempfile::tempdir().unwrap().path().into();
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key_aws.clone(), false)
             .await
             .unwrap();
-        create_envelope_encryption_key(&tx, &repo, envelope_key_local.clone(), false)
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key_local.clone(), false)
             .await
             .unwrap();
 
@@ -1817,10 +1863,11 @@ mod tests {
         };
 
         // Create both envelope keys
-        create_envelope_encryption_key(&tx, &repo, envelope_key1.clone(), false)
+        let temp_dir = tempfile::tempdir().unwrap().path().into();
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key1.clone(), false)
             .await
             .unwrap();
-        create_envelope_encryption_key(&tx, &repo, envelope_key2.clone(), false)
+        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key2.clone(), false)
             .await
             .unwrap();
 

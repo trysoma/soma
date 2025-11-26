@@ -20,6 +20,7 @@ use crate::repository::Repository;
 use axum::extract::{Json, Path, Query, State};
 use serde::{Deserialize, Serialize};
 use shared::{adapters::openapi::JsonResponse, error::CommonError, primitives::PaginationRequest};
+use std::path::PathBuf;
 use std::sync::Arc;
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -68,8 +69,14 @@ async fn route_create_envelope_encryption_key(
     State(ctx): State<EncryptionService>,
     Json(params): Json<CreateEnvelopeEncryptionKeyParams>,
 ) -> JsonResponse<CreateEnvelopeEncryptionKeyResponse, CommonError> {
-    let res =
-        create_envelope_encryption_key(ctx.on_change_tx(), ctx.repository(), params, true).await;
+    let res = create_envelope_encryption_key(
+        ctx.local_envelope_encryption_key_path(),
+        ctx.on_change_tx(),
+        ctx.repository(),
+        params,
+        true,
+    )
+    .await;
     JsonResponse::from(res)
 }
 
@@ -428,6 +435,7 @@ pub struct EncryptionServiceInner {
     pub repository: Repository,
     pub on_change_tx: EncryptionKeyEventSender,
     pub cache: Arc<crate::logic::crypto_services::CryptoCache>,
+    pub local_envelope_encryption_key_path: PathBuf,
 }
 
 #[derive(Clone)]
@@ -438,11 +446,13 @@ impl EncryptionService {
         repository: Repository,
         on_change_tx: EncryptionKeyEventSender,
         cache: crate::logic::crypto_services::CryptoCache,
+        local_envelope_encryption_key_path: PathBuf,
     ) -> Self {
         Self(Arc::new(EncryptionServiceInner {
             repository,
             on_change_tx,
             cache: Arc::new(cache),
+            local_envelope_encryption_key_path,
         }))
     }
 
@@ -456,5 +466,9 @@ impl EncryptionService {
 
     pub fn cache(&self) -> &crate::logic::crypto_services::CryptoCache {
         self.0.cache.as_ref()
+    }
+
+    pub fn local_envelope_encryption_key_path(&self) -> &PathBuf {
+        &self.0.local_envelope_encryption_key_path
     }
 }
