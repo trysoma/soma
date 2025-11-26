@@ -253,6 +253,7 @@ async fn route_migrate_data_encryption_key(
     Json(params): Json<MigrateDataEncryptionKeyParamsRoute>,
 ) -> JsonResponse<(), CommonError> {
     let res = migrate_data_encryption_key_for_envelope(
+        ctx.local_envelope_encryption_key_path(),
         &envelope_id,
         &dek_id,
         &params.to_envelope_encryption_key_id,
@@ -294,6 +295,7 @@ async fn route_migrate_all_data_encryption_keys(
     Json(params): Json<MigrateAllDataEncryptionKeysParamsRoute>,
 ) -> JsonResponse<(), CommonError> {
     let res = migrate_all_data_encryption_keys_for_envelope(
+        ctx.local_envelope_encryption_key_path(),
         &envelope_id,
         &params.to_envelope_encryption_key_id,
         ctx.on_change_tx(),

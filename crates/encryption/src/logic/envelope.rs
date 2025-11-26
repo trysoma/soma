@@ -280,6 +280,7 @@ pub async fn delete_envelope_encryption_key(
 /// 2. Re-encrypting it with the new envelope key
 /// 3. Updating the database record
 pub async fn migrate_data_encryption_key(
+    local_envelope_encryption_key_path: &PathBuf,
     on_change_tx: &EncryptionKeyEventSender,
     from_envelope_key_contents: &EnvelopeEncryptionKeyContents,
     repo: &(impl EncryptionKeyRepositoryLike + DataEncryptionKeyRepositoryLike),
@@ -307,8 +308,8 @@ pub async fn migrate_data_encryption_key(
             region: region.clone(),
         },
         EnvelopeEncryptionKey::Local { file_name } => {
-            // Load the key bytes from the file
-            get_local_envelope_encryption_key(&std::path::PathBuf::from(file_name))?
+            // Load the key bytes from the file (resolve relative to .soma/envelope-encryption-keys)
+            get_local_envelope_encryption_key(&local_envelope_encryption_key_path.join(file_name))?
         }
     };
 
@@ -497,6 +498,7 @@ pub async fn migrate_data_encryption_key(
 /// Migrate a data encryption key from one envelope encryption key to another using string IDs
 /// This is a convenience wrapper that looks up the envelope keys and calls migrate_data_encryption_key
 pub async fn migrate_data_encryption_key_for_envelope<R>(
+    local_envelope_encryption_key_path: &PathBuf,
     from_envelope_encryption_key_id: &str,
     data_encryption_key_id: &str,
     to_envelope_encryption_key_id: &str,
@@ -524,9 +526,9 @@ where
             arn: arn.clone(),
             region: region.clone(),
         },
-        EnvelopeEncryptionKey::Local { file_name } => {
-            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(file_name))?
-        }
+        EnvelopeEncryptionKey::Local { file_name } => get_or_create_local_envelope_encryption_key(
+            &local_envelope_encryption_key_path.join(file_name),
+        )?,
     };
 
     let params = MigrateDataEncryptionKeyParams {
@@ -535,6 +537,7 @@ where
     };
 
     migrate_data_encryption_key(
+        local_envelope_encryption_key_path,
         on_change_tx,
         &from_envelope_key_contents,
         repo,
@@ -548,6 +551,7 @@ where
 /// Migrate all data encryption keys for a given envelope encryption key to a new envelope key using string IDs
 /// This is a convenience wrapper that looks up the envelope keys and calls migrate_all_data_encryption_keys
 pub async fn migrate_all_data_encryption_keys_for_envelope<R>(
+    local_envelope_encryption_key_path: &PathBuf,
     from_envelope_encryption_key_id: &str,
     to_envelope_encryption_key_id: &str,
     on_change_tx: &EncryptionKeyEventSender,
@@ -574,9 +578,9 @@ where
             arn: arn.clone(),
             region: region.clone(),
         },
-        EnvelopeEncryptionKey::Local { file_name } => {
-            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(file_name))?
-        }
+        EnvelopeEncryptionKey::Local { file_name } => get_or_create_local_envelope_encryption_key(
+            &local_envelope_encryption_key_path.join(file_name),
+        )?,
     };
 
     let params = MigrateAllDataEncryptionKeysParams {
@@ -584,6 +588,7 @@ where
     };
 
     migrate_all_data_encryption_keys(
+        local_envelope_encryption_key_path,
         on_change_tx,
         &from_envelope_key_contents,
         &from_envelope_key,
@@ -597,6 +602,7 @@ where
 
 /// Migrate all data encryption keys for a given envelope encryption key to a new envelope key
 pub async fn migrate_all_data_encryption_keys<R>(
+    local_envelope_encryption_key_path: &PathBuf,
     on_change_tx: &EncryptionKeyEventSender,
     from_envelope_key_contents: &EnvelopeEncryptionKeyContents,
     from_envelope_key_id: &EnvelopeEncryptionKey,
@@ -628,9 +634,9 @@ where
             arn: arn.clone(),
             region: region.clone(),
         },
-        EnvelopeEncryptionKey::Local { file_name } => {
-            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(file_name))?
-        }
+        EnvelopeEncryptionKey::Local { file_name } => get_or_create_local_envelope_encryption_key(
+            &local_envelope_encryption_key_path.join(file_name),
+        )?,
     };
 
     info!(
@@ -685,6 +691,7 @@ where
         };
 
         migrate_data_encryption_key(
+            local_envelope_encryption_key_path,
             on_change_tx,
             from_envelope_key_contents,
             repo,
@@ -1501,6 +1508,7 @@ mod tests {
 
         // Migrate to the second key
         let result = migrate_data_encryption_key(
+            &temp_dir,
             &tx,
             &local_key1_contents,
             &repo,
@@ -1603,6 +1611,7 @@ mod tests {
 
         // Migrate to AWS KMS
         let result = migrate_data_encryption_key(
+            &temp_dir,
             &tx,
             &local_key_contents,
             &repo,
@@ -1691,6 +1700,7 @@ mod tests {
 
         // Migrate to the same AWS KMS key (re-encrypt)
         let result = migrate_data_encryption_key(
+            &temp_dir,
             &tx,
             &aws_key_contents,
             &repo,
@@ -1792,6 +1802,7 @@ mod tests {
 
         // Migrate to local key
         let result = migrate_data_encryption_key(
+            &temp_dir,
             &tx,
             &aws_key_contents,
             &repo,
@@ -1915,6 +1926,7 @@ mod tests {
 
         // Migrate to the second key
         let result = migrate_data_encryption_key(
+            &temp_dir,
             &tx,
             &local_key1_contents,
             &repo,
