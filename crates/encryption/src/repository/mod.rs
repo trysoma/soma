@@ -86,7 +86,7 @@ impl libsql::FromValue for EnvelopeEncryptionKeyType {
 pub struct EnvelopeEncryptionKeyRow {
     pub id: String,
     pub key_type: EnvelopeEncryptionKeyType,
-    pub local_location: Option<String>,
+    pub local_file_name: Option<String>,
     pub aws_arn: Option<String>,
     pub aws_region: Option<String>,
     pub created_at: WrappedChronoDateTime,
@@ -97,7 +97,7 @@ pub struct EnvelopeEncryptionKeyRow {
 pub struct CreateEnvelopeEncryptionKey {
     pub id: String,
     pub key_type: EnvelopeEncryptionKeyType,
-    pub local_location: Option<String>,
+    pub local_file_name: Option<String>,
     pub aws_arn: Option<String>,
     pub aws_region: Option<String>,
     pub created_at: WrappedChronoDateTime,
@@ -109,7 +109,7 @@ impl From<EnvelopeEncryptionKeyRow> for CreateEnvelopeEncryptionKey {
         CreateEnvelopeEncryptionKey {
             id: key.id,
             key_type: key.key_type,
-            local_location: key.local_location,
+            local_file_name: key.local_file_name,
             aws_arn: key.aws_arn,
             aws_region: key.aws_region,
             created_at: key.created_at,
@@ -121,7 +121,7 @@ impl From<EnvelopeEncryptionKeyRow> for CreateEnvelopeEncryptionKey {
 impl From<(EnvelopeEncryptionKey, WrappedChronoDateTime)> for CreateEnvelopeEncryptionKey {
     fn from((key, now): (EnvelopeEncryptionKey, WrappedChronoDateTime)) -> Self {
         // Extract the actual ID (ARN for AWS KMS, location for local)
-        let (id, key_type, local_location, aws_arn, aws_region) = match &key {
+        let (id, key_type, local_file_name, aws_arn, aws_region) = match &key {
             EnvelopeEncryptionKey::AwsKms { arn, region } => (
                 arn.clone(), // Use ARN as the ID
                 EnvelopeEncryptionKeyType::AwsKms,
@@ -141,7 +141,7 @@ impl From<(EnvelopeEncryptionKey, WrappedChronoDateTime)> for CreateEnvelopeEncr
         CreateEnvelopeEncryptionKey {
             id,
             key_type,
-            local_location,
+            local_file_name,
             aws_arn,
             aws_region,
             created_at: now,

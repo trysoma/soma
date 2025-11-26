@@ -3,7 +3,7 @@
 CREATE TABLE `envelope_encryption_key` (
   `id` text NULL,
   `key_type` text NOT NULL,
-  `local_location` text NULL,
+  `local_file_name` text NULL,
   `aws_arn` text NULL,
   `aws_region` text NULL,
   `created_at` datetime NOT NULL DEFAULT (CURRENT_TIMESTAMP),
@@ -11,8 +11,8 @@ CREATE TABLE `envelope_encryption_key` (
   PRIMARY KEY (`id`),
   CHECK (key_type IN ('local', 'aws_kms')),
   CHECK (
-        (key_type = 'local' AND local_location IS NOT NULL AND aws_arn IS NULL AND aws_region IS NULL) OR
-        (key_type = 'aws_kms' AND aws_arn IS NOT NULL AND aws_region IS NOT NULL AND local_location IS NULL)
+        (key_type = 'local' AND local_file_name IS NOT NULL AND aws_arn IS NULL AND aws_region IS NULL) OR
+        (key_type = 'aws_kms' AND aws_arn IS NOT NULL AND aws_region IS NOT NULL AND local_file_name IS NULL)
     )
 );
 -- create "data_encryption_key" table
