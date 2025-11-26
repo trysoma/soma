@@ -276,7 +276,10 @@ async fn handle_encryption_event(
         EncryptionKeyEvent::DataEncryptionKeyAliasAdded { alias, dek_id } => {
             // Rename the DEK from its UUID to its alias in the YAML
             // We need to find which envelope key contains this DEK
-            info!("DEK alias added: {:?} -> {:?} - renaming DEK key in yaml", alias, dek_id);
+            info!(
+                "DEK alias added: {:?} -> {:?} - renaming DEK key in yaml",
+                alias, dek_id
+            );
             let definition = soma_definition.get_definition().await?;
             if let Some(encryption) = &definition.encryption {
                 if let Some(envelope_keys) = &encryption.envelope_keys {
@@ -284,7 +287,11 @@ async fn handle_encryption_event(
                         if let Some(deks) = config.deks() {
                             if deks.contains_key(&dek_id) {
                                 soma_definition
-                                    .rename_dek(envelope_key_id.clone(), dek_id.clone(), alias.clone())
+                                    .rename_dek(
+                                        envelope_key_id.clone(),
+                                        dek_id.clone(),
+                                        alias.clone(),
+                                    )
                                     .await?;
                                 break;
                             }
@@ -309,7 +316,11 @@ async fn handle_encryption_event(
                         if let Some(deks) = config.deks() {
                             if deks.contains_key(&dek_id) {
                                 soma_definition
-                                    .rename_dek(envelope_key_id.clone(), dek_id.clone(), alias.clone())
+                                    .rename_dek(
+                                        envelope_key_id.clone(),
+                                        dek_id.clone(),
+                                        alias.clone(),
+                                    )
                                     .await?;
                                 break;
                             }

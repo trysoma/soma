@@ -97,7 +97,7 @@ use serde::{Serialize, Deserialize};
       conn: &shared::libsql::Connection
       ,params: get_messages_by_task_id_params<'_>
   ) -> Result<Vec<Row_get_messages_by_task_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, task_id, reference_task_ids, role, metadata, parts, created_at FROM message WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
+      let stmt = conn.prepare(r#"SELECT id, task_id, reference_task_ids, role, metadata, parts, created_at FROM message WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       let mut rows = stmt.query(libsql::params![params.task_id.clone(),params.cursor.clone(),params.page_size.clone(),]).await?;
@@ -330,7 +330,7 @@ WHERE id = ?4"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_secrets_params<'_>
   ) -> Result<Vec<Row_get_secrets>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, "key", encrypted_secret, dek_alias, created_at, updated_at FROM secret WHERE (created_at < ?1 OR ?1 IS NULL)
+      let stmt = conn.prepare(r#"SELECT id, "key", encrypted_secret, dek_alias, created_at, updated_at FROM secret WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
@@ -539,7 +539,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_tasks_params<'_>
   ) -> Result<Vec<Row_get_tasks>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
+      let stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
@@ -579,7 +579,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_unique_contexts_params<'_>
   ) -> Result<Vec<Row_get_unique_contexts>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT DISTINCT context_id, created_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
+      let stmt = conn.prepare(r#"SELECT DISTINCT context_id, created_at FROM task WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
@@ -622,7 +622,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_tasks_by_context_id_params<'_>
   ) -> Result<Vec<Row_get_tasks_by_context_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE context_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
+      let stmt = conn.prepare(r#"SELECT id, context_id, status, status_message_id, status_timestamp, metadata, created_at, updated_at FROM task WHERE context_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       let mut rows = stmt.query(libsql::params![params.context_id.clone(),params.cursor.clone(),params.page_size.clone(),]).await?;
@@ -668,7 +668,7 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_task_timeline_items_params<'_>
   ) -> Result<Vec<Row_get_task_timeline_items>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, task_id, event_update_type, event_payload, created_at FROM task_timeline WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
+      let stmt = conn.prepare(r#"SELECT id, task_id, event_update_type, event_payload, created_at FROM task_timeline WHERE task_id = ?1 AND (created_at < ?2 OR ?2 IS NULL)
 ORDER BY created_at DESC
 LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       let mut rows = stmt.query(libsql::params![params.task_id.clone(),params.cursor.clone(),params.page_size.clone(),]).await?;

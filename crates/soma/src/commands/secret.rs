@@ -5,7 +5,7 @@ use soma_api_client::apis::default_api;
 use soma_api_client::models;
 use tracing::info;
 
-use crate::utils::{create_and_wait_for_api_client, CliConfig};
+use crate::utils::{CliConfig, create_and_wait_for_api_client};
 
 const DEFAULT_DEK_ALIAS: &str = "default";
 const DEFAULT_PAGE_SIZE: i64 = 100;
@@ -219,7 +219,10 @@ pub async fn cmd_secret_list(api_url: &str, timeout_secs: u64) -> Result<(), Com
     table.set_header(vec![Cell::new("Key"), Cell::new("Decrypted Value")]);
 
     for secret in all_secrets {
-        table.add_row(vec![Cell::new(&secret.key), Cell::new(&secret.decrypted_value)]);
+        table.add_row(vec![
+            Cell::new(&secret.key),
+            Cell::new(&secret.decrypted_value),
+        ]);
     }
 
     println!("{table}");

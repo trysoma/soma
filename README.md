@@ -2,6 +2,26 @@
 
 **Note:** For documentation, tutorials and getting started with Soma, please visit our [documentation](https://docs.trysoma.ai). Any documentation here is for contributing and setting up this repo.
 
+> [!IMPORTANT]  
+> This is Alpha software and should not be used in production. There are outstanding authentication and production deployment features that need to be merged before being able to use this safely. Additionally, the API is subject to breaking changes in it's current state
+
+Current work in progress:
+
+- [x] Bridge MCP server. Support credential encryption, rotation, injection to MCP tool calls. Support existing SaaS providers out the box, support adding your own custom MCP functions.
+- [x] A2A (Agent 2 Agent spec) proxy endpoint for agents. There is a managed proxy endpoint for triggering your agents and a debug chat UI in the dev server.
+- [x] Fault-tolerance and suspension / resumability. Close integration with Restate which provides this functionality. 
+- [x] KMS encryption for MCP credentials & agent secrets
+- [] Configurable Authentication middleware (API key management, Oauth2, OIDC endpoint protection)
+- [] ```soma start``` command for production Dockerfile scenario's
+- [] Group approval workflows (support suspending execution when approval from one or more internal users is required or customer / chat user approval)
+- [] Multi-instance Bridge MCP. Support for creating multiple smaller Bridge MCP servers with less tools so that you can have multiple agents or sub-flows within an agent using different MCP server tools
+- [] Moniker AI Gateway. Outbound API gateway for all LLM requests to proxy existing providers. This will provide improved observability and automatically integrate all LLM providers with Restate at the network level as opposed to framework level.
+- [] Python SDK support.
+- [] Windows Support.
+- [] Production deployment best pracices
+
+
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:

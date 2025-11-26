@@ -382,11 +382,12 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
             let mut keys = HashSet::new();
             let mut next_page_token: Option<String> = None;
             loop {
-                let response = default_api::list_secrets(api_config, 100, next_page_token.as_deref())
-                    .await
-                    .map_err(|e| {
-                        CommonError::Unknown(anyhow::anyhow!("Failed to list secrets: {e:?}"))
-                    })?;
+                let response =
+                    default_api::list_secrets(api_config, 100, next_page_token.as_deref())
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!("Failed to list secrets: {e:?}"))
+                        })?;
 
                 for secret in response.secrets {
                     keys.insert(secret.key);

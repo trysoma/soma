@@ -220,16 +220,8 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
     ) -> Result<(), CommonError>;
 
     // Secret operations
-    async fn add_secret(
-        &self,
-        key: String,
-        config: SecretConfig,
-    ) -> Result<(), CommonError>;
-    async fn update_secret(
-        &self,
-        key: String,
-        config: SecretConfig,
-    ) -> Result<(), CommonError>;
+    async fn add_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError>;
+    async fn update_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError>;
     async fn remove_secret(&self, key: String) -> Result<(), CommonError>;
 
     async fn reload(&self) -> Result<(), CommonError>;

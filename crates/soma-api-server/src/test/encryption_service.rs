@@ -1,9 +1,9 @@
+use encryption::logic::EncryptionKeyEventSender;
 use encryption::logic::crypto_services::{
     CryptoCache, CryptoService, DecryptionService, EncryptionService,
 };
 use encryption::logic::dek::DataEncryptionKey;
 use encryption::logic::envelope::EnvelopeEncryptionKeyContents;
-use encryption::logic::EncryptionKeyEventSender;
 use encryption::repository::{DataEncryptionKeyRepositoryLike, EncryptionKeyRepositoryLike};
 use shared::primitives::{SqlMigrationLoader, WrappedChronoDateTime};
 use tokio::sync::broadcast;
@@ -152,8 +152,11 @@ pub async fn setup_test_encryption(alias: &str) -> TestEncryptionSetup {
     // The cache will populate on-demand when services are requested
 
     // Create the EncryptionService for router use
-    let encryption_service =
-        encryption::router::EncryptionService::new(encryption_repo, encryption_event_tx.clone(), cache.clone());
+    let encryption_service = encryption::router::EncryptionService::new(
+        encryption_repo,
+        encryption_event_tx.clone(),
+        cache.clone(),
+    );
 
     TestEncryptionSetup {
         crypto_cache: cache,

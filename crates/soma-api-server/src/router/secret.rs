@@ -5,11 +5,10 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::{
     logic::on_change_pubsub::SecretChangeTx,
     logic::secret::{
-        create_secret, delete_secret, get_secret_by_id, get_secret_by_key, import_secret,
-        list_decrypted_secrets, list_secrets, update_secret, CreateSecretRequest,
-        CreateSecretResponse, DeleteSecretResponse, GetSecretResponse, ImportSecretRequest,
-        ListDecryptedSecretsResponse, ListSecretsResponse, Secret, UpdateSecretRequest,
-        UpdateSecretResponse,
+        CreateSecretRequest, CreateSecretResponse, DeleteSecretResponse, GetSecretResponse,
+        ImportSecretRequest, ListDecryptedSecretsResponse, ListSecretsResponse, Secret,
+        UpdateSecretRequest, UpdateSecretResponse, create_secret, delete_secret, get_secret_by_id,
+        get_secret_by_key, import_secret, list_decrypted_secrets, list_secrets, update_secret,
     },
     repository::Repository,
 };
@@ -126,12 +125,8 @@ async fn route_list_decrypted_secrets(
     State(ctx): State<Arc<SecretService>>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListDecryptedSecretsResponse, CommonError> {
-    let res = list_decrypted_secrets(
-        &ctx.repository,
-        ctx.encryption_service.cache(),
-        pagination,
-    )
-    .await;
+    let res =
+        list_decrypted_secrets(&ctx.repository, ctx.encryption_service.cache(), pagination).await;
     JsonResponse::from(res)
 }
 
