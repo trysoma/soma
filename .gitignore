@@ -51,3 +51,6 @@ coverage/
 .cargo/config.toml.tmp
 openapi-prev.json
 release-changes.tar.gz
+
+# Local encryption keys directory (created during tests and runtime)
+**/.soma/
