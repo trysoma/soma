@@ -102,9 +102,9 @@ pub async fn setup_test_encryption(alias: &str) -> TestEncryptionSetup {
 
     // First create the envelope encryption key
     let (key_type, local_file_name, aws_arn, aws_region) = match &dek.envelope_encryption_key_id {
-        encryption::logic::envelope::EnvelopeEncryptionKey::Local { location } => (
+        encryption::logic::envelope::EnvelopeEncryptionKey::Local { file_name } => (
             encryption::repository::EnvelopeEncryptionKeyType::Local,
-            Some(location.clone()),
+            Some(file_name.clone()),
             None,
             None,
         ),

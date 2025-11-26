@@ -34,7 +34,7 @@ pub struct SecretConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct EncryptionConfig {
-    /// Map of envelope key id (ARN or location) -> envelope key configuration with nested DEKs
+    /// Map of envelope key id (ARN or file_name) -> envelope key configuration with nested DEKs
     /// DEKs are stored by their alias name (e.g., "default") rather than UUID
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub envelope_keys: Option<HashMap<String, EnvelopeKeyConfig>>,
@@ -51,7 +51,7 @@ pub enum EnvelopeKeyConfig {
         deks: Option<HashMap<String, DekConfig>>,
     },
     Local {
-        location: String,
+        file_name: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         deks: Option<HashMap<String, DekConfig>>,
     },
@@ -92,15 +92,15 @@ pub struct DekConfig {
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum EnvelopeEncryptionKey {
     AwsKms { arn: String, region: String },
-    Local { location: String },
+    Local { file_name: String },
 }
 
 impl EnvelopeEncryptionKey {
-    /// Get the key id (ARN for KMS, location for local)
+    /// Get the key id (ARN for KMS, file_name for local)
     pub fn key_id(&self) -> String {
         match self {
             EnvelopeEncryptionKey::AwsKms { arn, .. } => arn.clone(),
-            EnvelopeEncryptionKey::Local { location } => location.clone(),
+            EnvelopeEncryptionKey::Local { file_name } => file_name.clone(),
         }
     }
 }
@@ -113,8 +113,8 @@ impl From<EnvelopeEncryptionKey> for EnvelopeKeyConfig {
                 region,
                 deks: None,
             },
-            EnvelopeEncryptionKey::Local { location } => EnvelopeKeyConfig::Local {
-                location,
+            EnvelopeEncryptionKey::Local { file_name } => EnvelopeKeyConfig::Local {
+                file_name,
                 deks: None,
             },
         }
@@ -127,7 +127,7 @@ impl From<EnvelopeKeyConfig> for EnvelopeEncryptionKey {
             EnvelopeKeyConfig::AwsKms { arn, region, .. } => {
                 EnvelopeEncryptionKey::AwsKms { arn, region }
             }
-            EnvelopeKeyConfig::Local { location, .. } => EnvelopeEncryptionKey::Local { location },
+            EnvelopeKeyConfig::Local { file_name, .. } => EnvelopeEncryptionKey::Local { file_name },
         }
     }
 }

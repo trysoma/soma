@@ -27,14 +27,14 @@ use crate::repository::{
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum EnvelopeEncryptionKey {
     AwsKms { arn: String, region: String },
-    Local { location: String },
+    Local { file_name: String },
 }
 
 impl EnvelopeEncryptionKey {
     pub fn id(&self) -> String {
         match self {
             EnvelopeEncryptionKey::AwsKms { arn, region: _ } => arn.clone(),
-            EnvelopeEncryptionKey::Local { location } => location.clone(),
+            EnvelopeEncryptionKey::Local { file_name } => file_name.clone(),
         }
     }
 }
@@ -46,7 +46,7 @@ pub enum EnvelopeEncryptionKeyContents {
         region: String,
     },
     Local {
-        location: String,
+        file_name: String,
         key_bytes: Vec<u8>,
     },
 }
@@ -61,10 +61,10 @@ impl From<EnvelopeEncryptionKeyContents> for EnvelopeEncryptionKey {
                 }
             }
             EnvelopeEncryptionKeyContents::Local {
-                location,
+                file_name,
                 key_bytes: _,
             } => EnvelopeEncryptionKey::Local {
-                location: location.clone(),
+                file_name: file_name.clone(),
             },
         }
     }
@@ -299,9 +299,9 @@ pub async fn migrate_data_encryption_key(
             arn: arn.clone(),
             region: region.clone(),
         },
-        EnvelopeEncryptionKey::Local { location } => {
+        EnvelopeEncryptionKey::Local { file_name } => {
             // Load the key bytes from the file
-            get_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
+            get_local_envelope_encryption_key(&std::path::PathBuf::from(file_name))?
         }
     };
 
@@ -366,7 +366,7 @@ pub async fn migrate_data_encryption_key(
             EncryptedDataEncryptionKey(encoded)
         }
         EnvelopeEncryptionKeyContents::Local {
-            location: _,
+            file_name: _,
             key_bytes,
         } => {
             // Use local AES-GCM to encrypt
@@ -494,8 +494,8 @@ where
             arn: arn.clone(),
             region: region.clone(),
         },
-        EnvelopeEncryptionKey::Local { location } => {
-            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
+        EnvelopeEncryptionKey::Local { file_name } => {
+            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(file_name))?
         }
     };
 
@@ -544,8 +544,8 @@ where
             arn: arn.clone(),
             region: region.clone(),
         },
-        EnvelopeEncryptionKey::Local { location } => {
-            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
+        EnvelopeEncryptionKey::Local { file_name } => {
+            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(file_name))?
         }
     };
 
@@ -598,8 +598,8 @@ where
             arn: arn.clone(),
             region: region.clone(),
         },
-        EnvelopeEncryptionKey::Local { location } => {
-            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
+        EnvelopeEncryptionKey::Local { file_name } => {
+            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(file_name))?
         }
     };
 
@@ -607,7 +607,7 @@ where
         "Migrating all data encryption keys from envelope key {} to {}",
         match from_envelope_key_id {
             EnvelopeEncryptionKey::AwsKms { arn, .. } => arn.clone(),
-            EnvelopeEncryptionKey::Local { location } => location.clone(),
+            EnvelopeEncryptionKey::Local { file_name } => file_name.clone(),
         },
         params.to_envelope_encryption_key_id
     );
@@ -684,8 +684,8 @@ pub fn matches_envelope_key_id(id1: &EnvelopeEncryptionKey, id2: &EnvelopeEncryp
             },
         ) => arn1 == arn2 && region1 == region2,
         (
-            EnvelopeEncryptionKey::Local { location: loc1 },
-            EnvelopeEncryptionKey::Local { location: loc2 },
+            EnvelopeEncryptionKey::Local { file_name: loc1 },
+            EnvelopeEncryptionKey::Local { file_name: loc2 },
         ) => loc1 == loc2,
         _ => false,
     }
@@ -715,10 +715,10 @@ where
     Ok(None)
 }
 
-/// Find envelope encryption key by location (for local keys)
-pub async fn find_envelope_encryption_key_by_location<R>(
+/// Find envelope encryption key by file name (for local keys)
+pub async fn find_envelope_encryption_key_by_file_name<R>(
     repo: &R,
-    location: &str,
+    file_name: &str,
 ) -> Result<Option<EnvelopeEncryptionKey>, CommonError>
 where
     R: EncryptionKeyRepositoryLike,
@@ -727,10 +727,10 @@ where
 
     for key in keys {
         if let EnvelopeEncryptionKey::Local {
-            location: stored_location,
+            file_name: stored_file_name,
         } = &key
         {
-            if stored_location == location {
+            if stored_file_name == file_name {
                 return Ok(Some(key));
             }
         }
@@ -771,7 +771,7 @@ pub fn get_local_envelope_encryption_key(
     }
 
     Ok(EnvelopeEncryptionKeyContents::Local {
-        location: file_path.to_string_lossy().to_string(),
+        file_name: file_path.to_string_lossy().to_string(),
         key_bytes,
     })
 }
@@ -801,7 +801,7 @@ pub fn get_or_create_local_envelope_encryption_key(
         }
 
         return Ok(EnvelopeEncryptionKeyContents::Local {
-            location: file_path.to_string_lossy().to_string(),
+            file_name: file_path.to_string_lossy().to_string(),
             key_bytes,
         });
     }
@@ -831,7 +831,7 @@ pub fn get_or_create_local_envelope_encryption_key(
     })?;
 
     Ok(EnvelopeEncryptionKeyContents::Local {
-        location: file_path.to_string_lossy().to_string(),
+        file_name: file_path.to_string_lossy().to_string(),
         key_bytes,
     })
 }
@@ -877,7 +877,7 @@ pub async fn encrypt_dek(
             Ok(EncryptedDataEncryptionKey(encrypted_key))
         }
         EnvelopeEncryptionKeyContents::Local {
-            location: _,
+            file_name: _,
             key_bytes,
         } => {
             // --- Local AES-GCM path ---
@@ -958,7 +958,7 @@ pub async fn decrypt_dek(
             Ok(DecryptedDataEncryptionKey(plaintext.as_ref().to_vec()))
         }
         EnvelopeEncryptionKeyContents::Local {
-            location: _,
+            file_name: _,
             key_bytes,
         } => {
             // --- Local AES-GCM path ---
@@ -1021,10 +1021,10 @@ mod tests {
         let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
         std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
 
-        let location = temp_file.path().to_string_lossy().to_string();
+        let file_name = temp_file.path().to_string_lossy().to_string();
 
         let contents = EnvelopeEncryptionKeyContents::Local {
-            location: location.clone(),
+            file_name: file_name.clone(),
             key_bytes: kek_bytes.to_vec(),
         };
 
@@ -1093,16 +1093,16 @@ mod tests {
 
         // Test local keys match
         let local1 = EnvelopeEncryptionKey::Local {
-            location: "/path/to/key".to_string(),
+            file_name: "/path/to/key".to_string(),
         };
         let local2 = EnvelopeEncryptionKey::Local {
-            location: "/path/to/key".to_string(),
+            file_name: "/path/to/key".to_string(),
         };
         assert!(matches_envelope_key_id(&local1, &local2));
 
         // Test local keys don't match
         let local3 = EnvelopeEncryptionKey::Local {
-            location: "/different/path".to_string(),
+            file_name: "/different/path".to_string(),
         };
         assert!(!matches_envelope_key_id(&local1, &local3));
 
@@ -1146,7 +1146,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_find_envelope_encryption_key_by_location() {
+    async fn test_find_envelope_encryption_key_by_file_name() {
         shared::setup_test!();
 
         let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
@@ -1156,28 +1156,28 @@ mod tests {
         let (tx, _rx) = broadcast::channel(100);
 
         let (_temp_file, local_key_contents) = create_temp_local_key();
-        let location =
-            if let EnvelopeEncryptionKeyContents::Local { location, .. } = &local_key_contents {
-                location.clone()
+        let file_name =
+            if let EnvelopeEncryptionKeyContents::Local { file_name, .. } = &local_key_contents {
+                file_name.clone()
             } else {
                 panic!("Expected local key");
             };
         let local_key = EnvelopeEncryptionKey::Local {
-            location: location.clone(),
+            file_name: file_name.clone(),
         };
         create_envelope_encryption_key(&tx, &repo, local_key.clone(), false)
             .await
             .unwrap();
 
         // Test finding existing key
-        let found = find_envelope_encryption_key_by_location(&repo, &location)
+        let found = find_envelope_encryption_key_by_file_name(&repo, &file_name)
             .await
             .unwrap();
         assert!(found.is_some());
         assert!(matches_envelope_key_id(&found.unwrap(), &local_key));
 
         // Test finding non-existent key
-        let not_found = find_envelope_encryption_key_by_location(&repo, "/nonexistent/path")
+        let not_found = find_envelope_encryption_key_by_file_name(&repo, "/nonexistent/path")
             .await
             .unwrap();
         assert!(not_found.is_none());
@@ -1196,11 +1196,11 @@ mod tests {
         assert!(path.exists());
         assert!(matches!(key1, EnvelopeEncryptionKeyContents::Local { .. }));
         if let EnvelopeEncryptionKeyContents::Local {
-            location,
+            file_name,
             key_bytes,
         } = &key1
         {
-            assert_eq!(location, &path.to_string_lossy().to_string());
+            assert_eq!(file_name, &path.to_string_lossy().to_string());
             assert_eq!(key_bytes.len(), 32);
         }
 
@@ -1208,12 +1208,12 @@ mod tests {
         let key2 = get_or_create_local_envelope_encryption_key(&path).unwrap();
         assert!(matches!(key2, EnvelopeEncryptionKeyContents::Local { .. }));
         if let EnvelopeEncryptionKeyContents::Local {
-            location: loc2,
+            file_name: loc2,
             key_bytes: bytes2,
         } = &key2
         {
             if let EnvelopeEncryptionKeyContents::Local {
-                location: loc1,
+                file_name: loc1,
                 key_bytes: bytes1,
             } = &key1
             {
@@ -1234,13 +1234,13 @@ mod tests {
         let (tx, _rx) = broadcast::channel(100);
 
         let (_temp_file, local_key_contents) = create_temp_local_key();
-        let location = match &local_key_contents {
-            EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
+        let file_name = match &local_key_contents {
+            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
 
         let envelope_key = EnvelopeEncryptionKey::Local {
-            location: location.clone(),
+            file_name: file_name.clone(),
         };
 
         let result = create_envelope_encryption_key(&tx, &repo, envelope_key.clone(), false).await;
@@ -1251,7 +1251,7 @@ mod tests {
 
         // Verify it exists in the database
         let retrieved = repo
-            .get_envelope_encryption_key_by_id(&location)
+            .get_envelope_encryption_key_by_id(&file_name)
             .await
             .unwrap();
         assert!(retrieved.is_some());
@@ -1297,13 +1297,13 @@ mod tests {
         let (tx, _rx) = broadcast::channel(100);
 
         let (_temp_file, local_key_contents) = create_temp_local_key();
-        let location = match &local_key_contents {
-            EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
+        let file_name = match &local_key_contents {
+            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
 
         let envelope_key = EnvelopeEncryptionKey::Local {
-            location: location.clone(),
+            file_name: file_name.clone(),
         };
 
         // Create the key
@@ -1316,7 +1316,7 @@ mod tests {
             &tx,
             &repo,
             DeleteEnvelopeEncryptionKeyParams {
-                envelope_encryption_key_id: location.clone(),
+                envelope_encryption_key_id: file_name.clone(),
                 inner: (),
             },
             false,
@@ -1327,7 +1327,7 @@ mod tests {
 
         // Verify it's deleted
         let retrieved = repo
-            .get_envelope_encryption_key_by_id(&location)
+            .get_envelope_encryption_key_by_id(&file_name)
             .await
             .unwrap();
         assert!(retrieved.is_none());
@@ -1344,13 +1344,13 @@ mod tests {
         let (tx, _rx) = broadcast::channel(100);
 
         let (_temp_file, local_key_contents) = create_temp_local_key();
-        let location = match &local_key_contents {
-            EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
+        let file_name = match &local_key_contents {
+            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
 
         let envelope_key = EnvelopeEncryptionKey::Local {
-            location: location.clone(),
+            file_name: file_name.clone(),
         };
 
         // Create the envelope key
@@ -1379,7 +1379,7 @@ mod tests {
             &tx,
             &repo,
             DeleteEnvelopeEncryptionKeyParams {
-                envelope_encryption_key_id: location.clone(),
+                envelope_encryption_key_id: file_name.clone(),
                 inner: (),
             },
             false,
@@ -1410,21 +1410,21 @@ mod tests {
 
         // Create two local keys
         let (_temp_file1, local_key1_contents) = create_temp_local_key();
-        let location1 = match &local_key1_contents {
-            EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
+        let file_name1 = match &local_key1_contents {
+            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
         let envelope_key1 = EnvelopeEncryptionKey::Local {
-            location: location1.clone(),
+            file_name: file_name1.clone(),
         };
 
         let (_temp_file2, local_key2_contents) = create_temp_local_key();
-        let location2 = match &local_key2_contents {
-            EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
+        let file_name2 = match &local_key2_contents {
+            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
         let envelope_key2 = EnvelopeEncryptionKey::Local {
-            location: location2.clone(),
+            file_name: file_name2.clone(),
         };
 
         // Create both envelope keys
@@ -1465,7 +1465,7 @@ mod tests {
             &cache,
             MigrateDataEncryptionKeyParams {
                 data_encryption_key_id: dek.id.clone(),
-                to_envelope_encryption_key_id: location2.clone(),
+                to_envelope_encryption_key_id: file_name2.clone(),
             },
             false,
         )
@@ -1512,12 +1512,12 @@ mod tests {
 
         // Create local key
         let (_temp_file, local_key_contents) = create_temp_local_key();
-        let location = match &local_key_contents {
-            EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
+        let file_name = match &local_key_contents {
+            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
         let envelope_key_local = EnvelopeEncryptionKey::Local {
-            location: location.clone(),
+            file_name: file_name.clone(),
         };
 
         // Create AWS KMS key (verifies AWS credentials are available)
@@ -1706,12 +1706,12 @@ mod tests {
 
         // Create local key
         let (_temp_file, local_key_contents) = create_temp_local_key();
-        let location = match &local_key_contents {
-            EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
+        let file_name = match &local_key_contents {
+            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
         let envelope_key_local = EnvelopeEncryptionKey::Local {
-            location: location.clone(),
+            file_name: file_name.clone(),
         };
 
         // Create both envelope keys
@@ -1752,7 +1752,7 @@ mod tests {
             &cache,
             MigrateDataEncryptionKeyParams {
                 data_encryption_key_id: dek.id.clone(),
-                to_envelope_encryption_key_id: location.clone(),
+                to_envelope_encryption_key_id: file_name.clone(),
             },
             false,
         )
@@ -1799,21 +1799,21 @@ mod tests {
 
         // Create two local keys
         let (_temp_file1, local_key1_contents) = create_temp_local_key();
-        let location1 = match &local_key1_contents {
-            EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
+        let file_name1 = match &local_key1_contents {
+            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
         let envelope_key1 = EnvelopeEncryptionKey::Local {
-            location: location1.clone(),
+            file_name: file_name1.clone(),
         };
 
         let (_temp_file2, local_key2_contents) = create_temp_local_key();
-        let location2 = match &local_key2_contents {
-            EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
+        let file_name2 = match &local_key2_contents {
+            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
         let envelope_key2 = EnvelopeEncryptionKey::Local {
-            location: location2.clone(),
+            file_name: file_name2.clone(),
         };
 
         // Create both envelope keys
@@ -1874,7 +1874,7 @@ mod tests {
             &cache,
             MigrateDataEncryptionKeyParams {
                 data_encryption_key_id: dek.id.clone(),
-                to_envelope_encryption_key_id: location2.clone(),
+                to_envelope_encryption_key_id: file_name2.clone(),
             },
             false,
         )

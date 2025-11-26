@@ -722,8 +722,8 @@ mod tests {
             .unwrap();
 
         match retrieved {
-            EnvelopeEncryptionKey::Local { location } => {
-                assert_eq!(location, "/path/to/key");
+            EnvelopeEncryptionKey::Local { file_name } => {
+                assert_eq!(file_name, "/path/to/key");
             }
             _ => panic!("Expected local key"),
         }
@@ -876,8 +876,8 @@ mod tests {
 
         // Verify envelope key ID matches
         match retrieved.envelope_encryption_key_id {
-            EnvelopeEncryptionKey::Local { location } => {
-                assert_eq!(location, "/path/to/key");
+            EnvelopeEncryptionKey::Local { file_name } => {
+                assert_eq!(file_name, "/path/to/key");
             }
             _ => panic!("Expected local key"),
         }
@@ -1207,8 +1207,8 @@ mod tests {
         let dek_2 = deks.iter().find(|d| d.id == dek_id_2).unwrap();
         assert_eq!(dek_2.id, dek_id_2);
         match &dek_2.envelope_encryption_key_id {
-            EnvelopeEncryptionKey::Local { location } => {
-                assert_eq!(location, "/path/to/key");
+            EnvelopeEncryptionKey::Local { file_name } => {
+                assert_eq!(file_name, "/path/to/key");
             }
             _ => panic!("Expected local key"),
         }

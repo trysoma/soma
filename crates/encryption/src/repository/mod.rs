@@ -129,10 +129,10 @@ impl From<(EnvelopeEncryptionKey, WrappedChronoDateTime)> for CreateEnvelopeEncr
                 Some(arn.clone()),
                 Some(region.clone()),
             ),
-            EnvelopeEncryptionKey::Local { location } => (
-                location.clone(), // Use location as the ID
+            EnvelopeEncryptionKey::Local { file_name } => (
+                file_name.clone(), // Use file_name as the ID
                 EnvelopeEncryptionKeyType::Local,
-                Some(location.clone()),
+                Some(file_name.clone()),
                 None,
                 None,
             ),
@@ -165,7 +165,7 @@ impl From<DataEncryptionKey> for CreateDataEncryptionKey {
         // Convert EnvelopeEncryptionKey enum to string identifier
         let envelope_key_id = match &dek.envelope_encryption_key_id {
             EnvelopeEncryptionKey::AwsKms { arn, .. } => arn.clone(),
-            EnvelopeEncryptionKey::Local { location } => location.clone(),
+            EnvelopeEncryptionKey::Local { file_name } => file_name.clone(),
         };
         CreateDataEncryptionKey {
             id: dek.id,

@@ -181,7 +181,7 @@ pub async fn cmd_enc_key_add(
             let envelope_id = match &created_key {
                 models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(key) => key.arn.clone(),
                 models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(key) => {
-                    key.location.clone()
+                    key.file_name.clone()
                 }
             };
 
@@ -229,7 +229,7 @@ pub async fn cmd_enc_key_add(
             let envelope_id = match &created_key {
                 models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(key) => key.arn.clone(),
                 models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(key) => {
-                    key.location.clone()
+                    key.file_name.clone()
                 }
             };
 

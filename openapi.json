@@ -4101,7 +4101,7 @@
               "object",
               "null"
             ],
-            "description": "Map of envelope key id (ARN or location) -> envelope key configuration with nested DEKs\nDEKs are stored by their alias name (e.g., \"default\") rather than UUID",
+            "description": "Map of envelope key id (ARN or file_name) -> envelope key configuration with nested DEKs\nDEKs are stored by their alias name (e.g., \"default\") rather than UUID",
             "additionalProperties": {
               "$ref": "#/components/schemas/EnvelopeKeyConfig"
             },
@@ -4138,11 +4138,11 @@
           {
             "type": "object",
             "required": [
-              "location",
+              "file_name",
               "type"
             ],
             "properties": {
-              "location": {
+              "file_name": {
                 "type": "string"
               },
               "type": {
@@ -4211,7 +4211,7 @@
           {
             "type": "object",
             "required": [
-              "location",
+              "file_name",
               "type"
             ],
             "properties": {
@@ -4227,7 +4227,7 @@
                   "type": "string"
                 }
               },
-              "location": {
+              "file_name": {
                 "type": "string"
               },
               "type": {
