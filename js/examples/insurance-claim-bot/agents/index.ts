@@ -107,6 +107,9 @@ const handlers = {
 			sendMessage,
 		}) => {
 			ctx.console.log("Assessment", assessment);
+			ctx.console.log("Bridge", process.env.OPENAI_API_KEY);
+			ctx.console.log("Bridge", process.env.STRIPE_API_KEY);
+
 			// const b = bridge();
 
 			await sendMessage({

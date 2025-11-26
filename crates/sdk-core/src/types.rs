@@ -94,13 +94,13 @@ pub struct InvokeFunctionRequest {
 }
 
 #[derive(Debug, Clone)]
-pub struct InvokeError {
+pub struct CallbackError {
     pub message: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct InvokeFunctionResponse {
-    pub result: Result<String, InvokeError>,
+    pub result: Result<String, CallbackError>,
 }
 
 pub struct MetadataResponse {
@@ -431,8 +431,8 @@ impl TryFrom<sdk_proto::InvokeFunctionRequest> for InvokeFunctionRequest {
     }
 }
 
-impl From<InvokeError> for sdk_proto::InvokeError {
-    fn from(error: InvokeError) -> Self {
+impl From<CallbackError> for sdk_proto::CallbackError {
+    fn from(error: CallbackError) -> Self {
         Self {
             message: error.message,
         }
@@ -501,18 +501,34 @@ impl From<Secret> for sdk_proto::Secret {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct SetSecretsSuccess {
+    pub message: String,
+}
+
+impl From<SetSecretsSuccess> for sdk_proto::SetSecretsSuccess {
+    fn from(success: SetSecretsSuccess) -> Self {
+        Self {
+            message: success.message,
+        }
+    }
+}
+
 /// Response from setting secrets
 #[derive(Debug, Clone)]
 pub struct SetSecretsResponse {
-    pub success: bool,
-    pub message: String,
+    pub result: Result<SetSecretsSuccess, CallbackError>,
 }
 
 impl From<SetSecretsResponse> for sdk_proto::SetSecretsResponse {
     fn from(response: SetSecretsResponse) -> Self {
+        use sdk_proto::set_secrets_response::Kind;
+
         Self {
-            success: response.success,
-            message: response.message,
+            kind: match response.result {
+                Ok(data) => Some(Kind::Data(data.into())),
+                Err(error) => Some(Kind::Error(error.into())),
+            },
         }
     }
 }

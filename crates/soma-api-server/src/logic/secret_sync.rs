@@ -97,14 +97,18 @@ pub async fn sync_secrets_to_sdk(
     })?;
 
     let inner = response.into_inner();
-    if inner.success {
-        info!("Successfully synced secrets to SDK: {}", inner.message);
-        Ok(())
-    } else {
-        Err(CommonError::Unknown(anyhow::anyhow!(
-            "SDK rejected secrets: {}",
-            inner.message
-        )))
+
+    match inner.kind {
+        Some(sdk_proto::set_secrets_response::Kind::Data(data)) => {
+            info!("Successfully synced secrets to SDK: {}", data.message);
+            Ok(())
+        }
+        Some(sdk_proto::set_secrets_response::Kind::Error(error)) => Err(CommonError::Unknown(
+            anyhow::anyhow!("SDK rejected secrets: {}", error.message),
+        )),
+        None => Err(CommonError::Unknown(anyhow::anyhow!(
+            "SDK rejected secrets: unknown error"
+        ))),
     }
 }
 

@@ -133,6 +133,7 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         &self,
         request: Request<sdk_proto::SetSecretsRequest>,
     ) -> Result<Response<sdk_proto::SetSecretsResponse>, Status> {
+        use sdk_proto::set_secrets_response::Kind;
         info!(
             "set_secrets called with {} secrets",
             request.get_ref().secrets.len()
@@ -148,26 +149,25 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
             None => {
                 info!("No secret handler registered");
                 return Ok(Response::new(sdk_proto::SetSecretsResponse {
-                    success: false,
-                    message: "No secret handler registered".to_string(),
+                    kind: Some(Kind::Error(sdk_proto::CallbackError {
+                        message: "No secret handler registered".to_string(),
+                    })),
                 }));
             }
         };
-
         // Call the handler
-        match handler(secrets).await {
-            Ok(response) => {
-                info!("set_secrets completed successfully: {}", response.message);
-                Ok(Response::new(response.into()))
-            }
-            Err(e) => {
-                info!("set_secrets failed: {}", e);
-                Ok(Response::new(sdk_proto::SetSecretsResponse {
-                    success: false,
-                    message: format!("Failed to set secrets: {e}"),
-                }))
-            }
-        }
+        info!("invoking set secrets handler");
+
+        // Invoke the function (Arc keeps providers alive during the call)
+        let result = handler(secrets)
+            .await
+            .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
+
+        info!("set_secrets result: {:?}", result);
+
+        let result = result?;
+
+        Ok(Response::new(result.into()))
     }
 }
 

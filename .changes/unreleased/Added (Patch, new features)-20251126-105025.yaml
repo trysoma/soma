@@ -1,0 +1,3 @@
+kind: Added (Patch, new features)
+body: 'Added secrets management to core platform. you can set secrets using the CLI "soma secret set" and "soma secret rm". "soma secret list" will list all '
+time: 2025-11-26T10:50:25.134871Z

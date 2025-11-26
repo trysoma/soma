@@ -1,4 +1,4 @@
-use std::{future::Future, path::PathBuf, pin::Pin};
+use std::{collections::HashMap, future::Future, path::PathBuf, pin::Pin};
 
 use shared::{error::CommonError, primitives::WrappedSchema};
 use tokio::sync::broadcast;
@@ -20,6 +20,7 @@ pub struct ClientCtx {
     pub socket_path: String,
     pub restate_runtime_port: u16,
     pub kill_signal_rx: broadcast::Receiver<()>,
+    pub initial_secrets: HashMap<String, String>,
 }
 
 #[allow(dead_code)]

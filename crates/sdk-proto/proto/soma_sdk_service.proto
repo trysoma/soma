@@ -24,11 +24,12 @@ message InvokeFunctionRequest {
 message InvokeFunctionResponse {
   oneof kind {
     string data = 1;
-    InvokeError error = 2;
+    CallbackError error = 2;
   }
 }
 
-message InvokeError {
+
+message CallbackError {
   string message = 1;
 }
 
@@ -156,6 +157,13 @@ message SetSecretsRequest {
 }
 
 message SetSecretsResponse {
-  bool success = 1;
-  string message = 2;
+  oneof kind {
+    SetSecretsSuccess data = 1;
+    CallbackError error = 2;
+  }
 }
+
+message SetSecretsSuccess {
+  string message = 1;
+}
+

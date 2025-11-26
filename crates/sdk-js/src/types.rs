@@ -86,7 +86,7 @@ pub struct InvokeFunctionRequest {
 
 #[derive(Debug, Clone)]
 #[napi(object)]
-pub struct InvokeError {
+pub struct CallbackError {
     pub message: String,
 }
 
@@ -94,7 +94,7 @@ pub struct InvokeError {
 #[napi(object)]
 pub struct InvokeFunctionResponse {
     pub data: Option<String>,
-    pub error: Option<InvokeError>,
+    pub error: Option<CallbackError>,
 }
 
 #[napi(object)]
@@ -148,10 +148,16 @@ pub struct Secret {
     pub value: String,
 }
 
+#[derive(Debug, Clone)]
+#[napi(object)]
+pub struct SetSecretsSuccess {
+    pub message: String,
+}
+
 /// Response from setting secrets
 #[derive(Debug, Clone)]
 #[napi(object)]
 pub struct SetSecretsResponse {
-    pub success: bool,
-    pub message: String,
+    pub data: Option<SetSecretsSuccess>,
+    pub error: Option<CallbackError>,
 }

@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tracing::info;
 
 use codegen_impl::TypeScriptCodeGenerator;
-use sdk_core as core_types;
+use sdk_core::{self as core_types, SetSecretsSuccess};
 use types as js_types;
 
 use once_cell::sync::OnceCell;
@@ -262,14 +262,14 @@ pub fn add_function(
                     .call_async(Ok(js_req))
                     .await
                     .map_err(|e| core_types::InvokeFunctionResponse {
-                        result: Err(core_types::InvokeError {
+                        result: Err(core_types::CallbackError {
                             message: e.reason.clone(),
                         }),
                     })
                     .unwrap()
                     .await
                     .map_err(|e| core_types::InvokeFunctionResponse {
-                        result: Err(core_types::InvokeError {
+                        result: Err(core_types::CallbackError {
                             message: e.reason.clone(),
                         }),
                     })
@@ -282,11 +282,11 @@ pub fn add_function(
                         result: if let Some(data) = result.data {
                             Ok(data)
                         } else if let Some(error) = result.error {
-                            Err(core_types::InvokeError {
+                            Err(core_types::CallbackError {
                                 message: error.message,
                             })
                         } else {
-                            Err(core_types::InvokeError {
+                            Err(core_types::CallbackError {
                                 message: "JS result must contain .data or .error".to_string(),
                             })
                         },
@@ -343,20 +343,20 @@ pub fn update_function(
                             Ok(core_types::InvokeFunctionResponse { result: Ok(data) })
                         } else if let Some(error) = js_response.error {
                             Ok(core_types::InvokeFunctionResponse {
-                                result: Err(core_types::InvokeError {
+                                result: Err(core_types::CallbackError {
                                     message: error.message,
                                 }),
                             })
                         } else {
                             Ok(core_types::InvokeFunctionResponse {
-                                result: Err(core_types::InvokeError {
+                                result: Err(core_types::CallbackError {
                                     message: "JS result must contain .data or .error".to_string(),
                                 }),
                             })
                         }
                     }
                     Err(e) => Ok(core_types::InvokeFunctionResponse {
-                        result: Err(core_types::InvokeError {
+                        result: Err(core_types::CallbackError {
                             message: format!("JavaScript function error: {e}"),
                         }),
                     }),
@@ -389,6 +389,12 @@ pub fn set_secret_handler(
 
     let handler: core_types::SecretHandler = Arc::new(move |secrets: Vec<core_types::Secret>| {
         let callback = Arc::clone(&callback);
+        let secret_keys: Vec<String> = secrets.iter().map(|s| s.key.clone()).collect();
+        info!(
+            "Secret handler invoked with {} secrets: {:?}",
+            secrets.len(),
+            secret_keys
+        );
         Box::pin(async move {
             // Convert core secrets to JS secrets
             let js_secrets: Vec<js_types::Secret> = secrets
@@ -399,25 +405,47 @@ pub fn set_secret_handler(
                 })
                 .collect();
 
+            info!(
+                "Calling JS secret handler callback with {} secrets",
+                js_secrets.len()
+            );
             // Call the JS callback
             let result = callback
                 .call_async(Ok(js_secrets))
                 .await
                 .map_err(|e| {
-                    CommonError::Unknown(anyhow::anyhow!("Failed to call secret handler: {e}"))
+                    let error_msg = format!("Failed to call secret handler: {e}");
+                    info!("Error calling secret handler callback: {}", error_msg);
+                    CommonError::Unknown(anyhow::anyhow!(error_msg))
                 })?
-                .await
-                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Secret handler failed: {e}")))?;
+                .await;
 
-            Ok(core_types::SetSecretsResponse {
-                success: result.success,
-                message: result.message,
-            })
+            match result {
+                Ok(js_response) => {
+                    if let Some(data) = js_response.data {
+                        Ok(core_types::SetSecretsResponse {
+                            result: Ok(SetSecretsSuccess {
+                                message: data.message,
+                            }),
+                        })
+                    } else if let Some(error) = js_response.error {
+                        Err(CommonError::Unknown(anyhow::anyhow!(error.message)))
+                    } else {
+                        Err(CommonError::Unknown(anyhow::anyhow!(
+                            "JS result must contain .data or .error"
+                        )))
+                    }
+                }
+                Err(e) => Err(CommonError::Unknown(anyhow::anyhow!(format!(
+                    "JavaScript function error: {e}"
+                )))),
+            }
         })
     });
 
+    info!("Registering secret handler");
     get_grpc_service()?.set_secret_handler(handler);
-    info!("Secret handler registered");
+    info!("Secret handler registered successfully");
     Ok(())
 }
 

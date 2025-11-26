@@ -24,14 +24,19 @@ impl SdkClient for Typescript {
             .arg("dev")
             .current_dir(ctx.project_dir.clone());
 
-        // Set the SOMA_SERVER_SOCK environment variable
-        let env_vars = HashMap::from([
+        // Set the SOMA_SERVER_SOCK environment variable and initial secrets
+        let mut env_vars = HashMap::from([
             ("SOMA_SERVER_SOCK".to_string(), ctx.socket_path),
             (
                 "RESTATE_RUNTIME_PORT".to_string(),
                 ctx.restate_runtime_port.to_string(),
             ),
         ]);
+
+        // Insert all initial secrets into env_vars
+        for (key, value) in ctx.initial_secrets {
+            env_vars.insert(key, value);
+        }
 
         shared::command::run_child_process(
             "pnpm-dev-server",
