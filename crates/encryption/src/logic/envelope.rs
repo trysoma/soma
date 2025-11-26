@@ -160,7 +160,7 @@ pub type MigrateAllDataEncryptionKeysResponse = ();
 
 /// Create a new envelope encryption key
 pub async fn create_envelope_encryption_key(
-    local_envelope_encryption_key_path: &PathBuf,
+    local_envelope_encryption_key_path: &std::path::Path,
     on_change_tx: &EncryptionKeyEventSender,
     repo: &impl EncryptionKeyRepositoryLike,
     params: CreateEnvelopeEncryptionKeyParams,
@@ -280,7 +280,7 @@ pub async fn delete_envelope_encryption_key(
 /// 2. Re-encrypting it with the new envelope key
 /// 3. Updating the database record
 pub async fn migrate_data_encryption_key(
-    local_envelope_encryption_key_path: &PathBuf,
+    local_envelope_encryption_key_path: &std::path::Path,
     on_change_tx: &EncryptionKeyEventSender,
     from_envelope_key_contents: &EnvelopeEncryptionKeyContents,
     repo: &(impl EncryptionKeyRepositoryLike + DataEncryptionKeyRepositoryLike),
@@ -497,8 +497,9 @@ pub async fn migrate_data_encryption_key(
 
 /// Migrate a data encryption key from one envelope encryption key to another using string IDs
 /// This is a convenience wrapper that looks up the envelope keys and calls migrate_data_encryption_key
+#[allow(clippy::too_many_arguments)]
 pub async fn migrate_data_encryption_key_for_envelope<R>(
-    local_envelope_encryption_key_path: &PathBuf,
+    local_envelope_encryption_key_path: &std::path::Path,
     from_envelope_encryption_key_id: &str,
     data_encryption_key_id: &str,
     to_envelope_encryption_key_id: &str,
@@ -550,8 +551,9 @@ where
 
 /// Migrate all data encryption keys for a given envelope encryption key to a new envelope key using string IDs
 /// This is a convenience wrapper that looks up the envelope keys and calls migrate_all_data_encryption_keys
+#[allow(clippy::too_many_arguments)]
 pub async fn migrate_all_data_encryption_keys_for_envelope<R>(
-    local_envelope_encryption_key_path: &PathBuf,
+    local_envelope_encryption_key_path: &std::path::Path,
     from_envelope_encryption_key_id: &str,
     to_envelope_encryption_key_id: &str,
     on_change_tx: &EncryptionKeyEventSender,
@@ -601,8 +603,9 @@ where
 }
 
 /// Migrate all data encryption keys for a given envelope encryption key to a new envelope key
+#[allow(clippy::too_many_arguments)]
 pub async fn migrate_all_data_encryption_keys<R>(
-    local_envelope_encryption_key_path: &PathBuf,
+    local_envelope_encryption_key_path: &std::path::Path,
     on_change_tx: &EncryptionKeyEventSender,
     from_envelope_key_contents: &EnvelopeEncryptionKeyContents,
     from_envelope_key_id: &EnvelopeEncryptionKey,
