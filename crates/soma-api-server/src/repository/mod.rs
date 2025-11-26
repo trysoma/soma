@@ -177,6 +177,7 @@ pub trait TaskRepositoryLike {
 }
 
 // Secret repository trait
+#[allow(async_fn_in_trait)]
 pub trait SecretRepositoryLike {
     async fn create_secret(&self, params: &CreateSecret) -> Result<(), CommonError>;
     async fn update_secret(&self, params: &UpdateSecret) -> Result<(), CommonError>;

@@ -166,7 +166,7 @@ pub struct ConstructAgentCardParams {
 }
 
 pub fn construct_agent_card(params: ConstructAgentCardParams) -> a2a_rs::types::AgentCard {
-    let definition = params.definition;
+    let _definition = params.definition;
     let url = params.url;
 
     AgentCard {
