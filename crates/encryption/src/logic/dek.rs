@@ -616,6 +616,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "Requires AWS credentials"]
     async fn test_create_data_encryption_key_with_aws_kms() {
         shared::setup_test!();
 
