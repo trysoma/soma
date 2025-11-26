@@ -548,6 +548,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/secret/v1/list-decrypted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list-decrypted-secrets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/secret/v1/{secret_id}": {
         parameters: {
             query?: never;
@@ -768,6 +784,14 @@ export interface components {
             items: components["schemas"]["DataEncryptionKeyListItem"][];
             next_page_token?: string;
         };
+        DecryptedSecret: {
+            created_at: components["schemas"]["WrappedChronoDateTime"];
+            decrypted_value: string;
+            dek_alias: string;
+            id: components["schemas"]["WrappedUuidV4"];
+            key: string;
+            updated_at: components["schemas"]["WrappedChronoDateTime"];
+        };
         /** @description Data encryption key configuration */
         DekConfig: {
             encrypted_key: string;
@@ -789,11 +813,10 @@ export interface components {
         EncryptedDataEncryptionKey: string;
         /** @description Top-level encryption configuration */
         EncryptionConfig: {
-            /** @description Map of alias name -> DEK id */
-            aliases?: {
-                [key: string]: string;
-            } | null;
-            /** @description Map of envelope key id (ARN or location) -> envelope key configuration with nested DEKs */
+            /**
+             * @description Map of envelope key id (ARN or location) -> envelope key configuration with nested DEKs
+             *     DEKs are stored by their alias name (e.g., "default") rather than UUID
+             */
             envelope_keys?: {
                 [key: string]: components["schemas"]["EnvelopeKeyConfig"];
             } | null;
@@ -804,7 +827,7 @@ export interface components {
             /** @enum {string} */
             type: "aws_kms";
         } | {
-            file_name: string;
+            location: string;
             /** @enum {string} */
             type: "local";
         };
@@ -825,7 +848,7 @@ export interface components {
             deks?: {
                 [key: string]: components["schemas"]["DekConfig"];
             } | null;
-            file_name: string;
+            location: string;
             /** @enum {string} */
             type: "local";
         };
@@ -890,6 +913,10 @@ export interface components {
             [key: string]: unknown;
         };
         JsonrpcRequest: Record<string, never>;
+        ListDecryptedSecretsResponse: {
+            next_page_token?: string | null;
+            secrets: components["schemas"]["DecryptedSecret"][];
+        };
         ListSecretsResponse: {
             next_page_token?: string | null;
             secrets: components["schemas"]["Secret"][];
@@ -1020,7 +1047,6 @@ export interface components {
             secrets?: {
                 [key: string]: components["schemas"]["SecretConfig"];
             } | null;
-            version: string;
         };
         StartUserCredentialBrokeringParamsInner: {
             provider_instance_id: string;
@@ -3225,6 +3251,65 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    "list-decrypted-secrets": {
+        parameters: {
+            query: {
+                page_size: number;
+                next_page_token?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List secrets with decrypted values */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDecryptedSecretsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

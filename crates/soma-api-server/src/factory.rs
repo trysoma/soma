@@ -15,9 +15,9 @@ use tracing::{error, info, warn};
 
 use crate::logic::on_change_pubsub::{SomaChangeTx, create_soma_change_channel, run_change_pubsub};
 use crate::logic::task::ConnectionManager;
-use crate::repository::{Repository, setup_repository};
+use crate::repository::setup_repository;
 use crate::restate::RestateServerParams;
-use crate::sdk::{determine_sdk_runtime, sdk_provider_sync, start_sdk_server_subsystem};
+use crate::sdk::{SdkRuntime, determine_sdk_runtime, sdk_provider_sync};
 use crate::subsystems::Subsystems;
 use crate::{ApiService, InitApiServiceParams};
 
@@ -131,13 +131,11 @@ pub async fn create_api_service(
 
     // Start SDK server subsystem
     info!("Starting SDK server...");
-    let sdk_server_handle = start_sdk_server_subsystem::<Repository>(
+    let sdk_server_handle = start_sdk_server_subsystem(
         project_dir.clone(),
         sdk_runtime,
         sdk_port,
         system_shutdown_signal.subscribe(),
-        repository.clone(),
-        crypto_cache.clone(),
     )?;
 
     // Wait for SDK server and sync providers
@@ -239,7 +237,7 @@ pub async fn create_api_service(
     // Start SDK sync watcher
     info!("Starting SDK sync watcher...");
     let sdk_sync_handle = start_sdk_sync_subsystem(
-        socket_path.clone(),
+        socket_path,
         restate_params,
         sdk_port,
         system_shutdown_signal.subscribe(),
@@ -263,48 +261,6 @@ pub async fn create_api_service(
         system_shutdown_signal.subscribe(),
     )?;
 
-    // Start secret sync subsystem
-    info!("Starting secret sync subsystem...");
-    let secret_sync_rx = secret_change_tx.subscribe();
-    let secret_sync_handle = crate::logic::secret_sync::start_secret_sync_subsystem(
-        repository.clone(),
-        crypto_cache.clone(),
-        socket_path.clone(),
-        secret_sync_rx,
-        system_shutdown_signal.subscribe(),
-    )?;
-
-    // Perform initial secret sync to SDK
-    info!("Performing initial secret sync to SDK...");
-    match crate::logic::secret_sync::fetch_and_decrypt_all_secrets(&repository, &crypto_cache).await
-    {
-        Ok(secrets) => {
-            if !secrets.is_empty() {
-                info!("Found {} secrets to sync to SDK", secrets.len());
-                if let Ok(mut client) =
-                    shared::uds::create_soma_unix_socket_client(&socket_path).await
-                {
-                    match crate::logic::secret_sync::sync_secrets_to_sdk(&mut client, secrets).await
-                    {
-                        Ok(()) => {
-                            info!("Initial secret sync completed successfully");
-                        }
-                        Err(e) => {
-                            warn!("Failed to perform initial secret sync: {:?}", e);
-                            // Don't fail startup - secrets will be synced on next change
-                        }
-                    }
-                }
-            } else {
-                info!("No secrets to sync on startup");
-            }
-        }
-        Err(e) => {
-            warn!("Failed to fetch secrets for initial sync: {:?}", e);
-            // Don't fail startup - secrets will be synced on next change
-        }
-    }
-
     Ok(ApiServiceBundle {
         api_service,
         subsystems: Subsystems {
@@ -313,10 +269,41 @@ pub async fn create_api_service(
             mcp: Some(mcp_handle),
             credential_rotation: Some(credential_rotation_handle),
             bridge_client_generation: Some(bridge_client_gen_handle),
-            secret_sync: Some(secret_sync_handle),
         },
         soma_change_tx,
     })
+}
+
+fn start_sdk_server_subsystem(
+    project_dir: PathBuf,
+    sdk_runtime: SdkRuntime,
+    sdk_port: u16,
+    shutdown_rx: broadcast::Receiver<()>,
+) -> Result<SubsystemHandle, CommonError> {
+    use crate::sdk::{StartDevSdkParams, start_dev_sdk};
+
+    let (handle, signal) = SubsystemHandle::new("SDK Server");
+
+    tokio::spawn(async move {
+        match start_dev_sdk(StartDevSdkParams {
+            project_dir,
+            sdk_runtime,
+            sdk_port,
+            kill_signal_rx: shutdown_rx,
+        })
+        .await
+        {
+            Ok(()) => {
+                signal.signal_with_message("stopped gracefully");
+            }
+            Err(e) => {
+                error!("SDK server stopped with error: {:?}", e);
+                signal.signal();
+            }
+        }
+    });
+
+    Ok(handle)
 }
 
 fn start_mcp_subsystem(

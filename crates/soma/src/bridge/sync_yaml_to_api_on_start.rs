@@ -77,78 +77,53 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 }
 
                 // 1b. Sync DEKs for this envelope key
+                // DEKs in YAML are now keyed by their alias (e.g., "default")
                 if let Some(deks) = envelope_key_config.deks() {
-                    // Get existing DEKs for this envelope key
-                    let existing_deks: HashSet<String> = {
-                        let mut dek_ids = HashSet::new();
-                        let mut next_page_token: Option<String> = None;
-                        loop {
-                            let response = default_api::list_data_encryption_keys_by_envelope(
+                    // Import missing DEKs - check by alias
+                    for (alias, dek_config) in deks {
+                        // Check if a DEK with this alias already exists
+                        let alias_exists = default_api::get_dek_by_alias_or_id(api_config, alias)
+                            .await
+                            .is_ok();
+
+                        if !alias_exists {
+                            // Import the DEK (will generate a new ID)
+                            let import_params = models::ImportDataEncryptionKeyParamsRoute {
+                                id: None, // Let the server generate the ID
+                                encrypted_data_encryption_key: dek_config.encrypted_key.clone(),
+                            };
+                            let imported_dek = default_api::import_data_encryption_key(
                                 api_config,
                                 key_id,
-                                100,
-                                next_page_token.as_deref(),
+                                import_params,
                             )
                             .await
                             .map_err(|e| {
                                 CommonError::Unknown(anyhow::anyhow!(
-                                    "Failed to list DEKs for envelope key '{key_id}': {e:?}"
+                                    "Failed to import DEK with alias '{alias}' under envelope key '{key_id}': {e:?}"
                                 ))
                             })?;
+                            info!(
+                                "Imported DEK with ID '{}' under envelope key '{}'",
+                                imported_dek.id, key_id
+                            );
 
-                            for dek in response.items {
-                                dek_ids.insert(dek.id);
-                            }
-                            if response.next_page_token.is_none() {
-                                break;
-                            }
-                            next_page_token = response.next_page_token;
-                        }
-                        dek_ids
-                    };
-
-                    // Import missing DEKs
-                    for (dek_id, dek_config) in deks {
-                        if !existing_deks.contains(dek_id) {
-                            let import_params = models::ImportDataEncryptionKeyParamsRoute {
-                                id: Some(Some(dek_id.clone())),
-                                encrypted_data_encryption_key: dek_config.encrypted_key.clone(),
+                            // Create the alias for the imported DEK
+                            let create_alias_req = models::CreateDekAliasRequest {
+                                alias: alias.clone(),
+                                dek_id: imported_dek.id.clone(),
                             };
-                            default_api::import_data_encryption_key(api_config, key_id, import_params)
+                            default_api::create_dek_alias(api_config, create_alias_req)
                                 .await
                                 .map_err(|e| {
                                     CommonError::Unknown(anyhow::anyhow!(
-                                        "Failed to import DEK '{dek_id}' under envelope key '{key_id}': {e:?}"
+                                        "Failed to create DEK alias '{alias}' -> '{}': {e:?}",
+                                        imported_dek.id
                                     ))
                                 })?;
-                            info!("Imported DEK '{}' under envelope key '{}'", dek_id, key_id);
+                            info!("Created DEK alias '{}' -> '{}'", alias, imported_dek.id);
                         }
                     }
-                }
-            }
-        }
-
-        // 1c. Sync DEK aliases
-        if let Some(aliases) = &encryption_config.aliases {
-            for (alias, dek_id) in aliases {
-                // Check if alias exists by trying to get DEK by alias
-                let alias_exists = default_api::get_dek_by_alias_or_id(api_config, alias)
-                    .await
-                    .is_ok();
-
-                if !alias_exists {
-                    let create_alias_req = models::CreateDekAliasRequest {
-                        alias: alias.clone(),
-                        dek_id: dek_id.clone(),
-                    };
-                    default_api::create_dek_alias(api_config, create_alias_req)
-                        .await
-                        .map_err(|e| {
-                            CommonError::Unknown(anyhow::anyhow!(
-                                "Failed to create DEK alias '{alias}' -> '{dek_id}': {e:?}"
-                            ))
-                        })?;
-                    info!("Created DEK alias '{}' -> '{}'", alias, dek_id);
                 }
             }
         }
@@ -407,41 +382,42 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
             let mut keys = HashSet::new();
             let mut next_page_token: Option<String> = None;
             loop {
-                let response =
-                    default_api::list_secrets(api_config, 100, next_page_token.as_deref())
-                        .await
-                        .map_err(|e| {
-                            CommonError::Unknown(anyhow::anyhow!("Failed to list secrets: {e:?}"))
-                        })?;
+                let response = default_api::list_secrets(api_config, 100, next_page_token.as_deref())
+                    .await
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!("Failed to list secrets: {e:?}"))
+                    })?;
 
                 for secret in response.secrets {
                     keys.insert(secret.key);
                 }
-                let next_token = response.next_page_token.flatten();
-                if next_token.is_none() {
-                    break;
+                // Handle doubly wrapped Option<Option<String>> from generated API client
+                match response.next_page_token.flatten() {
+                    Some(token) if !token.is_empty() => {
+                        next_page_token = Some(token);
+                    }
+                    _ => break,
                 }
-                next_page_token = next_token;
             }
             keys
         };
 
-        // Import secrets from yaml (secrets are already encrypted in soma.yaml)
+        // Create or update secrets from yaml
         for (key, secret_config) in secrets {
             if !existing_secrets.contains(key) {
-                let import_req = models::ImportSecretRequest {
+                let create_req = models::CreateSecretRequest {
                     key: key.clone(),
-                    encrypted_value: secret_config.value.clone(),
+                    raw_value: secret_config.value.clone(),
                     dek_alias: secret_config.dek_alias.clone(),
                 };
-                default_api::import_secret(api_config, import_req)
+                default_api::create_secret(api_config, create_req)
                     .await
                     .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(
-                            "Failed to import secret '{key}': {e:?}"
+                            "Failed to create secret '{key}': {e:?}"
                         ))
                     })?;
-                info!("Imported secret '{}'", key);
+                info!("Created secret '{}'", key);
             }
         }
     }
@@ -455,7 +431,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
 fn get_envelope_key_id(key: &models::EnvelopeEncryptionKey) -> String {
     match key {
         models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(aws_kms) => aws_kms.arn.clone(),
-        models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(local) => local.file_name.clone(),
+        models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(local) => local.location.clone(),
     }
 }
 
@@ -474,10 +450,10 @@ fn envelope_key_config_to_api_model(
                 },
             ))
         }
-        EnvelopeKeyConfig::Local { file_name, .. } => {
+        EnvelopeKeyConfig::Local { location, .. } => {
             models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(Box::new(
                 models::EnvelopeEncryptionKeyOneOf1 {
-                    file_name: file_name.clone(),
+                    location: location.clone(),
                     r#type: models::envelope_encryption_key_one_of_1::Type::Local,
                 },
             ))

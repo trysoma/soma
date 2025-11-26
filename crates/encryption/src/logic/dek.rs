@@ -123,9 +123,9 @@ where
             arn: arn.clone(),
             region: region.clone(),
         },
-        EnvelopeEncryptionKey::Local { file_name } => {
+        EnvelopeEncryptionKey::Local { location } => {
             crate::logic::envelope::get_or_create_local_envelope_encryption_key(
-                &crate::logic::envelope::resolve_local_key_path_from_cwd(file_name)?,
+                &std::path::PathBuf::from(location),
             )?
         }
     };
@@ -173,14 +173,14 @@ where
             }
 
             EnvelopeEncryptionKeyContents::Local {
-                file_name,
+                location,
                 key_bytes,
             } => {
                 // --- Local path (no AWS involved) ---
                 if key_bytes.len() != 32 {
                     return Err(CommonError::Unknown(anyhow::anyhow!(
                         "Invalid KEK length in {} (expected 32 bytes, got {})",
-                        file_name,
+                        location,
                         key_bytes.len()
                     )));
                 }
@@ -279,10 +279,10 @@ where
             arn: arn.clone(),
             region: region.clone(),
         },
-        EnvelopeEncryptionKey::Local { file_name } => {
-            crate::logic::envelope::get_local_envelope_encryption_key(
-                &crate::logic::envelope::resolve_local_key_path_from_cwd(file_name)?,
-            )?
+        EnvelopeEncryptionKey::Local { location } => {
+            crate::logic::envelope::get_local_envelope_encryption_key(&std::path::PathBuf::from(
+                location,
+            ))?
         }
     };
 
@@ -423,9 +423,9 @@ fn matches_envelope_key_id(id1: &EnvelopeEncryptionKey, id2: &EnvelopeEncryption
             },
         ) => arn1 == arn2 && region1 == region2,
         (
-            EnvelopeEncryptionKey::Local { file_name: name1 },
-            EnvelopeEncryptionKey::Local { file_name: name2 },
-        ) => name1 == name2,
+            EnvelopeEncryptionKey::Local { location: loc1 },
+            EnvelopeEncryptionKey::Local { location: loc2 },
+        ) => loc1 == loc2,
         _ => false,
     }
 }
@@ -486,14 +486,10 @@ mod tests {
         let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
         std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
 
-        let file_name = temp_file
-            .path()
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| temp_file.path().to_string_lossy().to_string());
+        let location = temp_file.path().to_string_lossy().to_string();
 
         let contents = EnvelopeEncryptionKeyContents::Local {
-            file_name: file_name.clone(),
+            location: location.clone(),
             key_bytes: kek_bytes.to_vec(),
         };
 
@@ -524,8 +520,8 @@ mod tests {
 
         // Create envelope key first
         let envelope_key = EnvelopeEncryptionKey::Local {
-            file_name: match &local_key {
-                EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
+            location: match &local_key {
+                EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
                 _ => panic!("Expected local key"),
             },
         };
@@ -580,8 +576,8 @@ mod tests {
 
         // Create envelope key first
         let envelope_key = EnvelopeEncryptionKey::Local {
-            file_name: match &local_key {
-                EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
+            location: match &local_key {
+                EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
                 _ => panic!("Expected local key"),
             },
         };
@@ -684,9 +680,9 @@ mod tests {
 
         let (_temp_file, local_key_contents) = create_temp_local_key();
         let envelope_key =
-            if let EnvelopeEncryptionKeyContents::Local { file_name, .. } = &local_key_contents {
+            if let EnvelopeEncryptionKeyContents::Local { location, .. } = &local_key_contents {
                 EnvelopeEncryptionKey::Local {
-                    file_name: file_name.clone(),
+                    location: location.clone(),
                 }
             } else {
                 panic!("Expected local key");
@@ -741,8 +737,8 @@ mod tests {
 
         // Create envelope key first
         let envelope_key = EnvelopeEncryptionKey::Local {
-            file_name: match &local_key {
-                EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
+            location: match &local_key {
+                EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
                 _ => panic!("Expected local key"),
             },
         };

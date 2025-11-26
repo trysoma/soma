@@ -51,7 +51,3 @@ coverage/
 .cargo/config.toml.tmp
 openapi-prev.json
 release-changes.tar.gz
-
-# Local encryption keys directory (created during tests and runtime)
-# Ignore .soma/envelope-encryption-keys/ but keep .soma/bridge.ts
-**/.soma/envelope-encryption-keys/

@@ -1,1 +1,51 @@
-version: 0.0.2
+encryption:
+  envelope_keys:
+    /Users/danielblignaut/Development/soma/soma/./js/examples/insurance-claim-bot/.soma/envelope-key.bin:
+      type: local
+      location: /Users/danielblignaut/Development/soma/soma/./js/examples/insurance-claim-bot/.soma/envelope-key.bin
+      deks:
+        default:
+          encrypted_key: eM4T9b6FfE4VVQh3A3zIT1hz9hujxjf5DYktUdvYllhNum79safLUtF9YL4jwSXN2dDFv/L90XZAyuI4
+bridge:
+  providers:
+    dc14fe03-944a-433f-a5a6-3c5895ba3026:
+      provider_controller_type_id: stripe
+      credential_controller_type_id: api_key
+      display_name: internal
+      resource_server_credential:
+        id: b7d8e0ac-7e00-4930-8747-cd5078fcf841
+        type_id: resource_server_api_key
+        metadata: {}
+        value:
+          api_key: 9jNbvmHGX05FLKp7psflU1TZ7BCK7LB5o/a3cc10UQ==
+          metadata: {}
+        dek_alias: default
+      user_credential:
+        id: 9ec52c9d-800f-47c6-a521-65e6d039473d
+        type_id: user_api_key
+        metadata: {}
+        value:
+          metadata: {}
+        dek_alias: default
+      functions:
+      - stripe_process_refund
+    94131f8d-66c0-45c0-856f-eafbd8aab791:
+      provider_controller_type_id: approve-claim
+      credential_controller_type_id: no_auth
+      display_name: test
+      resource_server_credential:
+        id: b280c576-b03a-4ea7-873c-146ba954fdbf
+        type_id: resource_server_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        dek_alias: default
+      user_credential:
+        id: 7e4ed69e-09ac-4fb9-8bb8-f5004f58d916
+        type_id: user_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        dek_alias: default
+      functions:
+      - approve-claim

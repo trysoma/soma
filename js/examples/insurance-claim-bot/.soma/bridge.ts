@@ -69,6 +69,13 @@ export type ApproveClaimApproveClaimResult = { approved: boolean };
 
 
 
+export type StripeStripeProcessRefundParams = { refund_id: string };
+export type StripeStripeProcessRefundResult = { success: boolean };
+
+
+
+
+
 // Provider: approve-claim
 export interface ApproveClaim {
   
@@ -80,10 +87,23 @@ export interface ApproveClaim {
   
 }
 
+// Provider: stripe
+export interface Stripe {
+  
+  "internal": {
+    
+    processRefund: (params: StripeStripeProcessRefundParams) => Promise<StripeStripeProcessRefundResult>;
+    
+  };
+  
+}
+
 
 export interface Bridge {
   
   approveClaim: ApproveClaim;
+  
+  stripe: Stripe;
   
 }
 
@@ -113,10 +133,33 @@ export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
     
   };
   
+  const stripe: Stripe = {
+    
+    "internal": {
+      
+      processRefund: async (params: StripeStripeProcessRefundParams): Promise<StripeStripeProcessRefundResult> => {
+        return invokeBridgeFunction<StripeStripeProcessRefundParams, StripeStripeProcessRefundResult>(
+          ctx,
+          'stripe',
+          'internal',
+          'processRefund',
+          'dc14fe03-944a-433f-a5a6-3c5895ba3026',
+          'stripe_process_refund',
+          params,
+          baseUrl
+        );
+      },
+      
+    },
+    
+  };
+  
 
   return {
     
     approveClaim: approveClaim,
+    
+    stripe: stripe,
     
   };
 }

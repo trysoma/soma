@@ -2634,6 +2634,84 @@
         }
       }
     },
+    "/api/secret/v1/list-decrypted": {
+      "get": {
+        "operationId": "list-decrypted-secrets",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List secrets with decrypted values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDecryptedSecretsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/secret/v1/{secret_id}": {
       "get": {
         "operationId": "get-secret-by-id",
@@ -3936,6 +4014,37 @@
           }
         }
       },
+      "DecryptedSecret": {
+        "type": "object",
+        "required": [
+          "id",
+          "key",
+          "decrypted_value",
+          "dek_alias",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "decrypted_value": {
+            "type": "string"
+          },
+          "dek_alias": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          },
+          "key": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
       "DekConfig": {
         "type": "object",
         "description": "Data encryption key configuration",
@@ -3987,25 +4096,12 @@
         "type": "object",
         "description": "Top-level encryption configuration",
         "properties": {
-          "aliases": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "description": "Map of alias name -> DEK id",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          },
           "envelope_keys": {
             "type": [
               "object",
               "null"
             ],
-            "description": "Map of envelope key id (ARN or location) -> envelope key configuration with nested DEKs",
+            "description": "Map of envelope key id (ARN or location) -> envelope key configuration with nested DEKs\nDEKs are stored by their alias name (e.g., \"default\") rather than UUID",
             "additionalProperties": {
               "$ref": "#/components/schemas/EnvelopeKeyConfig"
             },
@@ -4042,11 +4138,11 @@
           {
             "type": "object",
             "required": [
-              "file_name",
+              "location",
               "type"
             ],
             "properties": {
-              "file_name": {
+              "location": {
                 "type": "string"
               },
               "type": {
@@ -4115,7 +4211,7 @@
           {
             "type": "object",
             "required": [
-              "file_name",
+              "location",
               "type"
             ],
             "properties": {
@@ -4131,7 +4227,7 @@
                   "type": "string"
                 }
               },
-              "file_name": {
+              "location": {
                 "type": "string"
               },
               "type": {
@@ -4402,6 +4498,26 @@
       },
       "JsonrpcRequest": {
         "type": "object"
+      },
+      "ListDecryptedSecretsResponse": {
+        "type": "object",
+        "required": [
+          "secrets"
+        ],
+        "properties": {
+          "next_page_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecryptedSecret"
+            }
+          }
+        }
       },
       "ListSecretsResponse": {
         "type": "object",
@@ -4964,9 +5080,6 @@
       },
       "SomaAgentDefinition": {
         "type": "object",
-        "required": [
-          "version"
-        ],
         "properties": {
           "bridge": {
             "oneOf": [
@@ -4999,9 +5112,6 @@
             "propertyNames": {
               "type": "string"
             }
-          },
-          "version": {
-            "type": "string"
           }
         }
       },

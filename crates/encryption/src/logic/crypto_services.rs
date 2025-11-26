@@ -9,7 +9,6 @@ use crate::logic::dek::{DataEncryptionKey, DecryptedDataEncryptionKey};
 use crate::logic::envelope::{
     EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents, decrypt_dek,
     get_local_envelope_encryption_key, get_or_create_local_envelope_encryption_key,
-    resolve_local_key_path_from_cwd,
 };
 use crate::repository::DataEncryptionKeyRepositoryLike;
 
@@ -33,15 +32,15 @@ impl CryptoService {
         let mut envelop_key_match = false;
 
         if let EnvelopeEncryptionKeyContents::Local {
-            file_name,
+            location,
             key_bytes: _,
         } = &envelope_encryption_key_contents
             && let EnvelopeEncryptionKey::Local {
-                file_name: data_encryption_key_file_name,
+                location: data_encryption_key_location,
                 ..
             } = &data_encryption_key.envelope_encryption_key_id
         {
-            envelop_key_match = file_name == data_encryption_key_file_name;
+            envelop_key_match = location == data_encryption_key_location;
         } else if let EnvelopeEncryptionKeyContents::AwsKms { arn, region } =
             &envelope_encryption_key_contents
             && let EnvelopeEncryptionKey::AwsKms {
@@ -329,9 +328,9 @@ pub async fn init_crypto_cache(cache: &CryptoCache) -> Result<(), CommonError> {
                     region: region.clone(),
                 }
             }
-            EnvelopeEncryptionKey::Local { file_name } => {
-                // Load the key bytes from the file (resolve path from cwd)
-                get_local_envelope_encryption_key(&resolve_local_key_path_from_cwd(file_name)?)?
+            EnvelopeEncryptionKey::Local { location } => {
+                // Load the key bytes from the file
+                get_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
             }
         };
 
@@ -377,8 +376,8 @@ pub async fn get_encryption_service_cached(
             arn: arn.clone(),
             region: region.clone(),
         },
-        EnvelopeEncryptionKey::Local { file_name } => {
-            get_or_create_local_envelope_encryption_key(&resolve_local_key_path_from_cwd(file_name)?)?
+        EnvelopeEncryptionKey::Local { location } => {
+            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
     };
 
@@ -418,8 +417,8 @@ pub async fn get_decryption_service_cached(
             arn: arn.clone(),
             region: region.clone(),
         },
-        EnvelopeEncryptionKey::Local { file_name } => {
-            get_or_create_local_envelope_encryption_key(&resolve_local_key_path_from_cwd(file_name)?)?
+        EnvelopeEncryptionKey::Local { location } => {
+            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
         }
     };
 

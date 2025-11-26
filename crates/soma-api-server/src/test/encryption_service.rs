@@ -1,37 +1,24 @@
-use encryption::logic::EncryptionKeyEventSender;
 use encryption::logic::crypto_services::{
     CryptoCache, CryptoService, DecryptionService, EncryptionService,
 };
 use encryption::logic::dek::DataEncryptionKey;
 use encryption::logic::envelope::EnvelopeEncryptionKeyContents;
+use encryption::logic::EncryptionKeyEventSender;
 use encryption::repository::{DataEncryptionKeyRepositoryLike, EncryptionKeyRepositoryLike};
 use shared::primitives::{SqlMigrationLoader, WrappedChronoDateTime};
 use tokio::sync::broadcast;
 
-/// Creates a temporary KEK file in .soma/envelope-encryption-keys/ relative to cwd for local encryption tests
-/// This matches the production path resolution logic
+/// Creates a temporary KEK file in the system temp directory for local encryption tests
 pub fn create_temp_kek_file() -> (tempfile::TempDir, EnvelopeEncryptionKeyContents) {
-    // Create a unique file name for this test
-    let unique_file_name = format!("test-kek-{}", uuid::Uuid::new_v4());
+    // Create temp directory in system tmp
+    let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
 
-    // Get the current working directory
-    let cwd = std::env::current_dir().expect("Failed to get current working directory");
-
-    // Create the .soma/envelope-encryption-keys directory if it doesn't exist
-    let keys_dir = cwd
-        .join(".soma")
-        .join(encryption::logic::envelope::LOCAL_KEYS_SUBDIRECTORY);
-    std::fs::create_dir_all(&keys_dir).expect("Failed to create keys directory");
-
-    // Generate a path for the KEK file
-    let path = keys_dir.join(&unique_file_name);
+    // Generate a path for the KEK file (don't create the file yet)
+    let path = temp_dir.path().join("test-kek");
 
     // Use get_or_create_local_envelope_encryption_key to generate and write the key
     let contents = encryption::logic::envelope::get_or_create_local_envelope_encryption_key(&path)
         .expect("Failed to create local encryption key");
-
-    // Create a temp dir just to hold the reference (for cleanup tracking)
-    let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
 
     (temp_dir, contents)
 }
@@ -114,10 +101,10 @@ pub async fn setup_test_encryption(alias: &str) -> TestEncryptionSetup {
     let encryption_repo = encryption::repository::Repository::new(enc_conn);
 
     // First create the envelope encryption key
-    let (key_type, local_file_name, aws_arn, aws_region) = match &dek.envelope_encryption_key_id {
-        encryption::logic::envelope::EnvelopeEncryptionKey::Local { file_name } => (
+    let (key_type, local_location, aws_arn, aws_region) = match &dek.envelope_encryption_key_id {
+        encryption::logic::envelope::EnvelopeEncryptionKey::Local { location } => (
             encryption::repository::EnvelopeEncryptionKeyType::Local,
-            Some(file_name.clone()),
+            Some(location.clone()),
             None,
             None,
         ),
@@ -133,7 +120,7 @@ pub async fn setup_test_encryption(alias: &str) -> TestEncryptionSetup {
         .create_envelope_encryption_key(&encryption::repository::CreateEnvelopeEncryptionKey {
             id: dek.envelope_encryption_key_id.id(),
             key_type,
-            local_file_name,
+            local_location,
             aws_arn,
             aws_region,
             created_at: WrappedChronoDateTime::now(),
@@ -165,11 +152,8 @@ pub async fn setup_test_encryption(alias: &str) -> TestEncryptionSetup {
     // The cache will populate on-demand when services are requested
 
     // Create the EncryptionService for router use
-    let encryption_service = encryption::router::EncryptionService::new(
-        encryption_repo,
-        encryption_event_tx.clone(),
-        cache.clone(),
-    );
+    let encryption_service =
+        encryption::router::EncryptionService::new(encryption_repo, encryption_event_tx.clone(), cache.clone());
 
     TestEncryptionSetup {
         crypto_cache: cache,

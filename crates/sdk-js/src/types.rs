@@ -86,7 +86,7 @@ pub struct InvokeFunctionRequest {
 
 #[derive(Debug, Clone)]
 #[napi(object)]
-pub struct CallbackError {
+pub struct InvokeError {
     pub message: String,
 }
 
@@ -94,7 +94,7 @@ pub struct CallbackError {
 #[napi(object)]
 pub struct InvokeFunctionResponse {
     pub data: Option<String>,
-    pub error: Option<CallbackError>,
+    pub error: Option<InvokeError>,
 }
 
 #[napi(object)]
@@ -138,26 +138,4 @@ pub struct GenerateBridgeClientSuccess {
 #[napi(object)]
 pub struct GenerateBridgeClientError {
     pub message: String,
-}
-
-/// A secret with a key and decrypted value
-#[derive(Debug, Clone)]
-#[napi(object)]
-pub struct Secret {
-    pub key: String,
-    pub value: String,
-}
-
-#[derive(Debug, Clone)]
-#[napi(object)]
-pub struct SetSecretsSuccess {
-    pub message: String,
-}
-
-/// Response from setting secrets
-#[derive(Debug, Clone)]
-#[napi(object)]
-pub struct SetSecretsResponse {
-    pub data: Option<SetSecretsSuccess>,
-    pub error: Option<CallbackError>,
 }

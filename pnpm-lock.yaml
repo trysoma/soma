@@ -411,7 +411,7 @@ importers:
         specifier: 2.2.5
         version: 2.2.5
       '@types/node':
-        specifier: ^22.18.12
+        specifier: ^22.18.10
         version: 22.18.12
       vite:
         specifier: ^7.1.12

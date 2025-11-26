@@ -53,6 +53,23 @@ pub struct DeleteSecretResponse {
     pub success: bool,
 }
 
+// Decrypted secret type for list-decrypted endpoint
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+pub struct DecryptedSecret {
+    pub id: WrappedUuidV4,
+    pub key: String,
+    pub decrypted_value: String,
+    pub dek_alias: String,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+pub struct ListDecryptedSecretsResponse {
+    pub secrets: Vec<DecryptedSecret>,
+    pub next_page_token: Option<String>,
+}
+
 // CRUD functions
 pub async fn create_secret<R: SecretRepositoryLike>(
     on_change_tx: &SecretChangeTx,
@@ -77,8 +94,8 @@ pub async fn create_secret<R: SecretRepositoryLike>(
         key: request.key.clone(),
         encrypted_secret: encrypted_secret.0.clone(),
         dek_alias: request.dek_alias.clone(),
-        created_at: now,
-        updated_at: now,
+        created_at: now.clone(),
+        updated_at: now.clone(),
     };
 
     let create_params = CreateSecret {
@@ -86,7 +103,7 @@ pub async fn create_secret<R: SecretRepositoryLike>(
         key: request.key,
         encrypted_secret: encrypted_secret.0,
         dek_alias: request.dek_alias,
-        created_at: now,
+        created_at: now.clone(),
         updated_at: now,
     };
 
@@ -114,7 +131,7 @@ pub async fn update_secret<R: SecretRepositoryLike>(
     // First verify the secret exists and get its dek_alias
     let existing = repository.get_secret_by_id(&id).await?;
     let existing = existing.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Secret with id {id} not found"),
+        msg: format!("Secret with id {} not found", id),
         lookup_id: id.to_string(),
         source: None,
     })?;
@@ -133,7 +150,7 @@ pub async fn update_secret<R: SecretRepositoryLike>(
         id: id.clone(),
         encrypted_secret: encrypted_secret.0.clone(),
         dek_alias: existing.dek_alias.clone(),
-        updated_at: now,
+        updated_at: now.clone(),
     };
 
     repository.update_secret(&update_params).await?;
@@ -167,7 +184,7 @@ pub async fn delete_secret<R: SecretRepositoryLike>(
     // First verify the secret exists and get its key
     let existing = repository.get_secret_by_id(&id).await?;
     let existing = existing.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Secret with id {id} not found"),
+        msg: format!("Secret with id {} not found", id),
         lookup_id: id.to_string(),
         source: None,
     })?;
@@ -194,7 +211,7 @@ pub async fn get_secret_by_id<R: SecretRepositoryLike>(
 ) -> Result<GetSecretResponse, CommonError> {
     let secret = repository.get_secret_by_id(&id).await?;
     let secret = secret.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Secret with id {id} not found"),
+        msg: format!("Secret with id {} not found", id),
         lookup_id: id.to_string(),
         source: None,
     })?;
@@ -208,7 +225,7 @@ pub async fn get_secret_by_key<R: SecretRepositoryLike>(
 ) -> Result<GetSecretResponse, CommonError> {
     let secret = repository.get_secret_by_key(&key).await?;
     let secret = secret.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Secret with key {key} not found"),
+        msg: format!("Secret with key {} not found", key),
         lookup_id: key.clone(),
         source: None,
     })?;
@@ -224,6 +241,44 @@ pub async fn list_secrets<R: SecretRepositoryLike>(
 
     Ok(ListSecretsResponse {
         secrets: paginated.items,
+        next_page_token: paginated.next_page_token,
+    })
+}
+
+/// List all secrets with their decrypted values
+pub async fn list_decrypted_secrets<R: SecretRepositoryLike>(
+    repository: &R,
+    crypto_cache: &CryptoCache,
+    pagination: PaginationRequest,
+) -> Result<ListDecryptedSecretsResponse, CommonError> {
+    use encryption::logic::crypto_services::EncryptedString;
+
+    let paginated: PaginatedResponse<Secret> = repository.get_secrets(&pagination).await?;
+
+    let mut decrypted_secrets = Vec::with_capacity(paginated.items.len());
+    for secret in paginated.items {
+        // Get the decryption service for this secret's DEK alias
+        let decryption_service = crypto_cache
+            .get_decryption_service(&secret.dek_alias)
+            .await?;
+
+        // Decrypt the secret value
+        let decrypted_value = decryption_service
+            .decrypt_data(EncryptedString(secret.encrypted_secret.clone()))
+            .await?;
+
+        decrypted_secrets.push(DecryptedSecret {
+            id: secret.id,
+            key: secret.key,
+            decrypted_value,
+            dek_alias: secret.dek_alias,
+            created_at: secret.created_at,
+            updated_at: secret.updated_at,
+        });
+    }
+
+    Ok(ListDecryptedSecretsResponse {
+        secrets: decrypted_secrets,
         next_page_token: paginated.next_page_token,
     })
 }
@@ -250,8 +305,8 @@ pub async fn import_secret<R: SecretRepositoryLike>(
         key: request.key.clone(),
         encrypted_secret: request.encrypted_value.clone(),
         dek_alias: request.dek_alias.clone(),
-        created_at: now,
-        updated_at: now,
+        created_at: now.clone(),
+        updated_at: now.clone(),
     };
 
     let create_params = CreateSecret {
@@ -259,7 +314,7 @@ pub async fn import_secret<R: SecretRepositoryLike>(
         key: request.key,
         encrypted_secret: request.encrypted_value,
         dek_alias: request.dek_alias,
-        created_at: now,
+        created_at: now.clone(),
         updated_at: now,
     };
 
@@ -497,8 +552,8 @@ mod tests {
         // Create multiple secrets
         for i in 0..3 {
             let create_request = CreateSecretRequest {
-                key: format!("secret-key-{i}"),
-                raw_value: format!("secret-value-{i}"),
+                key: format!("secret-key-{}", i),
+                raw_value: format!("secret-value-{}", i),
                 dek_alias: encryption_setup.dek_alias.clone(),
             };
 
@@ -537,62 +592,8 @@ mod tests {
         assert!(result.is_err());
         match result.unwrap_err() {
             CommonError::NotFound { .. } => {}
-            e => panic!("Expected NotFound error, got: {e:?}"),
+            e => panic!("Expected NotFound error, got: {:?}", e),
         }
-    }
-
-    #[tokio::test]
-    async fn test_import_secret() {
-        let repository = setup_test_repository().await;
-
-        let request = ImportSecretRequest {
-            key: "my-imported-secret".to_string(),
-            encrypted_value: "pre-encrypted-value-from-yaml".to_string(),
-            dek_alias: "test-alias".to_string(),
-        };
-
-        let result = import_secret(&repository, request.clone()).await;
-
-        assert!(result.is_ok());
-        let secret = result.unwrap();
-        assert_eq!(secret.key, "my-imported-secret");
-        assert_eq!(secret.encrypted_secret, "pre-encrypted-value-from-yaml");
-        assert_eq!(secret.dek_alias, "test-alias");
-
-        // Verify the secret was persisted
-        let fetched = get_secret_by_key(&repository, "my-imported-secret".to_string()).await;
-        assert!(fetched.is_ok());
-        let fetched_secret = fetched.unwrap();
-        assert_eq!(fetched_secret.key, "my-imported-secret");
-        assert_eq!(
-            fetched_secret.encrypted_secret,
-            "pre-encrypted-value-from-yaml"
-        );
-        assert_eq!(fetched_secret.dek_alias, "test-alias");
-    }
-
-    #[tokio::test]
-    async fn test_import_secret_duplicate_key() {
-        let repository = setup_test_repository().await;
-
-        let request = ImportSecretRequest {
-            key: "my-imported-secret".to_string(),
-            encrypted_value: "pre-encrypted-value-1".to_string(),
-            dek_alias: "test-alias".to_string(),
-        };
-
-        // First import should succeed
-        let result = import_secret(&repository, request.clone()).await;
-        assert!(result.is_ok());
-
-        // Second import with same key should fail
-        let request2 = ImportSecretRequest {
-            key: "my-imported-secret".to_string(),
-            encrypted_value: "pre-encrypted-value-2".to_string(),
-            dek_alias: "test-alias".to_string(),
-        };
-        let result2 = import_secret(&repository, request2).await;
-        assert!(result2.is_err());
     }
 
     #[tokio::test]

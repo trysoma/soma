@@ -5,7 +5,6 @@ mod typescript;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use encryption::logic::crypto_services::CryptoCache;
 use shared::restate;
 use shared::subsystem::SubsystemHandle;
 use shared::uds::{
@@ -17,8 +16,6 @@ use tracing::{error, info};
 
 use shared::error::CommonError;
 
-use crate::logic::secret_sync::fetch_and_decrypt_all_secrets;
-use crate::repository::SecretRepositoryLike;
 use crate::restate::RestateServerParams;
 use interface::{ClientCtx, SdkClient};
 use typescript::Typescript;
@@ -66,36 +63,21 @@ fn is_vite_project(src_dir: &Path) -> bool {
     src_dir.join("vite.config.ts").exists()
 }
 
-pub struct StartDevSdkParams<R: SecretRepositoryLike + Send + Sync> {
+pub struct StartDevSdkParams {
     pub project_dir: PathBuf,
     pub sdk_runtime: SdkRuntime,
     pub sdk_port: u16,
     pub kill_signal_rx: broadcast::Receiver<()>,
-    pub repository: R,
-    pub crypto_cache: CryptoCache,
 }
 
 /// Starts the development SDK server with hot reloading on file changes
-pub async fn start_dev_sdk<R: SecretRepositoryLike + Send + Sync>(
-    params: StartDevSdkParams<R>,
-) -> Result<(), CommonError> {
+pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError> {
     let StartDevSdkParams {
         project_dir,
         sdk_runtime: _sdk_runtime,
         sdk_port,
         kill_signal_rx,
-        repository,
-        crypto_cache,
     } = params;
-
-    // Fetch all secrets from the database
-    info!("Fetching initial secrets from database...");
-    let decrypted_secrets = fetch_and_decrypt_all_secrets(&repository, &crypto_cache).await?;
-    let initial_secrets: std::collections::HashMap<String, String> = decrypted_secrets
-        .into_iter()
-        .map(|s| (s.key, s.value))
-        .collect();
-    info!("Fetched {} initial secrets", initial_secrets.len());
 
     let typescript_client = Typescript::new();
     let ctx = ClientCtx {
@@ -103,7 +85,6 @@ pub async fn start_dev_sdk<R: SecretRepositoryLike + Send + Sync>(
         socket_path: DEFAULT_SOMA_SERVER_SOCK.to_string(),
         restate_runtime_port: sdk_port,
         kill_signal_rx: kill_signal_rx.resubscribe(),
-        initial_secrets,
     };
 
     if !is_vite_project(&project_dir) {
@@ -118,13 +99,11 @@ pub async fn start_dev_sdk<R: SecretRepositoryLike + Send + Sync>(
     Ok(())
 }
 
-pub fn start_sdk_server_subsystem<R: SecretRepositoryLike + Clone + Send + Sync + 'static>(
+pub fn start_sdk_server_subsystem(
     project_dir: PathBuf,
     sdk_runtime: SdkRuntime,
     sdk_port: u16,
     shutdown_rx: broadcast::Receiver<()>,
-    repository: R,
-    crypto_cache: CryptoCache,
 ) -> Result<SubsystemHandle, CommonError> {
     let (handle, signal) = SubsystemHandle::new("SDK Server");
 
@@ -134,8 +113,6 @@ pub fn start_sdk_server_subsystem<R: SecretRepositoryLike + Clone + Send + Sync 
             sdk_runtime,
             sdk_port,
             kill_signal_rx: shutdown_rx,
-            repository,
-            crypto_cache,
         })
         .await
         {

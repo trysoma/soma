@@ -5,10 +5,11 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::{
     logic::on_change_pubsub::SecretChangeTx,
     logic::secret::{
-        CreateSecretRequest, CreateSecretResponse, DeleteSecretResponse, GetSecretResponse,
-        ImportSecretRequest, ListSecretsResponse, Secret, UpdateSecretRequest,
-        UpdateSecretResponse, create_secret, delete_secret, get_secret_by_id, get_secret_by_key,
-        import_secret, list_secrets, update_secret,
+        create_secret, delete_secret, get_secret_by_id, get_secret_by_key, import_secret,
+        list_decrypted_secrets, list_secrets, update_secret, CreateSecretRequest,
+        CreateSecretResponse, DeleteSecretResponse, GetSecretResponse, ImportSecretRequest,
+        ListDecryptedSecretsResponse, ListSecretsResponse, Secret, UpdateSecretRequest,
+        UpdateSecretResponse,
     },
     repository::Repository,
 };
@@ -27,6 +28,7 @@ pub fn create_router() -> OpenApiRouter<Arc<SecretService>> {
         .routes(routes!(route_create_secret))
         .routes(routes!(route_import_secret))
         .routes(routes!(route_list_secrets))
+        .routes(routes!(route_list_decrypted_secrets))
         .routes(routes!(route_get_secret_by_id))
         .routes(routes!(route_get_secret_by_key))
         .routes(routes!(route_update_secret))
@@ -102,6 +104,34 @@ async fn route_list_secrets(
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListSecretsResponse, CommonError> {
     let res = list_secrets(&ctx.repository, pagination).await;
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/list-decrypted", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    params(
+        PaginationRequest
+    ),
+    responses(
+        (status = 200, description = "List secrets with decrypted values", body = ListDecryptedSecretsResponse),
+        (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    operation_id = "list-decrypted-secrets",
+)]
+async fn route_list_decrypted_secrets(
+    State(ctx): State<Arc<SecretService>>,
+    Query(pagination): Query<PaginationRequest>,
+) -> JsonResponse<ListDecryptedSecretsResponse, CommonError> {
+    let res = list_decrypted_secrets(
+        &ctx.repository,
+        ctx.encryption_service.cache(),
+        pagination,
+    )
+    .await;
     JsonResponse::from(res)
 }
 

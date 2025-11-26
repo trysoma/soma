@@ -244,16 +244,15 @@ function generateStandaloneServer(
 
 	const hasAgents = agentIndex > 0;
 
-	return `/// <reference types="node" />
-// Auto-generated standalone server
-import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler, SetSecretsResponse, SetSecretsSuccess, CallbackError, Secret } from '@trysoma/sdk';
+	return `// Auto-generated standalone server
+import { addFunction, addProvider, addAgent, startGrpcServer } from '@trysoma/sdk';
 import * as restate from '@restatedev/restate-sdk';
 import * as http2 from 'http2';
 
 ${functionImports.join("\n")}
 ${agentImports.join("\n")}
 
-console.log("SDK server starting...");
+	console.log("SDK server starting...");
 
 // Start gRPC server (don't await - it runs forever)
 const socketPath = process.env.SOMA_SERVER_SOCK || '/tmp/soma-sdk.sock';
@@ -267,37 +266,6 @@ startGrpcServer(socketPath, projectDir).catch(err => {
 await new Promise(resolve => setTimeout(resolve, 100));
 console.log(\`gRPC server started on \${socketPath}\`);
 
-// Register secret handler to inject secrets into process.env
-console.log('[INFO] Registering secret handler...');
-setSecretHandler(async (err, secrets) => {
-  if (err) {
-    console.error('Error in secret handler:', err);
-    const error: CallbackError = {
-      message: err.message,
-    }
-    const res: SetSecretsResponse = {
-      error
-    }
-    return res;
-  }
-  const secretKeys = secrets.map(s => s.key);
-  console.log(\`[INFO] Secret handler invoked with \${secrets.length} secrets: \${secretKeys.join(', ')}\`);
-  for (const secret of secrets) {
-    process.env[secret.key] = secret.value;
-    console.log(\`[INFO] Set process.env.\${secret.key}\`);
-  }
-  const message = \`Injected \${secrets.length} secrets into process.env\`;
-  console.log(\`[INFO] Secret handler completed: \${message}\`);
-  const data: SetSecretsSuccess = {
-    message,
-  }
-  const res: SetSecretsResponse = {
-    data,
-  }
-  return res;
-});
-console.log('[INFO] Secret handler registered successfully');
-
 // Register all providers and functions
 ${functionRegistrations.join("\n")}
 
@@ -309,6 +277,7 @@ ${
 	hasAgents
 		? `
 import { HandlerParams, SomaAgent } from "@trysoma/sdk/agent";
+import { Configuration as BridgeConfiguration } from '@trysoma/sdk/bridge';
 import { DefaultApi, Configuration as SomaConfiguration } from '@trysoma/api-client';
 import * as net from 'net';
 
@@ -318,8 +287,8 @@ interface RestateInput {
 }
 
 type RestateHandler = (ctx: restate.ObjectContext, input: RestateInput) => Promise<void>;
-type SomaHandler = (params: HandlerParams) => Promise<void>;
-const wrapHandler = (handler: SomaHandler, agent: SomaAgent): RestateHandler => {
+type SomaHandler<T> = (params: HandlerParams<T>) => Promise<void>;
+const wrapHandler = <T>(handler: SomaHandler<T>, agent: SomaAgent<T>): RestateHandler => {
   return async (ctx, input) => {
     const soma = new DefaultApi(new SomaConfiguration({
       basePath: process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000',

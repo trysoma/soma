@@ -12,8 +12,8 @@ pub use sqlite::Repository;
 
 use crate::logic::secret::Secret;
 use crate::logic::task::{
-    Message, MessagePart, MessageRole, Task, TaskEventUpdateType, TaskStatus, TaskTimelineItem,
-    TaskTimelineItemPayload, TaskWithDetails,
+    Message, MessagePart, MessageRole, Task, TaskEventUpdateType, TaskStatus,
+    TaskTimelineItem, TaskTimelineItemPayload, TaskWithDetails,
 };
 
 // Repository parameter structs
@@ -177,31 +177,16 @@ pub trait TaskRepositoryLike {
 }
 
 // Secret repository trait
-pub trait SecretRepositoryLike: Send + Sync {
-    fn create_secret(
-        &self,
-        params: &CreateSecret,
-    ) -> impl std::future::Future<Output = Result<(), CommonError>> + Send;
-    fn update_secret(
-        &self,
-        params: &UpdateSecret,
-    ) -> impl std::future::Future<Output = Result<(), CommonError>> + Send;
-    fn delete_secret(
-        &self,
-        id: &WrappedUuidV4,
-    ) -> impl std::future::Future<Output = Result<(), CommonError>> + Send;
-    fn get_secret_by_id(
-        &self,
-        id: &WrappedUuidV4,
-    ) -> impl std::future::Future<Output = Result<Option<Secret>, CommonError>> + Send;
-    fn get_secret_by_key(
-        &self,
-        key: &str,
-    ) -> impl std::future::Future<Output = Result<Option<Secret>, CommonError>> + Send;
-    fn get_secrets(
+pub trait SecretRepositoryLike {
+    async fn create_secret(&self, params: &CreateSecret) -> Result<(), CommonError>;
+    async fn update_secret(&self, params: &UpdateSecret) -> Result<(), CommonError>;
+    async fn delete_secret(&self, id: &WrappedUuidV4) -> Result<(), CommonError>;
+    async fn get_secret_by_id(&self, id: &WrappedUuidV4) -> Result<Option<Secret>, CommonError>;
+    async fn get_secret_by_key(&self, key: &str) -> Result<Option<Secret>, CommonError>;
+    async fn get_secrets(
         &self,
         pagination: &PaginationRequest,
-    ) -> impl std::future::Future<Output = Result<PaginatedResponse<Secret>, CommonError>> + Send;
+    ) -> Result<PaginatedResponse<Secret>, CommonError>;
 }
 
 // Repository setup utilities

@@ -38,7 +38,7 @@ replacements:
   - path: crates/sdk-js/package.json
     find: '	"version": ".*",'
     replace: '	"version": "{{.VersionNoPrefix}}",'
-  - path: crates/soma-frontend/app/package.json
+  - path: crates/soma/app/package.json
     find: '	"version": ".*",'
     replace: '	"version": "{{.VersionNoPrefix}}",'
   - path: js/packages/api-client/package.json
