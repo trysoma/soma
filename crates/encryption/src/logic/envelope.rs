@@ -1258,7 +1258,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "Requires AWS credentials"]
     async fn test_create_envelope_encryption_key_aws() {
         shared::setup_test!();
 
@@ -1502,7 +1501,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "Requires AWS credentials"]
     async fn test_migrate_data_encryption_key_local_to_aws() {
         shared::setup_test!();
 
@@ -1603,7 +1601,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "Requires AWS credentials"]
     async fn test_migrate_data_encryption_key_aws_to_aws() {
         shared::setup_test!();
 
@@ -1691,7 +1688,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "Requires AWS credentials"]
     async fn test_migrate_data_encryption_key_aws_to_local() {
         shared::setup_test!();
 

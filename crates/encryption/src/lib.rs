@@ -15,7 +15,6 @@ mod tests {
     const TEST_KMS_REGION: &str = "eu-west-2";
 
     #[tokio::test]
-    #[ignore = "Requires AWS credentials"]
     async fn test_encrypt_dek_with_aws_kms() {
         shared::setup_test!();
 
@@ -55,7 +54,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "Requires AWS credentials"]
     async fn test_decrypt_dek_with_aws_kms() {
         shared::setup_test!();
 
@@ -87,7 +85,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "Requires AWS credentials"]
     async fn test_encrypt_decrypt_roundtrip() {
         shared::setup_test!();
 
@@ -222,7 +219,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "Requires AWS credentials"]
     async fn test_encryption_service_aes_gcm_roundtrip() {
         shared::setup_test!();
 

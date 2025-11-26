@@ -127,7 +127,9 @@ impl From<EnvelopeKeyConfig> for EnvelopeEncryptionKey {
             EnvelopeKeyConfig::AwsKms { arn, region, .. } => {
                 EnvelopeEncryptionKey::AwsKms { arn, region }
             }
-            EnvelopeKeyConfig::Local { file_name, .. } => EnvelopeEncryptionKey::Local { file_name },
+            EnvelopeKeyConfig::Local { file_name, .. } => {
+                EnvelopeEncryptionKey::Local { file_name }
+            }
         }
     }
 }
