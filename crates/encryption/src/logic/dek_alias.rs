@@ -42,8 +42,8 @@ pub async fn create_alias<R>(
 where
     R: DataEncryptionKeyRepositoryLike,
 {
-    // Verify the DEK exists
-    let _dek = repo
+    // Fetch the full DEK to include in the event
+    let dek = repo
         .get_data_encryption_key_by_id(&params.dek_id)
         .await?
         .ok_or_else(|| {
@@ -70,10 +70,10 @@ where
     cache.invalidate_cache(&dek_id);
     cache.invalidate_cache(&alias_name);
 
-    // Publish event to trigger cache refresh
+    // Publish event with full DEK data
     let _ = on_change_tx.send(EncryptionKeyEvent::DataEncryptionKeyAliasAdded {
         alias: alias_name,
-        dek_id,
+        dek,
     });
 
     Ok(alias)
@@ -129,8 +129,8 @@ where
 
     let old_dek_id = existing_alias.data_encryption_key_id.clone();
 
-    // Verify the new DEK exists
-    let _ = repo
+    // Fetch the full new DEK to include in the event
+    let dek = repo
         .get_data_encryption_key_by_id(&params.new_dek_id)
         .await?
         .ok_or_else(|| {
@@ -151,10 +151,10 @@ where
     cache.invalidate_cache(&old_dek_id);
     cache.invalidate_cache(&new_dek_id);
 
-    // Publish event to trigger cache refresh
+    // Publish event with full DEK data
     let _ = on_change_tx.send(EncryptionKeyEvent::DataEncryptionKeyAliasUpdated {
         alias: alias_name.clone(),
-        dek_id: new_dek_id,
+        dek,
     });
 
     let updated_alias = DataEncryptionKeyAlias {

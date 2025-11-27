@@ -27,14 +27,14 @@ pub enum EncryptionKeyEvent {
     },
     DataEncryptionKeyAliasAdded {
         alias: String,
-        dek_id: String,
+        dek: DataEncryptionKey,
     },
     DataEncryptionKeyAliasRemoved {
         alias: String,
     },
     DataEncryptionKeyAliasUpdated {
         alias: String,
-        dek_id: String,
+        dek: DataEncryptionKey,
     },
 }
 

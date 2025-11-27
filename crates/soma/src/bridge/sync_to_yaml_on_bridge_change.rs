@@ -253,33 +253,14 @@ async fn handle_encryption_event(
             soma_definition.remove_envelope_key(eek_id).await?;
         }
         EncryptionKeyEvent::DataEncryptionKeyAdded(dek) => {
-            // Store DEK temporarily by its ID - it will be renamed to alias when alias is added
-            info!("Data encryption key added: {:?}", dek.id);
-            let envelope_key_id = dek.envelope_encryption_key_id.id();
-            soma_definition
-                .add_dek(envelope_key_id, dek.id, dek.encrypted_data_encryption_key.0)
-                .await?;
+            // DEK creation events are ignored - we only sync DEKs when aliases are added/updated
+            // This ensures we always have complete data (including alias) in YAML
+            info!("Data encryption key added: {:?} (ignoring - will sync when alias is added)", dek.id);
         }
         EncryptionKeyEvent::DataEncryptionKeyRemoved(dek_id) => {
-            info!("Data encryption key removed: {:?}", dek_id);
-            // Search all envelope keys to find and remove this DEK
-            // DEKs might be stored by UUID or alias
-            let definition = soma_definition.get_definition().await?;
-            if let Some(encryption) = &definition.encryption {
-                if let Some(envelope_keys) = &encryption.envelope_keys {
-                    for (envelope_key_id, config) in envelope_keys {
-                        if let Some(deks) = config.deks() {
-                            // Check if stored as UUID
-                            if deks.contains_key(&dek_id) {
-                                soma_definition
-                                    .remove_dek(envelope_key_id.clone(), dek_id.clone())
-                                    .await?;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
+            // DEK removal events are ignored - we only sync DEKs when aliases are added/updated/removed
+            // When a DEK is removed, its aliases are also removed, which will trigger alias removal events
+            info!("Data encryption key removed: {:?} (ignoring - will sync when alias is removed)", dek_id);
         }
         EncryptionKeyEvent::DataEncryptionKeyMigrated {
             old_dek_id,
@@ -355,25 +336,63 @@ async fn handle_encryption_event(
                 }
             }
         }
-        EncryptionKeyEvent::DataEncryptionKeyAliasAdded { alias, dek_id } => {
-            // Rename the DEK from its UUID to its alias in the YAML
-            // We need to find which envelope key contains this DEK
+        EncryptionKeyEvent::DataEncryptionKeyAliasAdded { alias, dek } => {
+            // Add or update the DEK in YAML with the alias as the key
+            // The event includes full DEK data, so we can add it directly
             info!(
-                "DEK alias added: {:?} -> {:?} - renaming DEK key in yaml",
-                alias, dek_id
+                "DEK alias added: {:?} -> {:?} - adding DEK to yaml",
+                alias, dek.id
             );
+            let envelope_key_id = dek.envelope_encryption_key_id.id();
+            
+            // Check if DEK already exists in YAML (by UUID or alias)
+            let definition = soma_definition.get_definition().await?;
+            let mut needs_add = true;
+            if let Some(encryption) = &definition.encryption {
+                if let Some(envelope_keys) = &encryption.envelope_keys {
+                    if let Some(config) = envelope_keys.get(&envelope_key_id) {
+                        if let Some(deks) = config.deks() {
+                            // Check if DEK exists by UUID or alias
+                            if deks.contains_key(&dek.id) || deks.contains_key(&alias) {
+                                // If it exists by UUID, rename to alias
+                                if deks.contains_key(&dek.id) && !deks.contains_key(&alias) {
+                                    soma_definition
+                                        .rename_dek(
+                                            envelope_key_id.clone(),
+                                            dek.id.clone(),
+                                            alias.clone(),
+                                        )
+                                        .await?;
+                                }
+                                needs_add = false;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Add the DEK if it doesn't exist
+            if needs_add {
+                soma_definition
+                    .add_dek(
+                        envelope_key_id,
+                        alias.clone(),
+                        dek.encrypted_data_encryption_key.0,
+                    )
+                    .await?;
+            }
+        }
+        EncryptionKeyEvent::DataEncryptionKeyAliasRemoved { alias } => {
+            info!("DEK alias removed: {:?} - removing DEK from yaml", alias);
+            // Remove the DEK from YAML by searching all envelope keys
             let definition = soma_definition.get_definition().await?;
             if let Some(encryption) = &definition.encryption {
                 if let Some(envelope_keys) = &encryption.envelope_keys {
                     for (envelope_key_id, config) in envelope_keys {
                         if let Some(deks) = config.deks() {
-                            if deks.contains_key(&dek_id) {
+                            if deks.contains_key(&alias) {
                                 soma_definition
-                                    .rename_dek(
-                                        envelope_key_id.clone(),
-                                        dek_id.clone(),
-                                        alias.clone(),
-                                    )
+                                    .remove_dek(envelope_key_id.clone(), alias.clone())
                                     .await?;
                                 break;
                             }
@@ -382,41 +401,50 @@ async fn handle_encryption_event(
                 }
             }
         }
-        EncryptionKeyEvent::DataEncryptionKeyAliasRemoved { alias } => {
-            info!("DEK alias removed: {:?}", alias);
-            // When alias is removed, the DEK itself is typically also being removed
-            // or migrated, so we don't need to do anything here
-        }
-        EncryptionKeyEvent::DataEncryptionKeyAliasUpdated { alias, dek_id } => {
+        EncryptionKeyEvent::DataEncryptionKeyAliasUpdated { alias, dek } => {
             // Alias updated means the alias now points to a different DEK
-            // We need to rename the new DEK to use this alias
-            // Note: This event may fire before DataEncryptionKeyAdded during migration,
-            // so if the DEK isn't found, we'll skip the rename and let DataEncryptionKeyMigrated handle it
-            info!("DEK alias updated: {:?} -> {:?}", alias, dek_id);
+            // Update the DEK in YAML with the new DEK data
+            info!("DEK alias updated: {:?} -> {:?}", alias, dek.id);
+            let envelope_key_id = dek.envelope_encryption_key_id.id();
+            
+            // Check if alias already exists in YAML
             let definition = soma_definition.get_definition().await?;
+            let mut needs_add = true;
             if let Some(encryption) = &definition.encryption {
                 if let Some(envelope_keys) = &encryption.envelope_keys {
-                    for (envelope_key_id, config) in envelope_keys {
+                    if let Some(config) = envelope_keys.get(&envelope_key_id) {
                         if let Some(deks) = config.deks() {
-                            // Check if DEK exists by UUID
-                            if deks.contains_key(&dek_id) {
+                            if deks.contains_key(&alias) {
+                                // Alias exists - update it by removing and re-adding
+                                soma_definition
+                                    .remove_dek(envelope_key_id.clone(), alias.clone())
+                                    .await?;
+                            }
+                            // Also check if DEK exists by UUID (might need to rename)
+                            if deks.contains_key(&dek.id) && !deks.contains_key(&alias) {
                                 soma_definition
                                     .rename_dek(
                                         envelope_key_id.clone(),
-                                        dek_id.clone(),
+                                        dek.id.clone(),
                                         alias.clone(),
                                     )
                                     .await?;
-                                break;
-                            }
-                            // Also check if alias already exists (might have been renamed already)
-                            if deks.contains_key(&alias) {
-                                // Alias already exists - this is fine, skip
-                                break;
+                                needs_add = false;
                             }
                         }
                     }
                 }
+            }
+            
+            // Add the DEK with the alias if it doesn't exist
+            if needs_add {
+                soma_definition
+                    .add_dek(
+                        envelope_key_id,
+                        alias.clone(),
+                        dek.encrypted_data_encryption_key.0,
+                    )
+                    .await?;
             }
         }
     }

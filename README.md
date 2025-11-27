@@ -67,7 +67,7 @@ Database migrations run via Rust server on startup
 
 1. Add or edit axum routes
 2. Re-build and Restart the rust server (e.g. ```make dev-insurance-claim-bot```)
-3. As part of the ```build.rs``` of the soma crate, we generate a root openapi.json file and generate typescript API client in ```crates/soma/app/src/@types/openapi.d.ts```
+3. As part of the ```build.rs``` of the soma crate, we generate a root openapi.json file and generate typescript API client in ```crates/soma-frontend/app/src/@types/openapi.d.ts```
 
 ### Commit checks
 
