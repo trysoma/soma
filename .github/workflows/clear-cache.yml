@@ -1,0 +1,72 @@
+name: Clear GitHub Actions Cache
+
+on:
+  workflow_dispatch:
+    inputs:
+      cache_key_pattern:
+        description: 'Cache key pattern to match (leave empty to clear all)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  clear-cache:
+    name: Clear Cache
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: List caches
+        id: list-caches
+        run: |
+          CACHES=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/actions/caches" \
+            --jq '.actions_caches[]')
+          
+          if [ -z "$CACHES" ]; then
+            echo "No cache entries found."
+            exit 0
+          fi
+          
+          PATTERN="${{ inputs.cache_key_pattern }}"
+          if [ -n "$PATTERN" ]; then
+            echo "Filtering by pattern: $PATTERN"
+            CACHES=$(echo "$CACHES" | jq -r "select(.key | contains(\"$PATTERN\"))")
+          fi
+          
+          CACHE_COUNT=$(echo "$CACHES" | jq -s 'length')
+          echo "Found $CACHE_COUNT cache entry/entries"
+          
+          if [ "$CACHE_COUNT" -eq 0 ]; then
+            echo "No matching cache entries found."
+            exit 0
+          fi
+          
+          echo "Cache entries:"
+          echo "$CACHES" | jq -r '"\(.id) - \(.key) (\(.size_in_bytes / 1024 / 1024 | floor)MB)"'
+          
+          # Store cache IDs for deletion
+          echo "$CACHES" | jq -r '.id' | jq -R -s -c 'split("\n") | map(select(. != ""))' > cache_ids.json
+          echo "cache_count=$CACHE_COUNT" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete caches
+        if: steps.list-caches.outputs.cache_count > 0
+        run: |
+          cat cache_ids.json | jq -r '.[]' | while read -r cache_id; do
+            echo "Deleting cache ID: $cache_id"
+            gh api \
+              --method DELETE \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${{ github.repository }}/actions/caches/$cache_id" || echo "Failed to delete cache $cache_id"
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "Cache clearing complete!"
+          echo "Deleted ${{ steps.list-caches.outputs.cache_count }} cache entry/entries"
+

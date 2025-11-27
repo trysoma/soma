@@ -17,17 +17,12 @@ fn main() {
     let a2a_commit_hash_file = out_dir.join("a2a_commit_hash.txt");
     let a2a_type_file = out_dir.join("a2a_types.rs");
     let proto_service_bin_file = out_dir.join("service.bin");
-    // Check for the generated proto Rust file (a2a.v1.rs) which is what we actually need
-    let proto_rust_file = out_dir.join("a2a.v1.rs");
 
-    if a2a_commit_hash_file.exists()
-        && proto_service_bin_file.exists()
-        && a2a_type_file.exists()
-        && proto_rust_file.exists()
-    {
-        let cached_hash = fs::read_to_string(&a2a_commit_hash_file).unwrap();
-        if cached_hash == A2A_COMMIT_HASH {
-            return;
+    if a2a_commit_hash_file.exists() && proto_service_bin_file.exists() && a2a_type_file.exists() {
+        if let Ok(cached_hash) = fs::read_to_string(&a2a_commit_hash_file) {
+            if cached_hash.trim() == A2A_COMMIT_HASH {
+                return;
+            }
         }
     }
 
@@ -50,25 +45,39 @@ fn main() {
         fs::write(&a2a_type_file, json_content).unwrap();
         fs::write(&proto_file, proto_content).unwrap();
     } else {
-        // Download files (for local development)
-        // URLs are pinned to specific commit hash for reproducibility
-        let json_url = format!(
-            "https://raw.githubusercontent.com/a2aproject/A2A/{A2A_COMMIT_HASH}/specification/json/a2a.json"
-        );
-        let response = reqwest::blocking::get(&json_url).unwrap();
-        let json_bytes = response.bytes().unwrap();
+        // Check if proto file already exists in the repo (for CI builds)
+        if !proto_file.exists() {
+            // Download files (for local development)
+            // URLs are pinned to specific commit hash for reproducibility
+            let json_url = format!(
+                "https://raw.githubusercontent.com/a2aproject/A2A/{A2A_COMMIT_HASH}/specification/json/a2a.json"
+            );
+            let response = reqwest::blocking::get(&json_url).unwrap();
+            let json_bytes = response.bytes().unwrap();
 
-        // Parse as schema to ensure it's valid JSON
-        let schema = serde_json::from_slice::<schemars::Schema>(&json_bytes).unwrap();
-        fs::write(&a2a_type_file, serde_json::to_string(&schema).unwrap()).unwrap();
+            // Parse as schema to ensure it's valid JSON
+            let schema = serde_json::from_slice::<schemars::Schema>(&json_bytes).unwrap();
+            fs::write(&a2a_type_file, serde_json::to_string(&schema).unwrap()).unwrap();
 
-        let proto_url = format!(
-            "https://raw.githubusercontent.com/a2aproject/A2A/{A2A_COMMIT_HASH}/specification/grpc/a2a.proto"
-        );
-        let proto_response = reqwest::blocking::get(&proto_url).unwrap();
-        let proto_bytes = proto_response.bytes().unwrap();
+            let proto_url = format!(
+                "https://raw.githubusercontent.com/a2aproject/A2A/{A2A_COMMIT_HASH}/specification/grpc/a2a.proto"
+            );
+            let proto_response = reqwest::blocking::get(&proto_url).unwrap();
+            let proto_bytes = proto_response.bytes().unwrap();
 
-        fs::write(&proto_file, proto_bytes).unwrap();
+            fs::write(&proto_file, proto_bytes).unwrap();
+        } else {
+            // Still need to download/generate the JSON schema file for types
+            let json_url = format!(
+                "https://raw.githubusercontent.com/a2aproject/A2A/{A2A_COMMIT_HASH}/specification/json/a2a.json"
+            );
+            let response = reqwest::blocking::get(&json_url).unwrap();
+            let json_bytes = response.bytes().unwrap();
+
+            // Parse as schema to ensure it's valid JSON
+            let schema = serde_json::from_slice::<schemars::Schema>(&json_bytes).unwrap();
+            fs::write(&a2a_type_file, serde_json::to_string(&schema).unwrap()).unwrap();
+        }
     }
 
     // build proto
