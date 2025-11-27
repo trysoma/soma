@@ -98,59 +98,59 @@ All URIs are relative to *http://localhost*
 *TaskApi* | [**sendMessage**](docs/TaskApi.md#sendmessage) | **POST** /api/task/v1/{task_id}/message | Send message
 *TaskApi* | [**taskHistory**](docs/TaskApi.md#taskhistory) | **GET** /api/task/v1/{task_id}/timeline | Get task timeline
 *TaskApi* | [**updateTaskStatus**](docs/TaskApi.md#updatetaskstatusoperation) | **PUT** /api/task/v1/{task_id} | Update task status
-*VersionV1Api* | [**createDataEncryptionKey**](docs/VersionV1Api.md#createdataencryptionkey) | **POST** /api/encryption/v1/envelope/{envelope_id}/dek | Create data key
-*VersionV1Api* | [**createDekAlias**](docs/VersionV1Api.md#createdekaliasoperation) | **POST** /api/encryption/v1/dek/alias | Create DEK alias
-*VersionV1Api* | [**createEnvelopeEncryptionKey**](docs/VersionV1Api.md#createenvelopeencryptionkey) | **POST** /api/encryption/v1/envelope | Create envelope key
-*VersionV1Api* | [**createProviderInstance**](docs/VersionV1Api.md#createproviderinstance) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id} | Create provider
-*VersionV1Api* | [**createResourceServerCredential**](docs/VersionV1Api.md#createresourceservercredential) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server | Create resource server credential
-*VersionV1Api* | [**createSecret**](docs/VersionV1Api.md#createsecretoperation) | **POST** /api/secret/v1 | Create secret
-*VersionV1Api* | [**createUserCredential**](docs/VersionV1Api.md#createusercredential) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential | Create user credential
-*VersionV1Api* | [**deleteDekAlias**](docs/VersionV1Api.md#deletedekalias) | **DELETE** /api/encryption/v1/dek/alias/{alias} | Delete DEK alias
-*VersionV1Api* | [**deleteProviderInstance**](docs/VersionV1Api.md#deleteproviderinstance) | **DELETE** /api/bridge/v1/provider/{provider_instance_id} | Delete provider
-*VersionV1Api* | [**deleteSecret**](docs/VersionV1Api.md#deletesecret) | **DELETE** /api/secret/v1/{secret_id} | Delete secret
-*VersionV1Api* | [**disableFunction**](docs/VersionV1Api.md#disablefunction) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable | Disable function
-*VersionV1Api* | [**enableFunction**](docs/VersionV1Api.md#enablefunction) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable | Enable function
-*VersionV1Api* | [**encryptResourceServerConfiguration**](docs/VersionV1Api.md#encryptresourceserverconfiguration) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt | Encrypt resource server config
-*VersionV1Api* | [**encryptUserCredentialConfiguration**](docs/VersionV1Api.md#encryptusercredentialconfiguration) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt | Encrypt user credential config
-*VersionV1Api* | [**getAgentCard**](docs/VersionV1Api.md#getagentcard) | **GET** /api/a2a/v1/.well-known/agent.json | Get agent card
-*VersionV1Api* | [**getAgentDefinition**](docs/VersionV1Api.md#getagentdefinition) | **GET** /api/a2a/v1/definition | Get agent definition
-*VersionV1Api* | [**getDekByAliasOrId**](docs/VersionV1Api.md#getdekbyaliasorid) | **GET** /api/encryption/v1/dek/alias/{alias} | Get DEK by alias
-*VersionV1Api* | [**getExtendedAgentCard**](docs/VersionV1Api.md#getextendedagentcard) | **GET** /api/a2a/v1/agent/authenticatedExtendedCard | Get extended agent card
-*VersionV1Api* | [**getFunctionInstancesOpenapiSpec**](docs/VersionV1Api.md#getfunctioninstancesopenapispec) | **GET** /api/bridge/v1/function-instances/openapi.json | Get function OpenAPI spec
-*VersionV1Api* | [**getInternalRuntimeConfig**](docs/VersionV1Api.md#getinternalruntimeconfig) | **GET** /_internal/v1/runtime_config | Get runtime config
-*VersionV1Api* | [**getProviderInstance**](docs/VersionV1Api.md#getproviderinstance) | **GET** /api/bridge/v1/provider/{provider_instance_id} | Get provider
-*VersionV1Api* | [**getSecretById**](docs/VersionV1Api.md#getsecretbyid) | **GET** /api/secret/v1/{secret_id} | Get secret
-*VersionV1Api* | [**getSecretByKey**](docs/VersionV1Api.md#getsecretbykey) | **GET** /api/secret/v1/key/{key} | Get secret by key
-*VersionV1Api* | [**getTaskById**](docs/VersionV1Api.md#gettaskbyid) | **GET** /api/task/v1/{task_id} | Get task
-*VersionV1Api* | [**handleJsonrpcRequest**](docs/VersionV1Api.md#handlejsonrpcrequest) | **POST** /api/a2a/v1 | Handle JSON-RPC
-*VersionV1Api* | [**healthCheck**](docs/VersionV1Api.md#healthcheck) | **GET** /_internal/v1/health | Health check
-*VersionV1Api* | [**importDataEncryptionKey**](docs/VersionV1Api.md#importdataencryptionkey) | **POST** /api/encryption/v1/envelope/{envelope_id}/dek/import | Import data key
-*VersionV1Api* | [**importSecret**](docs/VersionV1Api.md#importsecretoperation) | **POST** /api/secret/v1/import | Import secret
-*VersionV1Api* | [**invokeFunction**](docs/VersionV1Api.md#invokefunction) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke | Invoke function
-*VersionV1Api* | [**listAvailableProviders**](docs/VersionV1Api.md#listavailableproviders) | **GET** /api/bridge/v1/available-providers | List providers
-*VersionV1Api* | [**listContexts**](docs/VersionV1Api.md#listcontexts) | **GET** /api/task/v1/context | List contexts
-*VersionV1Api* | [**listDataEncryptionKeysByEnvelope**](docs/VersionV1Api.md#listdataencryptionkeysbyenvelope) | **GET** /api/encryption/v1/envelope/{envelope_id}/dek | List data keys
-*VersionV1Api* | [**listDecryptedSecrets**](docs/VersionV1Api.md#listdecryptedsecrets) | **GET** /api/secret/v1/list-decrypted | List decrypted secrets
-*VersionV1Api* | [**listEnvelopeEncryptionKeys**](docs/VersionV1Api.md#listenvelopeencryptionkeys) | **GET** /api/encryption/v1/envelope | List envelope keys
-*VersionV1Api* | [**listFunctionInstances**](docs/VersionV1Api.md#listfunctioninstances) | **GET** /api/bridge/v1/function-instances | List function instances
-*VersionV1Api* | [**listProviderInstances**](docs/VersionV1Api.md#listproviderinstances) | **GET** /api/bridge/v1/provider | List provider instances
-*VersionV1Api* | [**listProviderInstancesGroupedByFunction**](docs/VersionV1Api.md#listproviderinstancesgroupedbyfunction) | **GET** /api/bridge/v1/provider/grouped-by-function | List providers by function
-*VersionV1Api* | [**listSecrets**](docs/VersionV1Api.md#listsecrets) | **GET** /api/secret/v1 | List secrets
-*VersionV1Api* | [**listTasks**](docs/VersionV1Api.md#listtasks) | **GET** /api/task/v1 | List tasks
-*VersionV1Api* | [**listTasksByContextId**](docs/VersionV1Api.md#listtasksbycontextid) | **GET** /api/task/v1/context/{context_id}/task | List tasks by context
-*VersionV1Api* | [**listenToMcpSse**](docs/VersionV1Api.md#listentomcpsse) | **GET** /api/bridge/v1/mcp | MCP SSE connection
-*VersionV1Api* | [**migrateAllDataEncryptionKeys**](docs/VersionV1Api.md#migratealldataencryptionkeys) | **POST** /api/encryption/v1/envelope/{envelope_id}/migrate | Migrate all data keys
-*VersionV1Api* | [**migrateDataEncryptionKey**](docs/VersionV1Api.md#migratedataencryptionkey) | **POST** /api/encryption/v1/envelope/{envelope_id}/dek/{dek_id}/migrate | Migrate data key
-*VersionV1Api* | [**resumeUserCredentialBrokering**](docs/VersionV1Api.md#resumeusercredentialbrokering) | **GET** /api/bridge/v1/generic-oauth-callback | OAuth callback
-*VersionV1Api* | [**sendMessage**](docs/VersionV1Api.md#sendmessage) | **POST** /api/task/v1/{task_id}/message | Send message
-*VersionV1Api* | [**startUserCredentialBrokering**](docs/VersionV1Api.md#startusercredentialbrokering) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker | Start credential brokering
-*VersionV1Api* | [**taskHistory**](docs/VersionV1Api.md#taskhistory) | **GET** /api/task/v1/{task_id}/timeline | Get task timeline
-*VersionV1Api* | [**triggerCodegen**](docs/VersionV1Api.md#triggercodegen) | **POST** /_internal/v1/trigger_codegen | Trigger codegen
-*VersionV1Api* | [**triggerMcpMessage**](docs/VersionV1Api.md#triggermcpmessage) | **POST** /api/bridge/v1/mcp | Send MCP message
-*VersionV1Api* | [**updateDekAlias**](docs/VersionV1Api.md#updatedekalias) | **PUT** /api/encryption/v1/dek/alias/{alias} | Update DEK alias
-*VersionV1Api* | [**updateProviderInstance**](docs/VersionV1Api.md#updateproviderinstance) | **PATCH** /api/bridge/v1/provider/{provider_instance_id} | Update provider
-*VersionV1Api* | [**updateSecret**](docs/VersionV1Api.md#updatesecretoperation) | **PUT** /api/secret/v1/{secret_id} | Update secret
-*VersionV1Api* | [**updateTaskStatus**](docs/VersionV1Api.md#updatetaskstatusoperation) | **PUT** /api/task/v1/{task_id} | Update task status
+*V1Api* | [**createDataEncryptionKey**](docs/V1Api.md#createdataencryptionkey) | **POST** /api/encryption/v1/envelope/{envelope_id}/dek | Create data key
+*V1Api* | [**createDekAlias**](docs/V1Api.md#createdekaliasoperation) | **POST** /api/encryption/v1/dek/alias | Create DEK alias
+*V1Api* | [**createEnvelopeEncryptionKey**](docs/V1Api.md#createenvelopeencryptionkey) | **POST** /api/encryption/v1/envelope | Create envelope key
+*V1Api* | [**createProviderInstance**](docs/V1Api.md#createproviderinstance) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id} | Create provider
+*V1Api* | [**createResourceServerCredential**](docs/V1Api.md#createresourceservercredential) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server | Create resource server credential
+*V1Api* | [**createSecret**](docs/V1Api.md#createsecretoperation) | **POST** /api/secret/v1 | Create secret
+*V1Api* | [**createUserCredential**](docs/V1Api.md#createusercredential) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential | Create user credential
+*V1Api* | [**deleteDekAlias**](docs/V1Api.md#deletedekalias) | **DELETE** /api/encryption/v1/dek/alias/{alias} | Delete DEK alias
+*V1Api* | [**deleteProviderInstance**](docs/V1Api.md#deleteproviderinstance) | **DELETE** /api/bridge/v1/provider/{provider_instance_id} | Delete provider
+*V1Api* | [**deleteSecret**](docs/V1Api.md#deletesecret) | **DELETE** /api/secret/v1/{secret_id} | Delete secret
+*V1Api* | [**disableFunction**](docs/V1Api.md#disablefunction) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable | Disable function
+*V1Api* | [**enableFunction**](docs/V1Api.md#enablefunction) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable | Enable function
+*V1Api* | [**encryptResourceServerConfiguration**](docs/V1Api.md#encryptresourceserverconfiguration) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt | Encrypt resource server config
+*V1Api* | [**encryptUserCredentialConfiguration**](docs/V1Api.md#encryptusercredentialconfiguration) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt | Encrypt user credential config
+*V1Api* | [**getAgentCard**](docs/V1Api.md#getagentcard) | **GET** /api/a2a/v1/.well-known/agent.json | Get agent card
+*V1Api* | [**getAgentDefinition**](docs/V1Api.md#getagentdefinition) | **GET** /api/a2a/v1/definition | Get agent definition
+*V1Api* | [**getDekByAliasOrId**](docs/V1Api.md#getdekbyaliasorid) | **GET** /api/encryption/v1/dek/alias/{alias} | Get DEK by alias
+*V1Api* | [**getExtendedAgentCard**](docs/V1Api.md#getextendedagentcard) | **GET** /api/a2a/v1/agent/authenticatedExtendedCard | Get extended agent card
+*V1Api* | [**getFunctionInstancesOpenapiSpec**](docs/V1Api.md#getfunctioninstancesopenapispec) | **GET** /api/bridge/v1/function-instances/openapi.json | Get function OpenAPI spec
+*V1Api* | [**getInternalRuntimeConfig**](docs/V1Api.md#getinternalruntimeconfig) | **GET** /_internal/v1/runtime_config | Get runtime config
+*V1Api* | [**getProviderInstance**](docs/V1Api.md#getproviderinstance) | **GET** /api/bridge/v1/provider/{provider_instance_id} | Get provider
+*V1Api* | [**getSecretById**](docs/V1Api.md#getsecretbyid) | **GET** /api/secret/v1/{secret_id} | Get secret
+*V1Api* | [**getSecretByKey**](docs/V1Api.md#getsecretbykey) | **GET** /api/secret/v1/key/{key} | Get secret by key
+*V1Api* | [**getTaskById**](docs/V1Api.md#gettaskbyid) | **GET** /api/task/v1/{task_id} | Get task
+*V1Api* | [**handleJsonrpcRequest**](docs/V1Api.md#handlejsonrpcrequest) | **POST** /api/a2a/v1 | Handle JSON-RPC
+*V1Api* | [**healthCheck**](docs/V1Api.md#healthcheck) | **GET** /_internal/v1/health | Health check
+*V1Api* | [**importDataEncryptionKey**](docs/V1Api.md#importdataencryptionkey) | **POST** /api/encryption/v1/envelope/{envelope_id}/dek/import | Import data key
+*V1Api* | [**importSecret**](docs/V1Api.md#importsecretoperation) | **POST** /api/secret/v1/import | Import secret
+*V1Api* | [**invokeFunction**](docs/V1Api.md#invokefunction) | **POST** /api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke | Invoke function
+*V1Api* | [**listAvailableProviders**](docs/V1Api.md#listavailableproviders) | **GET** /api/bridge/v1/available-providers | List providers
+*V1Api* | [**listContexts**](docs/V1Api.md#listcontexts) | **GET** /api/task/v1/context | List contexts
+*V1Api* | [**listDataEncryptionKeysByEnvelope**](docs/V1Api.md#listdataencryptionkeysbyenvelope) | **GET** /api/encryption/v1/envelope/{envelope_id}/dek | List data keys
+*V1Api* | [**listDecryptedSecrets**](docs/V1Api.md#listdecryptedsecrets) | **GET** /api/secret/v1/list-decrypted | List decrypted secrets
+*V1Api* | [**listEnvelopeEncryptionKeys**](docs/V1Api.md#listenvelopeencryptionkeys) | **GET** /api/encryption/v1/envelope | List envelope keys
+*V1Api* | [**listFunctionInstances**](docs/V1Api.md#listfunctioninstances) | **GET** /api/bridge/v1/function-instances | List function instances
+*V1Api* | [**listProviderInstances**](docs/V1Api.md#listproviderinstances) | **GET** /api/bridge/v1/provider | List provider instances
+*V1Api* | [**listProviderInstancesGroupedByFunction**](docs/V1Api.md#listproviderinstancesgroupedbyfunction) | **GET** /api/bridge/v1/provider/grouped-by-function | List providers by function
+*V1Api* | [**listSecrets**](docs/V1Api.md#listsecrets) | **GET** /api/secret/v1 | List secrets
+*V1Api* | [**listTasks**](docs/V1Api.md#listtasks) | **GET** /api/task/v1 | List tasks
+*V1Api* | [**listTasksByContextId**](docs/V1Api.md#listtasksbycontextid) | **GET** /api/task/v1/context/{context_id}/task | List tasks by context
+*V1Api* | [**listenToMcpSse**](docs/V1Api.md#listentomcpsse) | **GET** /api/bridge/v1/mcp | MCP SSE connection
+*V1Api* | [**migrateAllDataEncryptionKeys**](docs/V1Api.md#migratealldataencryptionkeys) | **POST** /api/encryption/v1/envelope/{envelope_id}/migrate | Migrate all data keys
+*V1Api* | [**migrateDataEncryptionKey**](docs/V1Api.md#migratedataencryptionkey) | **POST** /api/encryption/v1/envelope/{envelope_id}/dek/{dek_id}/migrate | Migrate data key
+*V1Api* | [**resumeUserCredentialBrokering**](docs/V1Api.md#resumeusercredentialbrokering) | **GET** /api/bridge/v1/generic-oauth-callback | OAuth callback
+*V1Api* | [**sendMessage**](docs/V1Api.md#sendmessage) | **POST** /api/task/v1/{task_id}/message | Send message
+*V1Api* | [**startUserCredentialBrokering**](docs/V1Api.md#startusercredentialbrokering) | **POST** /api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker | Start credential brokering
+*V1Api* | [**taskHistory**](docs/V1Api.md#taskhistory) | **GET** /api/task/v1/{task_id}/timeline | Get task timeline
+*V1Api* | [**triggerCodegen**](docs/V1Api.md#triggercodegen) | **POST** /_internal/v1/trigger_codegen | Trigger codegen
+*V1Api* | [**triggerMcpMessage**](docs/V1Api.md#triggermcpmessage) | **POST** /api/bridge/v1/mcp | Send MCP message
+*V1Api* | [**updateDekAlias**](docs/V1Api.md#updatedekalias) | **PUT** /api/encryption/v1/dek/alias/{alias} | Update DEK alias
+*V1Api* | [**updateProviderInstance**](docs/V1Api.md#updateproviderinstance) | **PATCH** /api/bridge/v1/provider/{provider_instance_id} | Update provider
+*V1Api* | [**updateSecret**](docs/V1Api.md#updatesecretoperation) | **PUT** /api/secret/v1/{secret_id} | Update secret
+*V1Api* | [**updateTaskStatus**](docs/V1Api.md#updatetaskstatusoperation) | **PUT** /api/task/v1/{task_id} | Update task status
 
 
 ### Models

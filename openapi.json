@@ -9,7 +9,7 @@
       "get": {
         "tags": [
           "_internal",
-          "version:v1"
+          "v1"
         ],
         "summary": "Health check",
         "description": "Check the health status of the service and SDK server connectivity",
@@ -28,7 +28,7 @@
       "get": {
         "tags": [
           "_internal",
-          "version:v1"
+          "v1"
         ],
         "summary": "Get runtime config",
         "description": "Get the current runtime configuration",
@@ -51,7 +51,7 @@
       "post": {
         "tags": [
           "_internal",
-          "version:v1"
+          "v1"
         ],
         "summary": "Trigger codegen",
         "description": "Trigger code generation for the SDK",
@@ -94,7 +94,7 @@
       "post": {
         "tags": [
           "a2a",
-          "version:v1"
+          "v1"
         ],
         "summary": "Handle JSON-RPC",
         "description": "Handle JSON-RPC requests for agent-to-agent communication (tasks, messages, etc.)",
@@ -130,7 +130,7 @@
       "get": {
         "tags": [
           "a2a",
-          "version:v1"
+          "v1"
         ],
         "summary": "Get agent card",
         "description": "Get the agent card describing agent capabilities and metadata",
@@ -163,7 +163,7 @@
       "get": {
         "tags": [
           "a2a",
-          "version:v1"
+          "v1"
         ],
         "summary": "Get extended agent card",
         "description": "Get the authenticated extended agent card with additional metadata",
@@ -196,7 +196,7 @@
       "get": {
         "tags": [
           "a2a",
-          "version:v1"
+          "v1"
         ],
         "summary": "Get agent definition",
         "description": "Get the agent definition (capabilities and metadata)",
@@ -219,7 +219,7 @@
       "get": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "List providers",
         "description": "List all available provider types that can be instantiated",
@@ -283,7 +283,7 @@
       "post": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Create provider",
         "description": "Create a new provider instance with the specified configuration",
@@ -354,7 +354,7 @@
       "post": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Create resource server credential",
         "description": "Create a new resource server credential",
@@ -427,7 +427,7 @@
       "post": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Encrypt resource server config",
         "description": "Encrypt a resource server credential configuration before storage",
@@ -500,7 +500,7 @@
       "post": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Create user credential",
         "description": "Create a new user credential",
@@ -573,7 +573,7 @@
       "post": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Start credential brokering",
         "description": "Start the OAuth flow for user credential brokering",
@@ -646,7 +646,7 @@
       "post": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Encrypt user credential config",
         "description": "Encrypt a user credential configuration before storage",
@@ -719,7 +719,7 @@
       "get": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "List function instances",
         "description": "List all function instances with optional filtering by provider instance",
@@ -792,7 +792,7 @@
       "get": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Get function OpenAPI spec",
         "description": "Get the OpenAPI specification for all function instances",
@@ -825,7 +825,7 @@
       "get": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "OAuth callback",
         "description": "Handle OAuth callback to complete user credential brokering flow",
@@ -906,7 +906,7 @@
       "get": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "MCP SSE connection",
         "description": "Establish Server-Sent Events (SSE) connection for MCP protocol communication",
@@ -920,7 +920,7 @@
       "post": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Send MCP message",
         "description": "Send a JSON-RPC message to the MCP server",
@@ -946,7 +946,7 @@
       "get": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "List provider instances",
         "description": "List all provider instances with optional filtering by status and provider type",
@@ -1028,7 +1028,7 @@
       "get": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "List providers by function",
         "description": "List provider instances grouped by their associated functions",
@@ -1115,7 +1115,7 @@
       "get": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Get provider",
         "description": "Retrieve a provider instance by its unique identifier",
@@ -1167,7 +1167,7 @@
       "delete": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Delete provider",
         "description": "Delete a provider instance by its unique identifier",
@@ -1219,7 +1219,7 @@
       "patch": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Update provider",
         "description": "Update an existing provider instance configuration",
@@ -1283,7 +1283,7 @@
       "post": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Disable function",
         "description": "Disable a function for a provider instance",
@@ -1346,7 +1346,7 @@
       "post": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Enable function",
         "description": "Enable a function for a provider instance",
@@ -1419,7 +1419,7 @@
       "post": {
         "tags": [
           "bridge",
-          "version:v1"
+          "v1"
         ],
         "summary": "Invoke function",
         "description": "Invoke a function on a provider instance",
@@ -1492,7 +1492,7 @@
       "post": {
         "tags": [
           "encryption",
-          "version:v1"
+          "v1"
         ],
         "summary": "Create DEK alias",
         "description": "Create an alias for a data encryption key to enable lookup by friendly name",
@@ -1585,7 +1585,7 @@
       "get": {
         "tags": [
           "encryption",
-          "version:v1"
+          "v1"
         ],
         "summary": "Get DEK by alias",
         "description": "Retrieve a data encryption key by its alias or ID",
@@ -1677,7 +1677,7 @@
       "put": {
         "tags": [
           "encryption",
-          "version:v1"
+          "v1"
         ],
         "summary": "Update DEK alias",
         "description": "Update the alias for a data encryption key",
@@ -1779,7 +1779,7 @@
       "delete": {
         "tags": [
           "encryption",
-          "version:v1"
+          "v1"
         ],
         "summary": "Delete DEK alias",
         "description": "Delete an alias for a data encryption key",
@@ -1866,7 +1866,7 @@
       "get": {
         "tags": [
           "encryption",
-          "version:v1"
+          "v1"
         ],
         "summary": "List envelope keys",
         "description": "List all envelope encryption keys (master keys) with pagination",
@@ -1958,7 +1958,7 @@
       "post": {
         "tags": [
           "encryption",
-          "version:v1"
+          "v1"
         ],
         "summary": "Create envelope key",
         "description": "Create a new envelope encryption key (master key) for encrypting data encryption keys",
@@ -2041,7 +2041,7 @@
       "get": {
         "tags": [
           "encryption",
-          "version:v1"
+          "v1"
         ],
         "summary": "List data keys",
         "description": "List all data encryption keys encrypted with the specified envelope encryption key",
@@ -2152,7 +2152,7 @@
       "post": {
         "tags": [
           "encryption",
-          "version:v1"
+          "v1"
         ],
         "summary": "Create data key",
         "description": "Create a new data encryption key (DEK) encrypted with the specified envelope encryption key",
@@ -2256,7 +2256,7 @@
       "post": {
         "tags": [
           "encryption",
-          "version:v1"
+          "v1"
         ],
         "summary": "Import data key",
         "description": "Import an existing pre-encrypted data encryption key into the system",
@@ -2360,7 +2360,7 @@
       "post": {
         "tags": [
           "encryption",
-          "version:v1"
+          "v1"
         ],
         "summary": "Migrate data key",
         "description": "Migrate a data encryption key to be encrypted with a different envelope encryption key",
@@ -2466,7 +2466,7 @@
       "post": {
         "tags": [
           "encryption",
-          "version:v1"
+          "v1"
         ],
         "summary": "Migrate all data keys",
         "description": "Migrate all data encryption keys encrypted with the specified envelope key to a new envelope key",
@@ -2563,7 +2563,7 @@
       "get": {
         "tags": [
           "secret",
-          "version:v1"
+          "v1"
         ],
         "summary": "List secrets",
         "description": "List all secrets with pagination (values are encrypted)",
@@ -2645,7 +2645,7 @@
       "post": {
         "tags": [
           "secret",
-          "version:v1"
+          "v1"
         ],
         "summary": "Create secret",
         "description": "Create a new encrypted secret with the specified key and value",
@@ -2718,7 +2718,7 @@
       "post": {
         "tags": [
           "secret",
-          "version:v1"
+          "v1"
         ],
         "summary": "Import secret",
         "description": "Import an existing pre-encrypted secret into the system",
@@ -2791,7 +2791,7 @@
       "get": {
         "tags": [
           "secret",
-          "version:v1"
+          "v1"
         ],
         "summary": "Get secret by key",
         "description": "Retrieve a secret by its key name",
@@ -2875,7 +2875,7 @@
       "get": {
         "tags": [
           "secret",
-          "version:v1"
+          "v1"
         ],
         "summary": "List decrypted secrets",
         "description": "List all secrets with decrypted values (requires decryption access)",
@@ -2959,7 +2959,7 @@
       "get": {
         "tags": [
           "secret",
-          "version:v1"
+          "v1"
         ],
         "summary": "Get secret",
         "description": "Retrieve a secret by its unique identifier",
@@ -3041,7 +3041,7 @@
       "put": {
         "tags": [
           "secret",
-          "version:v1"
+          "v1"
         ],
         "summary": "Update secret",
         "description": "Update an existing secret's value or metadata",
@@ -3133,7 +3133,7 @@
       "delete": {
         "tags": [
           "secret",
-          "version:v1"
+          "v1"
         ],
         "summary": "Delete secret",
         "description": "Delete a secret by its unique identifier",
@@ -3217,7 +3217,7 @@
       "get": {
         "tags": [
           "task",
-          "version:v1"
+          "v1"
         ],
         "summary": "List tasks",
         "description": "List all tasks with pagination",
@@ -3311,7 +3311,7 @@
       "get": {
         "tags": [
           "task",
-          "version:v1"
+          "v1"
         ],
         "summary": "List contexts",
         "description": "List all unique task contexts with pagination",
@@ -3405,7 +3405,7 @@
       "get": {
         "tags": [
           "task",
-          "version:v1"
+          "v1"
         ],
         "summary": "List tasks by context",
         "description": "List all tasks for a specific context ID with pagination",
@@ -3508,7 +3508,7 @@
       "get": {
         "tags": [
           "task",
-          "version:v1"
+          "v1"
         ],
         "summary": "Get task",
         "description": "Retrieve a task by its unique identifier",
@@ -3590,7 +3590,7 @@
       "put": {
         "tags": [
           "task",
-          "version:v1"
+          "v1"
         ],
         "summary": "Update task status",
         "description": "Update the status of a task",
@@ -3684,7 +3684,7 @@
       "post": {
         "tags": [
           "task",
-          "version:v1"
+          "v1"
         ],
         "summary": "Send message",
         "description": "Send a message to a task",
@@ -3778,7 +3778,7 @@
       "get": {
         "tags": [
           "task",
-          "version:v1"
+          "v1"
         ],
         "summary": "Get task timeline",
         "description": "Get the timeline history of a task with pagination",
@@ -5933,7 +5933,7 @@
       "description": "Agent-to-agent communication endpoints for agent cards, definitions, and JSON-RPC requests"
     },
     {
-      "name": "version:v1",
+      "name": "v1",
       "description": "API version v1 endpoints"
     }
   ]

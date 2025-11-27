@@ -109,232 +109,232 @@ import {
 } from "../models/index";
 import * as runtime from "../runtime";
 
-export interface VersionV1ApiCreateDataEncryptionKeyRequest {
+export interface V1ApiCreateDataEncryptionKeyRequest {
 	envelopeId: string;
 	createDataEncryptionKeyParamsRoute: CreateDataEncryptionKeyParamsRoute;
 }
 
-export interface VersionV1ApiCreateDekAliasOperationRequest {
+export interface V1ApiCreateDekAliasOperationRequest {
 	createDekAliasRequest: CreateDekAliasRequest;
 }
 
-export interface VersionV1ApiCreateEnvelopeEncryptionKeyRequest {
+export interface V1ApiCreateEnvelopeEncryptionKeyRequest {
 	envelopeEncryptionKey: EnvelopeEncryptionKey;
 }
 
-export interface VersionV1ApiCreateProviderInstanceRequest {
+export interface V1ApiCreateProviderInstanceRequest {
 	providerControllerTypeId: string;
 	credentialControllerTypeId: string;
 	createProviderInstanceParamsInner: CreateProviderInstanceParamsInner;
 }
 
-export interface VersionV1ApiCreateResourceServerCredentialRequest {
+export interface V1ApiCreateResourceServerCredentialRequest {
 	providerControllerTypeId: string;
 	credentialControllerTypeId: string;
 	createResourceServerCredentialParamsInner: CreateResourceServerCredentialParamsInner;
 }
 
-export interface VersionV1ApiCreateSecretOperationRequest {
+export interface V1ApiCreateSecretOperationRequest {
 	createSecretRequest: CreateSecretRequest;
 }
 
-export interface VersionV1ApiCreateUserCredentialRequest {
+export interface V1ApiCreateUserCredentialRequest {
 	providerControllerTypeId: string;
 	credentialControllerTypeId: string;
 	createUserCredentialParamsInner: CreateUserCredentialParamsInner;
 }
 
-export interface VersionV1ApiDeleteDekAliasRequest {
+export interface V1ApiDeleteDekAliasRequest {
 	alias: string;
 }
 
-export interface VersionV1ApiDeleteProviderInstanceRequest {
+export interface V1ApiDeleteProviderInstanceRequest {
 	providerInstanceId: string;
 }
 
-export interface VersionV1ApiDeleteSecretRequest {
+export interface V1ApiDeleteSecretRequest {
 	secretId: string;
 }
 
-export interface VersionV1ApiDisableFunctionRequest {
+export interface V1ApiDisableFunctionRequest {
 	providerInstanceId: string;
 	functionControllerTypeId: string;
 }
 
-export interface VersionV1ApiEnableFunctionRequest {
+export interface V1ApiEnableFunctionRequest {
 	providerInstanceId: string;
 	functionControllerTypeId: string;
 	body: object;
 }
 
-export interface VersionV1ApiEncryptResourceServerConfigurationRequest {
+export interface V1ApiEncryptResourceServerConfigurationRequest {
 	providerControllerTypeId: string;
 	credentialControllerTypeId: string;
 	encryptCredentialConfigurationParamsInner: EncryptCredentialConfigurationParamsInner;
 }
 
-export interface VersionV1ApiEncryptUserCredentialConfigurationRequest {
+export interface V1ApiEncryptUserCredentialConfigurationRequest {
 	providerControllerTypeId: string;
 	credentialControllerTypeId: string;
 	encryptCredentialConfigurationParamsInner: EncryptCredentialConfigurationParamsInner;
 }
 
-export interface VersionV1ApiGetDekByAliasOrIdRequest {
+export interface V1ApiGetDekByAliasOrIdRequest {
 	alias: string;
 }
 
-export interface VersionV1ApiGetProviderInstanceRequest {
+export interface V1ApiGetProviderInstanceRequest {
 	providerInstanceId: string;
 }
 
-export interface VersionV1ApiGetSecretByIdRequest {
+export interface V1ApiGetSecretByIdRequest {
 	secretId: string;
 }
 
-export interface VersionV1ApiGetSecretByKeyRequest {
+export interface V1ApiGetSecretByKeyRequest {
 	key: string;
 }
 
-export interface VersionV1ApiGetTaskByIdRequest {
+export interface V1ApiGetTaskByIdRequest {
 	taskId: string;
 }
 
-export interface VersionV1ApiHandleJsonrpcRequestRequest {
+export interface V1ApiHandleJsonrpcRequestRequest {
 	body: object;
 }
 
-export interface VersionV1ApiImportDataEncryptionKeyRequest {
+export interface V1ApiImportDataEncryptionKeyRequest {
 	envelopeId: string;
 	importDataEncryptionKeyParamsRoute: ImportDataEncryptionKeyParamsRoute;
 }
 
-export interface VersionV1ApiImportSecretOperationRequest {
+export interface V1ApiImportSecretOperationRequest {
 	importSecretRequest: ImportSecretRequest;
 }
 
-export interface VersionV1ApiInvokeFunctionRequest {
+export interface V1ApiInvokeFunctionRequest {
 	providerInstanceId: string;
 	functionControllerTypeId: string;
 	invokeFunctionParamsInner: InvokeFunctionParamsInner;
 }
 
-export interface VersionV1ApiListAvailableProvidersRequest {
+export interface V1ApiListAvailableProvidersRequest {
 	pageSize: number;
 	nextPageToken?: string;
 }
 
-export interface VersionV1ApiListContextsRequest {
+export interface V1ApiListContextsRequest {
 	pageSize: number;
 	nextPageToken?: string;
 }
 
-export interface VersionV1ApiListDataEncryptionKeysByEnvelopeRequest {
+export interface V1ApiListDataEncryptionKeysByEnvelopeRequest {
 	envelopeId: string;
 	pageSize: number;
 	nextPageToken?: string;
 }
 
-export interface VersionV1ApiListDecryptedSecretsRequest {
+export interface V1ApiListDecryptedSecretsRequest {
 	pageSize: number;
 	nextPageToken?: string;
 }
 
-export interface VersionV1ApiListEnvelopeEncryptionKeysRequest {
+export interface V1ApiListEnvelopeEncryptionKeysRequest {
 	pageSize: number;
 	nextPageToken?: string;
 }
 
-export interface VersionV1ApiListFunctionInstancesRequest {
+export interface V1ApiListFunctionInstancesRequest {
 	pageSize: number;
 	nextPageToken?: string;
 	providerInstanceId?: string;
 }
 
-export interface VersionV1ApiListProviderInstancesRequest {
+export interface V1ApiListProviderInstancesRequest {
 	pageSize: number;
 	nextPageToken?: string;
 	status?: string;
 	providerControllerTypeId?: string;
 }
 
-export interface VersionV1ApiListProviderInstancesGroupedByFunctionRequest {
+export interface V1ApiListProviderInstancesGroupedByFunctionRequest {
 	pageSize: number;
 	nextPageToken?: string | null;
 	providerControllerTypeId?: string | null;
 	functionCategory?: string | null;
 }
 
-export interface VersionV1ApiListSecretsRequest {
+export interface V1ApiListSecretsRequest {
 	pageSize: number;
 	nextPageToken?: string;
 }
 
-export interface VersionV1ApiListTasksRequest {
+export interface V1ApiListTasksRequest {
 	pageSize: number;
 	nextPageToken?: string;
 }
 
-export interface VersionV1ApiListTasksByContextIdRequest {
+export interface V1ApiListTasksByContextIdRequest {
 	pageSize: number;
 	contextId: string;
 	nextPageToken?: string;
 }
 
-export interface VersionV1ApiMigrateAllDataEncryptionKeysRequest {
+export interface V1ApiMigrateAllDataEncryptionKeysRequest {
 	envelopeId: string;
 	migrateAllDataEncryptionKeysParamsRoute: MigrateAllDataEncryptionKeysParamsRoute;
 }
 
-export interface VersionV1ApiMigrateDataEncryptionKeyRequest {
+export interface V1ApiMigrateDataEncryptionKeyRequest {
 	envelopeId: string;
 	dekId: string;
 	migrateDataEncryptionKeyParamsRoute: MigrateDataEncryptionKeyParamsRoute;
 }
 
-export interface VersionV1ApiResumeUserCredentialBrokeringRequest {
+export interface V1ApiResumeUserCredentialBrokeringRequest {
 	state?: string;
 	code?: string;
 	error?: string;
 	errorDescription?: string;
 }
 
-export interface VersionV1ApiSendMessageRequest {
+export interface V1ApiSendMessageRequest {
 	taskId: string;
 	createMessageRequest: CreateMessageRequest;
 }
 
-export interface VersionV1ApiStartUserCredentialBrokeringRequest {
+export interface V1ApiStartUserCredentialBrokeringRequest {
 	providerControllerTypeId: string;
 	credentialControllerTypeId: string;
 	startUserCredentialBrokeringParamsInner: StartUserCredentialBrokeringParamsInner;
 }
 
-export interface VersionV1ApiTaskHistoryRequest {
+export interface V1ApiTaskHistoryRequest {
 	pageSize: number;
 	taskId: string;
 	nextPageToken?: string;
 }
 
-export interface VersionV1ApiTriggerMcpMessageRequest {
+export interface V1ApiTriggerMcpMessageRequest {
 	body: object;
 }
 
-export interface VersionV1ApiUpdateDekAliasRequest {
+export interface V1ApiUpdateDekAliasRequest {
 	alias: string;
 	updateAliasParams: UpdateAliasParams;
 }
 
-export interface VersionV1ApiUpdateProviderInstanceRequest {
+export interface V1ApiUpdateProviderInstanceRequest {
 	providerInstanceId: string;
 	updateProviderInstanceParamsInner: UpdateProviderInstanceParamsInner;
 }
 
-export interface VersionV1ApiUpdateSecretOperationRequest {
+export interface V1ApiUpdateSecretOperationRequest {
 	secretId: string;
 	updateSecretRequest: UpdateSecretRequest;
 }
 
-export interface VersionV1ApiUpdateTaskStatusOperationRequest {
+export interface V1ApiUpdateTaskStatusOperationRequest {
 	taskId: string;
 	updateTaskStatusRequest: UpdateTaskStatusRequest;
 }
@@ -342,13 +342,13 @@ export interface VersionV1ApiUpdateTaskStatusOperationRequest {
 /**
  *
  */
-export class VersionV1Api extends runtime.BaseAPI {
+export class V1Api extends runtime.BaseAPI {
 	/**
 	 * Create a new data encryption key (DEK) encrypted with the specified envelope encryption key
 	 * Create data key
 	 */
 	async createDataEncryptionKeyRaw(
-		requestParameters: VersionV1ApiCreateDataEncryptionKeyRequest,
+		requestParameters: V1ApiCreateDataEncryptionKeyRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<DataEncryptionKey>> {
 		if (requestParameters.envelopeId == null) {
@@ -400,7 +400,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create data key
 	 */
 	async createDataEncryptionKey(
-		requestParameters: VersionV1ApiCreateDataEncryptionKeyRequest,
+		requestParameters: V1ApiCreateDataEncryptionKeyRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<DataEncryptionKey> {
 		const response = await this.createDataEncryptionKeyRaw(
@@ -415,7 +415,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create DEK alias
 	 */
 	async createDekAliasRaw(
-		requestParameters: VersionV1ApiCreateDekAliasOperationRequest,
+		requestParameters: V1ApiCreateDekAliasOperationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<DataEncryptionKeyAlias>> {
 		if (requestParameters.createDekAliasRequest == null) {
@@ -456,7 +456,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create DEK alias
 	 */
 	async createDekAlias(
-		requestParameters: VersionV1ApiCreateDekAliasOperationRequest,
+		requestParameters: V1ApiCreateDekAliasOperationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<DataEncryptionKeyAlias> {
 		const response = await this.createDekAliasRaw(
@@ -471,7 +471,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create envelope key
 	 */
 	async createEnvelopeEncryptionKeyRaw(
-		requestParameters: VersionV1ApiCreateEnvelopeEncryptionKeyRequest,
+		requestParameters: V1ApiCreateEnvelopeEncryptionKeyRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<EnvelopeEncryptionKey>> {
 		if (requestParameters.envelopeEncryptionKey == null) {
@@ -512,7 +512,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create envelope key
 	 */
 	async createEnvelopeEncryptionKey(
-		requestParameters: VersionV1ApiCreateEnvelopeEncryptionKeyRequest,
+		requestParameters: V1ApiCreateEnvelopeEncryptionKeyRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<EnvelopeEncryptionKey> {
 		const response = await this.createEnvelopeEncryptionKeyRaw(
@@ -527,7 +527,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create provider
 	 */
 	async createProviderInstanceRaw(
-		requestParameters: VersionV1ApiCreateProviderInstanceRequest,
+		requestParameters: V1ApiCreateProviderInstanceRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<ProviderInstanceSerialized>> {
 		if (requestParameters.providerControllerTypeId == null) {
@@ -590,7 +590,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create provider
 	 */
 	async createProviderInstance(
-		requestParameters: VersionV1ApiCreateProviderInstanceRequest,
+		requestParameters: V1ApiCreateProviderInstanceRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<ProviderInstanceSerialized> {
 		const response = await this.createProviderInstanceRaw(
@@ -605,7 +605,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create resource server credential
 	 */
 	async createResourceServerCredentialRaw(
-		requestParameters: VersionV1ApiCreateResourceServerCredentialRequest,
+		requestParameters: V1ApiCreateResourceServerCredentialRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<ResourceServerCredentialSerialized>> {
 		if (requestParameters.providerControllerTypeId == null) {
@@ -668,7 +668,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create resource server credential
 	 */
 	async createResourceServerCredential(
-		requestParameters: VersionV1ApiCreateResourceServerCredentialRequest,
+		requestParameters: V1ApiCreateResourceServerCredentialRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<ResourceServerCredentialSerialized> {
 		const response = await this.createResourceServerCredentialRaw(
@@ -683,7 +683,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create secret
 	 */
 	async createSecretRaw(
-		requestParameters: VersionV1ApiCreateSecretOperationRequest,
+		requestParameters: V1ApiCreateSecretOperationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<Secret>> {
 		if (requestParameters.createSecretRequest == null) {
@@ -722,7 +722,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create secret
 	 */
 	async createSecret(
-		requestParameters: VersionV1ApiCreateSecretOperationRequest,
+		requestParameters: V1ApiCreateSecretOperationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<Secret> {
 		const response = await this.createSecretRaw(
@@ -737,7 +737,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create user credential
 	 */
 	async createUserCredentialRaw(
-		requestParameters: VersionV1ApiCreateUserCredentialRequest,
+		requestParameters: V1ApiCreateUserCredentialRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<UserCredentialSerialized>> {
 		if (requestParameters.providerControllerTypeId == null) {
@@ -800,7 +800,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Create user credential
 	 */
 	async createUserCredential(
-		requestParameters: VersionV1ApiCreateUserCredentialRequest,
+		requestParameters: V1ApiCreateUserCredentialRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<UserCredentialSerialized> {
 		const response = await this.createUserCredentialRaw(
@@ -815,7 +815,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Delete DEK alias
 	 */
 	async deleteDekAliasRaw(
-		requestParameters: VersionV1ApiDeleteDekAliasRequest,
+		requestParameters: V1ApiDeleteDekAliasRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<void>> {
 		if (requestParameters.alias == null) {
@@ -853,7 +853,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Delete DEK alias
 	 */
 	async deleteDekAlias(
-		requestParameters: VersionV1ApiDeleteDekAliasRequest,
+		requestParameters: V1ApiDeleteDekAliasRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.deleteDekAliasRaw(requestParameters, initOverrides);
@@ -864,7 +864,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Delete provider
 	 */
 	async deleteProviderInstanceRaw(
-		requestParameters: VersionV1ApiDeleteProviderInstanceRequest,
+		requestParameters: V1ApiDeleteProviderInstanceRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<any>> {
 		if (requestParameters.providerInstanceId == null) {
@@ -906,7 +906,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Delete provider
 	 */
 	async deleteProviderInstance(
-		requestParameters: VersionV1ApiDeleteProviderInstanceRequest,
+		requestParameters: V1ApiDeleteProviderInstanceRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<any> {
 		const response = await this.deleteProviderInstanceRaw(
@@ -921,7 +921,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Delete secret
 	 */
 	async deleteSecretRaw(
-		requestParameters: VersionV1ApiDeleteSecretRequest,
+		requestParameters: V1ApiDeleteSecretRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<DeleteSecretResponse>> {
 		if (requestParameters.secretId == null) {
@@ -961,7 +961,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Delete secret
 	 */
 	async deleteSecret(
-		requestParameters: VersionV1ApiDeleteSecretRequest,
+		requestParameters: V1ApiDeleteSecretRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<DeleteSecretResponse> {
 		const response = await this.deleteSecretRaw(
@@ -976,7 +976,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Disable function
 	 */
 	async disableFunctionRaw(
-		requestParameters: VersionV1ApiDisableFunctionRequest,
+		requestParameters: V1ApiDisableFunctionRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<any>> {
 		if (requestParameters.providerInstanceId == null) {
@@ -1029,7 +1029,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Disable function
 	 */
 	async disableFunction(
-		requestParameters: VersionV1ApiDisableFunctionRequest,
+		requestParameters: V1ApiDisableFunctionRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<any> {
 		const response = await this.disableFunctionRaw(
@@ -1044,7 +1044,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Enable function
 	 */
 	async enableFunctionRaw(
-		requestParameters: VersionV1ApiEnableFunctionRequest,
+		requestParameters: V1ApiEnableFunctionRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<FunctionInstanceSerialized>> {
 		if (requestParameters.providerInstanceId == null) {
@@ -1105,7 +1105,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Enable function
 	 */
 	async enableFunction(
-		requestParameters: VersionV1ApiEnableFunctionRequest,
+		requestParameters: V1ApiEnableFunctionRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<FunctionInstanceSerialized> {
 		const response = await this.enableFunctionRaw(
@@ -1120,7 +1120,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Encrypt resource server config
 	 */
 	async encryptResourceServerConfigurationRaw(
-		requestParameters: VersionV1ApiEncryptResourceServerConfigurationRequest,
+		requestParameters: V1ApiEncryptResourceServerConfigurationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<any>> {
 		if (requestParameters.providerControllerTypeId == null) {
@@ -1185,7 +1185,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Encrypt resource server config
 	 */
 	async encryptResourceServerConfiguration(
-		requestParameters: VersionV1ApiEncryptResourceServerConfigurationRequest,
+		requestParameters: V1ApiEncryptResourceServerConfigurationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<any> {
 		const response = await this.encryptResourceServerConfigurationRaw(
@@ -1200,7 +1200,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Encrypt user credential config
 	 */
 	async encryptUserCredentialConfigurationRaw(
-		requestParameters: VersionV1ApiEncryptUserCredentialConfigurationRequest,
+		requestParameters: V1ApiEncryptUserCredentialConfigurationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<any>> {
 		if (requestParameters.providerControllerTypeId == null) {
@@ -1265,7 +1265,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Encrypt user credential config
 	 */
 	async encryptUserCredentialConfiguration(
-		requestParameters: VersionV1ApiEncryptUserCredentialConfigurationRequest,
+		requestParameters: V1ApiEncryptUserCredentialConfigurationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<any> {
 		const response = await this.encryptUserCredentialConfigurationRaw(
@@ -1356,7 +1356,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Get DEK by alias
 	 */
 	async getDekByAliasOrIdRaw(
-		requestParameters: VersionV1ApiGetDekByAliasOrIdRequest,
+		requestParameters: V1ApiGetDekByAliasOrIdRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<DataEncryptionKey>> {
 		if (requestParameters.alias == null) {
@@ -1396,7 +1396,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Get DEK by alias
 	 */
 	async getDekByAliasOrId(
-		requestParameters: VersionV1ApiGetDekByAliasOrIdRequest,
+		requestParameters: V1ApiGetDekByAliasOrIdRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<DataEncryptionKey> {
 		const response = await this.getDekByAliasOrIdRaw(
@@ -1527,7 +1527,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Get provider
 	 */
 	async getProviderInstanceRaw(
-		requestParameters: VersionV1ApiGetProviderInstanceRequest,
+		requestParameters: V1ApiGetProviderInstanceRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<ProviderInstanceSerializedWithEverything>> {
 		if (requestParameters.providerInstanceId == null) {
@@ -1567,7 +1567,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Get provider
 	 */
 	async getProviderInstance(
-		requestParameters: VersionV1ApiGetProviderInstanceRequest,
+		requestParameters: V1ApiGetProviderInstanceRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<ProviderInstanceSerializedWithEverything> {
 		const response = await this.getProviderInstanceRaw(
@@ -1582,7 +1582,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Get secret
 	 */
 	async getSecretByIdRaw(
-		requestParameters: VersionV1ApiGetSecretByIdRequest,
+		requestParameters: V1ApiGetSecretByIdRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<Secret>> {
 		if (requestParameters.secretId == null) {
@@ -1622,7 +1622,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Get secret
 	 */
 	async getSecretById(
-		requestParameters: VersionV1ApiGetSecretByIdRequest,
+		requestParameters: V1ApiGetSecretByIdRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<Secret> {
 		const response = await this.getSecretByIdRaw(
@@ -1637,7 +1637,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Get secret by key
 	 */
 	async getSecretByKeyRaw(
-		requestParameters: VersionV1ApiGetSecretByKeyRequest,
+		requestParameters: V1ApiGetSecretByKeyRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<Secret>> {
 		if (requestParameters.key == null) {
@@ -1677,7 +1677,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Get secret by key
 	 */
 	async getSecretByKey(
-		requestParameters: VersionV1ApiGetSecretByKeyRequest,
+		requestParameters: V1ApiGetSecretByKeyRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<Secret> {
 		const response = await this.getSecretByKeyRaw(
@@ -1692,7 +1692,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Get task
 	 */
 	async getTaskByIdRaw(
-		requestParameters: VersionV1ApiGetTaskByIdRequest,
+		requestParameters: V1ApiGetTaskByIdRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<TaskWithDetails>> {
 		if (requestParameters.taskId == null) {
@@ -1732,7 +1732,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Get task
 	 */
 	async getTaskById(
-		requestParameters: VersionV1ApiGetTaskByIdRequest,
+		requestParameters: V1ApiGetTaskByIdRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<TaskWithDetails> {
 		const response = await this.getTaskByIdRaw(
@@ -1747,7 +1747,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Handle JSON-RPC
 	 */
 	async handleJsonrpcRequestRaw(
-		requestParameters: VersionV1ApiHandleJsonrpcRequestRequest,
+		requestParameters: V1ApiHandleJsonrpcRequestRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<void>> {
 		if (requestParameters.body == null) {
@@ -1784,7 +1784,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Handle JSON-RPC
 	 */
 	async handleJsonrpcRequest(
-		requestParameters: VersionV1ApiHandleJsonrpcRequestRequest,
+		requestParameters: V1ApiHandleJsonrpcRequestRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.handleJsonrpcRequestRaw(requestParameters, initOverrides);
@@ -1831,7 +1831,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Import data key
 	 */
 	async importDataEncryptionKeyRaw(
-		requestParameters: VersionV1ApiImportDataEncryptionKeyRequest,
+		requestParameters: V1ApiImportDataEncryptionKeyRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<DataEncryptionKey>> {
 		if (requestParameters.envelopeId == null) {
@@ -1883,7 +1883,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Import data key
 	 */
 	async importDataEncryptionKey(
-		requestParameters: VersionV1ApiImportDataEncryptionKeyRequest,
+		requestParameters: V1ApiImportDataEncryptionKeyRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<DataEncryptionKey> {
 		const response = await this.importDataEncryptionKeyRaw(
@@ -1898,7 +1898,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Import secret
 	 */
 	async importSecretRaw(
-		requestParameters: VersionV1ApiImportSecretOperationRequest,
+		requestParameters: V1ApiImportSecretOperationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<Secret>> {
 		if (requestParameters.importSecretRequest == null) {
@@ -1937,7 +1937,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Import secret
 	 */
 	async importSecret(
-		requestParameters: VersionV1ApiImportSecretOperationRequest,
+		requestParameters: V1ApiImportSecretOperationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<Secret> {
 		const response = await this.importSecretRaw(
@@ -1952,7 +1952,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Invoke function
 	 */
 	async invokeFunctionRaw(
-		requestParameters: VersionV1ApiInvokeFunctionRequest,
+		requestParameters: V1ApiInvokeFunctionRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<InvokeResult>> {
 		if (requestParameters.providerInstanceId == null) {
@@ -2015,7 +2015,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Invoke function
 	 */
 	async invokeFunction(
-		requestParameters: VersionV1ApiInvokeFunctionRequest,
+		requestParameters: V1ApiInvokeFunctionRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<InvokeResult> {
 		const response = await this.invokeFunctionRaw(
@@ -2030,7 +2030,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List providers
 	 */
 	async listAvailableProvidersRaw(
-		requestParameters: VersionV1ApiListAvailableProvidersRequest,
+		requestParameters: V1ApiListAvailableProvidersRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<
 		runtime.ApiResponse<ProviderControllerSerializedPaginatedResponse>
@@ -2076,7 +2076,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List providers
 	 */
 	async listAvailableProviders(
-		requestParameters: VersionV1ApiListAvailableProvidersRequest,
+		requestParameters: V1ApiListAvailableProvidersRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<ProviderControllerSerializedPaginatedResponse> {
 		const response = await this.listAvailableProvidersRaw(
@@ -2091,7 +2091,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List contexts
 	 */
 	async listContextsRaw(
-		requestParameters: VersionV1ApiListContextsRequest,
+		requestParameters: V1ApiListContextsRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<ContextInfoPaginatedResponse>> {
 		if (requestParameters.pageSize == null) {
@@ -2135,7 +2135,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List contexts
 	 */
 	async listContexts(
-		requestParameters: VersionV1ApiListContextsRequest,
+		requestParameters: V1ApiListContextsRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<ContextInfoPaginatedResponse> {
 		const response = await this.listContextsRaw(
@@ -2150,7 +2150,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List data keys
 	 */
 	async listDataEncryptionKeysByEnvelopeRaw(
-		requestParameters: VersionV1ApiListDataEncryptionKeysByEnvelopeRequest,
+		requestParameters: V1ApiListDataEncryptionKeysByEnvelopeRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<DataEncryptionKeyListItemPaginatedResponse>> {
 		if (requestParameters.envelopeId == null) {
@@ -2205,7 +2205,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List data keys
 	 */
 	async listDataEncryptionKeysByEnvelope(
-		requestParameters: VersionV1ApiListDataEncryptionKeysByEnvelopeRequest,
+		requestParameters: V1ApiListDataEncryptionKeysByEnvelopeRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<DataEncryptionKeyListItemPaginatedResponse> {
 		const response = await this.listDataEncryptionKeysByEnvelopeRaw(
@@ -2220,7 +2220,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List decrypted secrets
 	 */
 	async listDecryptedSecretsRaw(
-		requestParameters: VersionV1ApiListDecryptedSecretsRequest,
+		requestParameters: V1ApiListDecryptedSecretsRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<ListDecryptedSecretsResponse>> {
 		if (requestParameters.pageSize == null) {
@@ -2264,7 +2264,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List decrypted secrets
 	 */
 	async listDecryptedSecrets(
-		requestParameters: VersionV1ApiListDecryptedSecretsRequest,
+		requestParameters: V1ApiListDecryptedSecretsRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<ListDecryptedSecretsResponse> {
 		const response = await this.listDecryptedSecretsRaw(
@@ -2279,7 +2279,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List envelope keys
 	 */
 	async listEnvelopeEncryptionKeysRaw(
-		requestParameters: VersionV1ApiListEnvelopeEncryptionKeysRequest,
+		requestParameters: V1ApiListEnvelopeEncryptionKeysRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<EnvelopeEncryptionKeyPaginatedResponse>> {
 		if (requestParameters.pageSize == null) {
@@ -2323,7 +2323,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List envelope keys
 	 */
 	async listEnvelopeEncryptionKeys(
-		requestParameters: VersionV1ApiListEnvelopeEncryptionKeysRequest,
+		requestParameters: V1ApiListEnvelopeEncryptionKeysRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<EnvelopeEncryptionKeyPaginatedResponse> {
 		const response = await this.listEnvelopeEncryptionKeysRaw(
@@ -2338,7 +2338,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List function instances
 	 */
 	async listFunctionInstancesRaw(
-		requestParameters: VersionV1ApiListFunctionInstancesRequest,
+		requestParameters: V1ApiListFunctionInstancesRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<FunctionInstanceSerializedPaginatedResponse>> {
 		if (requestParameters.pageSize == null) {
@@ -2387,7 +2387,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List function instances
 	 */
 	async listFunctionInstances(
-		requestParameters: VersionV1ApiListFunctionInstancesRequest,
+		requestParameters: V1ApiListFunctionInstancesRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<FunctionInstanceSerializedPaginatedResponse> {
 		const response = await this.listFunctionInstancesRaw(
@@ -2402,7 +2402,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List provider instances
 	 */
 	async listProviderInstancesRaw(
-		requestParameters: VersionV1ApiListProviderInstancesRequest,
+		requestParameters: V1ApiListProviderInstancesRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<ProviderInstanceListItemPaginatedResponse>> {
 		if (requestParameters.pageSize == null) {
@@ -2455,7 +2455,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List provider instances
 	 */
 	async listProviderInstances(
-		requestParameters: VersionV1ApiListProviderInstancesRequest,
+		requestParameters: V1ApiListProviderInstancesRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<ProviderInstanceListItemPaginatedResponse> {
 		const response = await this.listProviderInstancesRaw(
@@ -2470,7 +2470,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List providers by function
 	 */
 	async listProviderInstancesGroupedByFunctionRaw(
-		requestParameters: VersionV1ApiListProviderInstancesGroupedByFunctionRequest,
+		requestParameters: V1ApiListProviderInstancesGroupedByFunctionRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<FunctionInstanceConfigPaginatedResponse>> {
 		if (requestParameters.pageSize == null) {
@@ -2523,7 +2523,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List providers by function
 	 */
 	async listProviderInstancesGroupedByFunction(
-		requestParameters: VersionV1ApiListProviderInstancesGroupedByFunctionRequest,
+		requestParameters: V1ApiListProviderInstancesGroupedByFunctionRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<FunctionInstanceConfigPaginatedResponse> {
 		const response = await this.listProviderInstancesGroupedByFunctionRaw(
@@ -2538,7 +2538,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List secrets
 	 */
 	async listSecretsRaw(
-		requestParameters: VersionV1ApiListSecretsRequest,
+		requestParameters: V1ApiListSecretsRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<ListSecretsResponse>> {
 		if (requestParameters.pageSize == null) {
@@ -2582,7 +2582,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List secrets
 	 */
 	async listSecrets(
-		requestParameters: VersionV1ApiListSecretsRequest,
+		requestParameters: V1ApiListSecretsRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<ListSecretsResponse> {
 		const response = await this.listSecretsRaw(
@@ -2597,7 +2597,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List tasks
 	 */
 	async listTasksRaw(
-		requestParameters: VersionV1ApiListTasksRequest,
+		requestParameters: V1ApiListTasksRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<TaskPaginatedResponse>> {
 		if (requestParameters.pageSize == null) {
@@ -2641,7 +2641,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List tasks
 	 */
 	async listTasks(
-		requestParameters: VersionV1ApiListTasksRequest,
+		requestParameters: V1ApiListTasksRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<TaskPaginatedResponse> {
 		const response = await this.listTasksRaw(requestParameters, initOverrides);
@@ -2653,7 +2653,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List tasks by context
 	 */
 	async listTasksByContextIdRaw(
-		requestParameters: VersionV1ApiListTasksByContextIdRequest,
+		requestParameters: V1ApiListTasksByContextIdRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<TaskPaginatedResponse>> {
 		if (requestParameters.pageSize == null) {
@@ -2708,7 +2708,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * List tasks by context
 	 */
 	async listTasksByContextId(
-		requestParameters: VersionV1ApiListTasksByContextIdRequest,
+		requestParameters: V1ApiListTasksByContextIdRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<TaskPaginatedResponse> {
 		const response = await this.listTasksByContextIdRaw(
@@ -2759,7 +2759,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Migrate all data keys
 	 */
 	async migrateAllDataEncryptionKeysRaw(
-		requestParameters: VersionV1ApiMigrateAllDataEncryptionKeysRequest,
+		requestParameters: V1ApiMigrateAllDataEncryptionKeysRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<void>> {
 		if (requestParameters.envelopeId == null) {
@@ -2809,7 +2809,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Migrate all data keys
 	 */
 	async migrateAllDataEncryptionKeys(
-		requestParameters: VersionV1ApiMigrateAllDataEncryptionKeysRequest,
+		requestParameters: V1ApiMigrateAllDataEncryptionKeysRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.migrateAllDataEncryptionKeysRaw(
@@ -2823,7 +2823,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Migrate data key
 	 */
 	async migrateDataEncryptionKeyRaw(
-		requestParameters: VersionV1ApiMigrateDataEncryptionKeyRequest,
+		requestParameters: V1ApiMigrateDataEncryptionKeyRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<void>> {
 		if (requestParameters.envelopeId == null) {
@@ -2884,7 +2884,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Migrate data key
 	 */
 	async migrateDataEncryptionKey(
-		requestParameters: VersionV1ApiMigrateDataEncryptionKeyRequest,
+		requestParameters: V1ApiMigrateDataEncryptionKeyRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.migrateDataEncryptionKeyRaw(requestParameters, initOverrides);
@@ -2895,7 +2895,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * OAuth callback
 	 */
 	async resumeUserCredentialBrokeringRaw(
-		requestParameters: VersionV1ApiResumeUserCredentialBrokeringRequest,
+		requestParameters: V1ApiResumeUserCredentialBrokeringRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<UserCredentialBrokeringResponse>> {
 		const queryParameters: any = {};
@@ -2940,7 +2940,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * OAuth callback
 	 */
 	async resumeUserCredentialBrokering(
-		requestParameters: VersionV1ApiResumeUserCredentialBrokeringRequest = {},
+		requestParameters: V1ApiResumeUserCredentialBrokeringRequest = {},
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<UserCredentialBrokeringResponse> {
 		const response = await this.resumeUserCredentialBrokeringRaw(
@@ -2955,7 +2955,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Send message
 	 */
 	async sendMessageRaw(
-		requestParameters: VersionV1ApiSendMessageRequest,
+		requestParameters: V1ApiSendMessageRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<CreateMessageResponse>> {
 		if (requestParameters.taskId == null) {
@@ -3007,7 +3007,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Send message
 	 */
 	async sendMessage(
-		requestParameters: VersionV1ApiSendMessageRequest,
+		requestParameters: V1ApiSendMessageRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<CreateMessageResponse> {
 		const response = await this.sendMessageRaw(
@@ -3022,7 +3022,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Start credential brokering
 	 */
 	async startUserCredentialBrokeringRaw(
-		requestParameters: VersionV1ApiStartUserCredentialBrokeringRequest,
+		requestParameters: V1ApiStartUserCredentialBrokeringRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<UserCredentialBrokeringResponse>> {
 		if (requestParameters.providerControllerTypeId == null) {
@@ -3085,7 +3085,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Start credential brokering
 	 */
 	async startUserCredentialBrokering(
-		requestParameters: VersionV1ApiStartUserCredentialBrokeringRequest,
+		requestParameters: V1ApiStartUserCredentialBrokeringRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<UserCredentialBrokeringResponse> {
 		const response = await this.startUserCredentialBrokeringRaw(
@@ -3100,7 +3100,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Get task timeline
 	 */
 	async taskHistoryRaw(
-		requestParameters: VersionV1ApiTaskHistoryRequest,
+		requestParameters: V1ApiTaskHistoryRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<TaskTimelineItemPaginatedResponse>> {
 		if (requestParameters.pageSize == null) {
@@ -3155,7 +3155,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Get task timeline
 	 */
 	async taskHistory(
-		requestParameters: VersionV1ApiTaskHistoryRequest,
+		requestParameters: V1ApiTaskHistoryRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<TaskTimelineItemPaginatedResponse> {
 		const response = await this.taskHistoryRaw(
@@ -3209,7 +3209,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Send MCP message
 	 */
 	async triggerMcpMessageRaw(
-		requestParameters: VersionV1ApiTriggerMcpMessageRequest,
+		requestParameters: V1ApiTriggerMcpMessageRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<void>> {
 		if (requestParameters.body == null) {
@@ -3246,7 +3246,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Send MCP message
 	 */
 	async triggerMcpMessage(
-		requestParameters: VersionV1ApiTriggerMcpMessageRequest,
+		requestParameters: V1ApiTriggerMcpMessageRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.triggerMcpMessageRaw(requestParameters, initOverrides);
@@ -3257,7 +3257,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Update DEK alias
 	 */
 	async updateDekAliasRaw(
-		requestParameters: VersionV1ApiUpdateDekAliasRequest,
+		requestParameters: V1ApiUpdateDekAliasRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<DataEncryptionKeyAlias>> {
 		if (requestParameters.alias == null) {
@@ -3307,7 +3307,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Update DEK alias
 	 */
 	async updateDekAlias(
-		requestParameters: VersionV1ApiUpdateDekAliasRequest,
+		requestParameters: V1ApiUpdateDekAliasRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<DataEncryptionKeyAlias> {
 		const response = await this.updateDekAliasRaw(
@@ -3322,7 +3322,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Update provider
 	 */
 	async updateProviderInstanceRaw(
-		requestParameters: VersionV1ApiUpdateProviderInstanceRequest,
+		requestParameters: V1ApiUpdateProviderInstanceRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<any>> {
 		if (requestParameters.providerInstanceId == null) {
@@ -3376,7 +3376,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Update provider
 	 */
 	async updateProviderInstance(
-		requestParameters: VersionV1ApiUpdateProviderInstanceRequest,
+		requestParameters: V1ApiUpdateProviderInstanceRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<any> {
 		const response = await this.updateProviderInstanceRaw(
@@ -3391,7 +3391,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Update secret
 	 */
 	async updateSecretRaw(
-		requestParameters: VersionV1ApiUpdateSecretOperationRequest,
+		requestParameters: V1ApiUpdateSecretOperationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<Secret>> {
 		if (requestParameters.secretId == null) {
@@ -3441,7 +3441,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Update secret
 	 */
 	async updateSecret(
-		requestParameters: VersionV1ApiUpdateSecretOperationRequest,
+		requestParameters: V1ApiUpdateSecretOperationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<Secret> {
 		const response = await this.updateSecretRaw(
@@ -3456,7 +3456,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Update task status
 	 */
 	async updateTaskStatusRaw(
-		requestParameters: VersionV1ApiUpdateTaskStatusOperationRequest,
+		requestParameters: V1ApiUpdateTaskStatusOperationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<any>> {
 		if (requestParameters.taskId == null) {
@@ -3510,7 +3510,7 @@ export class VersionV1Api extends runtime.BaseAPI {
 	 * Update task status
 	 */
 	async updateTaskStatus(
-		requestParameters: VersionV1ApiUpdateTaskStatusOperationRequest,
+		requestParameters: V1ApiUpdateTaskStatusOperationRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<any> {
 		const response = await this.updateTaskStatusRaw(

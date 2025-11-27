@@ -1,21 +1,9 @@
 /// <reference types="node" />
 import { type ChildProcess, spawn } from "node:child_process";
-import {
-	existsSync,
-	mkdirSync,
-	readdirSync,
-	renameSync,
-	rmSync,
-	statSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, parse, relative, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import type {
-	NormalizedOutputOptions,
-	OutputBundle,
-	OutputChunk,
-} from "rollup";
+import type { NormalizedOutputOptions, OutputBundle } from "rollup";
 import { defineConfig, type Plugin, type ViteDevServer } from "vite";
 
 /**
@@ -250,7 +238,8 @@ function generateStandaloneServer(
 
 	const hasAgents = agentIndex > 0;
 
-	return `// Auto-generated standalone server
+	return `/// <reference types="node" />
+// Auto-generated standalone server
 import { addFunction, addProvider, addAgent, startGrpcServer } from '@trysoma/sdk';
 import * as restate from '@restatedev/restate-sdk';
 import * as http2 from 'http2';
@@ -284,7 +273,7 @@ ${
 		? `
 import { HandlerParams, SomaAgent } from "@trysoma/sdk/agent";
 import { Configuration as BridgeConfiguration } from '@trysoma/sdk/bridge';
-import { VersionV1Api, Configuration as SomaConfiguration } from '@trysoma/api-client';
+import { V1Api as SomaV1Api, Configuration as SomaConfiguration } from '@trysoma/api-client';
 import * as net from 'net';
 
 interface RestateInput {
@@ -296,7 +285,7 @@ type RestateHandler = (ctx: restate.ObjectContext, input: RestateInput) => Promi
 type SomaHandler<T> = (params: HandlerParams<T>) => Promise<void>;
 const wrapHandler = <T>(handler: SomaHandler<T>, agent: SomaAgent<T>): RestateHandler => {
   return async (ctx, input) => {
-    const soma = new VersionV1Api(new SomaConfiguration({
+    const soma = new SomaV1Api(new SomaConfiguration({
       basePath: process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000',
     }));
     await handler({

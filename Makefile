@@ -53,8 +53,6 @@ install: _install-sqlc-gen-from-template ## Install all dependencies (Rust and N
 
 build: ## Build all projects (Rust + JS)
 	$(MAKE) rs-build
-	VERSION=$$(cat VERSION)
-	npx --yes @openapitools/openapi-generator-cli@latest generate -i ./openapi.json -g typescript-fetch -o ./js/packages/api-client --additional-properties="supportsES6=true,npmName=@trysoma/api-client,npmVersion=$${VERSION}"
 	$(MAKE) js-build
 
 js-build: ## Build all JS projects

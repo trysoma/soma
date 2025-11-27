@@ -20,7 +20,7 @@ use tokio_stream::StreamExt as TokioStreamExt;
 use tracing::{error, info};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-const API_VERSION_TAG: &str = "version:v1";
+const API_VERSION_TAG: &str = "v1";
 
 pub fn create_router<S: A2aServiceLike + Send + Sync + 'static>() -> OpenApiRouter<Arc<S>> {
     OpenApiRouter::new()

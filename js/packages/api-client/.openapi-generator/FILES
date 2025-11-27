@@ -103,14 +103,14 @@ docs/UserCredentialBrokeringResponseOneOf.md
 docs/UserCredentialBrokeringResponseOneOf1.md
 docs/UserCredentialBrokeringResponseOneOf2.md
 docs/UserCredentialSerialized.md
-docs/VersionV1Api.md
+docs/V1Api.md
 src/apis/A2aApi.ts
 src/apis/BridgeApi.ts
 src/apis/EncryptionApi.ts
 src/apis/InternalApi.ts
 src/apis/SecretApi.ts
 src/apis/TaskApi.ts
-src/apis/VersionV1Api.ts
+src/apis/V1Api.ts
 src/apis/index.ts
 src/index.ts
 src/models/BridgeConfig.ts
