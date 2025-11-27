@@ -79,7 +79,7 @@ pub async fn start_axum_server(
         #[cfg(debug_assertions)]
         {
             use soma_frontend::stop_vite_dev_server;
-            
+
             drop(_vite_scope_guard);
             if let Err(e) = stop_vite_dev_server().await {
                 use tracing::error;

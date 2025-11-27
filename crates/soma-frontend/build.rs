@@ -68,61 +68,91 @@ fn main() {
 
     // Step 3: Check if frontend is already built (routes.json exists)
     let routes_json = app_dir.join("dist/.vite-rs/routes.json");
-    if routes_json.exists() {
-        println!("cargo:warning=Frontend already built, skipping pnpm steps");
-        return;
-    }
 
     // if debug build, skip pnpm
-    if cfg!(debug_assertions) {
-        println!("cargo:warning=Debug build, skipping pnpm");
-        return;
-    }
+    if cfg!(debug_assertions) || routes_json.exists() {
+        println!(
+            "cargo:warning=Debug build or frontend already built, skipping pnpm install, build"
+        );
+    } else {
+        // Step 4: Install pnpm dependencies
+        let install_result = Command::new("pnpm")
+            .arg("install")
+            .current_dir(workspace_dir)
+            .output();
 
-    // Step 4: Install pnpm dependencies
-    let install_result = Command::new("pnpm")
-        .arg("install")
-        .current_dir(workspace_dir)
-        .output();
-
-    match install_result {
-        Ok(output) => {
-            if !output.status.success() {
-                println!(
-                    "cargo:warning=pnpm install failed with exit code: {:?}",
-                    output.status.code()
-                );
-                if !output.stdout.is_empty() {
+        match install_result {
+            Ok(output) => {
+                if !output.status.success() {
                     println!(
-                        "cargo:warning=stdout: {}",
-                        String::from_utf8_lossy(&output.stdout)
+                        "cargo:warning=pnpm install failed with exit code: {:?}",
+                        output.status.code()
                     );
-                }
-                if !output.stderr.is_empty() {
-                    println!(
-                        "cargo:warning=stderr: {}",
-                        String::from_utf8_lossy(&output.stderr)
-                    );
+                    if !output.stdout.is_empty() {
+                        println!(
+                            "cargo:warning=stdout: {}",
+                            String::from_utf8_lossy(&output.stdout)
+                        );
+                    }
+                    if !output.stderr.is_empty() {
+                        println!(
+                            "cargo:warning=stderr: {}",
+                            String::from_utf8_lossy(&output.stderr)
+                        );
+                    }
                 }
             }
+            Err(e) => {
+                println!("cargo:warning=Could not run pnpm install: {e}");
+            }
         }
-        Err(e) => {
-            println!("cargo:warning=Could not run pnpm install: {e}");
+
+        // Step 5: Build frontend
+        let build_result = Command::new("pnpm")
+            .arg("run")
+            .arg("build")
+            .current_dir(&app_dir)
+            .output();
+
+        match build_result {
+            Ok(output) => {
+                if !output.status.success() {
+                    println!(
+                        "cargo:warning=pnpm build failed with exit code: {:?}",
+                        output.status.code()
+                    );
+                    if !output.stdout.is_empty() {
+                        println!(
+                            "cargo:warning=stdout: {}",
+                            String::from_utf8_lossy(&output.stdout)
+                        );
+                    }
+                    if !output.stderr.is_empty() {
+                        println!(
+                            "cargo:warning=stderr: {}",
+                            String::from_utf8_lossy(&output.stderr)
+                        );
+                    }
+                }
+            }
+            Err(e) => {
+                println!("cargo:warning=Could not run pnpm build: {e}");
+            }
         }
     }
 
-    // Step 5: Build frontend
-    let build_result = Command::new("pnpm")
+    // Step 6: fix linting errors
+    let lint_fix_result = Command::new("pnpm")
         .arg("run")
-        .arg("build")
+        .arg("lint:fix")
         .current_dir(&app_dir)
         .output();
 
-    match build_result {
+    match lint_fix_result {
         Ok(output) => {
             if !output.status.success() {
                 println!(
-                    "cargo:warning=pnpm build failed with exit code: {:?}",
+                    "cargo:warning=pnpm lint:fix failed with exit code: {:?}",
                     output.status.code()
                 );
                 if !output.stdout.is_empty() {
@@ -140,7 +170,7 @@ fn main() {
             }
         }
         Err(e) => {
-            println!("cargo:warning=Could not run pnpm build: {e}");
+            println!("cargo:warning=Could not run pnpm lint:fix: {e}");
         }
     }
 }
