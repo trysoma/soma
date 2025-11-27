@@ -9,6 +9,7 @@ axum.workspace = true
 reqwest.workspace = true
 shared.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 vite-rs.workspace = true
 vite-rs-axum-0-8.workspace = true

@@ -139,7 +139,8 @@ pub async fn setup_test_encryption(alias: &str) -> TestEncryptionSetup {
         .await
         .expect("Failed to create test DEK alias");
 
-    let cache = CryptoCache::new(encryption_repo);
+    // Use the temp_dir path so keys can be found
+    let cache = CryptoCache::new(encryption_repo, temp_kek_file.path().to_path_buf());
     // Don't call init_crypto_cache in tests - it tries to read KEK from file which fails
     // The cache will populate on-demand when services are requested
 

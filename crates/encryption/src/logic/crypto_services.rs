@@ -228,11 +228,12 @@ pub struct CryptoCache {
     encryption_services: DashMap<String, EncryptionService>,
     decryption_services: DashMap<String, DecryptionService>,
     repository: Arc<dyn DataEncryptionKeyRepositoryLike + Send + Sync>,
+    local_envelope_encryption_key_path: std::path::PathBuf,
 }
 
 impl CryptoCache {
-    /// Create a new empty crypto cache with the given repository
-    pub fn new<R>(repo: R) -> Self
+    /// Create a new empty crypto cache with the given repository and local key path
+    pub fn new<R>(repo: R, local_envelope_encryption_key_path: std::path::PathBuf) -> Self
     where
         R: DataEncryptionKeyRepositoryLike + Send + Sync + 'static,
     {
@@ -240,6 +241,7 @@ impl CryptoCache {
             encryption_services: DashMap::new(),
             decryption_services: DashMap::new(),
             repository: Arc::new(repo),
+            local_envelope_encryption_key_path,
         }
     }
 
@@ -321,8 +323,11 @@ pub async fn init_crypto_cache(cache: &CryptoCache) -> Result<(), CommonError> {
                 region: aws_kms.region.clone(),
             },
             EnvelopeEncryptionKey::Local(local) => {
-                // Load the key bytes from the file
-                get_local_envelope_encryption_key(&std::path::PathBuf::from(&local.file_name))?
+                // Resolve the filename relative to local_envelope_encryption_key_path
+                let key_path = cache
+                    .local_envelope_encryption_key_path
+                    .join(&local.file_name);
+                get_local_envelope_encryption_key(&key_path)?
             }
         };
 
@@ -368,9 +373,13 @@ pub async fn get_encryption_service_cached(
             arn: aws_kms.arn.clone(),
             region: aws_kms.region.clone(),
         },
-        EnvelopeEncryptionKey::Local(local) => get_or_create_local_envelope_encryption_key(
-            &std::path::PathBuf::from(&local.file_name),
-        )?,
+        EnvelopeEncryptionKey::Local(local) => {
+            // Resolve the filename relative to local_envelope_encryption_key_path
+            let key_path = cache
+                .local_envelope_encryption_key_path
+                .join(&local.file_name);
+            get_or_create_local_envelope_encryption_key(&key_path)?
+        }
     };
 
     // Create crypto service
@@ -409,9 +418,13 @@ pub async fn get_decryption_service_cached(
             arn: aws_kms.arn.clone(),
             region: aws_kms.region.clone(),
         },
-        EnvelopeEncryptionKey::Local(local) => get_or_create_local_envelope_encryption_key(
-            &std::path::PathBuf::from(&local.file_name),
-        )?,
+        EnvelopeEncryptionKey::Local(local) => {
+            // Resolve the filename relative to local_envelope_encryption_key_path
+            let key_path = cache
+                .local_envelope_encryption_key_path
+                .join(&local.file_name);
+            get_or_create_local_envelope_encryption_key(&key_path)?
+        }
     };
 
     // Create crypto service
@@ -456,8 +469,8 @@ mod tests {
 
         // Create envelope key
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
-        let path = temp_dir.path().join("test-key");
-        let envelope_key_contents = get_or_create_local_envelope_encryption_key(&path).unwrap();
+        let key_path = temp_dir.path().join("test-key");
+        let envelope_key_contents = get_or_create_local_envelope_encryption_key(&key_path).unwrap();
         let envelope_key =
             crate::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents.clone());
         let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
@@ -468,7 +481,7 @@ mod tests {
             .await
             .unwrap();
 
-        // Create DEK
+        // Create DEK - use the same temp_dir as base path so keys can be found
         let dek = crate::logic::dek::create_data_encryption_key(
             &tx,
             &repo,
@@ -479,6 +492,7 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            temp_dir.path(),
             false,
         )
         .await
@@ -611,7 +625,7 @@ mod tests {
             .await
             .unwrap();
 
-        // Create multiple DEKs
+        // Create multiple DEKs - use temp_dir as base path
         let dek1 = crate::logic::dek::create_data_encryption_key(
             &tx,
             &repo,
@@ -622,6 +636,7 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            temp_dir.path(),
             false,
         )
         .await
@@ -637,13 +652,14 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            temp_dir.path(),
             false,
         )
         .await
         .unwrap();
 
-        // Initialize cache
-        let cache = CryptoCache::new(repo.clone());
+        // Initialize cache - use temp_dir as base path
+        let cache = CryptoCache::new(repo.clone(), temp_dir.path().to_path_buf());
         init_crypto_cache(&cache).await.unwrap();
 
         // Test getting encryption service from cache
@@ -698,11 +714,11 @@ mod tests {
             .await
             .unwrap();
 
-        // Initialize cache
-        let cache = CryptoCache::new(repo.clone());
+        // Initialize cache - use temp_dir as base path
+        let cache = CryptoCache::new(repo.clone(), temp_dir.path().to_path_buf());
         init_crypto_cache(&cache).await.unwrap();
 
-        // Create a new DEK after cache initialization
+        // Create a new DEK after cache initialization - use temp_dir as base path
         let dek2 = crate::logic::dek::create_data_encryption_key(
             &tx,
             &repo,
@@ -713,6 +729,7 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            temp_dir.path(),
             false,
         )
         .await
@@ -745,7 +762,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         // Initialize cache
-        let cache = CryptoCache::new(repo);
+        let cache = CryptoCache::new(repo, std::path::PathBuf::from("/tmp/test-keys"));
         init_crypto_cache(&cache).await.unwrap();
 
         // Try to get non-existent DEK
@@ -765,7 +782,7 @@ mod tests {
         let repo = Repository::new(conn);
 
         // Initialize cache
-        let cache = CryptoCache::new(repo);
+        let cache = CryptoCache::new(repo, std::path::PathBuf::from("/tmp/test-keys"));
         init_crypto_cache(&cache).await.unwrap();
 
         // Try to get non-existent DEK

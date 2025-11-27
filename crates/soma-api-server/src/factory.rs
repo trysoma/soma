@@ -93,7 +93,9 @@ pub async fn create_api_service(
 
     // Initialize the crypto cache from the encryption repository
     info!("Initializing crypto cache...");
-    let crypto_cache = CryptoCache::new(encryption_repo.clone());
+    let local_envelope_encryption_key_path = project_dir.join(".soma/envelope-encryption-keys");
+    let crypto_cache =
+        CryptoCache::new(encryption_repo.clone(), local_envelope_encryption_key_path);
     encryption::logic::crypto_services::init_crypto_cache(&crypto_cache).await?;
 
     // Start the unified change pubsub forwarder

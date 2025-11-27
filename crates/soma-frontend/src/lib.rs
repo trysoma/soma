@@ -10,6 +10,7 @@ use utoipa_axum::router::OpenApiRouter;
 use vite_rs_axum_0_8::ViteServe;
 
 use shared::error::CommonError;
+#[cfg(debug_assertions)]
 use tracing::info;
 
 // The vite_rs::Embed proc macro embeds frontend assets at compile time
@@ -99,6 +100,9 @@ const ROUTES_JSON: &[u8] = include_bytes!(concat!(
 
 #[cfg(not(debug_assertions))]
 pub fn create_vite_router() -> OpenApiRouter<()> {
+    use serde::{Deserialize, Serialize};
+    use utoipa::ToSchema;
+
     let vite = ViteServe::new(Assets::boxed());
 
     #[derive(Debug, Deserialize, Serialize, ToSchema)]

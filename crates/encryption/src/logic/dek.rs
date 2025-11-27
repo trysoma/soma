@@ -97,6 +97,7 @@ pub struct DataEncryptionKeyListItem {
 pub(crate) async fn create_data_encryption_key_internal<R>(
     repo: &R,
     params: CreateDekParams,
+    local_envelope_encryption_key_path: &std::path::Path,
 ) -> Result<CreateDataEncryptionKeyResponse, CommonError>
 where
     R: DataEncryptionKeyRepositoryLike + crate::repository::EncryptionKeyRepositoryLike,
@@ -126,9 +127,9 @@ where
             region: aws_kms.region.clone(),
         },
         EnvelopeEncryptionKey::Local(local) => {
-            crate::logic::envelope::get_or_create_local_envelope_encryption_key(
-                &std::path::PathBuf::from(&local.file_name),
-            )?
+            // Resolve the filename relative to local_envelope_encryption_key_path
+            let key_path = local_envelope_encryption_key_path.join(&local.file_name);
+            crate::logic::envelope::get_or_create_local_envelope_encryption_key(&key_path)?
         }
     };
 
@@ -233,12 +234,14 @@ pub async fn create_data_encryption_key<R>(
     on_change_tx: &EncryptionKeyEventSender,
     repo: &R,
     params: CreateDekParams,
+    local_envelope_encryption_key_path: &std::path::Path,
     publish_on_change_evt: bool,
 ) -> Result<CreateDataEncryptionKeyResponse, CommonError>
 where
     R: DataEncryptionKeyRepositoryLike + crate::repository::EncryptionKeyRepositoryLike,
 {
-    let dek = create_data_encryption_key_internal(repo, params).await?;
+    let dek = create_data_encryption_key_internal(repo, params, local_envelope_encryption_key_path)
+        .await?;
 
     // Publish event if requested - include encrypted key value in event
     if publish_on_change_evt {
@@ -257,6 +260,7 @@ pub async fn import_data_encryption_key<R>(
     on_change_tx: &EncryptionKeyEventSender,
     repo: &R,
     params: ImportDekParams,
+    local_envelope_encryption_key_path: &std::path::Path,
     publish_on_change_evt: bool,
 ) -> Result<ImportDekResponse, CommonError>
 where
@@ -282,9 +286,9 @@ where
             region: aws_kms.region.clone(),
         },
         EnvelopeEncryptionKey::Local(local) => {
-            crate::logic::envelope::get_local_envelope_encryption_key(&std::path::PathBuf::from(
-                &local.file_name,
-            ))?
+            // Resolve the filename relative to local_envelope_encryption_key_path
+            let key_path = local_envelope_encryption_key_path.join(&local.file_name);
+            crate::logic::envelope::get_local_envelope_encryption_key(&key_path)?
         }
     };
 
@@ -538,6 +542,7 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            &std::path::PathBuf::from("/tmp/test-keys"),
             false,
         )
         .await
@@ -594,6 +599,7 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            &std::path::PathBuf::from("/tmp/test-keys"),
             false,
         )
         .await
@@ -646,6 +652,7 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            &std::path::PathBuf::from("/tmp/test-keys"),
             false,
         )
         .await
@@ -699,6 +706,7 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            &std::path::PathBuf::from("/tmp/test-keys"),
             false,
         )
         .await
@@ -755,6 +763,7 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            &std::path::PathBuf::from("/tmp/test-keys"),
             false,
         )
         .await
@@ -770,6 +779,7 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            &std::path::PathBuf::from("/tmp/test-keys"),
             false,
         )
         .await

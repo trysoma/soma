@@ -809,8 +809,20 @@ pub fn get_local_envelope_encryption_key(
         )));
     }
 
+    // Extract only the filename from the path (relative to .soma/envelope-encryption-keys)
+    let file_name = file_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| {
+            CommonError::Unknown(anyhow::anyhow!(
+                "Invalid file path: {}",
+                file_path.display()
+            ))
+        })?
+        .to_string();
+
     Ok(EnvelopeEncryptionKeyContents::Local {
-        file_name: file_path.to_string_lossy().to_string(),
+        file_name,
         key_bytes,
     })
 }
@@ -839,8 +851,20 @@ pub fn get_or_create_local_envelope_encryption_key(
             )));
         }
 
+        // Extract only the filename from the path (relative to .soma/envelope-encryption-keys)
+        let file_name = file_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "Invalid file path: {}",
+                    file_path.display()
+                ))
+            })?
+            .to_string();
+
         return Ok(EnvelopeEncryptionKeyContents::Local {
-            file_name: file_path.to_string_lossy().to_string(),
+            file_name,
             key_bytes,
         });
     }
@@ -869,8 +893,20 @@ pub fn get_or_create_local_envelope_encryption_key(
         ))
     })?;
 
+    // Extract only the filename from the path (relative to .soma/envelope-encryption-keys)
+    let file_name = file_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| {
+            CommonError::Unknown(anyhow::anyhow!(
+                "Invalid file path: {}",
+                file_path.display()
+            ))
+        })?
+        .to_string();
+
     Ok(EnvelopeEncryptionKeyContents::Local {
-        file_name: file_path.to_string_lossy().to_string(),
+        file_name,
         key_bytes,
     })
 }
@@ -1053,6 +1089,25 @@ mod tests {
     const TEST_KMS_REGION: &str = "eu-west-2";
 
     /// Helper function to create a temporary local key file
+    /// Returns the filename (not full path) and the key contents
+    fn create_temp_local_key_in_dir(
+        base_path: &std::path::Path,
+        filename: &str,
+    ) -> EnvelopeEncryptionKeyContents {
+        let mut kek_bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut kek_bytes);
+
+        let key_path = base_path.join(filename);
+        std::fs::create_dir_all(base_path).expect("Failed to create base directory");
+        std::fs::write(&key_path, kek_bytes).expect("Failed to write KEK to file");
+
+        EnvelopeEncryptionKeyContents::Local {
+            file_name: filename.to_string(),
+            key_bytes: kek_bytes.to_vec(),
+        }
+    }
+
+    /// Helper function to create a temporary local key file (legacy, for tests that don't use a base dir)
     fn create_temp_local_key() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
         let mut kek_bytes = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut kek_bytes);
@@ -1060,10 +1115,16 @@ mod tests {
         let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
         std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
 
-        let file_name = temp_file.path().to_string_lossy().to_string();
+        // Extract only the filename, not the full path
+        let file_name = temp_file
+            .path()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("test-key")
+            .to_string();
 
         let contents = EnvelopeEncryptionKeyContents::Local {
-            file_name: file_name.clone(),
+            file_name,
             key_bytes: kek_bytes.to_vec(),
         };
 
@@ -1244,7 +1305,8 @@ mod tests {
             key_bytes,
         } = &key1
         {
-            assert_eq!(file_name, &path.to_string_lossy().to_string());
+            // file_name should be just the filename, not the full path
+            assert_eq!(file_name, "test-key");
             assert_eq!(key_bytes.len(), 32);
         }
 
@@ -1423,6 +1485,7 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            &std::path::PathBuf::from("/tmp/test-keys"),
             false,
         )
         .await
@@ -1462,28 +1525,24 @@ mod tests {
         let repo = Repository::new(conn);
         let (tx, _rx) = broadcast::channel(100);
 
-        // Create two local keys
-        let (_temp_file1, local_key1_contents) = create_temp_local_key();
-        let file_name1 = match &local_key1_contents {
-            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
-            _ => panic!("Expected local key"),
-        };
+        // Create temp directory for keys
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
+
+        // Create two local keys in the temp directory
+        let file_name1 = "test-key-1";
+        let local_key1_contents = create_temp_local_key_in_dir(temp_dir, file_name1);
         let envelope_key1 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
-            file_name: file_name1.clone(),
+            file_name: file_name1.to_string(),
         });
 
-        let (_temp_file2, local_key2_contents) = create_temp_local_key();
-        let file_name2 = match &local_key2_contents {
-            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
-            _ => panic!("Expected local key"),
-        };
+        let file_name2 = "test-key-2";
+        let _local_key2_contents = create_temp_local_key_in_dir(temp_dir, file_name2);
         let envelope_key2 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
-            file_name: file_name2.clone(),
+            file_name: file_name2.to_string(),
         });
 
         // Create both envelope keys
-        let temp_dir_handle = tempfile::tempdir().unwrap();
-        let temp_dir = temp_dir_handle.path();
         create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key1.clone(), false)
             .await
             .unwrap();
@@ -1502,13 +1561,15 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            temp_dir,
             false,
         )
         .await
         .unwrap();
 
-        // Create cache
-        let cache = crate::logic::crypto_services::CryptoCache::new(repo.clone());
+        // Create cache - use temp_dir as base path
+        let cache =
+            crate::logic::crypto_services::CryptoCache::new(repo.clone(), temp_dir.to_path_buf());
         crate::logic::crypto_services::init_crypto_cache(&cache)
             .await
             .unwrap();
@@ -1522,7 +1583,7 @@ mod tests {
             &cache,
             MigrateDataEncryptionKeyParams {
                 data_encryption_key_id: dek.id.clone(),
-                to_envelope_encryption_key_id: file_name2.clone(),
+                to_envelope_encryption_key_id: file_name2.to_string(),
             },
             false,
         )
@@ -1567,14 +1628,15 @@ mod tests {
         let repo = Repository::new(conn);
         let (tx, _rx) = broadcast::channel(100);
 
-        // Create local key
-        let (_temp_file, local_key_contents) = create_temp_local_key();
-        let file_name = match &local_key_contents {
-            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
-            _ => panic!("Expected local key"),
-        };
+        // Create temp directory for keys
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
+
+        // Create local key in the temp directory
+        let file_name = "test-key-local-to-aws";
+        let local_key_contents = create_temp_local_key_in_dir(temp_dir, file_name);
         let envelope_key_local = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
-            file_name: file_name.clone(),
+            file_name: file_name.to_string(),
         });
 
         // Create AWS KMS key (verifies AWS credentials are available)
@@ -1585,8 +1647,6 @@ mod tests {
         });
 
         // Create both envelope keys
-        let temp_dir_handle = tempfile::tempdir().unwrap();
-        let temp_dir = temp_dir_handle.path();
 
         create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key_local.clone(), false)
             .await
@@ -1606,13 +1666,15 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            temp_dir,
             false,
         )
         .await
         .unwrap();
 
-        // Create cache
-        let cache = crate::logic::crypto_services::CryptoCache::new(repo.clone());
+        // Create cache - use temp_dir as base path
+        let cache =
+            crate::logic::crypto_services::CryptoCache::new(repo.clone(), temp_dir.to_path_buf());
         crate::logic::crypto_services::init_crypto_cache(&cache)
             .await
             .unwrap();
@@ -1696,13 +1758,15 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            temp_dir,
             false,
         )
         .await
         .unwrap();
 
-        // Create cache
-        let cache = crate::logic::crypto_services::CryptoCache::new(repo.clone());
+        // Create cache - use temp_dir as base path
+        let cache =
+            crate::logic::crypto_services::CryptoCache::new(repo.clone(), temp_dir.to_path_buf());
         crate::logic::crypto_services::init_crypto_cache(&cache)
             .await
             .unwrap();
@@ -1799,13 +1863,15 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            temp_dir,
             false,
         )
         .await
         .unwrap();
 
-        // Create cache
-        let cache = crate::logic::crypto_services::CryptoCache::new(repo.clone());
+        // Create cache - use temp_dir as base path
+        let cache =
+            crate::logic::crypto_services::CryptoCache::new(repo.clone(), temp_dir.to_path_buf());
         crate::logic::crypto_services::init_crypto_cache(&cache)
             .await
             .unwrap();
@@ -1864,28 +1930,24 @@ mod tests {
         let repo = Repository::new(conn);
         let (tx, _rx) = broadcast::channel(100);
 
-        // Create two local keys
-        let (_temp_file1, local_key1_contents) = create_temp_local_key();
-        let file_name1 = match &local_key1_contents {
-            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
-            _ => panic!("Expected local key"),
-        };
+        // Create temp directory for keys
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
+
+        // Create two local keys in the temp directory
+        let file_name1 = "test-key-invalidation-1";
+        let local_key1_contents = create_temp_local_key_in_dir(temp_dir, file_name1);
         let envelope_key1 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
-            file_name: file_name1.clone(),
+            file_name: file_name1.to_string(),
         });
 
-        let (_temp_file2, local_key2_contents) = create_temp_local_key();
-        let file_name2 = match &local_key2_contents {
-            EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
-            _ => panic!("Expected local key"),
-        };
+        let file_name2 = "test-key-invalidation-2";
+        let _local_key2_contents = create_temp_local_key_in_dir(temp_dir, file_name2);
         let envelope_key2 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
-            file_name: file_name2.clone(),
+            file_name: file_name2.to_string(),
         });
 
         // Create both envelope keys
-        let temp_dir_handle = tempfile::tempdir().unwrap();
-        let temp_dir = temp_dir_handle.path();
         create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key1.clone(), false)
             .await
             .unwrap();
@@ -1904,13 +1966,15 @@ mod tests {
                     encrypted_dek: None,
                 },
             },
+            temp_dir,
             false,
         )
         .await
         .unwrap();
 
-        // Create and initialize cache
-        let cache = crate::logic::crypto_services::CryptoCache::new(repo.clone());
+        // Create and initialize cache - use temp_dir as base path
+        let cache =
+            crate::logic::crypto_services::CryptoCache::new(repo.clone(), temp_dir.to_path_buf());
         crate::logic::crypto_services::init_crypto_cache(&cache)
             .await
             .unwrap();
@@ -1944,7 +2008,7 @@ mod tests {
             &cache,
             MigrateDataEncryptionKeyParams {
                 data_encryption_key_id: dek.id.clone(),
-                to_envelope_encryption_key_id: file_name2.clone(),
+                to_envelope_encryption_key_id: file_name2.to_string(),
             },
             false,
         )

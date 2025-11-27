@@ -255,12 +255,18 @@ async fn handle_encryption_event(
         EncryptionKeyEvent::DataEncryptionKeyAdded(dek) => {
             // DEK creation events are ignored - we only sync DEKs when aliases are added/updated
             // This ensures we always have complete data (including alias) in YAML
-            info!("Data encryption key added: {:?} (ignoring - will sync when alias is added)", dek.id);
+            info!(
+                "Data encryption key added: {:?} (ignoring - will sync when alias is added)",
+                dek.id
+            );
         }
         EncryptionKeyEvent::DataEncryptionKeyRemoved(dek_id) => {
             // DEK removal events are ignored - we only sync DEKs when aliases are added/updated/removed
             // When a DEK is removed, its aliases are also removed, which will trigger alias removal events
-            info!("Data encryption key removed: {:?} (ignoring - will sync when alias is removed)", dek_id);
+            info!(
+                "Data encryption key removed: {:?} (ignoring - will sync when alias is removed)",
+                dek_id
+            );
         }
         EncryptionKeyEvent::DataEncryptionKeyMigrated {
             old_dek_id,
@@ -344,7 +350,7 @@ async fn handle_encryption_event(
                 alias, dek.id
             );
             let envelope_key_id = dek.envelope_encryption_key_id.id();
-            
+
             // Check if DEK already exists in YAML (by UUID or alias)
             let definition = soma_definition.get_definition().await?;
             let mut needs_add = true;
@@ -370,7 +376,7 @@ async fn handle_encryption_event(
                     }
                 }
             }
-            
+
             // Add the DEK if it doesn't exist
             if needs_add {
                 soma_definition
@@ -406,7 +412,7 @@ async fn handle_encryption_event(
             // Update the DEK in YAML with the new DEK data
             info!("DEK alias updated: {:?} -> {:?}", alias, dek.id);
             let envelope_key_id = dek.envelope_encryption_key_id.id();
-            
+
             // Check if alias already exists in YAML
             let definition = soma_definition.get_definition().await?;
             let mut needs_add = true;
@@ -435,7 +441,7 @@ async fn handle_encryption_event(
                     }
                 }
             }
-            
+
             // Add the DEK with the alias if it doesn't exist
             if needs_add {
                 soma_definition

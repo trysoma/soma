@@ -157,8 +157,14 @@ async fn route_create_data_encryption_key(
             encrypted_dek: params.encrypted_dek,
         },
     };
-    let res =
-        create_data_encryption_key(ctx.on_change_tx(), ctx.repository(), create_params, true).await;
+    let res = create_data_encryption_key(
+        ctx.on_change_tx(),
+        ctx.repository(),
+        create_params,
+        ctx.local_envelope_encryption_key_path(),
+        true,
+    )
+    .await;
     JsonResponse::from(res)
 }
 
@@ -203,8 +209,14 @@ async fn route_import_data_encryption_key(
             ),
         },
     };
-    let res =
-        import_data_encryption_key(ctx.on_change_tx(), ctx.repository(), import_params, true).await;
+    let res = import_data_encryption_key(
+        ctx.on_change_tx(),
+        ctx.repository(),
+        import_params,
+        ctx.local_envelope_encryption_key_path(),
+        true,
+    )
+    .await;
     JsonResponse::from(res)
 }
 
