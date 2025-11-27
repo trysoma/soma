@@ -1164,8 +1164,9 @@ mod tests {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
         };
-        let temp_dir = tempfile::tempdir().unwrap().path().into();
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, aws_key.clone(), false)
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
+        create_envelope_encryption_key(temp_dir, &tx, &repo, aws_key.clone(), false)
             .await
             .unwrap();
 
@@ -1206,9 +1207,10 @@ mod tests {
         let local_key = EnvelopeEncryptionKey::Local {
             file_name: file_name.clone(),
         };
-        let temp_dir = tempfile::tempdir().unwrap().path().into();
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
 
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, local_key.clone(), false)
+        create_envelope_encryption_key(temp_dir, &tx, &repo, local_key.clone(), false)
             .await
             .unwrap();
 
@@ -1285,10 +1287,11 @@ mod tests {
         let envelope_key = EnvelopeEncryptionKey::Local {
             file_name: file_name.clone(),
         };
-        let temp_dir = tempfile::tempdir().unwrap().path().into();
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
 
         let result =
-            create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key.clone(), false)
+            create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key.clone(), false)
                 .await;
 
         assert!(result.is_ok());
@@ -1317,10 +1320,11 @@ mod tests {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
         };
-        let temp_dir = tempfile::tempdir().unwrap().path().into();
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
 
         let result =
-            create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key.clone(), false)
+            create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key.clone(), false)
                 .await;
 
         assert!(result.is_ok());
@@ -1354,10 +1358,11 @@ mod tests {
         let envelope_key = EnvelopeEncryptionKey::Local {
             file_name: file_name.clone(),
         };
-        let temp_dir = tempfile::tempdir().unwrap().path().into();
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
 
         // Create the key
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key.clone(), false)
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key.clone(), false)
             .await
             .unwrap();
 
@@ -1402,10 +1407,11 @@ mod tests {
         let envelope_key = EnvelopeEncryptionKey::Local {
             file_name: file_name.clone(),
         };
-        let temp_dir = tempfile::tempdir().unwrap().path().into();
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
 
         // Create the envelope key
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key.clone(), false)
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key.clone(), false)
             .await
             .unwrap();
 
@@ -1479,11 +1485,12 @@ mod tests {
         };
 
         // Create both envelope keys
-        let temp_dir = tempfile::tempdir().unwrap().path().into();
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key1.clone(), false)
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key1.clone(), false)
             .await
             .unwrap();
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key2.clone(), false)
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key2.clone(), false)
             .await
             .unwrap();
 
@@ -1511,7 +1518,7 @@ mod tests {
 
         // Migrate to the second key
         let result = migrate_data_encryption_key(
-            &temp_dir,
+            temp_dir,
             &tx,
             &local_key1_contents,
             &repo,
@@ -1581,12 +1588,13 @@ mod tests {
         };
 
         // Create both envelope keys
-        let temp_dir = tempfile::tempdir().unwrap().path().into();
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
 
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key_local.clone(), false)
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key_local.clone(), false)
             .await
             .unwrap();
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key_aws.clone(), false)
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key_aws.clone(), false)
             .await
             .unwrap();
 
@@ -1614,7 +1622,7 @@ mod tests {
 
         // Migrate to AWS KMS
         let result = migrate_data_encryption_key(
-            &temp_dir,
+            temp_dir,
             &tx,
             &local_key_contents,
             &repo,
@@ -1674,8 +1682,9 @@ mod tests {
         };
 
         // Create envelope key
-        let temp_dir = tempfile::tempdir().unwrap().path().into();
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key_aws.clone(), false)
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key_aws.clone(), false)
             .await
             .unwrap();
 
@@ -1703,7 +1712,7 @@ mod tests {
 
         // Migrate to the same AWS KMS key (re-encrypt)
         let result = migrate_data_encryption_key(
-            &temp_dir,
+            temp_dir,
             &tx,
             &aws_key_contents,
             &repo,
@@ -1773,11 +1782,12 @@ mod tests {
         };
 
         // Create both envelope keys
-        let temp_dir = tempfile::tempdir().unwrap().path().into();
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key_aws.clone(), false)
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key_aws.clone(), false)
             .await
             .unwrap();
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key_local.clone(), false)
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key_local.clone(), false)
             .await
             .unwrap();
 
@@ -1805,7 +1815,7 @@ mod tests {
 
         // Migrate to local key
         let result = migrate_data_encryption_key(
-            &temp_dir,
+            temp_dir,
             &tx,
             &aws_key_contents,
             &repo,
@@ -1877,11 +1887,12 @@ mod tests {
         };
 
         // Create both envelope keys
-        let temp_dir = tempfile::tempdir().unwrap().path().into();
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key1.clone(), false)
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key1.clone(), false)
             .await
             .unwrap();
-        create_envelope_encryption_key(&temp_dir, &tx, &repo, envelope_key2.clone(), false)
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key2.clone(), false)
             .await
             .unwrap();
 
@@ -1929,7 +1940,7 @@ mod tests {
 
         // Migrate to the second key
         let result = migrate_data_encryption_key(
-            &temp_dir,
+            temp_dir,
             &tx,
             &local_key1_contents,
             &repo,
