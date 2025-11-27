@@ -66,6 +66,7 @@ export function UserCredentialBrokeringResponseFromJSONTyped(
 	if (instanceOfUserCredentialBrokeringResponseOneOf2(json)) {
 		return UserCredentialBrokeringResponseOneOf2FromJSONTyped(json, true);
 	}
+
 	return {} as any;
 }
 
@@ -98,5 +99,6 @@ export function UserCredentialBrokeringResponseToJSONTyped(
 			value as UserCredentialBrokeringResponseOneOf2,
 		);
 	}
+
 	return {};
 }

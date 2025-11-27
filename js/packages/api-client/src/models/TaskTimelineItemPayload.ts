@@ -56,6 +56,7 @@ export function TaskTimelineItemPayloadFromJSONTyped(
 	if (instanceOfTaskTimelineItemPayloadOneOf1(json)) {
 		return TaskTimelineItemPayloadOneOf1FromJSONTyped(json, true);
 	}
+
 	return {} as any;
 }
 
@@ -83,5 +84,6 @@ export function TaskTimelineItemPayloadToJSONTyped(
 			value as TaskTimelineItemPayloadOneOf1,
 		);
 	}
+
 	return {};
 }

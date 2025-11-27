@@ -43,9 +43,7 @@ export function BrokerActionFromJSONTyped(
 	if (instanceOfBrokerActionOneOf(json)) {
 		return BrokerActionOneOfFromJSONTyped(json, true);
 	}
-	if (typeof json === "string" && json === "None") {
-		return json;
-	}
+
 	return {} as any;
 }
 
@@ -66,8 +64,6 @@ export function BrokerActionToJSONTyped(
 	if (instanceOfBrokerActionOneOf(value)) {
 		return BrokerActionOneOfToJSON(value as BrokerActionOneOf);
 	}
-	if (typeof value === "string" && value === "None") {
-		return value;
-	}
+
 	return {};
 }

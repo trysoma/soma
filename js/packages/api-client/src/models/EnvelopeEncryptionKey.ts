@@ -56,6 +56,7 @@ export function EnvelopeEncryptionKeyFromJSONTyped(
 	if (instanceOfEnvelopeEncryptionKeyOneOf1(json)) {
 		return EnvelopeEncryptionKeyOneOf1FromJSONTyped(json, true);
 	}
+
 	return {} as any;
 }
 
@@ -83,5 +84,6 @@ export function EnvelopeEncryptionKeyToJSONTyped(
 			value as EnvelopeEncryptionKeyOneOf1,
 		);
 	}
+
 	return {};
 }

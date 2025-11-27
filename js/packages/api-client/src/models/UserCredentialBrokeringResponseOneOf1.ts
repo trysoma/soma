@@ -150,7 +150,7 @@ export function UserCredentialBrokeringResponseOneOf1ToJSONTyped(
 		metadata: value.metadata,
 		next_rotation_time:
 			value.nextRotationTime == null
-				? value.nextRotationTime
+				? undefined
 				: value.nextRotationTime.toISOString(),
 		type_id: value.typeId,
 		updated_at: value.updatedAt.toISOString(),

@@ -54,6 +54,7 @@ export function EnvelopeKeyConfigFromJSONTyped(
 	if (instanceOfEnvelopeKeyConfigOneOf1(json)) {
 		return EnvelopeKeyConfigOneOf1FromJSONTyped(json, true);
 	}
+
 	return {} as any;
 }
 
@@ -77,5 +78,6 @@ export function EnvelopeKeyConfigToJSONTyped(
 	if (instanceOfEnvelopeKeyConfigOneOf1(value)) {
 		return EnvelopeKeyConfigOneOf1ToJSON(value as EnvelopeKeyConfigOneOf1);
 	}
+
 	return {};
 }

@@ -52,6 +52,7 @@ export function InvokeResultFromJSONTyped(
 	if (instanceOfInvokeResultOneOf1(json)) {
 		return InvokeResultOneOf1FromJSONTyped(json, true);
 	}
+
 	return {} as any;
 }
 
@@ -75,5 +76,6 @@ export function InvokeResultToJSONTyped(
 	if (instanceOfInvokeResultOneOf1(value)) {
 		return InvokeResultOneOf1ToJSON(value as InvokeResultOneOf1);
 	}
+
 	return {};
 }
