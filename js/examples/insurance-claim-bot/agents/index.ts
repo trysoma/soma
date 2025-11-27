@@ -11,8 +11,6 @@ import { z } from "zod";
 import { type BridgeDefinition, getBridge } from "../.soma/bridge";
 import { convertToAiSdkMessages } from "../utils";
 
-/////
-
 const InsuranceClaimSchema = z.object({
 	date: z.string(),
 	category: z.string(),
@@ -21,16 +19,11 @@ const InsuranceClaimSchema = z.object({
 	email: z.string(),
 });
 
-// type InsuranceClaim = z.infer<typeof InsuranceClaimSchema>;
 export const assessmentSchema = z.object({
 	claim: InsuranceClaimSchema,
 });
 
 type Assessment = z.infer<typeof assessmentSchema>;
-
-// interface BaseHandlerInput {
-// 	model: LanguageModel;
-// }
 
 interface DiscoverClaimInput {
 	model: LanguageModel;
@@ -53,6 +46,7 @@ const handlers = {
 			input: { model },
 			onGoalAchieved,
 			sendMessage,
+			bridge,
 		}) => {
 			const messages = convertToAiSdkMessages(history);
 
@@ -107,7 +101,6 @@ const handlers = {
 			sendMessage,
 		}) => {
 			ctx.console.log("Assessment", assessment);
-			// const b = bridge();
 
 			await sendMessage({
 				metadata: {},
@@ -121,24 +114,6 @@ const handlers = {
 				referenceTaskIds: [],
 				role: MessageRole.Agent,
 			});
-
-			// await ctx.run(async () => await b.invokeDanieltrysomaaiGoogleMailSendEmail({
-			// 	googleMailgoogleMailSendEmailParamsWrapper: {
-			// 		params: {
-			// 			body: "Your claim has been processed. Please find the results attached.",
-			// 			subject: "Insurance Claim Processed",
-			// 			to: assessment.claim.email || ""
-			// 		}
-			// 	},
-			// }));
-
-			// await ctx.run(async () => await b.invokeInternalBotApproveClaim({
-			// 	approveClaimapproveClaimParamsWrapper: {
-			// 		params: {
-			// 			claim: assessment.claim,
-			// 		}
-			// 	},
-			// }));
 		},
 	),
 };

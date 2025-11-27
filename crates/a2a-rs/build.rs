@@ -11,15 +11,20 @@ fn main() {
 
     let proto_file = Path::new("proto/a2a.proto").to_path_buf();
     let _a2a_type_file = Path::new("types/a2a.json").to_path_buf();
-    let a2a_commit_hash_file = Path::new("types/a2a_commit_hash.txt").to_path_buf();
-    let a2a_type_file = Path::new(&env::var("OUT_DIR").unwrap())
-        .to_path_buf()
-        .join("a2a_types.rs");
-    let proto_service_bin_file = Path::new(&env::var("OUT_DIR").unwrap())
-        .to_path_buf()
-        .join("service.bin");
+    let out_dir_str = env::var("OUT_DIR").unwrap();
+    let out_dir = Path::new(&out_dir_str);
+    // Use target-specific cache file to avoid cross-target cache issues
+    let a2a_commit_hash_file = out_dir.join("a2a_commit_hash.txt");
+    let a2a_type_file = out_dir.join("a2a_types.rs");
+    let proto_service_bin_file = out_dir.join("service.bin");
+    // Check for the generated proto Rust file (a2a.v1.rs) which is what we actually need
+    let proto_rust_file = out_dir.join("a2a.v1.rs");
 
-    if a2a_commit_hash_file.exists() && proto_service_bin_file.exists() && a2a_type_file.exists() {
+    if a2a_commit_hash_file.exists()
+        && proto_service_bin_file.exists()
+        && a2a_type_file.exists()
+        && proto_rust_file.exists()
+    {
         let cached_hash = fs::read_to_string(&a2a_commit_hash_file).unwrap();
         if cached_hash == A2A_COMMIT_HASH {
             return;
@@ -30,9 +35,8 @@ fn main() {
     if let Some(proto_dir) = proto_file.parent() {
         fs::create_dir_all(proto_dir).unwrap();
     }
-    if let Some(types_dir) = a2a_type_file.parent() {
-        fs::create_dir_all(types_dir).unwrap();
-    }
+    // Ensure OUT_DIR exists (it should, but be safe)
+    fs::create_dir_all(out_dir).unwrap();
 
     // Check if we have pre-fetched files from Nix (or download them)
     if let (Ok(json_path), Ok(proto_path)) = (
@@ -94,5 +98,5 @@ fn main() {
         prettyplease::unparse(&syn::parse2::<syn::File>(type_space.to_stream()).unwrap());
 
     fs::write(a2a_type_file, contents).unwrap();
-    fs::write(a2a_commit_hash_file, A2A_COMMIT_HASH).unwrap();
+    fs::write(&a2a_commit_hash_file, A2A_COMMIT_HASH).unwrap();
 }
