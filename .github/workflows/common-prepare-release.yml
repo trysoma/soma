@@ -385,7 +385,7 @@ jobs:
           DATABASE_SCHEMA_DIFF=""
           
           if [ "${{ steps.prev-version.outputs.has_prev_version }}" = "true" ]; then
-            # Set OpenAPI diff
+            # Set OpenAPI diff (raw diff, will be wrapped in backticks when writing to file)
             if [ "${{ steps.check-openapi.outputs.has_current }}" = "true" ] && [ "${{ steps.check-openapi.outputs.has_previous }}" = "true" ]; then
               OPENAPI_DIFF="${{ steps.openapi-diff.outputs.diff }}"
               if [ -z "$OPENAPI_DIFF" ]; then
@@ -395,20 +395,27 @@ jobs:
               OPENAPI_DIFF="Previous OpenAPI spec not available for comparison."
             fi
             
-            # Combine database schema diffs
+            # Combine database schema diffs (raw diffs, will be wrapped in backticks when writing to file)
             SOMA_DIFF="${{ steps.atlas-soma.outputs.soma_lint_output }}"
             BRIDGE_DIFF="${{ steps.atlas-bridge.outputs.bridge_lint_output }}"
+            ENCRYPTION_DIFF="${{ steps.atlas-encryption.outputs.encryption_lint_output }}"
             
-            if [ -n "$SOMA_DIFF" ] || [ -n "$BRIDGE_DIFF" ]; then
+            if [ -n "$SOMA_DIFF" ] || [ -n "$BRIDGE_DIFF" ] || [ -n "$ENCRYPTION_DIFF" ]; then
               DATABASE_SCHEMA_DIFF=""
               if [ -n "$SOMA_DIFF" ]; then
-                DATABASE_SCHEMA_DIFF="### Soma Database"$'\n'"\`\`\`"$'\n'"$SOMA_DIFF"$'\n'"\`\`\`"
+                DATABASE_SCHEMA_DIFF="### Soma Database"$'\n'"$SOMA_DIFF"
               fi
               if [ -n "$BRIDGE_DIFF" ]; then
                 if [ -n "$DATABASE_SCHEMA_DIFF" ]; then
                   DATABASE_SCHEMA_DIFF="$DATABASE_SCHEMA_DIFF"$'\n\n'
                 fi
-                DATABASE_SCHEMA_DIFF="${DATABASE_SCHEMA_DIFF}### Bridge Database"$'\n'"\`\`\`"$'\n'"$BRIDGE_DIFF"$'\n'"\`\`\`"
+                DATABASE_SCHEMA_DIFF="${DATABASE_SCHEMA_DIFF}### Bridge Database"$'\n'"$BRIDGE_DIFF"
+              fi
+              if [ -n "$ENCRYPTION_DIFF" ]; then
+                if [ -n "$DATABASE_SCHEMA_DIFF" ]; then
+                  DATABASE_SCHEMA_DIFF="$DATABASE_SCHEMA_DIFF"$'\n\n'
+                fi
+                DATABASE_SCHEMA_DIFF="${DATABASE_SCHEMA_DIFF}### Encryption Database"$'\n'"$ENCRYPTION_DIFF"
               fi
             else
               DATABASE_SCHEMA_DIFF="No database schema changes detected."

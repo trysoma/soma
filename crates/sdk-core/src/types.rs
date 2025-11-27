@@ -99,8 +99,13 @@ pub struct InvokeError {
 }
 
 #[derive(Debug, Clone)]
+pub struct CallbackError {
+    pub message: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct InvokeFunctionResponse {
-    pub result: Result<String, InvokeError>,
+    pub result: Result<String, CallbackError>,
 }
 
 pub struct MetadataResponse {
@@ -431,8 +436,8 @@ impl TryFrom<sdk_proto::InvokeFunctionRequest> for InvokeFunctionRequest {
     }
 }
 
-impl From<InvokeError> for sdk_proto::InvokeError {
-    fn from(error: InvokeError) -> Self {
+impl From<CallbackError> for sdk_proto::CallbackError {
+    fn from(error: CallbackError) -> Self {
         Self {
             message: error.message,
         }
@@ -475,3 +480,67 @@ impl From<Agent> for sdk_proto::Agent {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct Secret {
+    pub key: String,
+    pub value: String,
+}
+
+impl From<sdk_proto::Secret> for Secret {
+    fn from(proto: sdk_proto::Secret) -> Self {
+        Self {
+            key: proto.key,
+            value: proto.value,
+        }
+    }
+}
+
+impl From<Secret> for sdk_proto::Secret {
+    fn from(secret: Secret) -> Self {
+        Self {
+            key: secret.key,
+            value: secret.value,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SetSecretsSuccess {
+    pub message: String,
+}
+
+impl From<SetSecretsSuccess> for sdk_proto::SetSecretsSuccess {
+    fn from(success: SetSecretsSuccess) -> Self {
+        Self {
+            message: success.message,
+        }
+    }
+}
+
+/// Response from setting secrets
+#[derive(Debug, Clone)]
+pub struct SetSecretsResponse {
+    pub result: Result<SetSecretsSuccess, CallbackError>,
+}
+
+impl From<SetSecretsResponse> for sdk_proto::SetSecretsResponse {
+    fn from(response: SetSecretsResponse) -> Self {
+        use sdk_proto::set_secrets_response::Kind;
+
+        Self {
+            kind: match response.result {
+                Ok(data) => Some(Kind::Data(data.into())),
+                Err(error) => Some(Kind::Error(error.into())),
+            },
+        }
+    }
+}
+
+/// Type alias for the secret handler callback
+pub type SecretHandler = Arc<
+    dyn Fn(Vec<Secret>) -> BoxFuture<'static, Result<SetSecretsResponse, CommonError>>
+        + Send
+        + Sync
+        + 'static,
+>;

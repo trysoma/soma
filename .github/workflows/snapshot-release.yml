@@ -120,6 +120,39 @@ jobs:
           changie merge
           cat CHANGELOG.md
 
+      - name: Create schema change files
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          # Remove 'v' prefix but keep prerelease suffix for snapshot releases (e.g., v0.0.2-snapshot-0 -> 0.0.2-snapshot-0)
+          VERSION_NO_V=$(echo "$VERSION" | sed 's/^v//')
+          
+          # Create OpenAPI schema change file
+          OPENAPI_FILE=".changes/v${VERSION_NO_V}.api.md"
+          echo "Creating $OPENAPI_FILE"
+          {
+            echo "### OpenAPI Schema Changes"
+            echo "(for release version ${VERSION_NO_V})"
+            echo ""
+            echo '```'
+            echo "${{ needs.prepare-release.outputs.openapi_diff }}"
+            echo '```'
+          } > "$OPENAPI_FILE"
+          
+          # Create database schema change file
+          DB_FILE=".changes/v${VERSION_NO_V}.db.md"
+          echo "Creating $DB_FILE"
+          {
+            echo "### Database Schema Changes"
+            echo "(for release version ${VERSION_NO_V})"
+            echo ""
+            echo '```'
+            echo "${{ needs.prepare-release.outputs.database_schema_diff }}"
+            echo '```'
+          } > "$DB_FILE"
+          
+          echo "Created schema change files:"
+          ls -la "$OPENAPI_FILE" "$DB_FILE" 2>/dev/null || echo "Some files may not exist if there were no changes"
+
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
         with:

@@ -82,13 +82,27 @@ export interface GenerateBridgeClientSuccess {
 	message: string;
 }
 
-export interface InvokeError {
+export interface CallbackError {
 	message: string;
 }
 
 export interface InvokeFunctionResponse {
 	data?: string;
-	error?: InvokeError;
+	error?: CallbackError;
+}
+
+export interface Secret {
+	key: string;
+	value: string;
+}
+
+export interface SetSecretsSuccess {
+	message: string;
+}
+
+export interface SetSecretsResponse {
+	data?: SetSecretsSuccess;
+	error?: CallbackError;
 }
 
 export interface Metadata {
@@ -160,6 +174,17 @@ export declare function removeFunction(
 
 /** Remove a provider controller by type_id */
 export declare function removeProvider(typeId: string): boolean;
+
+/**
+ * Set the secret handler callback that will be called when secrets are synced from Soma
+ * The callback receives an array of secrets and should inject them into process.env
+ */
+export declare function setSecretHandler(
+	callback: (
+		err: Error | null,
+		arg: Array<Secret>,
+	) => Promise<SetSecretsResponse>,
+): void;
 
 /** Start the gRPC server on a Unix socket with TypeScript code generation */
 export declare function startGrpcServer(

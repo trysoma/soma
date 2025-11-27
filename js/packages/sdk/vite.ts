@@ -240,7 +240,8 @@ function generateStandaloneServer(
 
 	return `/// <reference types="node" />
 // Auto-generated standalone server
-import { addFunction, addProvider, addAgent, startGrpcServer } from '@trysoma/sdk';
+import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler } from '@trysoma/sdk';
+import type { Secret, SetSecretsResponse, SetSecretsSuccess, CallbackError } from '@trysoma/sdk';
 import * as restate from '@restatedev/restate-sdk';
 import * as http2 from 'http2';
 
@@ -260,6 +261,37 @@ startGrpcServer(socketPath, projectDir).catch(err => {
 // Wait a bit for server to initialize
 await new Promise(resolve => setTimeout(resolve, 100));
 console.log(\`gRPC server started on \${socketPath}\`);
+
+// Register secret handler to inject secrets into process.env
+console.log('[INFO] Registering secret handler...');
+setSecretHandler(async (err, secrets) => {
+  if (err) {
+    console.error('Error in secret handler:', err);
+    const error: CallbackError = {
+      message: err.message,
+    }
+    const res: SetSecretsResponse = {
+      error
+    }
+    return res;
+  }
+  const secretKeys = secrets.map(s => s.key);
+  console.log(\`[INFO] Secret handler invoked with \${secrets.length} secrets: \${secretKeys.join(', ')}\`);
+  for (const secret of secrets) {
+    process.env[secret.key] = secret.value;
+    console.log(\`[INFO] Set process.env.\${secret.key}\`);
+  }
+  const message = \`Injected \${secrets.length} secrets into process.env\`;
+  console.log(\`[INFO] Secret handler completed: \${message}\`);
+  const data: SetSecretsSuccess = {
+    message,
+  }
+  const res: SetSecretsResponse = {
+    data,
+  }
+  return res;
+});
+console.log('[INFO] Secret handler registered successfully');
 
 // Register all providers and functions
 ${functionRegistrations.join("\n")}

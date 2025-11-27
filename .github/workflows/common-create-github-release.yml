@@ -163,8 +163,17 @@ jobs:
           sed -i.bak "s/VERSION_NUMBER/$VERSION_NUMBER/g" release-notes.md
           rm -f release-notes.md.bak
 
-          # Combine CHANGELOG.md with npm package links
-          cat CHANGELOG.md release-notes.md > combined-notes.md
+          # Use version-specific changelog from .changes directory
+          CHANGELOG_FILE=".changes/v${VERSION_NUMBER}.md"
+          if [ ! -f "$CHANGELOG_FILE" ]; then
+            echo "Warning: Changelog file $CHANGELOG_FILE not found, using empty changelog"
+            echo "" > version-changelog.md
+          else
+            cp "$CHANGELOG_FILE" version-changelog.md
+          fi
+
+          # Combine version-specific changelog with npm package links
+          cat version-changelog.md release-notes.md > combined-notes.md
 
           echo "Release notes prepared:"
           echo "---"

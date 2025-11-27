@@ -179,7 +179,7 @@ pub trait TaskRepositoryLike {
 
 // Secret repository trait
 #[allow(async_fn_in_trait)]
-pub trait SecretRepositoryLike {
+pub trait SecretRepositoryLike: Send + Sync {
     async fn create_secret(&self, params: &CreateSecret) -> Result<(), CommonError>;
     async fn update_secret(&self, params: &UpdateSecret) -> Result<(), CommonError>;
     async fn delete_secret(&self, id: &WrappedUuidV4) -> Result<(), CommonError>;

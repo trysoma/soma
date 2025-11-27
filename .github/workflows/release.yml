@@ -41,6 +41,39 @@ jobs:
           echo "Updating Cargo.lock for version ${{ needs.prepare-release.outputs.version }}"
           cargo update --workspace
 
+      - name: Create schema change files
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          # Remove 'v' prefix and prerelease suffix to get base version (e.g., v0.0.2-snapshot-0 -> 0.0.2)
+          BASE_VERSION=$(echo "$VERSION" | sed 's/^v//' | sed 's/-.*$//')
+          
+          # Create OpenAPI schema change file
+          OPENAPI_FILE=".changes/v${BASE_VERSION}.api.md"
+          echo "Creating $OPENAPI_FILE"
+          {
+            echo "### OpenAPI Schema Changes"
+            echo "(for release version ${BASE_VERSION})"
+            echo ""
+            echo '```'
+            echo "${{ needs.prepare-release.outputs.openapi_diff }}"
+            echo '```'
+          } > "$OPENAPI_FILE"
+          
+          # Create database schema change file
+          DB_FILE=".changes/v${BASE_VERSION}.db.md"
+          echo "Creating $DB_FILE"
+          {
+            echo "### Database Schema Changes"
+            echo "(for release version ${BASE_VERSION})"
+            echo ""
+            echo '```'
+            echo "${{ needs.prepare-release.outputs.database_schema_diff }}"
+            echo '```'
+          } > "$DB_FILE"
+          
+          echo "Created schema change files:"
+          ls -la "$OPENAPI_FILE" "$DB_FILE" 2>/dev/null || echo "Some files may not exist if there were no changes"
+
       - name: Create release artifact
         run: |
           # Capture all modified files (including any Cargo.toml version changes)

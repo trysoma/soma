@@ -138,6 +138,8 @@ pub async fn create_api_service(
         sdk_runtime,
         sdk_port,
         system_shutdown_signal.subscribe(),
+        repository.clone(),
+        crypto_cache.clone(),
     )?;
 
     // Wait for SDK server and sync providers
@@ -240,8 +242,9 @@ pub async fn create_api_service(
 
     // Start SDK sync watcher
     info!("Starting SDK sync watcher...");
+    let socket_path_for_sync = socket_path.clone();
     let sdk_sync_handle = start_sdk_sync_subsystem(
-        socket_path,
+        socket_path_for_sync,
         restate_params,
         sdk_port,
         system_shutdown_signal.subscribe(),
@@ -265,6 +268,51 @@ pub async fn create_api_service(
         system_shutdown_signal.subscribe(),
     )?;
 
+    // Start secret sync subsystem
+    info!("Starting secret sync subsystem...");
+    let secret_sync_rx = secret_change_tx.subscribe();
+    let socket_path_clone = socket_path.clone();
+    let secret_sync_handle = crate::logic::secret_sync::start_secret_sync_subsystem(
+        repository.clone(),
+        crypto_cache.clone(),
+        socket_path_clone.clone(),
+        secret_sync_rx,
+        system_shutdown_signal.subscribe(),
+    )?;
+
+    // Perform initial secret sync to SDK
+    info!("Performing initial secret sync to SDK...");
+    let repository_arc = std::sync::Arc::new(repository.clone());
+    match crate::logic::secret_sync::fetch_and_decrypt_all_secrets(&repository_arc, &crypto_cache)
+        .await
+    {
+        Ok(secrets) => {
+            if !secrets.is_empty() {
+                info!("Found {} secrets to sync to SDK", secrets.len());
+                if let Ok(mut client) =
+                    shared::uds::create_soma_unix_socket_client(&socket_path_clone).await
+                {
+                    match crate::logic::secret_sync::sync_secrets_to_sdk(&mut client, secrets).await
+                    {
+                        Ok(()) => {
+                            info!("Initial secret sync completed successfully");
+                        }
+                        Err(e) => {
+                            warn!("Failed to perform initial secret sync: {:?}", e);
+                            // Don't fail startup - secrets will be synced on next change
+                        }
+                    }
+                }
+            } else {
+                info!("No secrets to sync on startup");
+            }
+        }
+        Err(e) => {
+            warn!("Failed to fetch secrets for initial sync: {:?}", e);
+            // Don't fail startup - secrets will be synced on next change
+        }
+    }
+
     Ok(ApiServiceBundle {
         api_service,
         subsystems: Subsystems {
@@ -273,6 +321,7 @@ pub async fn create_api_service(
             mcp: Some(mcp_handle),
             credential_rotation: Some(credential_rotation_handle),
             bridge_client_generation: Some(bridge_client_gen_handle),
+            secret_sync: Some(secret_sync_handle),
         },
         soma_change_tx,
     })
@@ -283,6 +332,8 @@ fn start_sdk_server_subsystem(
     sdk_runtime: SdkRuntime,
     sdk_port: u16,
     shutdown_rx: broadcast::Receiver<()>,
+    repository: crate::repository::Repository,
+    crypto_cache: CryptoCache,
 ) -> Result<SubsystemHandle, CommonError> {
     use crate::sdk::{StartDevSdkParams, start_dev_sdk};
 
@@ -294,6 +345,8 @@ fn start_sdk_server_subsystem(
             sdk_runtime,
             sdk_port,
             kill_signal_rx: shutdown_rx,
+            repository: std::sync::Arc::new(repository),
+            crypto_cache,
         })
         .await
         {

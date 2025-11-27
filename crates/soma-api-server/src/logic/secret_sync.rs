@@ -16,8 +16,8 @@ pub struct DecryptedSecret {
 }
 
 /// Fetch all secrets from the database and decrypt them
-pub async fn fetch_and_decrypt_all_secrets<R: SecretRepositoryLike>(
-    repository: &R,
+pub async fn fetch_and_decrypt_all_secrets(
+    repository: &std::sync::Arc<crate::repository::Repository>,
     crypto_cache: &CryptoCache,
 ) -> Result<Vec<DecryptedSecret>, CommonError> {
     let mut all_secrets = Vec::new();
@@ -30,7 +30,7 @@ pub async fn fetch_and_decrypt_all_secrets<R: SecretRepositoryLike>(
             next_page_token: page_token.clone(),
         };
 
-        let page = repository.get_secrets(&pagination).await?;
+        let page = repository.as_ref().get_secrets(&pagination).await?;
 
         for secret in page.items {
             // Get decryption service for this secret's DEK alias
@@ -112,8 +112,8 @@ pub async fn sync_secrets_to_sdk(
     }
 }
 
-pub struct SecretSyncParams<R: SecretRepositoryLike> {
-    pub repository: R,
+pub struct SecretSyncParams {
+    pub repository: std::sync::Arc<crate::repository::Repository>,
     pub crypto_cache: CryptoCache,
     pub socket_path: String,
     pub secret_change_rx: SecretChangeRx,
@@ -121,9 +121,7 @@ pub struct SecretSyncParams<R: SecretRepositoryLike> {
 }
 
 /// Run the secret sync loop - listens for secret changes and syncs to SDK
-pub async fn run_secret_sync_loop<R: SecretRepositoryLike + Clone + Send + Sync + 'static>(
-    params: SecretSyncParams<R>,
-) -> Result<(), CommonError> {
+pub async fn run_secret_sync_loop(params: SecretSyncParams) -> Result<(), CommonError> {
     let SecretSyncParams {
         repository,
         crypto_cache,
@@ -131,6 +129,7 @@ pub async fn run_secret_sync_loop<R: SecretRepositoryLike + Clone + Send + Sync 
         mut secret_change_rx,
         mut shutdown_rx,
     } = params;
+    let repository = repository.clone();
 
     info!("Starting secret sync loop");
 
@@ -178,8 +177,8 @@ pub async fn run_secret_sync_loop<R: SecretRepositoryLike + Clone + Send + Sync 
 }
 
 /// Helper to sync all secrets to SDK
-async fn sync_all_secrets<R: SecretRepositoryLike + Send + Sync>(
-    repository: &R,
+async fn sync_all_secrets(
+    repository: &std::sync::Arc<crate::repository::Repository>,
     crypto_cache: &CryptoCache,
     socket_path: &str,
 ) -> Result<(), CommonError> {
@@ -193,14 +192,15 @@ async fn sync_all_secrets<R: SecretRepositoryLike + Send + Sync>(
 }
 
 /// Start the secret sync subsystem
-pub fn start_secret_sync_subsystem<R: SecretRepositoryLike + Clone + Send + Sync + 'static>(
-    repository: R,
+pub fn start_secret_sync_subsystem(
+    repository: crate::repository::Repository,
     crypto_cache: CryptoCache,
     socket_path: String,
     secret_change_rx: SecretChangeRx,
     shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<SubsystemHandle, CommonError> {
     let (handle, signal) = SubsystemHandle::new("Secret Sync");
+    let repository = std::sync::Arc::new(repository);
 
     tokio::spawn(async move {
         match run_secret_sync_loop(SecretSyncParams {

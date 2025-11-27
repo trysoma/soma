@@ -3,12 +3,12 @@ mod unix_socket;
 
 use arc_swap::ArcSwap;
 use shared::error::CommonError;
+use std::{path::PathBuf, sync::Arc};
 use tracing_subscriber::EnvFilter;
 pub use types::*;
 use unix_socket::{bind_unix_listener, create_listener_stream};
 
 use sdk_proto::soma_sdk_service_server::{SomaSdkService, SomaSdkServiceServer};
-use std::{path::PathBuf, sync::Arc};
 use tonic::{Request, Response, Status, transport::Server};
 use tracing::info;
 
@@ -29,6 +29,7 @@ pub struct GrpcService<G: SdkCodeGenerator> {
     providers: ArcSwap<Vec<ProviderController>>,
     agents: ArcSwap<Vec<Agent>>,
     code_generator: Arc<G>,
+    secret_handler: ArcSwap<Option<SecretHandler>>,
 }
 
 #[tonic::async_trait]
@@ -127,6 +128,46 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
             }
         }
     }
+
+    async fn set_secrets(
+        &self,
+        request: Request<sdk_proto::SetSecretsRequest>,
+    ) -> Result<Response<sdk_proto::SetSecretsResponse>, Status> {
+        use sdk_proto::set_secrets_response::Kind;
+        info!(
+            "set_secrets called with {} secrets",
+            request.get_ref().secrets.len()
+        );
+
+        let proto_req = request.into_inner();
+        let secrets: Vec<Secret> = proto_req.secrets.into_iter().map(Into::into).collect();
+
+        // Get the secret handler
+        let handler_guard = self.secret_handler.load();
+        let handler = match handler_guard.as_ref() {
+            Some(h) => h.clone(),
+            None => {
+                info!("No secret handler registered");
+                return Ok(Response::new(sdk_proto::SetSecretsResponse {
+                    kind: Some(Kind::Error(sdk_proto::CallbackError {
+                        message: "No secret handler registered".to_string(),
+                    })),
+                }));
+            }
+        };
+        // Call the handler
+        info!("invoking set secrets handler");
+
+        let result = handler(secrets)
+            .await
+            .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
+
+        info!("set_secrets result: {:?}", result);
+
+        let result = result?;
+
+        Ok(Response::new(result.into()))
+    }
 }
 
 impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
@@ -135,7 +176,13 @@ impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
             providers: ArcSwap::from_pointee(providers),
             agents: ArcSwap::from_pointee(agents),
             code_generator: Arc::new(code_generator),
+            secret_handler: ArcSwap::from_pointee(None),
         }
+    }
+
+    /// Set the secret handler callback that will be invoked when secrets are synced
+    pub fn set_secret_handler(&self, handler: SecretHandler) {
+        self.secret_handler.store(Arc::new(Some(handler)));
     }
 
     /// Add a new provider controller
@@ -378,5 +425,12 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcServiceWrapper<G> {
         request: Request<sdk_proto::GenerateBridgeClientRequest>,
     ) -> Result<Response<sdk_proto::GenerateBridgeClientResponse>, Status> {
         self.0.generate_bridge_client(request).await
+    }
+
+    async fn set_secrets(
+        &self,
+        request: Request<sdk_proto::SetSecretsRequest>,
+    ) -> Result<Response<sdk_proto::SetSecretsResponse>, Status> {
+        self.0.set_secrets(request).await
     }
 }
