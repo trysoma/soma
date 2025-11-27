@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use ::bridge::router::bridge::BridgeService;
 use bridge::logic::OnConfigChangeTx;
@@ -11,11 +11,13 @@ use shared::{
 use url::Url;
 
 use crate::{
+    logic::on_change_pubsub::SecretChangeTx,
     logic::task::ConnectionManager,
     repository::Repository,
     router::{
         a2a::{Agent2AgentService, Agent2AgentServiceParams},
         internal,
+        secret::SecretService,
         task::TaskService,
     },
 };
@@ -28,6 +30,9 @@ pub mod router;
 pub mod sdk;
 pub mod subsystems;
 
+#[cfg(test)]
+pub mod test;
+
 #[derive(Clone)]
 pub struct ApiService {
     pub agent_service: Arc<Agent2AgentService>,
@@ -35,6 +40,7 @@ pub struct ApiService {
     pub bridge_service: BridgeService,
     pub internal_service: Arc<internal::InternalService>,
     pub encryption_service: encryption::router::EncryptionService,
+    pub secret_service: Arc<SecretService>,
 }
 
 pub struct InitApiServiceParams {
@@ -49,6 +55,7 @@ pub struct InitApiServiceParams {
     pub restate_admin_client: AdminClient,
     pub on_bridge_config_change_tx: OnConfigChangeTx,
     pub on_encryption_change_tx: EncryptionKeyEventSender,
+    pub on_secret_change_tx: SecretChangeTx,
     pub encryption_repository: encryption::repository::Repository,
     pub crypto_cache: CryptoCache,
     pub bridge_repository: ::bridge::repository::Repository,
@@ -60,6 +67,7 @@ pub struct InitApiServiceParams {
             >,
         >,
     >,
+    pub local_envelope_encryption_key_path: PathBuf,
 }
 
 impl ApiService {
@@ -68,6 +76,7 @@ impl ApiService {
             init_params.encryption_repository.clone(),
             init_params.on_encryption_change_tx.clone(),
             init_params.crypto_cache.clone(),
+            init_params.local_envelope_encryption_key_path.clone(),
         );
         let agent_service = Arc::new(Agent2AgentService::new(Agent2AgentServiceParams {
             soma_definition: init_params.soma_definition.clone(),
@@ -95,12 +104,19 @@ impl ApiService {
             init_params.sdk_client.clone(),
         ));
 
+        let secret_service = Arc::new(SecretService::new(
+            init_params.repository.clone(),
+            encryption_service.clone(),
+            init_params.on_secret_change_tx.clone(),
+        ));
+
         Ok(Self {
             agent_service,
             task_service,
             bridge_service,
             internal_service,
             encryption_service,
+            secret_service,
         })
     }
 }

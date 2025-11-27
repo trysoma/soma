@@ -1,8 +1,6 @@
-use std::path::PathBuf;
-
 use clap::{Args, Subcommand};
 use shared::error::CommonError;
-use soma_api_client::apis::default_api;
+use soma_api_client::apis::encryption_api;
 use soma_api_client::models;
 use tracing::info;
 
@@ -36,9 +34,9 @@ pub enum EncKeyCommands {
     },
     /// Migrate all DEKs from one envelope encryption key to another
     Migrate {
-        /// Source encryption key ID (ARN for AWS, location for local)
+        /// Source encryption key ID (ARN for AWS, file name for local)
         from: String,
-        /// Target encryption key ID (ARN for AWS, location for local)
+        /// Target encryption key ID (ARN for AWS, file name for local)
         to: String,
     },
 }
@@ -56,9 +54,9 @@ pub enum AddKeyType {
     },
     /// Add a local encryption key
     Local {
-        /// Local key location (relative to cwd or absolute path)
+        /// Local key file name (relative to cwd / project root)
         #[arg(long)]
-        location: String,
+        file_name: String,
     },
 }
 
@@ -71,8 +69,8 @@ pub enum RmKeyType {
     },
     /// Remove a local encryption key
     Local {
-        /// Local key location (relative to cwd or absolute path, used as ID)
-        location: String,
+        /// Local key file name (relative to cwd / project root, used as ID)
+        file_name: String,
     },
 }
 
@@ -97,7 +95,7 @@ pub async fn cmd_enc_key(
 async fn default_alias_exists(
     api_config: &soma_api_client::apis::configuration::Configuration,
 ) -> Result<bool, CommonError> {
-    match default_api::get_dek_by_alias_or_id(api_config, DEFAULT_ALIAS).await {
+    match encryption_api::get_dek_by_alias_or_id(api_config, DEFAULT_ALIAS).await {
         Ok(_) => Ok(true),
         Err(soma_api_client::apis::Error::ResponseError(resp)) if resp.status.as_u16() == 404 => {
             Ok(false)
@@ -119,7 +117,7 @@ async fn create_default_dek(
         encrypted_dek: None,
     };
 
-    let dek = default_api::create_data_encryption_key(api_config, envelope_id, dek_params)
+    let dek = encryption_api::create_data_encryption_key(api_config, envelope_id, dek_params)
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create DEK: {e:?}")))?;
 
@@ -131,7 +129,7 @@ async fn create_default_dek(
         alias: DEFAULT_ALIAS.to_string(),
     };
 
-    default_api::create_dek_alias(api_config, alias_params)
+    encryption_api::create_dek_alias(api_config, alias_params)
         .await
         .map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!("Failed to create default alias: {e:?}"))
@@ -161,16 +159,16 @@ pub async fn cmd_enc_key_add(
             );
 
             // Create the envelope encryption key using the API client
-            let envelope_key = models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(Box::new(
+            let envelope_key = models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(
                 models::EnvelopeEncryptionKeyOneOf::new(
                     arn.clone(),
                     region.clone(),
                     models::envelope_encryption_key_one_of::Type::AwsKms,
                 ),
-            ));
+            );
 
             let created_key =
-                default_api::create_envelope_encryption_key(&api_config, envelope_key)
+                encryption_api::create_envelope_encryption_key(&api_config, envelope_key)
                     .await
                     .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(
@@ -181,7 +179,7 @@ pub async fn cmd_enc_key_add(
             let envelope_id = match &created_key {
                 models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(key) => key.arn.clone(),
                 models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(key) => {
-                    key.location.clone()
+                    key.file_name.clone()
                 }
             };
 
@@ -200,25 +198,22 @@ pub async fn cmd_enc_key_add(
 
             Ok(())
         }
-        AddKeyType::Local { location } => {
-            // Convert relative path to absolute path
-            let absolute_location = resolve_location(&location)?;
-            let location_str = absolute_location.to_string_lossy().to_string();
+        AddKeyType::Local { file_name } => {
             info!(
-                "Adding local envelope encryption key at location: {}",
-                absolute_location.display()
+                "Adding local envelope encryption key at file name: {}",
+                file_name
             );
 
             // Create the envelope encryption key using the API client
             let envelope_key = models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(
-                Box::new(models::EnvelopeEncryptionKeyOneOf1::new(
-                    location_str.clone(),
+                models::EnvelopeEncryptionKeyOneOf1::new(
+                    file_name.clone(),
                     models::envelope_encryption_key_one_of_1::Type::Local,
-                )),
+                ),
             );
 
             let created_key =
-                default_api::create_envelope_encryption_key(&api_config, envelope_key)
+                encryption_api::create_envelope_encryption_key(&api_config, envelope_key)
                     .await
                     .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(
@@ -229,7 +224,7 @@ pub async fn cmd_enc_key_add(
             let envelope_id = match &created_key {
                 models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(key) => key.arn.clone(),
                 models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(key) => {
-                    key.location.clone()
+                    key.file_name.clone()
                 }
             };
 
@@ -264,20 +259,14 @@ pub async fn cmd_enc_key_rm(
             info!("Checking AWS KMS encryption key: {}", arn);
             arn
         }
-        RmKeyType::Local { location } => {
-            // Convert relative path to absolute path for consistency
-            let absolute_location = resolve_location(&location)?;
-            let location_str = absolute_location.to_string_lossy().to_string();
-            info!(
-                "Checking local encryption key at location: {}",
-                absolute_location.display()
-            );
-            location_str
+        RmKeyType::Local { file_name } => {
+            info!("Checking local encryption key at file name: {}", file_name);
+            file_name
         }
     };
 
     // List DEKs tied to this envelope key
-    let deks_response = default_api::list_data_encryption_keys_by_envelope(
+    let deks_response = encryption_api::list_data_encryption_keys_by_envelope(
         &api_config,
         &envelope_id,
         100, // page size
@@ -335,53 +324,20 @@ pub async fn cmd_enc_key_migrate(
     // Create API client and wait for server to be ready
     let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
 
-    // Resolve local paths to absolute paths
-    let from_identifier = if from.starts_with("arn:aws:kms:") {
-        from.clone()
-    } else {
-        let absolute_location = resolve_location(&from)?;
-        absolute_location.to_string_lossy().to_string()
-    };
-
-    let to_identifier = if to.starts_with("arn:aws:kms:") {
-        to.clone()
-    } else {
-        let absolute_location = resolve_location(&to)?;
-        absolute_location.to_string_lossy().to_string()
-    };
-
-    info!("Source envelope key: {}", from_identifier);
-    info!("Target envelope key: {}", to_identifier);
+    info!("Source envelope key: {}", from);
+    info!("Target envelope key: {}", to);
 
     // Call the migrate_all_data_encryption_keys endpoint
     let migrate_params = models::MigrateAllDataEncryptionKeysParamsRoute {
-        to_envelope_encryption_key_id: to_identifier.clone(),
+        to_envelope_encryption_key_id: to.clone(),
     };
 
-    default_api::migrate_all_data_encryption_keys(&api_config, &from_identifier, migrate_params)
+    encryption_api::migrate_all_data_encryption_keys(&api_config, &from, migrate_params)
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to migrate DEKs: {e:?}")))?;
 
     info!("Migration completed successfully!");
-    println!("Successfully migrated all DEKs from '{from_identifier}' to '{to_identifier}'");
+    println!("Successfully migrated all DEKs from '{from}' to '{to}'");
 
     Ok(())
-}
-
-/// Resolve a location string to an absolute path
-/// If the path is already absolute, return it as is
-/// If the path is relative, resolve it relative to the current working directory
-fn resolve_location(location: &str) -> Result<PathBuf, CommonError> {
-    let path = PathBuf::from(location);
-
-    if path.is_absolute() {
-        Ok(path)
-    } else {
-        let current_dir = std::env::current_dir().map_err(|e| {
-            CommonError::Unknown(anyhow::anyhow!(
-                "Failed to get current working directory: {e}"
-            ))
-        })?;
-        Ok(current_dir.join(path))
-    }
 }

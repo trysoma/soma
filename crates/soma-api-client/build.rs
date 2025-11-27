@@ -31,7 +31,7 @@ fn main() {
             "rust",
             "-o",
             output_dir.to_str().unwrap(),
-            "--additional-properties=packageName=soma-api-client,packageVersion=0.0.1",
+            "--additional-properties=packageName=soma-api-client,packageVersion=0.0.1,avoidBoxedModels=true,bestFitInt=true,topLevelApiClient=true,useSerdePathToError=true",
         ])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())

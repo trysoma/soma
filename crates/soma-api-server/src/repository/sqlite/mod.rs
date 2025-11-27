@@ -9,10 +9,11 @@ mod generated {
 
 pub use generated::*;
 
+use crate::logic::secret::Secret;
 use crate::logic::task::TaskWithDetails;
 use crate::repository::{
-    CreateMessage, CreateTask, CreateTaskTimelineItem, Message, Task, TaskRepositoryLike,
-    TaskTimelineItem, UpdateTaskStatus,
+    CreateMessage, CreateSecret, CreateTask, CreateTaskTimelineItem, Message, SecretRepositoryLike,
+    Task, TaskRepositoryLike, TaskTimelineItem, UpdateSecret, UpdateTaskStatus,
 };
 use anyhow::Context;
 use shared::{
@@ -395,6 +396,144 @@ impl TaskRepositoryLike for Repository {
             items,
             pagination,
             |message| vec![message.created_at.get_inner().to_rfc3339()],
+        ))
+    }
+}
+
+impl SecretRepositoryLike for Repository {
+    async fn create_secret(&self, params: &CreateSecret) -> Result<(), CommonError> {
+        let sqlc_params = insert_secret_params {
+            id: &params.id,
+            key: &params.key,
+            encrypted_secret: &params.encrypted_secret,
+            dek_alias: &params.dek_alias,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+        };
+
+        insert_secret(&self.conn, sqlc_params)
+            .await
+            .context("Failed to create secret")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn update_secret(&self, params: &UpdateSecret) -> Result<(), CommonError> {
+        let sqlc_params = update_secret_params {
+            id: &params.id,
+            encrypted_secret: &params.encrypted_secret,
+            dek_alias: &params.dek_alias,
+            updated_at: &params.updated_at,
+        };
+
+        update_secret(&self.conn, sqlc_params)
+            .await
+            .context("Failed to update secret")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn delete_secret(&self, id: &WrappedUuidV4) -> Result<(), CommonError> {
+        let sqlc_params = delete_secret_params { id };
+
+        delete_secret(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete secret")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn get_secret_by_id(&self, id: &WrappedUuidV4) -> Result<Option<Secret>, CommonError> {
+        let sqlc_params = get_secret_by_id_params { id };
+
+        let row_opt = get_secret_by_id(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get secret by id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        match row_opt {
+            Some(row) => Ok(Some(Secret::try_from(row)?)),
+            None => Ok(None),
+        }
+    }
+
+    async fn get_secret_by_key(&self, key: &str) -> Result<Option<Secret>, CommonError> {
+        let key_string = key.to_string();
+        let sqlc_params = get_secret_by_key_params { key: &key_string };
+
+        let row_opt = get_secret_by_key(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get secret by key")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        match row_opt {
+            Some(row) => Ok(Some(Secret::try_from(row)?)),
+            None => Ok(None),
+        }
+    }
+
+    async fn get_secrets(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<Secret>, CommonError> {
+        // Decode the base64 token to get the datetime cursor
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
+                        .map_err(|e| CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let sqlc_params = get_secrets_params {
+            cursor: &cursor_datetime,
+            page_size: &pagination.page_size,
+        };
+
+        let rows = get_secrets(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get secrets")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Result<Vec<Secret>, CommonError> =
+            rows.into_iter().map(Secret::try_from).collect();
+        let items = items?;
+
+        Ok(PaginatedResponse::from_items_with_extra(
+            items,
+            pagination,
+            |secret| vec![secret.created_at.get_inner().to_rfc3339()],
         ))
     }
 }
@@ -2089,5 +2228,258 @@ mod tests {
 
         assert!(has_message);
         assert!(has_status_update);
+    }
+
+    // Secret tests
+    #[tokio::test]
+    async fn test_create_and_get_secret_by_id() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let secret_id = WrappedUuidV4::new();
+        let key = "test-secret-key".to_string();
+        let encrypted_secret = "encrypted_value_here".to_string();
+        let dek_alias = "dek-alias-1".to_string();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        // Create secret
+        let create_params = crate::repository::CreateSecret {
+            id: secret_id.clone(),
+            key: key.clone(),
+            encrypted_secret: encrypted_secret.clone(),
+            dek_alias: dek_alias.clone(),
+            created_at,
+            updated_at,
+        };
+        repo.create_secret(&create_params).await.unwrap();
+
+        // Get secret by ID
+        let secret = repo.get_secret_by_id(&secret_id).await.unwrap();
+        assert!(secret.is_some());
+        let secret = secret.unwrap();
+        assert_eq!(secret.id, secret_id);
+        assert_eq!(secret.key, key);
+        assert_eq!(secret.encrypted_secret, encrypted_secret);
+        assert_eq!(secret.dek_alias, dek_alias);
+    }
+
+    #[tokio::test]
+    async fn test_get_secret_by_key() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let secret_id = WrappedUuidV4::new();
+        let key = "my-unique-key".to_string();
+        let encrypted_secret = "encrypted_data".to_string();
+        let dek_alias = "dek-1".to_string();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        // Create secret
+        let create_params = crate::repository::CreateSecret {
+            id: secret_id.clone(),
+            key: key.clone(),
+            encrypted_secret: encrypted_secret.clone(),
+            dek_alias: dek_alias.clone(),
+            created_at,
+            updated_at,
+        };
+        repo.create_secret(&create_params).await.unwrap();
+
+        // Get secret by key
+        let secret = repo.get_secret_by_key(&key).await.unwrap();
+        assert!(secret.is_some());
+        let secret = secret.unwrap();
+        assert_eq!(secret.id, secret_id);
+        assert_eq!(secret.key, key);
+    }
+
+    #[tokio::test]
+    async fn test_update_secret() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let secret_id = WrappedUuidV4::new();
+        let key = "update-test-key".to_string();
+        let encrypted_secret = "original_encrypted_value".to_string();
+        let dek_alias = "dek-original".to_string();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        // Create secret
+        let create_params = crate::repository::CreateSecret {
+            id: secret_id.clone(),
+            key: key.clone(),
+            encrypted_secret: encrypted_secret.clone(),
+            dek_alias: dek_alias.clone(),
+            created_at,
+            updated_at,
+        };
+        repo.create_secret(&create_params).await.unwrap();
+
+        // Update secret
+        let new_encrypted_secret = "new_encrypted_value".to_string();
+        let new_dek_alias = "dek-new".to_string();
+        let new_updated_at = WrappedChronoDateTime::now();
+
+        let update_params = crate::repository::UpdateSecret {
+            id: secret_id.clone(),
+            encrypted_secret: new_encrypted_secret.clone(),
+            dek_alias: new_dek_alias.clone(),
+            updated_at: new_updated_at,
+        };
+        repo.update_secret(&update_params).await.unwrap();
+
+        // Verify update
+        let secret = repo.get_secret_by_id(&secret_id).await.unwrap().unwrap();
+        assert_eq!(secret.encrypted_secret, new_encrypted_secret);
+        assert_eq!(secret.dek_alias, new_dek_alias);
+        // Key should remain unchanged
+        assert_eq!(secret.key, key);
+    }
+
+    #[tokio::test]
+    async fn test_delete_secret() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let secret_id = WrappedUuidV4::new();
+        let key = "delete-test-key".to_string();
+        let encrypted_secret = "encrypted_data".to_string();
+        let dek_alias = "dek-1".to_string();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        // Create secret
+        let create_params = crate::repository::CreateSecret {
+            id: secret_id.clone(),
+            key: key.clone(),
+            encrypted_secret,
+            dek_alias,
+            created_at,
+            updated_at,
+        };
+        repo.create_secret(&create_params).await.unwrap();
+
+        // Verify secret exists
+        let secret = repo.get_secret_by_id(&secret_id).await.unwrap();
+        assert!(secret.is_some());
+
+        // Delete secret
+        repo.delete_secret(&secret_id).await.unwrap();
+
+        // Verify secret no longer exists
+        let secret = repo.get_secret_by_id(&secret_id).await.unwrap();
+        assert!(secret.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_secrets_pagination() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        use std::thread::sleep;
+        use std::time::Duration;
+
+        // Create 5 secrets with slight time differences
+        for i in 0..5 {
+            sleep(Duration::from_millis(10)); // Ensure different timestamps
+            let secret_id = WrappedUuidV4::new();
+            let key = format!("secret-key-{i}");
+            let encrypted_secret = format!("encrypted-{i}");
+            let dek_alias = "dek-1".to_string();
+            let created_at = WrappedChronoDateTime::now();
+            let updated_at = WrappedChronoDateTime::now();
+
+            let create_params = crate::repository::CreateSecret {
+                id: secret_id,
+                key,
+                encrypted_secret,
+                dek_alias,
+                created_at,
+                updated_at,
+            };
+            repo.create_secret(&create_params).await.unwrap();
+        }
+
+        // Test pagination - get all secrets
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let response = repo.get_secrets(&pagination).await.unwrap();
+
+        // Should have 5 secrets
+        assert_eq!(response.items.len(), 5);
+        assert!(response.next_page_token.is_none()); // No more pages
+
+        // Test pagination with smaller page size
+        let pagination = PaginationRequest {
+            page_size: 3,
+            next_page_token: None,
+        };
+        let response = repo.get_secrets(&pagination).await.unwrap();
+        assert_eq!(response.items.len(), 3);
+        assert!(response.next_page_token.is_some()); // More pages available
+
+        // Get next page
+        let pagination = PaginationRequest {
+            page_size: 3,
+            next_page_token: response.next_page_token,
+        };
+        let response = repo.get_secrets(&pagination).await.unwrap();
+        assert!(response.items.len() >= 2 && response.items.len() <= 3);
+    }
+
+    #[tokio::test]
+    async fn test_get_secret_by_id_not_found() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let non_existent_id = WrappedUuidV4::new();
+        let secret = repo.get_secret_by_id(&non_existent_id).await.unwrap();
+        assert!(secret.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_secret_by_key_not_found() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let secret = repo.get_secret_by_key("non-existent-key").await.unwrap();
+        assert!(secret.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_secrets_empty() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        // Get secrets from empty database
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let response = repo.get_secrets(&pagination).await.unwrap();
+
+        assert_eq!(response.items.len(), 0);
+        assert!(response.next_page_token.is_none());
     }
 }

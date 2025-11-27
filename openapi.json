@@ -1,21 +1,18 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "utoipa-axum",
-    "description": "Utoipa's axum bindings for seamless integration for the two",
-    "contact": {
-      "name": "Juha Kukkonen",
-      "email": "juha7kukkonen@gmail.com"
-    },
-    "license": {
-      "name": "MIT OR Apache-2.0",
-      "identifier": "MIT OR Apache-2.0"
-    },
-    "version": "0.2.0"
+    "title": "soma",
+    "version": "v1"
   },
   "paths": {
     "/_internal/v1/health": {
       "get": {
+        "tags": [
+          "_internal",
+          "v1"
+        ],
+        "summary": "Health check",
+        "description": "Check the health status of the service and SDK server connectivity",
         "operationId": "health-check",
         "responses": {
           "200": {
@@ -29,6 +26,12 @@
     },
     "/_internal/v1/runtime_config": {
       "get": {
+        "tags": [
+          "_internal",
+          "v1"
+        ],
+        "summary": "Get runtime config",
+        "description": "Get the current runtime configuration",
         "operationId": "get-internal-runtime-config",
         "responses": {
           "200": {
@@ -46,6 +49,12 @@
     },
     "/_internal/v1/trigger_codegen": {
       "post": {
+        "tags": [
+          "_internal",
+          "v1"
+        ],
+        "summary": "Trigger codegen",
+        "description": "Trigger code generation for the SDK",
         "operationId": "trigger-codegen",
         "responses": {
           "200": {
@@ -83,7 +92,13 @@
     },
     "/api/a2a/v1": {
       "post": {
-        "operationId": "json_rpc",
+        "tags": [
+          "a2a",
+          "v1"
+        ],
+        "summary": "Handle JSON-RPC",
+        "description": "Handle JSON-RPC requests for agent-to-agent communication (tasks, messages, etc.)",
+        "operationId": "handle-jsonrpc-request",
         "requestBody": {
           "content": {
             "application/json": {
@@ -113,7 +128,13 @@
     },
     "/api/a2a/v1/.well-known/agent.json": {
       "get": {
-        "operationId": "agent_card",
+        "tags": [
+          "a2a",
+          "v1"
+        ],
+        "summary": "Get agent card",
+        "description": "Get the agent card describing agent capabilities and metadata",
+        "operationId": "get-agent-card",
         "responses": {
           "200": {
             "description": "Successful response",
@@ -140,7 +161,13 @@
     },
     "/api/a2a/v1/agent/authenticatedExtendedCard": {
       "get": {
-        "operationId": "extended_agent_card",
+        "tags": [
+          "a2a",
+          "v1"
+        ],
+        "summary": "Get extended agent card",
+        "description": "Get the authenticated extended agent card with additional metadata",
+        "operationId": "get-extended-agent-card",
         "responses": {
           "200": {
             "description": "Successful response",
@@ -167,6 +194,12 @@
     },
     "/api/a2a/v1/definition": {
       "get": {
+        "tags": [
+          "a2a",
+          "v1"
+        ],
+        "summary": "Get agent definition",
+        "description": "Get the agent definition (capabilities and metadata)",
         "operationId": "get-agent-definition",
         "responses": {
           "200": {
@@ -184,6 +217,12 @@
     },
     "/api/bridge/v1/available-providers": {
       "get": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "List providers",
+        "description": "List all available provider types that can be instantiated",
         "operationId": "list-available-providers",
         "parameters": [
           {
@@ -242,6 +281,12 @@
     },
     "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}": {
       "post": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Create provider",
+        "description": "Create a new provider instance with the specified configuration",
         "operationId": "create-provider-instance",
         "parameters": [
           {
@@ -307,6 +352,12 @@
     },
     "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server": {
       "post": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Create resource server credential",
+        "description": "Create a new resource server credential",
         "operationId": "create-resource-server-credential",
         "parameters": [
           {
@@ -374,6 +425,12 @@
     },
     "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt": {
       "post": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Encrypt resource server config",
+        "description": "Encrypt a resource server credential configuration before storage",
         "operationId": "encrypt-resource-server-configuration",
         "parameters": [
           {
@@ -441,6 +498,12 @@
     },
     "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential": {
       "post": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Create user credential",
+        "description": "Create a new user credential",
         "operationId": "create-user-credential",
         "parameters": [
           {
@@ -508,6 +571,12 @@
     },
     "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker": {
       "post": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Start credential brokering",
+        "description": "Start the OAuth flow for user credential brokering",
         "operationId": "start-user-credential-brokering",
         "parameters": [
           {
@@ -575,6 +644,12 @@
     },
     "/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt": {
       "post": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Encrypt user credential config",
+        "description": "Encrypt a user credential configuration before storage",
         "operationId": "encrypt-user-credential-configuration",
         "parameters": [
           {
@@ -642,6 +717,12 @@
     },
     "/api/bridge/v1/function-instances": {
       "get": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "List function instances",
+        "description": "List all function instances with optional filtering by provider instance",
         "operationId": "list-function-instances",
         "parameters": [
           {
@@ -709,6 +790,12 @@
     },
     "/api/bridge/v1/function-instances/openapi.json": {
       "get": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Get function OpenAPI spec",
+        "description": "Get the OpenAPI specification for all function instances",
         "operationId": "get-function-instances-openapi-spec",
         "responses": {
           "200": {
@@ -736,6 +823,12 @@
     },
     "/api/bridge/v1/generic-oauth-callback": {
       "get": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "OAuth callback",
+        "description": "Handle OAuth callback to complete user credential brokering flow",
         "operationId": "resume-user-credential-brokering",
         "parameters": [
           {
@@ -812,8 +905,11 @@
     "/api/bridge/v1/mcp": {
       "get": {
         "tags": [
-          "bridge"
+          "bridge",
+          "v1"
         ],
+        "summary": "MCP SSE connection",
+        "description": "Establish Server-Sent Events (SSE) connection for MCP protocol communication",
         "operationId": "listen-to-mcp-sse",
         "responses": {
           "200": {
@@ -823,8 +919,11 @@
       },
       "post": {
         "tags": [
-          "bridge"
+          "bridge",
+          "v1"
         ],
+        "summary": "Send MCP message",
+        "description": "Send a JSON-RPC message to the MCP server",
         "operationId": "trigger-mcp-message",
         "requestBody": {
           "content": {
@@ -845,6 +944,12 @@
     },
     "/api/bridge/v1/provider": {
       "get": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "List provider instances",
+        "description": "List all provider instances with optional filtering by status and provider type",
         "operationId": "list-provider-instances",
         "parameters": [
           {
@@ -921,6 +1026,12 @@
     },
     "/api/bridge/v1/provider/grouped-by-function": {
       "get": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "List providers by function",
+        "description": "List provider instances grouped by their associated functions",
         "operationId": "list-provider-instances-grouped-by-function",
         "parameters": [
           {
@@ -1002,6 +1113,12 @@
     },
     "/api/bridge/v1/provider/{provider_instance_id}": {
       "get": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Get provider",
+        "description": "Retrieve a provider instance by its unique identifier",
         "operationId": "get-provider-instance",
         "parameters": [
           {
@@ -1048,6 +1165,12 @@
         }
       },
       "delete": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Delete provider",
+        "description": "Delete a provider instance by its unique identifier",
         "operationId": "delete-provider-instance",
         "parameters": [
           {
@@ -1094,6 +1217,12 @@
         }
       },
       "patch": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Update provider",
+        "description": "Update an existing provider instance configuration",
         "operationId": "update-provider-instance",
         "parameters": [
           {
@@ -1152,6 +1281,12 @@
     },
     "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable": {
       "post": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Disable function",
+        "description": "Disable a function for a provider instance",
         "operationId": "disable-function",
         "parameters": [
           {
@@ -1209,6 +1344,12 @@
     },
     "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable": {
       "post": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Enable function",
+        "description": "Enable a function for a provider instance",
         "operationId": "enable-function",
         "parameters": [
           {
@@ -1276,6 +1417,12 @@
     },
     "/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke": {
       "post": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Invoke function",
+        "description": "Invoke a function on a provider instance",
         "operationId": "invoke-function",
         "parameters": [
           {
@@ -1343,6 +1490,12 @@
     },
     "/api/encryption/v1/dek/alias": {
       "post": {
+        "tags": [
+          "encryption",
+          "v1"
+        ],
+        "summary": "Create DEK alias",
+        "description": "Create an alias for a data encryption key to enable lookup by friendly name",
         "operationId": "create-dek-alias",
         "requestBody": {
           "content": {
@@ -1430,6 +1583,12 @@
     },
     "/api/encryption/v1/dek/alias/{alias}": {
       "get": {
+        "tags": [
+          "encryption",
+          "v1"
+        ],
+        "summary": "Get DEK by alias",
+        "description": "Retrieve a data encryption key by its alias or ID",
         "operationId": "get-dek-by-alias-or-id",
         "parameters": [
           {
@@ -1516,6 +1675,12 @@
         }
       },
       "put": {
+        "tags": [
+          "encryption",
+          "v1"
+        ],
+        "summary": "Update DEK alias",
+        "description": "Update the alias for a data encryption key",
         "operationId": "update-dek-alias",
         "parameters": [
           {
@@ -1612,6 +1777,12 @@
         }
       },
       "delete": {
+        "tags": [
+          "encryption",
+          "v1"
+        ],
+        "summary": "Delete DEK alias",
+        "description": "Delete an alias for a data encryption key",
         "operationId": "delete-dek-alias",
         "parameters": [
           {
@@ -1693,6 +1864,12 @@
     },
     "/api/encryption/v1/envelope": {
       "get": {
+        "tags": [
+          "encryption",
+          "v1"
+        ],
+        "summary": "List envelope keys",
+        "description": "List all envelope encryption keys (master keys) with pagination",
         "operationId": "list-envelope-encryption-keys",
         "parameters": [
           {
@@ -1779,6 +1956,12 @@
         }
       },
       "post": {
+        "tags": [
+          "encryption",
+          "v1"
+        ],
+        "summary": "Create envelope key",
+        "description": "Create a new envelope encryption key (master key) for encrypting data encryption keys",
         "operationId": "create-envelope-encryption-key",
         "requestBody": {
           "content": {
@@ -1856,6 +2039,12 @@
     },
     "/api/encryption/v1/envelope/{envelope_id}/dek": {
       "get": {
+        "tags": [
+          "encryption",
+          "v1"
+        ],
+        "summary": "List data keys",
+        "description": "List all data encryption keys encrypted with the specified envelope encryption key",
         "operationId": "list-data-encryption-keys-by-envelope",
         "parameters": [
           {
@@ -1961,6 +2150,12 @@
         }
       },
       "post": {
+        "tags": [
+          "encryption",
+          "v1"
+        ],
+        "summary": "Create data key",
+        "description": "Create a new data encryption key (DEK) encrypted with the specified envelope encryption key",
         "operationId": "create-data-encryption-key",
         "parameters": [
           {
@@ -2059,6 +2254,12 @@
     },
     "/api/encryption/v1/envelope/{envelope_id}/dek/import": {
       "post": {
+        "tags": [
+          "encryption",
+          "v1"
+        ],
+        "summary": "Import data key",
+        "description": "Import an existing pre-encrypted data encryption key into the system",
         "operationId": "import-data-encryption-key",
         "parameters": [
           {
@@ -2157,6 +2358,12 @@
     },
     "/api/encryption/v1/envelope/{envelope_id}/dek/{dek_id}/migrate": {
       "post": {
+        "tags": [
+          "encryption",
+          "v1"
+        ],
+        "summary": "Migrate data key",
+        "description": "Migrate a data encryption key to be encrypted with a different envelope encryption key",
         "operationId": "migrate-data-encryption-key",
         "parameters": [
           {
@@ -2257,6 +2464,12 @@
     },
     "/api/encryption/v1/envelope/{envelope_id}/migrate": {
       "post": {
+        "tags": [
+          "encryption",
+          "v1"
+        ],
+        "summary": "Migrate all data keys",
+        "description": "Migrate all data encryption keys encrypted with the specified envelope key to a new envelope key",
         "operationId": "migrate-all-data-encryption-keys",
         "parameters": [
           {
@@ -2346,8 +2559,668 @@
         }
       }
     },
+    "/api/secret/v1": {
+      "get": {
+        "tags": [
+          "secret",
+          "v1"
+        ],
+        "summary": "List secrets",
+        "description": "List all secrets with pagination (values are encrypted)",
+        "operationId": "list-secrets",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List secrets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSecretsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "secret",
+          "v1"
+        ],
+        "summary": "Create secret",
+        "description": "Create a new encrypted secret with the specified key and value",
+        "operationId": "create-secret",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSecretRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Create a secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Secret"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/secret/v1/import": {
+      "post": {
+        "tags": [
+          "secret",
+          "v1"
+        ],
+        "summary": "Import secret",
+        "description": "Import an existing pre-encrypted secret into the system",
+        "operationId": "import-secret",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportSecretRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Import a pre-encrypted secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Secret"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/secret/v1/key/{key}": {
+      "get": {
+        "tags": [
+          "secret",
+          "v1"
+        ],
+        "summary": "Get secret by key",
+        "description": "Retrieve a secret by its key name",
+        "operationId": "get-secret-by-key",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "Secret key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get secret by key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Secret"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/secret/v1/list-decrypted": {
+      "get": {
+        "tags": [
+          "secret",
+          "v1"
+        ],
+        "summary": "List decrypted secrets",
+        "description": "List all secrets with decrypted values (requires decryption access)",
+        "operationId": "list-decrypted-secrets",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List secrets with decrypted values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDecryptedSecretsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/secret/v1/{secret_id}": {
+      "get": {
+        "tags": [
+          "secret",
+          "v1"
+        ],
+        "summary": "Get secret",
+        "description": "Retrieve a secret by its unique identifier",
+        "operationId": "get-secret-by-id",
+        "parameters": [
+          {
+            "name": "secret_id",
+            "in": "path",
+            "description": "Secret ID",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WrappedUuidV4"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get secret by id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Secret"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "secret",
+          "v1"
+        ],
+        "summary": "Update secret",
+        "description": "Update an existing secret's value or metadata",
+        "operationId": "update-secret",
+        "parameters": [
+          {
+            "name": "secret_id",
+            "in": "path",
+            "description": "Secret ID",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WrappedUuidV4"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSecretRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Update secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Secret"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "secret",
+          "v1"
+        ],
+        "summary": "Delete secret",
+        "description": "Delete a secret by its unique identifier",
+        "operationId": "delete-secret",
+        "parameters": [
+          {
+            "name": "secret_id",
+            "in": "path",
+            "description": "Secret ID",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WrappedUuidV4"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delete secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteSecretResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/task/v1": {
       "get": {
+        "tags": [
+          "task",
+          "v1"
+        ],
+        "summary": "List tasks",
+        "description": "List all tasks with pagination",
         "operationId": "list-tasks",
         "parameters": [
           {
@@ -2436,6 +3309,12 @@
     },
     "/api/task/v1/context": {
       "get": {
+        "tags": [
+          "task",
+          "v1"
+        ],
+        "summary": "List contexts",
+        "description": "List all unique task contexts with pagination",
         "operationId": "list-contexts",
         "parameters": [
           {
@@ -2524,6 +3403,12 @@
     },
     "/api/task/v1/context/{context_id}/task": {
       "get": {
+        "tags": [
+          "task",
+          "v1"
+        ],
+        "summary": "List tasks by context",
+        "description": "List all tasks for a specific context ID with pagination",
         "operationId": "list-tasks-by-context-id",
         "parameters": [
           {
@@ -2621,6 +3506,12 @@
     },
     "/api/task/v1/{task_id}": {
       "get": {
+        "tags": [
+          "task",
+          "v1"
+        ],
+        "summary": "Get task",
+        "description": "Retrieve a task by its unique identifier",
         "operationId": "get-task-by-id",
         "parameters": [
           {
@@ -2697,6 +3588,12 @@
         }
       },
       "put": {
+        "tags": [
+          "task",
+          "v1"
+        ],
+        "summary": "Update task status",
+        "description": "Update the status of a task",
         "operationId": "update-task-status",
         "parameters": [
           {
@@ -2785,6 +3682,12 @@
     },
     "/api/task/v1/{task_id}/message": {
       "post": {
+        "tags": [
+          "task",
+          "v1"
+        ],
+        "summary": "Send message",
+        "description": "Send a message to a task",
         "operationId": "send-message",
         "parameters": [
           {
@@ -2873,6 +3776,12 @@
     },
     "/api/task/v1/{task_id}/timeline": {
       "get": {
+        "tags": [
+          "task",
+          "v1"
+        ],
+        "summary": "Get task timeline",
+        "description": "Get the timeline history of a task with pagination",
         "operationId": "task-history",
         "parameters": [
           {
@@ -3000,15 +3909,7 @@
             ],
             "properties": {
               "Redirect": {
-                "type": "object",
-                "required": [
-                  "url"
-                ],
-                "properties": {
-                  "url": {
-                    "type": "string"
-                  }
-                }
+                "$ref": "#/components/schemas/BrokerActionRedirect"
               }
             }
           },
@@ -3019,6 +3920,17 @@
             ]
           }
         ]
+      },
+      "BrokerActionRedirect": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        }
       },
       "BrokerState": {
         "type": "object",
@@ -3248,6 +4160,25 @@
           }
         }
       },
+      "CreateSecretRequest": {
+        "type": "object",
+        "required": [
+          "key",
+          "raw_value",
+          "dek_alias"
+        ],
+        "properties": {
+          "dek_alias": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "raw_value": {
+            "type": "string"
+          }
+        }
+      },
       "CreateUserCredentialParamsInner": {
         "type": "object",
         "required": [
@@ -3389,6 +4320,37 @@
           }
         }
       },
+      "DecryptedSecret": {
+        "type": "object",
+        "required": [
+          "id",
+          "key",
+          "decrypted_value",
+          "dek_alias",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "decrypted_value": {
+            "type": "string"
+          },
+          "dek_alias": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          },
+          "key": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
       "DekConfig": {
         "type": "object",
         "description": "Data encryption key configuration",
@@ -3398,6 +4360,17 @@
         "properties": {
           "encrypted_key": {
             "type": "string"
+          }
+        }
+      },
+      "DeleteSecretResponse": {
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
           }
         }
       },
@@ -3429,25 +4402,12 @@
         "type": "object",
         "description": "Top-level encryption configuration",
         "properties": {
-          "aliases": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "description": "Map of alias name -> DEK id",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          },
           "envelope_keys": {
             "type": [
               "object",
               "null"
             ],
-            "description": "Map of envelope key id (ARN or location) -> envelope key configuration with nested DEKs",
+            "description": "Map of envelope key id (ARN or file_name) -> envelope key configuration with nested DEKs\nDEKs are stored by their alias name (e.g., \"default\") rather than UUID",
             "additionalProperties": {
               "$ref": "#/components/schemas/EnvelopeKeyConfig"
             },
@@ -3460,46 +4420,74 @@
       "EnvelopeEncryptionKey": {
         "oneOf": [
           {
-            "type": "object",
-            "required": [
-              "arn",
-              "region",
-              "type"
-            ],
-            "properties": {
-              "arn": {
-                "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EnvelopeEncryptionKeyAwsKms"
               },
-              "region": {
-                "type": "string"
-              },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "aws_kms"
-                ]
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "aws_kms"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           },
           {
-            "type": "object",
-            "required": [
-              "location",
-              "type"
-            ],
-            "properties": {
-              "location": {
-                "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EnvelopeEncryptionKeyLocal"
               },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "local"
-                ]
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "local"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           }
         ]
+      },
+      "EnvelopeEncryptionKeyAwsKms": {
+        "type": "object",
+        "required": [
+          "arn",
+          "region"
+        ],
+        "properties": {
+          "arn": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          }
+        }
+      },
+      "EnvelopeEncryptionKeyLocal": {
+        "type": "object",
+        "required": [
+          "file_name"
+        ],
+        "properties": {
+          "file_name": {
+            "type": "string"
+          }
+        }
       },
       "EnvelopeEncryptionKeyPaginatedResponse": {
         "type": "object",
@@ -3521,71 +4509,99 @@
       "EnvelopeKeyConfig": {
         "oneOf": [
           {
-            "type": "object",
-            "required": [
-              "arn",
-              "region",
-              "type"
-            ],
-            "properties": {
-              "arn": {
-                "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EnvelopeKeyConfigAwsKms"
               },
-              "deks": {
-                "type": [
-                  "object",
-                  "null"
+              {
+                "type": "object",
+                "required": [
+                  "type"
                 ],
-                "additionalProperties": {
-                  "$ref": "#/components/schemas/DekConfig"
-                },
-                "propertyNames": {
-                  "type": "string"
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "aws_kms"
+                    ]
+                  }
                 }
-              },
-              "region": {
-                "type": "string"
-              },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "aws_kms"
-                ]
               }
-            }
+            ]
           },
           {
-            "type": "object",
-            "required": [
-              "location",
-              "type"
-            ],
-            "properties": {
-              "deks": {
-                "type": [
-                  "object",
-                  "null"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EnvelopeKeyConfigLocal"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
                 ],
-                "additionalProperties": {
-                  "$ref": "#/components/schemas/DekConfig"
-                },
-                "propertyNames": {
-                  "type": "string"
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "local"
+                    ]
+                  }
                 }
-              },
-              "location": {
-                "type": "string"
-              },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "local"
-                ]
               }
-            }
+            ]
           }
+        ]
+      },
+      "EnvelopeKeyConfigAwsKms": {
+        "type": "object",
+        "description": "Envelope encryption key configuration with nested DEKs",
+        "required": [
+          "arn",
+          "region"
         ],
-        "description": "Envelope encryption key configuration with nested DEKs"
+        "properties": {
+          "arn": {
+            "type": "string"
+          },
+          "deks": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DekConfig"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "region": {
+            "type": "string"
+          }
+        }
+      },
+      "EnvelopeKeyConfigLocal": {
+        "type": "object",
+        "required": [
+          "file_name"
+        ],
+        "properties": {
+          "deks": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DekConfig"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "file_name": {
+            "type": "string"
+          }
+        }
       },
       "Error": {
         "type": "object",
@@ -3751,6 +4767,25 @@
           }
         }
       },
+      "ImportSecretRequest": {
+        "type": "object",
+        "required": [
+          "key",
+          "encrypted_value",
+          "dek_alias"
+        ],
+        "properties": {
+          "dek_alias": {
+            "type": "string"
+          },
+          "encrypted_value": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          }
+        }
+      },
       "InvokeError": {
         "type": "object",
         "required": [
@@ -3825,6 +4860,46 @@
       },
       "JsonrpcRequest": {
         "type": "object"
+      },
+      "ListDecryptedSecretsResponse": {
+        "type": "object",
+        "required": [
+          "secrets"
+        ],
+        "properties": {
+          "next_page_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecryptedSecret"
+            }
+          }
+        }
+      },
+      "ListSecretsResponse": {
+        "type": "object",
+        "required": [
+          "secrets"
+        ],
+        "properties": {
+          "next_page_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Secret"
+            }
+          }
+        }
       },
       "Message": {
         "type": "object",
@@ -4316,11 +5391,57 @@
       "RuntimeConfig": {
         "type": "object"
       },
-      "SomaAgentDefinition": {
+      "Secret": {
         "type": "object",
         "required": [
-          "version"
+          "id",
+          "key",
+          "encrypted_secret",
+          "dek_alias",
+          "created_at",
+          "updated_at"
         ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "dek_alias": {
+            "type": "string"
+          },
+          "encrypted_secret": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          },
+          "key": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
+      "SecretConfig": {
+        "type": "object",
+        "description": "Configuration for a secret stored in soma.yaml",
+        "required": [
+          "value",
+          "dek_alias"
+        ],
+        "properties": {
+          "dek_alias": {
+            "type": "string",
+            "description": "The DEK alias used to encrypt this secret"
+          },
+          "value": {
+            "type": "string",
+            "description": "The encrypted value of the secret"
+          }
+        }
+      },
+      "SomaAgentDefinition": {
+        "type": "object",
         "properties": {
           "bridge": {
             "oneOf": [
@@ -4342,8 +5463,17 @@
               }
             ]
           },
-          "version": {
-            "type": "string"
+          "secrets": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SecretConfig"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           }
         }
       },
@@ -4626,6 +5756,17 @@
           }
         }
       },
+      "UpdateSecretRequest": {
+        "type": "object",
+        "required": [
+          "raw_value"
+        ],
+        "properties": {
+          "raw_value": {
+            "type": "string"
+          }
+        }
+      },
       "UpdateTaskStatusRequest": {
         "type": "object",
         "required": [
@@ -4765,5 +5906,35 @@
         "format": "uuid"
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "task",
+      "description": "Task management endpoints for creating, listing, and managing tasks and their messages"
+    },
+    {
+      "name": "secret",
+      "description": "Secret management endpoints for storing and retrieving encrypted secrets"
+    },
+    {
+      "name": "encryption",
+      "description": "Encryption key management endpoints for envelope keys, data encryption keys, and aliases"
+    },
+    {
+      "name": "bridge",
+      "description": "Bridge endpoints for managing providers, credentials, functions, and MCP protocol communication"
+    },
+    {
+      "name": "_internal",
+      "description": "Internal endpoints for health checks, runtime configuration, and SDK code generation"
+    },
+    {
+      "name": "a2a",
+      "description": "Agent-to-agent communication endpoints for agent cards, definitions, and JSON-RPC requests"
+    },
+    {
+      "name": "v1",
+      "description": "API version v1 endpoints"
+    }
+  ]
 }

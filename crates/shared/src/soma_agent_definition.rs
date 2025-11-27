@@ -9,54 +9,75 @@ use utoipa::ToSchema;
 use crate::error::CommonError;
 use async_trait::async_trait;
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct SomaAgentDefinition {
-    pub version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub encryption: Option<EncryptionConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bridge: Option<BridgeConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secrets: Option<HashMap<String, SecretConfig>>,
+}
+
+/// Configuration for a secret stored in soma.yaml
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SecretConfig {
+    /// The encrypted value of the secret
+    pub value: String,
+    /// The DEK alias used to encrypt this secret
+    pub dek_alias: String,
 }
 
 /// Top-level encryption configuration
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct EncryptionConfig {
-    /// Map of envelope key id (ARN or location) -> envelope key configuration with nested DEKs
+    /// Map of envelope key id (ARN or file_name) -> envelope key configuration with nested DEKs
+    /// DEKs are stored by their alias name (e.g., "default") rather than UUID
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub envelope_keys: Option<HashMap<String, EnvelopeKeyConfig>>,
-    /// Map of alias name -> DEK id
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub aliases: Option<HashMap<String, String>>,
 }
 
 /// Envelope encryption key configuration with nested DEKs
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
-#[serde(rename_all = "snake_case", tag = "type")]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+pub struct EnvelopeKeyConfigAwsKms {
+    pub arn: String,
+    pub region: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deks: Option<HashMap<String, DekConfig>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+pub struct EnvelopeKeyConfigLocal {
+    pub file_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deks: Option<HashMap<String, DekConfig>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum EnvelopeKeyConfig {
-    AwsKms {
-        arn: String,
-        region: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        deks: Option<HashMap<String, DekConfig>>,
-    },
-    Local {
-        location: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        deks: Option<HashMap<String, DekConfig>>,
-    },
+    AwsKms(EnvelopeKeyConfigAwsKms),
+    Local(EnvelopeKeyConfigLocal),
 }
 
 impl EnvelopeKeyConfig {
     /// Get mutable reference to the DEKs map, creating it if it doesn't exist
     pub fn deks_mut(&mut self) -> &mut HashMap<String, DekConfig> {
         match self {
-            EnvelopeKeyConfig::AwsKms { deks, .. } | EnvelopeKeyConfig::Local { deks, .. } => {
-                if deks.is_none() {
-                    *deks = Some(HashMap::new());
+            EnvelopeKeyConfig::AwsKms(aws_kms) => {
+                if aws_kms.deks.is_none() {
+                    aws_kms.deks = Some(HashMap::new());
                 }
-                deks.as_mut().unwrap()
+                aws_kms.deks.as_mut().unwrap()
+            }
+            EnvelopeKeyConfig::Local(local) => {
+                if local.deks.is_none() {
+                    local.deks = Some(HashMap::new());
+                }
+                local.deks.as_mut().unwrap()
             }
         }
     }
@@ -64,9 +85,8 @@ impl EnvelopeKeyConfig {
     /// Get reference to the DEKs map
     pub fn deks(&self) -> Option<&HashMap<String, DekConfig>> {
         match self {
-            EnvelopeKeyConfig::AwsKms { deks, .. } | EnvelopeKeyConfig::Local { deks, .. } => {
-                deks.as_ref()
-            }
+            EnvelopeKeyConfig::AwsKms(aws_kms) => aws_kms.deks.as_ref(),
+            EnvelopeKeyConfig::Local(local) => local.deks.as_ref(),
         }
     }
 }
@@ -80,18 +100,29 @@ pub struct DekConfig {
 
 // Keep old EnvelopeEncryptionKey for backwards compatibility during transition
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+pub struct EnvelopeEncryptionKeyAwsKms {
+    pub arn: String,
+    pub region: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+pub struct EnvelopeEncryptionKeyLocal {
+    pub file_name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum EnvelopeEncryptionKey {
-    AwsKms { arn: String, region: String },
-    Local { location: String },
+    AwsKms(EnvelopeEncryptionKeyAwsKms),
+    Local(EnvelopeEncryptionKeyLocal),
 }
 
 impl EnvelopeEncryptionKey {
-    /// Get the key id (ARN for KMS, location for local)
+    /// Get the key id (ARN for KMS, file_name for local)
     pub fn key_id(&self) -> String {
         match self {
-            EnvelopeEncryptionKey::AwsKms { arn, .. } => arn.clone(),
-            EnvelopeEncryptionKey::Local { location } => location.clone(),
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => aws_kms.arn.clone(),
+            EnvelopeEncryptionKey::Local(local) => local.file_name.clone(),
         }
     }
 }
@@ -99,15 +130,19 @@ impl EnvelopeEncryptionKey {
 impl From<EnvelopeEncryptionKey> for EnvelopeKeyConfig {
     fn from(key: EnvelopeEncryptionKey) -> Self {
         match key {
-            EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeKeyConfig::AwsKms {
-                arn,
-                region,
-                deks: None,
-            },
-            EnvelopeEncryptionKey::Local { location } => EnvelopeKeyConfig::Local {
-                location,
-                deks: None,
-            },
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => {
+                EnvelopeKeyConfig::AwsKms(EnvelopeKeyConfigAwsKms {
+                    arn: aws_kms.arn,
+                    region: aws_kms.region,
+                    deks: None,
+                })
+            }
+            EnvelopeEncryptionKey::Local(local) => {
+                EnvelopeKeyConfig::Local(EnvelopeKeyConfigLocal {
+                    file_name: local.file_name,
+                    deks: None,
+                })
+            }
         }
     }
 }
@@ -115,10 +150,17 @@ impl From<EnvelopeEncryptionKey> for EnvelopeKeyConfig {
 impl From<EnvelopeKeyConfig> for EnvelopeEncryptionKey {
     fn from(config: EnvelopeKeyConfig) -> Self {
         match config {
-            EnvelopeKeyConfig::AwsKms { arn, region, .. } => {
-                EnvelopeEncryptionKey::AwsKms { arn, region }
+            EnvelopeKeyConfig::AwsKms(aws_kms) => {
+                EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
+                    arn: aws_kms.arn,
+                    region: aws_kms.region,
+                })
             }
-            EnvelopeKeyConfig::Local { location, .. } => EnvelopeEncryptionKey::Local { location },
+            EnvelopeKeyConfig::Local(local) => {
+                EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
+                    file_name: local.file_name,
+                })
+            }
         }
     }
 }
@@ -167,18 +209,21 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
     ) -> Result<(), CommonError>;
     async fn remove_envelope_key(&self, key_id: String) -> Result<(), CommonError>;
 
-    // DEK operations (DEKs are nested under their envelope key)
+    // DEK operations (DEKs are nested under their envelope key, keyed by alias)
     async fn add_dek(
         &self,
         envelope_key_id: String,
-        dek_id: String,
+        alias: String,
         encrypted_key: String,
     ) -> Result<(), CommonError>;
-    async fn remove_dek(&self, envelope_key_id: String, dek_id: String) -> Result<(), CommonError>;
-
-    // Alias operations
-    async fn add_alias(&self, alias: String, dek_id: String) -> Result<(), CommonError>;
-    async fn remove_alias(&self, alias: String) -> Result<(), CommonError>;
+    async fn remove_dek(&self, envelope_key_id: String, alias: String) -> Result<(), CommonError>;
+    /// Rename a DEK from one key (e.g., UUID) to another (e.g., alias)
+    async fn rename_dek(
+        &self,
+        envelope_key_id: String,
+        old_key: String,
+        new_key: String,
+    ) -> Result<(), CommonError>;
 
     // Provider operations
     async fn add_provider(
@@ -206,6 +251,11 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
         function_controller_type_id: String,
         provider_instance_id: String,
     ) -> Result<(), CommonError>;
+
+    // Secret operations
+    async fn add_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError>;
+    async fn update_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError>;
+    async fn remove_secret(&self, key: String) -> Result<(), CommonError>;
 
     async fn reload(&self) -> Result<(), CommonError>;
 }
@@ -318,7 +368,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
     async fn add_dek(
         &self,
         envelope_key_id: String,
-        dek_id: String,
+        alias: String,
         encrypted_key: String,
     ) -> Result<(), CommonError> {
         let mut definition = self.cached_definition.lock().await;
@@ -340,25 +390,25 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
 
         envelope_key
             .deks_mut()
-            .insert(dek_id.clone(), DekConfig { encrypted_key });
+            .insert(alias.clone(), DekConfig { encrypted_key });
         info!(
-            "DEK {} added under envelope key {}",
-            dek_id, envelope_key_id
+            "DEK '{}' added under envelope key {}",
+            alias, envelope_key_id
         );
         self.save(definition).await?;
         Ok(())
     }
 
-    async fn remove_dek(&self, envelope_key_id: String, dek_id: String) -> Result<(), CommonError> {
+    async fn remove_dek(&self, envelope_key_id: String, alias: String) -> Result<(), CommonError> {
         let mut definition = self.cached_definition.lock().await;
 
         if let Some(encryption) = &mut definition.encryption {
             if let Some(envelope_keys) = &mut encryption.envelope_keys {
                 if let Some(envelope_key) = envelope_keys.get_mut(&envelope_key_id) {
-                    envelope_key.deks_mut().remove(&dek_id);
+                    envelope_key.deks_mut().remove(&alias);
                     info!(
-                        "DEK {} removed from envelope key {}",
-                        dek_id, envelope_key_id
+                        "DEK '{}' removed from envelope key {}",
+                        alias, envelope_key_id
                     );
                     self.save(definition).await?;
                 }
@@ -367,33 +417,27 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         Ok(())
     }
 
-    async fn add_alias(&self, alias: String, dek_id: String) -> Result<(), CommonError> {
-        let mut definition = self.cached_definition.lock().await;
-        Self::ensure_encryption_config(&mut definition);
-
-        let encryption = definition.encryption.as_mut().unwrap();
-        if encryption.aliases.is_none() {
-            encryption.aliases = Some(HashMap::new());
-        }
-
-        encryption
-            .aliases
-            .as_mut()
-            .unwrap()
-            .insert(alias.clone(), dek_id);
-        info!("Alias added: {:?}", alias);
-        self.save(definition).await?;
-        Ok(())
-    }
-
-    async fn remove_alias(&self, alias: String) -> Result<(), CommonError> {
+    async fn rename_dek(
+        &self,
+        envelope_key_id: String,
+        old_key: String,
+        new_key: String,
+    ) -> Result<(), CommonError> {
         let mut definition = self.cached_definition.lock().await;
 
         if let Some(encryption) = &mut definition.encryption {
-            if let Some(aliases) = &mut encryption.aliases {
-                aliases.remove(&alias);
-                info!("Alias removed: {:?}", alias);
-                self.save(definition).await?;
+            if let Some(envelope_keys) = &mut encryption.envelope_keys {
+                if let Some(envelope_key) = envelope_keys.get_mut(&envelope_key_id) {
+                    let deks = envelope_key.deks_mut();
+                    if let Some(dek_config) = deks.remove(&old_key) {
+                        deks.insert(new_key.clone(), dek_config);
+                        info!(
+                            "DEK renamed from '{}' to '{}' under envelope key {}",
+                            old_key, new_key, envelope_key_id
+                        );
+                        self.save(definition).await?;
+                    }
+                }
             }
         }
         Ok(())
@@ -539,6 +583,51 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             function_controller_type_id, provider_controller_type_id, provider_instance_id
         );
         self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn add_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if definition.secrets.is_none() {
+            definition.secrets = Some(HashMap::new());
+        }
+
+        definition
+            .secrets
+            .as_mut()
+            .unwrap()
+            .insert(key.clone(), config);
+        info!("Secret added: {:?}", key);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn update_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if definition.secrets.is_none() {
+            definition.secrets = Some(HashMap::new());
+        }
+
+        definition
+            .secrets
+            .as_mut()
+            .unwrap()
+            .insert(key.clone(), config);
+        info!("Secret updated: {:?}", key);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_secret(&self, key: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(secrets) = &mut definition.secrets {
+            secrets.remove(&key);
+            info!("Secret removed: {:?}", key);
+            self.save(definition).await?;
+        }
         Ok(())
     }
 }

@@ -132,7 +132,7 @@ mod tests {
         let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
         std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
 
-        let location = temp_file
+        let file_name = temp_file
             .path()
             .file_name()
             .and_then(|n| n.to_str())
@@ -140,7 +140,7 @@ mod tests {
             .to_string();
 
         let contents = EnvelopeEncryptionKeyContents::Local {
-            location,
+            file_name,
             key_bytes: kek_bytes.to_vec(),
         };
 

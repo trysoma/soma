@@ -32,25 +32,19 @@ impl CryptoService {
         let mut envelop_key_match = false;
 
         if let EnvelopeEncryptionKeyContents::Local {
-            location,
+            file_name,
             key_bytes: _,
         } = &envelope_encryption_key_contents
-            && let EnvelopeEncryptionKey::Local {
-                location: data_encryption_key_location,
-                ..
-            } = &data_encryption_key.envelope_encryption_key_id
+            && let EnvelopeEncryptionKey::Local(local) =
+                &data_encryption_key.envelope_encryption_key_id
         {
-            envelop_key_match = location == data_encryption_key_location;
+            envelop_key_match = file_name == &local.file_name;
         } else if let EnvelopeEncryptionKeyContents::AwsKms { arn, region } =
             &envelope_encryption_key_contents
-            && let EnvelopeEncryptionKey::AwsKms {
-                arn: data_encryption_key_arn,
-                region: data_encryption_key_region,
-                ..
-            } = &data_encryption_key.envelope_encryption_key_id
+            && let EnvelopeEncryptionKey::AwsKms(aws_kms) =
+                &data_encryption_key.envelope_encryption_key_id
         {
-            envelop_key_match =
-                arn == data_encryption_key_arn && region == data_encryption_key_region;
+            envelop_key_match = arn == &aws_kms.arn && region == &aws_kms.region;
         }
 
         if !envelop_key_match {
@@ -322,15 +316,13 @@ pub async fn init_crypto_cache(cache: &CryptoCache) -> Result<(), CommonError> {
     for dek in all_deks {
         // Convert EnvelopeEncryptionKey to EnvelopeEncryptionKeyContents
         let envelope_key_contents = match &dek.envelope_encryption_key_id {
-            EnvelopeEncryptionKey::AwsKms { arn, region } => {
-                EnvelopeEncryptionKeyContents::AwsKms {
-                    arn: arn.clone(),
-                    region: region.clone(),
-                }
-            }
-            EnvelopeEncryptionKey::Local { location } => {
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => EnvelopeEncryptionKeyContents::AwsKms {
+                arn: aws_kms.arn.clone(),
+                region: aws_kms.region.clone(),
+            },
+            EnvelopeEncryptionKey::Local(local) => {
                 // Load the key bytes from the file
-                get_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
+                get_local_envelope_encryption_key(&std::path::PathBuf::from(&local.file_name))?
             }
         };
 
@@ -372,13 +364,13 @@ pub async fn get_encryption_service_cached(
 
     // Get envelope encryption key contents
     let envelope_key_contents = match &dek.envelope_encryption_key_id {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
-            arn: arn.clone(),
-            region: region.clone(),
+        EnvelopeEncryptionKey::AwsKms(aws_kms) => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: aws_kms.arn.clone(),
+            region: aws_kms.region.clone(),
         },
-        EnvelopeEncryptionKey::Local { location } => {
-            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
-        }
+        EnvelopeEncryptionKey::Local(local) => get_or_create_local_envelope_encryption_key(
+            &std::path::PathBuf::from(&local.file_name),
+        )?,
     };
 
     // Create crypto service
@@ -413,13 +405,13 @@ pub async fn get_decryption_service_cached(
 
     // Get envelope encryption key contents
     let envelope_key_contents = match &dek.envelope_encryption_key_id {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
-            arn: arn.clone(),
-            region: region.clone(),
+        EnvelopeEncryptionKey::AwsKms(aws_kms) => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: aws_kms.arn.clone(),
+            region: aws_kms.region.clone(),
         },
-        EnvelopeEncryptionKey::Local { location } => {
-            get_or_create_local_envelope_encryption_key(&std::path::PathBuf::from(location))?
-        }
+        EnvelopeEncryptionKey::Local(local) => get_or_create_local_envelope_encryption_key(
+            &std::path::PathBuf::from(&local.file_name),
+        )?,
     };
 
     // Create crypto service

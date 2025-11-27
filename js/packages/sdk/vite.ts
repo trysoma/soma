@@ -1,16 +1,10 @@
+/// <reference types="node" />
 import { type ChildProcess, spawn } from "node:child_process";
-import {
-	existsSync,
-	mkdirSync,
-	readdirSync,
-	renameSync,
-	rmSync,
-	statSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, parse, relative, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { defineConfig, type Plugin } from "vite";
+import type { NormalizedOutputOptions, OutputBundle } from "rollup";
+import { defineConfig, type Plugin, type ViteDevServer } from "vite";
 
 /**
  * Manifest structure types
@@ -244,7 +238,8 @@ function generateStandaloneServer(
 
 	const hasAgents = agentIndex > 0;
 
-	return `// Auto-generated standalone server
+	return `/// <reference types="node" />
+// Auto-generated standalone server
 import { addFunction, addProvider, addAgent, startGrpcServer } from '@trysoma/sdk';
 import * as restate from '@restatedev/restate-sdk';
 import * as http2 from 'http2';
@@ -278,7 +273,7 @@ ${
 		? `
 import { HandlerParams, SomaAgent } from "@trysoma/sdk/agent";
 import { Configuration as BridgeConfiguration } from '@trysoma/sdk/bridge';
-import { DefaultApi, Configuration as SomaConfiguration } from '@trysoma/api-client';
+import { V1Api as SomaV1Api, Configuration as SomaConfiguration } from '@trysoma/api-client';
 import * as net from 'net';
 
 interface RestateInput {
@@ -290,7 +285,7 @@ type RestateHandler = (ctx: restate.ObjectContext, input: RestateInput) => Promi
 type SomaHandler<T> = (params: HandlerParams<T>) => Promise<void>;
 const wrapHandler = <T>(handler: SomaHandler<T>, agent: SomaAgent<T>): RestateHandler => {
   return async (ctx, input) => {
-    const soma = new DefaultApi(new SomaConfiguration({
+    const soma = new SomaV1Api(new SomaConfiguration({
       basePath: process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000',
     }));
     await handler({
@@ -451,11 +446,11 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 			shell: true,
 		});
 
-		serverProcess.on("error", (err) => {
+		serverProcess.on("error", (err: Error) => {
 			console.error("Failed to start SDK server:", err);
 		});
 
-		serverProcess.on("exit", (code) => {
+		serverProcess.on("exit", (code: number | null) => {
 			if (code !== null && code !== 0) {
 				console.error(`SDK server exited with code ${code}`);
 			}
@@ -465,7 +460,7 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 	return {
 		name: "soma-standalone-server",
 
-		configureServer(devServer) {
+		configureServer(devServer: ViteDevServer) {
 			// Generate standalone file on startup
 			regenerateStandalone();
 
@@ -475,7 +470,7 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 
 			devServer.watcher.add([functionsDir, agentsDir]);
 
-			devServer.watcher.on("add", (file) => {
+			devServer.watcher.on("add", (file: string) => {
 				if (file.includes("/functions/") || file.includes("/agents/")) {
 					console.log(`New file detected: ${file}`);
 					regenerateStandalone();
@@ -485,7 +480,7 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 				}
 			});
 
-			devServer.watcher.on("unlink", (file) => {
+			devServer.watcher.on("unlink", (file: string) => {
 				if (file.includes("/functions/") || file.includes("/agents/")) {
 					console.log(`File removed: ${file}`);
 					regenerateStandalone();
@@ -495,7 +490,7 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 				}
 			});
 
-			devServer.watcher.on("change", (file) => {
+			devServer.watcher.on("change", (file: string) => {
 				if (file.includes("/functions/") || file.includes("/agents/")) {
 					console.log(`File changed: ${file}`);
 					regenerateStandalone();
@@ -532,7 +527,7 @@ function generateManifestPlugin(baseDir: string): Plugin {
 	return {
 		name: "soma-manifest-generator",
 
-		async writeBundle(options, bundle) {
+		async writeBundle(options: NormalizedOutputOptions, bundle: OutputBundle) {
 			const outDir = options.dir || ".soma/build/js";
 			const manifest: Manifest = {
 				function_controllers: [],
@@ -696,9 +691,7 @@ function generateManifestPlugin(baseDir: string): Plugin {
 			}
 
 			// Convert provider controllers map to array
-			manifest.provider_controllers = Array.from(
-				seenProviderControllers.values(),
-			);
+			manifest.provider_controllers = [...seenProviderControllers.values()];
 
 			// Write manifest.json
 			const manifestPath = resolve(outDir, "manifest.json");
@@ -782,10 +775,7 @@ export function createSomaViteConfig(baseDir: string) {
 						preserveModules: false,
 						manualChunks: undefined,
 					},
-					treeshake: {
-						preset: "recommended",
-						moduleSideEffects: false,
-					},
+					treeshake: "recommended",
 				},
 			},
 			resolve: {

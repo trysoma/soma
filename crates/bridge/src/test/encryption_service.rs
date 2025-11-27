@@ -96,18 +96,18 @@ pub async fn setup_test_encryption(alias: &str) -> TestEncryptionSetup {
     let encryption_repo = encryption::repository::Repository::new(enc_conn);
 
     // First create the envelope encryption key
-    let (key_type, local_location, aws_arn, aws_region) = match &dek.envelope_encryption_key_id {
-        encryption::logic::envelope::EnvelopeEncryptionKey::Local { location } => (
+    let (key_type, local_file_name, aws_arn, aws_region) = match &dek.envelope_encryption_key_id {
+        encryption::logic::envelope::EnvelopeEncryptionKey::Local(local) => (
             encryption::repository::EnvelopeEncryptionKeyType::Local,
-            Some(location.clone()),
+            Some(local.file_name.clone()),
             None,
             None,
         ),
-        encryption::logic::envelope::EnvelopeEncryptionKey::AwsKms { arn, region } => (
+        encryption::logic::envelope::EnvelopeEncryptionKey::AwsKms(aws_kms) => (
             encryption::repository::EnvelopeEncryptionKeyType::AwsKms,
             None,
-            Some(arn.clone()),
-            Some(region.clone()),
+            Some(aws_kms.arn.clone()),
+            Some(aws_kms.region.clone()),
         ),
     };
 
@@ -115,7 +115,7 @@ pub async fn setup_test_encryption(alias: &str) -> TestEncryptionSetup {
         .create_envelope_encryption_key(&encryption::repository::CreateEnvelopeEncryptionKey {
             id: dek.envelope_encryption_key_id.id(),
             key_type,
-            local_location,
+            local_file_name,
             aws_arn,
             aws_region,
             created_at: WrappedChronoDateTime::now(),
