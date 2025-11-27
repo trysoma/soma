@@ -166,7 +166,7 @@ pub struct ConstructAgentCardParams {
 }
 
 pub fn construct_agent_card(params: ConstructAgentCardParams) -> a2a_rs::types::AgentCard {
-    let definition = params.definition;
+    let _definition = params.definition;
     let url = params.url;
 
     AgentCard {
@@ -192,6 +192,6 @@ pub fn construct_agent_card(params: ConstructAgentCardParams) -> a2a_rs::types::
         skills: vec![],
         supports_authenticated_extended_card: None,
         url: url.to_string(),
-        version: definition.version.clone(),
+        version: "1.0.0".to_string(),
     }
 }

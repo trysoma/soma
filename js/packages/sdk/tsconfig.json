@@ -6,9 +6,12 @@
 		"module": "esnext",
 		"esModuleInterop": true,
 		"moduleResolution": "bundler",
+		"downlevelIteration": true,
 		"declaration": true,
 		"declarationMap": true,
 		"skipLibCheck": true,
+		"typeRoots": ["../../node_modules/@types", "./node_modules/@types"],
+		"types": ["node"],
 
 		/* Additional Checks */
 		"noUnusedLocals": false /* Report errors on unused locals. */, // TODO: reenable (unused imports!)

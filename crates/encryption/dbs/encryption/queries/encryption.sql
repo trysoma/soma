@@ -1,19 +1,19 @@
 -- name: create_envelope_encryption_key :exec
-INSERT INTO envelope_encryption_key (id, key_type, local_location, aws_arn, aws_region, created_at, updated_at)
+INSERT INTO envelope_encryption_key (id, key_type, local_file_name, aws_arn, aws_region, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: get_envelope_encryption_key_by_id :one
-SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
+SELECT id, key_type, local_file_name, aws_arn, aws_region, created_at, updated_at
 FROM envelope_encryption_key
 WHERE id = ?;
 
 -- name: get_envelope_encryption_keys :many
-SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
+SELECT id, key_type, local_file_name, aws_arn, aws_region, created_at, updated_at
 FROM envelope_encryption_key
 ORDER BY created_at DESC;
 
 -- name: get_envelope_encryption_keys_paginated :many
-SELECT id, key_type, local_location, aws_arn, aws_region, created_at, updated_at
+SELECT id, key_type, local_file_name, aws_arn, aws_region, created_at, updated_at
 FROM envelope_encryption_key 
 WHERE (created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
 ORDER BY created_at DESC
@@ -47,7 +47,7 @@ SELECT
     dek.created_at,
     dek.updated_at,
     eek.key_type,
-    eek.local_location,
+    eek.local_file_name,
     eek.aws_arn,
     eek.aws_region
 FROM data_encryption_key dek
@@ -72,7 +72,7 @@ SELECT
     dek.created_at,
     dek.updated_at,
     eek.key_type,
-    eek.local_location,
+    eek.local_file_name,
     eek.aws_arn,
     eek.aws_region
 FROM data_encryption_key dek

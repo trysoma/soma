@@ -84,6 +84,10 @@ pub async fn create_api_service(
         _,
     ) = tokio::sync::broadcast::channel(100);
 
+    // Create secret event channel
+    let (secret_change_tx, secret_change_rx) =
+        crate::logic::on_change_pubsub::create_secret_change_channel(100);
+
     // Create the unified soma change channel
     let (soma_change_tx, _soma_change_rx) = create_soma_change_channel(100);
 
@@ -101,6 +105,7 @@ pub async fn create_api_service(
             soma_change_tx_clone,
             on_bridge_config_change_rx,
             encryption_change_rx,
+            secret_change_rx,
             pubsub_shutdown_rx,
         )
         .await;
@@ -200,6 +205,7 @@ pub async fn create_api_service(
 
     // Initialize API service
     info!("Initializing API service...");
+    let local_envelope_encryption_key_path = project_dir.join(".soma/envelope-encryption-keys");
     let api_service = ApiService::new(InitApiServiceParams {
         host: host.clone(),
         port,
@@ -215,7 +221,9 @@ pub async fn create_api_service(
         mcp_sse_ping_interval: Duration::from_secs(10),
         sdk_client: sdk_client.clone(),
         on_encryption_change_tx: encryption_change_tx.clone(),
+        on_secret_change_tx: secret_change_tx.clone(),
         encryption_repository: encryption_repo.clone(),
+        local_envelope_encryption_key_path,
     })
     .await?;
     info!("API service initialized");

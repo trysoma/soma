@@ -71,7 +71,7 @@ impl EncryptionKeyRepositoryLike for Repository {
         let sqlc_params = create_envelope_encryption_key_params {
             id: &params.id,
             key_type: &params.key_type,
-            local_location: &params.local_location,
+            local_file_name: &params.local_file_name,
             aws_arn: &params.aws_arn,
             aws_region: &params.aws_region,
             created_at: &params.created_at,
@@ -630,7 +630,7 @@ mod tests {
         let params = CreateEnvelopeEncryptionKey {
             id: id.to_string(),
             key_type: crate::repository::EnvelopeEncryptionKeyType::AwsKms,
-            local_location: None,
+            local_file_name: None,
             aws_arn: Some("arn:aws:kms:eu-west-2:123456789012:key/test-key".to_string()),
             aws_region: Some("eu-west-2".to_string()),
             created_at: now,
@@ -647,7 +647,7 @@ mod tests {
         let params = CreateEnvelopeEncryptionKey {
             id: id.to_string(),
             key_type: crate::repository::EnvelopeEncryptionKeyType::Local,
-            local_location: Some("/path/to/key".to_string()),
+            local_file_name: Some("/path/to/key".to_string()),
             aws_arn: None,
             aws_region: None,
             created_at: now,
@@ -693,9 +693,12 @@ mod tests {
             .unwrap();
 
         match retrieved {
-            EnvelopeEncryptionKey::AwsKms { arn, region } => {
-                assert_eq!(arn, "arn:aws:kms:eu-west-2:123456789012:key/test-key");
-                assert_eq!(region, "eu-west-2");
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => {
+                assert_eq!(
+                    aws_kms.arn,
+                    "arn:aws:kms:eu-west-2:123456789012:key/test-key"
+                );
+                assert_eq!(aws_kms.region, "eu-west-2");
             }
             _ => panic!("Expected AWS KMS key"),
         }
@@ -722,8 +725,8 @@ mod tests {
             .unwrap();
 
         match retrieved {
-            EnvelopeEncryptionKey::Local { location } => {
-                assert_eq!(location, "/path/to/key");
+            EnvelopeEncryptionKey::Local(local) => {
+                assert_eq!(local.file_name, "/path/to/key");
             }
             _ => panic!("Expected local key"),
         }
@@ -751,11 +754,11 @@ mod tests {
         // We should have 2 AWS keys and 1 local key
         let aws_count = keys
             .iter()
-            .filter(|k| matches!(k, EnvelopeEncryptionKey::AwsKms { .. }))
+            .filter(|k| matches!(k, EnvelopeEncryptionKey::AwsKms(_)))
             .count();
         let local_count = keys
             .iter()
-            .filter(|k| matches!(k, EnvelopeEncryptionKey::Local { .. }))
+            .filter(|k| matches!(k, EnvelopeEncryptionKey::Local(_)))
             .count();
         assert_eq!(aws_count, 2);
         assert_eq!(local_count, 1);
@@ -840,9 +843,12 @@ mod tests {
 
         // Verify envelope key ID matches
         match retrieved.envelope_encryption_key_id {
-            EnvelopeEncryptionKey::AwsKms { arn, region } => {
-                assert_eq!(arn, "arn:aws:kms:eu-west-2:123456789012:key/test-key");
-                assert_eq!(region, "eu-west-2");
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => {
+                assert_eq!(
+                    aws_kms.arn,
+                    "arn:aws:kms:eu-west-2:123456789012:key/test-key"
+                );
+                assert_eq!(aws_kms.region, "eu-west-2");
             }
             _ => panic!("Expected AWS KMS key"),
         }
@@ -876,8 +882,8 @@ mod tests {
 
         // Verify envelope key ID matches
         match retrieved.envelope_encryption_key_id {
-            EnvelopeEncryptionKey::Local { location } => {
-                assert_eq!(location, "/path/to/key");
+            EnvelopeEncryptionKey::Local(local) => {
+                assert_eq!(local.file_name, "/path/to/key");
             }
             _ => panic!("Expected local key"),
         }
@@ -1046,9 +1052,12 @@ mod tests {
 
         // Verify envelope key ID matches (from JOIN)
         match retrieved.envelope_encryption_key_id {
-            EnvelopeEncryptionKey::AwsKms { arn, region } => {
-                assert_eq!(arn, "arn:aws:kms:eu-west-2:123456789012:key/test-key");
-                assert_eq!(region, "eu-west-2");
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => {
+                assert_eq!(
+                    aws_kms.arn,
+                    "arn:aws:kms:eu-west-2:123456789012:key/test-key"
+                );
+                assert_eq!(aws_kms.region, "eu-west-2");
             }
             _ => panic!("Expected AWS KMS key"),
         }
@@ -1124,8 +1133,11 @@ mod tests {
         // Verify all DEKs reference the same envelope key
         for item in result.items {
             match item.envelope_encryption_key_id {
-                EnvelopeEncryptionKey::AwsKms { arn, .. } => {
-                    assert_eq!(arn, "arn:aws:kms:eu-west-2:123456789012:key/test-key");
+                EnvelopeEncryptionKey::AwsKms(aws_kms) => {
+                    assert_eq!(
+                        aws_kms.arn,
+                        "arn:aws:kms:eu-west-2:123456789012:key/test-key"
+                    );
                 }
                 _ => panic!("Expected AWS KMS key"),
             }
@@ -1196,9 +1208,12 @@ mod tests {
         let dek_1 = deks.iter().find(|d| d.id == dek_id_1).unwrap();
         assert_eq!(dek_1.id, dek_id_1);
         match &dek_1.envelope_encryption_key_id {
-            EnvelopeEncryptionKey::AwsKms { arn, region } => {
-                assert_eq!(arn, "arn:aws:kms:eu-west-2:123456789012:key/test-key");
-                assert_eq!(region, "eu-west-2");
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => {
+                assert_eq!(
+                    aws_kms.arn,
+                    "arn:aws:kms:eu-west-2:123456789012:key/test-key"
+                );
+                assert_eq!(aws_kms.region, "eu-west-2");
             }
             _ => panic!("Expected AWS KMS key"),
         }
@@ -1207,8 +1222,8 @@ mod tests {
         let dek_2 = deks.iter().find(|d| d.id == dek_id_2).unwrap();
         assert_eq!(dek_2.id, dek_id_2);
         match &dek_2.envelope_encryption_key_id {
-            EnvelopeEncryptionKey::Local { location } => {
-                assert_eq!(location, "/path/to/key");
+            EnvelopeEncryptionKey::Local(local) => {
+                assert_eq!(local.file_name, "/path/to/key");
             }
             _ => panic!("Expected local key"),
         }
@@ -1297,9 +1312,12 @@ mod tests {
 
         // Verify envelope key ID matches
         match dek.envelope_encryption_key_id {
-            EnvelopeEncryptionKey::AwsKms { arn, region } => {
-                assert_eq!(arn, "arn:aws:kms:eu-west-2:123456789012:key/test-key");
-                assert_eq!(region, "eu-west-2");
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => {
+                assert_eq!(
+                    aws_kms.arn,
+                    "arn:aws:kms:eu-west-2:123456789012:key/test-key"
+                );
+                assert_eq!(aws_kms.region, "eu-west-2");
             }
             _ => panic!("Expected AWS KMS key"),
         }

@@ -107,8 +107,13 @@ pub struct BrokerState {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+pub struct BrokerActionRedirect {
+    pub url: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
 pub enum BrokerAction {
-    Redirect { url: String },
+    Redirect(BrokerActionRedirect),
     None,
 }
 
@@ -1135,9 +1140,9 @@ mod tests {
             provider_controller_type_id: "google_mail".to_string(),
             credential_controller_type_id: "oauth_auth_flow".to_string(),
             metadata: Metadata::new(),
-            action: BrokerAction::Redirect {
+            action: BrokerAction::Redirect(BrokerActionRedirect {
                 url: "https://example.com/auth".to_string(),
-            },
+            }),
         };
 
         // Test serialization

@@ -102,7 +102,7 @@ const handlers = {
 			ctx,
 			soma: _soma,
 			history: _history,
-			bridge,
+			bridge: _bridge,
 			input: { assessment },
 			sendMessage,
 		}) => {

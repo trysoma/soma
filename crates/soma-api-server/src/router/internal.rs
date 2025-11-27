@@ -8,7 +8,10 @@ use tracing::warn;
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use shared::{adapters::openapi::JsonResponse, error::CommonError};
+use shared::{
+    adapters::openapi::{API_VERSION_TAG, JsonResponse},
+    error::CommonError,
+};
 
 pub const PATH_PREFIX: &str = "/_internal";
 pub const API_VERSION_1: &str = "v1";
@@ -25,10 +28,13 @@ pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {
 #[utoipa::path(
     get,
     path = format!("{}/{}/health", PATH_PREFIX, API_VERSION_1),
+    tags = ["_internal", API_VERSION_TAG],
     responses(
         (status = 200, description = "Service is healthy"),
         (status = 503, description = "Service unavailable - SDK server not ready"),
     ),
+    summary = "Health check",
+    description = "Check the health status of the service and SDK server connectivity",
     operation_id = "health-check",
 )]
 async fn route_health(State(ctx): State<Arc<InternalService>>) -> axum::http::StatusCode {
@@ -41,9 +47,12 @@ async fn route_health(State(ctx): State<Arc<InternalService>>) -> axum::http::St
 #[utoipa::path(
     get,
     path = format!("{}/{}/runtime_config", PATH_PREFIX, API_VERSION_1),
+    tags = ["_internal", API_VERSION_TAG],
     responses(
         (status = 200, description = "Runtime config", body = RuntimeConfig),
     ),
+    summary = "Get runtime config",
+    description = "Get the current runtime configuration",
     operation_id = "get-internal-runtime-config",
 )]
 async fn route_runtime_config(
@@ -56,11 +65,14 @@ async fn route_runtime_config(
 #[utoipa::path(
     post,
     path = format!("{}/{}/trigger_codegen", PATH_PREFIX, API_VERSION_1),
+    tags = ["_internal", API_VERSION_TAG],
     responses(
         (status = 200, description = "Codegen triggered successfully", body = TriggerCodegenResponse),
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Trigger codegen",
+    description = "Trigger code generation for the SDK",
     operation_id = "trigger-codegen",
 )]
 async fn route_trigger_codegen(

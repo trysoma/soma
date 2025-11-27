@@ -9,7 +9,9 @@ use shared::{
 };
 
 pub use sqlite::Repository;
+use tracing::info;
 
+use crate::logic::secret::Secret;
 use crate::logic::task::{
     Message, MessagePart, MessageRole, Task, TaskEventUpdateType, TaskStatus, TaskTimelineItem,
     TaskTimelineItemPayload, TaskWithDetails,
@@ -116,6 +118,25 @@ impl TryFrom<Message> for CreateMessage {
     }
 }
 
+// Secret repository parameter structs
+#[derive(Debug)]
+pub struct CreateSecret {
+    pub id: WrappedUuidV4,
+    pub key: String,
+    pub encrypted_secret: String,
+    pub dek_alias: String,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+#[derive(Debug)]
+pub struct UpdateSecret {
+    pub id: WrappedUuidV4,
+    pub encrypted_secret: String,
+    pub dek_alias: String,
+    pub updated_at: WrappedChronoDateTime,
+}
+
 // Repository trait
 #[allow(async_fn_in_trait)]
 pub trait TaskRepositoryLike {
@@ -156,6 +177,20 @@ pub trait TaskRepositoryLike {
     ) -> Result<PaginatedResponse<Message>, CommonError>;
 }
 
+// Secret repository trait
+#[allow(async_fn_in_trait)]
+pub trait SecretRepositoryLike {
+    async fn create_secret(&self, params: &CreateSecret) -> Result<(), CommonError>;
+    async fn update_secret(&self, params: &UpdateSecret) -> Result<(), CommonError>;
+    async fn delete_secret(&self, id: &WrappedUuidV4) -> Result<(), CommonError>;
+    async fn get_secret_by_id(&self, id: &WrappedUuidV4) -> Result<Option<Secret>, CommonError>;
+    async fn get_secret_by_key(&self, key: &str) -> Result<Option<Secret>, CommonError>;
+    async fn get_secrets(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<Secret>, CommonError>;
+}
+
 // Repository setup utilities
 use shared::libsql::{
     establish_db_connection, inject_auth_token_to_db_url, merge_nested_migrations,
@@ -177,6 +212,8 @@ pub async fn setup_repository(
     ),
     CommonError,
 > {
+    info!("Setting up database repository...");
+    info!("conn_string: {}", conn_string);
     let migrations = merge_nested_migrations(vec![
         Repository::load_sql_migrations(),
         bridge::repository::Repository::load_sql_migrations(),

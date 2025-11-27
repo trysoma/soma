@@ -915,7 +915,8 @@ impl SqlMigrationLoader for Repository {
 mod tests {
     use super::*;
     use crate::logic::{
-        Metadata, ProviderInstanceSerialized, credential::BrokerAction,
+        Metadata, ProviderInstanceSerialized,
+        credential::{BrokerAction, BrokerActionRedirect},
         instance::FunctionInstanceSerialized,
     };
     use crate::repository::{
@@ -1540,9 +1541,9 @@ mod tests {
             provider_controller_type_id: "google_mail".to_string(),
             credential_controller_type_id: "oauth2_authorization_code_flow".to_string(),
             metadata: Metadata::new(),
-            action: BrokerAction::Redirect {
+            action: BrokerAction::Redirect(BrokerActionRedirect {
                 url: "https://example.com/oauth/authorize".to_string(),
-            },
+            }),
         };
 
         repo.create_broker_state(&CreateBrokerState::from(broker_state.clone()))
@@ -1562,8 +1563,8 @@ mod tests {
             broker_state.provider_controller_type_id
         );
         match retrieved.action {
-            BrokerAction::Redirect { url } => {
-                assert_eq!(url, "https://example.com/oauth/authorize")
+            BrokerAction::Redirect(redirect) => {
+                assert_eq!(redirect.url, "https://example.com/oauth/authorize")
             }
             _ => panic!("Expected Redirect action"),
         }

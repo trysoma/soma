@@ -41,7 +41,7 @@
 	"scripts": {
 		"artifacts": "napi artifacts",
 		"bench": "node --import @oxc-node/core/register benchmark/bench.ts",
-		"build": "napi build --platform --release",
+		"build": "napi build --platform --release && pnpm run lint:fix",
 		"build:debug": "napi build --platform",
 		"format": "run-p format:biome format:rs format:toml",
 		"format:biome": "biome check --write .",
@@ -65,6 +65,7 @@
 		"@taplo/cli": "^0.7.0",
 		"@tybys/wasm-util": "^0.10.0",
 		"vitest": "^4.0.8",
+		"vite": "^6.0.0",
 		"chalk": "^5.6.2",
 		"lint-staged": "^16.1.6",
 		"npm-run-all2": "^8.0.4",

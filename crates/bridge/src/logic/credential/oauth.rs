@@ -9,12 +9,12 @@ use shared::{
 };
 
 use crate::logic::{
-    BrokerAction, BrokerInput, BrokerOutcome, BrokerState, ConfigurationSchema, Credential,
-    Metadata, ProviderCredentialControllerLike, ResourceServerCredentialLike,
-    ResourceServerCredentialSerialized, RotateableControllerUserCredentialLike,
-    RotateableCredentialLike, StaticCredentialConfigurationLike,
-    StaticProviderCredentialControllerLike, UserCredentialBrokerLike, UserCredentialLike,
-    UserCredentialSerialized, schemars_make_password,
+    BrokerAction, BrokerActionRedirect, BrokerInput, BrokerOutcome, BrokerState,
+    ConfigurationSchema, Credential, Metadata, ProviderCredentialControllerLike,
+    ResourceServerCredentialLike, ResourceServerCredentialSerialized,
+    RotateableControllerUserCredentialLike, RotateableCredentialLike,
+    StaticCredentialConfigurationLike, StaticProviderCredentialControllerLike,
+    UserCredentialBrokerLike, UserCredentialLike, UserCredentialSerialized, schemars_make_password,
 };
 
 // ============================================================================
@@ -294,7 +294,7 @@ impl UserCredentialBrokerLike for OauthAuthFlowController {
             state_id
         );
 
-        let action = BrokerAction::Redirect { url: auth_url };
+        let action = BrokerAction::Redirect(BrokerActionRedirect { url: auth_url });
 
         // We need to wait for the callback with the authorization code
         let outcome = BrokerOutcome::Continue {

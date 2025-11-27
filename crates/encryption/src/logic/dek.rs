@@ -13,6 +13,8 @@ use super::{EncryptionKeyEvent, EncryptionKeyEventSender};
 use crate::logic::envelope::{
     EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents, WithEnvelopeEncryptionKeyId,
 };
+#[cfg(test)]
+use crate::logic::envelope::{EnvelopeEncryptionKeyAwsKms, EnvelopeEncryptionKeyLocal};
 use crate::repository::DataEncryptionKeyRepositoryLike;
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
@@ -119,13 +121,13 @@ where
 
     // Get the envelope key contents based on its type
     let key_encryption_key = match &envelope_key {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
-            arn: arn.clone(),
-            region: region.clone(),
+        EnvelopeEncryptionKey::AwsKms(aws_kms) => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: aws_kms.arn.clone(),
+            region: aws_kms.region.clone(),
         },
-        EnvelopeEncryptionKey::Local { location } => {
+        EnvelopeEncryptionKey::Local(local) => {
             crate::logic::envelope::get_or_create_local_envelope_encryption_key(
-                &std::path::PathBuf::from(location),
+                &std::path::PathBuf::from(&local.file_name),
             )?
         }
     };
@@ -173,14 +175,14 @@ where
             }
 
             EnvelopeEncryptionKeyContents::Local {
-                location,
+                file_name,
                 key_bytes,
             } => {
                 // --- Local path (no AWS involved) ---
                 if key_bytes.len() != 32 {
                     return Err(CommonError::Unknown(anyhow::anyhow!(
                         "Invalid KEK length in {} (expected 32 bytes, got {})",
-                        location,
+                        file_name,
                         key_bytes.len()
                     )));
                 }
@@ -275,13 +277,13 @@ where
 
     // Get the envelope key contents based on its type
     let key_encryption_key = match &envelope_key {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
-            arn: arn.clone(),
-            region: region.clone(),
+        EnvelopeEncryptionKey::AwsKms(aws_kms) => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: aws_kms.arn.clone(),
+            region: aws_kms.region.clone(),
         },
-        EnvelopeEncryptionKey::Local { location } => {
+        EnvelopeEncryptionKey::Local(local) => {
             crate::logic::envelope::get_local_envelope_encryption_key(&std::path::PathBuf::from(
-                location,
+                &local.file_name,
             ))?
         }
     };
@@ -412,20 +414,12 @@ where
 /// Helper function to check if two envelope encryption keys match
 fn matches_envelope_key_id(id1: &EnvelopeEncryptionKey, id2: &EnvelopeEncryptionKey) -> bool {
     match (id1, id2) {
-        (
-            EnvelopeEncryptionKey::AwsKms {
-                arn: arn1,
-                region: region1,
-            },
-            EnvelopeEncryptionKey::AwsKms {
-                arn: arn2,
-                region: region2,
-            },
-        ) => arn1 == arn2 && region1 == region2,
-        (
-            EnvelopeEncryptionKey::Local { location: loc1 },
-            EnvelopeEncryptionKey::Local { location: loc2 },
-        ) => loc1 == loc2,
+        (EnvelopeEncryptionKey::AwsKms(aws_kms1), EnvelopeEncryptionKey::AwsKms(aws_kms2)) => {
+            aws_kms1.arn == aws_kms2.arn && aws_kms1.region == aws_kms2.region
+        }
+        (EnvelopeEncryptionKey::Local(local1), EnvelopeEncryptionKey::Local(local2)) => {
+            local1.file_name == local2.file_name
+        }
         _ => false,
     }
 }
@@ -486,10 +480,10 @@ mod tests {
         let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
         std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
 
-        let location = temp_file.path().to_string_lossy().to_string();
+        let file_name = temp_file.path().to_string_lossy().to_string();
 
         let contents = EnvelopeEncryptionKeyContents::Local {
-            location: location.clone(),
+            file_name: file_name.clone(),
             key_bytes: kek_bytes.to_vec(),
         };
 
@@ -519,12 +513,12 @@ mod tests {
         let (_temp_file, local_key) = create_temp_local_key();
 
         // Create envelope key first
-        let envelope_key = EnvelopeEncryptionKey::Local {
-            location: match &local_key {
-                EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
+        let envelope_key = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
+            file_name: match &local_key {
+                EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
                 _ => panic!("Expected local key"),
             },
-        };
+        });
         let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
             envelope_key.clone(),
             shared::primitives::WrappedChronoDateTime::now(),
@@ -552,7 +546,7 @@ mod tests {
         assert_eq!(dek.id, "test-dek-local");
         assert!(matches!(
             dek.envelope_encryption_key_id,
-            EnvelopeEncryptionKey::Local { .. }
+            EnvelopeEncryptionKey::Local(_)
         ));
 
         // Verify the DEK exists in the database
@@ -575,12 +569,12 @@ mod tests {
         let (_temp_file, local_key) = create_temp_local_key();
 
         // Create envelope key first
-        let envelope_key = EnvelopeEncryptionKey::Local {
-            location: match &local_key {
-                EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
+        let envelope_key = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
+            file_name: match &local_key {
+                EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
                 _ => panic!("Expected local key"),
             },
-        };
+        });
         let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
             envelope_key.clone(),
             shared::primitives::WrappedChronoDateTime::now(),
@@ -629,10 +623,10 @@ mod tests {
         let _aws_key = get_aws_kms_key();
 
         // Create envelope key first
-        let envelope_key = EnvelopeEncryptionKey::AwsKms {
+        let envelope_key = EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
-        };
+        });
         let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
             envelope_key.clone(),
             shared::primitives::WrappedChronoDateTime::now(),
@@ -660,7 +654,7 @@ mod tests {
         assert_eq!(dek.id, "test-dek-aws");
         assert!(matches!(
             dek.envelope_encryption_key_id,
-            EnvelopeEncryptionKey::AwsKms { .. }
+            EnvelopeEncryptionKey::AwsKms(_)
         ));
 
         // Verify the DEK exists in the database
@@ -680,10 +674,10 @@ mod tests {
 
         let (_temp_file, local_key_contents) = create_temp_local_key();
         let envelope_key =
-            if let EnvelopeEncryptionKeyContents::Local { location, .. } = &local_key_contents {
-                EnvelopeEncryptionKey::Local {
-                    location: location.clone(),
-                }
+            if let EnvelopeEncryptionKeyContents::Local { file_name, .. } = &local_key_contents {
+                EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
+                    file_name: file_name.clone(),
+                })
             } else {
                 panic!("Expected local key");
             };
@@ -736,12 +730,12 @@ mod tests {
         let (_temp_file, local_key) = create_temp_local_key();
 
         // Create envelope key first
-        let envelope_key = EnvelopeEncryptionKey::Local {
-            location: match &local_key {
-                EnvelopeEncryptionKeyContents::Local { location, .. } => location.clone(),
+        let envelope_key = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
+            file_name: match &local_key {
+                EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
                 _ => panic!("Expected local key"),
             },
-        };
+        });
         let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
             envelope_key.clone(),
             shared::primitives::WrappedChronoDateTime::now(),

@@ -62,48 +62,8 @@ async function invokeBridgeFunction<TParams, TResult>(
 
 
 
-export type ApproveClaimApproveClaimParams = { claim: { amount: number; category: string; date: string; email: string; reason: string } };
-export type ApproveClaimApproveClaimResult = { approved: boolean };
-
-
-
-
-
-export type StripeStripeProcessRefundParams = { refund_id: string };
-export type StripeStripeProcessRefundResult = { success: boolean };
-
-
-
-
-
-// Provider: approve-claim
-export interface ApproveClaim {
-  
-  "test": {
-    
-    approveClaim: (params: ApproveClaimApproveClaimParams) => Promise<ApproveClaimApproveClaimResult>;
-    
-  };
-  
-}
-
-// Provider: stripe
-export interface Stripe {
-  
-  "internal": {
-    
-    processRefund: (params: StripeStripeProcessRefundParams) => Promise<StripeStripeProcessRefundResult>;
-    
-  };
-  
-}
-
 
 export interface Bridge {
-  
-  approveClaim: ApproveClaim;
-  
-  stripe: Stripe;
   
 }
 
@@ -112,54 +72,8 @@ export type BridgeDefinition = Bridge;
 export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
   const baseUrl = config?.SOMA_BASE_URL || process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000';
   
-  const approveClaim: ApproveClaim = {
-    
-    "test": {
-      
-      approveClaim: async (params: ApproveClaimApproveClaimParams): Promise<ApproveClaimApproveClaimResult> => {
-        return invokeBridgeFunction<ApproveClaimApproveClaimParams, ApproveClaimApproveClaimResult>(
-          ctx,
-          'approve-claim',
-          'test',
-          'approveClaim',
-          '94131f8d-66c0-45c0-856f-eafbd8aab791',
-          'approve-claim',
-          params,
-          baseUrl
-        );
-      },
-      
-    },
-    
-  };
-  
-  const stripe: Stripe = {
-    
-    "internal": {
-      
-      processRefund: async (params: StripeStripeProcessRefundParams): Promise<StripeStripeProcessRefundResult> => {
-        return invokeBridgeFunction<StripeStripeProcessRefundParams, StripeStripeProcessRefundResult>(
-          ctx,
-          'stripe',
-          'internal',
-          'processRefund',
-          'dc14fe03-944a-433f-a5a6-3c5895ba3026',
-          'stripe_process_refund',
-          params,
-          baseUrl
-        );
-      },
-      
-    },
-    
-  };
-  
 
   return {
-    
-    approveClaim: approveClaim,
-    
-    stripe: stripe,
     
   };
 }

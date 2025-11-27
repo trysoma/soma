@@ -166,7 +166,7 @@ pub async fn create_and_wait_for_api_client(
     api_url: &str,
     timeout_secs: u64,
 ) -> Result<ApiClientConfiguration, CommonError> {
-    use soma_api_client::apis::default_api;
+    use soma_api_client::apis::a2a_api;
     use std::time::Duration;
 
     // Create HTTP client
@@ -193,7 +193,7 @@ pub async fn create_and_wait_for_api_client(
     let mut connected = false;
 
     for attempt in 1..=max_retries {
-        match default_api::agent_card(&api_config).await {
+        match a2a_api::get_agent_card(&api_config).await {
             Ok(_) => {
                 info!("Connected to Soma API server successfully");
                 connected = true;
