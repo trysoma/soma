@@ -1,7 +1,6 @@
 use std::future::Future;
 use std::net::SocketAddr;
 
-use axum::Router;
 use shared::error::CommonError;
 use shared::port::find_free_port;
 use soma_api_server::ApiService;
@@ -37,17 +36,23 @@ pub async fn start_axum_server(
     let handle = axum_server::Handle::new();
 
     // Build the main API router
+    #[cfg(debug_assertions)]
     let mut router = soma_api_server::router::initiaite_api_router(params.api_service)?;
+    #[cfg(not(debug_assertions))]
+    let router = soma_api_server::router::initiaite_api_router(params.api_service)?;
 
     // In debug mode, add the Vite dev server frontend
     #[cfg(debug_assertions)]
-    use soma_frontend::{create_vite_router, start_vite_dev_server, stop_vite_dev_server};
-
-    #[cfg(debug_assertions)]
-    let _vite_scope_guard = start_vite_dev_server();
+    let _vite_scope_guard = {
+        use soma_frontend::start_vite_dev_server;
+        start_vite_dev_server()
+    };
 
     #[cfg(debug_assertions)]
     {
+        use axum::Router;
+        use soma_frontend::create_vite_router;
+
         let (vite_router, _) = create_vite_router().split_for_parts();
         router = Router::new().merge(router).merge(vite_router);
     }
@@ -73,6 +78,8 @@ pub async fn start_axum_server(
 
         #[cfg(debug_assertions)]
         {
+            use soma_frontend::stop_vite_dev_server;
+            
             drop(_vite_scope_guard);
             if let Err(e) = stop_vite_dev_server().await {
                 use tracing::error;
