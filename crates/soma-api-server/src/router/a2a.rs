@@ -63,6 +63,7 @@ pub fn create_router() -> OpenApiRouter<Arc<Agent2AgentService>> {
     responses(
         (status = 200, description = "Agent definition", body = SomaAgentDefinition),
     ),
+    description = "Get the agent definition (capabilities and metadata)",
     operation_id = "get-agent-definition",
 )]
 async fn route_definition(

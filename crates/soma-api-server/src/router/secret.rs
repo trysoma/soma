@@ -45,6 +45,7 @@ pub fn create_router() -> OpenApiRouter<Arc<SecretService>> {
         (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Create a new encrypted secret with the specified key and value",
     operation_id = "create-secret",
 )]
 async fn route_create_secret(
@@ -73,6 +74,7 @@ async fn route_create_secret(
         (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Import an existing pre-encrypted secret into the system",
     operation_id = "import-secret",
 )]
 async fn route_import_secret(
@@ -96,6 +98,7 @@ async fn route_import_secret(
         (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "List all secrets with pagination (values are encrypted)",
     operation_id = "list-secrets",
 )]
 async fn route_list_secrets(
@@ -119,6 +122,7 @@ async fn route_list_secrets(
         (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "List all secrets with decrypted values (requires decryption access)",
     operation_id = "list-decrypted-secrets",
 )]
 async fn route_list_decrypted_secrets(
@@ -144,6 +148,7 @@ async fn route_list_decrypted_secrets(
         (status = 404, description = "Not Found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Retrieve a secret by its unique identifier",
     operation_id = "get-secret-by-id",
 )]
 async fn route_get_secret_by_id(
@@ -168,6 +173,7 @@ async fn route_get_secret_by_id(
         (status = 404, description = "Not Found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Retrieve a secret by its key name",
     operation_id = "get-secret-by-key",
 )]
 async fn route_get_secret_by_key(
@@ -193,6 +199,7 @@ async fn route_get_secret_by_key(
         (status = 404, description = "Not Found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Update an existing secret's value or metadata",
     operation_id = "update-secret",
 )]
 async fn route_update_secret(
@@ -226,6 +233,7 @@ async fn route_update_secret(
         (status = 404, description = "Not Found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Delete a secret by its unique identifier",
     operation_id = "delete-secret",
 )]
 async fn route_delete_secret(

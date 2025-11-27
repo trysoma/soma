@@ -444,22 +444,22 @@ fn envelope_key_config_to_api_model(
     config: &EnvelopeKeyConfig,
 ) -> models::EnvelopeEncryptionKey {
     match config {
-        EnvelopeKeyConfig::AwsKms { arn, region, .. } => {
-            models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(Box::new(
+        EnvelopeKeyConfig::AwsKms(aws_kms) => {
+            models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(
                 models::EnvelopeEncryptionKeyOneOf {
-                    arn: arn.clone(),
-                    region: region.clone(),
+                    arn: aws_kms.arn.clone(),
+                    region: aws_kms.region.clone(),
                     r#type: models::envelope_encryption_key_one_of::Type::AwsKms,
                 },
-            ))
+            )
         }
-        EnvelopeKeyConfig::Local { file_name, .. } => {
-            models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(Box::new(
+        EnvelopeKeyConfig::Local(local) => {
+            models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(
                 models::EnvelopeEncryptionKeyOneOf1 {
-                    file_name: file_name.clone(),
+                    file_name: local.file_name.clone(),
                     r#type: models::envelope_encryption_key_one_of_1::Type::Local,
                 },
-            ))
+            )
         }
     }
 }

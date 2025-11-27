@@ -159,13 +159,13 @@ pub async fn cmd_enc_key_add(
             );
 
             // Create the envelope encryption key using the API client
-            let envelope_key = models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(Box::new(
+            let envelope_key = models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf(
                 models::EnvelopeEncryptionKeyOneOf::new(
                     arn.clone(),
                     region.clone(),
                     models::envelope_encryption_key_one_of::Type::AwsKms,
                 ),
-            ));
+            );
 
             let created_key =
                 default_api::create_envelope_encryption_key(&api_config, envelope_key)
@@ -206,10 +206,10 @@ pub async fn cmd_enc_key_add(
 
             // Create the envelope encryption key using the API client
             let envelope_key = models::EnvelopeEncryptionKey::EnvelopeEncryptionKeyOneOf1(
-                Box::new(models::EnvelopeEncryptionKeyOneOf1::new(
+                models::EnvelopeEncryptionKeyOneOf1::new(
                     file_name.clone(),
                     models::envelope_encryption_key_one_of_1::Type::Local,
-                )),
+                ),
             );
 
             let created_key =

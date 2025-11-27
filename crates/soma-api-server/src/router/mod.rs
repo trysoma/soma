@@ -1,5 +1,5 @@
 use axum::Router;
-use utoipa::openapi::OpenApi;
+use utoipa::openapi::{Info, OpenApi};
 
 use crate::ApiService;
 use bridge::router::bridge::create_router as create_bridge_router;
@@ -63,5 +63,10 @@ pub fn generate_openapi_spec() -> OpenApi {
     spec.merge(internal_spec);
     spec.merge(encryption_spec);
     spec.merge(secret_spec);
+
+    // Update OpenAPI metadata
+    let info = Info::new("soma", "An open source AI agent runtime");
+    spec.info = info;
+
     spec
 }

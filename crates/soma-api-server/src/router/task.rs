@@ -47,6 +47,7 @@ pub fn create_router() -> OpenApiRouter<Arc<TaskService>> {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "List all tasks with pagination",
     operation_id = "list-tasks",
 )]
 async fn route_list_tasks(
@@ -71,6 +72,7 @@ async fn route_list_tasks(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "List all unique task contexts with pagination",
     operation_id = "list-contexts",
 )]
 async fn route_list_contexts(
@@ -96,6 +98,7 @@ async fn route_list_contexts(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "List all tasks for a specific context ID with pagination",
     operation_id = "list-tasks-by-context-id",
 )]
 async fn route_list_tasks_by_context_id(
@@ -128,6 +131,7 @@ async fn route_list_tasks_by_context_id(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Retrieve a task by its unique identifier",
     operation_id = "get-task-by-id",
 )]
 async fn route_get_task(
@@ -153,6 +157,7 @@ async fn route_get_task(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Update the status of a task",
     operation_id = "update-task-status",
 )]
 async fn route_update_task_status(
@@ -188,6 +193,7 @@ async fn route_update_task_status(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Send a message to a task",
     operation_id = "send-message",
 )]
 async fn route_create_message(
@@ -223,6 +229,7 @@ async fn route_create_message(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Get the timeline history of a task with pagination",
     operation_id = "task-history",
 )]
 async fn route_get_task_timeline_items(

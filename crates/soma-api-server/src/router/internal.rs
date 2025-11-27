@@ -29,6 +29,7 @@ pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {
         (status = 200, description = "Service is healthy"),
         (status = 503, description = "Service unavailable - SDK server not ready"),
     ),
+    description = "Check the health status of the service and SDK server connectivity",
     operation_id = "health-check",
 )]
 async fn route_health(State(ctx): State<Arc<InternalService>>) -> axum::http::StatusCode {
@@ -44,6 +45,7 @@ async fn route_health(State(ctx): State<Arc<InternalService>>) -> axum::http::St
     responses(
         (status = 200, description = "Runtime config", body = RuntimeConfig),
     ),
+    description = "Get the current runtime configuration",
     operation_id = "get-internal-runtime-config",
 )]
 async fn route_runtime_config(
@@ -61,6 +63,7 @@ async fn route_runtime_config(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Trigger code generation for the SDK",
     operation_id = "trigger-codegen",
 )]
 async fn route_trigger_codegen(

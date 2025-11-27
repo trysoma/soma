@@ -8,7 +8,10 @@ use serde_json::json;
 use tracing::{info, warn};
 
 use shared::error::CommonError;
-use shared::soma_agent_definition::{EnvelopeKeyConfig, SecretConfig, SomaAgentDefinitionLike};
+use shared::soma_agent_definition::{
+    EnvelopeKeyConfig, EnvelopeKeyConfigAwsKms, EnvelopeKeyConfigLocal, SecretConfig,
+    SomaAgentDefinitionLike,
+};
 use soma_api_server::logic::on_change_pubsub::{SecretChangeEvt, SomaChangeEvt, SomaChangeRx};
 
 /// Watches for unified soma change events and updates soma.yaml accordingly
@@ -229,15 +232,19 @@ async fn handle_encryption_event(
             info!("Envelope encryption key added: {:?}", eek.id());
             let key_id = eek.id();
             let config = match eek {
-                EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeKeyConfig::AwsKms {
-                    arn,
-                    region,
-                    deks: None,
-                },
-                EnvelopeEncryptionKey::Local { file_name } => EnvelopeKeyConfig::Local {
-                    file_name,
-                    deks: None,
-                },
+                EnvelopeEncryptionKey::AwsKms(aws_kms) => {
+                    EnvelopeKeyConfig::AwsKms(EnvelopeKeyConfigAwsKms {
+                        arn: aws_kms.arn.clone(),
+                        region: aws_kms.region.clone(),
+                        deks: None,
+                    })
+                }
+                EnvelopeEncryptionKey::Local(local) => {
+                    EnvelopeKeyConfig::Local(EnvelopeKeyConfigLocal {
+                        file_name: local.file_name.clone(),
+                        deks: None,
+                    })
+                }
             };
             soma_definition.add_envelope_key(key_id, config).await?;
         }

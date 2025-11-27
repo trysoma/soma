@@ -24,17 +24,28 @@ use crate::repository::{
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+pub struct EnvelopeEncryptionKeyAwsKms {
+    pub arn: String,
+    pub region: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+pub struct EnvelopeEncryptionKeyLocal {
+    pub file_name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum EnvelopeEncryptionKey {
-    AwsKms { arn: String, region: String },
-    Local { file_name: String },
+    AwsKms(EnvelopeEncryptionKeyAwsKms),
+    Local(EnvelopeEncryptionKeyLocal),
 }
 
 impl EnvelopeEncryptionKey {
     pub fn id(&self) -> String {
         match self {
-            EnvelopeEncryptionKey::AwsKms { arn, region: _ } => arn.clone(),
-            EnvelopeEncryptionKey::Local { file_name } => file_name.clone(),
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => aws_kms.arn.clone(),
+            EnvelopeEncryptionKey::Local(local) => local.file_name.clone(),
         }
     }
 }
@@ -55,17 +66,17 @@ impl From<EnvelopeEncryptionKeyContents> for EnvelopeEncryptionKey {
     fn from(contents: EnvelopeEncryptionKeyContents) -> Self {
         match &contents {
             EnvelopeEncryptionKeyContents::AwsKms { arn, region } => {
-                EnvelopeEncryptionKey::AwsKms {
+                EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
                     arn: arn.clone(),
                     region: region.clone(),
-                }
+                })
             }
             EnvelopeEncryptionKeyContents::Local {
                 file_name,
                 key_bytes: _,
-            } => EnvelopeEncryptionKey::Local {
+            } => EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
                 file_name: file_name.clone(),
-            },
+            }),
         }
     }
 }
@@ -168,9 +179,9 @@ pub async fn create_envelope_encryption_key(
 ) -> Result<CreateEnvelopeEncryptionKeyResponse, CommonError> {
     let now = WrappedChronoDateTime::now();
 
-    if let EnvelopeEncryptionKey::Local { file_name } = &params {
+    if let EnvelopeEncryptionKey::Local(local) = &params {
         get_or_create_local_envelope_encryption_key(
-            &local_envelope_encryption_key_path.join(file_name),
+            &local_envelope_encryption_key_path.join(&local.file_name),
         )?;
     }
 
@@ -303,13 +314,15 @@ pub async fn migrate_data_encryption_key(
 
     // Step 2: Convert to EnvelopeEncryptionKeyContents for encryption
     let to_envelope_key_contents = match &to_envelope_key {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
-            arn: arn.clone(),
-            region: region.clone(),
+        EnvelopeEncryptionKey::AwsKms(aws_kms) => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: aws_kms.arn.clone(),
+            region: aws_kms.region.clone(),
         },
-        EnvelopeEncryptionKey::Local { file_name } => {
+        EnvelopeEncryptionKey::Local(local) => {
             // Load the key bytes from the file (resolve relative to .soma/envelope-encryption-keys)
-            get_local_envelope_encryption_key(&local_envelope_encryption_key_path.join(file_name))?
+            get_local_envelope_encryption_key(
+                &local_envelope_encryption_key_path.join(&local.file_name),
+            )?
         }
     };
 
@@ -523,12 +536,12 @@ where
 
     // Convert to EnvelopeEncryptionKeyContents
     let from_envelope_key_contents = match &from_envelope_key {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
-            arn: arn.clone(),
-            region: region.clone(),
+        EnvelopeEncryptionKey::AwsKms(aws_kms) => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: aws_kms.arn.clone(),
+            region: aws_kms.region.clone(),
         },
-        EnvelopeEncryptionKey::Local { file_name } => get_or_create_local_envelope_encryption_key(
-            &local_envelope_encryption_key_path.join(file_name),
+        EnvelopeEncryptionKey::Local(local) => get_or_create_local_envelope_encryption_key(
+            &local_envelope_encryption_key_path.join(&local.file_name),
         )?,
     };
 
@@ -576,12 +589,12 @@ where
 
     // Convert to EnvelopeEncryptionKeyContents
     let from_envelope_key_contents = match &from_envelope_key {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
-            arn: arn.clone(),
-            region: region.clone(),
+        EnvelopeEncryptionKey::AwsKms(aws_kms) => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: aws_kms.arn.clone(),
+            region: aws_kms.region.clone(),
         },
-        EnvelopeEncryptionKey::Local { file_name } => get_or_create_local_envelope_encryption_key(
-            &local_envelope_encryption_key_path.join(file_name),
+        EnvelopeEncryptionKey::Local(local) => get_or_create_local_envelope_encryption_key(
+            &local_envelope_encryption_key_path.join(&local.file_name),
         )?,
     };
 
@@ -633,20 +646,20 @@ where
 
     // Convert to EnvelopeEncryptionKeyContents for encryption
     let _to_envelope_key_contents = match &to_envelope_key {
-        EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeEncryptionKeyContents::AwsKms {
-            arn: arn.clone(),
-            region: region.clone(),
+        EnvelopeEncryptionKey::AwsKms(aws_kms) => EnvelopeEncryptionKeyContents::AwsKms {
+            arn: aws_kms.arn.clone(),
+            region: aws_kms.region.clone(),
         },
-        EnvelopeEncryptionKey::Local { file_name } => get_or_create_local_envelope_encryption_key(
-            &local_envelope_encryption_key_path.join(file_name),
+        EnvelopeEncryptionKey::Local(local) => get_or_create_local_envelope_encryption_key(
+            &local_envelope_encryption_key_path.join(&local.file_name),
         )?,
     };
 
     info!(
         "Migrating all data encryption keys from envelope key {} to {}",
         match from_envelope_key_id {
-            EnvelopeEncryptionKey::AwsKms { arn, .. } => arn.clone(),
-            EnvelopeEncryptionKey::Local { file_name } => file_name.clone(),
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => aws_kms.arn.clone(),
+            EnvelopeEncryptionKey::Local(local) => local.file_name.clone(),
         },
         params.to_envelope_encryption_key_id
     );
@@ -713,20 +726,12 @@ where
 /// Helper function to check if two envelope encryption keys match
 pub fn matches_envelope_key_id(id1: &EnvelopeEncryptionKey, id2: &EnvelopeEncryptionKey) -> bool {
     match (id1, id2) {
-        (
-            EnvelopeEncryptionKey::AwsKms {
-                arn: arn1,
-                region: region1,
-            },
-            EnvelopeEncryptionKey::AwsKms {
-                arn: arn2,
-                region: region2,
-            },
-        ) => arn1 == arn2 && region1 == region2,
-        (
-            EnvelopeEncryptionKey::Local { file_name: loc1 },
-            EnvelopeEncryptionKey::Local { file_name: loc2 },
-        ) => loc1 == loc2,
+        (EnvelopeEncryptionKey::AwsKms(aws_kms1), EnvelopeEncryptionKey::AwsKms(aws_kms2)) => {
+            aws_kms1.arn == aws_kms2.arn && aws_kms1.region == aws_kms2.region
+        }
+        (EnvelopeEncryptionKey::Local(local1), EnvelopeEncryptionKey::Local(local2)) => {
+            local1.file_name == local2.file_name
+        }
         _ => false,
     }
 }
@@ -742,11 +747,8 @@ where
     let keys = repo.list_envelope_encryption_keys().await?;
 
     for key in keys {
-        if let EnvelopeEncryptionKey::AwsKms {
-            arn: stored_arn, ..
-        } = &key
-        {
-            if stored_arn == arn {
+        if let EnvelopeEncryptionKey::AwsKms(aws_kms) = &key {
+            if aws_kms.arn == arn {
                 return Ok(Some(key));
             }
         }
@@ -766,11 +768,8 @@ where
     let keys = repo.list_envelope_encryption_keys().await?;
 
     for key in keys {
-        if let EnvelopeEncryptionKey::Local {
-            file_name: stored_file_name,
-        } = &key
-        {
-            if stored_file_name == file_name {
+        if let EnvelopeEncryptionKey::Local(local) = &key {
+            if local.file_name == file_name {
                 return Ok(Some(key));
             }
         }
@@ -1107,43 +1106,43 @@ mod tests {
         shared::setup_test!();
 
         // Test AWS KMS keys match
-        let key1 = EnvelopeEncryptionKey::AwsKms {
+        let key1 = EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
             arn: "arn:aws:kms:eu-west-2:123456789012:key/123".to_string(),
             region: "eu-west-2".to_string(),
-        };
-        let key2 = EnvelopeEncryptionKey::AwsKms {
+        });
+        let key2 = EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
             arn: "arn:aws:kms:eu-west-2:123456789012:key/123".to_string(),
             region: "eu-west-2".to_string(),
-        };
+        });
         assert!(matches_envelope_key_id(&key1, &key2));
 
         // Test AWS KMS keys don't match (different ARN)
-        let key3 = EnvelopeEncryptionKey::AwsKms {
+        let key3 = EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
             arn: "arn:aws:kms:eu-west-2:123456789012:key/456".to_string(),
             region: "eu-west-2".to_string(),
-        };
+        });
         assert!(!matches_envelope_key_id(&key1, &key3));
 
         // Test AWS KMS keys don't match (different region)
-        let key4 = EnvelopeEncryptionKey::AwsKms {
+        let key4 = EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
             arn: "arn:aws:kms:eu-west-2:123456789012:key/123".to_string(),
             region: "us-east-1".to_string(),
-        };
+        });
         assert!(!matches_envelope_key_id(&key1, &key4));
 
         // Test local keys match
-        let local1 = EnvelopeEncryptionKey::Local {
+        let local1 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: "/path/to/key".to_string(),
-        };
-        let local2 = EnvelopeEncryptionKey::Local {
+        });
+        let local2 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: "/path/to/key".to_string(),
-        };
+        });
         assert!(matches_envelope_key_id(&local1, &local2));
 
         // Test local keys don't match
-        let local3 = EnvelopeEncryptionKey::Local {
+        let local3 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: "/different/path".to_string(),
-        };
+        });
         assert!(!matches_envelope_key_id(&local1, &local3));
 
         // Test mixed types don't match
@@ -1160,10 +1159,10 @@ mod tests {
         let repo = Repository::new(conn);
         let (tx, _rx) = broadcast::channel(100);
 
-        let aws_key = EnvelopeEncryptionKey::AwsKms {
+        let aws_key = EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
-        };
+        });
         let temp_dir_handle = tempfile::tempdir().unwrap();
         let temp_dir = temp_dir_handle.path();
         create_envelope_encryption_key(temp_dir, &tx, &repo, aws_key.clone(), false)
@@ -1204,9 +1203,9 @@ mod tests {
             } else {
                 panic!("Expected local key");
             };
-        let local_key = EnvelopeEncryptionKey::Local {
+        let local_key = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: file_name.clone(),
-        };
+        });
         let temp_dir_handle = tempfile::tempdir().unwrap();
         let temp_dir = temp_dir_handle.path();
 
@@ -1284,19 +1283,18 @@ mod tests {
             _ => panic!("Expected local key"),
         };
 
-        let envelope_key = EnvelopeEncryptionKey::Local {
+        let envelope_key = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: file_name.clone(),
-        };
+        });
         let temp_dir_handle = tempfile::tempdir().unwrap();
         let temp_dir = temp_dir_handle.path();
 
         let result =
-            create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key.clone(), false)
-                .await;
+            create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key.clone(), false).await;
 
         assert!(result.is_ok());
         let created = result.unwrap();
-        assert!(matches!(created, EnvelopeEncryptionKey::Local { .. }));
+        assert!(matches!(created, EnvelopeEncryptionKey::Local(_)));
 
         // Verify it exists in the database
         let retrieved = repo
@@ -1316,20 +1314,19 @@ mod tests {
         let repo = Repository::new(conn);
         let (tx, _rx) = broadcast::channel(100);
 
-        let envelope_key = EnvelopeEncryptionKey::AwsKms {
+        let envelope_key = EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
-        };
+        });
         let temp_dir_handle = tempfile::tempdir().unwrap();
         let temp_dir = temp_dir_handle.path();
 
         let result =
-            create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key.clone(), false)
-                .await;
+            create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key.clone(), false).await;
 
         assert!(result.is_ok());
         let created = result.unwrap();
-        assert!(matches!(created, EnvelopeEncryptionKey::AwsKms { .. }));
+        assert!(matches!(created, EnvelopeEncryptionKey::AwsKms(_)));
 
         // Verify it exists in the database
         let retrieved = repo
@@ -1355,9 +1352,9 @@ mod tests {
             _ => panic!("Expected local key"),
         };
 
-        let envelope_key = EnvelopeEncryptionKey::Local {
+        let envelope_key = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: file_name.clone(),
-        };
+        });
         let temp_dir_handle = tempfile::tempdir().unwrap();
         let temp_dir = temp_dir_handle.path();
 
@@ -1404,9 +1401,9 @@ mod tests {
             _ => panic!("Expected local key"),
         };
 
-        let envelope_key = EnvelopeEncryptionKey::Local {
+        let envelope_key = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: file_name.clone(),
-        };
+        });
         let temp_dir_handle = tempfile::tempdir().unwrap();
         let temp_dir = temp_dir_handle.path();
 
@@ -1471,18 +1468,18 @@ mod tests {
             EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
-        let envelope_key1 = EnvelopeEncryptionKey::Local {
+        let envelope_key1 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: file_name1.clone(),
-        };
+        });
 
         let (_temp_file2, local_key2_contents) = create_temp_local_key();
         let file_name2 = match &local_key2_contents {
             EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
-        let envelope_key2 = EnvelopeEncryptionKey::Local {
+        let envelope_key2 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: file_name2.clone(),
-        };
+        });
 
         // Create both envelope keys
         let temp_dir_handle = tempfile::tempdir().unwrap();
@@ -1576,16 +1573,16 @@ mod tests {
             EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
-        let envelope_key_local = EnvelopeEncryptionKey::Local {
+        let envelope_key_local = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: file_name.clone(),
-        };
+        });
 
         // Create AWS KMS key (verifies AWS credentials are available)
         let _aws_key_contents = get_aws_kms_key();
-        let envelope_key_aws = EnvelopeEncryptionKey::AwsKms {
+        let envelope_key_aws = EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
-        };
+        });
 
         // Create both envelope keys
         let temp_dir_handle = tempfile::tempdir().unwrap();
@@ -1676,10 +1673,10 @@ mod tests {
 
         // Create AWS KMS key (same ARN, but we'll use it for both)
         let aws_key_contents = get_aws_kms_key();
-        let envelope_key_aws = EnvelopeEncryptionKey::AwsKms {
+        let envelope_key_aws = EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
-        };
+        });
 
         // Create envelope key
         let temp_dir_handle = tempfile::tempdir().unwrap();
@@ -1766,10 +1763,10 @@ mod tests {
 
         // Create AWS KMS key
         let aws_key_contents = get_aws_kms_key();
-        let envelope_key_aws = EnvelopeEncryptionKey::AwsKms {
+        let envelope_key_aws = EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
-        };
+        });
 
         // Create local key
         let (_temp_file, local_key_contents) = create_temp_local_key();
@@ -1777,9 +1774,9 @@ mod tests {
             EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
-        let envelope_key_local = EnvelopeEncryptionKey::Local {
+        let envelope_key_local = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: file_name.clone(),
-        };
+        });
 
         // Create both envelope keys
         let temp_dir_handle = tempfile::tempdir().unwrap();
@@ -1873,18 +1870,18 @@ mod tests {
             EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
-        let envelope_key1 = EnvelopeEncryptionKey::Local {
+        let envelope_key1 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: file_name1.clone(),
-        };
+        });
 
         let (_temp_file2, local_key2_contents) = create_temp_local_key();
         let file_name2 = match &local_key2_contents {
             EnvelopeEncryptionKeyContents::Local { file_name, .. } => file_name.clone(),
             _ => panic!("Expected local key"),
         };
-        let envelope_key2 = EnvelopeEncryptionKey::Local {
+        let envelope_key2 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
             file_name: file_name2.clone(),
-        };
+        });
 
         // Create both envelope keys
         let temp_dir_handle = tempfile::tempdir().unwrap();

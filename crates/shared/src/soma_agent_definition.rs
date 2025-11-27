@@ -41,31 +41,43 @@ pub struct EncryptionConfig {
 }
 
 /// Envelope encryption key configuration with nested DEKs
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
-#[serde(rename_all = "snake_case", tag = "type")]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+pub struct EnvelopeKeyConfigAwsKms {
+    pub arn: String,
+    pub region: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deks: Option<HashMap<String, DekConfig>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+pub struct EnvelopeKeyConfigLocal {
+    pub file_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deks: Option<HashMap<String, DekConfig>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum EnvelopeKeyConfig {
-    AwsKms {
-        arn: String,
-        region: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        deks: Option<HashMap<String, DekConfig>>,
-    },
-    Local {
-        file_name: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        deks: Option<HashMap<String, DekConfig>>,
-    },
+    AwsKms(EnvelopeKeyConfigAwsKms),
+    Local(EnvelopeKeyConfigLocal),
 }
 
 impl EnvelopeKeyConfig {
     /// Get mutable reference to the DEKs map, creating it if it doesn't exist
     pub fn deks_mut(&mut self) -> &mut HashMap<String, DekConfig> {
         match self {
-            EnvelopeKeyConfig::AwsKms { deks, .. } | EnvelopeKeyConfig::Local { deks, .. } => {
-                if deks.is_none() {
-                    *deks = Some(HashMap::new());
+            EnvelopeKeyConfig::AwsKms(aws_kms) => {
+                if aws_kms.deks.is_none() {
+                    aws_kms.deks = Some(HashMap::new());
                 }
-                deks.as_mut().unwrap()
+                aws_kms.deks.as_mut().unwrap()
+            }
+            EnvelopeKeyConfig::Local(local) => {
+                if local.deks.is_none() {
+                    local.deks = Some(HashMap::new());
+                }
+                local.deks.as_mut().unwrap()
             }
         }
     }
@@ -73,9 +85,8 @@ impl EnvelopeKeyConfig {
     /// Get reference to the DEKs map
     pub fn deks(&self) -> Option<&HashMap<String, DekConfig>> {
         match self {
-            EnvelopeKeyConfig::AwsKms { deks, .. } | EnvelopeKeyConfig::Local { deks, .. } => {
-                deks.as_ref()
-            }
+            EnvelopeKeyConfig::AwsKms(aws_kms) => aws_kms.deks.as_ref(),
+            EnvelopeKeyConfig::Local(local) => local.deks.as_ref(),
         }
     }
 }
@@ -89,18 +100,29 @@ pub struct DekConfig {
 
 // Keep old EnvelopeEncryptionKey for backwards compatibility during transition
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+pub struct EnvelopeEncryptionKeyAwsKms {
+    pub arn: String,
+    pub region: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
+pub struct EnvelopeEncryptionKeyLocal {
+    pub file_name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum EnvelopeEncryptionKey {
-    AwsKms { arn: String, region: String },
-    Local { file_name: String },
+    AwsKms(EnvelopeEncryptionKeyAwsKms),
+    Local(EnvelopeEncryptionKeyLocal),
 }
 
 impl EnvelopeEncryptionKey {
     /// Get the key id (ARN for KMS, file_name for local)
     pub fn key_id(&self) -> String {
         match self {
-            EnvelopeEncryptionKey::AwsKms { arn, .. } => arn.clone(),
-            EnvelopeEncryptionKey::Local { file_name } => file_name.clone(),
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => aws_kms.arn.clone(),
+            EnvelopeEncryptionKey::Local(local) => local.file_name.clone(),
         }
     }
 }
@@ -108,15 +130,19 @@ impl EnvelopeEncryptionKey {
 impl From<EnvelopeEncryptionKey> for EnvelopeKeyConfig {
     fn from(key: EnvelopeEncryptionKey) -> Self {
         match key {
-            EnvelopeEncryptionKey::AwsKms { arn, region } => EnvelopeKeyConfig::AwsKms {
-                arn,
-                region,
-                deks: None,
-            },
-            EnvelopeEncryptionKey::Local { file_name } => EnvelopeKeyConfig::Local {
-                file_name,
-                deks: None,
-            },
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => {
+                EnvelopeKeyConfig::AwsKms(EnvelopeKeyConfigAwsKms {
+                    arn: aws_kms.arn,
+                    region: aws_kms.region,
+                    deks: None,
+                })
+            }
+            EnvelopeEncryptionKey::Local(local) => {
+                EnvelopeKeyConfig::Local(EnvelopeKeyConfigLocal {
+                    file_name: local.file_name,
+                    deks: None,
+                })
+            }
         }
     }
 }
@@ -124,11 +150,16 @@ impl From<EnvelopeEncryptionKey> for EnvelopeKeyConfig {
 impl From<EnvelopeKeyConfig> for EnvelopeEncryptionKey {
     fn from(config: EnvelopeKeyConfig) -> Self {
         match config {
-            EnvelopeKeyConfig::AwsKms { arn, region, .. } => {
-                EnvelopeEncryptionKey::AwsKms { arn, region }
+            EnvelopeKeyConfig::AwsKms(aws_kms) => {
+                EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
+                    arn: aws_kms.arn,
+                    region: aws_kms.region,
+                })
             }
-            EnvelopeKeyConfig::Local { file_name, .. } => {
-                EnvelopeEncryptionKey::Local { file_name }
+            EnvelopeKeyConfig::Local(local) => {
+                EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
+                    file_name: local.file_name,
+                })
             }
         }
     }

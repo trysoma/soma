@@ -42,7 +42,9 @@ macro_rules! require_request_context {
     responses(
         (status = 200, description = "Successful response", body = AgentCard),
         (status = 500, description = "Internal Server Error", body = A2aServerError),
-    )
+    ),
+    description = "Get the agent card describing agent capabilities and metadata",
+    operation_id = "get-agent-card",
 )]
 async fn agent_card<S: A2aServiceLike + Send + Sync + 'static>(
     State(ctx): State<Arc<S>>,
@@ -61,7 +63,9 @@ async fn agent_card<S: A2aServiceLike + Send + Sync + 'static>(
     responses(
         (status = 200, description = "Successful response", body = AgentCard),
         (status = 500, description = "Internal Server Error", body = A2aServerError),
-    )
+    ),
+    description = "Get the authenticated extended agent card with additional metadata",
+    operation_id = "get-extended-agent-card",
 )]
 async fn extended_agent_card<S: A2aServiceLike + Send + Sync + 'static>(
     State(ctx): State<Arc<S>>,
@@ -85,7 +89,9 @@ async fn extended_agent_card<S: A2aServiceLike + Send + Sync + 'static>(
     responses(
         (status = 200, description = "Successful response"),
         (status = 500, description = "Internal Server Error", body = A2aServerError),
-    )
+    ),
+    description = "Handle JSON-RPC requests for agent-to-agent communication (tasks, messages, etc.)",
+    operation_id = "handle-jsonrpc-request",
 )]
 async fn json_rpc<S: A2aServiceLike + Send + Sync + 'static>(
     State(ctx): State<Arc<S>>,

@@ -63,6 +63,7 @@ pub fn create_router() -> OpenApiRouter<EncryptionService> {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Create a new envelope encryption key (master key) for encrypting data encryption keys",
     operation_id = "create-envelope-encryption-key",
 )]
 async fn route_create_envelope_encryption_key(
@@ -94,6 +95,7 @@ async fn route_create_envelope_encryption_key(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "List all envelope encryption keys (master keys) with pagination",
     operation_id = "list-envelope-encryption-keys",
 )]
 async fn route_list_envelope_encryption_keys(
@@ -130,6 +132,7 @@ pub struct CreateDataEncryptionKeyParamsRoute {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Create a new data encryption key (DEK) encrypted with the specified envelope encryption key",
     operation_id = "create-data-encryption-key",
 )]
 async fn route_create_data_encryption_key(
@@ -171,6 +174,7 @@ pub struct ImportDataEncryptionKeyParamsRoute {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Import an existing pre-encrypted data encryption key into the system",
     operation_id = "import-data-encryption-key",
 )]
 async fn route_import_data_encryption_key(
@@ -208,6 +212,7 @@ async fn route_import_data_encryption_key(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "List all data encryption keys encrypted with the specified envelope encryption key",
     operation_id = "list-data-encryption-keys-by-envelope",
 )]
 async fn route_list_data_encryption_keys(
@@ -245,6 +250,7 @@ pub struct MigrateDataEncryptionKeyParamsRoute {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Migrate a data encryption key to be encrypted with a different envelope encryption key",
     operation_id = "migrate-data-encryption-key",
 )]
 async fn route_migrate_data_encryption_key(
@@ -287,6 +293,7 @@ pub struct MigrateAllDataEncryptionKeysParamsRoute {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Migrate all data encryption keys encrypted with the specified envelope key to a new envelope key",
     operation_id = "migrate-all-data-encryption-keys",
 )]
 async fn route_migrate_all_data_encryption_keys(
@@ -330,6 +337,7 @@ pub struct CreateDekAliasRequest {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Create an alias for a data encryption key to enable lookup by friendly name",
     operation_id = "create-dek-alias",
 )]
 async fn route_create_dek_alias(
@@ -359,6 +367,7 @@ async fn route_create_dek_alias(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Retrieve a data encryption key by its alias or ID",
     operation_id = "get-dek-by-alias-or-id",
 )]
 async fn route_get_dek_by_alias_or_id(
@@ -385,6 +394,7 @@ async fn route_get_dek_by_alias_or_id(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Update the alias for a data encryption key",
     operation_id = "update-dek-alias",
 )]
 async fn route_update_dek_alias(
@@ -418,6 +428,7 @@ async fn route_update_dek_alias(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    description = "Delete an alias for a data encryption key",
     operation_id = "delete-dek-alias",
 )]
 async fn route_delete_dek_alias(

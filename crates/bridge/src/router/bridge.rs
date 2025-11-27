@@ -97,6 +97,7 @@ pub fn create_router() -> OpenApiRouter<BridgeService> {
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "List all available provider types that can be instantiated",
     operation_id = "list-available-providers",
 )]
 async fn route_list_available_providers(
@@ -116,6 +117,7 @@ async fn route_list_available_providers(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Create a new provider instance with the specified configuration",
     operation_id = "create-provider-instance",
 )]
 async fn route_create_provider_instance(
@@ -151,6 +153,7 @@ async fn route_create_provider_instance(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Update an existing provider instance configuration",
     operation_id = "update-provider-instance",
 )]
 async fn route_update_provider_instance(
@@ -182,6 +185,7 @@ async fn route_update_provider_instance(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Retrieve a provider instance by its unique identifier",
     operation_id = "get-provider-instance",
 )]
 async fn route_get_provider_instance(
@@ -216,6 +220,7 @@ async fn route_get_provider_instance(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Encrypt a resource server credential configuration before storage",
     operation_id = "encrypt-resource-server-configuration",
 )]
 async fn route_encrypt_resource_server_configuration(
@@ -250,6 +255,7 @@ async fn route_encrypt_resource_server_configuration(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Encrypt a user credential configuration before storage",
     operation_id = "encrypt-user-credential-configuration",
 )]
 async fn route_encrypt_user_credential_configuration(
@@ -288,6 +294,7 @@ async fn route_encrypt_user_credential_configuration(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Create a new resource server credential",
     operation_id = "create-resource-server-credential",
 )]
 async fn route_create_resource_server_credential(
@@ -326,6 +333,7 @@ async fn route_create_resource_server_credential(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Create a new user credential",
     operation_id = "create-user-credential",
 )]
 async fn route_create_user_credential(
@@ -371,8 +379,8 @@ fn handle_user_credential_brokering_response(
 
     match response {
         UserCredentialBrokeringResponse::BrokerState(broker_state) => match broker_state.action {
-            BrokerAction::Redirect { url } => {
-                axum::response::Redirect::to(url.as_str()).into_response()
+            BrokerAction::Redirect(redirect) => {
+                axum::response::Redirect::to(redirect.url.as_str()).into_response()
             }
             BrokerAction::None => {
                 let res: JsonResponse<(), CommonError> = JsonResponse::new_ok(());
@@ -403,6 +411,7 @@ fn handle_user_credential_brokering_response(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Start the OAuth flow for user credential brokering",
     operation_id = "start-user-credential-brokering",
 )]
 async fn route_start_user_credential_brokering(
@@ -448,6 +457,7 @@ pub struct GenericOAuthCallbackParams {
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Handle OAuth callback to complete user credential brokering flow",
     operation_id = "resume-user-credential-brokering",
 )]
 async fn generic_oauth_callback(
@@ -528,6 +538,7 @@ async fn generic_oauth_callback(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Delete a provider instance by its unique identifier",
     operation_id = "delete-provider-instance",
 )]
 async fn route_delete_provider_instance(
@@ -560,6 +571,7 @@ async fn route_delete_provider_instance(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Enable a function for a provider instance",
     operation_id = "enable-function",
 )]
 async fn route_enable_function(
@@ -596,6 +608,7 @@ async fn route_enable_function(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Disable a function for a provider instance",
     operation_id = "disable-function",
 )]
 async fn route_disable_function(
@@ -632,6 +645,7 @@ async fn route_disable_function(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Invoke a function on a provider instance",
     operation_id = "invoke-function",
 )]
 async fn route_invoke_function(
@@ -675,6 +689,7 @@ struct ListProviderInstancesQuery {
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "List all provider instances with optional filtering by status and provider type",
     operation_id = "list-provider-instances",
 )]
 async fn route_list_provider_instances(
@@ -707,6 +722,7 @@ async fn route_list_provider_instances(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "List provider instances grouped by their associated functions",
     operation_id = "list-provider-instances-grouped-by-function",
 )]
 async fn route_list_provider_instances_grouped_by_function(
@@ -736,6 +752,7 @@ struct ListFunctionInstancesQuery {
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "List all function instances with optional filtering by provider instance",
     operation_id = "list-function-instances",
 )]
 async fn route_list_function_instances(
@@ -764,6 +781,7 @@ async fn route_list_function_instances(
         (status = 200, description = "Get function instances openapi spec", body = String),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    description = "Get the OpenAPI specification for all function instances",
     operation_id = "get-function-instances-openapi-spec",
 )]
 async fn route_get_function_instances_openapi_spec(
@@ -876,6 +894,7 @@ impl BridgeService {
     responses(
         (status = 200, description = "MCP server running"),
     ),
+    description = "Establish Server-Sent Events (SSE) connection for MCP protocol communication",
     operation_id = "listen-to-mcp-sse",
 )]
 pub async fn mcp_sse(
@@ -972,6 +991,7 @@ impl PartialSchema for WrappedClientJsonRpcMessage {
     responses(
         (status = 200, description = "MCP server running"),
     ),
+    description = "Send a JSON-RPC message to the MCP server",
     operation_id = "trigger-mcp-message",
 )]
 pub async fn mcp_message(

@@ -122,17 +122,17 @@ impl From<(EnvelopeEncryptionKey, WrappedChronoDateTime)> for CreateEnvelopeEncr
     fn from((key, now): (EnvelopeEncryptionKey, WrappedChronoDateTime)) -> Self {
         // Extract the actual ID (ARN for AWS KMS, location for local)
         let (id, key_type, local_file_name, aws_arn, aws_region) = match &key {
-            EnvelopeEncryptionKey::AwsKms { arn, region } => (
-                arn.clone(), // Use ARN as the ID
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => (
+                aws_kms.arn.clone(), // Use ARN as the ID
                 EnvelopeEncryptionKeyType::AwsKms,
                 None,
-                Some(arn.clone()),
-                Some(region.clone()),
+                Some(aws_kms.arn.clone()),
+                Some(aws_kms.region.clone()),
             ),
-            EnvelopeEncryptionKey::Local { file_name } => (
-                file_name.clone(), // Use file_name as the ID
+            EnvelopeEncryptionKey::Local(local) => (
+                local.file_name.clone(), // Use file_name as the ID
                 EnvelopeEncryptionKeyType::Local,
-                Some(file_name.clone()),
+                Some(local.file_name.clone()),
                 None,
                 None,
             ),
@@ -164,8 +164,8 @@ impl From<DataEncryptionKey> for CreateDataEncryptionKey {
     fn from(dek: DataEncryptionKey) -> Self {
         // Convert EnvelopeEncryptionKey enum to string identifier
         let envelope_key_id = match &dek.envelope_encryption_key_id {
-            EnvelopeEncryptionKey::AwsKms { arn, .. } => arn.clone(),
-            EnvelopeEncryptionKey::Local { file_name } => file_name.clone(),
+            EnvelopeEncryptionKey::AwsKms(aws_kms) => aws_kms.arn.clone(),
+            EnvelopeEncryptionKey::Local(local) => local.file_name.clone(),
         };
         CreateDataEncryptionKey {
             id: dek.id,
