@@ -16,7 +16,7 @@
 	"module": "./dist/esm/index.js",
 	"sideEffects": false,
 	"scripts": {
-		"generate": "VERSION=$(cat ./../../VERSION) npx --yes @openapitools/openapi-generator-cli@latest generate -i ./openapi.json -g typescript-fetch -o ./js/packages/api-client --additional-properties=\"supportsES6=true,npmName=@trysoma/api-client,npmVersion=${VERSION},prefixParameterInterfaces=true\"",
+		"generate": "VERSION=$(cat ./../../../VERSION) npx --yes @openapitools/openapi-generator-cli@latest generate -i ./../../../openapi.json -g typescript-fetch -o ./ --additional-properties=\"supportsES6=true,npmName=@trysoma/api-client,npmVersion=${VERSION},prefixParameterInterfaces=true\"",
 		"build": "pnpm run generate && tsc && tsc -p tsconfig.esm.json",
 		"prepare": "pnpm run build",
 		"lint": "biome check . && tsc --noEmit",
