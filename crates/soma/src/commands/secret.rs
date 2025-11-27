@@ -1,7 +1,7 @@
 use clap::{Args, Subcommand};
 use comfy_table::{Cell, Table};
 use shared::error::CommonError;
-use soma_api_client::apis::default_api;
+use soma_api_client::apis::{encryption_api, secret_api};
 use soma_api_client::models;
 use tracing::info;
 
@@ -60,7 +60,7 @@ pub async fn cmd_secret(
 async fn default_dek_alias_exists(
     api_config: &soma_api_client::apis::configuration::Configuration,
 ) -> Result<bool, CommonError> {
-    match default_api::get_dek_by_alias_or_id(api_config, DEFAULT_DEK_ALIAS).await {
+    match encryption_api::get_dek_by_alias_or_id(api_config, DEFAULT_DEK_ALIAS).await {
         Ok(_) => Ok(true),
         Err(soma_api_client::apis::Error::ResponseError(resp)) if resp.status.as_u16() == 404 => {
             Ok(false)
@@ -76,7 +76,7 @@ async fn get_secret_by_key(
     api_config: &soma_api_client::apis::configuration::Configuration,
     key: &str,
 ) -> Result<Option<models::Secret>, CommonError> {
-    match default_api::get_secret_by_key(api_config, key).await {
+    match secret_api::get_secret_by_key(api_config, key).await {
         Ok(secret) => Ok(Some(secret)),
         Err(soma_api_client::apis::Error::ResponseError(resp)) if resp.status.as_u16() == 404 => {
             Ok(None)
@@ -110,7 +110,7 @@ pub async fn cmd_secret_set(
         // Update existing secret
         info!("Updating existing secret: {}", key);
         let update_req = models::UpdateSecretRequest { raw_value: value };
-        default_api::update_secret(&api_config, &secret.id.to_string(), update_req)
+        secret_api::update_secret(&api_config, &secret.id.to_string(), update_req)
             .await
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to update secret '{key}': {e:?}"))
@@ -124,7 +124,7 @@ pub async fn cmd_secret_set(
             raw_value: value,
             dek_alias: DEFAULT_DEK_ALIAS.to_string(),
         };
-        default_api::create_secret(&api_config, create_req)
+        secret_api::create_secret(&api_config, create_req)
             .await
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to create secret '{key}': {e:?}"))
@@ -156,7 +156,7 @@ pub async fn cmd_secret_rm(
     match existing_secret {
         Some(secret) => {
             info!("Deleting secret: {}", key);
-            default_api::delete_secret(&api_config, &secret.id.to_string())
+            secret_api::delete_secret(&api_config, &secret.id.to_string())
                 .await
                 .map_err(|e| {
                     CommonError::Unknown(anyhow::anyhow!("Failed to delete secret '{key}': {e:?}"))
@@ -188,7 +188,7 @@ pub async fn cmd_secret_list(api_url: &str, timeout_secs: u64) -> Result<(), Com
     let mut next_page_token: Option<String> = None;
 
     loop {
-        let response = default_api::list_decrypted_secrets(
+        let response = secret_api::list_decrypted_secrets(
             &api_config,
             DEFAULT_PAGE_SIZE,
             next_page_token.as_deref(),

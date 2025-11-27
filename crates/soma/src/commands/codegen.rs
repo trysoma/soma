@@ -2,7 +2,7 @@ use clap::Args;
 use tracing::info;
 
 use shared::error::CommonError;
-use soma_api_client::apis::default_api;
+use soma_api_client::apis::internal_api;
 
 use crate::utils::{CliConfig, create_and_wait_for_api_client};
 
@@ -25,7 +25,7 @@ pub async fn cmd_codegen(
     // Trigger codegen via API
     info!("Triggering bridge client generation...");
 
-    let response = default_api::trigger_codegen(&api_config)
+    let response = internal_api::trigger_codegen(&api_config)
         .await
         .map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!(

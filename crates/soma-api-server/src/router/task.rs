@@ -1,4 +1,5 @@
 use axum::extract::{Json, Path, Query, State};
+use shared::adapters::openapi::API_VERSION_TAG;
 use std::sync::Arc;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
@@ -36,6 +37,7 @@ pub fn create_router() -> OpenApiRouter<Arc<TaskService>> {
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         PaginationRequest
     ),
@@ -47,6 +49,7 @@ pub fn create_router() -> OpenApiRouter<Arc<TaskService>> {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "List tasks",
     description = "List all tasks with pagination",
     operation_id = "list-tasks",
 )]
@@ -61,6 +64,7 @@ async fn route_list_tasks(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/context", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         PaginationRequest
     ),
@@ -72,6 +76,7 @@ async fn route_list_tasks(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "List contexts",
     description = "List all unique task contexts with pagination",
     operation_id = "list-contexts",
 )]
@@ -86,6 +91,7 @@ async fn route_list_contexts(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/context/{{context_id}}/task", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         PaginationRequest,
         ("context_id" = WrappedUuidV4, Path, description = "Context ID"),
@@ -98,6 +104,7 @@ async fn route_list_contexts(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "List tasks by context",
     description = "List all tasks for a specific context ID with pagination",
     operation_id = "list-tasks-by-context-id",
 )]
@@ -120,6 +127,7 @@ async fn route_list_tasks_by_context_id(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/{{task_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("task_id" = WrappedUuidV4, Path, description = "Task ID"),
     ),
@@ -131,6 +139,7 @@ async fn route_list_tasks_by_context_id(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Get task",
     description = "Retrieve a task by its unique identifier",
     operation_id = "get-task-by-id",
 )]
@@ -145,6 +154,7 @@ async fn route_get_task(
 #[utoipa::path(
     put,
     path = format!("{}/{}/{}/{{task_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("task_id" = WrappedUuidV4, Path, description = "Task ID"),
     ),
@@ -157,6 +167,7 @@ async fn route_get_task(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Update task status",
     description = "Update the status of a task",
     operation_id = "update-task-status",
 )]
@@ -181,6 +192,7 @@ async fn route_update_task_status(
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/{{task_id}}/message", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("task_id" = WrappedUuidV4, Path, description = "Task ID"),
     ),
@@ -193,6 +205,7 @@ async fn route_update_task_status(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Send message",
     description = "Send a message to a task",
     operation_id = "send-message",
 )]
@@ -217,6 +230,7 @@ async fn route_create_message(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/{{task_id}}/timeline", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         PaginationRequest,
         ("task_id" = WrappedUuidV4, Path, description = "Task ID"),
@@ -229,6 +243,7 @@ async fn route_create_message(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Get task timeline",
     description = "Get the timeline history of a task with pagination",
     operation_id = "task-history",
 )]

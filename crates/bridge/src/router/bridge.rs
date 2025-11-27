@@ -37,7 +37,11 @@ use rmcp::{
     },
 };
 use serde::{Deserialize, Serialize};
-use shared::{adapters::openapi::JsonResponse, error::CommonError, primitives::PaginationRequest};
+use shared::{
+    adapters::openapi::{API_VERSION_TAG, JsonResponse},
+    error::CommonError,
+    primitives::PaginationRequest,
+};
 use std::io;
 use std::sync::Arc;
 use std::time::Duration;
@@ -89,6 +93,7 @@ pub fn create_router() -> OpenApiRouter<BridgeService> {
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/available-providers", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         PaginationRequest
     ),
@@ -97,6 +102,7 @@ pub fn create_router() -> OpenApiRouter<BridgeService> {
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "List providers",
     description = "List all available provider types that can be instantiated",
     operation_id = "list-available-providers",
 )]
@@ -111,12 +117,14 @@ async fn route_list_available_providers(
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/available-providers/{{provider_controller_type_id}}/available-credentials/{{credential_controller_type_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = CreateProviderInstanceParamsInner,
     responses(
         (status = 200, description = "Create provider instance", body = CreateProviderInstanceResponse),
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Create provider",
     description = "Create a new provider instance with the specified configuration",
     operation_id = "create-provider-instance",
 )]
@@ -144,6 +152,7 @@ async fn route_create_provider_instance(
 #[utoipa::path(
     patch,
     path = format!("{}/{}/{}/provider/{{provider_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = UpdateProviderInstanceParamsInner,
     params(
         ("provider_instance_id" = String, Path, description = "Provider instance ID"),
@@ -153,6 +162,7 @@ async fn route_create_provider_instance(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Update provider",
     description = "Update an existing provider instance configuration",
     operation_id = "update-provider-instance",
 )]
@@ -177,6 +187,7 @@ async fn route_update_provider_instance(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/provider/{{provider_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("provider_instance_id" = String, Path, description = "Provider instance ID"),
     ),
@@ -185,6 +196,7 @@ async fn route_update_provider_instance(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Get provider",
     description = "Retrieve a provider instance by its unique identifier",
     operation_id = "get-provider-instance",
 )]
@@ -210,6 +222,7 @@ async fn route_get_provider_instance(
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/available-providers/{{provider_controller_type_id}}/available-credentials/{{credential_controller_type_id}}/credential/resource-server/encrypt", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = EncryptCredentialConfigurationParamsInner,
     params(
         ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
@@ -220,6 +233,7 @@ async fn route_get_provider_instance(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Encrypt resource server config",
     description = "Encrypt a resource server credential configuration before storage",
     operation_id = "encrypt-resource-server-configuration",
 )]
@@ -245,6 +259,7 @@ async fn route_encrypt_resource_server_configuration(
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/available-providers/{{provider_controller_type_id}}/available-credentials/{{credential_controller_type_id}}/credential/user-credential/encrypt", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = EncryptCredentialConfigurationParamsInner,
     params(
         ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
@@ -255,6 +270,7 @@ async fn route_encrypt_resource_server_configuration(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Encrypt user credential config",
     description = "Encrypt a user credential configuration before storage",
     operation_id = "encrypt-user-credential-configuration",
 )]
@@ -284,6 +300,7 @@ async fn route_encrypt_user_credential_configuration(
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/available-providers/{{provider_controller_type_id}}/available-credentials/{{credential_controller_type_id}}/credential/resource-server", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
         ("credential_controller_type_id" = String, Path, description = "Credential controller type ID"),
@@ -294,6 +311,7 @@ async fn route_encrypt_user_credential_configuration(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Create resource server credential",
     description = "Create a new resource server credential",
     operation_id = "create-resource-server-credential",
 )]
@@ -323,6 +341,7 @@ async fn route_create_resource_server_credential(
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/available-providers/{{provider_controller_type_id}}/available-credentials/{{credential_controller_type_id}}/credential/user-credential", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = CreateUserCredentialParamsInner,
     params(
         ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
@@ -333,6 +352,7 @@ async fn route_create_resource_server_credential(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Create user credential",
     description = "Create a new user credential",
     operation_id = "create-user-credential",
 )]
@@ -401,6 +421,7 @@ fn handle_user_credential_brokering_response(
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/available-providers/{{provider_controller_type_id}}/available-credentials/{{credential_controller_type_id}}/credential/user-credential/broker", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = StartUserCredentialBrokeringParamsInner,
     params(
         ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
@@ -411,6 +432,7 @@ fn handle_user_credential_brokering_response(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Start credential brokering",
     description = "Start the OAuth flow for user credential brokering",
     operation_id = "start-user-credential-brokering",
 )]
@@ -446,6 +468,7 @@ pub struct GenericOAuthCallbackParams {
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/generic-oauth-callback", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("state" = Option<String>, Query, description = "OAuth state parameter"),
         ("code" = Option<String>, Query, description = "OAuth authorization code"),
@@ -457,6 +480,7 @@ pub struct GenericOAuthCallbackParams {
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "OAuth callback",
     description = "Handle OAuth callback to complete user credential brokering flow",
     operation_id = "resume-user-credential-brokering",
 )]
@@ -530,6 +554,7 @@ async fn generic_oauth_callback(
 #[utoipa::path(
     delete,
     path = format!("{}/{}/{}/provider/{{provider_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("provider_instance_id" = String, Path, description = "Provider instance ID"),
     ),
@@ -538,6 +563,7 @@ async fn generic_oauth_callback(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Delete provider",
     description = "Delete a provider instance by its unique identifier",
     operation_id = "delete-provider-instance",
 )]
@@ -561,6 +587,7 @@ async fn route_delete_provider_instance(
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/provider/{{provider_instance_id}}/function/{{function_controller_type_id}}/enable", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = EnableFunctionParamsInner,
     params(
         ("provider_instance_id" = String, Path, description = "Provider instance ID"),
@@ -571,6 +598,7 @@ async fn route_delete_provider_instance(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Enable function",
     description = "Enable a function for a provider instance",
     operation_id = "enable-function",
 )]
@@ -599,6 +627,7 @@ async fn route_enable_function(
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/provider/{{provider_instance_id}}/function/{{function_controller_type_id}}/disable", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("provider_instance_id" = String, Path, description = "Provider instance ID"),
         ("function_controller_type_id" = String, Path, description = "Function controller type ID"),
@@ -608,6 +637,7 @@ async fn route_enable_function(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Disable function",
     description = "Disable a function for a provider instance",
     operation_id = "disable-function",
 )]
@@ -635,6 +665,7 @@ async fn route_disable_function(
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/provider/{{provider_instance_id}}/function/{{function_controller_type_id}}/invoke", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = InvokeFunctionParamsInner,
     params(
         ("provider_instance_id" = String, Path, description = "Provider instance ID"),
@@ -645,6 +676,7 @@ async fn route_disable_function(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Invoke function",
     description = "Invoke a function on a provider instance",
     operation_id = "invoke-function",
 )]
@@ -681,6 +713,7 @@ struct ListProviderInstancesQuery {
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/provider", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ListProviderInstancesQuery
     ),
@@ -689,6 +722,7 @@ struct ListProviderInstancesQuery {
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "List provider instances",
     description = "List all provider instances with optional filtering by status and provider type",
     operation_id = "list-provider-instances",
 )]
@@ -714,6 +748,7 @@ async fn route_list_provider_instances(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/provider/grouped-by-function", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ListProviderInstancesGroupedByFunctionParams
     ),
@@ -722,6 +757,7 @@ async fn route_list_provider_instances(
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "List providers by function",
     description = "List provider instances grouped by their associated functions",
     operation_id = "list-provider-instances-grouped-by-function",
 )]
@@ -744,6 +780,7 @@ struct ListFunctionInstancesQuery {
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/function-instances", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ListFunctionInstancesQuery
     ),
@@ -752,6 +789,7 @@ struct ListFunctionInstancesQuery {
         (status = 400, description = "Bad Request", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "List function instances",
     description = "List all function instances with optional filtering by provider instance",
     operation_id = "list-function-instances",
 )]
@@ -776,11 +814,13 @@ async fn route_list_function_instances(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/function-instances/openapi.json", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(),
     responses(
         (status = 200, description = "Get function instances openapi spec", body = String),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Get function OpenAPI spec",
     description = "Get the OpenAPI specification for all function instances",
     operation_id = "get-function-instances-openapi-spec",
 )]
@@ -890,10 +930,11 @@ impl BridgeService {
     path = format!("{}/{}/{}/mcp", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     params(
     ),
-    tag = SERVICE_ROUTE_KEY,
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     responses(
         (status = 200, description = "MCP server running"),
     ),
+    summary = "MCP SSE connection",
     description = "Establish Server-Sent Events (SSE) connection for MCP protocol communication",
     operation_id = "listen-to-mcp-sse",
 )]
@@ -985,12 +1026,13 @@ impl PartialSchema for WrappedClientJsonRpcMessage {
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/mcp", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    tag = SERVICE_ROUTE_KEY,
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
     ),
     responses(
         (status = 200, description = "MCP server running"),
     ),
+    summary = "Send MCP message",
     description = "Send a JSON-RPC message to the MCP server",
     operation_id = "trigger-mcp-message",
 )]

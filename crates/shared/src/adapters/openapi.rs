@@ -9,6 +9,8 @@ use serde::Serialize;
 use tracing::error;
 use utoipa::IntoResponses;
 
+pub const API_VERSION_TAG: &str = "version:v1";
+
 pub struct JsonResponse<T: Serialize, E: Serialize>(Result<T, E>);
 
 impl<T: Serialize, E: Serialize + IntoResponse> JsonResponse<T, E> {

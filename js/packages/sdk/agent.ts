@@ -1,6 +1,6 @@
 // import { Artifact, Message, TaskStatus } from "@a2a-js/sdk";
 import type * as restate from "@restatedev/restate-sdk";
-import type { DefaultApi } from "@trysoma/api-client";
+import type { VersionV1Api } from "@trysoma/api-client";
 
 export interface HandlerParams {
 	taskId: string;
@@ -12,7 +12,7 @@ export interface HandlerParams {
 	// messages: Message[]
 	// status: TaskStatus['state']
 	ctx: restate.ObjectContext;
-	soma: DefaultApi;
+	soma: VersionV1Api;
 }
 
 interface CreateSomaAgentParams {

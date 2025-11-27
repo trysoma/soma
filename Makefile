@@ -52,8 +52,10 @@ install: _install-sqlc-gen-from-template ## Install all dependencies (Rust and N
 	@echo "✓ All dependencies installed"
 
 build: ## Build all projects (Rust + JS)
-	$(MAKE) js-build
 	$(MAKE) rs-build
+	VERSION=$$(cat VERSION)
+	npx --yes @openapitools/openapi-generator-cli@latest generate -i ./openapi.json -g typescript-fetch -o ./js/packages/api-client --additional-properties="supportsES6=true,npmName=@trysoma/api-client,npmVersion=$${VERSION}"
+	$(MAKE) js-build
 
 js-build: ## Build all JS projects
 	@echo "Building JS projects..."
@@ -251,6 +253,13 @@ db-soma-generate-migration: ## Create a new soma database migration using Atlas 
 db-soma-generate-hash: ## Update soma database migration hash
 	$(MAKE) _db-generate-hash ENV=soma
 
+generate-licenses:
+	@echo "Generating Rust licenses..."
+	cargo about generate about.hbs > THIRD_PARTY_LICENSES/rust-licenses.md
+	@echo "✓ Licenses generated"
+	@echo "Generating JS licenses..."
+	pnpm licenses list  > THIRD_PARTY_LICENSES/js-licenses.md 
+	@echo "✓ Licenses generated"
 
 # ============================================================================
 # Development Commands

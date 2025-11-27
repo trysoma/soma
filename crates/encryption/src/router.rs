@@ -19,7 +19,11 @@ use crate::logic::{
 use crate::repository::Repository;
 use axum::extract::{Json, Path, Query, State};
 use serde::{Deserialize, Serialize};
-use shared::{adapters::openapi::JsonResponse, error::CommonError, primitives::PaginationRequest};
+use shared::{
+    adapters::openapi::{API_VERSION_TAG, JsonResponse},
+    error::CommonError,
+    primitives::PaginationRequest,
+};
 use std::path::PathBuf;
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -54,6 +58,7 @@ pub fn create_router() -> OpenApiRouter<EncryptionService> {
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/envelope", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = CreateEnvelopeEncryptionKeyParams,
     responses(
         (status = 200, description = "Create envelope encryption key", body = CreateEnvelopeEncryptionKeyResponse),
@@ -63,6 +68,7 @@ pub fn create_router() -> OpenApiRouter<EncryptionService> {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Create envelope key",
     description = "Create a new envelope encryption key (master key) for encrypting data encryption keys",
     operation_id = "create-envelope-encryption-key",
 )]
@@ -84,6 +90,7 @@ async fn route_create_envelope_encryption_key(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/envelope", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         PaginationRequest
     ),
@@ -95,6 +102,7 @@ async fn route_create_envelope_encryption_key(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "List envelope keys",
     description = "List all envelope encryption keys (master keys) with pagination",
     operation_id = "list-envelope-encryption-keys",
 )]
@@ -119,6 +127,7 @@ pub struct CreateDataEncryptionKeyParamsRoute {
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/envelope/{{envelope_id}}/dek", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = CreateDataEncryptionKeyParamsRoute,
     params(
         ("envelope_id" = String, Path, description = "Envelope encryption key ID"),
@@ -132,6 +141,7 @@ pub struct CreateDataEncryptionKeyParamsRoute {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Create data key",
     description = "Create a new data encryption key (DEK) encrypted with the specified envelope encryption key",
     operation_id = "create-data-encryption-key",
 )]
@@ -161,6 +171,7 @@ pub struct ImportDataEncryptionKeyParamsRoute {
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/envelope/{{envelope_id}}/dek/import", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = ImportDataEncryptionKeyParamsRoute,
     params(
         ("envelope_id" = String, Path, description = "Envelope encryption key ID"),
@@ -174,6 +185,7 @@ pub struct ImportDataEncryptionKeyParamsRoute {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Import data key",
     description = "Import an existing pre-encrypted data encryption key into the system",
     operation_id = "import-data-encryption-key",
 )]
@@ -199,6 +211,7 @@ async fn route_import_data_encryption_key(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/envelope/{{envelope_id}}/dek", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("envelope_id" = String, Path, description = "Envelope encryption key ID"),
         PaginationRequest
@@ -212,6 +225,7 @@ async fn route_import_data_encryption_key(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "List data keys",
     description = "List all data encryption keys encrypted with the specified envelope encryption key",
     operation_id = "list-data-encryption-keys-by-envelope",
 )]
@@ -236,6 +250,7 @@ pub struct MigrateDataEncryptionKeyParamsRoute {
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/envelope/{{envelope_id}}/dek/{{dek_id}}/migrate", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = MigrateDataEncryptionKeyParamsRoute,
     params(
         ("envelope_id" = String, Path, description = "Envelope encryption key ID"),
@@ -250,6 +265,7 @@ pub struct MigrateDataEncryptionKeyParamsRoute {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Migrate data key",
     description = "Migrate a data encryption key to be encrypted with a different envelope encryption key",
     operation_id = "migrate-data-encryption-key",
 )]
@@ -280,6 +296,7 @@ pub struct MigrateAllDataEncryptionKeysParamsRoute {
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/envelope/{{envelope_id}}/migrate", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = MigrateAllDataEncryptionKeysParamsRoute,
     params(
         ("envelope_id" = String, Path, description = "Envelope encryption key ID"),
@@ -293,6 +310,7 @@ pub struct MigrateAllDataEncryptionKeysParamsRoute {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Migrate all data keys",
     description = "Migrate all data encryption keys encrypted with the specified envelope key to a new envelope key",
     operation_id = "migrate-all-data-encryption-keys",
 )]
@@ -327,6 +345,7 @@ pub struct CreateDekAliasRequest {
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/dek/alias", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = CreateDekAliasRequest,
     responses(
         (status = 200, description = "Create DEK alias", body = CreateAliasResponse),
@@ -337,6 +356,7 @@ pub struct CreateDekAliasRequest {
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Create DEK alias",
     description = "Create an alias for a data encryption key to enable lookup by friendly name",
     operation_id = "create-dek-alias",
 )]
@@ -355,6 +375,7 @@ async fn route_create_dek_alias(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/dek/alias/{{alias}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("alias" = String, Path, description = "DEK alias or ID"),
     ),
@@ -367,6 +388,7 @@ async fn route_create_dek_alias(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Get DEK by alias",
     description = "Retrieve a data encryption key by its alias or ID",
     operation_id = "get-dek-by-alias-or-id",
 )]
@@ -381,6 +403,7 @@ async fn route_get_dek_by_alias_or_id(
 #[utoipa::path(
     put,
     path = format!("{}/{}/{}/dek/alias/{{alias}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = UpdateAliasParams,
     params(
         ("alias" = String, Path, description = "DEK alias"),
@@ -394,6 +417,7 @@ async fn route_get_dek_by_alias_or_id(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Update DEK alias",
     description = "Update the alias for a data encryption key",
     operation_id = "update-dek-alias",
 )]
@@ -416,6 +440,7 @@ async fn route_update_dek_alias(
 #[utoipa::path(
     delete,
     path = format!("{}/{}/{}/dek/alias/{{alias}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("alias" = String, Path, description = "DEK alias"),
     ),
@@ -428,6 +453,7 @@ async fn route_update_dek_alias(
         (status = 500, description = "Internal Server Error", body = CommonError),
         (status = 502, description = "Bad Gateway", body = CommonError),
     ),
+    summary = "Delete DEK alias",
     description = "Delete an alias for a data encryption key",
     operation_id = "delete-dek-alias",
 )]

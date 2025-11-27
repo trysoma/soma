@@ -20,6 +20,8 @@ use tokio_stream::StreamExt as TokioStreamExt;
 use tracing::{error, info};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
+const API_VERSION_TAG: &str = "version:v1";
+
 pub fn create_router<S: A2aServiceLike + Send + Sync + 'static>() -> OpenApiRouter<Arc<S>> {
     OpenApiRouter::new()
         .routes(routes!(json_rpc))
@@ -39,10 +41,12 @@ macro_rules! require_request_context {
 #[utoipa::path(
     get,
     path = "/.well-known/agent.json",
+    tags = ["a2a", API_VERSION_TAG],
     responses(
         (status = 200, description = "Successful response", body = AgentCard),
         (status = 500, description = "Internal Server Error", body = A2aServerError),
     ),
+    summary = "Get agent card",
     description = "Get the agent card describing agent capabilities and metadata",
     operation_id = "get-agent-card",
 )]
@@ -60,10 +64,12 @@ async fn agent_card<S: A2aServiceLike + Send + Sync + 'static>(
 #[utoipa::path(
     get,
     path = "/agent/authenticatedExtendedCard",
+    tags = ["a2a", API_VERSION_TAG],
     responses(
         (status = 200, description = "Successful response", body = AgentCard),
         (status = 500, description = "Internal Server Error", body = A2aServerError),
     ),
+    summary = "Get extended agent card",
     description = "Get the authenticated extended agent card with additional metadata",
     operation_id = "get-extended-agent-card",
 )]
@@ -86,10 +92,12 @@ async fn extended_agent_card<S: A2aServiceLike + Send + Sync + 'static>(
 #[utoipa::path(
     post,
     path = "/",
+    tags = ["a2a", API_VERSION_TAG],
     responses(
         (status = 200, description = "Successful response"),
         (status = 500, description = "Internal Server Error", body = A2aServerError),
     ),
+    summary = "Handle JSON-RPC",
     description = "Handle JSON-RPC requests for agent-to-agent communication (tasks, messages, etc.)",
     operation_id = "handle-jsonrpc-request",
 )]

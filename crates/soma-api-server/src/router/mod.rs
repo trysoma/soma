@@ -1,4 +1,6 @@
 use axum::Router;
+use shared::adapters::openapi::API_VERSION_TAG;
+use utoipa::openapi::tag::TagBuilder;
 use utoipa::openapi::{Info, OpenApi};
 
 use crate::ApiService;
@@ -65,8 +67,41 @@ pub fn generate_openapi_spec() -> OpenApi {
     spec.merge(secret_spec);
 
     // Update OpenAPI metadata
-    let info = Info::new("soma", "An open source AI agent runtime");
+    let mut info = Info::new("soma", "An open source AI agent runtime");
+    info.version = "v1".to_string();
     spec.info = info;
+
+    // Add tag descriptions
+    spec.tags = Some(vec![
+        TagBuilder::new()
+            .name("task")
+            .description(Some("Task management endpoints for creating, listing, and managing tasks and their messages"))
+            .build(),
+        TagBuilder::new()
+            .name("secret")
+            .description(Some("Secret management endpoints for storing and retrieving encrypted secrets"))
+            .build(),
+        TagBuilder::new()
+            .name("encryption")
+            .description(Some("Encryption key management endpoints for envelope keys, data encryption keys, and aliases"))
+            .build(),
+        TagBuilder::new()
+            .name("bridge")
+            .description(Some("Bridge endpoints for managing providers, credentials, functions, and MCP protocol communication"))
+            .build(),
+        TagBuilder::new()
+            .name("_internal")
+            .description(Some("Internal endpoints for health checks, runtime configuration, and SDK code generation"))
+            .build(),
+        TagBuilder::new()
+            .name("a2a")
+            .description(Some("Agent-to-agent communication endpoints for agent cards, definitions, and JSON-RPC requests"))
+            .build(),
+        TagBuilder::new()
+            .name(API_VERSION_TAG)
+            .description(Some("API version v1 endpoints"))
+            .build(),
+    ]);
 
     spec
 }

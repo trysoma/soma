@@ -2,7 +2,7 @@ import { type ObjectContext, RestatePromise } from "@restatedev/restate-sdk";
 import type {
 	CreateMessageRequest,
 	CreateMessageResponse,
-	DefaultApi,
+	VersionV1Api,
 	TaskTimelineItem,
 } from "@trysoma/api-client";
 
@@ -10,7 +10,7 @@ export type FirstTurn = "user" | "agent";
 
 export interface WrappedChatHandlerParams<Bridge, Input, _Output> {
 	ctx: ObjectContext;
-	soma: DefaultApi;
+	soma: VersionV1Api;
 	bridge: Bridge;
 	input: Input;
 	taskId: string;
@@ -19,7 +19,7 @@ export interface WrappedChatHandlerParams<Bridge, Input, _Output> {
 
 export interface ChatHandlerParams<Bridge, Input, Output> {
 	ctx: ObjectContext;
-	soma: DefaultApi;
+	soma: VersionV1Api;
 	bridge: Bridge;
 	history: TaskTimelineItem[];
 	input: Input;
@@ -114,7 +114,7 @@ export const chat = <Bridge, Input, Output>(
 
 export interface WorkflowHandlerParams<Bridge, Input, _Output> {
 	ctx: ObjectContext;
-	soma: DefaultApi;
+	soma: VersionV1Api;
 	bridge: Bridge;
 	history: TaskTimelineItem[];
 	input: Input;
@@ -126,7 +126,7 @@ export interface WorkflowHandlerParams<Bridge, Input, _Output> {
 
 export interface WrappedWorkflowHandlerParams<Bridge, Input, _Output> {
 	ctx: ObjectContext;
-	soma: DefaultApi;
+	soma: VersionV1Api;
 	bridge: Bridge;
 	input: Input;
 	taskId: string;

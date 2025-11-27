@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use axum::extract::State;
 use reqwest::Client;
 use serde_json::json;
-use shared::adapters::openapi::JsonResponse;
+use shared::adapters::openapi::{API_VERSION_TAG, JsonResponse};
 use shared::error::CommonError;
 use shared::primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4};
 use shared::uds::{DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client};
@@ -60,9 +60,11 @@ pub fn create_router() -> OpenApiRouter<Arc<Agent2AgentService>> {
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/definition", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     responses(
         (status = 200, description = "Agent definition", body = SomaAgentDefinition),
     ),
+    summary = "Get agent definition",
     description = "Get the agent definition (capabilities and metadata)",
     operation_id = "get-agent-definition",
 )]

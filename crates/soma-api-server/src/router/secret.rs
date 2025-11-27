@@ -1,4 +1,5 @@
 use axum::extract::{Json, Path, Query, State};
+use shared::adapters::openapi::API_VERSION_TAG;
 use std::sync::Arc;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
@@ -37,6 +38,7 @@ pub fn create_router() -> OpenApiRouter<Arc<SecretService>> {
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = CreateSecretRequest,
     responses(
         (status = 200, description = "Create a secret", body = CreateSecretResponse),
@@ -45,6 +47,7 @@ pub fn create_router() -> OpenApiRouter<Arc<SecretService>> {
         (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Create secret",
     description = "Create a new encrypted secret with the specified key and value",
     operation_id = "create-secret",
 )]
@@ -66,6 +69,7 @@ async fn route_create_secret(
 #[utoipa::path(
     post,
     path = format!("{}/{}/{}/import", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = ImportSecretRequest,
     responses(
         (status = 200, description = "Import a pre-encrypted secret", body = Secret),
@@ -74,6 +78,7 @@ async fn route_create_secret(
         (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Import secret",
     description = "Import an existing pre-encrypted secret into the system",
     operation_id = "import-secret",
 )]
@@ -88,6 +93,7 @@ async fn route_import_secret(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         PaginationRequest
     ),
@@ -98,6 +104,7 @@ async fn route_import_secret(
         (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "List secrets",
     description = "List all secrets with pagination (values are encrypted)",
     operation_id = "list-secrets",
 )]
@@ -112,6 +119,7 @@ async fn route_list_secrets(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/list-decrypted", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         PaginationRequest
     ),
@@ -122,6 +130,7 @@ async fn route_list_secrets(
         (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "List decrypted secrets",
     description = "List all secrets with decrypted values (requires decryption access)",
     operation_id = "list-decrypted-secrets",
 )]
@@ -137,6 +146,7 @@ async fn route_list_decrypted_secrets(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/{{secret_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("secret_id" = WrappedUuidV4, Path, description = "Secret ID"),
     ),
@@ -148,6 +158,7 @@ async fn route_list_decrypted_secrets(
         (status = 404, description = "Not Found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Get secret",
     description = "Retrieve a secret by its unique identifier",
     operation_id = "get-secret-by-id",
 )]
@@ -162,6 +173,7 @@ async fn route_get_secret_by_id(
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/key/{{key}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("key" = String, Path, description = "Secret key"),
     ),
@@ -173,6 +185,7 @@ async fn route_get_secret_by_id(
         (status = 404, description = "Not Found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Get secret by key",
     description = "Retrieve a secret by its key name",
     operation_id = "get-secret-by-key",
 )]
@@ -187,6 +200,7 @@ async fn route_get_secret_by_key(
 #[utoipa::path(
     put,
     path = format!("{}/{}/{}/{{secret_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("secret_id" = WrappedUuidV4, Path, description = "Secret ID"),
     ),
@@ -199,6 +213,7 @@ async fn route_get_secret_by_key(
         (status = 404, description = "Not Found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Update secret",
     description = "Update an existing secret's value or metadata",
     operation_id = "update-secret",
 )]
@@ -222,6 +237,7 @@ async fn route_update_secret(
 #[utoipa::path(
     delete,
     path = format!("{}/{}/{}/{{secret_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("secret_id" = WrappedUuidV4, Path, description = "Secret ID"),
     ),
@@ -233,6 +249,7 @@ async fn route_update_secret(
         (status = 404, description = "Not Found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
+    summary = "Delete secret",
     description = "Delete a secret by its unique identifier",
     operation_id = "delete-secret",
 )]

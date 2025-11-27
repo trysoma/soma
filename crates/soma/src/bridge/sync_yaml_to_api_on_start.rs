@@ -5,7 +5,7 @@ use shared::{
     soma_agent_definition::{EnvelopeKeyConfig, SomaAgentDefinitionLike},
 };
 use soma_api_client::{
-    apis::{configuration::Configuration, default_api},
+    apis::{bridge_api, configuration::Configuration, encryption_api, secret_api},
     models,
 };
 use tracing::info;
@@ -36,7 +36,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 let mut keys = HashMap::new();
                 let mut next_page_token: Option<String> = None;
                 loop {
-                    let response = default_api::list_envelope_encryption_keys(
+                    let response = encryption_api::list_envelope_encryption_keys(
                         api_config,
                         100,
                         next_page_token.as_deref(),
@@ -66,7 +66,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 if !existing_envelope_keys.contains_key(key_id) {
                     let envelope_key =
                         envelope_key_config_to_api_model(key_id, envelope_key_config);
-                    default_api::create_envelope_encryption_key(api_config, envelope_key)
+                    encryption_api::create_envelope_encryption_key(api_config, envelope_key)
                         .await
                         .map_err(|e| {
                             CommonError::Unknown(anyhow::anyhow!(
@@ -82,9 +82,10 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                     // Import missing DEKs - check by alias
                     for (alias, dek_config) in deks {
                         // Check if a DEK with this alias already exists
-                        let alias_exists = default_api::get_dek_by_alias_or_id(api_config, alias)
-                            .await
-                            .is_ok();
+                        let alias_exists =
+                            encryption_api::get_dek_by_alias_or_id(api_config, alias)
+                                .await
+                                .is_ok();
 
                         if !alias_exists {
                             // Import the DEK (will generate a new ID)
@@ -92,7 +93,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 id: None, // Let the server generate the ID
                                 encrypted_data_encryption_key: dek_config.encrypted_key.clone(),
                             };
-                            let imported_dek = default_api::import_data_encryption_key(
+                            let imported_dek = encryption_api::import_data_encryption_key(
                                 api_config,
                                 key_id,
                                 import_params,
@@ -113,7 +114,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 alias: alias.clone(),
                                 dek_id: imported_dek.id.clone(),
                             };
-                            default_api::create_dek_alias(api_config, create_alias_req)
+                            encryption_api::create_dek_alias(api_config, create_alias_req)
                                 .await
                                 .map_err(|e| {
                                     CommonError::Unknown(anyhow::anyhow!(
@@ -137,7 +138,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 let mut instances = HashMap::new();
                 let mut next_page_token: Option<String> = None;
                 loop {
-                    let response = default_api::list_provider_instances(
+                    let response = bridge_api::list_provider_instances(
                         api_config,
                         100,
                         next_page_token.as_deref(),
@@ -192,7 +193,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                             "Provider '{}' configuration changed, recreating",
                             provider_id
                         );
-                        default_api::delete_provider_instance(api_config, provider_id)
+                        bridge_api::delete_provider_instance(api_config, provider_id)
                             .await
                             .map_err(|e| {
                                 CommonError::Unknown(anyhow::anyhow!(
@@ -217,19 +218,18 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
                         };
 
-                    let resource_server_credential =
-                        default_api::create_resource_server_credential(
-                            api_config,
-                            provider_controller_type_id,
-                            credential_controller_type_id,
-                            resource_server_credential_params,
-                        )
-                        .await
-                        .map_err(|e| {
-                            CommonError::Unknown(anyhow::anyhow!(
-                                "Failed to create resource server credential: {e:?}"
-                            ))
-                        })?;
+                    let resource_server_credential = bridge_api::create_resource_server_credential(
+                        api_config,
+                        provider_controller_type_id,
+                        credential_controller_type_id,
+                        resource_server_credential_params,
+                    )
+                    .await
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to create resource server credential: {e:?}"
+                        ))
+                    })?;
 
                     // Create user credential if provided
                     let user_credential_id =
@@ -242,7 +242,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 }),
                             };
 
-                            let user_credential = default_api::create_user_credential(
+                            let user_credential = bridge_api::create_user_credential(
                                 api_config,
                                 provider_controller_type_id,
                                 credential_controller_type_id,
@@ -269,7 +269,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                         return_on_successful_brokering: None,
                     };
 
-                    default_api::create_provider_instance(
+                    bridge_api::create_provider_instance(
                         api_config,
                         provider_controller_type_id,
                         credential_controller_type_id,
@@ -290,7 +290,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                     let mut instances = HashSet::new();
                     let mut next_page_token: Option<String> = None;
                     loop {
-                        let response = default_api::list_function_instances(
+                        let response = bridge_api::list_function_instances(
                             api_config,
                             100,
                             next_page_token.as_deref(),
@@ -323,7 +323,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 // Disable functions not in yaml
                 for function_id in existing_functions.iter() {
                     if !yaml_functions.contains(function_id) {
-                        default_api::disable_function(api_config, provider_id, function_id)
+                        bridge_api::disable_function(api_config, provider_id, function_id)
                             .await
                             .map_err(|e| {
                                 CommonError::Unknown(anyhow::anyhow!(
@@ -336,7 +336,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 // Enable functions from yaml
                 for function_id in yaml_functions.iter() {
                     if !existing_functions.contains(function_id) {
-                        default_api::enable_function(
+                        bridge_api::enable_function(
                             api_config,
                             provider_id,
                             function_id,
@@ -359,7 +359,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                         "Deleting provider '{}' not in yaml (status: active)",
                         provider_id
                     );
-                    default_api::delete_provider_instance(api_config, provider_id)
+                    bridge_api::delete_provider_instance(api_config, provider_id)
                         .await
                         .map_err(|e| {
                             CommonError::Unknown(anyhow::anyhow!(
@@ -383,7 +383,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
             let mut next_page_token: Option<String> = None;
             loop {
                 let response =
-                    default_api::list_secrets(api_config, 100, next_page_token.as_deref())
+                    secret_api::list_secrets(api_config, 100, next_page_token.as_deref())
                         .await
                         .map_err(|e| {
                             CommonError::Unknown(anyhow::anyhow!("Failed to list secrets: {e:?}"))
@@ -411,7 +411,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                     raw_value: secret_config.value.clone(),
                     dek_alias: secret_config.dek_alias.clone(),
                 };
-                default_api::create_secret(api_config, create_req)
+                secret_api::create_secret(api_config, create_req)
                     .await
                     .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(

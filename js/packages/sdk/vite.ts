@@ -284,7 +284,7 @@ ${
 		? `
 import { HandlerParams, SomaAgent } from "@trysoma/sdk/agent";
 import { Configuration as BridgeConfiguration } from '@trysoma/sdk/bridge';
-import { DefaultApi, Configuration as SomaConfiguration } from '@trysoma/api-client';
+import { VersionV1Api, Configuration as SomaConfiguration } from '@trysoma/api-client';
 import * as net from 'net';
 
 interface RestateInput {
@@ -296,7 +296,7 @@ type RestateHandler = (ctx: restate.ObjectContext, input: RestateInput) => Promi
 type SomaHandler<T> = (params: HandlerParams<T>) => Promise<void>;
 const wrapHandler = <T>(handler: SomaHandler<T>, agent: SomaAgent<T>): RestateHandler => {
   return async (ctx, input) => {
-    const soma = new DefaultApi(new SomaConfiguration({
+    const soma = new VersionV1Api(new SomaConfiguration({
       basePath: process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000',
     }));
     await handler({

@@ -1,6 +1,6 @@
 use clap::{Args, Subcommand};
 use shared::error::CommonError;
-use soma_api_client::apis::default_api;
+use soma_api_client::apis::encryption_api;
 use soma_api_client::models;
 use tracing::info;
 
@@ -95,7 +95,7 @@ pub async fn cmd_enc_key(
 async fn default_alias_exists(
     api_config: &soma_api_client::apis::configuration::Configuration,
 ) -> Result<bool, CommonError> {
-    match default_api::get_dek_by_alias_or_id(api_config, DEFAULT_ALIAS).await {
+    match encryption_api::get_dek_by_alias_or_id(api_config, DEFAULT_ALIAS).await {
         Ok(_) => Ok(true),
         Err(soma_api_client::apis::Error::ResponseError(resp)) if resp.status.as_u16() == 404 => {
             Ok(false)
@@ -117,7 +117,7 @@ async fn create_default_dek(
         encrypted_dek: None,
     };
 
-    let dek = default_api::create_data_encryption_key(api_config, envelope_id, dek_params)
+    let dek = encryption_api::create_data_encryption_key(api_config, envelope_id, dek_params)
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create DEK: {e:?}")))?;
 
@@ -129,7 +129,7 @@ async fn create_default_dek(
         alias: DEFAULT_ALIAS.to_string(),
     };
 
-    default_api::create_dek_alias(api_config, alias_params)
+    encryption_api::create_dek_alias(api_config, alias_params)
         .await
         .map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!("Failed to create default alias: {e:?}"))
@@ -168,7 +168,7 @@ pub async fn cmd_enc_key_add(
             );
 
             let created_key =
-                default_api::create_envelope_encryption_key(&api_config, envelope_key)
+                encryption_api::create_envelope_encryption_key(&api_config, envelope_key)
                     .await
                     .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(
@@ -213,7 +213,7 @@ pub async fn cmd_enc_key_add(
             );
 
             let created_key =
-                default_api::create_envelope_encryption_key(&api_config, envelope_key)
+                encryption_api::create_envelope_encryption_key(&api_config, envelope_key)
                     .await
                     .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(
@@ -266,7 +266,7 @@ pub async fn cmd_enc_key_rm(
     };
 
     // List DEKs tied to this envelope key
-    let deks_response = default_api::list_data_encryption_keys_by_envelope(
+    let deks_response = encryption_api::list_data_encryption_keys_by_envelope(
         &api_config,
         &envelope_id,
         100, // page size
@@ -332,7 +332,7 @@ pub async fn cmd_enc_key_migrate(
         to_envelope_encryption_key_id: to.clone(),
     };
 
-    default_api::migrate_all_data_encryption_keys(&api_config, &from, migrate_params)
+    encryption_api::migrate_all_data_encryption_keys(&api_config, &from, migrate_params)
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to migrate DEKs: {e:?}")))?;
 
