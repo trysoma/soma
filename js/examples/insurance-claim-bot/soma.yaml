@@ -1,0 +1,10 @@
+encryption:
+  envelope_keys:
+    local.bin:
+      type: local
+      file_name: local.bin
+      deks:
+        default:
+          encrypted_key: NLaHYv8d3PX2AqYDzcywdR/fRiGw2Kou85f1SZBvGjJKdqlQSZRRWrNwwQQs9u71lPCR/DrMcUr9mg7f
+environment_variables:
+  HELLO: '123'

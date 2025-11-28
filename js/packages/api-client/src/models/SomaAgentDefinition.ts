@@ -43,6 +43,12 @@ export interface SomaAgentDefinition {
 	encryption?: EncryptionConfig | null;
 	/**
 	 *
+	 * @type {{ [key: string]: string; }}
+	 * @memberof SomaAgentDefinition
+	 */
+	environmentVariables?: { [key: string]: string };
+	/**
+	 *
 	 * @type {{ [key: string]: SecretConfig; }}
 	 * @memberof SomaAgentDefinition
 	 */
@@ -75,6 +81,10 @@ export function SomaAgentDefinitionFromJSONTyped(
 			json.encryption == null
 				? undefined
 				: EncryptionConfigFromJSON(json.encryption),
+		environmentVariables:
+			json.environment_variables == null
+				? undefined
+				: json.environment_variables,
 		secrets:
 			json.secrets == null
 				? undefined
@@ -97,6 +107,7 @@ export function SomaAgentDefinitionToJSONTyped(
 	return {
 		bridge: BridgeConfigToJSON(value.bridge),
 		encryption: EncryptionConfigToJSON(value.encryption),
+		environment_variables: value.environmentVariables,
 		secrets:
 			value.secrets == null
 				? undefined

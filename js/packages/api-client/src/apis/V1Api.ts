@@ -16,6 +16,7 @@ import type {
 	ContextInfoPaginatedResponse,
 	CreateDataEncryptionKeyParamsRoute,
 	CreateDekAliasRequest,
+	CreateEnvironmentVariableRequest,
 	CreateMessageRequest,
 	CreateMessageResponse,
 	CreateProviderInstanceParamsInner,
@@ -25,18 +26,22 @@ import type {
 	DataEncryptionKey,
 	DataEncryptionKeyAlias,
 	DataEncryptionKeyListItemPaginatedResponse,
+	DeleteEnvironmentVariableResponse,
 	DeleteSecretResponse,
 	EncryptCredentialConfigurationParamsInner,
 	EnvelopeEncryptionKey,
 	EnvelopeEncryptionKeyPaginatedResponse,
+	EnvironmentVariable,
 	FunctionInstanceConfigPaginatedResponse,
 	FunctionInstanceSerialized,
 	FunctionInstanceSerializedPaginatedResponse,
 	ImportDataEncryptionKeyParamsRoute,
+	ImportEnvironmentVariableRequest,
 	ImportSecretRequest,
 	InvokeFunctionParamsInner,
 	InvokeResult,
 	ListDecryptedSecretsResponse,
+	ListEnvironmentVariablesResponse,
 	ListSecretsResponse,
 	MigrateAllDataEncryptionKeysParamsRoute,
 	MigrateDataEncryptionKeyParamsRoute,
@@ -53,6 +58,7 @@ import type {
 	TaskWithDetails,
 	TriggerCodegenResponse,
 	UpdateAliasParams,
+	UpdateEnvironmentVariableRequest,
 	UpdateProviderInstanceParamsInner,
 	UpdateSecretRequest,
 	UpdateTaskStatusRequest,
@@ -63,6 +69,7 @@ import {
 	ContextInfoPaginatedResponseFromJSON,
 	CreateDataEncryptionKeyParamsRouteToJSON,
 	CreateDekAliasRequestToJSON,
+	CreateEnvironmentVariableRequestToJSON,
 	CreateMessageRequestToJSON,
 	CreateMessageResponseFromJSON,
 	CreateProviderInstanceParamsInnerToJSON,
@@ -72,19 +79,23 @@ import {
 	DataEncryptionKeyAliasFromJSON,
 	DataEncryptionKeyFromJSON,
 	DataEncryptionKeyListItemPaginatedResponseFromJSON,
+	DeleteEnvironmentVariableResponseFromJSON,
 	DeleteSecretResponseFromJSON,
 	EncryptCredentialConfigurationParamsInnerToJSON,
 	EnvelopeEncryptionKeyFromJSON,
 	EnvelopeEncryptionKeyPaginatedResponseFromJSON,
 	EnvelopeEncryptionKeyToJSON,
+	EnvironmentVariableFromJSON,
 	FunctionInstanceConfigPaginatedResponseFromJSON,
 	FunctionInstanceSerializedFromJSON,
 	FunctionInstanceSerializedPaginatedResponseFromJSON,
 	ImportDataEncryptionKeyParamsRouteToJSON,
+	ImportEnvironmentVariableRequestToJSON,
 	ImportSecretRequestToJSON,
 	InvokeFunctionParamsInnerToJSON,
 	InvokeResultFromJSON,
 	ListDecryptedSecretsResponseFromJSON,
+	ListEnvironmentVariablesResponseFromJSON,
 	ListSecretsResponseFromJSON,
 	MigrateAllDataEncryptionKeysParamsRouteToJSON,
 	MigrateDataEncryptionKeyParamsRouteToJSON,
@@ -101,6 +112,7 @@ import {
 	TaskWithDetailsFromJSON,
 	TriggerCodegenResponseFromJSON,
 	UpdateAliasParamsToJSON,
+	UpdateEnvironmentVariableRequestToJSON,
 	UpdateProviderInstanceParamsInnerToJSON,
 	UpdateSecretRequestToJSON,
 	UpdateTaskStatusRequestToJSON,
@@ -120,6 +132,10 @@ export interface V1ApiCreateDekAliasOperationRequest {
 
 export interface V1ApiCreateEnvelopeEncryptionKeyRequest {
 	envelopeEncryptionKey: EnvelopeEncryptionKey;
+}
+
+export interface V1ApiCreateEnvironmentVariableOperationRequest {
+	createEnvironmentVariableRequest: CreateEnvironmentVariableRequest;
 }
 
 export interface V1ApiCreateProviderInstanceRequest {
@@ -146,6 +162,10 @@ export interface V1ApiCreateUserCredentialRequest {
 
 export interface V1ApiDeleteDekAliasRequest {
 	alias: string;
+}
+
+export interface V1ApiDeleteEnvironmentVariableRequest {
+	envVarId: string;
 }
 
 export interface V1ApiDeleteProviderInstanceRequest {
@@ -183,6 +203,14 @@ export interface V1ApiGetDekByAliasOrIdRequest {
 	alias: string;
 }
 
+export interface V1ApiGetEnvironmentVariableByIdRequest {
+	envVarId: string;
+}
+
+export interface V1ApiGetEnvironmentVariableByKeyRequest {
+	key: string;
+}
+
 export interface V1ApiGetProviderInstanceRequest {
 	providerInstanceId: string;
 }
@@ -206,6 +234,10 @@ export interface V1ApiHandleJsonrpcRequestRequest {
 export interface V1ApiImportDataEncryptionKeyRequest {
 	envelopeId: string;
 	importDataEncryptionKeyParamsRoute: ImportDataEncryptionKeyParamsRoute;
+}
+
+export interface V1ApiImportEnvironmentVariableOperationRequest {
+	importEnvironmentVariableRequest: ImportEnvironmentVariableRequest;
 }
 
 export interface V1ApiImportSecretOperationRequest {
@@ -240,6 +272,11 @@ export interface V1ApiListDecryptedSecretsRequest {
 }
 
 export interface V1ApiListEnvelopeEncryptionKeysRequest {
+	pageSize: number;
+	nextPageToken?: string;
+}
+
+export interface V1ApiListEnvironmentVariablesRequest {
 	pageSize: number;
 	nextPageToken?: string;
 }
@@ -322,6 +359,11 @@ export interface V1ApiTriggerMcpMessageRequest {
 export interface V1ApiUpdateDekAliasRequest {
 	alias: string;
 	updateAliasParams: UpdateAliasParams;
+}
+
+export interface V1ApiUpdateEnvironmentVariableOperationRequest {
+	envVarId: string;
+	updateEnvironmentVariableRequest: UpdateEnvironmentVariableRequest;
 }
 
 export interface V1ApiUpdateProviderInstanceRequest {
@@ -516,6 +558,62 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<EnvelopeEncryptionKey> {
 		const response = await this.createEnvelopeEncryptionKeyRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Create a new environment variable with the specified key and value
+	 * Create environment variable
+	 */
+	async createEnvironmentVariableRaw(
+		requestParameters: V1ApiCreateEnvironmentVariableOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<EnvironmentVariable>> {
+		if (requestParameters.createEnvironmentVariableRequest == null) {
+			throw new runtime.RequiredError(
+				"createEnvironmentVariableRequest",
+				'Required parameter "createEnvironmentVariableRequest" was null or undefined when calling createEnvironmentVariable().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		const urlPath = `/api/environment-variable/v1`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: CreateEnvironmentVariableRequestToJSON(
+					requestParameters.createEnvironmentVariableRequest,
+				),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			EnvironmentVariableFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Create a new environment variable with the specified key and value
+	 * Create environment variable
+	 */
+	async createEnvironmentVariable(
+		requestParameters: V1ApiCreateEnvironmentVariableOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<EnvironmentVariable> {
+		const response = await this.createEnvironmentVariableRaw(
 			requestParameters,
 			initOverrides,
 		);
@@ -857,6 +955,61 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.deleteDekAliasRaw(requestParameters, initOverrides);
+	}
+
+	/**
+	 * Delete an environment variable by its unique identifier
+	 * Delete environment variable
+	 */
+	async deleteEnvironmentVariableRaw(
+		requestParameters: V1ApiDeleteEnvironmentVariableRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<DeleteEnvironmentVariableResponse>> {
+		if (requestParameters.envVarId == null) {
+			throw new runtime.RequiredError(
+				"envVarId",
+				'Required parameter "envVarId" was null or undefined when calling deleteEnvironmentVariable().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/environment-variable/v1/{env_var_id}`;
+		urlPath = urlPath.replace(
+			`{${"env_var_id"}}`,
+			encodeURIComponent(String(requestParameters.envVarId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "DELETE",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			DeleteEnvironmentVariableResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Delete an environment variable by its unique identifier
+	 * Delete environment variable
+	 */
+	async deleteEnvironmentVariable(
+		requestParameters: V1ApiDeleteEnvironmentVariableRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<DeleteEnvironmentVariableResponse> {
+		const response = await this.deleteEnvironmentVariableRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
 	}
 
 	/**
@@ -1407,6 +1560,116 @@ export class V1Api extends runtime.BaseAPI {
 	}
 
 	/**
+	 * Retrieve an environment variable by its unique identifier
+	 * Get environment variable
+	 */
+	async getEnvironmentVariableByIdRaw(
+		requestParameters: V1ApiGetEnvironmentVariableByIdRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<EnvironmentVariable>> {
+		if (requestParameters.envVarId == null) {
+			throw new runtime.RequiredError(
+				"envVarId",
+				'Required parameter "envVarId" was null or undefined when calling getEnvironmentVariableById().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/environment-variable/v1/{env_var_id}`;
+		urlPath = urlPath.replace(
+			`{${"env_var_id"}}`,
+			encodeURIComponent(String(requestParameters.envVarId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			EnvironmentVariableFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Retrieve an environment variable by its unique identifier
+	 * Get environment variable
+	 */
+	async getEnvironmentVariableById(
+		requestParameters: V1ApiGetEnvironmentVariableByIdRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<EnvironmentVariable> {
+		const response = await this.getEnvironmentVariableByIdRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Retrieve an environment variable by its key name
+	 * Get environment variable by key
+	 */
+	async getEnvironmentVariableByKeyRaw(
+		requestParameters: V1ApiGetEnvironmentVariableByKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<EnvironmentVariable>> {
+		if (requestParameters.key == null) {
+			throw new runtime.RequiredError(
+				"key",
+				'Required parameter "key" was null or undefined when calling getEnvironmentVariableByKey().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/environment-variable/v1/key/{key}`;
+		urlPath = urlPath.replace(
+			`{${"key"}}`,
+			encodeURIComponent(String(requestParameters.key)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			EnvironmentVariableFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Retrieve an environment variable by its key name
+	 * Get environment variable by key
+	 */
+	async getEnvironmentVariableByKey(
+		requestParameters: V1ApiGetEnvironmentVariableByKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<EnvironmentVariable> {
+		const response = await this.getEnvironmentVariableByKeyRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
 	 * Get the authenticated extended agent card with additional metadata
 	 * Get extended agent card
 	 */
@@ -1894,6 +2157,62 @@ export class V1Api extends runtime.BaseAPI {
 	}
 
 	/**
+	 * Import an existing environment variable into the system
+	 * Import environment variable
+	 */
+	async importEnvironmentVariableRaw(
+		requestParameters: V1ApiImportEnvironmentVariableOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<EnvironmentVariable>> {
+		if (requestParameters.importEnvironmentVariableRequest == null) {
+			throw new runtime.RequiredError(
+				"importEnvironmentVariableRequest",
+				'Required parameter "importEnvironmentVariableRequest" was null or undefined when calling importEnvironmentVariable().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		const urlPath = `/api/environment-variable/v1/import`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: ImportEnvironmentVariableRequestToJSON(
+					requestParameters.importEnvironmentVariableRequest,
+				),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			EnvironmentVariableFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Import an existing environment variable into the system
+	 * Import environment variable
+	 */
+	async importEnvironmentVariable(
+		requestParameters: V1ApiImportEnvironmentVariableOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<EnvironmentVariable> {
+		const response = await this.importEnvironmentVariableRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
 	 * Import an existing pre-encrypted secret into the system
 	 * Import secret
 	 */
@@ -2327,6 +2646,65 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<EnvelopeEncryptionKeyPaginatedResponse> {
 		const response = await this.listEnvelopeEncryptionKeysRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * List all environment variables with pagination
+	 * List environment variables
+	 */
+	async listEnvironmentVariablesRaw(
+		requestParameters: V1ApiListEnvironmentVariablesRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<ListEnvironmentVariablesResponse>> {
+		if (requestParameters.pageSize == null) {
+			throw new runtime.RequiredError(
+				"pageSize",
+				'Required parameter "pageSize" was null or undefined when calling listEnvironmentVariables().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		if (requestParameters.pageSize != null) {
+			queryParameters.page_size = requestParameters.pageSize;
+		}
+
+		if (requestParameters.nextPageToken != null) {
+			queryParameters.next_page_token = requestParameters.nextPageToken;
+		}
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/environment-variable/v1`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			ListEnvironmentVariablesResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * List all environment variables with pagination
+	 * List environment variables
+	 */
+	async listEnvironmentVariables(
+		requestParameters: V1ApiListEnvironmentVariablesRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<ListEnvironmentVariablesResponse> {
+		const response = await this.listEnvironmentVariablesRaw(
 			requestParameters,
 			initOverrides,
 		);
@@ -3311,6 +3689,73 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<DataEncryptionKeyAlias> {
 		const response = await this.updateDekAliasRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Update an existing environment variable\'s value
+	 * Update environment variable
+	 */
+	async updateEnvironmentVariableRaw(
+		requestParameters: V1ApiUpdateEnvironmentVariableOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<EnvironmentVariable>> {
+		if (requestParameters.envVarId == null) {
+			throw new runtime.RequiredError(
+				"envVarId",
+				'Required parameter "envVarId" was null or undefined when calling updateEnvironmentVariable().',
+			);
+		}
+
+		if (requestParameters.updateEnvironmentVariableRequest == null) {
+			throw new runtime.RequiredError(
+				"updateEnvironmentVariableRequest",
+				'Required parameter "updateEnvironmentVariableRequest" was null or undefined when calling updateEnvironmentVariable().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		let urlPath = `/api/environment-variable/v1/{env_var_id}`;
+		urlPath = urlPath.replace(
+			`{${"env_var_id"}}`,
+			encodeURIComponent(String(requestParameters.envVarId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "PUT",
+				headers: headerParameters,
+				query: queryParameters,
+				body: UpdateEnvironmentVariableRequestToJSON(
+					requestParameters.updateEnvironmentVariableRequest,
+				),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			EnvironmentVariableFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Update an existing environment variable\'s value
+	 * Update environment variable
+	 */
+	async updateEnvironmentVariable(
+		requestParameters: V1ApiUpdateEnvironmentVariableOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<EnvironmentVariable> {
+		const response = await this.updateEnvironmentVariableRaw(
 			requestParameters,
 			initOverrides,
 		);
