@@ -1,9 +1,14 @@
 use schemars::JsonSchema;
+use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use serde::{Deserialize, Serialize};
 use shared::{
     error::CommonError,
     primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedUuidV4},
 };
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tonic::transport::Channel;
+use tracing::warn;
 use utoipa::ToSchema;
 
 use crate::{
@@ -53,9 +58,47 @@ pub struct DeleteEnvironmentVariableResponse {
 }
 
 // CRUD functions
+/// Helper to incrementally sync a single environment variable to SDK
+async fn sync_environment_variable_to_sdk_incremental(
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+    key: String,
+    value: String,
+) {
+    let mut sdk_client_guard = sdk_client.lock().await;
+
+    if let Some(ref mut client) = *sdk_client_guard {
+        use crate::logic::environment_variable_sync::sync_environment_variable_to_sdk;
+        if let Err(e) = sync_environment_variable_to_sdk(client, key.clone(), value).await {
+            warn!(
+                "Failed to sync environment variable '{}' to SDK: {:?}",
+                key, e
+            );
+        }
+    }
+}
+
+/// Helper to unset an environment variable in SDK
+async fn unset_environment_variable_in_sdk_incremental(
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+    key: String,
+) {
+    let mut sdk_client_guard = sdk_client.lock().await;
+
+    if let Some(ref mut client) = *sdk_client_guard {
+        use crate::logic::environment_variable_sync::unset_environment_variable_in_sdk;
+        if let Err(e) = unset_environment_variable_in_sdk(client, key.clone()).await {
+            warn!(
+                "Failed to unset environment variable '{}' in SDK: {:?}",
+                key, e
+            );
+        }
+    }
+}
+
 pub async fn create_environment_variable<R: EnvironmentVariableRepositoryLike>(
     on_change_tx: &EnvironmentVariableChangeTx,
     repository: &R,
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
     request: CreateEnvironmentVariableRequest,
     publish_on_change_evt: bool,
 ) -> Result<CreateEnvironmentVariableResponse, CommonError> {
@@ -82,6 +125,14 @@ pub async fn create_environment_variable<R: EnvironmentVariableRepositoryLike>(
         .create_environment_variable(&create_params)
         .await?;
 
+    // Incrementally sync the new environment variable to SDK
+    sync_environment_variable_to_sdk_incremental(
+        sdk_client,
+        environment_variable.key.clone(),
+        environment_variable.value.clone(),
+    )
+    .await;
+
     if publish_on_change_evt {
         on_change_tx
             .send(EnvironmentVariableChangeEvt::Created(
@@ -100,6 +151,7 @@ pub async fn create_environment_variable<R: EnvironmentVariableRepositoryLike>(
 pub async fn update_environment_variable<R: EnvironmentVariableRepositoryLike>(
     on_change_tx: &EnvironmentVariableChangeTx,
     repository: &R,
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
     id: WrappedUuidV4,
     request: UpdateEnvironmentVariableRequest,
     publish_on_change_evt: bool,
@@ -123,6 +175,14 @@ pub async fn update_environment_variable<R: EnvironmentVariableRepositoryLike>(
     repository
         .update_environment_variable(&update_params)
         .await?;
+
+    // Incrementally sync the updated environment variable to SDK
+    sync_environment_variable_to_sdk_incremental(
+        sdk_client,
+        existing.key.clone(),
+        request.value.clone(),
+    )
+    .await;
 
     let updated_environment_variable = EnvironmentVariable {
         id,
@@ -150,6 +210,7 @@ pub async fn update_environment_variable<R: EnvironmentVariableRepositoryLike>(
 pub async fn delete_environment_variable<R: EnvironmentVariableRepositoryLike>(
     on_change_tx: &EnvironmentVariableChangeTx,
     repository: &R,
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
     id: WrappedUuidV4,
     publish_on_change_evt: bool,
 ) -> Result<DeleteEnvironmentVariableResponse, CommonError> {
@@ -162,6 +223,9 @@ pub async fn delete_environment_variable<R: EnvironmentVariableRepositoryLike>(
     })?;
 
     repository.delete_environment_variable(&id).await?;
+
+    // Unset the deleted environment variable in SDK
+    unset_environment_variable_in_sdk_incremental(sdk_client, existing.key.clone()).await;
 
     if publish_on_change_evt {
         on_change_tx
@@ -265,6 +329,10 @@ mod tests {
     use crate::repository::Repository;
     use shared::primitives::SqlMigrationLoader;
 
+    fn create_test_sdk_client() -> Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>> {
+        Arc::new(Mutex::new(None::<SomaSdkServiceClient<Channel>>))
+    }
+
     async fn setup_test_repository() -> Repository {
         let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
             <Repository as SqlMigrationLoader>::load_sql_migrations(),
@@ -284,8 +352,15 @@ mod tests {
             value: "my-value".to_string(),
         };
 
-        let result =
-            create_environment_variable(&on_change_tx, &repository, request.clone(), true).await;
+        let sdk_client = create_test_sdk_client();
+        let result = create_environment_variable(
+            &on_change_tx,
+            &repository,
+            &sdk_client,
+            request.clone(),
+            true,
+        )
+        .await;
 
         assert!(result.is_ok());
         let env_var = result.unwrap();
@@ -307,6 +382,7 @@ mod tests {
     async fn test_update_environment_variable() {
         let repository = setup_test_repository().await;
         let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+        let sdk_client = create_test_sdk_client();
 
         // Create an environment variable first
         let create_request = CreateEnvironmentVariableRequest {
@@ -314,10 +390,15 @@ mod tests {
             value: "original-value".to_string(),
         };
 
-        let created =
-            create_environment_variable(&on_change_tx, &repository, create_request, false)
-                .await
-                .unwrap();
+        let created = create_environment_variable(
+            &on_change_tx,
+            &repository,
+            &sdk_client,
+            create_request,
+            false,
+        )
+        .await
+        .unwrap();
 
         // Update the environment variable
         let update_request = UpdateEnvironmentVariableRequest {
@@ -327,6 +408,7 @@ mod tests {
         let result = update_environment_variable(
             &on_change_tx,
             &repository,
+            &sdk_client,
             created.id.clone(),
             update_request,
             true,
@@ -353,6 +435,7 @@ mod tests {
     async fn test_delete_environment_variable() {
         let repository = setup_test_repository().await;
         let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+        let sdk_client = create_test_sdk_client();
 
         // Create an environment variable first
         let create_request = CreateEnvironmentVariableRequest {
@@ -360,14 +443,25 @@ mod tests {
             value: "my-value".to_string(),
         };
 
-        let created =
-            create_environment_variable(&on_change_tx, &repository, create_request, false)
-                .await
-                .unwrap();
+        let created = create_environment_variable(
+            &on_change_tx,
+            &repository,
+            &sdk_client,
+            create_request,
+            false,
+        )
+        .await
+        .unwrap();
 
         // Delete the environment variable
-        let result =
-            delete_environment_variable(&on_change_tx, &repository, created.id.clone(), true).await;
+        let result = delete_environment_variable(
+            &on_change_tx,
+            &repository,
+            &sdk_client,
+            created.id.clone(),
+            true,
+        )
+        .await;
 
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -400,10 +494,16 @@ mod tests {
             value: "my-value".to_string(),
         };
 
-        let created =
-            create_environment_variable(&on_change_tx, &repository, create_request, false)
-                .await
-                .unwrap();
+        let sdk_client = create_test_sdk_client();
+        let created = create_environment_variable(
+            &on_change_tx,
+            &repository,
+            &sdk_client,
+            create_request,
+            false,
+        )
+        .await
+        .unwrap();
 
         // Get by id
         let result = get_environment_variable_by_id(&repository, created.id.clone()).await;
@@ -425,10 +525,16 @@ mod tests {
             value: "my-value".to_string(),
         };
 
-        let created =
-            create_environment_variable(&on_change_tx, &repository, create_request, false)
-                .await
-                .unwrap();
+        let sdk_client = create_test_sdk_client();
+        let created = create_environment_variable(
+            &on_change_tx,
+            &repository,
+            &sdk_client,
+            create_request,
+            false,
+        )
+        .await
+        .unwrap();
 
         // Get by key
         let result = get_environment_variable_by_key(&repository, "MY_ENV_VAR".to_string()).await;
@@ -451,9 +557,16 @@ mod tests {
                 value: format!("value-{i}"),
             };
 
-            create_environment_variable(&on_change_tx, &repository, create_request, false)
-                .await
-                .unwrap();
+            let sdk_client = create_test_sdk_client();
+            create_environment_variable(
+                &on_change_tx,
+                &repository,
+                &sdk_client,
+                create_request,
+                false,
+            )
+            .await
+            .unwrap();
         }
 
         // List environment variables
@@ -488,6 +601,7 @@ mod tests {
     async fn test_create_environment_variable_no_publish() {
         let repository = setup_test_repository().await;
         let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+        let sdk_client = create_test_sdk_client();
 
         let request = CreateEnvironmentVariableRequest {
             key: "MY_ENV_VAR".to_string(),
@@ -497,6 +611,7 @@ mod tests {
         let result = create_environment_variable(
             &on_change_tx,
             &repository,
+            &sdk_client,
             request,
             false, // Don't publish
         )
@@ -541,9 +656,11 @@ mod tests {
             value: "updated-value".to_string(),
         };
 
+        let sdk_client = create_test_sdk_client();
         let result = update_environment_variable(
             &on_change_tx,
             &repository,
+            &sdk_client,
             WrappedUuidV4::new(),
             update_request,
             true,
@@ -562,9 +679,15 @@ mod tests {
         let repository = setup_test_repository().await;
         let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
 
-        let result =
-            delete_environment_variable(&on_change_tx, &repository, WrappedUuidV4::new(), true)
-                .await;
+        let sdk_client = create_test_sdk_client();
+        let result = delete_environment_variable(
+            &on_change_tx,
+            &repository,
+            &sdk_client,
+            WrappedUuidV4::new(),
+            true,
+        )
+        .await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -599,9 +722,16 @@ mod tests {
                 value: format!("value-{i}"),
             };
 
-            create_environment_variable(&on_change_tx, &repository, create_request, false)
-                .await
-                .unwrap();
+            let sdk_client = create_test_sdk_client();
+            create_environment_variable(
+                &on_change_tx,
+                &repository,
+                &sdk_client,
+                create_request,
+                false,
+            )
+            .await
+            .unwrap();
         }
 
         // First page

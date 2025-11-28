@@ -170,6 +170,79 @@ pub async fn create_api_service(
             // Wait for SDK server healthcheck to pass before triggering bridge client generation
             wait_for_sdk_healthcheck(&mut client).await?;
 
+            // Perform initial secret sync to SDK (after SDK is fully ready)
+            info!("Performing initial secret sync to SDK...");
+            let repository_arc_for_initial_sync = std::sync::Arc::new(repository.clone());
+            match crate::logic::secret_sync::fetch_and_decrypt_all_secrets(
+                &repository_arc_for_initial_sync,
+                &crypto_cache,
+            )
+            .await
+            {
+                Ok(secrets) => {
+                    if !secrets.is_empty() {
+                        info!("Found {} secrets to sync to SDK", secrets.len());
+                        match crate::logic::secret_sync::sync_secrets_to_sdk(&mut client, secrets)
+                            .await
+                        {
+                            Ok(()) => {
+                                info!("Initial secret sync completed successfully");
+                            }
+                            Err(e) => {
+                                warn!("Failed to perform initial secret sync: {:?}", e);
+                                // Don't fail startup - secrets will be synced on next change
+                            }
+                        }
+                    } else {
+                        info!("No secrets to sync on startup");
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to fetch secrets for initial sync: {:?}", e);
+                    // Don't fail startup - secrets will be synced on next change
+                }
+            }
+
+            // Perform initial environment variable sync to SDK (after SDK is fully ready)
+            info!("Performing initial environment variable sync to SDK...");
+            match crate::logic::environment_variable_sync::fetch_all_environment_variables(
+                &repository_arc_for_initial_sync,
+            )
+            .await
+            {
+                Ok(env_vars) => {
+                    if !env_vars.is_empty() {
+                        info!(
+                            "Found {} environment variables to sync to SDK",
+                            env_vars.len()
+                        );
+                        match crate::logic::environment_variable_sync::sync_environment_variables_to_sdk(
+                            &mut client,
+                            env_vars,
+                        )
+                        .await
+                        {
+                            Ok(()) => {
+                                info!("Initial environment variable sync completed successfully");
+                            }
+                            Err(e) => {
+                                warn!("Failed to perform initial environment variable sync: {:?}", e);
+                                // Don't fail startup - env vars will be synced on next change
+                            }
+                        }
+                    } else {
+                        info!("No environment variables to sync on startup");
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to fetch environment variables for initial sync: {:?}",
+                        e
+                    );
+                    // Don't fail startup - env vars will be synced on next change
+                }
+            }
+
             // Trigger initial bridge client generation on start
             info!("Triggering initial bridge client generation...");
             match crate::logic::bridge::codegen::trigger_bridge_client_generation(
@@ -286,39 +359,6 @@ pub async fn create_api_service(
         system_shutdown_signal.subscribe(),
     )?;
 
-    // Perform initial secret sync to SDK
-    info!("Performing initial secret sync to SDK...");
-    let repository_arc = std::sync::Arc::new(repository.clone());
-    match crate::logic::secret_sync::fetch_and_decrypt_all_secrets(&repository_arc, &crypto_cache)
-        .await
-    {
-        Ok(secrets) => {
-            if !secrets.is_empty() {
-                info!("Found {} secrets to sync to SDK", secrets.len());
-                if let Ok(mut client) =
-                    shared::uds::create_soma_unix_socket_client(&socket_path_clone).await
-                {
-                    match crate::logic::secret_sync::sync_secrets_to_sdk(&mut client, secrets).await
-                    {
-                        Ok(()) => {
-                            info!("Initial secret sync completed successfully");
-                        }
-                        Err(e) => {
-                            warn!("Failed to perform initial secret sync: {:?}", e);
-                            // Don't fail startup - secrets will be synced on next change
-                        }
-                    }
-                }
-            } else {
-                info!("No secrets to sync on startup");
-            }
-        }
-        Err(e) => {
-            warn!("Failed to fetch secrets for initial sync: {:?}", e);
-            // Don't fail startup - secrets will be synced on next change
-        }
-    }
-
     // Start environment variable sync subsystem
     info!("Starting environment variable sync subsystem...");
     let env_var_sync_rx = environment_variable_change_tx.subscribe();
@@ -331,47 +371,9 @@ pub async fn create_api_service(
             system_shutdown_signal.subscribe(),
         )?;
 
-    // Perform initial environment variable sync to SDK
-    info!("Performing initial environment variable sync to SDK...");
-    match crate::logic::environment_variable_sync::fetch_all_environment_variables(&repository_arc)
-        .await
-    {
-        Ok(env_vars) => {
-            if !env_vars.is_empty() {
-                info!(
-                    "Found {} environment variables to sync to SDK",
-                    env_vars.len()
-                );
-                if let Ok(mut client) =
-                    shared::uds::create_soma_unix_socket_client(&socket_path_for_env_sync).await
-                {
-                    match crate::logic::environment_variable_sync::sync_environment_variables_to_sdk(
-                        &mut client,
-                        env_vars,
-                    )
-                    .await
-                    {
-                        Ok(()) => {
-                            info!("Initial environment variable sync completed successfully");
-                        }
-                        Err(e) => {
-                            warn!("Failed to perform initial environment variable sync: {:?}", e);
-                            // Don't fail startup - env vars will be synced on next change
-                        }
-                    }
-                }
-            } else {
-                info!("No environment variables to sync on startup");
-            }
-        }
-        Err(e) => {
-            warn!(
-                "Failed to fetch environment variables for initial sync: {:?}",
-                e
-            );
-            // Don't fail startup - env vars will be synced on next change
-        }
-    }
+    // Note: Initial sync of secrets and environment variables now happens AFTER SDK server
+    // healthcheck passes (see above, around line 171). This ensures the SDK server's gRPC
+    // handlers are fully registered before we try to sync.
 
     Ok(ApiServiceBundle {
         api_service,

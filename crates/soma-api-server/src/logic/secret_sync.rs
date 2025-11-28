@@ -73,7 +73,7 @@ pub async fn fetch_and_decrypt_all_secrets(
     Ok(all_secrets)
 }
 
-/// Sync secrets to the SDK via gRPC
+/// Sync secrets to the SDK via gRPC (for initial sync - sends all secrets)
 pub async fn sync_secrets_to_sdk(
     sdk_client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
         tonic::transport::Channel,
@@ -108,6 +108,67 @@ pub async fn sync_secrets_to_sdk(
         )),
         None => Err(CommonError::Unknown(anyhow::anyhow!(
             "SDK rejected secrets: unknown error"
+        ))),
+    }
+}
+
+/// Incrementally sync a single secret to the SDK via gRPC
+pub async fn sync_secret_to_sdk(
+    sdk_client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
+        tonic::transport::Channel,
+    >,
+    key: String,
+    value: String,
+) -> Result<(), CommonError> {
+    let request = tonic::Request::new(sdk_proto::SetSecretsRequest {
+        secrets: vec![sdk_proto::Secret { key, value }],
+    });
+
+    let response = sdk_client.set_secrets(request).await.map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!("Failed to call set_secrets RPC: {e}"))
+    })?;
+
+    let inner = response.into_inner();
+
+    match inner.kind {
+        Some(sdk_proto::set_secrets_response::Kind::Data(data)) => {
+            info!("Successfully synced secret to SDK: {}", data.message);
+            Ok(())
+        }
+        Some(sdk_proto::set_secrets_response::Kind::Error(error)) => Err(CommonError::Unknown(
+            anyhow::anyhow!("SDK rejected secret: {}", error.message),
+        )),
+        None => Err(CommonError::Unknown(anyhow::anyhow!(
+            "SDK rejected secret: unknown error"
+        ))),
+    }
+}
+
+/// Unset a secret in the SDK via gRPC
+pub async fn unset_secret_in_sdk(
+    sdk_client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
+        tonic::transport::Channel,
+    >,
+    key: String,
+) -> Result<(), CommonError> {
+    let request = tonic::Request::new(sdk_proto::UnsetSecretRequest { key });
+
+    let response = sdk_client.unset_secrets(request).await.map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!("Failed to call unset_secrets RPC: {e}"))
+    })?;
+
+    let inner = response.into_inner();
+
+    match inner.kind {
+        Some(sdk_proto::unset_secret_response::Kind::Data(data)) => {
+            info!("Successfully unset secret in SDK: {}", data.message);
+            Ok(())
+        }
+        Some(sdk_proto::unset_secret_response::Kind::Error(error)) => Err(CommonError::Unknown(
+            anyhow::anyhow!("SDK rejected unset secret: {}", error.message),
+        )),
+        None => Err(CommonError::Unknown(anyhow::anyhow!(
+            "SDK rejected unset secret: unknown error"
         ))),
     }
 }

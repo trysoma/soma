@@ -75,6 +75,7 @@ pub async fn fetch_all_environment_variables(
 /// This function interpolates environment variable values before sending:
 /// - Values starting with `$` are replaced with the host environment variable
 /// - Values starting with `$$` become literal `$` + rest of string
+/// Sync environment variables to the SDK via gRPC (for initial sync - sends all env vars)
 pub async fn sync_environment_variables_to_sdk(
     sdk_client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
         tonic::transport::Channel,
@@ -120,6 +121,92 @@ pub async fn sync_environment_variables_to_sdk(
         }
         None => Err(CommonError::Unknown(anyhow::anyhow!(
             "SDK rejected environment variables: unknown error"
+        ))),
+    }
+}
+
+/// Incrementally sync a single environment variable to the SDK via gRPC
+pub async fn sync_environment_variable_to_sdk(
+    sdk_client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
+        tonic::transport::Channel,
+    >,
+    key: String,
+    value: String,
+) -> Result<(), CommonError> {
+    let request = tonic::Request::new(sdk_proto::SetEnvironmentVariablesRequest {
+        environment_variables: vec![sdk_proto::EnvironmentVariable {
+            key,
+            value: interpolate_env_value(&value),
+        }],
+    });
+
+    let response = sdk_client
+        .set_environment_variables(request)
+        .await
+        .map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!(
+                "Failed to call set_environment_variables RPC: {e}"
+            ))
+        })?;
+
+    let inner = response.into_inner();
+
+    match inner.kind {
+        Some(sdk_proto::set_environment_variables_response::Kind::Data(data)) => {
+            info!(
+                "Successfully synced environment variable to SDK: {}",
+                data.message
+            );
+            Ok(())
+        }
+        Some(sdk_proto::set_environment_variables_response::Kind::Error(error)) => {
+            Err(CommonError::Unknown(anyhow::anyhow!(
+                "SDK rejected environment variable: {}",
+                error.message
+            )))
+        }
+        None => Err(CommonError::Unknown(anyhow::anyhow!(
+            "SDK rejected environment variable: unknown error"
+        ))),
+    }
+}
+
+/// Unset an environment variable in the SDK via gRPC
+pub async fn unset_environment_variable_in_sdk(
+    sdk_client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
+        tonic::transport::Channel,
+    >,
+    key: String,
+) -> Result<(), CommonError> {
+    let request = tonic::Request::new(sdk_proto::UnsetEnvironmentVariableRequest { key });
+
+    let response = sdk_client
+        .unset_environment_variables(request)
+        .await
+        .map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!(
+                "Failed to call unset_environment_variables RPC: {e}"
+            ))
+        })?;
+
+    let inner = response.into_inner();
+
+    match inner.kind {
+        Some(sdk_proto::unset_environment_variable_response::Kind::Data(data)) => {
+            info!(
+                "Successfully unset environment variable in SDK: {}",
+                data.message
+            );
+            Ok(())
+        }
+        Some(sdk_proto::unset_environment_variable_response::Kind::Error(error)) => {
+            Err(CommonError::Unknown(anyhow::anyhow!(
+                "SDK rejected unset environment variable: {}",
+                error.message
+            )))
+        }
+        None => Err(CommonError::Unknown(anyhow::anyhow!(
+            "SDK rejected unset environment variable: unknown error"
         ))),
     }
 }

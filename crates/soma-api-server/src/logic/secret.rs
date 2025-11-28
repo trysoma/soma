@@ -1,10 +1,15 @@
 use encryption::logic::crypto_services::CryptoCache;
 use schemars::JsonSchema;
+use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use serde::{Deserialize, Serialize};
 use shared::{
     error::CommonError,
     primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedUuidV4},
 };
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tonic::transport::Channel;
+use tracing::warn;
 use utoipa::ToSchema;
 
 use crate::{
@@ -71,10 +76,69 @@ pub struct ListDecryptedSecretsResponse {
 }
 
 // CRUD functions
+/// Helper to incrementally sync a single secret to SDK
+async fn sync_secret_to_sdk_incremental(
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+    crypto_cache: &CryptoCache,
+    key: String,
+    encrypted_secret: String,
+    dek_alias: String,
+) {
+    let mut sdk_client_guard = sdk_client.lock().await;
+
+    if let Some(ref mut client) = *sdk_client_guard {
+        // Get decryption service for this secret's DEK alias
+        match crypto_cache.get_decryption_service(&dek_alias).await {
+            Ok(decryption_service) => {
+                // Decrypt the secret value
+                use encryption::logic::crypto_services::EncryptedString;
+                match decryption_service
+                    .decrypt_data(EncryptedString(encrypted_secret))
+                    .await
+                {
+                    Ok(decrypted_value) => {
+                        use crate::logic::secret_sync::sync_secret_to_sdk;
+                        if let Err(e) =
+                            sync_secret_to_sdk(client, key.clone(), decrypted_value).await
+                        {
+                            warn!("Failed to sync secret '{}' to SDK: {:?}", key, e);
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to decrypt secret '{}': {:?}", key, e);
+                    }
+                }
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to get decryption service for DEK alias '{}': {:?}",
+                    dek_alias, e
+                );
+            }
+        }
+    }
+}
+
+/// Helper to unset a secret in SDK
+async fn unset_secret_in_sdk_incremental(
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+    key: String,
+) {
+    let mut sdk_client_guard = sdk_client.lock().await;
+
+    if let Some(ref mut client) = *sdk_client_guard {
+        use crate::logic::secret_sync::unset_secret_in_sdk;
+        if let Err(e) = unset_secret_in_sdk(client, key.clone()).await {
+            warn!("Failed to unset secret '{}' in SDK: {:?}", key, e);
+        }
+    }
+}
+
 pub async fn create_secret<R: SecretRepositoryLike>(
     on_change_tx: &SecretChangeTx,
     repository: &R,
     crypto_cache: &CryptoCache,
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
     request: CreateSecretRequest,
     publish_on_change_evt: bool,
 ) -> Result<CreateSecretResponse, CommonError> {
@@ -109,6 +173,16 @@ pub async fn create_secret<R: SecretRepositoryLike>(
 
     repository.create_secret(&create_params).await?;
 
+    // Incrementally sync the new secret to SDK
+    sync_secret_to_sdk_incremental(
+        sdk_client,
+        crypto_cache,
+        secret.key.clone(),
+        secret.encrypted_secret.clone(),
+        secret.dek_alias.clone(),
+    )
+    .await;
+
     if publish_on_change_evt {
         on_change_tx
             .send(SecretChangeEvt::Created(secret.clone()))
@@ -124,6 +198,7 @@ pub async fn update_secret<R: SecretRepositoryLike>(
     on_change_tx: &SecretChangeTx,
     repository: &R,
     crypto_cache: &CryptoCache,
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
     id: WrappedUuidV4,
     request: UpdateSecretRequest,
     publish_on_change_evt: bool,
@@ -155,6 +230,16 @@ pub async fn update_secret<R: SecretRepositoryLike>(
 
     repository.update_secret(&update_params).await?;
 
+    // Incrementally sync the updated secret to SDK
+    sync_secret_to_sdk_incremental(
+        sdk_client,
+        crypto_cache,
+        existing.key.clone(),
+        encrypted_secret.0.clone(),
+        existing.dek_alias.clone(),
+    )
+    .await;
+
     let updated_secret = Secret {
         id,
         key: existing.key,
@@ -178,6 +263,8 @@ pub async fn update_secret<R: SecretRepositoryLike>(
 pub async fn delete_secret<R: SecretRepositoryLike>(
     on_change_tx: &SecretChangeTx,
     repository: &R,
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+    crypto_cache: &CryptoCache,
     id: WrappedUuidV4,
     publish_on_change_evt: bool,
 ) -> Result<DeleteSecretResponse, CommonError> {
@@ -190,6 +277,9 @@ pub async fn delete_secret<R: SecretRepositoryLike>(
     })?;
 
     repository.delete_secret(&id).await?;
+
+    // Unset the deleted secret in SDK
+    unset_secret_in_sdk_incremental(sdk_client, existing.key.clone()).await;
 
     if publish_on_change_evt {
         on_change_tx
@@ -330,6 +420,10 @@ mod tests {
     use crate::test::encryption_service::setup_test_encryption;
     use shared::primitives::SqlMigrationLoader;
 
+    fn create_test_sdk_client() -> Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>> {
+        Arc::new(Mutex::new(None::<SomaSdkServiceClient<Channel>>))
+    }
+
     async fn setup_test_repository() -> Repository {
         let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
             <Repository as SqlMigrationLoader>::load_sql_migrations(),
@@ -344,6 +438,7 @@ mod tests {
         let encryption_setup = setup_test_encryption("test-alias").await;
         let repository = setup_test_repository().await;
         let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+        let sdk_client = create_test_sdk_client();
 
         let request = CreateSecretRequest {
             key: "my-secret-key".to_string(),
@@ -355,6 +450,7 @@ mod tests {
             &on_change_tx,
             &repository,
             &encryption_setup.crypto_cache,
+            &sdk_client,
             request.clone(),
             true,
         )
@@ -384,6 +480,7 @@ mod tests {
         let encryption_setup = setup_test_encryption("test-alias").await;
         let repository = setup_test_repository().await;
         let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+        let sdk_client = create_test_sdk_client();
 
         // Create a secret first
         let create_request = CreateSecretRequest {
@@ -396,6 +493,7 @@ mod tests {
             &on_change_tx,
             &repository,
             &encryption_setup.crypto_cache,
+            &sdk_client,
             create_request,
             false,
         )
@@ -411,6 +509,7 @@ mod tests {
             &on_change_tx,
             &repository,
             &encryption_setup.crypto_cache,
+            &sdk_client,
             created.id.clone(),
             update_request,
             true,
@@ -438,6 +537,7 @@ mod tests {
         let encryption_setup = setup_test_encryption("test-alias").await;
         let repository = setup_test_repository().await;
         let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+        let sdk_client = create_test_sdk_client();
 
         // Create a secret first
         let create_request = CreateSecretRequest {
@@ -450,6 +550,7 @@ mod tests {
             &on_change_tx,
             &repository,
             &encryption_setup.crypto_cache,
+            &sdk_client,
             create_request,
             false,
         )
@@ -457,7 +558,15 @@ mod tests {
         .unwrap();
 
         // Delete the secret
-        let result = delete_secret(&on_change_tx, &repository, created.id.clone(), true).await;
+        let result = delete_secret(
+            &on_change_tx,
+            &repository,
+            &sdk_client,
+            &encryption_setup.crypto_cache,
+            created.id.clone(),
+            true,
+        )
+        .await;
 
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -484,6 +593,7 @@ mod tests {
         let encryption_setup = setup_test_encryption("test-alias").await;
         let repository = setup_test_repository().await;
         let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+        let sdk_client = create_test_sdk_client();
 
         // Create a secret first
         let create_request = CreateSecretRequest {
@@ -496,6 +606,7 @@ mod tests {
             &on_change_tx,
             &repository,
             &encryption_setup.crypto_cache,
+            &sdk_client,
             create_request,
             false,
         )
@@ -516,6 +627,7 @@ mod tests {
         let encryption_setup = setup_test_encryption("test-alias").await;
         let repository = setup_test_repository().await;
         let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+        let sdk_client = create_test_sdk_client();
 
         // Create a secret first
         let create_request = CreateSecretRequest {
@@ -528,6 +640,7 @@ mod tests {
             &on_change_tx,
             &repository,
             &encryption_setup.crypto_cache,
+            &sdk_client,
             create_request,
             false,
         )
@@ -550,6 +663,7 @@ mod tests {
         let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
 
         // Create multiple secrets
+        let sdk_client = create_test_sdk_client();
         for i in 0..3 {
             let create_request = CreateSecretRequest {
                 key: format!("secret-key-{i}"),
@@ -561,6 +675,7 @@ mod tests {
                 &on_change_tx,
                 &repository,
                 &encryption_setup.crypto_cache,
+                &sdk_client,
                 create_request,
                 false,
             )
@@ -601,6 +716,7 @@ mod tests {
         let encryption_setup = setup_test_encryption("test-alias").await;
         let repository = setup_test_repository().await;
         let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+        let sdk_client = create_test_sdk_client();
 
         let request = CreateSecretRequest {
             key: "my-secret-key".to_string(),
@@ -612,6 +728,7 @@ mod tests {
             &on_change_tx,
             &repository,
             &encryption_setup.crypto_cache,
+            &sdk_client,
             request,
             false, // Don't publish
         )

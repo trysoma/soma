@@ -16,11 +16,14 @@ use crate::{
     logic::on_change_pubsub::EnvironmentVariableChangeTx,
     repository::Repository,
 };
+use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use shared::{
     adapters::openapi::JsonResponse,
     error::CommonError,
     primitives::{PaginationRequest, WrappedUuidV4},
 };
+use tokio::sync::Mutex;
+use tonic::transport::Channel;
 
 pub const PATH_PREFIX: &str = "/api";
 pub const API_VERSION_1: &str = "v1";
@@ -57,7 +60,14 @@ async fn route_create_environment_variable(
     State(ctx): State<Arc<EnvironmentVariableService>>,
     Json(request): Json<CreateEnvironmentVariableRequest>,
 ) -> JsonResponse<CreateEnvironmentVariableResponse, CommonError> {
-    let res = create_environment_variable(&ctx.on_change_tx, &ctx.repository, request, true).await;
+    let res = create_environment_variable(
+        &ctx.on_change_tx,
+        &ctx.repository,
+        &ctx.sdk_client,
+        request,
+        true,
+    )
+    .await;
     JsonResponse::from(res)
 }
 
@@ -193,6 +203,7 @@ async fn route_update_environment_variable(
     let res = update_environment_variable(
         &ctx.on_change_tx,
         &ctx.repository,
+        &ctx.sdk_client,
         env_var_id,
         request,
         true,
@@ -224,21 +235,33 @@ async fn route_delete_environment_variable(
     State(ctx): State<Arc<EnvironmentVariableService>>,
     Path(env_var_id): Path<WrappedUuidV4>,
 ) -> JsonResponse<DeleteEnvironmentVariableResponse, CommonError> {
-    let res =
-        delete_environment_variable(&ctx.on_change_tx, &ctx.repository, env_var_id, true).await;
+    let res = delete_environment_variable(
+        &ctx.on_change_tx,
+        &ctx.repository,
+        &ctx.sdk_client,
+        env_var_id,
+        true,
+    )
+    .await;
     JsonResponse::from(res)
 }
 
 pub struct EnvironmentVariableService {
     repository: Repository,
     on_change_tx: EnvironmentVariableChangeTx,
+    sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
 }
 
 impl EnvironmentVariableService {
-    pub fn new(repository: Repository, on_change_tx: EnvironmentVariableChangeTx) -> Self {
+    pub fn new(
+        repository: Repository,
+        on_change_tx: EnvironmentVariableChangeTx,
+        sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+    ) -> Self {
         Self {
             repository,
             on_change_tx,
+            sdk_client,
         }
     }
 }

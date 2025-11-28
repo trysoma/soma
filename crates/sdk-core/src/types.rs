@@ -510,7 +510,7 @@ pub struct SetSecretsSuccess {
     pub message: String,
 }
 
-impl From<SetSecretsSuccess> for sdk_proto::SetSecretsSuccess {
+impl From<SetSecretsSuccess> for sdk_proto::CallbackSuccess {
     fn from(success: SetSecretsSuccess) -> Self {
         Self {
             message: success.message,
@@ -530,7 +530,9 @@ impl From<SetSecretsResponse> for sdk_proto::SetSecretsResponse {
 
         Self {
             kind: match response.result {
-                Ok(data) => Some(Kind::Data(data.into())),
+                Ok(data) => Some(Kind::Data(sdk_proto::CallbackSuccess {
+                    message: data.message,
+                })),
                 Err(error) => Some(Kind::Error(error.into())),
             },
         }
@@ -574,7 +576,7 @@ pub struct SetEnvironmentVariablesSuccess {
     pub message: String,
 }
 
-impl From<SetEnvironmentVariablesSuccess> for sdk_proto::SetEnvironmentVariablesSuccess {
+impl From<SetEnvironmentVariablesSuccess> for sdk_proto::CallbackSuccess {
     fn from(success: SetEnvironmentVariablesSuccess) -> Self {
         Self {
             message: success.message,
@@ -594,7 +596,9 @@ impl From<SetEnvironmentVariablesResponse> for sdk_proto::SetEnvironmentVariable
 
         Self {
             kind: match response.result {
-                Ok(data) => Some(Kind::Data(data.into())),
+                Ok(data) => Some(Kind::Data(sdk_proto::CallbackSuccess {
+                    message: data.message,
+                })),
                 Err(error) => Some(Kind::Error(error.into())),
             },
         }
@@ -606,6 +610,120 @@ pub type EnvironmentVariableHandler = Arc<
     dyn Fn(
             Vec<EnvironmentVariable>,
         ) -> BoxFuture<'static, Result<SetEnvironmentVariablesResponse, CommonError>>
+        + Send
+        + Sync
+        + 'static,
+>;
+
+// Unset secret types
+#[derive(Debug, Clone)]
+pub struct UnsetSecretRequest {
+    pub key: String,
+}
+
+impl From<sdk_proto::UnsetSecretRequest> for UnsetSecretRequest {
+    fn from(proto: sdk_proto::UnsetSecretRequest) -> Self {
+        Self { key: proto.key }
+    }
+}
+
+impl From<UnsetSecretRequest> for sdk_proto::UnsetSecretRequest {
+    fn from(req: UnsetSecretRequest) -> Self {
+        Self { key: req.key }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct UnsetSecretSuccess {
+    pub message: String,
+}
+
+impl From<UnsetSecretSuccess> for sdk_proto::CallbackSuccess {
+    fn from(success: UnsetSecretSuccess) -> Self {
+        Self {
+            message: success.message,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct UnsetSecretResponse {
+    pub result: Result<UnsetSecretSuccess, CallbackError>,
+}
+
+impl From<UnsetSecretResponse> for sdk_proto::UnsetSecretResponse {
+    fn from(response: UnsetSecretResponse) -> Self {
+        use sdk_proto::unset_secret_response::Kind;
+
+        Self {
+            kind: match response.result {
+                Ok(data) => Some(Kind::Data(data.into())),
+                Err(error) => Some(Kind::Error(error.into())),
+            },
+        }
+    }
+}
+
+/// Type alias for the unset secret handler callback
+pub type UnsetSecretHandler = Arc<
+    dyn Fn(String) -> BoxFuture<'static, Result<UnsetSecretResponse, CommonError>>
+        + Send
+        + Sync
+        + 'static,
+>;
+
+// Unset environment variable types
+#[derive(Debug, Clone)]
+pub struct UnsetEnvironmentVariableRequest {
+    pub key: String,
+}
+
+impl From<sdk_proto::UnsetEnvironmentVariableRequest> for UnsetEnvironmentVariableRequest {
+    fn from(proto: sdk_proto::UnsetEnvironmentVariableRequest) -> Self {
+        Self { key: proto.key }
+    }
+}
+
+impl From<UnsetEnvironmentVariableRequest> for sdk_proto::UnsetEnvironmentVariableRequest {
+    fn from(req: UnsetEnvironmentVariableRequest) -> Self {
+        Self { key: req.key }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct UnsetEnvironmentVariableSuccess {
+    pub message: String,
+}
+
+impl From<UnsetEnvironmentVariableSuccess> for sdk_proto::CallbackSuccess {
+    fn from(success: UnsetEnvironmentVariableSuccess) -> Self {
+        Self {
+            message: success.message,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct UnsetEnvironmentVariableResponse {
+    pub result: Result<UnsetEnvironmentVariableSuccess, CallbackError>,
+}
+
+impl From<UnsetEnvironmentVariableResponse> for sdk_proto::UnsetEnvironmentVariableResponse {
+    fn from(response: UnsetEnvironmentVariableResponse) -> Self {
+        use sdk_proto::unset_environment_variable_response::Kind;
+
+        Self {
+            kind: match response.result {
+                Ok(data) => Some(Kind::Data(data.into())),
+                Err(error) => Some(Kind::Error(error.into())),
+            },
+        }
+    }
+}
+
+/// Type alias for the unset environment variable handler callback
+pub type UnsetEnvironmentVariableHandler = Arc<
+    dyn Fn(String) -> BoxFuture<'static, Result<UnsetEnvironmentVariableResponse, CommonError>>
         + Send
         + Sync
         + 'static,

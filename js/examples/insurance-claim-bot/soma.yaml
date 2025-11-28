@@ -6,5 +6,32 @@ encryption:
       deks:
         default:
           encrypted_key: NLaHYv8d3PX2AqYDzcywdR/fRiGw2Kou85f1SZBvGjJKdqlQSZRRWrNwwQQs9u71lPCR/DrMcUr9mg7f
+bridge:
+  providers:
+    ac8180e0-efca-41a3-b23f-2baab4cd3811:
+      provider_controller_type_id: approve-claim
+      credential_controller_type_id: no_auth
+      display_name: internal
+      resource_server_credential:
+        id: 752a0560-63c6-41fb-8ac5-8358ef94e9fe
+        type_id: resource_server_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        dek_alias: default
+      user_credential:
+        id: f8051d0e-3a9d-4853-8bbb-f6d4804c36fd
+        type_id: user_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        dek_alias: default
+      functions:
+      - approve-claim
+secrets:
+  OPENAI_API_KEY:
+    value: lI9Ng0cz5OoCbVEtrWUrxZsR+4i6EDoqArpYcjdBzRHcsz7wfuhih2xkp0ZOyCNv03pmbBC7fMp1gIb5B37IKBIplgRMjERMrPj4M3NuUF4NUkxTC6yRivoFH0A5tafvEQtu0ggVLYAPrd3y7fyZJNcgL+BG9lYauEAAOzTFzOKJ5/wYV9ua2D7LYJj/pvyAfgRxnRY6dTPhv1G+HLFigGjVGPPcMaoueXlVMgXeN16bnAJVDX78+5Z8ipd0+T0+61g6vIp8xTITVe9cT1JX7g/x0ZJVe/AL4EtZOwZbntsfeqVOzXTIPIZfK+3Shm1eseNXxUC7rjnymEToVMJ2RoYwzIH77IhhS/JyB+tGNtUgrkNL112UhjO2kCjZd/ES8bq3lgaaHTEQouTbFdEi7+3zskuIluk5qpHsR9YgLFZuUTTe11lH3KEmbRirIBgnQhX42sNOv0t9nKAgKpYH80UKlMuRKJLHGotiswfJhjAj6EigskrdDQ97c1TFsRq/Nm/HlA+cjI5ad8Jj1tswVZxkOK4LW1RDN+iAkDb+zsoPx7f6tDr+GChy7JeUOtszRh8jkY/wcWRU6MKPTRCjAKWD4EL4uu8LRFISw0hWfg8s4BzH5IWWCpH+HL/MNoWH47TVsjIEuiJ72B8jvefvzcbajV6yPRFBYUXsOV0kaxmxiz+CAebfmtT4zA93Ele+4m6m2ewaoY8cttePEhPeNF6zYP5bXE3eaDXtET0rxZsGHYsJXq6rNg==
+    dek_alias: default
 environment_variables:
-  HELLO: '123'
+  HELLO_2: '1234'
+  HELLO_3: '12'

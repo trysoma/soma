@@ -43,6 +43,13 @@ pub struct ApiService {
     pub encryption_service: encryption::router::EncryptionService,
     pub secret_service: Arc<SecretService>,
     pub environment_variable_service: Arc<EnvironmentVariableService>,
+    pub sdk_client: Arc<
+        tokio::sync::Mutex<
+            Option<
+                sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<tonic::transport::Channel>,
+            >,
+        >,
+    >,
 }
 
 pub struct InitApiServiceParams {
@@ -111,11 +118,14 @@ impl ApiService {
             init_params.repository.clone(),
             encryption_service.clone(),
             init_params.on_secret_change_tx.clone(),
+            init_params.sdk_client.clone(),
+            init_params.crypto_cache.clone(),
         ));
 
         let environment_variable_service = Arc::new(EnvironmentVariableService::new(
             init_params.repository.clone(),
             init_params.on_environment_variable_change_tx.clone(),
+            init_params.sdk_client.clone(),
         ));
 
         Ok(Self {
@@ -126,6 +136,7 @@ impl ApiService {
             encryption_service,
             secret_service,
             environment_variable_service,
+            sdk_client: init_params.sdk_client,
         })
     }
 }

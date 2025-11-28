@@ -62,8 +62,28 @@ async function invokeBridgeFunction<TParams, TResult>(
 
 
 
+export type ApproveClaimApproveClaimParams = { claim: { amount: number; category: string; date: string; email: string; reason: string } };
+export type ApproveClaimApproveClaimResult = { approved: boolean };
+
+
+
+
+
+// Provider: approve-claim
+export interface ApproveClaim {
+  
+  "internal": {
+    
+    approveClaim: (params: ApproveClaimApproveClaimParams) => Promise<ApproveClaimApproveClaimResult>;
+    
+  };
+  
+}
+
 
 export interface Bridge {
+  
+  approveClaim: ApproveClaim;
   
 }
 
@@ -72,8 +92,31 @@ export type BridgeDefinition = Bridge;
 export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
   const baseUrl = config?.SOMA_BASE_URL || process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000';
   
+  const approveClaim: ApproveClaim = {
+    
+    "internal": {
+      
+      approveClaim: async (params: ApproveClaimApproveClaimParams): Promise<ApproveClaimApproveClaimResult> => {
+        return invokeBridgeFunction<ApproveClaimApproveClaimParams, ApproveClaimApproveClaimResult>(
+          ctx,
+          'approve-claim',
+          'internal',
+          'approveClaim',
+          'ac8180e0-efca-41a3-b23f-2baab4cd3811',
+          'approve-claim',
+          params,
+          baseUrl
+        );
+      },
+      
+    },
+    
+  };
+  
 
   return {
+    
+    approveClaim: approveClaim,
     
   };
 }

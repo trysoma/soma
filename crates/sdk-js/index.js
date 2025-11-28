@@ -784,7 +784,12 @@ module.exports.addProvider = nativeBinding.addProvider;
 module.exports.removeAgent = nativeBinding.removeAgent;
 module.exports.removeFunction = nativeBinding.removeFunction;
 module.exports.removeProvider = nativeBinding.removeProvider;
+module.exports.setEnvironmentVariableHandler =
+	nativeBinding.setEnvironmentVariableHandler;
 module.exports.setSecretHandler = nativeBinding.setSecretHandler;
+module.exports.setUnsetEnvironmentVariableHandler =
+	nativeBinding.setUnsetEnvironmentVariableHandler;
+module.exports.setUnsetSecretHandler = nativeBinding.setUnsetSecretHandler;
 module.exports.startGrpcServer = nativeBinding.startGrpcServer;
 module.exports.updateAgent = nativeBinding.updateAgent;
 module.exports.updateFunction = nativeBinding.updateFunction;

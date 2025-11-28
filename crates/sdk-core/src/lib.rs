@@ -31,6 +31,8 @@ pub struct GrpcService<G: SdkCodeGenerator> {
     code_generator: Arc<G>,
     secret_handler: ArcSwap<Option<SecretHandler>>,
     environment_variable_handler: ArcSwap<Option<EnvironmentVariableHandler>>,
+    unset_secret_handler: ArcSwap<Option<UnsetSecretHandler>>,
+    unset_environment_variable_handler: ArcSwap<Option<UnsetEnvironmentVariableHandler>>,
 }
 
 #[tonic::async_trait]
@@ -213,6 +215,83 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
 
         Ok(Response::new(result.into()))
     }
+
+    async fn unset_secrets(
+        &self,
+        request: Request<sdk_proto::UnsetSecretRequest>,
+    ) -> Result<Response<sdk_proto::UnsetSecretResponse>, Status> {
+        use sdk_proto::unset_secret_response::Kind;
+        info!("unset_secrets called with key: {}", request.get_ref().key);
+
+        let proto_req = request.into_inner();
+        let req: UnsetSecretRequest = proto_req.into();
+
+        // Get the unset secret handler
+        let handler_guard = self.unset_secret_handler.load();
+        let handler = match handler_guard.as_ref() {
+            Some(h) => h.clone(),
+            None => {
+                info!("No unset secret handler registered");
+                return Ok(Response::new(sdk_proto::UnsetSecretResponse {
+                    kind: Some(Kind::Error(sdk_proto::CallbackError {
+                        message: "No unset secret handler registered".to_string(),
+                    })),
+                }));
+            }
+        };
+        // Call the handler
+        info!("invoking unset secret handler");
+
+        let result = handler(req.key)
+            .await
+            .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
+
+        info!("unset_secrets result: {:?}", result);
+
+        let result = result?;
+
+        Ok(Response::new(result.into()))
+    }
+
+    async fn unset_environment_variables(
+        &self,
+        request: Request<sdk_proto::UnsetEnvironmentVariableRequest>,
+    ) -> Result<Response<sdk_proto::UnsetEnvironmentVariableResponse>, Status> {
+        use sdk_proto::unset_environment_variable_response::Kind;
+        info!(
+            "unset_environment_variables called with key: {}",
+            request.get_ref().key
+        );
+
+        let proto_req = request.into_inner();
+        let req: UnsetEnvironmentVariableRequest = proto_req.into();
+
+        // Get the unset environment variable handler
+        let handler_guard = self.unset_environment_variable_handler.load();
+        let handler = match handler_guard.as_ref() {
+            Some(h) => h.clone(),
+            None => {
+                info!("No unset environment variable handler registered");
+                return Ok(Response::new(sdk_proto::UnsetEnvironmentVariableResponse {
+                    kind: Some(Kind::Error(sdk_proto::CallbackError {
+                        message: "No unset environment variable handler registered".to_string(),
+                    })),
+                }));
+            }
+        };
+        // Call the handler
+        info!("invoking unset environment variable handler");
+
+        let result = handler(req.key)
+            .await
+            .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
+
+        info!("unset_environment_variables result: {:?}", result);
+
+        let result = result?;
+
+        Ok(Response::new(result.into()))
+    }
 }
 
 impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
@@ -223,6 +302,8 @@ impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
             code_generator: Arc::new(code_generator),
             secret_handler: ArcSwap::from_pointee(None),
             environment_variable_handler: ArcSwap::from_pointee(None),
+            unset_secret_handler: ArcSwap::from_pointee(None),
+            unset_environment_variable_handler: ArcSwap::from_pointee(None),
         }
     }
 
@@ -234,6 +315,17 @@ impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
     /// Set the environment variable handler callback that will be invoked when environment variables are synced
     pub fn set_environment_variable_handler(&self, handler: EnvironmentVariableHandler) {
         self.environment_variable_handler
+            .store(Arc::new(Some(handler)));
+    }
+
+    /// Set the unset secret handler callback that will be invoked when a secret is unset
+    pub fn set_unset_secret_handler(&self, handler: UnsetSecretHandler) {
+        self.unset_secret_handler.store(Arc::new(Some(handler)));
+    }
+
+    /// Set the unset environment variable handler callback that will be invoked when an environment variable is unset
+    pub fn set_unset_environment_variable_handler(&self, handler: UnsetEnvironmentVariableHandler) {
+        self.unset_environment_variable_handler
             .store(Arc::new(Some(handler)));
     }
 
@@ -491,5 +583,19 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcServiceWrapper<G> {
         request: Request<sdk_proto::SetEnvironmentVariablesRequest>,
     ) -> Result<Response<sdk_proto::SetEnvironmentVariablesResponse>, Status> {
         self.0.set_environment_variables(request).await
+    }
+
+    async fn unset_secrets(
+        &self,
+        request: Request<sdk_proto::UnsetSecretRequest>,
+    ) -> Result<Response<sdk_proto::UnsetSecretResponse>, Status> {
+        self.0.unset_secrets(request).await
+    }
+
+    async fn unset_environment_variables(
+        &self,
+        request: Request<sdk_proto::UnsetEnvironmentVariableRequest>,
+    ) -> Result<Response<sdk_proto::UnsetEnvironmentVariableResponse>, Status> {
+        self.0.unset_environment_variables(request).await
     }
 }

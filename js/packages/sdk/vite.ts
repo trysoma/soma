@@ -240,8 +240,8 @@ function generateStandaloneServer(
 
 	return `/// <reference types="node" />
 // Auto-generated standalone server
-import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler, setEnvironmentVariableHandler } from '@trysoma/sdk';
-import type { Secret, SetSecretsResponse, SetSecretsSuccess, CallbackError, EnvironmentVariable, SetEnvironmentVariablesResponse, SetEnvironmentVariablesSuccess } from '@trysoma/sdk';
+import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler, setEnvironmentVariableHandler, setUnsetSecretHandler, setUnsetEnvironmentVariableHandler } from '@trysoma/sdk';
+import type { Secret, SetSecretsResponse, SetSecretsSuccess, CallbackError, EnvironmentVariable, SetEnvironmentVariablesResponse, SetEnvironmentVariablesSuccess, UnsetSecretResponse, UnsetSecretSuccess, UnsetEnvironmentVariableResponse, UnsetEnvironmentVariableSuccess } from '@trysoma/sdk';
 import * as restate from '@restatedev/restate-sdk';
 import * as http2 from 'http2';
 
@@ -323,6 +323,62 @@ setEnvironmentVariableHandler(async (err, envVars) => {
   return res;
 });
 console.log('[INFO] Environment variable handler registered successfully');
+
+// Register unset secret handler to remove secrets from process.env
+console.log('[INFO] Registering unset secret handler...');
+setUnsetSecretHandler(async (err, key) => {
+  if (err) {
+    console.error('Error in unset secret handler:', err);
+    const error: CallbackError = {
+      message: err.message,
+    }
+    const res: UnsetSecretResponse = {
+      error
+    }
+    return res;
+  }
+  console.log(\`[INFO] Unset secret handler invoked with key: \${key}\`);
+  delete process.env[key];
+  console.log(\`[INFO] Removed process.env.\${key}\`);
+  const message = \`Removed secret '\${key}' from process.env\`;
+  console.log(\`[INFO] Unset secret handler completed: \${message}\`);
+  const data: UnsetSecretSuccess = {
+    message,
+  }
+  const res: UnsetSecretResponse = {
+    data,
+  }
+  return res;
+});
+console.log('[INFO] Unset secret handler registered successfully');
+
+// Register unset environment variable handler to remove environment variables from process.env
+console.log('[INFO] Registering unset environment variable handler...');
+setUnsetEnvironmentVariableHandler(async (err, key) => {
+  if (err) {
+    console.error('Error in unset environment variable handler:', err);
+    const error: CallbackError = {
+      message: err.message,
+    }
+    const res: UnsetEnvironmentVariableResponse = {
+      error
+    }
+    return res;
+  }
+  console.log(\`[INFO] Unset environment variable handler invoked with key: \${key}\`);
+  delete process.env[key];
+  console.log(\`[INFO] Removed process.env.\${key}\`);
+  const message = \`Removed environment variable '\${key}' from process.env\`;
+  console.log(\`[INFO] Unset environment variable handler completed: \${message}\`);
+  const data: UnsetEnvironmentVariableSuccess = {
+    message,
+  }
+  const res: UnsetEnvironmentVariableResponse = {
+    data,
+  }
+  return res;
+});
+console.log('[INFO] Unset environment variable handler registered successfully');
 
 // Register all providers and functions
 ${functionRegistrations.join("\n")}

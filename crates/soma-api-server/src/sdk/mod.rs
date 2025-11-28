@@ -224,7 +224,13 @@ async fn fetch_and_sync_providers(socket_path: &str) -> Result<Vec<sdk_proto::Ag
 
     info!("Agent count: {}", metadata.agents.len());
     for (i, agent) in metadata.agents.iter().enumerate() {
-        info!("Agent {}: id={}, name={}", i + 1, agent.id, agent.name);
+        info!(
+            "Agent {}: id={}, project_id={}, name={}",
+            i + 1,
+            agent.id,
+            agent.project_id,
+            agent.name
+        );
     }
 
     info!("=== End SDK Metadata ===");
@@ -258,7 +264,10 @@ async fn register_agent_deployments(
         // Use the project_id.agent_id format as the service path (matches Restate service name)
         let service_path = format!("{}.{}", agent.project_id, agent.id);
 
-        info!("Registering agent '{}' at {}", agent.name, service_uri);
+        info!(
+            "Registering agent '{}' (project_id={}, agent_id={}) at {} with service path: {}",
+            agent.name, agent.project_id, agent.id, service_uri, service_path
+        );
 
         let admin_url = restate_params.get_admin_address()?;
         let config = restate::deploy::DeploymentRegistrationConfig {

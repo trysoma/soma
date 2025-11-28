@@ -39,6 +39,11 @@ export default createSomaFunction({
 	},
 	handler: async ({ claim }) => {
 		console.log("Claim", claim);
+		console.log("HELLO_3", process.env.HELLO_3);
+		console.log("HELLO_2", process.env.HELLO_2);
+		console.log("OPENAI_API_KEY", process.env.OPENAI_API_KEY);
+		console.log(process.env);
+
 		// perform an async action here to approve the claim
 		return { approved: true };
 	},

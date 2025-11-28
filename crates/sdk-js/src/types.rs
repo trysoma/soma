@@ -179,3 +179,31 @@ pub struct SetEnvironmentVariablesResponse {
     pub data: Option<SetEnvironmentVariablesSuccess>,
     pub error: Option<CallbackError>,
 }
+
+// Unset secret types
+#[derive(Debug, Clone)]
+#[napi(object)]
+pub struct UnsetSecretSuccess {
+    pub message: String,
+}
+
+#[derive(Debug, Clone)]
+#[napi(object)]
+pub struct UnsetSecretResponse {
+    pub data: Option<UnsetSecretSuccess>,
+    pub error: Option<CallbackError>,
+}
+
+// Unset environment variable types
+#[derive(Debug, Clone)]
+#[napi(object)]
+pub struct UnsetEnvironmentVariableSuccess {
+    pub message: String,
+}
+
+#[derive(Debug, Clone)]
+#[napi(object)]
+pub struct UnsetEnvironmentVariableResponse {
+    pub data: Option<UnsetEnvironmentVariableSuccess>,
+    pub error: Option<CallbackError>,
+}
