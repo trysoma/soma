@@ -1,4 +1,5 @@
 use axum::extract::State;
+use encryption::logic::crypto_services::CryptoCache;
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -23,6 +24,7 @@ pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {
         .routes(routes!(route_health))
         .routes(routes!(route_runtime_config))
         .routes(routes!(route_trigger_codegen))
+        .routes(routes!(route_resync_sdk))
 }
 
 #[utoipa::path(
@@ -82,12 +84,41 @@ async fn route_trigger_codegen(
     JsonResponse::from(response)
 }
 
+#[utoipa::path(
+    post,
+    path = format!("{}/{}/resync_sdk", PATH_PREFIX, API_VERSION_1),
+    tags = ["_internal", API_VERSION_TAG],
+    responses(
+        (status = 200, description = "SDK resynced successfully", body = ResyncSdkResponse),
+        (status = 400, description = "Bad Request", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Resync SDK",
+    description = "Resync providers, agents, secrets, and environment variables between API server and SDK",
+    operation_id = "resync-sdk",
+)]
+async fn route_resync_sdk(
+    State(ctx): State<Arc<InternalService>>,
+) -> JsonResponse<ResyncSdkResponse, CommonError> {
+    let response = ctx.resync_sdk().await;
+    JsonResponse::from(response)
+}
+
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct RuntimeConfig {}
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct TriggerCodegenResponse {
     pub message: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct ResyncSdkResponse {
+    pub message: String,
+    pub providers_synced: usize,
+    pub agents_synced: usize,
+    pub secrets_synced: usize,
+    pub env_vars_synced: usize,
 }
 
 async fn runtime_config() -> Result<RuntimeConfig, CommonError> {
@@ -97,16 +128,28 @@ async fn runtime_config() -> Result<RuntimeConfig, CommonError> {
 pub struct InternalService {
     bridge_service: bridge::router::bridge::BridgeService,
     sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+    repository: std::sync::Arc<crate::repository::Repository>,
+    crypto_cache: CryptoCache,
+    restate_params: crate::restate::RestateServerParams,
+    sdk_port: u16,
 }
 
 impl InternalService {
     pub fn new(
         bridge_service: bridge::router::bridge::BridgeService,
         sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+        repository: std::sync::Arc<crate::repository::Repository>,
+        crypto_cache: CryptoCache,
+        restate_params: crate::restate::RestateServerParams,
+        sdk_port: u16,
     ) -> Self {
         Self {
             bridge_service,
             sdk_client,
+            repository,
+            crypto_cache,
+            restate_params,
+            sdk_port,
         }
     }
 
@@ -138,5 +181,24 @@ impl InternalService {
                 "SDK client not available. Please ensure the SDK server is running."
             )))
         }
+    }
+
+    /// Resync SDK: sync providers, agents, secrets, and environment variables
+    pub async fn resync_sdk(&self) -> Result<ResyncSdkResponse, CommonError> {
+        let result = crate::logic::internal::resync_sdk(
+            &self.repository,
+            &self.crypto_cache,
+            &self.restate_params,
+            self.sdk_port,
+        )
+        .await?;
+
+        Ok(ResyncSdkResponse {
+            message: "SDK resynced successfully".to_string(),
+            providers_synced: result.providers_synced,
+            agents_synced: result.agents_synced,
+            secrets_synced: result.secrets_synced,
+            env_vars_synced: result.env_vars_synced,
+        })
     }
 }

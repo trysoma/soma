@@ -12,7 +12,9 @@ use shared::soma_agent_definition::{
     EnvelopeKeyConfig, EnvelopeKeyConfigAwsKms, EnvelopeKeyConfigLocal, SecretConfig,
     SomaAgentDefinitionLike,
 };
-use soma_api_server::logic::on_change_pubsub::{SecretChangeEvt, SomaChangeEvt, SomaChangeRx};
+use soma_api_server::logic::on_change_pubsub::{
+    EnvironmentVariableChangeEvt, SecretChangeEvt, SomaChangeEvt, SomaChangeRx,
+};
 
 /// Watches for unified soma change events and updates soma.yaml accordingly
 pub async fn sync_on_soma_change(
@@ -42,6 +44,9 @@ pub async fn sync_on_soma_change(
             }
             SomaChangeEvt::Secret(secret_evt) => {
                 handle_secret_event(secret_evt, &soma_definition).await?;
+            }
+            SomaChangeEvt::EnvironmentVariable(env_var_evt) => {
+                handle_environment_variable_event(env_var_evt, &soma_definition).await?;
             }
         }
     }
@@ -481,6 +486,31 @@ async fn handle_secret_event(
         SecretChangeEvt::Deleted { id: _, key } => {
             info!("Secret deleted: {:?}", key);
             soma_definition.remove_secret(key).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn handle_environment_variable_event(
+    event: EnvironmentVariableChangeEvt,
+    soma_definition: &Arc<dyn SomaAgentDefinitionLike>,
+) -> Result<(), CommonError> {
+    match event {
+        EnvironmentVariableChangeEvt::Created(env_var) => {
+            info!("Environment variable created: {:?}", env_var.key);
+            soma_definition
+                .add_environment_variable(env_var.key, env_var.value)
+                .await?;
+        }
+        EnvironmentVariableChangeEvt::Updated(env_var) => {
+            info!("Environment variable updated: {:?}", env_var.key);
+            soma_definition
+                .update_environment_variable(env_var.key, env_var.value)
+                .await?;
+        }
+        EnvironmentVariableChangeEvt::Deleted { id: _, key } => {
+            info!("Environment variable deleted: {:?}", key);
+            soma_definition.remove_environment_variable(key).await?;
         }
     }
     Ok(())

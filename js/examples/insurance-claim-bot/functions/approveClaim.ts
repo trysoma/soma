@@ -38,7 +38,6 @@ export default createSomaFunction({
 		description: "Approve a claim",
 	},
 	handler: async ({ claim }) => {
-		console.log("Claim", claim);
 		// perform an async action here to approve the claim
 		return { approved: true };
 	},

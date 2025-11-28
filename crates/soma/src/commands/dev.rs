@@ -226,6 +226,11 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     .await?;
     info!("Bridge sync completed");
 
+    // Give SDK server time to fully initialize its gRPC handlers after bridge sync
+    // This ensures that secrets/env vars created during bridge sync can be synced properly
+    info!("Waiting for SDK server to be fully ready after bridge sync...");
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+
     // Reload soma definition (with error handling to avoid crashes on race conditions)
     if let Err(e) = soma_definition.reload().await {
         error!(
@@ -261,7 +266,6 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     add_subsystem_handle("bridge_sync_yaml", Some(bridge_sync_handle));
     add_subsystem_handle("restate", Some(restate_handle));
     add_subsystem_handle("sdk_server", subsystems.sdk_server);
-    add_subsystem_handle("sdk_sync", subsystems.sdk_sync);
     add_subsystem_handle("mcp", subsystems.mcp);
     add_subsystem_handle("credential_rotation", subsystems.credential_rotation);
 
@@ -272,13 +276,12 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         "axum_server",
         "mcp",
         "sdk_server",
-        "sdk_sync",
         "credential_rotation",
     ];
 
     // Systems that require graceful shutdown (we wait for these after shutdown is triggered)
     let systems_requiring_graceful_shutdown: Vec<&str> =
-        vec!["restate", "axum_server", "sdk_server", "mcp", "sdk_sync"];
+        vec!["restate", "axum_server", "sdk_server", "mcp"];
 
     // Track which systems have completed
     use std::collections::HashSet;

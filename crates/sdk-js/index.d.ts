@@ -33,6 +33,11 @@ export interface CallbackError {
 	message: string;
 }
 
+export interface EnvironmentVariable {
+	key: string;
+	value: string;
+}
+
 export interface FunctionController {
 	name: string;
 	description: string;
@@ -167,6 +172,27 @@ export interface Secret {
 }
 
 /**
+ * Set the environment variable handler callback that will be called when environment variables are synced from Soma
+ * The callback receives an array of environment variables and should inject them into process.env
+ */
+export declare function setEnvironmentVariableHandler(
+	callback: (
+		err: Error | null,
+		arg: Array<EnvironmentVariable>,
+	) => Promise<SetEnvironmentVariablesResponse>,
+): void;
+
+/** Response from setting environment variables */
+export interface SetEnvironmentVariablesResponse {
+	data?: SetEnvironmentVariablesSuccess;
+	error?: CallbackError;
+}
+
+export interface SetEnvironmentVariablesSuccess {
+	message: string;
+}
+
+/**
  * Set the secret handler callback that will be called when secrets are synced from Soma
  * The callback receives an array of secrets and should inject them into process.env
  */
@@ -187,11 +213,48 @@ export interface SetSecretsSuccess {
 	message: string;
 }
 
+/**
+ * Set the unset environment variable handler callback that will be called when an environment variable is unset
+ * The callback receives an environment variable key and should remove it from process.env
+ */
+export declare function setUnsetEnvironmentVariableHandler(
+	callback: (
+		err: Error | null,
+		arg: string,
+	) => Promise<UnsetEnvironmentVariableResponse>,
+): void;
+
+/**
+ * Set the unset secret handler callback that will be called when a secret is unset
+ * The callback receives a secret key and should remove it from process.env
+ */
+export declare function setUnsetSecretHandler(
+	callback: (err: Error | null, arg: string) => Promise<UnsetSecretResponse>,
+): void;
+
 /** Start the gRPC server on a Unix socket with TypeScript code generation */
 export declare function startGrpcServer(
 	socketPath: string,
 	projectDir: string,
 ): Promise<void>;
+
+export interface UnsetEnvironmentVariableResponse {
+	data?: UnsetEnvironmentVariableSuccess;
+	error?: CallbackError;
+}
+
+export interface UnsetEnvironmentVariableSuccess {
+	message: string;
+}
+
+export interface UnsetSecretResponse {
+	data?: UnsetSecretSuccess;
+	error?: CallbackError;
+}
+
+export interface UnsetSecretSuccess {
+	message: string;
+}
 
 /** Update an agent (removes old and inserts new) */
 export declare function updateAgent(agent: Agent): boolean;

@@ -12,8 +12,14 @@
  * Do not edit the class manually.
  */
 
-import type { TriggerCodegenResponse } from "../models/index";
-import { TriggerCodegenResponseFromJSON } from "../models/index";
+import type {
+	ResyncSdkResponse,
+	TriggerCodegenResponse,
+} from "../models/index";
+import {
+	ResyncSdkResponseFromJSON,
+	TriggerCodegenResponseFromJSON,
+} from "../models/index";
 import * as runtime from "../runtime";
 
 /**
@@ -91,6 +97,45 @@ export class InternalApi extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.healthCheckRaw(initOverrides);
+	}
+
+	/**
+	 * Resync providers, agents, secrets, and environment variables between API server and SDK
+	 * Resync SDK
+	 */
+	async resyncSdkRaw(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<ResyncSdkResponse>> {
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/_internal/v1/resync_sdk`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			ResyncSdkResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Resync providers, agents, secrets, and environment variables between API server and SDK
+	 * Resync SDK
+	 */
+	async resyncSdk(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<ResyncSdkResponse> {
+		const response = await this.resyncSdkRaw(initOverrides);
+		return await response.value();
 	}
 
 	/**

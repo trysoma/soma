@@ -9,10 +9,22 @@ use tracing::{error, info};
 
 pub async fn run_child_process(
     process_name: &str,
+    process: Command,
+    kill_signal: Option<broadcast::Receiver<()>>,
+    extra_env: Option<HashMap<String, String>>,
+) -> Result<(), CommonError> {
+    run_child_process_with_env_options(process_name, process, kill_signal, extra_env, false).await
+}
+
+/// Run child process with an option to clear the inherited environment
+/// When `clear_env` is true, only the provided `extra_env` variables will be set
+/// along with essential system variables like PATH, HOME, etc.
+pub async fn run_child_process_with_env_options(
+    process_name: &str,
     mut process: Command,
     kill_signal: Option<broadcast::Receiver<()>>,
-    // shutdown_complete: Option<oneshot::Sender<()>>,
     extra_env: Option<HashMap<String, String>>,
+    clear_env: bool,
 ) -> Result<(), CommonError> {
     // Put child in its own process group so it doesn't receive SIGINT/SIGTERM directly
     // This allows the parent to handle signals and orchestrate graceful shutdown
@@ -28,6 +40,46 @@ pub async fn run_child_process(
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .kill_on_drop(true);
+
+    // If clear_env is set, clear all inherited environment variables first
+    // Then add back essential system variables and user-provided env vars
+    let process = if clear_env {
+        // Clear all inherited environment variables
+        let mut process = process.env_clear();
+
+        // Add back essential system variables from the host
+        // These are needed for basic process execution
+        let essential_vars = [
+            "PATH",
+            "HOME",
+            "USER",
+            "SHELL",
+            "LANG",
+            "LC_ALL",
+            "TERM",
+            "TMPDIR",
+            "TMP",
+            "TEMP",
+            // Node.js/npm-specific variables
+            "NODE_PATH",
+            "NPM_CONFIG_PREFIX",
+            // macOS-specific
+            "DYLD_LIBRARY_PATH",
+            "DYLD_FALLBACK_LIBRARY_PATH",
+            // Linux-specific
+            "LD_LIBRARY_PATH",
+        ];
+
+        for var in essential_vars {
+            if let Ok(value) = std::env::var(var) {
+                process = process.env(var, value);
+            }
+        }
+
+        process
+    } else {
+        process
+    };
 
     let mut child = if let Some(extra_env) = extra_env {
         let process = extra_env

@@ -240,8 +240,8 @@ function generateStandaloneServer(
 
 	return `/// <reference types="node" />
 // Auto-generated standalone server
-import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler } from '@trysoma/sdk';
-import type { Secret, SetSecretsResponse, SetSecretsSuccess, CallbackError } from '@trysoma/sdk';
+import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler, setEnvironmentVariableHandler, setUnsetSecretHandler, setUnsetEnvironmentVariableHandler, resyncSdk } from '@trysoma/sdk';
+import type { Secret, SetSecretsResponse, SetSecretsSuccess, CallbackError, EnvironmentVariable, SetEnvironmentVariablesResponse, SetEnvironmentVariablesSuccess, UnsetSecretResponse, UnsetSecretSuccess, UnsetEnvironmentVariableResponse, UnsetEnvironmentVariableSuccess } from '@trysoma/sdk';
 import * as restate from '@restatedev/restate-sdk';
 import * as http2 from 'http2';
 
@@ -293,18 +293,116 @@ setSecretHandler(async (err, secrets) => {
 });
 console.log('[INFO] Secret handler registered successfully');
 
+// Register environment variable handler to inject environment variables into process.env
+console.log('[INFO] Registering environment variable handler...');
+setEnvironmentVariableHandler(async (err, envVars) => {
+  if (err) {
+    console.error('Error in environment variable handler:', err);
+    const error: CallbackError = {
+      message: err.message,
+    }
+    const res: SetEnvironmentVariablesResponse = {
+      error
+    }
+    return res;
+  }
+  const envVarKeys = envVars.map(e => e.key);
+  console.log(\`[INFO] Environment variable handler invoked with \${envVars.length} environment variables: \${envVarKeys.join(', ')}\`);
+  for (const envVar of envVars) {
+    process.env[envVar.key] = envVar.value;
+    console.log(\`[INFO] Set process.env.\${envVar.key}\`);
+  }
+  const message = \`Injected \${envVars.length} environment variables into process.env\`;
+  console.log(\`[INFO] Environment variable handler completed: \${message}\`);
+  const data: SetEnvironmentVariablesSuccess = {
+    message,
+  }
+  const res: SetEnvironmentVariablesResponse = {
+    data,
+  }
+  return res;
+});
+console.log('[INFO] Environment variable handler registered successfully');
+
+// Register unset secret handler to remove secrets from process.env
+console.log('[INFO] Registering unset secret handler...');
+setUnsetSecretHandler(async (err, key) => {
+  if (err) {
+    console.error('Error in unset secret handler:', err);
+    const error: CallbackError = {
+      message: err.message,
+    }
+    const res: UnsetSecretResponse = {
+      error
+    }
+    return res;
+  }
+  console.log(\`[INFO] Unset secret handler invoked with key: \${key}\`);
+  delete process.env[key];
+  console.log(\`[INFO] Removed process.env.\${key}\`);
+  const message = \`Removed secret '\${key}' from process.env\`;
+  console.log(\`[INFO] Unset secret handler completed: \${message}\`);
+  const data: UnsetSecretSuccess = {
+    message,
+  }
+  const res: UnsetSecretResponse = {
+    data,
+  }
+  return res;
+});
+console.log('[INFO] Unset secret handler registered successfully');
+
+// Register unset environment variable handler to remove environment variables from process.env
+console.log('[INFO] Registering unset environment variable handler...');
+setUnsetEnvironmentVariableHandler(async (err, key) => {
+  if (err) {
+    console.error('Error in unset environment variable handler:', err);
+    const error: CallbackError = {
+      message: err.message,
+    }
+    const res: UnsetEnvironmentVariableResponse = {
+      error
+    }
+    return res;
+  }
+  console.log(\`[INFO] Unset environment variable handler invoked with key: \${key}\`);
+  delete process.env[key];
+  console.log(\`[INFO] Removed process.env.\${key}\`);
+  const message = \`Removed environment variable '\${key}' from process.env\`;
+  console.log(\`[INFO] Unset environment variable handler completed: \${message}\`);
+  const data: UnsetEnvironmentVariableSuccess = {
+    message,
+  }
+  const res: UnsetEnvironmentVariableResponse = {
+    data,
+  }
+  return res;
+});
+console.log('[INFO] Unset environment variable handler registered successfully');
+
 // Register all providers and functions
 ${functionRegistrations.join("\n")}
 
 // Register all agents
 ${agentRegistrations.join("\n")}
 
-console.log("SDK server ready!");
+console.log("SDK server ready! Triggering resync with API server...");
+
+// Trigger resync with API server to sync providers, agents, secrets, and env vars
+// This must happen after all providers and agents are registered
+try {
+  await resyncSdk();
+  console.log("Resync with API server completed successfully");
+} catch (error) {
+  console.error("Failed to resync with API server:", error);
+  // Don't exit - the API server may not be ready yet, and secrets/env vars
+  // will be synced when the API server connects
+}
+
 ${
 	hasAgents
 		? `
 import { HandlerParams, SomaAgent } from "@trysoma/sdk/agent";
-import { Configuration as BridgeConfiguration } from '@trysoma/sdk/bridge';
 import { V1Api as SomaV1Api, Configuration as SomaConfiguration } from '@trysoma/api-client';
 import * as net from 'net';
 
@@ -314,8 +412,8 @@ interface RestateInput {
 }
 
 type RestateHandler = (ctx: restate.ObjectContext, input: RestateInput) => Promise<void>;
-type SomaHandler<T> = (params: HandlerParams<T>) => Promise<void>;
-const wrapHandler = <T>(handler: SomaHandler<T>, agent: SomaAgent<T>): RestateHandler => {
+type SomaHandler<T> = (params: HandlerParams) => Promise<void>;
+const wrapHandler = <T>(handler: SomaHandler<T>, agent: SomaAgent): RestateHandler => {
   return async (ctx, input) => {
     const soma = new SomaV1Api(new SomaConfiguration({
       basePath: process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000',
@@ -492,8 +590,15 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 	return {
 		name: "soma-standalone-server",
 
+		// Generate standalone file BEFORE dev server starts to avoid stale execution
+		buildStart() {
+			console.log("Regenerating standalone.ts before dev server start...");
+			regenerateStandalone();
+		},
+
 		configureServer(devServer: ViteDevServer) {
-			// Generate standalone file on startup
+			// Standalone was already generated in buildStart, but regenerate again
+			// in case configureServer is called without buildStart (shouldn't happen, but just in case)
 			regenerateStandalone();
 
 			// Watch for changes in functions and agents directories
