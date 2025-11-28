@@ -326,6 +326,8 @@ pub async fn create_api_service(
         socket_path_for_sync,
         restate_params,
         sdk_port,
+        std::sync::Arc::new(repository.clone()),
+        crypto_cache.clone(),
         system_shutdown_signal.subscribe(),
     )?;
 
@@ -464,6 +466,8 @@ fn start_sdk_sync_subsystem(
     socket_path: String,
     restate_params: RestateServerParams,
     sdk_port: u16,
+    repository: std::sync::Arc<crate::repository::Repository>,
+    crypto_cache: encryption::logic::crypto_services::CryptoCache,
     shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<SubsystemHandle, CommonError> {
     use crate::sdk::{SyncSdkChangesParams, sync_sdk_changes};
@@ -476,6 +480,8 @@ fn start_sdk_sync_subsystem(
             restate_params,
             sdk_port,
             system_shutdown_signal_rx: shutdown_rx,
+            repository,
+            crypto_cache,
         })
         .await
         {

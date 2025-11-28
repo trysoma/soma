@@ -18,7 +18,6 @@ use shared::error::CommonError;
 
 use crate::logic::environment_variable_sync::fetch_all_environment_variables;
 use crate::logic::secret_sync::fetch_and_decrypt_all_secrets;
-use crate::restate::RestateServerParams;
 use encryption::logic::crypto_services::CryptoCache;
 use interface::{ClientCtx, SdkClient};
 use typescript::Typescript;
@@ -162,36 +161,6 @@ pub fn start_sdk_server_subsystem(
     Ok(handle)
 }
 
-pub fn start_sdk_sync_subsystem(
-    socket_path: String,
-    restate_params: RestateServerParams,
-    sdk_port: u16,
-    shutdown_rx: broadcast::Receiver<()>,
-) -> Result<SubsystemHandle, CommonError> {
-    let (handle, signal) = SubsystemHandle::new("SDK Sync");
-
-    tokio::spawn(async move {
-        match sync_sdk_changes(SyncSdkChangesParams {
-            socket_path,
-            restate_params,
-            sdk_port,
-            system_shutdown_signal_rx: shutdown_rx,
-        })
-        .await
-        {
-            Ok(()) => {
-                signal.signal_with_message("stopped gracefully");
-            }
-            Err(e) => {
-                error!("SDK sync watcher stopped with error: {:?}", e);
-                signal.signal();
-            }
-        }
-    });
-
-    Ok(handle)
-}
-
 /// Fetch metadata and sync providers to the bridge registry
 /// Returns the list of agents from the metadata response
 async fn fetch_and_sync_providers(socket_path: &str) -> Result<Vec<sdk_proto::Agent>, CommonError> {
@@ -297,11 +266,46 @@ async fn register_agent_deployments(
     Ok(())
 }
 
+/// Sync secrets and environment variables to the SDK
+/// Called when the SDK server (re)connects to inject credentials into the new process
+async fn sync_secrets_and_env_vars(
+    socket_path: &str,
+    repository: &std::sync::Arc<crate::repository::Repository>,
+    crypto_cache: &CryptoCache,
+) -> Result<(), CommonError> {
+    use crate::logic::environment_variable_sync::{
+        fetch_all_environment_variables, sync_environment_variables_to_sdk,
+    };
+    use crate::logic::secret_sync::{fetch_and_decrypt_all_secrets, sync_secrets_to_sdk};
+    use shared::uds::create_soma_unix_socket_client;
+
+    let mut client = create_soma_unix_socket_client(socket_path).await?;
+
+    // Sync secrets
+    let secrets = fetch_and_decrypt_all_secrets(repository, crypto_cache).await?;
+    info!("Syncing {} secrets to SDK", secrets.len());
+    if !secrets.is_empty() {
+        sync_secrets_to_sdk(&mut client, secrets).await?;
+    }
+
+    // Sync environment variables
+    let env_vars = fetch_all_environment_variables(repository).await?;
+    info!("Syncing {} environment variables to SDK", env_vars.len());
+    if !env_vars.is_empty() {
+        sync_environment_variables_to_sdk(&mut client, env_vars).await?;
+    }
+
+    info!("Successfully synced secrets and environment variables to SDK");
+    Ok(())
+}
+
 pub struct SyncSdkChangesParams {
     pub socket_path: String,
     pub restate_params: crate::restate::RestateServerParams,
     pub sdk_port: u16,
     pub system_shutdown_signal_rx: broadcast::Receiver<()>,
+    pub repository: std::sync::Arc<crate::repository::Repository>,
+    pub crypto_cache: CryptoCache,
 }
 
 /// Watch for dev SDK server reloads by monitoring the gRPC connection
@@ -314,6 +318,8 @@ pub async fn sync_sdk_changes(params: SyncSdkChangesParams) -> Result<(), Common
         restate_params,
         sdk_port,
         mut system_shutdown_signal_rx,
+        repository,
+        crypto_cache,
     } = params;
 
     let (sync_shutdown_complete_tx, sync_shutdown_complete_rx) = oneshot::channel::<CommonError>();
@@ -322,7 +328,7 @@ pub async fn sync_sdk_changes(params: SyncSdkChangesParams) -> Result<(), Common
         tokio::select! {
             _ = system_shutdown_rx => {
             }
-            _ = internal_sync_sdk_changes_loop(socket_path, restate_params, sdk_port, sync_shutdown_complete_tx) => {
+            _ = internal_sync_sdk_changes_loop(socket_path, restate_params, sdk_port, repository, crypto_cache, sync_shutdown_complete_tx) => {
             }
         }
     });
@@ -352,6 +358,8 @@ async fn internal_sync_sdk_changes_loop(
     socket_path: String,
     restate_params: crate::restate::RestateServerParams,
     sdk_port: u16,
+    repository: std::sync::Arc<crate::repository::Repository>,
+    crypto_cache: CryptoCache,
     sync_shutdown_complete_tx: oneshot::Sender<CommonError>,
 ) {
     info!(
@@ -387,6 +395,16 @@ async fn internal_sync_sdk_changes_loop(
                     Err(e) => {
                         error!("Failed to fetch and sync providers: {:?}", e);
                     }
+                }
+
+                // Sync secrets and environment variables to the new SDK process
+                // This is needed because the SDK server may have restarted (HMR) and
+                // the new Node.js process needs the secrets/env vars injected again
+                info!("Syncing secrets and environment variables to SDK...");
+                if let Err(e) =
+                    sync_secrets_and_env_vars(&socket_path, &repository, &crypto_cache).await
+                {
+                    error!("Failed to sync secrets/env vars to SDK: {:?}", e);
                 }
 
                 // Monitor connection health - when it breaks, we'll reconnect
