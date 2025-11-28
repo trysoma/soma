@@ -526,7 +526,8 @@ mod tests {
         assert_eq!(env_var.value, "imported-value");
 
         // Verify it was actually saved
-        let fetched = get_environment_variable_by_key(&repository, "IMPORTED_VAR".to_string()).await;
+        let fetched =
+            get_environment_variable_by_key(&repository, "IMPORTED_VAR".to_string()).await;
         assert!(fetched.is_ok());
         assert_eq!(fetched.unwrap().id, env_var.id);
     }
