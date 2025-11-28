@@ -85,6 +85,7 @@ src/models/ProviderInstanceSerialized.ts
 src/models/ProviderInstanceSerializedWithCredentials.ts
 src/models/ProviderInstanceSerializedWithEverything.ts
 src/models/ResourceServerCredentialSerialized.ts
+src/models/ResyncSdkResponse.ts
 src/models/ReturnAddress.ts
 src/models/ReturnAddressUrl.ts
 src/models/Secret.ts

@@ -74,6 +74,7 @@ export * from "./ProviderInstanceSerialized";
 export * from "./ProviderInstanceSerializedWithCredentials";
 export * from "./ProviderInstanceSerializedWithEverything";
 export * from "./ResourceServerCredentialSerialized";
+export * from "./ResyncSdkResponse";
 export * from "./ReturnAddress";
 export * from "./ReturnAddressUrl";
 export * from "./Secret";

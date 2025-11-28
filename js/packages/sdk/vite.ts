@@ -240,7 +240,7 @@ function generateStandaloneServer(
 
 	return `/// <reference types="node" />
 // Auto-generated standalone server
-import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler, setEnvironmentVariableHandler, setUnsetSecretHandler, setUnsetEnvironmentVariableHandler } from '@trysoma/sdk';
+import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler, setEnvironmentVariableHandler, setUnsetSecretHandler, setUnsetEnvironmentVariableHandler, resyncSdk } from '@trysoma/sdk';
 import type { Secret, SetSecretsResponse, SetSecretsSuccess, CallbackError, EnvironmentVariable, SetEnvironmentVariablesResponse, SetEnvironmentVariablesSuccess, UnsetSecretResponse, UnsetSecretSuccess, UnsetEnvironmentVariableResponse, UnsetEnvironmentVariableSuccess } from '@trysoma/sdk';
 import * as restate from '@restatedev/restate-sdk';
 import * as http2 from 'http2';
@@ -386,7 +386,19 @@ ${functionRegistrations.join("\n")}
 // Register all agents
 ${agentRegistrations.join("\n")}
 
-console.log("SDK server ready!");
+console.log("SDK server ready! Triggering resync with API server...");
+
+// Trigger resync with API server to sync providers, agents, secrets, and env vars
+// This must happen after all providers and agents are registered
+try {
+  await resyncSdk();
+  console.log("Resync with API server completed successfully");
+} catch (error) {
+  console.error("Failed to resync with API server:", error);
+  // Don't exit - the API server may not be ready yet, and secrets/env vars
+  // will be synced when the API server connects
+}
+
 ${
 	hasAgents
 		? `
@@ -578,8 +590,15 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 	return {
 		name: "soma-standalone-server",
 
+		// Generate standalone file BEFORE dev server starts to avoid stale execution
+		buildStart() {
+			console.log("Regenerating standalone.ts before dev server start...");
+			regenerateStandalone();
+		},
+
 		configureServer(devServer: ViteDevServer) {
-			// Generate standalone file on startup
+			// Standalone was already generated in buildStart, but regenerate again
+			// in case configureServer is called without buildStart (shouldn't happen, but just in case)
 			regenerateStandalone();
 
 			// Watch for changes in functions and agents directories

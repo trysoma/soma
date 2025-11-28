@@ -24,6 +24,49 @@
         }
       }
     },
+    "/_internal/v1/resync_sdk": {
+      "post": {
+        "tags": [
+          "_internal",
+          "v1"
+        ],
+        "summary": "Resync SDK",
+        "description": "Resync providers, agents, secrets, and environment variables between API server and SDK",
+        "operationId": "resync-sdk",
+        "responses": {
+          "200": {
+            "description": "SDK resynced successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResyncSdkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/_internal/v1/runtime_config": {
       "get": {
         "tags": [
@@ -6007,6 +6050,37 @@
           },
           "value": {
             "$ref": "#/components/schemas/WrappedJsonValue"
+          }
+        }
+      },
+      "ResyncSdkResponse": {
+        "type": "object",
+        "required": [
+          "message",
+          "providers_synced",
+          "agents_synced",
+          "secrets_synced",
+          "env_vars_synced"
+        ],
+        "properties": {
+          "agents_synced": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "env_vars_synced": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "message": {
+            "type": "string"
+          },
+          "providers_synced": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "secrets_synced": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },

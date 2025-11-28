@@ -3,3 +3,4 @@ export * from "./agent";
 export * from "./bridge";
 export * from "./patterns";
 export { patterns } from "./patterns";
+export * from "./internal-api";

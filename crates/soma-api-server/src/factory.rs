@@ -291,12 +291,14 @@ pub async fn create_api_service(
     let api_service = ApiService::new(InitApiServiceParams {
         host: host.clone(),
         port,
+        sdk_port,
         connection_manager: connection_manager.clone(),
         repository: repository.clone(),
         mcp_transport_tx: mcp_transport_tx.clone(),
         soma_definition: soma_definition.clone(),
         restate_ingress_client: restate_params.get_ingress_client()?,
         restate_admin_client: restate_admin_client.clone(),
+        restate_params: restate_params.clone(),
         on_bridge_config_change_tx: on_bridge_config_change_tx.clone(),
         crypto_cache: crypto_cache.clone(),
         bridge_repository: bridge_repo.clone(),
@@ -319,17 +321,9 @@ pub async fn create_api_service(
         system_shutdown_signal.subscribe(),
     )?;
 
-    // Start SDK sync watcher
-    info!("Starting SDK sync watcher...");
-    let socket_path_for_sync = socket_path.clone();
-    let sdk_sync_handle = start_sdk_sync_subsystem(
-        socket_path_for_sync,
-        restate_params,
-        sdk_port,
-        std::sync::Arc::new(repository.clone()),
-        crypto_cache.clone(),
-        system_shutdown_signal.subscribe(),
-    )?;
+    // Note: SDK sync is now SDK-initiated. When the SDK server starts (or restarts due to HMR),
+    // it calls the /_internal/v1/resync_sdk endpoint to trigger sync of providers, agents,
+    // secrets, and environment variables. This replaces the old connection-monitoring approach.
 
     // Start credential rotation
     info!("Starting credential rotation...");
@@ -381,7 +375,6 @@ pub async fn create_api_service(
         api_service,
         subsystems: Subsystems {
             sdk_server: Some(sdk_server_handle),
-            sdk_sync: Some(sdk_sync_handle),
             mcp: Some(mcp_handle),
             credential_rotation: Some(credential_rotation_handle),
             bridge_client_generation: Some(bridge_client_gen_handle),
@@ -454,42 +447,6 @@ fn start_mcp_subsystem(
             }
             Err(e) => {
                 error!("MCP connection manager stopped with error: {:?}", e);
-                signal.signal();
-            }
-        }
-    });
-
-    Ok(handle)
-}
-
-fn start_sdk_sync_subsystem(
-    socket_path: String,
-    restate_params: RestateServerParams,
-    sdk_port: u16,
-    repository: std::sync::Arc<crate::repository::Repository>,
-    crypto_cache: encryption::logic::crypto_services::CryptoCache,
-    shutdown_rx: broadcast::Receiver<()>,
-) -> Result<SubsystemHandle, CommonError> {
-    use crate::sdk::{SyncSdkChangesParams, sync_sdk_changes};
-
-    let (handle, signal) = SubsystemHandle::new("SDK Sync");
-
-    tokio::spawn(async move {
-        match sync_sdk_changes(SyncSdkChangesParams {
-            socket_path,
-            restate_params,
-            sdk_port,
-            system_shutdown_signal_rx: shutdown_rx,
-            repository,
-            crypto_cache,
-        })
-        .await
-        {
-            Ok(()) => {
-                signal.signal_with_message("stopped gracefully");
-            }
-            Err(e) => {
-                error!("SDK sync watcher stopped with error: {:?}", e);
                 signal.signal();
             }
         }

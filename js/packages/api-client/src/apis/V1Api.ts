@@ -50,6 +50,7 @@ import type {
 	ProviderInstanceSerialized,
 	ProviderInstanceSerializedWithEverything,
 	ResourceServerCredentialSerialized,
+	ResyncSdkResponse,
 	Secret,
 	SomaAgentDefinition,
 	StartUserCredentialBrokeringParamsInner,
@@ -104,6 +105,7 @@ import {
 	ProviderInstanceSerializedFromJSON,
 	ProviderInstanceSerializedWithEverythingFromJSON,
 	ResourceServerCredentialSerializedFromJSON,
+	ResyncSdkResponseFromJSON,
 	SecretFromJSON,
 	SomaAgentDefinitionFromJSON,
 	StartUserCredentialBrokeringParamsInnerToJSON,
@@ -3325,6 +3327,45 @@ export class V1Api extends runtime.BaseAPI {
 			requestParameters,
 			initOverrides,
 		);
+		return await response.value();
+	}
+
+	/**
+	 * Resync providers, agents, secrets, and environment variables between API server and SDK
+	 * Resync SDK
+	 */
+	async resyncSdkRaw(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<ResyncSdkResponse>> {
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/_internal/v1/resync_sdk`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			ResyncSdkResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Resync providers, agents, secrets, and environment variables between API server and SDK
+	 * Resync SDK
+	 */
+	async resyncSdk(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<ResyncSdkResponse> {
+		const response = await this.resyncSdkRaw(initOverrides);
 		return await response.value();
 	}
 

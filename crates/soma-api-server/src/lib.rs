@@ -55,6 +55,7 @@ pub struct ApiService {
 pub struct InitApiServiceParams {
     pub host: String,
     pub port: u16,
+    pub sdk_port: u16,
     pub connection_manager: ConnectionManager,
     pub repository: Repository,
     pub mcp_transport_tx:
@@ -62,6 +63,7 @@ pub struct InitApiServiceParams {
     pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub restate_ingress_client: RestateIngressClient,
     pub restate_admin_client: AdminClient,
+    pub restate_params: crate::restate::RestateServerParams,
     pub on_bridge_config_change_tx: OnConfigChangeTx,
     pub on_encryption_change_tx: EncryptionKeyEventSender,
     pub on_secret_change_tx: SecretChangeTx,
@@ -112,6 +114,10 @@ impl ApiService {
         let internal_service = Arc::new(internal::InternalService::new(
             bridge_service.clone(),
             init_params.sdk_client.clone(),
+            std::sync::Arc::new(init_params.repository.clone()),
+            init_params.crypto_cache.clone(),
+            init_params.restate_params.clone(),
+            init_params.sdk_port,
         ));
 
         let secret_service = Arc::new(SecretService::new(
