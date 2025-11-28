@@ -226,6 +226,11 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     .await?;
     info!("Bridge sync completed");
 
+    // Give SDK server time to fully initialize its gRPC handlers after bridge sync
+    // This ensures that secrets/env vars created during bridge sync can be synced properly
+    info!("Waiting for SDK server to be fully ready after bridge sync...");
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+
     // Reload soma definition (with error handling to avoid crashes on race conditions)
     if let Err(e) = soma_definition.reload().await {
         error!(
