@@ -9,11 +9,13 @@ mod generated {
 
 pub use generated::*;
 
+use crate::logic::environment_variable::EnvironmentVariable;
 use crate::logic::secret::Secret;
 use crate::logic::task::TaskWithDetails;
 use crate::repository::{
-    CreateMessage, CreateSecret, CreateTask, CreateTaskTimelineItem, Message, SecretRepositoryLike,
-    Task, TaskRepositoryLike, TaskTimelineItem, UpdateSecret, UpdateTaskStatus,
+    CreateEnvironmentVariable, CreateMessage, CreateSecret, CreateTask, CreateTaskTimelineItem,
+    EnvironmentVariableRepositoryLike, Message, SecretRepositoryLike, Task, TaskRepositoryLike,
+    TaskTimelineItem, UpdateEnvironmentVariable, UpdateSecret, UpdateTaskStatus,
 };
 use anyhow::Context;
 use shared::{
@@ -534,6 +536,156 @@ impl SecretRepositoryLike for Repository {
             items,
             pagination,
             |secret| vec![secret.created_at.get_inner().to_rfc3339()],
+        ))
+    }
+}
+
+impl EnvironmentVariableRepositoryLike for Repository {
+    async fn create_environment_variable(
+        &self,
+        params: &CreateEnvironmentVariable,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = insert_environment_variable_params {
+            id: &params.id,
+            key: &params.key,
+            value: &params.value,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+        };
+
+        insert_environment_variable(&self.conn, sqlc_params)
+            .await
+            .context("Failed to create environment variable")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn update_environment_variable(
+        &self,
+        params: &UpdateEnvironmentVariable,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = update_environment_variable_params {
+            id: &params.id,
+            value: &params.value,
+            updated_at: &params.updated_at,
+        };
+
+        update_environment_variable(&self.conn, sqlc_params)
+            .await
+            .context("Failed to update environment variable")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn delete_environment_variable(&self, id: &WrappedUuidV4) -> Result<(), CommonError> {
+        let sqlc_params = delete_environment_variable_params { id };
+
+        delete_environment_variable(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete environment variable")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn get_environment_variable_by_id(
+        &self,
+        id: &WrappedUuidV4,
+    ) -> Result<Option<EnvironmentVariable>, CommonError> {
+        let sqlc_params = get_environment_variable_by_id_params { id };
+
+        let row_opt = get_environment_variable_by_id(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get environment variable by id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        match row_opt {
+            Some(row) => Ok(Some(EnvironmentVariable::try_from(row)?)),
+            None => Ok(None),
+        }
+    }
+
+    async fn get_environment_variable_by_key(
+        &self,
+        key: &str,
+    ) -> Result<Option<EnvironmentVariable>, CommonError> {
+        let key_string = key.to_string();
+        let sqlc_params = get_environment_variable_by_key_params { key: &key_string };
+
+        let row_opt = get_environment_variable_by_key(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get environment variable by key")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        match row_opt {
+            Some(row) => Ok(Some(EnvironmentVariable::try_from(row)?)),
+            None => Ok(None),
+        }
+    }
+
+    async fn get_environment_variables(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<EnvironmentVariable>, CommonError> {
+        // Decode the base64 token to get the datetime cursor
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    shared::primitives::WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
+                        .map_err(|e| CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let sqlc_params = get_environment_variables_params {
+            cursor: &cursor_datetime,
+            page_size: &pagination.page_size,
+        };
+
+        let rows = get_environment_variables(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get environment variables")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Result<Vec<EnvironmentVariable>, CommonError> = rows
+            .into_iter()
+            .map(EnvironmentVariable::try_from)
+            .collect();
+        let items = items?;
+
+        Ok(PaginatedResponse::from_items_with_extra(
+            items,
+            pagination,
+            |env_var| vec![env_var.created_at.get_inner().to_rfc3339()],
         ))
     }
 }

@@ -544,3 +544,69 @@ pub type SecretHandler = Arc<
         + Sync
         + 'static,
 >;
+
+#[derive(Debug, Clone)]
+pub struct EnvironmentVariable {
+    pub key: String,
+    pub value: String,
+}
+
+impl From<sdk_proto::EnvironmentVariable> for EnvironmentVariable {
+    fn from(proto: sdk_proto::EnvironmentVariable) -> Self {
+        Self {
+            key: proto.key,
+            value: proto.value,
+        }
+    }
+}
+
+impl From<EnvironmentVariable> for sdk_proto::EnvironmentVariable {
+    fn from(env_var: EnvironmentVariable) -> Self {
+        Self {
+            key: env_var.key,
+            value: env_var.value,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SetEnvironmentVariablesSuccess {
+    pub message: String,
+}
+
+impl From<SetEnvironmentVariablesSuccess> for sdk_proto::SetEnvironmentVariablesSuccess {
+    fn from(success: SetEnvironmentVariablesSuccess) -> Self {
+        Self {
+            message: success.message,
+        }
+    }
+}
+
+/// Response from setting environment variables
+#[derive(Debug, Clone)]
+pub struct SetEnvironmentVariablesResponse {
+    pub result: Result<SetEnvironmentVariablesSuccess, CallbackError>,
+}
+
+impl From<SetEnvironmentVariablesResponse> for sdk_proto::SetEnvironmentVariablesResponse {
+    fn from(response: SetEnvironmentVariablesResponse) -> Self {
+        use sdk_proto::set_environment_variables_response::Kind;
+
+        Self {
+            kind: match response.result {
+                Ok(data) => Some(Kind::Data(data.into())),
+                Err(error) => Some(Kind::Error(error.into())),
+            },
+        }
+    }
+}
+
+/// Type alias for the environment variable handler callback
+pub type EnvironmentVariableHandler = Arc<
+    dyn Fn(
+            Vec<EnvironmentVariable>,
+        ) -> BoxFuture<'static, Result<SetEnvironmentVariablesResponse, CommonError>>
+        + Send
+        + Sync
+        + 'static,
+>;

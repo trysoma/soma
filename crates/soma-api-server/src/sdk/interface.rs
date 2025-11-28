@@ -20,7 +20,10 @@ pub struct ClientCtx {
     pub socket_path: String,
     pub restate_runtime_port: u16,
     pub kill_signal_rx: broadcast::Receiver<()>,
+    /// Pre-fetched secrets (decrypted) to inject into SDK as environment variables
     pub initial_secrets: std::collections::HashMap<String, String>,
+    /// Pre-fetched environment variables to inject into SDK
+    pub initial_environment_variables: std::collections::HashMap<String, String>,
 }
 
 #[allow(dead_code)]

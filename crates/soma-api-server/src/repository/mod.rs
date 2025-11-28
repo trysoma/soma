@@ -11,6 +11,7 @@ use shared::{
 pub use sqlite::Repository;
 use tracing::info;
 
+use crate::logic::environment_variable::EnvironmentVariable;
 use crate::logic::secret::Secret;
 use crate::logic::task::{
     Message, MessagePart, MessageRole, Task, TaskEventUpdateType, TaskStatus, TaskTimelineItem,
@@ -189,6 +190,49 @@ pub trait SecretRepositoryLike: Send + Sync {
         &self,
         pagination: &PaginationRequest,
     ) -> Result<PaginatedResponse<Secret>, CommonError>;
+}
+
+// Environment variable repository parameter structs
+#[derive(Debug)]
+pub struct CreateEnvironmentVariable {
+    pub id: WrappedUuidV4,
+    pub key: String,
+    pub value: String,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+#[derive(Debug)]
+pub struct UpdateEnvironmentVariable {
+    pub id: WrappedUuidV4,
+    pub value: String,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+// Environment variable repository trait
+#[allow(async_fn_in_trait)]
+pub trait EnvironmentVariableRepositoryLike {
+    async fn create_environment_variable(
+        &self,
+        params: &CreateEnvironmentVariable,
+    ) -> Result<(), CommonError>;
+    async fn update_environment_variable(
+        &self,
+        params: &UpdateEnvironmentVariable,
+    ) -> Result<(), CommonError>;
+    async fn delete_environment_variable(&self, id: &WrappedUuidV4) -> Result<(), CommonError>;
+    async fn get_environment_variable_by_id(
+        &self,
+        id: &WrappedUuidV4,
+    ) -> Result<Option<EnvironmentVariable>, CommonError>;
+    async fn get_environment_variable_by_key(
+        &self,
+        key: &str,
+    ) -> Result<Option<EnvironmentVariable>, CommonError>;
+    async fn get_environment_variables(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<EnvironmentVariable>, CommonError>;
 }
 
 // Repository setup utilities

@@ -11,11 +11,12 @@ use shared::{
 use url::Url;
 
 use crate::{
-    logic::on_change_pubsub::SecretChangeTx,
+    logic::on_change_pubsub::{EnvironmentVariableChangeTx, SecretChangeTx},
     logic::task::ConnectionManager,
     repository::Repository,
     router::{
         a2a::{Agent2AgentService, Agent2AgentServiceParams},
+        environment_variable::EnvironmentVariableService,
         internal,
         secret::SecretService,
         task::TaskService,
@@ -41,6 +42,7 @@ pub struct ApiService {
     pub internal_service: Arc<internal::InternalService>,
     pub encryption_service: encryption::router::EncryptionService,
     pub secret_service: Arc<SecretService>,
+    pub environment_variable_service: Arc<EnvironmentVariableService>,
 }
 
 pub struct InitApiServiceParams {
@@ -56,6 +58,7 @@ pub struct InitApiServiceParams {
     pub on_bridge_config_change_tx: OnConfigChangeTx,
     pub on_encryption_change_tx: EncryptionKeyEventSender,
     pub on_secret_change_tx: SecretChangeTx,
+    pub on_environment_variable_change_tx: EnvironmentVariableChangeTx,
     pub encryption_repository: encryption::repository::Repository,
     pub crypto_cache: CryptoCache,
     pub bridge_repository: ::bridge::repository::Repository,
@@ -110,6 +113,11 @@ impl ApiService {
             init_params.on_secret_change_tx.clone(),
         ));
 
+        let environment_variable_service = Arc::new(EnvironmentVariableService::new(
+            init_params.repository.clone(),
+            init_params.on_environment_variable_change_tx.clone(),
+        ));
+
         Ok(Self {
             agent_service,
             task_service,
@@ -117,6 +125,7 @@ impl ApiService {
             internal_service,
             encryption_service,
             secret_service,
+            environment_variable_service,
         })
     }
 }

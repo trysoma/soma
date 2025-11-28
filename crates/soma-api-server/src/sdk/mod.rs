@@ -16,6 +16,7 @@ use tracing::{error, info};
 
 use shared::error::CommonError;
 
+use crate::logic::environment_variable_sync::fetch_all_environment_variables;
 use crate::logic::secret_sync::fetch_and_decrypt_all_secrets;
 use crate::restate::RestateServerParams;
 use encryption::logic::crypto_services::CryptoCache;
@@ -94,6 +95,16 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
         .collect();
     info!("Fetched {} initial secrets", initial_secrets.len());
 
+    // Fetch all environment variables from the database
+    info!("Fetching initial environment variables from database...");
+    let env_vars = fetch_all_environment_variables(&repository).await?;
+    let initial_environment_variables: std::collections::HashMap<String, String> =
+        env_vars.into_iter().map(|e| (e.key, e.value)).collect();
+    info!(
+        "Fetched {} initial environment variables",
+        initial_environment_variables.len()
+    );
+
     let typescript_client = Typescript::new();
     let ctx = ClientCtx {
         project_dir: project_dir.clone(),
@@ -101,6 +112,7 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
         restate_runtime_port: sdk_port,
         kill_signal_rx: kill_signal_rx.resubscribe(),
         initial_secrets,
+        initial_environment_variables,
     };
 
     if !is_vite_project(&project_dir) {
@@ -262,12 +274,12 @@ async fn register_agent_deployments(
         match restate::deploy::register_deployment(config).await {
             Ok(metadata) => {
                 info!(
-                    "✓ Successfully registered agent '{}' (service: {})",
+                    "Successfully registered agent '{}' (service: {})",
                     agent.name, metadata.name
                 );
             }
             Err(e) => {
-                error!("✗ Failed to register agent '{}': {:?}", agent.name, e);
+                error!("Failed to register agent '{}': {:?}", agent.name, e);
                 // Continue with other agents even if one fails
             }
         }
@@ -349,7 +361,7 @@ async fn internal_sync_sdk_changes_loop(
 
         match connection_result {
             Ok(Ok(_)) => {
-                info!("📡 Connected to SDK server, fetching metadata and syncing providers...");
+                info!("Connected to SDK server, fetching metadata and syncing providers...");
 
                 // Fetch metadata and sync providers to bridge
                 match fetch_and_sync_providers(&socket_path).await {

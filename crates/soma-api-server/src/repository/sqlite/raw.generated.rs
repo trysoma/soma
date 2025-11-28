@@ -2,6 +2,217 @@
 
 #[allow(unused)]
 use serde::{Serialize, Deserialize};
+  pub struct insert_environment_variable_params<'a> {
+      pub id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+      pub key: &'a 
+          String
+      ,
+      pub value: &'a 
+          String
+      ,
+      pub created_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+      pub updated_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+  }
+
+  pub async fn insert_environment_variable(
+    conn: &shared::libsql::Connection
+    ,params: insert_environment_variable_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"INSERT INTO environment_variable (
+    id,
+    key,
+    value,
+    created_at,
+    updated_at
+) VALUES (
+    ?1,
+    ?2,
+    ?3,
+    ?4,
+    ?5
+)"#, libsql::params![
+              <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.key.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.value.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct update_environment_variable_params<'a> {
+      pub value: &'a 
+          String
+      ,
+      pub updated_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+      pub id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+  }
+
+  pub async fn update_environment_variable(
+    conn: &shared::libsql::Connection
+    ,params: update_environment_variable_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"UPDATE environment_variable SET
+    value = ?1,
+    updated_at = ?2
+WHERE id = ?3"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.value.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct delete_environment_variable_params<'a> {
+      pub id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+  }
+
+  pub async fn delete_environment_variable(
+    conn: &shared::libsql::Connection
+    ,params: delete_environment_variable_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"DELETE FROM environment_variable WHERE id = ?1"#, libsql::params![
+              <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct get_environment_variable_by_id_params<'a> {
+      pub id: &'a 
+          shared::primitives::WrappedUuidV4
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_environment_variable_by_id {
+      pub id:shared::primitives::WrappedUuidV4,
+      pub key:String,
+      pub value:String,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn get_environment_variable_by_id(
+      conn: &shared::libsql::Connection
+      ,params: get_environment_variable_by_id_params<'_>
+  ) -> Result<Option<Row_get_environment_variable_by_id>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT id, "key", value, created_at, updated_at FROM environment_variable WHERE id = ?1"#).await?;
+      let res = stmt.query_row(
+          libsql::params![params.id.clone(),],
+      ).await;
+
+      match res {
+          Ok(row) => Ok(Some(Row_get_environment_variable_by_id {
+                  id: row.get(0)?,
+                  key: row.get(1)?,
+                  value: row.get(2)?,
+                  created_at: row.get(3)?,
+                  updated_at: row.get(4)?,
+              })),
+          Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
+          Err(e) => Err(e),
+      }
+  }
+  pub struct get_environment_variable_by_key_params<'a> {
+      pub key: &'a 
+          String
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_environment_variable_by_key {
+      pub id:shared::primitives::WrappedUuidV4,
+      pub key:String,
+      pub value:String,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn get_environment_variable_by_key(
+      conn: &shared::libsql::Connection
+      ,params: get_environment_variable_by_key_params<'_>
+  ) -> Result<Option<Row_get_environment_variable_by_key>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT id, "key", value, created_at, updated_at FROM environment_variable WHERE key = ?1"#).await?;
+      let res = stmt.query_row(
+          libsql::params![params.key.clone(),],
+      ).await;
+
+      match res {
+          Ok(row) => Ok(Some(Row_get_environment_variable_by_key {
+                  id: row.get(0)?,
+                  key: row.get(1)?,
+                  value: row.get(2)?,
+                  created_at: row.get(3)?,
+                  updated_at: row.get(4)?,
+              })),
+          Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
+          Err(e) => Err(e),
+      }
+  }
+  pub struct get_environment_variables_params<'a> {
+      pub cursor: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub page_size: &'a 
+          i64
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_environment_variables {
+      pub id:shared::primitives::WrappedUuidV4,
+      pub key:String,
+      pub value:String,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn get_environment_variables(
+      conn: &shared::libsql::Connection
+      ,params: get_environment_variables_params<'_>
+  ) -> Result<Vec<Row_get_environment_variables>, libsql::Error> {
+      let stmt = conn.prepare(r#"SELECT id, "key", value, created_at, updated_at FROM environment_variable WHERE (created_at < ?1 OR ?1 IS NULL)
+ORDER BY created_at DESC
+LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
+      let mut mapped = vec![];
+
+      while let Some(row) = rows.next().await? {
+          mapped.push(Row_get_environment_variables {
+              id: row.get(0)?,
+              key: row.get(1)?,
+              value: row.get(2)?,
+              created_at: row.get(3)?,
+              updated_at: row.get(4)?,
+          });
+      }
+
+      Ok(mapped)
+  }
   pub struct insert_message_params<'a> {
       pub id: &'a 
           shared::primitives::WrappedUuidV4
@@ -13,7 +224,7 @@ use serde::{Serialize, Deserialize};
           shared::primitives::WrappedJsonValue
       ,
       pub role: &'a 
-          crate::logic::task::MessageRole
+          crate::logic::MessageRole
       ,
       pub metadata: &'a 
           shared::primitives::WrappedJsonValue
@@ -56,7 +267,7 @@ use serde::{Serialize, Deserialize};
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.reference_task_ids.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <crate::logic::task::MessageRole as TryInto<libsql::Value>>::try_into(params.role.clone())
+              <crate::logic::MessageRole as TryInto<libsql::Value>>::try_into(params.role.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.metadata.clone())
@@ -88,7 +299,7 @@ use serde::{Serialize, Deserialize};
       pub id:shared::primitives::WrappedUuidV4,
       pub task_id:shared::primitives::WrappedUuidV4,
       pub reference_task_ids:shared::primitives::WrappedJsonValue,
-      pub role:crate::logic::task::MessageRole,
+      pub role:crate::logic::MessageRole,
       pub metadata:shared::primitives::WrappedJsonValue,
       pub parts:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,

@@ -30,6 +30,7 @@ pub struct GrpcService<G: SdkCodeGenerator> {
     agents: ArcSwap<Vec<Agent>>,
     code_generator: Arc<G>,
     secret_handler: ArcSwap<Option<SecretHandler>>,
+    environment_variable_handler: ArcSwap<Option<EnvironmentVariableHandler>>,
 }
 
 #[tonic::async_trait]
@@ -168,6 +169,50 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
 
         Ok(Response::new(result.into()))
     }
+
+    async fn set_environment_variables(
+        &self,
+        request: Request<sdk_proto::SetEnvironmentVariablesRequest>,
+    ) -> Result<Response<sdk_proto::SetEnvironmentVariablesResponse>, Status> {
+        use sdk_proto::set_environment_variables_response::Kind;
+        info!(
+            "set_environment_variables called with {} environment variables",
+            request.get_ref().environment_variables.len()
+        );
+
+        let proto_req = request.into_inner();
+        let env_vars: Vec<EnvironmentVariable> = proto_req
+            .environment_variables
+            .into_iter()
+            .map(Into::into)
+            .collect();
+
+        // Get the environment variable handler
+        let handler_guard = self.environment_variable_handler.load();
+        let handler = match handler_guard.as_ref() {
+            Some(h) => h.clone(),
+            None => {
+                info!("No environment variable handler registered");
+                return Ok(Response::new(sdk_proto::SetEnvironmentVariablesResponse {
+                    kind: Some(Kind::Error(sdk_proto::CallbackError {
+                        message: "No environment variable handler registered".to_string(),
+                    })),
+                }));
+            }
+        };
+        // Call the handler
+        info!("invoking set environment variables handler");
+
+        let result = handler(env_vars)
+            .await
+            .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
+
+        info!("set_environment_variables result: {:?}", result);
+
+        let result = result?;
+
+        Ok(Response::new(result.into()))
+    }
 }
 
 impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
@@ -177,12 +222,19 @@ impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
             agents: ArcSwap::from_pointee(agents),
             code_generator: Arc::new(code_generator),
             secret_handler: ArcSwap::from_pointee(None),
+            environment_variable_handler: ArcSwap::from_pointee(None),
         }
     }
 
     /// Set the secret handler callback that will be invoked when secrets are synced
     pub fn set_secret_handler(&self, handler: SecretHandler) {
         self.secret_handler.store(Arc::new(Some(handler)));
+    }
+
+    /// Set the environment variable handler callback that will be invoked when environment variables are synced
+    pub fn set_environment_variable_handler(&self, handler: EnvironmentVariableHandler) {
+        self.environment_variable_handler
+            .store(Arc::new(Some(handler)));
     }
 
     /// Add a new provider controller
@@ -432,5 +484,12 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcServiceWrapper<G> {
         request: Request<sdk_proto::SetSecretsRequest>,
     ) -> Result<Response<sdk_proto::SetSecretsResponse>, Status> {
         self.0.set_secrets(request).await
+    }
+
+    async fn set_environment_variables(
+        &self,
+        request: Request<sdk_proto::SetEnvironmentVariablesRequest>,
+    ) -> Result<Response<sdk_proto::SetEnvironmentVariablesResponse>, Status> {
+        self.0.set_environment_variables(request).await
     }
 }

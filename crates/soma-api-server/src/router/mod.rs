@@ -9,6 +9,7 @@ use encryption::router::create_router as create_encryption_router;
 use shared::error::CommonError;
 
 pub(crate) mod a2a;
+pub(crate) mod environment_variable;
 pub(crate) mod internal;
 pub(crate) mod secret;
 pub(crate) mod task;
@@ -50,6 +51,11 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
     let secret_router = secret_router.with_state(api_service.secret_service);
     router = router.merge(secret_router);
 
+    // environment variable router
+    let (env_var_router, _) = environment_variable::create_router().split_for_parts();
+    let env_var_router = env_var_router.with_state(api_service.environment_variable_service);
+    router = router.merge(env_var_router);
+
     Ok(router)
 }
 
@@ -60,11 +66,13 @@ pub fn generate_openapi_spec() -> OpenApi {
     let (_, internal_spec) = internal::create_router().split_for_parts();
     let (_, encryption_spec) = create_encryption_router().split_for_parts();
     let (_, secret_spec) = secret::create_router().split_for_parts();
+    let (_, env_var_spec) = environment_variable::create_router().split_for_parts();
     spec.merge(task_spec);
     spec.merge(bridge_spec);
     spec.merge(internal_spec);
     spec.merge(encryption_spec);
     spec.merge(secret_spec);
+    spec.merge(env_var_spec);
 
     // Update OpenAPI metadata
     let mut info = Info::new("soma", "An open source AI agent runtime");
@@ -80,6 +88,10 @@ pub fn generate_openapi_spec() -> OpenApi {
         TagBuilder::new()
             .name("secret")
             .description(Some("Secret management endpoints for storing and retrieving encrypted secrets"))
+            .build(),
+        TagBuilder::new()
+            .name("environment-variable")
+            .description(Some("Environment variable management endpoints for storing and retrieving environment variables"))
             .build(),
         TagBuilder::new()
             .name("encryption")

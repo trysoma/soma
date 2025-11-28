@@ -99,3 +99,20 @@ sql:
             - db_type: datetime
               column: secret.updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # environment_variable table
+            - db_type: text
+              column: environment_variable.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: environment_variable.key
+              rust_type: "String"
+            - db_type: text
+              column: environment_variable.value
+              rust_type: "String"
+            - db_type: datetime
+              column: environment_variable.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: environment_variable.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"

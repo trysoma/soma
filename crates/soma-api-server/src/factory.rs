@@ -88,6 +88,10 @@ pub async fn create_api_service(
     let (secret_change_tx, secret_change_rx) =
         crate::logic::on_change_pubsub::create_secret_change_channel(100);
 
+    // Create environment variable event channel
+    let (environment_variable_change_tx, environment_variable_change_rx) =
+        crate::logic::on_change_pubsub::create_environment_variable_change_channel(100);
+
     // Create the unified soma change channel
     let (soma_change_tx, _soma_change_rx) = create_soma_change_channel(100);
 
@@ -108,6 +112,7 @@ pub async fn create_api_service(
             on_bridge_config_change_rx,
             encryption_change_rx,
             secret_change_rx,
+            environment_variable_change_rx,
             pubsub_shutdown_rx,
         )
         .await;
@@ -226,6 +231,7 @@ pub async fn create_api_service(
         sdk_client: sdk_client.clone(),
         on_encryption_change_tx: encryption_change_tx.clone(),
         on_secret_change_tx: secret_change_tx.clone(),
+        on_environment_variable_change_tx: environment_variable_change_tx.clone(),
         encryption_repository: encryption_repo.clone(),
         local_envelope_encryption_key_path,
     })
@@ -313,6 +319,60 @@ pub async fn create_api_service(
         }
     }
 
+    // Start environment variable sync subsystem
+    info!("Starting environment variable sync subsystem...");
+    let env_var_sync_rx = environment_variable_change_tx.subscribe();
+    let socket_path_for_env_sync = socket_path.clone();
+    let env_var_sync_handle =
+        crate::logic::environment_variable_sync::start_environment_variable_sync_subsystem(
+            repository.clone(),
+            socket_path_for_env_sync.clone(),
+            env_var_sync_rx,
+            system_shutdown_signal.subscribe(),
+        )?;
+
+    // Perform initial environment variable sync to SDK
+    info!("Performing initial environment variable sync to SDK...");
+    match crate::logic::environment_variable_sync::fetch_all_environment_variables(&repository_arc)
+        .await
+    {
+        Ok(env_vars) => {
+            if !env_vars.is_empty() {
+                info!(
+                    "Found {} environment variables to sync to SDK",
+                    env_vars.len()
+                );
+                if let Ok(mut client) =
+                    shared::uds::create_soma_unix_socket_client(&socket_path_for_env_sync).await
+                {
+                    match crate::logic::environment_variable_sync::sync_environment_variables_to_sdk(
+                        &mut client,
+                        env_vars,
+                    )
+                    .await
+                    {
+                        Ok(()) => {
+                            info!("Initial environment variable sync completed successfully");
+                        }
+                        Err(e) => {
+                            warn!("Failed to perform initial environment variable sync: {:?}", e);
+                            // Don't fail startup - env vars will be synced on next change
+                        }
+                    }
+                }
+            } else {
+                info!("No environment variables to sync on startup");
+            }
+        }
+        Err(e) => {
+            warn!(
+                "Failed to fetch environment variables for initial sync: {:?}",
+                e
+            );
+            // Don't fail startup - env vars will be synced on next change
+        }
+    }
+
     Ok(ApiServiceBundle {
         api_service,
         subsystems: Subsystems {
@@ -322,6 +382,7 @@ pub async fn create_api_service(
             credential_rotation: Some(credential_rotation_handle),
             bridge_client_generation: Some(bridge_client_gen_handle),
             secret_sync: Some(secret_sync_handle),
+            environment_variable_sync: Some(env_var_sync_handle),
         },
         soma_change_tx,
     })

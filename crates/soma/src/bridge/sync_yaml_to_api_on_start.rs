@@ -5,7 +5,10 @@ use shared::{
     soma_agent_definition::{EnvelopeKeyConfig, SomaAgentDefinitionLike},
 };
 use soma_api_client::{
-    apis::{bridge_api, configuration::Configuration, encryption_api, secret_api},
+    apis::{
+        bridge_api, configuration::Configuration, encryption_api, environment_variable_api,
+        secret_api,
+    },
     models,
 };
 use tracing::info;
@@ -424,6 +427,62 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
     }
 
     info!("Secrets synced from soma definition");
+
+    // 4. Sync environment variables
+    if let Some(env_vars) = &soma_definition.environment_variables {
+        use std::collections::HashSet;
+
+        // Get existing environment variables
+        let existing_env_vars: HashSet<String> = {
+            let mut keys = HashSet::new();
+            let mut next_page_token: Option<String> = None;
+            loop {
+                let response = environment_variable_api::list_environment_variables(
+                    api_config,
+                    100,
+                    next_page_token.as_deref(),
+                )
+                .await
+                .map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to list environment variables: {e:?}"
+                    ))
+                })?;
+
+                for env_var in response.environment_variables {
+                    keys.insert(env_var.key);
+                }
+                // Handle doubly wrapped Option<Option<String>> from generated API client
+                match response.next_page_token.flatten() {
+                    Some(token) if !token.is_empty() => {
+                        next_page_token = Some(token);
+                    }
+                    _ => break,
+                }
+            }
+            keys
+        };
+
+        // Create or update environment variables from yaml
+        for (key, value) in env_vars {
+            if !existing_env_vars.contains(key) {
+                let create_req = models::CreateEnvironmentVariableRequest {
+                    key: key.clone(),
+                    value: value.clone(),
+                };
+                environment_variable_api::create_environment_variable(api_config, create_req)
+                    .await
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to create environment variable '{key}': {e:?}"
+                        ))
+                    })?;
+                info!("Created environment variable '{}'", key);
+            }
+        }
+    }
+
+    info!("Environment variables synced from soma definition");
 
     Ok(())
 }

@@ -8,6 +8,7 @@ pub struct Subsystems {
     pub credential_rotation: Option<SubsystemHandle>,
     pub bridge_client_generation: Option<SubsystemHandle>,
     pub secret_sync: Option<SubsystemHandle>,
+    pub environment_variable_sync: Option<SubsystemHandle>,
 }
 
 impl Subsystems {
@@ -30,6 +31,9 @@ impl Subsystems {
             handle.wait_for_shutdown().await;
         }
         if let Some(handle) = self.secret_sync {
+            handle.wait_for_shutdown().await;
+        }
+        if let Some(handle) = self.environment_variable_sync {
             handle.wait_for_shutdown().await;
         }
 

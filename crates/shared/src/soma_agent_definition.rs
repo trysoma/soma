@@ -18,6 +18,8 @@ pub struct SomaAgentDefinition {
     pub bridge: Option<BridgeConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub secrets: Option<HashMap<String, SecretConfig>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub environment_variables: Option<HashMap<String, String>>,
 }
 
 /// Configuration for a secret stored in soma.yaml
@@ -256,6 +258,16 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
     async fn add_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError>;
     async fn update_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError>;
     async fn remove_secret(&self, key: String) -> Result<(), CommonError>;
+
+    // Environment variable operations
+    async fn add_environment_variable(&self, key: String, value: String)
+    -> Result<(), CommonError>;
+    async fn update_environment_variable(
+        &self,
+        key: String,
+        value: String,
+    ) -> Result<(), CommonError>;
+    async fn remove_environment_variable(&self, key: String) -> Result<(), CommonError>;
 
     async fn reload(&self) -> Result<(), CommonError>;
 }
@@ -626,6 +638,59 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         if let Some(secrets) = &mut definition.secrets {
             secrets.remove(&key);
             info!("Secret removed: {:?}", key);
+            self.save(definition).await?;
+        }
+        Ok(())
+    }
+
+    async fn add_environment_variable(
+        &self,
+        key: String,
+        value: String,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if definition.environment_variables.is_none() {
+            definition.environment_variables = Some(HashMap::new());
+        }
+
+        definition
+            .environment_variables
+            .as_mut()
+            .unwrap()
+            .insert(key.clone(), value);
+        info!("Environment variable added: {:?}", key);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn update_environment_variable(
+        &self,
+        key: String,
+        value: String,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if definition.environment_variables.is_none() {
+            definition.environment_variables = Some(HashMap::new());
+        }
+
+        definition
+            .environment_variables
+            .as_mut()
+            .unwrap()
+            .insert(key.clone(), value);
+        info!("Environment variable updated: {:?}", key);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_environment_variable(&self, key: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(env_vars) = &mut definition.environment_variables {
+            env_vars.remove(&key);
+            info!("Environment variable removed: {:?}", key);
             self.save(definition).await?;
         }
         Ok(())
