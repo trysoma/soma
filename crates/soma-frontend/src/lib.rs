@@ -133,6 +133,9 @@ pub fn create_vite_router() -> OpenApiRouter<()> {
         vite_router = vite_router.route(path.as_str(), any(tanstack_spa_handler));
     }
 
+    // Add catch-all route for SPA routing (serves index.html for unmatched routes)
+    vite_router = vite_router.route("/{*path}", any(tanstack_spa_handler));
+
     let vite_router = vite_router.with_state(vite);
 
     vite_router

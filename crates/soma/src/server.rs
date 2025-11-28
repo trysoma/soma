@@ -36,26 +36,21 @@ pub async fn start_axum_server(
     let handle = axum_server::Handle::new();
 
     // Build the main API router
-    #[cfg(debug_assertions)]
-    let mut router = soma_api_server::router::initiaite_api_router(params.api_service)?;
-    #[cfg(not(debug_assertions))]
-    let router = soma_api_server::router::initiaite_api_router(params.api_service)?;
+    let api_router = soma_api_server::router::initiaite_api_router(params.api_service)?;
 
-    // In debug mode, add the Vite dev server frontend
+    // Add the frontend router (Vite dev server in debug, static files in release)
     #[cfg(debug_assertions)]
     let _vite_scope_guard = {
         use soma_frontend::start_vite_dev_server;
         start_vite_dev_server()
     };
 
-    #[cfg(debug_assertions)]
-    {
-        use axum::Router;
-        use soma_frontend::create_vite_router;
+    // Merge frontend router in both debug and release modes
+    use axum::Router;
+    use soma_frontend::create_vite_router;
 
-        let (vite_router, _) = create_vite_router().split_for_parts();
-        router = Router::new().merge(router).merge(vite_router);
-    }
+    let (vite_router, _) = create_vite_router().split_for_parts();
+    let router = Router::new().merge(api_router).merge(vite_router);
 
     // Add CORS layer
     let router = router.layer(CorsLayer::permissive());
