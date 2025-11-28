@@ -508,4 +508,128 @@ mod tests {
         let event = on_change_rx.try_recv();
         assert!(event.is_err());
     }
+
+    #[tokio::test]
+    async fn test_import_environment_variable() {
+        let repository = setup_test_repository().await;
+
+        let request = ImportEnvironmentVariableRequest {
+            key: "IMPORTED_VAR".to_string(),
+            value: "imported-value".to_string(),
+        };
+
+        let result = import_environment_variable(&repository, request).await;
+
+        assert!(result.is_ok());
+        let env_var = result.unwrap();
+        assert_eq!(env_var.key, "IMPORTED_VAR");
+        assert_eq!(env_var.value, "imported-value");
+
+        // Verify it was actually saved
+        let fetched = get_environment_variable_by_key(&repository, "IMPORTED_VAR".to_string()).await;
+        assert!(fetched.is_ok());
+        assert_eq!(fetched.unwrap().id, env_var.id);
+    }
+
+    #[tokio::test]
+    async fn test_update_environment_variable_not_found() {
+        let repository = setup_test_repository().await;
+        let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+
+        let update_request = UpdateEnvironmentVariableRequest {
+            value: "updated-value".to_string(),
+        };
+
+        let result = update_environment_variable(
+            &on_change_tx,
+            &repository,
+            WrappedUuidV4::new(),
+            update_request,
+            true,
+        )
+        .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CommonError::NotFound { .. } => {}
+            e => panic!("Expected NotFound error, got: {e:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_environment_variable_not_found() {
+        let repository = setup_test_repository().await;
+        let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+
+        let result =
+            delete_environment_variable(&on_change_tx, &repository, WrappedUuidV4::new(), true)
+                .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CommonError::NotFound { .. } => {}
+            e => panic!("Expected NotFound error, got: {e:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_environment_variable_by_key_not_found() {
+        let repository = setup_test_repository().await;
+
+        let result =
+            get_environment_variable_by_key(&repository, "NON_EXISTENT_KEY".to_string()).await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CommonError::NotFound { .. } => {}
+            e => panic!("Expected NotFound error, got: {e:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_list_environment_variables_pagination() {
+        let repository = setup_test_repository().await;
+        let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+
+        // Create 5 environment variables
+        for i in 0..5 {
+            let create_request = CreateEnvironmentVariableRequest {
+                key: format!("ENV_VAR_{i}"),
+                value: format!("value-{i}"),
+            };
+
+            create_environment_variable(&on_change_tx, &repository, create_request, false)
+                .await
+                .unwrap();
+        }
+
+        // First page
+        let result = list_environment_variables(
+            &repository,
+            PaginationRequest {
+                page_size: 3,
+                next_page_token: None,
+            },
+        )
+        .await;
+
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.environment_variables.len(), 3);
+        assert!(response.next_page_token.is_some());
+
+        // Second page
+        let result = list_environment_variables(
+            &repository,
+            PaginationRequest {
+                page_size: 3,
+                next_page_token: response.next_page_token,
+            },
+        )
+        .await;
+
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.environment_variables.len(), 2);
+    }
 }

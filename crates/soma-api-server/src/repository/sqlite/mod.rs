@@ -2634,4 +2634,309 @@ mod tests {
         assert_eq!(response.items.len(), 0);
         assert!(response.next_page_token.is_none());
     }
+
+    // Environment variable tests
+    #[tokio::test]
+    async fn test_create_and_get_environment_variable_by_id() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let env_var_id = WrappedUuidV4::new();
+        let key = "TEST_ENV_VAR".to_string();
+        let value = "test-value".to_string();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        // Create environment variable
+        let create_params = crate::repository::CreateEnvironmentVariable {
+            id: env_var_id.clone(),
+            key: key.clone(),
+            value: value.clone(),
+            created_at,
+            updated_at,
+        };
+        repo.create_environment_variable(&create_params)
+            .await
+            .unwrap();
+
+        // Get environment variable by ID
+        let env_var = repo
+            .get_environment_variable_by_id(&env_var_id)
+            .await
+            .unwrap();
+        assert!(env_var.is_some());
+        let env_var = env_var.unwrap();
+        assert_eq!(env_var.id, env_var_id);
+        assert_eq!(env_var.key, key);
+        assert_eq!(env_var.value, value);
+    }
+
+    #[tokio::test]
+    async fn test_get_environment_variable_by_key() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let env_var_id = WrappedUuidV4::new();
+        let key = "MY_UNIQUE_ENV_VAR".to_string();
+        let value = "unique-value".to_string();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        // Create environment variable
+        let create_params = crate::repository::CreateEnvironmentVariable {
+            id: env_var_id.clone(),
+            key: key.clone(),
+            value: value.clone(),
+            created_at,
+            updated_at,
+        };
+        repo.create_environment_variable(&create_params)
+            .await
+            .unwrap();
+
+        // Get environment variable by key
+        let env_var = repo.get_environment_variable_by_key(&key).await.unwrap();
+        assert!(env_var.is_some());
+        let env_var = env_var.unwrap();
+        assert_eq!(env_var.id, env_var_id);
+        assert_eq!(env_var.key, key);
+    }
+
+    #[tokio::test]
+    async fn test_update_environment_variable() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let env_var_id = WrappedUuidV4::new();
+        let key = "UPDATE_TEST_KEY".to_string();
+        let value = "original-value".to_string();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        // Create environment variable
+        let create_params = crate::repository::CreateEnvironmentVariable {
+            id: env_var_id.clone(),
+            key: key.clone(),
+            value: value.clone(),
+            created_at,
+            updated_at,
+        };
+        repo.create_environment_variable(&create_params)
+            .await
+            .unwrap();
+
+        // Update environment variable
+        let new_value = "updated-value".to_string();
+        let new_updated_at = WrappedChronoDateTime::now();
+
+        let update_params = crate::repository::UpdateEnvironmentVariable {
+            id: env_var_id.clone(),
+            value: new_value.clone(),
+            updated_at: new_updated_at,
+        };
+        repo.update_environment_variable(&update_params)
+            .await
+            .unwrap();
+
+        // Verify update
+        let env_var = repo
+            .get_environment_variable_by_id(&env_var_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(env_var.value, new_value);
+        // Key should remain unchanged
+        assert_eq!(env_var.key, key);
+    }
+
+    #[tokio::test]
+    async fn test_delete_environment_variable() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let env_var_id = WrappedUuidV4::new();
+        let key = "DELETE_TEST_KEY".to_string();
+        let value = "value-to-delete".to_string();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        // Create environment variable
+        let create_params = crate::repository::CreateEnvironmentVariable {
+            id: env_var_id.clone(),
+            key,
+            value,
+            created_at,
+            updated_at,
+        };
+        repo.create_environment_variable(&create_params)
+            .await
+            .unwrap();
+
+        // Verify environment variable exists
+        let env_var = repo
+            .get_environment_variable_by_id(&env_var_id)
+            .await
+            .unwrap();
+        assert!(env_var.is_some());
+
+        // Delete environment variable
+        repo.delete_environment_variable(&env_var_id).await.unwrap();
+
+        // Verify environment variable no longer exists
+        let env_var = repo
+            .get_environment_variable_by_id(&env_var_id)
+            .await
+            .unwrap();
+        assert!(env_var.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_environment_variables_pagination() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        use std::thread::sleep;
+        use std::time::Duration;
+
+        // Create 5 environment variables with slight time differences
+        for i in 0..5 {
+            sleep(Duration::from_millis(10)); // Ensure different timestamps
+            let env_var_id = WrappedUuidV4::new();
+            let key = format!("ENV_VAR_{i}");
+            let value = format!("value-{i}");
+            let created_at = WrappedChronoDateTime::now();
+            let updated_at = WrappedChronoDateTime::now();
+
+            let create_params = crate::repository::CreateEnvironmentVariable {
+                id: env_var_id,
+                key,
+                value,
+                created_at,
+                updated_at,
+            };
+            repo.create_environment_variable(&create_params)
+                .await
+                .unwrap();
+        }
+
+        // Test pagination - get all environment variables
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let response = repo.get_environment_variables(&pagination).await.unwrap();
+
+        // Should have 5 environment variables
+        assert_eq!(response.items.len(), 5);
+        assert!(response.next_page_token.is_none()); // No more pages
+
+        // Test pagination with smaller page size
+        let pagination = PaginationRequest {
+            page_size: 3,
+            next_page_token: None,
+        };
+        let response = repo.get_environment_variables(&pagination).await.unwrap();
+        assert_eq!(response.items.len(), 3);
+        assert!(response.next_page_token.is_some()); // More pages available
+
+        // Get next page
+        let pagination = PaginationRequest {
+            page_size: 3,
+            next_page_token: response.next_page_token,
+        };
+        let response = repo.get_environment_variables(&pagination).await.unwrap();
+        assert!(response.items.len() >= 2 && response.items.len() <= 3);
+    }
+
+    #[tokio::test]
+    async fn test_get_environment_variable_by_id_not_found() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let non_existent_id = WrappedUuidV4::new();
+        let env_var = repo
+            .get_environment_variable_by_id(&non_existent_id)
+            .await
+            .unwrap();
+        assert!(env_var.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_environment_variable_by_key_not_found() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let env_var = repo
+            .get_environment_variable_by_key("NON_EXISTENT_KEY")
+            .await
+            .unwrap();
+        assert!(env_var.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_environment_variables_empty() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        // Get environment variables from empty database
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let response = repo.get_environment_variables(&pagination).await.unwrap();
+
+        assert_eq!(response.items.len(), 0);
+        assert!(response.next_page_token.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_environment_variable_unique_key_constraint() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let key = "DUPLICATE_KEY".to_string();
+        let created_at = WrappedChronoDateTime::now();
+        let updated_at = WrappedChronoDateTime::now();
+
+        // Create first environment variable
+        let create_params_1 = crate::repository::CreateEnvironmentVariable {
+            id: WrappedUuidV4::new(),
+            key: key.clone(),
+            value: "value-1".to_string(),
+            created_at,
+            updated_at,
+        };
+        repo.create_environment_variable(&create_params_1)
+            .await
+            .unwrap();
+
+        // Try to create another with the same key - should fail
+        let create_params_2 = crate::repository::CreateEnvironmentVariable {
+            id: WrappedUuidV4::new(),
+            key: key.clone(),
+            value: "value-2".to_string(),
+            created_at,
+            updated_at,
+        };
+        let result = repo.create_environment_variable(&create_params_2).await;
+        assert!(result.is_err());
+    }
 }
