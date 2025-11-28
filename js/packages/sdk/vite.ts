@@ -240,8 +240,8 @@ function generateStandaloneServer(
 
 	return `/// <reference types="node" />
 // Auto-generated standalone server
-import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler } from '@trysoma/sdk';
-import type { Secret, SetSecretsResponse, SetSecretsSuccess, CallbackError } from '@trysoma/sdk';
+import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler, setEnvironmentVariableHandler } from '@trysoma/sdk';
+import type { Secret, SetSecretsResponse, SetSecretsSuccess, CallbackError, EnvironmentVariable, SetEnvironmentVariablesResponse, SetEnvironmentVariablesSuccess } from '@trysoma/sdk';
 import * as restate from '@restatedev/restate-sdk';
 import * as http2 from 'http2';
 
@@ -292,6 +292,37 @@ setSecretHandler(async (err, secrets) => {
   return res;
 });
 console.log('[INFO] Secret handler registered successfully');
+
+// Register environment variable handler to inject environment variables into process.env
+console.log('[INFO] Registering environment variable handler...');
+setEnvironmentVariableHandler(async (err, envVars) => {
+  if (err) {
+    console.error('Error in environment variable handler:', err);
+    const error: CallbackError = {
+      message: err.message,
+    }
+    const res: SetEnvironmentVariablesResponse = {
+      error
+    }
+    return res;
+  }
+  const envVarKeys = envVars.map(e => e.key);
+  console.log(\`[INFO] Environment variable handler invoked with \${envVars.length} environment variables: \${envVarKeys.join(', ')}\`);
+  for (const envVar of envVars) {
+    process.env[envVar.key] = envVar.value;
+    console.log(\`[INFO] Set process.env.\${envVar.key}\`);
+  }
+  const message = \`Injected \${envVars.length} environment variables into process.env\`;
+  console.log(\`[INFO] Environment variable handler completed: \${message}\`);
+  const data: SetEnvironmentVariablesSuccess = {
+    message,
+  }
+  const res: SetEnvironmentVariablesResponse = {
+    data,
+  }
+  return res;
+});
+console.log('[INFO] Environment variable handler registered successfully');
 
 // Register all providers and functions
 ${functionRegistrations.join("\n")}

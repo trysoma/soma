@@ -159,3 +159,23 @@ pub struct SetSecretsResponse {
     pub data: Option<SetSecretsSuccess>,
     pub error: Option<CallbackError>,
 }
+
+#[napi(object)]
+pub struct EnvironmentVariable {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone)]
+#[napi(object)]
+pub struct SetEnvironmentVariablesSuccess {
+    pub message: String,
+}
+
+/// Response from setting environment variables
+#[derive(Debug, Clone)]
+#[napi(object)]
+pub struct SetEnvironmentVariablesResponse {
+    pub data: Option<SetEnvironmentVariablesSuccess>,
+    pub error: Option<CallbackError>,
+}
