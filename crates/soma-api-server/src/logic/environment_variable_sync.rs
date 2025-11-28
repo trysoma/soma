@@ -14,6 +14,27 @@ pub struct EnvironmentVariableData {
     pub value: String,
 }
 
+/// Interpolate environment variable value with host environment variables.
+///
+/// Rules:
+/// - If value starts with `$`, the rest is treated as an environment variable name
+///   to look up from the host's environment (e.g., `$MY_VAR` -> value of `MY_VAR`)
+/// - If value starts with `$$`, treat as literal `$` followed by the rest
+///   (e.g., `$$MY_VAR` -> literal string `$MY_VAR`)
+/// - Otherwise, return the value as-is
+pub fn interpolate_env_value(value: &str) -> String {
+    if let Some(stripped) = value.strip_prefix("$$") {
+        // Escaped dollar sign - return literal $ + rest
+        format!("${stripped}")
+    } else if let Some(var_name) = value.strip_prefix('$') {
+        // Environment variable reference - look up from host environment
+        std::env::var(var_name).unwrap_or_default()
+    } else {
+        // No special prefix - return as-is
+        value.to_string()
+    }
+}
+
 /// Fetch all environment variables from the database
 pub async fn fetch_all_environment_variables(
     repository: &std::sync::Arc<crate::repository::Repository>,
@@ -50,6 +71,10 @@ pub async fn fetch_all_environment_variables(
 }
 
 /// Sync environment variables to the SDK via gRPC
+///
+/// This function interpolates environment variable values before sending:
+/// - Values starting with `$` are replaced with the host environment variable
+/// - Values starting with `$$` become literal `$` + rest of string
 pub async fn sync_environment_variables_to_sdk(
     sdk_client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
         tonic::transport::Channel,
@@ -60,7 +85,7 @@ pub async fn sync_environment_variables_to_sdk(
         .into_iter()
         .map(|e| sdk_proto::EnvironmentVariable {
             key: e.key,
-            value: e.value,
+            value: interpolate_env_value(&e.value),
         })
         .collect();
 
@@ -207,4 +232,92 @@ pub fn start_environment_variable_sync_subsystem(
     });
 
     Ok(handle)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_interpolate_env_value_passthrough() {
+        // Set a test environment variable
+        // SAFETY: This is a test that runs in isolation
+        unsafe {
+            std::env::set_var("TEST_PASSTHROUGH_VAR", "hello_from_host");
+        }
+
+        // Value starting with $ should be interpolated from host env
+        let result = interpolate_env_value("$TEST_PASSTHROUGH_VAR");
+        assert_eq!(result, "hello_from_host");
+
+        // Clean up
+        // SAFETY: This is a test that runs in isolation
+        unsafe {
+            std::env::remove_var("TEST_PASSTHROUGH_VAR");
+        }
+    }
+
+    #[test]
+    fn test_interpolate_env_value_passthrough_missing_var() {
+        // Ensure the variable doesn't exist
+        // SAFETY: This is a test that runs in isolation
+        unsafe {
+            std::env::remove_var("NON_EXISTENT_TEST_VAR");
+        }
+
+        // Missing env var should return empty string
+        let result = interpolate_env_value("$NON_EXISTENT_TEST_VAR");
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_interpolate_env_value_escaped_dollar() {
+        // Value starting with $$ should become literal $
+        let result = interpolate_env_value("$$MY_VAR");
+        assert_eq!(result, "$MY_VAR");
+    }
+
+    #[test]
+    fn test_interpolate_env_value_escaped_empty() {
+        // Just $$ should become just $
+        let result = interpolate_env_value("$$");
+        assert_eq!(result, "$");
+    }
+
+    #[test]
+    fn test_interpolate_env_value_literal() {
+        // Regular value without $ prefix should remain unchanged
+        let result = interpolate_env_value("regular_value");
+        assert_eq!(result, "regular_value");
+    }
+
+    #[test]
+    fn test_interpolate_env_value_empty() {
+        // Empty string should remain empty
+        let result = interpolate_env_value("");
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_interpolate_env_value_dollar_in_middle() {
+        // Dollar sign in middle of string should not be interpolated
+        let result = interpolate_env_value("prefix$VAR");
+        assert_eq!(result, "prefix$VAR");
+    }
+
+    #[test]
+    fn test_interpolate_env_value_triple_dollar() {
+        // $$$ should become $$ (escape first two, third remains)
+        // Actually: $$ -> $, then the third $ is part of the result
+        let result = interpolate_env_value("$$$VAR");
+        assert_eq!(result, "$$VAR");
+    }
+
+    #[test]
+    fn test_interpolate_env_value_just_dollar() {
+        // Just $ alone - var name is empty, should return empty string
+        let result = interpolate_env_value("$");
+        // std::env::var("") returns Err, so unwrap_or_default returns ""
+        assert_eq!(result, "");
+    }
 }
