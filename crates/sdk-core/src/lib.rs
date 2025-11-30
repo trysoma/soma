@@ -603,11 +603,6 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcServiceWrapper<G> {
 /// Response from resync_sdk operation
 #[derive(Debug, Clone)]
 pub struct ResyncSdkResponse {
-    pub message: String,
-    pub providers_synced: i64,
-    pub agents_synced: i64,
-    pub secrets_synced: i64,
-    pub env_vars_synced: i64,
 }
 
 /// Calls the internal resync endpoint on the Soma API server.
@@ -635,27 +630,11 @@ pub async fn resync_sdk(base_url: Option<String>) -> Result<ResyncSdkResponse, C
         ..Default::default()
     };
 
-    let result = soma_api_client::apis::internal_api::resync_sdk(&config)
+    soma_api_client::apis::internal_api::resync_sdk(&config)
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Resync failed: {e:?}")))?;
 
-    // Extract fields from JSON value
-    let message = result["message"].as_str().unwrap_or_default().to_string();
-    let providers_synced = result["providers_synced"].as_i64().unwrap_or(0);
-    let agents_synced = result["agents_synced"].as_i64().unwrap_or(0);
-    let secrets_synced = result["secrets_synced"].as_i64().unwrap_or(0);
-    let env_vars_synced = result["env_vars_synced"].as_i64().unwrap_or(0);
-
-    info!(
-        "[SDK] Resync complete: {} providers, {} agents, {} secrets, {} env vars",
-        providers_synced, agents_synced, secrets_synced, env_vars_synced
-    );
 
     Ok(ResyncSdkResponse {
-        message,
-        providers_synced,
-        agents_synced,
-        secrets_synced,
-        env_vars_synced,
     })
 }

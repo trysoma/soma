@@ -664,11 +664,6 @@ pub fn update_agent(agent: js_types::Agent) -> Result<bool> {
 /// Response from resync_sdk operation
 #[napi(object)]
 pub struct ResyncSdkResponse {
-    pub message: String,
-    pub providers_synced: i64,
-    pub agents_synced: i64,
-    pub secrets_synced: i64,
-    pub env_vars_synced: i64,
 }
 
 /// Calls the internal resync endpoint on the Soma API server.
@@ -691,10 +686,5 @@ pub async fn resync_sdk(base_url: Option<String>) -> Result<ResyncSdkResponse> {
         .map_err(|e| napi::Error::from_reason(e.to_string()))?;
 
     Ok(ResyncSdkResponse {
-        message: result.message,
-        providers_synced: result.providers_synced,
-        agents_synced: result.agents_synced,
-        secrets_synced: result.secrets_synced,
-        env_vars_synced: result.env_vars_synced,
     })
 }
