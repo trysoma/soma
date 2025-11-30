@@ -5,7 +5,6 @@ use encryption::logic::crypto_services::CryptoCache;
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
-use shared::uds::{DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client};
 use tokio::sync::Mutex;
 use tonic::{Request, transport::Channel};
 use tracing::{error, info, warn};
@@ -87,7 +86,7 @@ pub async fn resync_sdk(
     repository: &std::sync::Arc<crate::repository::Repository>,
     crypto_cache: &CryptoCache,
     restate_params: &crate::restate::RestateServerParams,
-    restate_service_server_params: &crate::restate::RestateServiceServerParams,
+    sdk_port: u16,
     sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
 ) -> Result<ResyncSdkResponse, CommonError> {
     let mut sdk_client_guard = sdk_client.lock().await;
@@ -121,7 +120,7 @@ pub async fn resync_sdk(
     if !metadata.agents.is_empty() {
         for agent in metadata.agents {
             let restate_service_id = format!("{}.{}", agent.project_id, agent.id);
-            register_agent_deployment(agent, restate_params, restate_service_server_params, &restate_service_id).await?;
+            register_agent_deployment(agent, restate_params, sdk_port, &restate_service_id).await?;
         }
     }
 
@@ -154,49 +153,45 @@ pub async fn resync_sdk(
 async fn register_agent_deployment(
     agent: sdk_proto::Agent,
     restate_server_params: &crate::restate::RestateServerParams,
-    restate_service_params: &crate::restate::RestateServiceServerParams,
+    sdk_port: u16,
     restate_service_id: &str,
 ) -> Result<(), CommonError> {
     use shared::restate;
-    
 
-    let service_uri = restate_service_params.service_uri.to_string();
-        let deployment_type = restate::deploy::DeploymentType::Http {
-            uri: service_uri,
-            additional_headers: restate_service_params.additional_headers.clone(),
-        };
+    let service_uri = restate_server_params.get_service_uri(sdk_port);
+    let deployment_type = restate::deploy::DeploymentType::Http {
+        uri: service_uri.to_string(),
+        additional_headers: restate_server_params.get_service_additional_headers(),
+    };
 
-        // Use the project_id.agent_id format as the service path (matches Restate service name)
-        // let service_path = format!("{}.{}", agent.project_id, agent.id);
+    info!(
+        "Registering service path: {} with service URI: {}",
+        restate_service_id, service_uri
+    );
 
-        info!(
-            "Registering service path: {} with service URI: {}",
-            restate_service_id, restate_service_params.service_uri
-        );
+    let admin_url = restate_server_params.get_admin_address()?;
+    let config = restate::deploy::DeploymentRegistrationConfig {
+        admin_url: admin_url.to_string(),
+        service_path: restate_service_id.to_string(),
+        deployment_type,
+        bearer_token: restate_server_params.get_admin_token(),
+        private: restate_server_params.get_private(),
+        insecure: restate_server_params.get_insecure(),
+        force: restate_server_params.get_force(),
+    };
 
-        let admin_url = restate_server_params.get_admin_address()?;
-        let config = restate::deploy::DeploymentRegistrationConfig {
-            admin_url: admin_url.to_string(),
-            service_path: restate_service_id.to_string(),
-            deployment_type,
-            bearer_token: restate_server_params.get_admin_token(),
-            private: restate_server_params.get_private(),
-            insecure: restate_server_params.get_insecure(),
-            force: restate_server_params.get_force(),
-        };
-
-        match restate::deploy::register_deployment(config).await {
-            Ok(metadata) => {
-                info!(
-                    "Successfully registered agent '{}' (service: {})",
-                    agent.name, metadata.name
-                );
-            }
-            Err(e) => {
-                error!("Failed to register agent '{}': {:?}", agent.name, e);
-                // Continue with other agents even if one fails
-            }
+    match restate::deploy::register_deployment(config).await {
+        Ok(metadata) => {
+            info!(
+                "Successfully registered agent '{}' (service: {})",
+                agent.name, metadata.name
+            );
         }
+        Err(e) => {
+            error!("Failed to register agent '{}': {:?}", agent.name, e);
+            // Continue with other agents even if one fails
+        }
+    }
 
     Ok(())
 }

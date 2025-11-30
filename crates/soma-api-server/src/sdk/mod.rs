@@ -103,7 +103,7 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
     let ctx = ClientCtx {
         project_dir: project_dir.clone(),
         socket_path: DEFAULT_SOMA_SERVER_SOCK.to_string(),
-        restate_service_port: restate_service_port,
+        restate_service_port,
         kill_signal_rx: kill_signal_rx.resubscribe(),
         initial_secrets,
         initial_environment_variables,

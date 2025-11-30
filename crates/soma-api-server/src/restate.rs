@@ -24,12 +24,6 @@ pub struct RestateServerRemoteParams {
 }
 
 #[derive(Clone)]
-pub struct RestateServiceServerParams {
-    pub service_uri: Url,
-    pub additional_headers: HashMap<String, String>,
-}
-
-#[derive(Clone)]
 pub enum RestateServerParams {
     Local(RestateServerLocalParams),
     Remote(RestateServerRemoteParams),
@@ -94,5 +88,17 @@ impl RestateServerParams {
             RestateServerParams::Local(_params) => true,
             RestateServerParams::Remote(_params) => true,
         }
+    }
+
+    /// Get the service URI for SDK server based on the sdk_port
+    pub fn get_service_uri(&self, sdk_port: u16) -> Url {
+        // Always use localhost for the SDK service URI
+        Url::parse(&format!("http://127.0.0.1:{}", sdk_port))
+            .expect("Failed to parse SDK service URI")
+    }
+
+    /// Get additional headers for service deployment (empty for now)
+    pub fn get_service_additional_headers(&self) -> HashMap<String, String> {
+        HashMap::new()
     }
 }

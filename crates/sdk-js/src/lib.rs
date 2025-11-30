@@ -660,3 +660,41 @@ pub fn update_agent(agent: js_types::Agent) -> Result<bool> {
     };
     Ok(get_grpc_service()?.update_agent(core_agent))
 }
+
+/// Response from resync_sdk operation
+#[napi(object)]
+pub struct ResyncSdkResponse {
+    pub message: String,
+    pub providers_synced: i64,
+    pub agents_synced: i64,
+    pub secrets_synced: i64,
+    pub env_vars_synced: i64,
+}
+
+/// Calls the internal resync endpoint on the Soma API server.
+/// This triggers the API server to:
+/// - Fetch metadata from the SDK (providers, agents)
+/// - Sync providers to the bridge registry
+/// - Register Restate deployments for agents
+/// - Sync secrets to the SDK
+/// - Sync environment variables to the SDK
+///
+/// # Parameters
+/// * `base_url` - Optional base URL of the Soma API server (defaults to SOMA_SERVER_BASE_URL env var or http://localhost:3000)
+///
+/// # Returns
+/// The resync response from the server
+#[napi]
+pub async fn resync_sdk(base_url: Option<String>) -> Result<ResyncSdkResponse> {
+    let result = core_types::resync_sdk(base_url)
+        .await
+        .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+
+    Ok(ResyncSdkResponse {
+        message: result.message,
+        providers_synced: result.providers_synced,
+        agents_synced: result.agents_synced,
+        secrets_synced: result.secrets_synced,
+        env_vars_synced: result.env_vars_synced,
+    })
+}

@@ -599,3 +599,63 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcServiceWrapper<G> {
         self.0.unset_environment_variables(request).await
     }
 }
+
+/// Response from resync_sdk operation
+#[derive(Debug, Clone)]
+pub struct ResyncSdkResponse {
+    pub message: String,
+    pub providers_synced: i64,
+    pub agents_synced: i64,
+    pub secrets_synced: i64,
+    pub env_vars_synced: i64,
+}
+
+/// Calls the internal resync endpoint on the Soma API server.
+/// This triggers the API server to:
+/// - Fetch metadata from the SDK (providers, agents)
+/// - Sync providers to the bridge registry
+/// - Register Restate deployments for agents
+/// - Sync secrets to the SDK
+/// - Sync environment variables to the SDK
+///
+/// # Arguments
+/// * `base_url` - Optional base URL of the Soma API server (defaults to SOMA_SERVER_BASE_URL env var or http://localhost:3000)
+///
+/// # Returns
+/// The resync response from the server
+pub async fn resync_sdk(base_url: Option<String>) -> Result<ResyncSdkResponse, CommonError> {
+    let api_base_url = base_url
+        .or_else(|| std::env::var("SOMA_SERVER_BASE_URL").ok())
+        .unwrap_or_else(|| "http://localhost:3000".to_string());
+
+    info!("[SDK] Calling resync endpoint at: {}", api_base_url);
+
+    let config = soma_api_client::apis::configuration::Configuration {
+        base_path: api_base_url.clone(),
+        ..Default::default()
+    };
+
+    let result = soma_api_client::apis::internal_api::resync_sdk(&config)
+        .await
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Resync failed: {e:?}")))?;
+
+    // Extract fields from JSON value
+    let message = result["message"].as_str().unwrap_or_default().to_string();
+    let providers_synced = result["providers_synced"].as_i64().unwrap_or(0);
+    let agents_synced = result["agents_synced"].as_i64().unwrap_or(0);
+    let secrets_synced = result["secrets_synced"].as_i64().unwrap_or(0);
+    let env_vars_synced = result["env_vars_synced"].as_i64().unwrap_or(0);
+
+    info!(
+        "[SDK] Resync complete: {} providers, {} agents, {} secrets, {} env vars",
+        providers_synced, agents_synced, secrets_synced, env_vars_synced
+    );
+
+    Ok(ResyncSdkResponse {
+        message,
+        providers_synced,
+        agents_synced,
+        secrets_synced,
+        env_vars_synced,
+    })
+}

@@ -1,12 +1,9 @@
-use axum::{Json, extract::State};
+use axum::extract::State;
 use encryption::logic::crypto_services::CryptoCache;
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
-use tracing::warn;
-use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use shared::{
@@ -106,6 +103,7 @@ async fn route_resync_sdk(
         &ctx.repository,
         &ctx.crypto_cache,
         &ctx.restate_params,
+        ctx.sdk_port,
         &ctx.sdk_client,
     )
     .await;
@@ -119,7 +117,7 @@ pub struct InternalService {
     repository: std::sync::Arc<crate::repository::Repository>,
     crypto_cache: CryptoCache,
     restate_params: crate::restate::RestateServerParams,
-    restate_service_server_params: crate::restate::RestateServiceServerParams,
+    sdk_port: u16,
 }
 
 impl InternalService {

@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 sdk-proto.workspace = true
 shared.workspace = true
+soma-api-client.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tracing.workspace = true
