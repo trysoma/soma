@@ -680,7 +680,7 @@ pub struct ResyncSdkResponse {}
 /// The resync response from the server
 #[napi]
 pub async fn resync_sdk(base_url: Option<String>) -> Result<ResyncSdkResponse> {
-    let result = core_types::resync_sdk(base_url)
+    core_types::resync_sdk(base_url)
         .await
         .map_err(|e| napi::Error::from_reason(e.to_string()))?;
 
