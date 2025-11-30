@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use url::Url;
@@ -20,6 +21,12 @@ pub struct RestateServerRemoteParams {
     pub admin_address: Url,
     pub ingress_address: Url,
     pub admin_token: Option<String>,
+}
+
+#[derive(Clone)]
+pub struct RestateServiceServerParams {
+    pub service_uri: Url,
+    pub additional_headers: HashMap<String, String>,
 }
 
 #[derive(Clone)]

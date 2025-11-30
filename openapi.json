@@ -16,7 +16,14 @@
         "operationId": "health-check",
         "responses": {
           "200": {
-            "description": "Service is healthy"
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckSdkHealthResponse"
+                }
+              }
+            }
           },
           "503": {
             "description": "Service unavailable - SDK server not ready"
@@ -82,7 +89,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RuntimeConfig"
+                  "$ref": "#/components/schemas/RuntimeConfigResponse"
                 }
               }
             }
@@ -4584,6 +4591,9 @@
           }
         }
       },
+      "CheckSdkHealthResponse": {
+        "type": "object"
+      },
       "ConfigurationSchema": {
         "type": "object",
         "required": [
@@ -6054,35 +6064,7 @@
         }
       },
       "ResyncSdkResponse": {
-        "type": "object",
-        "required": [
-          "message",
-          "providers_synced",
-          "agents_synced",
-          "secrets_synced",
-          "env_vars_synced"
-        ],
-        "properties": {
-          "agents_synced": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "env_vars_synced": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "message": {
-            "type": "string"
-          },
-          "providers_synced": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "secrets_synced": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
+        "type": "object"
       },
       "ReturnAddress": {
         "oneOf": [
@@ -6120,7 +6102,7 @@
           }
         }
       },
-      "RuntimeConfig": {
+      "RuntimeConfigResponse": {
         "type": "object"
       },
       "Secret": {
@@ -6465,15 +6447,7 @@
         }
       },
       "TriggerCodegenResponse": {
-        "type": "object",
-        "required": [
-          "message"
-        ],
-        "properties": {
-          "message": {
-            "type": "string"
-          }
-        }
+        "type": "object"
       },
       "TupleUnit": {
         "default": null

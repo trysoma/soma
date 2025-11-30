@@ -427,7 +427,11 @@ const wrapHandler = <T>(handler: SomaHandler<T>, agent: SomaAgent): RestateHandl
   };
 }
 
-const restatePort = parseInt(process.env.RESTATE_RUNTIME_PORT || process.env.RESTATE_PORT || '9080');
+const restateServicePort = process.env.RESTATE_SERVICE_PORT;
+if (!restateServicePort) {
+  throw new Error('RESTATE_SERVICE_PORT environment variable is not set');
+}
+const restatePort = parseInt(restateServicePort);
 console.log(\`Starting Restate server on port \${restatePort}...\`);
 
 // Wait for port to become available (in case previous instance is shutting down from HMR)

@@ -63,7 +63,7 @@ fn is_vite_project(src_dir: &Path) -> bool {
 pub struct StartDevSdkParams {
     pub project_dir: PathBuf,
     pub sdk_runtime: SdkRuntime,
-    pub sdk_port: u16,
+    pub restate_service_port: u16,
     pub kill_signal_rx: broadcast::Receiver<()>,
     pub repository: std::sync::Arc<crate::repository::Repository>,
     pub crypto_cache: CryptoCache,
@@ -74,7 +74,7 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
     let StartDevSdkParams {
         project_dir,
         sdk_runtime: _sdk_runtime,
-        sdk_port,
+        restate_service_port,
         kill_signal_rx,
         repository,
         crypto_cache,
@@ -103,7 +103,7 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
     let ctx = ClientCtx {
         project_dir: project_dir.clone(),
         socket_path: DEFAULT_SOMA_SERVER_SOCK.to_string(),
-        restate_runtime_port: sdk_port,
+        restate_service_port: restate_service_port,
         kill_signal_rx: kill_signal_rx.resubscribe(),
         initial_secrets,
         initial_environment_variables,
@@ -124,7 +124,7 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
 pub fn start_sdk_server_subsystem(
     project_dir: PathBuf,
     sdk_runtime: SdkRuntime,
-    sdk_port: u16,
+    restate_service_port: u16,
     shutdown_rx: broadcast::Receiver<()>,
     repository: crate::repository::Repository,
     crypto_cache: CryptoCache,
@@ -136,7 +136,7 @@ pub fn start_sdk_server_subsystem(
         match start_dev_sdk(StartDevSdkParams {
             project_dir,
             sdk_runtime,
-            sdk_port,
+            restate_service_port,
             kill_signal_rx: shutdown_rx,
             repository,
             crypto_cache,

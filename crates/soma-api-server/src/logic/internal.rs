@@ -1,10 +1,15 @@
+use std::sync::Arc;
+
 use bridge::repository::ProviderRepositoryLike;
 use encryption::logic::crypto_services::CryptoCache;
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
+use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
 use shared::uds::{DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client};
+use tokio::sync::Mutex;
 use tonic::{Request, transport::Channel};
 use tracing::{error, info, warn};
+use utoipa::ToSchema;
 
 use crate::logic::environment_variable_sync::{
     fetch_all_environment_variables, sync_environment_variables_to_sdk,
@@ -12,15 +17,26 @@ use crate::logic::environment_variable_sync::{
 use crate::logic::secret_sync::{fetch_and_decrypt_all_secrets, sync_secrets_to_sdk};
 use crate::sdk::sdk_provider_sync;
 
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct CheckSdkHealthResponse {
+
+}
+
 /// Checks SDK server health via gRPC
 pub async fn check_sdk_health(
-    sdk_client: &mut SomaSdkServiceClient<Channel>,
-) -> Result<(), CommonError> {
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+) -> Result<CheckSdkHealthResponse, CommonError> {
+    let mut sdk_client_guard = sdk_client.lock().await;
+    let client = match sdk_client_guard.as_mut() {
+        Some(client) => client,
+        None => return Err(CommonError::Unknown(anyhow::anyhow!("SDK client not available. Please ensure the SDK server is running."))),
+    };
+
     let request = Request::new(());
-    match sdk_client.health_check(request).await {
+    match client.health_check(request).await {
         Ok(_) => {
             info!("SDK server health check passed");
-            Ok(())
+            Ok(CheckSdkHealthResponse {})
         }
         Err(e) => {
             warn!("SDK server health check failed: {:?}", e);
@@ -31,15 +47,26 @@ pub async fn check_sdk_health(
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct TriggerCodegenResponse {
+}
+
 /// Triggers bridge client generation via gRPC call to SDK server
 pub async fn trigger_codegen(
-    sdk_client: &mut SomaSdkServiceClient<Channel>,
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
     bridge_repo: &impl ProviderRepositoryLike,
-) -> Result<String, CommonError> {
-    crate::logic::bridge::codegen::trigger_bridge_client_generation(sdk_client, bridge_repo)
+) -> Result<TriggerCodegenResponse, CommonError> {
+    let mut sdk_client_guard = sdk_client.lock().await;
+
+    let client = match sdk_client_guard.as_mut() {
+        Some(client) => client,
+        None => return Err(CommonError::Unknown(anyhow::anyhow!("SDK client not available. Please ensure the SDK server is running."))),
+    };
+
+    crate::logic::bridge::codegen::trigger_bridge_client_generation(client, bridge_repo)
         .await?;
 
-    Ok("Bridge client generation completed successfully".to_string())
+    Ok(TriggerCodegenResponse {})
 }
 
 /// Result of resync operation
@@ -50,22 +77,25 @@ pub struct ResyncResult {
     pub env_vars_synced: usize,
 }
 
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct ResyncSdkResponse {
+}
+
 /// Resync SDK: fetches metadata from SDK, syncs providers/agents to bridge registry,
 /// registers Restate deployments, and syncs secrets/env vars to SDK
 pub async fn resync_sdk(
     repository: &std::sync::Arc<crate::repository::Repository>,
     crypto_cache: &CryptoCache,
     restate_params: &crate::restate::RestateServerParams,
-    sdk_port: u16,
-) -> Result<ResyncResult, CommonError> {
-    let socket_path = DEFAULT_SOMA_SERVER_SOCK;
+    restate_service_server_params: &crate::restate::RestateServiceServerParams,
+    sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+) -> Result<ResyncSdkResponse, CommonError> {
+    let mut sdk_client_guard = sdk_client.lock().await;
+    let mut client = match sdk_client_guard.as_mut() {
+        Some(client) => client,
+        None => return Err(CommonError::Unknown(anyhow::anyhow!("SDK client not available. Please ensure the SDK server is running."))),
+    };
 
-    info!("Starting SDK resync...");
-
-    // Create SDK client
-    let mut client = create_soma_unix_socket_client(socket_path).await?;
-
-    // Fetch metadata from SDK (providers and agents)
     let request = Request::new(());
     let response = client
         .metadata(request)
@@ -73,6 +103,7 @@ pub async fn resync_sdk(
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to get SDK metadata: {e}")))?;
 
     let metadata = response.into_inner();
+
 
     info!(
         "Fetched SDK metadata: {} providers, {} agents",
@@ -88,10 +119,9 @@ pub async fn resync_sdk(
 
     // Register Restate deployments for agents
     if !metadata.agents.is_empty() {
-        if let Err(e) =
-            register_agent_deployments(metadata.agents, restate_params, sdk_port).await
-        {
-            error!("Failed to register agent deployments: {:?}", e);
+        for agent in metadata.agents {
+            let restate_service_id = format!("{}.{}", agent.project_id, agent.id);
+            register_agent_deployment(agent, restate_params, restate_service_server_params, &restate_service_id).await?;
         }
     }
 
@@ -100,7 +130,6 @@ pub async fn resync_sdk(
     let secrets_count = secrets.len();
     info!("Syncing {} secrets to SDK", secrets_count);
     if !secrets.is_empty() {
-        let mut client = create_soma_unix_socket_client(socket_path).await?;
         sync_secrets_to_sdk(&mut client, secrets).await?;
     }
 
@@ -109,7 +138,6 @@ pub async fn resync_sdk(
     let env_vars_count = env_vars.len();
     info!("Syncing {} environment variables to SDK", env_vars_count);
     if !env_vars.is_empty() {
-        let mut client = create_soma_unix_socket_client(socket_path).await?;
         sync_environment_variables_to_sdk(&mut client, env_vars).await?;
     }
 
@@ -118,52 +146,43 @@ pub async fn resync_sdk(
         providers_synced, agents_synced, secrets_count, env_vars_count
     );
 
-    Ok(ResyncResult {
-        providers_synced,
-        agents_synced,
-        secrets_synced: secrets_count,
-        env_vars_synced: env_vars_count,
+    Ok(ResyncSdkResponse {
     })
 }
 
 /// Register Restate deployments for all agents
-async fn register_agent_deployments(
-    agents: Vec<sdk_proto::Agent>,
-    restate_params: &crate::restate::RestateServerParams,
-    sdk_port: u16,
+async fn register_agent_deployment(
+    agent: sdk_proto::Agent,
+    restate_server_params: &crate::restate::RestateServerParams,
+    restate_service_params: &crate::restate::RestateServiceServerParams,
+    restate_service_id: &str,
 ) -> Result<(), CommonError> {
     use shared::restate;
-    use std::collections::HashMap;
+    
 
-    info!(
-        "Registering {} agent deployment(s) with Restate",
-        agents.len()
-    );
-
-    for agent in agents {
-        let service_uri = format!("http://127.0.0.1:{sdk_port}");
+    let service_uri = restate_service_params.service_uri.to_string();
         let deployment_type = restate::deploy::DeploymentType::Http {
-            uri: service_uri.clone(),
-            additional_headers: HashMap::new(),
+            uri: service_uri,
+            additional_headers: restate_service_params.additional_headers.clone(),
         };
 
         // Use the project_id.agent_id format as the service path (matches Restate service name)
-        let service_path = format!("{}.{}", agent.project_id, agent.id);
+        // let service_path = format!("{}.{}", agent.project_id, agent.id);
 
         info!(
-            "Registering agent '{}' (project_id={}, agent_id={}) at {} with service path: {}",
-            agent.name, agent.project_id, agent.id, service_uri, service_path
+            "Registering service path: {} with service URI: {}",
+            restate_service_id, restate_service_params.service_uri
         );
 
-        let admin_url = restate_params.get_admin_address()?;
+        let admin_url = restate_server_params.get_admin_address()?;
         let config = restate::deploy::DeploymentRegistrationConfig {
             admin_url: admin_url.to_string(),
-            service_path: service_path.clone(),
+            service_path: restate_service_id.to_string(),
             deployment_type,
-            bearer_token: restate_params.get_admin_token(),
-            private: restate_params.get_private(),
-            insecure: restate_params.get_insecure(),
-            force: restate_params.get_force(),
+            bearer_token: restate_server_params.get_admin_token(),
+            private: restate_server_params.get_private(),
+            insecure: restate_server_params.get_insecure(),
+            force: restate_server_params.get_force(),
         };
 
         match restate::deploy::register_deployment(config).await {
@@ -178,7 +197,14 @@ async fn register_agent_deployments(
                 // Continue with other agents even if one fails
             }
         }
-    }
 
     Ok(())
+}
+
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct RuntimeConfigResponse {}
+
+pub async fn runtime_config() -> Result<RuntimeConfigResponse, CommonError> {
+    Ok(RuntimeConfigResponse {})
 }

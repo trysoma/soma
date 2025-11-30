@@ -28,8 +28,8 @@ impl SdkClient for Typescript {
         let mut env_vars = HashMap::from([
             ("SOMA_SERVER_SOCK".to_string(), ctx.socket_path),
             (
-                "RESTATE_RUNTIME_PORT".to_string(),
-                ctx.restate_runtime_port.to_string(),
+                "RESTATE_SERVICE_PORT".to_string(),
+                ctx.restate_service_port.to_string(),
             ),
         ]);
 

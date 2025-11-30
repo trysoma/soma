@@ -18,7 +18,7 @@ pub struct Function {
 pub struct ClientCtx {
     pub project_dir: PathBuf,
     pub socket_path: String,
-    pub restate_runtime_port: u16,
+    pub restate_service_port: u16,
     pub kill_signal_rx: broadcast::Receiver<()>,
     /// Pre-fetched secrets (decrypted) to inject into SDK as environment variables
     pub initial_secrets: std::collections::HashMap<String, String>,

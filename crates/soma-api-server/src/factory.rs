@@ -388,7 +388,7 @@ pub async fn create_api_service(
 fn start_sdk_server_subsystem(
     project_dir: PathBuf,
     sdk_runtime: SdkRuntime,
-    sdk_port: u16,
+    restate_service_port: u16,
     shutdown_rx: broadcast::Receiver<()>,
     repository: crate::repository::Repository,
     crypto_cache: CryptoCache,
@@ -401,7 +401,7 @@ fn start_sdk_server_subsystem(
         match start_dev_sdk(StartDevSdkParams {
             project_dir,
             sdk_runtime,
-            sdk_port,
+            restate_service_port,
             kill_signal_rx: shutdown_rx,
             repository: std::sync::Arc::new(repository),
             crypto_cache,
