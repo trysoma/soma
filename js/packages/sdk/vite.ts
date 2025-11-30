@@ -522,28 +522,54 @@ httpServer.listen(restatePort, async () => {
 
   // Trigger resync with API server to sync providers, agents, secrets, and env vars
   // This must happen AFTER the Restate server is listening, so Restate can verify the deployment
-  console.log("Triggering resync with API server...");
-  try {
-    await resyncSdk();
-    console.log("Resync with API server completed successfully");
-  } catch (error) {
-    console.error("Failed to resync with API server:", error);
-    // Don't exit - the API server may not be ready yet, and secrets/env vars
-    // will be synced when the API server connects
+  // Retry with backoff since the API server may not be ready yet
+  const maxRetries = 10;
+  const baseDelayMs = 500;
+  let resyncSuccess = false;
+
+  for (let attempt = 1; attempt <= maxRetries && !resyncSuccess; attempt++) {
+    console.log(\`Triggering resync with API server (attempt \${attempt}/\${maxRetries})...\`);
+    try {
+      await resyncSdk();
+      console.log("Resync with API server completed successfully");
+      resyncSuccess = true;
+    } catch (error) {
+      if (attempt < maxRetries) {
+        const delayMs = baseDelayMs * attempt;
+        console.log(\`Resync failed, retrying in \${delayMs}ms...\`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      } else {
+        console.error("Failed to resync with API server after all retries:", error);
+        // Don't exit - secrets/env vars will be synced when the API server connects
+      }
+    }
   }
 });
 `
 		: `
 // No agents defined, skipping Restate server startup
 // Trigger resync with API server to sync providers, agents, secrets, and env vars
-console.log("Triggering resync with API server...");
-try {
-  await resyncSdk();
-  console.log("Resync with API server completed successfully");
-} catch (error) {
-  console.error("Failed to resync with API server:", error);
-  // Don't exit - the API server may not be ready yet, and secrets/env vars
-  // will be synced when the API server connects
+// Retry with backoff since the API server may not be ready yet
+const maxRetries = 10;
+const baseDelayMs = 500;
+let resyncSuccess = false;
+
+for (let attempt = 1; attempt <= maxRetries && !resyncSuccess; attempt++) {
+  console.log(\`Triggering resync with API server (attempt \${attempt}/\${maxRetries})...\`);
+  try {
+    await resyncSdk();
+    console.log("Resync with API server completed successfully");
+    resyncSuccess = true;
+  } catch (error) {
+    if (attempt < maxRetries) {
+      const delayMs = baseDelayMs * attempt;
+      console.log(\`Resync failed, retrying in \${delayMs}ms...\`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    } else {
+      console.error("Failed to resync with API server after all retries:", error);
+      // Don't exit - secrets/env vars will be synced when the API server connects
+    }
+  }
 }
 // Handle graceful shutdown for gRPC server only
 process.on('SIGINT', () => {
