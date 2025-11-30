@@ -495,15 +495,15 @@ const shutdown = async () => {
 
 process.on('SIGINT', async () => {
   await shutdown();
-  // Don't call process.exit() - let the parent process manager handle shutdown
+  process.exit(0);
 });
 process.on('SIGTERM', async () => {
   await shutdown();
-  // Don't call process.exit() - let the parent process manager handle shutdown
+  process.exit(0);
 });
 process.on('SIGHUP', async () => {
   await shutdown();
-  // Don't call process.exit() - let the parent process manager handle shutdown
+  process.exit(0);
 });
 
 // Handle server errors (must be set before listen)
@@ -548,11 +548,11 @@ try {
 // Handle graceful shutdown for gRPC server only
 process.on('SIGINT', () => {
   console.log('\\nShutting down...');
-  // Don't call process.exit() - let the parent process manager handle shutdown
+  process.exit(0);
 });
 process.on('SIGTERM', () => {
   console.log('\\nShutting down...');
-  // Don't call process.exit() - let the parent process manager handle shutdown
+  process.exit(0);
 });
 `
 }
