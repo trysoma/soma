@@ -377,6 +377,8 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
     info!("Bridge synced from soma definition");
 
     // 3. Sync secrets
+    // NOTE: Secrets in soma.yaml are stored with their ENCRYPTED values
+    // We use import_secret (not create_secret) to avoid double-encryption
     if let Some(secrets) = &soma_definition.secrets {
         use std::collections::HashSet;
 
@@ -406,22 +408,23 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
             keys
         };
 
-        // Create or update secrets from yaml
+        // Import pre-encrypted secrets from yaml
         for (key, secret_config) in secrets {
             if !existing_secrets.contains(key) {
-                let create_req = models::CreateSecretRequest {
+                // Use import_secret which stores the already-encrypted value as-is
+                let import_req = models::ImportSecretRequest {
                     key: key.clone(),
-                    raw_value: secret_config.value.clone(),
+                    encrypted_value: secret_config.value.clone(),
                     dek_alias: secret_config.dek_alias.clone(),
                 };
-                secret_api::create_secret(api_config, create_req)
+                secret_api::import_secret(api_config, import_req)
                     .await
                     .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(
-                            "Failed to create secret '{key}': {e:?}"
+                            "Failed to import secret '{key}': {e:?}"
                         ))
                     })?;
-                info!("Created secret '{}'", key);
+                info!("Imported secret '{}'", key);
             }
         }
     }
