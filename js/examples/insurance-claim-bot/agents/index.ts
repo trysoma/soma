@@ -124,7 +124,6 @@ export default createSomaAgent({
 	description: "An agent that can process insurance claims.",
 	entrypoint: async ({ ctx, soma, taskId, contextId: _contextId }) => {
 		const bridge = getBridge(ctx);
-		
 
 		const model = wrapLanguageModel({
 			model: openai("gpt-4o"),

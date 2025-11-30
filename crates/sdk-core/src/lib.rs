@@ -602,8 +602,7 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcServiceWrapper<G> {
 
 /// Response from resync_sdk operation
 #[derive(Debug, Clone)]
-pub struct ResyncSdkResponse {
-}
+pub struct ResyncSdkResponse {}
 
 /// Calls the internal resync endpoint on the Soma API server.
 /// This triggers the API server to:
@@ -634,7 +633,5 @@ pub async fn resync_sdk(base_url: Option<String>) -> Result<ResyncSdkResponse, C
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Resync failed: {e:?}")))?;
 
-
-    Ok(ResyncSdkResponse {
-    })
+    Ok(ResyncSdkResponse {})
 }

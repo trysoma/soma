@@ -96,10 +96,11 @@ impl RestateServerParams {
     /// Get the address where Soma's Restate service is accessible
     pub fn get_soma_restate_service_address(&self) -> Url {
         match self {
-            RestateServerParams::Local(params) => {
-                Url::parse(&format!("http://127.0.0.1:{}", params.soma_restate_service_port))
-                    .expect("Failed to parse Soma Restate service address")
-            }
+            RestateServerParams::Local(params) => Url::parse(&format!(
+                "http://127.0.0.1:{}",
+                params.soma_restate_service_port
+            ))
+            .expect("Failed to parse Soma Restate service address"),
             RestateServerParams::Remote(params) => params.soma_restate_service_address.clone(),
         }
     }

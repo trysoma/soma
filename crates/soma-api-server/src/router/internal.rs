@@ -11,7 +11,9 @@ use shared::{
     error::CommonError,
 };
 
-use crate::logic::internal::{CheckSdkHealthResponse, ResyncSdkResponse, RuntimeConfigResponse, TriggerCodegenResponse};
+use crate::logic::internal::{
+    CheckSdkHealthResponse, ResyncSdkResponse, RuntimeConfigResponse, TriggerCodegenResponse,
+};
 
 pub const PATH_PREFIX: &str = "/_internal";
 pub const API_VERSION_1: &str = "v1";
@@ -38,7 +40,9 @@ pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {
     description = "Check the health status of the service and SDK server connectivity",
     operation_id = "health-check",
 )]
-async fn route_health(State(ctx): State<Arc<InternalService>>) -> JsonResponse<CheckSdkHealthResponse, CommonError> {
+async fn route_health(
+    State(ctx): State<Arc<InternalService>>,
+) -> JsonResponse<CheckSdkHealthResponse, CommonError> {
     let response = crate::logic::internal::check_sdk_health(&ctx.sdk_client).await;
     JsonResponse::from(response)
 }
@@ -77,8 +81,9 @@ async fn route_runtime_config(
 async fn route_trigger_codegen(
     State(ctx): State<Arc<InternalService>>,
 ) -> JsonResponse<TriggerCodegenResponse, CommonError> {
-    let response = crate::logic::internal::trigger_codegen(&ctx.sdk_client, ctx.bridge_service.repository())
-        .await;
+    let response =
+        crate::logic::internal::trigger_codegen(&ctx.sdk_client, ctx.bridge_service.repository())
+            .await;
 
     JsonResponse::from(response)
 }
@@ -108,7 +113,6 @@ async fn route_resync_sdk(
     .await;
     JsonResponse::from(response)
 }
-
 
 pub struct InternalService {
     bridge_service: bridge::router::bridge::BridgeService,

@@ -17,9 +17,7 @@ use crate::logic::secret_sync::{fetch_and_decrypt_all_secrets, sync_secrets_to_s
 use crate::sdk::sdk_provider_sync;
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
-pub struct CheckSdkHealthResponse {
-
-}
+pub struct CheckSdkHealthResponse {}
 
 /// Checks SDK server health via gRPC
 pub async fn check_sdk_health(
@@ -28,7 +26,11 @@ pub async fn check_sdk_health(
     let mut sdk_client_guard = sdk_client.lock().await;
     let client = match sdk_client_guard.as_mut() {
         Some(client) => client,
-        None => return Err(CommonError::Unknown(anyhow::anyhow!("SDK client not available. Please ensure the SDK server is running."))),
+        None => {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "SDK client not available. Please ensure the SDK server is running."
+            )));
+        }
     };
 
     let request = Request::new(());
@@ -47,8 +49,7 @@ pub async fn check_sdk_health(
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
-pub struct TriggerCodegenResponse {
-}
+pub struct TriggerCodegenResponse {}
 
 /// Triggers bridge client generation via gRPC call to SDK server
 pub async fn trigger_codegen(
@@ -59,11 +60,14 @@ pub async fn trigger_codegen(
 
     let client = match sdk_client_guard.as_mut() {
         Some(client) => client,
-        None => return Err(CommonError::Unknown(anyhow::anyhow!("SDK client not available. Please ensure the SDK server is running."))),
+        None => {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "SDK client not available. Please ensure the SDK server is running."
+            )));
+        }
     };
 
-    crate::logic::bridge::codegen::trigger_bridge_client_generation(client, bridge_repo)
-        .await?;
+    crate::logic::bridge::codegen::trigger_bridge_client_generation(client, bridge_repo).await?;
 
     Ok(TriggerCodegenResponse {})
 }
@@ -77,8 +81,7 @@ pub struct ResyncResult {
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
-pub struct ResyncSdkResponse {
-}
+pub struct ResyncSdkResponse {}
 
 /// Resync SDK: fetches metadata from SDK, syncs providers/agents to bridge registry,
 /// registers Restate deployments, and syncs secrets/env vars to SDK
@@ -89,9 +92,13 @@ pub async fn resync_sdk(
     sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
 ) -> Result<ResyncSdkResponse, CommonError> {
     let mut sdk_client_guard = sdk_client.lock().await;
-    let mut client = match sdk_client_guard.as_mut() {
+    let client = match sdk_client_guard.as_mut() {
         Some(client) => client,
-        None => return Err(CommonError::Unknown(anyhow::anyhow!("SDK client not available. Please ensure the SDK server is running."))),
+        None => {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "SDK client not available. Please ensure the SDK server is running."
+            )));
+        }
     };
 
     let request = Request::new(());
@@ -101,7 +108,6 @@ pub async fn resync_sdk(
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to get SDK metadata: {e}")))?;
 
     let metadata = response.into_inner();
-
 
     info!(
         "Fetched SDK metadata: {} providers, {} agents",
@@ -128,7 +134,7 @@ pub async fn resync_sdk(
     let secrets_count = secrets.len();
     info!("Syncing {} secrets to SDK", secrets_count);
     if !secrets.is_empty() {
-        sync_secrets_to_sdk(&mut client, secrets).await?;
+        sync_secrets_to_sdk(client, secrets).await?;
     }
 
     // Sync environment variables to SDK
@@ -136,7 +142,7 @@ pub async fn resync_sdk(
     let env_vars_count = env_vars.len();
     info!("Syncing {} environment variables to SDK", env_vars_count);
     if !env_vars.is_empty() {
-        sync_environment_variables_to_sdk(&mut client, env_vars).await?;
+        sync_environment_variables_to_sdk(client, env_vars).await?;
     }
 
     info!(
@@ -144,8 +150,7 @@ pub async fn resync_sdk(
         providers_synced, agents_synced, secrets_count, env_vars_count
     );
 
-    Ok(ResyncSdkResponse {
-    })
+    Ok(ResyncSdkResponse {})
 }
 
 /// Register Restate deployments for all agents
@@ -193,7 +198,6 @@ async fn register_agent_deployment(
 
     Ok(())
 }
-
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct RuntimeConfigResponse {}
