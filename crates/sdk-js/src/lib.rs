@@ -449,6 +449,200 @@ pub fn set_secret_handler(
     Ok(())
 }
 
+/// Set the environment variable handler callback that will be called when environment variables are synced from Soma
+/// The callback receives an array of environment variables and should inject them into process.env
+#[napi]
+pub fn set_environment_variable_handler(
+    callback: ThreadsafeFunction<
+        Vec<js_types::EnvironmentVariable>,
+        Promise<js_types::SetEnvironmentVariablesResponse>,
+    >,
+) -> Result<()> {
+    let callback = Arc::new(callback);
+
+    let handler: core_types::EnvironmentVariableHandler = Arc::new(
+        move |env_vars: Vec<core_types::EnvironmentVariable>| {
+            let callback = Arc::clone(&callback);
+            let env_var_keys: Vec<String> = env_vars.iter().map(|e| e.key.clone()).collect();
+            info!(
+                "Environment variable handler invoked with {} environment variables: {:?}",
+                env_vars.len(),
+                env_var_keys
+            );
+            Box::pin(async move {
+                // Convert core environment variables to JS environment variables
+                let js_env_vars: Vec<js_types::EnvironmentVariable> = env_vars
+                    .into_iter()
+                    .map(|e| js_types::EnvironmentVariable {
+                        key: e.key,
+                        value: e.value,
+                    })
+                    .collect();
+
+                info!(
+                    "Calling JS environment variable handler callback with {} environment variables",
+                    js_env_vars.len()
+                );
+                // Call the JS callback
+                let result = callback
+                    .call_async(Ok(js_env_vars))
+                    .await
+                    .map_err(|e| {
+                        let error_msg = format!("Failed to call environment variable handler: {e}");
+                        info!(
+                            "Error calling environment variable handler callback: {}",
+                            error_msg
+                        );
+                        CommonError::Unknown(anyhow::anyhow!(error_msg))
+                    })?
+                    .await;
+
+                match result {
+                    Ok(js_response) => {
+                        if let Some(data) = js_response.data {
+                            Ok(core_types::SetEnvironmentVariablesResponse {
+                                result: Ok(core_types::SetEnvironmentVariablesSuccess {
+                                    message: data.message,
+                                }),
+                            })
+                        } else if let Some(error) = js_response.error {
+                            Err(CommonError::Unknown(anyhow::anyhow!(error.message)))
+                        } else {
+                            Err(CommonError::Unknown(anyhow::anyhow!(
+                                "JS result must contain .data or .error"
+                            )))
+                        }
+                    }
+                    Err(e) => Err(CommonError::Unknown(anyhow::anyhow!(format!(
+                        "JavaScript function error: {e}"
+                    )))),
+                }
+            })
+        },
+    );
+
+    info!("Registering environment variable handler");
+    get_grpc_service()?.set_environment_variable_handler(handler);
+    info!("Environment variable handler registered successfully");
+    Ok(())
+}
+
+/// Set the unset secret handler callback that will be called when a secret is unset
+/// The callback receives a secret key and should remove it from process.env
+#[napi]
+pub fn set_unset_secret_handler(
+    callback: ThreadsafeFunction<String, Promise<js_types::UnsetSecretResponse>>,
+) -> Result<()> {
+    let callback = Arc::new(callback);
+
+    let handler: core_types::UnsetSecretHandler = Arc::new(move |key: String| {
+        let callback = Arc::clone(&callback);
+        info!("Unset secret handler invoked with key: {}", key);
+        Box::pin(async move {
+            info!("Calling JS unset secret handler callback with key: {}", key);
+            // Call the JS callback
+            let result = callback
+                .call_async(Ok(key))
+                .await
+                .map_err(|e| {
+                    let error_msg = format!("Failed to call unset secret handler: {e}");
+                    info!("Error calling unset secret handler callback: {}", error_msg);
+                    CommonError::Unknown(anyhow::anyhow!(error_msg))
+                })?
+                .await;
+
+            match result {
+                Ok(js_response) => {
+                    if let Some(data) = js_response.data {
+                        Ok(core_types::UnsetSecretResponse {
+                            result: Ok(core_types::UnsetSecretSuccess {
+                                message: data.message,
+                            }),
+                        })
+                    } else if let Some(error) = js_response.error {
+                        Err(CommonError::Unknown(anyhow::anyhow!(error.message)))
+                    } else {
+                        Err(CommonError::Unknown(anyhow::anyhow!(
+                            "JS result must contain .data or .error"
+                        )))
+                    }
+                }
+                Err(e) => Err(CommonError::Unknown(anyhow::anyhow!(format!(
+                    "JavaScript function error: {e}"
+                )))),
+            }
+        })
+    });
+
+    info!("Registering unset secret handler");
+    get_grpc_service()?.set_unset_secret_handler(handler);
+    info!("Unset secret handler registered successfully");
+    Ok(())
+}
+
+/// Set the unset environment variable handler callback that will be called when an environment variable is unset
+/// The callback receives an environment variable key and should remove it from process.env
+#[napi]
+pub fn set_unset_environment_variable_handler(
+    callback: ThreadsafeFunction<String, Promise<js_types::UnsetEnvironmentVariableResponse>>,
+) -> Result<()> {
+    let callback = Arc::new(callback);
+
+    let handler: core_types::UnsetEnvironmentVariableHandler = Arc::new(move |key: String| {
+        let callback = Arc::clone(&callback);
+        info!(
+            "Unset environment variable handler invoked with key: {}",
+            key
+        );
+        Box::pin(async move {
+            info!(
+                "Calling JS unset environment variable handler callback with key: {}",
+                key
+            );
+            // Call the JS callback
+            let result = callback
+                .call_async(Ok(key))
+                .await
+                .map_err(|e| {
+                    let error_msg =
+                        format!("Failed to call unset environment variable handler: {e}");
+                    info!(
+                        "Error calling unset environment variable handler callback: {}",
+                        error_msg
+                    );
+                    CommonError::Unknown(anyhow::anyhow!(error_msg))
+                })?
+                .await;
+
+            match result {
+                Ok(js_response) => {
+                    if let Some(data) = js_response.data {
+                        Ok(core_types::UnsetEnvironmentVariableResponse {
+                            result: Ok(core_types::UnsetEnvironmentVariableSuccess {
+                                message: data.message,
+                            }),
+                        })
+                    } else if let Some(error) = js_response.error {
+                        Err(CommonError::Unknown(anyhow::anyhow!(error.message)))
+                    } else {
+                        Err(CommonError::Unknown(anyhow::anyhow!(
+                            "JS result must contain .data or .error"
+                        )))
+                    }
+                }
+                Err(e) => Err(CommonError::Unknown(anyhow::anyhow!(format!(
+                    "JavaScript function error: {e}"
+                )))),
+            }
+        })
+    });
+
+    info!("Registering unset environment variable handler");
+    get_grpc_service()?.set_unset_environment_variable_handler(handler);
+    info!("Unset environment variable handler registered successfully");
+    Ok(())
+}
+
 /// Remove an agent by id
 #[napi]
 pub fn remove_agent(id: String) -> Result<bool> {
@@ -465,4 +659,30 @@ pub fn update_agent(agent: js_types::Agent) -> Result<bool> {
         description: agent.description,
     };
     Ok(get_grpc_service()?.update_agent(core_agent))
+}
+
+/// Response from resync_sdk operation
+#[napi(object)]
+pub struct ResyncSdkResponse {}
+
+/// Calls the internal resync endpoint on the Soma API server.
+/// This triggers the API server to:
+/// - Fetch metadata from the SDK (providers, agents)
+/// - Sync providers to the bridge registry
+/// - Register Restate deployments for agents
+/// - Sync secrets to the SDK
+/// - Sync environment variables to the SDK
+///
+/// # Parameters
+/// * `base_url` - Optional base URL of the Soma API server (defaults to SOMA_SERVER_BASE_URL env var or http://localhost:3000)
+///
+/// # Returns
+/// The resync response from the server
+#[napi]
+pub async fn resync_sdk(base_url: Option<String>) -> Result<ResyncSdkResponse> {
+    core_types::resync_sdk(base_url)
+        .await
+        .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+
+    Ok(ResyncSdkResponse {})
 }

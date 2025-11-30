@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { components } from "@/@types/openapi";
 import $api from "@/lib/api-client";
 
-let runtimeConfig!: components["schemas"]["RuntimeConfig"];
+let runtimeConfig!: components["schemas"]["RuntimeConfigResponse"];
 
 export async function loadConfig() {
 	if (runtimeConfig) return runtimeConfig;

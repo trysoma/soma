@@ -10,6 +10,9 @@ service SomaSdkService {
   rpc InvokeFunction(InvokeFunctionRequest) returns (InvokeFunctionResponse);
   rpc GenerateBridgeClient(GenerateBridgeClientRequest) returns (GenerateBridgeClientResponse);
   rpc SetSecrets(SetSecretsRequest) returns (SetSecretsResponse);
+  rpc UnsetSecrets(UnsetSecretRequest) returns (UnsetSecretResponse);
+  rpc SetEnvironmentVariables(SetEnvironmentVariablesRequest) returns (SetEnvironmentVariablesResponse);
+  rpc UnsetEnvironmentVariables(UnsetEnvironmentVariableRequest) returns (UnsetEnvironmentVariableResponse);
 }
 
 message InvokeFunctionRequest {
@@ -156,11 +159,50 @@ message SetSecretsRequest {
 
 message SetSecretsResponse {
   oneof kind {
-    SetSecretsSuccess data = 1;
+    CallbackSuccess data = 1;
     CallbackError error = 2;
   }
 }
 
-message SetSecretsSuccess {
+message UnsetSecretRequest {
+  string key = 1;
+}
+
+message UnsetSecretResponse {
+  oneof kind {
+    CallbackSuccess data = 1;
+    CallbackError error = 2;
+  }
+}
+
+message CallbackSuccess {
   string message = 1;
+}
+
+// Environment variable messages for syncing environment variables to the SDK
+message EnvironmentVariable {
+  string key = 1;
+  string value = 2;
+}
+
+message SetEnvironmentVariablesRequest {
+  repeated EnvironmentVariable environment_variables = 1;
+}
+
+message SetEnvironmentVariablesResponse {
+  oneof kind {
+    CallbackSuccess data = 1;
+    CallbackError error = 2;
+  }
+}
+
+message UnsetEnvironmentVariableRequest {
+  string key = 1;
+}
+
+message UnsetEnvironmentVariableResponse {
+  oneof kind {
+    CallbackSuccess data = 1;
+    CallbackError error = 2;
+  }
 }

@@ -13,11 +13,15 @@ use crate::{
     },
     repository::Repository,
 };
+use encryption::logic::crypto_services::CryptoCache;
+use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use shared::{
     adapters::openapi::JsonResponse,
     error::CommonError,
     primitives::{PaginationRequest, WrappedUuidV4},
 };
+use tokio::sync::Mutex;
+use tonic::transport::Channel;
 
 pub const PATH_PREFIX: &str = "/api";
 pub const API_VERSION_1: &str = "v1";
@@ -58,7 +62,8 @@ async fn route_create_secret(
     let res = create_secret(
         &ctx.on_change_tx,
         &ctx.repository,
-        ctx.encryption_service.cache(),
+        &ctx.crypto_cache,
+        &ctx.sdk_client,
         request,
         true,
     )
@@ -225,7 +230,8 @@ async fn route_update_secret(
     let res = update_secret(
         &ctx.on_change_tx,
         &ctx.repository,
-        ctx.encryption_service.cache(),
+        &ctx.crypto_cache,
+        &ctx.sdk_client,
         secret_id,
         request,
         true,
@@ -257,7 +263,15 @@ async fn route_delete_secret(
     State(ctx): State<Arc<SecretService>>,
     Path(secret_id): Path<WrappedUuidV4>,
 ) -> JsonResponse<DeleteSecretResponse, CommonError> {
-    let res = delete_secret(&ctx.on_change_tx, &ctx.repository, secret_id, true).await;
+    let res = delete_secret(
+        &ctx.on_change_tx,
+        &ctx.repository,
+        &ctx.sdk_client,
+        &ctx.crypto_cache,
+        secret_id,
+        true,
+    )
+    .await;
     JsonResponse::from(res)
 }
 
@@ -265,6 +279,8 @@ pub struct SecretService {
     repository: Repository,
     encryption_service: encryption::router::EncryptionService,
     on_change_tx: SecretChangeTx,
+    sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+    crypto_cache: CryptoCache,
 }
 
 impl SecretService {
@@ -272,11 +288,15 @@ impl SecretService {
         repository: Repository,
         encryption_service: encryption::router::EncryptionService,
         on_change_tx: SecretChangeTx,
+        sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+        crypto_cache: CryptoCache,
     ) -> Self {
         Self {
             repository,
             encryption_service,
             on_change_tx,
+            sdk_client,
+            crypto_cache,
         }
     }
 }

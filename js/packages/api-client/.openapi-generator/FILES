@@ -4,6 +4,7 @@ README.md
 src/apis/A2aApi.ts
 src/apis/BridgeApi.ts
 src/apis/EncryptionApi.ts
+src/apis/EnvironmentVariableApi.ts
 src/apis/InternalApi.ts
 src/apis/SecretApi.ts
 src/apis/TaskApi.ts
@@ -20,6 +21,7 @@ src/models/ContextInfo.ts
 src/models/ContextInfoPaginatedResponse.ts
 src/models/CreateDataEncryptionKeyParamsRoute.ts
 src/models/CreateDekAliasRequest.ts
+src/models/CreateEnvironmentVariableRequest.ts
 src/models/CreateMessageRequest.ts
 src/models/CreateMessageResponse.ts
 src/models/CreateProviderInstanceParamsInner.ts
@@ -33,6 +35,7 @@ src/models/DataEncryptionKeyListItem.ts
 src/models/DataEncryptionKeyListItemPaginatedResponse.ts
 src/models/DecryptedSecret.ts
 src/models/DekConfig.ts
+src/models/DeleteEnvironmentVariableResponse.ts
 src/models/DeleteSecretResponse.ts
 src/models/EncryptCredentialConfigurationParamsInner.ts
 src/models/EncryptionConfig.ts
@@ -47,6 +50,7 @@ src/models/EnvelopeKeyConfigAwsKms.ts
 src/models/EnvelopeKeyConfigLocal.ts
 src/models/EnvelopeKeyConfigOneOf.ts
 src/models/EnvelopeKeyConfigOneOf1.ts
+src/models/EnvironmentVariable.ts
 src/models/FunctionControllerSerialized.ts
 src/models/FunctionInstanceConfig.ts
 src/models/FunctionInstanceConfigPaginatedResponse.ts
@@ -54,6 +58,7 @@ src/models/FunctionInstanceListItem.ts
 src/models/FunctionInstanceSerialized.ts
 src/models/FunctionInstanceSerializedPaginatedResponse.ts
 src/models/ImportDataEncryptionKeyParamsRoute.ts
+src/models/ImportEnvironmentVariableRequest.ts
 src/models/ImportSecretRequest.ts
 src/models/InvokeError.ts
 src/models/InvokeFunctionParamsInner.ts
@@ -61,6 +66,7 @@ src/models/InvokeResult.ts
 src/models/InvokeResultOneOf.ts
 src/models/InvokeResultOneOf1.ts
 src/models/ListDecryptedSecretsResponse.ts
+src/models/ListEnvironmentVariablesResponse.ts
 src/models/ListSecretsResponse.ts
 src/models/Message.ts
 src/models/MessagePart.ts
@@ -96,8 +102,8 @@ src/models/TaskTimelineItemPayloadOneOf.ts
 src/models/TaskTimelineItemPayloadOneOf1.ts
 src/models/TaskWithDetails.ts
 src/models/TextPart.ts
-src/models/TriggerCodegenResponse.ts
 src/models/UpdateAliasParams.ts
+src/models/UpdateEnvironmentVariableRequest.ts
 src/models/UpdateProviderInstanceParamsInner.ts
 src/models/UpdateSecretRequest.ts
 src/models/UpdateTaskStatusRequest.ts

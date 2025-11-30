@@ -3,6 +3,7 @@ use encryption::logic::EncryptionKeyEvent;
 use tokio::sync::broadcast;
 use tracing::{info, warn};
 
+use crate::logic::environment_variable::EnvironmentVariable;
 use crate::logic::secret::Secret;
 
 /// Re-export bridge events as BridgeEvt
@@ -28,6 +29,25 @@ pub fn create_secret_change_channel(capacity: usize) -> (SecretChangeTx, SecretC
     broadcast::channel(capacity)
 }
 
+/// Environment variable change events
+#[derive(Clone, Debug)]
+pub enum EnvironmentVariableChangeEvt {
+    Created(EnvironmentVariable),
+    Updated(EnvironmentVariable),
+    Deleted { id: String, key: String },
+}
+
+/// Type aliases for the environment variable event broadcast channel
+pub type EnvironmentVariableChangeTx = broadcast::Sender<EnvironmentVariableChangeEvt>;
+pub type EnvironmentVariableChangeRx = broadcast::Receiver<EnvironmentVariableChangeEvt>;
+
+/// Creates a new EnvironmentVariableChange broadcast channel
+pub fn create_environment_variable_change_channel(
+    capacity: usize,
+) -> (EnvironmentVariableChangeTx, EnvironmentVariableChangeRx) {
+    broadcast::channel(capacity)
+}
+
 /// Unified change event for all Soma services
 #[derive(Clone, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -35,6 +55,7 @@ pub enum SomaChangeEvt {
     Bridge(BridgeEvt),
     Encryption(EncryptionEvt),
     Secret(SecretChangeEvt),
+    EnvironmentVariable(EnvironmentVariableChangeEvt),
 }
 
 // Type aliases for the broadcast channel
@@ -46,12 +67,13 @@ pub fn create_soma_change_channel(capacity: usize) -> (SomaChangeTx, SomaChangeR
     broadcast::channel(capacity)
 }
 
-/// Starts the unified change pubsub system that forwards bridge, encryption, and secret events to the unified channel
+/// Starts the unified change pubsub system that forwards bridge, encryption, secret, and environment variable events to the unified channel
 pub async fn run_change_pubsub(
     soma_change_tx: SomaChangeTx,
     mut bridge_change_rx: bridge::logic::OnConfigChangeRx,
     mut encryption_change_rx: encryption::logic::EncryptionKeyEventReceiver,
     mut secret_change_rx: SecretChangeRx,
+    mut environment_variable_change_rx: EnvironmentVariableChangeRx,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) {
     info!("Starting unified change pubsub system");
@@ -112,6 +134,24 @@ pub async fn run_change_pubsub(
                     }
                 }
             }
+            // Forward environment variable events
+            event = environment_variable_change_rx.recv() => {
+                match event {
+                    Ok(env_var_evt) => {
+                        let soma_evt = SomaChangeEvt::EnvironmentVariable(env_var_evt);
+                        if let Err(e) = soma_change_tx.send(soma_evt) {
+                            tracing::debug!("No receivers for environment variable SomaChangeEvt: {:?}", e);
+                        }
+                    }
+                    Err(broadcast::error::RecvError::Closed) => {
+                        info!("Environment variable change channel closed, stopping change pubsub");
+                        break;
+                    }
+                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                        warn!("Environment variable change channel lagged, skipped {} messages", skipped);
+                    }
+                }
+            }
             // Handle shutdown
             _ = shutdown_rx.recv() => {
                 info!("Shutdown signal received, stopping change pubsub");
@@ -134,5 +174,16 @@ pub fn broadcast_secret_event(tx: &SomaChangeTx, event: SecretChangeEvt) {
     let soma_evt = SomaChangeEvt::Secret(event);
     if let Err(e) = tx.send(soma_evt) {
         tracing::debug!("No receivers for secret event: {:?}", e);
+    }
+}
+
+/// Helper to broadcast environment variable events through the unified channel
+pub fn broadcast_environment_variable_event(
+    tx: &SomaChangeTx,
+    event: EnvironmentVariableChangeEvt,
+) {
+    let soma_evt = SomaChangeEvt::EnvironmentVariable(event);
+    if let Err(e) = tx.send(soma_evt) {
+        tracing::debug!("No receivers for environment variable event: {:?}", e);
     }
 }

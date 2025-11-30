@@ -11,11 +11,12 @@ use shared::{
 use url::Url;
 
 use crate::{
-    logic::on_change_pubsub::SecretChangeTx,
+    logic::on_change_pubsub::{EnvironmentVariableChangeTx, SecretChangeTx},
     logic::task::ConnectionManager,
     repository::Repository,
     router::{
         a2a::{Agent2AgentService, Agent2AgentServiceParams},
+        environment_variable::EnvironmentVariableService,
         internal,
         secret::SecretService,
         task::TaskService,
@@ -41,11 +42,20 @@ pub struct ApiService {
     pub internal_service: Arc<internal::InternalService>,
     pub encryption_service: encryption::router::EncryptionService,
     pub secret_service: Arc<SecretService>,
+    pub environment_variable_service: Arc<EnvironmentVariableService>,
+    pub sdk_client: Arc<
+        tokio::sync::Mutex<
+            Option<
+                sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<tonic::transport::Channel>,
+            >,
+        >,
+    >,
 }
 
 pub struct InitApiServiceParams {
     pub host: String,
     pub port: u16,
+    pub soma_restate_service_port: u16,
     pub connection_manager: ConnectionManager,
     pub repository: Repository,
     pub mcp_transport_tx:
@@ -53,9 +63,11 @@ pub struct InitApiServiceParams {
     pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub restate_ingress_client: RestateIngressClient,
     pub restate_admin_client: AdminClient,
+    pub restate_params: crate::restate::RestateServerParams,
     pub on_bridge_config_change_tx: OnConfigChangeTx,
     pub on_encryption_change_tx: EncryptionKeyEventSender,
     pub on_secret_change_tx: SecretChangeTx,
+    pub on_environment_variable_change_tx: EnvironmentVariableChangeTx,
     pub encryption_repository: encryption::repository::Repository,
     pub crypto_cache: CryptoCache,
     pub bridge_repository: ::bridge::repository::Repository,
@@ -102,12 +114,23 @@ impl ApiService {
         let internal_service = Arc::new(internal::InternalService::new(
             bridge_service.clone(),
             init_params.sdk_client.clone(),
+            std::sync::Arc::new(init_params.repository.clone()),
+            init_params.crypto_cache.clone(),
+            init_params.restate_params.clone(),
         ));
 
         let secret_service = Arc::new(SecretService::new(
             init_params.repository.clone(),
             encryption_service.clone(),
             init_params.on_secret_change_tx.clone(),
+            init_params.sdk_client.clone(),
+            init_params.crypto_cache.clone(),
+        ));
+
+        let environment_variable_service = Arc::new(EnvironmentVariableService::new(
+            init_params.repository.clone(),
+            init_params.on_environment_variable_change_tx.clone(),
+            init_params.sdk_client.clone(),
         ));
 
         Ok(Self {
@@ -117,6 +140,8 @@ impl ApiService {
             internal_service,
             encryption_service,
             secret_service,
+            environment_variable_service,
+            sdk_client: init_params.sdk_client,
         })
     }
 }

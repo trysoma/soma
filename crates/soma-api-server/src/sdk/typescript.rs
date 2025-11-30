@@ -24,12 +24,12 @@ impl SdkClient for Typescript {
             .arg("dev")
             .current_dir(ctx.project_dir.clone());
 
-        // Set the SOMA_SERVER_SOCK environment variable and initial secrets
+        // Set the SOMA_SERVER_SOCK environment variable and initial secrets/env vars
         let mut env_vars = HashMap::from([
             ("SOMA_SERVER_SOCK".to_string(), ctx.socket_path),
             (
-                "RESTATE_RUNTIME_PORT".to_string(),
-                ctx.restate_runtime_port.to_string(),
+                "RESTATE_SERVICE_PORT".to_string(),
+                ctx.restate_service_port.to_string(),
             ),
         ]);
 
@@ -38,11 +38,19 @@ impl SdkClient for Typescript {
             env_vars.insert(key, value);
         }
 
-        shared::command::run_child_process(
+        // Insert all initial environment variables into env_vars
+        for (key, value) in ctx.initial_environment_variables {
+            env_vars.insert(key, value);
+        }
+
+        // Run with clear_env=true to prevent host environment variables from leaking
+        // Only the essential system variables and explicitly provided env vars will be set
+        shared::command::run_child_process_with_env_options(
             "pnpm-dev-server",
             cmd,
             Some(ctx.kill_signal_rx),
             Some(env_vars),
+            true, // Clear inherited environment, only use provided env vars
         )
         .await?;
 
@@ -55,7 +63,26 @@ impl SdkClient for Typescript {
             .arg("vite")
             .arg("build")
             .current_dir(ctx.project_dir.clone());
-        shared::command::run_child_process("pnpm-build", cmd, None, None).await?;
+
+        // Start with initial secrets and environment variables for consistent build environment
+        let mut env_vars = HashMap::new();
+        for (key, value) in ctx.initial_secrets {
+            env_vars.insert(key, value);
+        }
+        for (key, value) in ctx.initial_environment_variables {
+            env_vars.insert(key, value);
+        }
+
+        // Run with clear_env=true for consistent build environment
+        shared::command::run_child_process_with_env_options(
+            "pnpm-build",
+            cmd,
+            None,
+            Some(env_vars),
+            true, // Clear inherited environment
+        )
+        .await?;
+
         Ok(())
     }
 }

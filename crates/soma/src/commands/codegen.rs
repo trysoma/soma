@@ -25,7 +25,7 @@ pub async fn cmd_codegen(
     // Trigger codegen via API
     info!("Triggering bridge client generation...");
 
-    let response = internal_api::trigger_codegen(&api_config)
+    internal_api::trigger_codegen(&api_config)
         .await
         .map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!(
@@ -34,7 +34,6 @@ pub async fn cmd_codegen(
         })?;
 
     info!("Bridge client generation complete!");
-    info!("{}", response.message);
 
     Ok(())
 }

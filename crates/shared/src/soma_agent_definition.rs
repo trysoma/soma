@@ -18,6 +18,8 @@ pub struct SomaAgentDefinition {
     pub bridge: Option<BridgeConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub secrets: Option<HashMap<String, SecretConfig>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub environment_variables: Option<HashMap<String, String>>,
 }
 
 /// Configuration for a secret stored in soma.yaml
@@ -257,6 +259,16 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
     async fn update_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError>;
     async fn remove_secret(&self, key: String) -> Result<(), CommonError>;
 
+    // Environment variable operations
+    async fn add_environment_variable(&self, key: String, value: String)
+    -> Result<(), CommonError>;
+    async fn update_environment_variable(
+        &self,
+        key: String,
+        value: String,
+    ) -> Result<(), CommonError>;
+    async fn remove_environment_variable(&self, key: String) -> Result<(), CommonError>;
+
     async fn reload(&self) -> Result<(), CommonError>;
 }
 
@@ -287,8 +299,68 @@ impl YamlSomaAgentDefinition {
 
     pub async fn save(
         &self,
-        guard: MutexGuard<'_, SomaAgentDefinition>,
+        mut guard: MutexGuard<'_, SomaAgentDefinition>,
     ) -> Result<(), CommonError> {
+        // Reload from file first to ensure we preserve all existing fields
+        // This prevents overwriting fields that exist in the file but aren't in the cached definition
+        let file_definition = Self::load_agent_definition(self.path.clone())?;
+
+        // Merge the file definition with our changes
+        // Preserve fields from file that aren't being modified in guard
+        if guard.encryption.is_none() && file_definition.encryption.is_some() {
+            guard.encryption = file_definition.encryption.clone();
+        }
+        if guard.bridge.is_none() && file_definition.bridge.is_some() {
+            guard.bridge = file_definition.bridge.clone();
+        }
+
+        // For secrets, merge: start with file secrets (if any), then apply guard's changes (guard overwrites file for same keys)
+        match (&file_definition.secrets, &guard.secrets) {
+            (Some(file_secrets), Some(guard_secrets)) => {
+                // Both exist: merge (file first, then guard overwrites)
+                let mut merged = file_secrets.clone();
+                for (key, value) in guard_secrets {
+                    merged.insert(key.clone(), value.clone());
+                }
+                guard.secrets = Some(merged);
+            }
+            (Some(file_secrets), None) => {
+                // Only file has secrets: use file's
+                guard.secrets = Some(file_secrets.clone());
+            }
+            (None, Some(_guard_secrets)) => {
+                // Only guard has secrets: use guard's (already set)
+            }
+            (None, None) => {
+                // Neither has secrets: keep None
+            }
+        }
+
+        // For environment variables, merge similarly
+        match (
+            &file_definition.environment_variables,
+            &guard.environment_variables,
+        ) {
+            (Some(file_env_vars), Some(guard_env_vars)) => {
+                // Both exist: merge (file first, then guard overwrites)
+                let mut merged = file_env_vars.clone();
+                for (key, value) in guard_env_vars {
+                    merged.insert(key.clone(), value.clone());
+                }
+                guard.environment_variables = Some(merged);
+            }
+            (Some(file_env_vars), None) => {
+                // Only file has env vars: use file's
+                guard.environment_variables = Some(file_env_vars.clone());
+            }
+            (None, Some(_guard_env_vars)) => {
+                // Only guard has env vars: use guard's (already set)
+            }
+            (None, None) => {
+                // Neither has env vars: keep None
+            }
+        }
+
         std::fs::write(
             self.path.clone(),
             serde_yaml::to_string(&*guard).map_err(|e| {
@@ -626,6 +698,59 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         if let Some(secrets) = &mut definition.secrets {
             secrets.remove(&key);
             info!("Secret removed: {:?}", key);
+            self.save(definition).await?;
+        }
+        Ok(())
+    }
+
+    async fn add_environment_variable(
+        &self,
+        key: String,
+        value: String,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if definition.environment_variables.is_none() {
+            definition.environment_variables = Some(HashMap::new());
+        }
+
+        definition
+            .environment_variables
+            .as_mut()
+            .unwrap()
+            .insert(key.clone(), value);
+        info!("Environment variable added: {:?}", key);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn update_environment_variable(
+        &self,
+        key: String,
+        value: String,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if definition.environment_variables.is_none() {
+            definition.environment_variables = Some(HashMap::new());
+        }
+
+        definition
+            .environment_variables
+            .as_mut()
+            .unwrap()
+            .insert(key.clone(), value);
+        info!("Environment variable updated: {:?}", key);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_environment_variable(&self, key: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(env_vars) = &mut definition.environment_variables {
+            env_vars.remove(&key);
+            info!("Environment variable removed: {:?}", key);
             self.save(definition).await?;
         }
         Ok(())

@@ -81,25 +81,36 @@ pub async fn establish_connection_with_retry(socket_path: &str) -> Result<(), Co
     }
 }
 
-/// Monitor connection health by keeping the socket connection alive
+/// Monitor connection health by keeping a persistent connection and making health check calls
 /// Returns when the connection is lost (assumes server restart/hot reload)
 pub async fn monitor_connection_health(socket_path: &str) {
-    // Simply check if the socket file exists - when the server restarts, it will be removed briefly
+    // Create a persistent client connection
+    let mut client = match create_soma_unix_socket_client(socket_path).await {
+        Ok(client) => client,
+        Err(_) => return, // Connection already failed
+    };
+
+    // Keep making health check calls on the same connection
+    // When the server restarts, the persistent connection will break
     loop {
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
         if !Path::new(socket_path).exists() {
             // Socket file disappeared - server is restarting
+            info!("Socket file disappeared, server is restarting");
             return;
         }
 
-        // Try a simple health check to see if connection is still alive
-        match create_unix_socket_client(socket_path).await {
+        // Make an actual health check RPC call on the existing connection
+        // This will fail when the server restarts because the connection is broken
+        let health_request = tonic::Request::new(());
+        match client.health_check(health_request).await {
             Ok(_) => {
                 // Connection is still alive, continue monitoring
             }
-            Err(_) => {
-                // Connection failed - server likely restarted
+            Err(e) => {
+                // Health check failed - server likely restarted
+                info!("Health check failed, server likely restarted: {:?}", e);
                 return;
             }
         }

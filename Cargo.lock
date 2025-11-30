@@ -5189,6 +5189,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shared",
+ "soma-api-client",
  "tokio",
  "tokio-stream",
  "tokio-util",

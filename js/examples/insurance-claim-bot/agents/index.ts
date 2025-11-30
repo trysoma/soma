@@ -118,7 +118,7 @@ const handlers = {
 	),
 };
 export default createSomaAgent({
-	projectId: "danielblignaut",
+	projectId: "acme",
 	agentId: "insuranceClaimsAgent",
 	name: "Insurance Claims Agent",
 	description: "An agent that can process insurance claims.",

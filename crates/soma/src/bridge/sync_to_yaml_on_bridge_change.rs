@@ -12,7 +12,9 @@ use shared::soma_agent_definition::{
     EnvelopeKeyConfig, EnvelopeKeyConfigAwsKms, EnvelopeKeyConfigLocal, SecretConfig,
     SomaAgentDefinitionLike,
 };
-use soma_api_server::logic::on_change_pubsub::{SecretChangeEvt, SomaChangeEvt, SomaChangeRx};
+use soma_api_server::logic::on_change_pubsub::{
+    EnvironmentVariableChangeEvt, SecretChangeEvt, SomaChangeEvt, SomaChangeRx,
+};
 
 /// Watches for unified soma change events and updates soma.yaml accordingly
 pub async fn sync_on_soma_change(
@@ -42,6 +44,9 @@ pub async fn sync_on_soma_change(
             }
             SomaChangeEvt::Secret(secret_evt) => {
                 handle_secret_event(secret_evt, &soma_definition).await?;
+            }
+            SomaChangeEvt::EnvironmentVariable(env_var_evt) => {
+                handle_environment_variable_event(env_var_evt, &soma_definition).await?;
             }
         }
     }
@@ -463,12 +468,29 @@ async fn handle_secret_event(
 ) -> Result<(), CommonError> {
     match event {
         SecretChangeEvt::Created(secret) => {
-            info!("Secret created: {:?}", secret.key);
-            let config = SecretConfig {
-                value: secret.encrypted_secret,
-                dek_alias: secret.dek_alias,
-            };
-            soma_definition.add_secret(secret.key, config).await?;
+            // Check if this secret already exists in YAML
+            // If it does, skip writing to avoid overwriting with a re-encrypted value
+            // (encryption produces different ciphertext each time due to random nonces)
+            let definition = soma_definition.get_definition().await?;
+            let secret_exists_in_yaml = definition
+                .secrets
+                .as_ref()
+                .map(|secrets| secrets.contains_key(&secret.key))
+                .unwrap_or(false);
+
+            if secret_exists_in_yaml {
+                info!(
+                    "Secret '{}' already exists in YAML, skipping write to preserve encrypted value",
+                    secret.key
+                );
+            } else {
+                info!("Secret created: {:?}", secret.key);
+                let config = SecretConfig {
+                    value: secret.encrypted_secret,
+                    dek_alias: secret.dek_alias,
+                };
+                soma_definition.add_secret(secret.key, config).await?;
+            }
         }
         SecretChangeEvt::Updated(secret) => {
             info!("Secret updated: {:?}", secret.key);
@@ -481,6 +503,31 @@ async fn handle_secret_event(
         SecretChangeEvt::Deleted { id: _, key } => {
             info!("Secret deleted: {:?}", key);
             soma_definition.remove_secret(key).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn handle_environment_variable_event(
+    event: EnvironmentVariableChangeEvt,
+    soma_definition: &Arc<dyn SomaAgentDefinitionLike>,
+) -> Result<(), CommonError> {
+    match event {
+        EnvironmentVariableChangeEvt::Created(env_var) => {
+            info!("Environment variable created: {:?}", env_var.key);
+            soma_definition
+                .add_environment_variable(env_var.key, env_var.value)
+                .await?;
+        }
+        EnvironmentVariableChangeEvt::Updated(env_var) => {
+            info!("Environment variable updated: {:?}", env_var.key);
+            soma_definition
+                .update_environment_variable(env_var.key, env_var.value)
+                .await?;
+        }
+        EnvironmentVariableChangeEvt::Deleted { id: _, key } => {
+            info!("Environment variable deleted: {:?}", key);
+            soma_definition.remove_environment_variable(key).await?;
         }
     }
     Ok(())

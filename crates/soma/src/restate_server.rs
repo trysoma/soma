@@ -191,10 +191,10 @@ async fn start_restate_server_local(
             params.admin_port
         )));
     }
-    if is_port_in_use(params.advertised_node_port)? {
+    if is_port_in_use(params.soma_restate_service_port)? {
         return Err(CommonError::Unknown(anyhow::anyhow!(
-            "Restate advertised node address is in use (127.0.0.1:{})",
-            params.advertised_node_port
+            "Restate Soma Restate service address is in use (127.0.0.1:{})",
+            params.soma_restate_service_port
         )));
     }
 
@@ -245,7 +245,7 @@ async fn start_restate_server_local(
         )
         .env(
             "RESTATE__ADVERTISED_ADDRESS",
-            format!("127.0.0.1:{}", params.advertised_node_port),
+            format!("127.0.0.1:{}", params.soma_restate_service_port),
         );
     run_child_process("restate-server", cmd, Some(kill_signal_rx), None).await?;
     Ok(())

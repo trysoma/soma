@@ -3,11 +3,11 @@ use shared::subsystem::SubsystemHandle;
 /// Holds handles to all running subsystems
 pub struct Subsystems {
     pub sdk_server: Option<SubsystemHandle>,
-    pub sdk_sync: Option<SubsystemHandle>,
     pub mcp: Option<SubsystemHandle>,
     pub credential_rotation: Option<SubsystemHandle>,
     pub bridge_client_generation: Option<SubsystemHandle>,
     pub secret_sync: Option<SubsystemHandle>,
+    pub environment_variable_sync: Option<SubsystemHandle>,
 }
 
 impl Subsystems {
@@ -15,9 +15,6 @@ impl Subsystems {
         tracing::info!("Shutting down all subsystems...");
 
         if let Some(handle) = self.sdk_server {
-            handle.wait_for_shutdown().await;
-        }
-        if let Some(handle) = self.sdk_sync {
             handle.wait_for_shutdown().await;
         }
         if let Some(handle) = self.mcp {
@@ -30,6 +27,9 @@ impl Subsystems {
             handle.wait_for_shutdown().await;
         }
         if let Some(handle) = self.secret_sync {
+            handle.wait_for_shutdown().await;
+        }
+        if let Some(handle) = self.environment_variable_sync {
             handle.wait_for_shutdown().await;
         }
 

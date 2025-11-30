@@ -24,6 +24,26 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/_internal/v1/resync_sdk": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Resync SDK
+		 * @description Resync providers, agents, secrets, and environment variables between API server and SDK
+		 */
+		post: operations["resync-sdk"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/_internal/v1/runtime_config": {
 		parameters: {
 			query?: never;
@@ -652,6 +672,98 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/api/environment-variable/v1": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List environment variables
+		 * @description List all environment variables with pagination
+		 */
+		get: operations["list-environment-variables"];
+		put?: never;
+		/**
+		 * Create environment variable
+		 * @description Create a new environment variable with the specified key and value
+		 */
+		post: operations["create-environment-variable"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/environment-variable/v1/import": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Import environment variable
+		 * @description Import an existing environment variable into the system
+		 */
+		post: operations["import-environment-variable"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/environment-variable/v1/key/{key}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get environment variable by key
+		 * @description Retrieve an environment variable by its key name
+		 */
+		get: operations["get-environment-variable-by-key"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/environment-variable/v1/{env_var_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get environment variable
+		 * @description Retrieve an environment variable by its unique identifier
+		 */
+		get: operations["get-environment-variable-by-id"];
+		/**
+		 * Update environment variable
+		 * @description Update an existing environment variable's value
+		 */
+		put: operations["update-environment-variable"];
+		post?: never;
+		/**
+		 * Delete environment variable
+		 * @description Delete an environment variable by its unique identifier
+		 */
+		delete: operations["delete-environment-variable"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/api/secret/v1": {
 		parameters: {
 			query?: never;
@@ -916,6 +1028,7 @@ export interface components {
 			provider_instance_id: string;
 			updated_at: components["schemas"]["WrappedChronoDateTime"];
 		};
+		CheckSdkHealthResponse: Record<string, never>;
 		ConfigurationSchema: {
 			resource_server: components["schemas"]["JsonSchema"];
 			user_credential: components["schemas"]["JsonSchema"];
@@ -935,6 +1048,10 @@ export interface components {
 		CreateDekAliasRequest: {
 			alias: string;
 			dek_id: string;
+		};
+		CreateEnvironmentVariableRequest: {
+			key: string;
+			value: string;
 		};
 		CreateMessageRequest: {
 			metadata: components["schemas"]["Metadata"];
@@ -1013,6 +1130,9 @@ export interface components {
 		DekConfig: {
 			encrypted_key: string;
 		};
+		DeleteEnvironmentVariableResponse: {
+			success: boolean;
+		};
 		DeleteSecretResponse: {
 			success: boolean;
 		};
@@ -1081,6 +1201,13 @@ export interface components {
 			} | null;
 			file_name: string;
 		};
+		EnvironmentVariable: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			id: components["schemas"]["WrappedUuidV4"];
+			key: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+			value: string;
+		};
 		Error: {
 			data?: unknown;
 			message: string;
@@ -1120,6 +1247,10 @@ export interface components {
 			encrypted_data_encryption_key: string;
 			id?: string | null;
 		};
+		ImportEnvironmentVariableRequest: {
+			key: string;
+			value: string;
+		};
 		ImportSecretRequest: {
 			dek_alias: string;
 			encrypted_value: string;
@@ -1147,6 +1278,10 @@ export interface components {
 		ListDecryptedSecretsResponse: {
 			next_page_token?: string | null;
 			secrets: components["schemas"]["DecryptedSecret"][];
+		};
+		ListEnvironmentVariablesResponse: {
+			environment_variables: components["schemas"]["EnvironmentVariable"][];
+			next_page_token?: string | null;
 		};
 		ListSecretsResponse: {
 			next_page_token?: string | null;
@@ -1255,6 +1390,7 @@ export interface components {
 			updated_at: components["schemas"]["WrappedChronoDateTime"];
 			value: components["schemas"]["WrappedJsonValue"];
 		};
+		ResyncSdkResponse: Record<string, never>;
 		ReturnAddress: components["schemas"]["ReturnAddressUrl"] & {
 			/** @enum {string} */
 			type: "url";
@@ -1262,7 +1398,7 @@ export interface components {
 		ReturnAddressUrl: {
 			url: string;
 		};
-		RuntimeConfig: Record<string, never>;
+		RuntimeConfigResponse: Record<string, never>;
 		Secret: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			dek_alias: string;
@@ -1281,6 +1417,9 @@ export interface components {
 		SomaAgentDefinition: {
 			bridge?: null | components["schemas"]["BridgeConfig"];
 			encryption?: null | components["schemas"]["EncryptionConfig"];
+			environment_variables?: {
+				[key: string]: string;
+			} | null;
 			secrets?: {
 				[key: string]: components["schemas"]["SecretConfig"];
 			} | null;
@@ -1346,13 +1485,14 @@ export interface components {
 			metadata: components["schemas"]["Metadata"];
 			text: string;
 		};
-		TriggerCodegenResponse: {
-			message: string;
-		};
+		TriggerCodegenResponse: Record<string, never>;
 		/** @default null */
 		TupleUnit: unknown;
 		UpdateAliasParams: {
 			new_dek_id: string;
+		};
+		UpdateEnvironmentVariableRequest: {
+			value: string;
 		};
 		UpdateProviderInstanceParamsInner: {
 			display_name: string;
@@ -1418,7 +1558,9 @@ export interface operations {
 				headers: {
 					[name: string]: unknown;
 				};
-				content?: never;
+				content: {
+					"application/json": components["schemas"]["CheckSdkHealthResponse"];
+				};
 			};
 			/** @description Service unavailable - SDK server not ready */
 			503: {
@@ -1426,6 +1568,44 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content?: never;
+			};
+		};
+	};
+	"resync-sdk": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description SDK resynced successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ResyncSdkResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
 			};
 		};
 	};
@@ -1444,7 +1624,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					"application/json": components["schemas"]["RuntimeConfig"];
+					"application/json": components["schemas"]["RuntimeConfigResponse"];
 				};
 			};
 		};
@@ -3266,6 +3446,461 @@ export interface operations {
 			};
 			/** @description Bad Gateway */
 			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-environment-variables": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List environment variables */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ListEnvironmentVariablesResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-environment-variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateEnvironmentVariableRequest"];
+			};
+		};
+		responses: {
+			/** @description Create an environment variable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["EnvironmentVariable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"import-environment-variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ImportEnvironmentVariableRequest"];
+			};
+		};
+		responses: {
+			/** @description Import an environment variable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["EnvironmentVariable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-environment-variable-by-key": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Environment variable key */
+				key: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get environment variable by key */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["EnvironmentVariable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-environment-variable-by-id": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Environment variable ID */
+				env_var_id: components["schemas"]["WrappedUuidV4"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get environment variable by id */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["EnvironmentVariable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-environment-variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Environment variable ID */
+				env_var_id: components["schemas"]["WrappedUuidV4"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateEnvironmentVariableRequest"];
+			};
+		};
+		responses: {
+			/** @description Update environment variable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["EnvironmentVariable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"delete-environment-variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Environment variable ID */
+				env_var_id: components["schemas"]["WrappedUuidV4"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Delete environment variable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DeleteEnvironmentVariableResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
 				headers: {
 					[name: string]: unknown;
 				};

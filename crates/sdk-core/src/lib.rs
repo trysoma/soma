@@ -30,6 +30,9 @@ pub struct GrpcService<G: SdkCodeGenerator> {
     agents: ArcSwap<Vec<Agent>>,
     code_generator: Arc<G>,
     secret_handler: ArcSwap<Option<SecretHandler>>,
+    environment_variable_handler: ArcSwap<Option<EnvironmentVariableHandler>>,
+    unset_secret_handler: ArcSwap<Option<UnsetSecretHandler>>,
+    unset_environment_variable_handler: ArcSwap<Option<UnsetEnvironmentVariableHandler>>,
 }
 
 #[tonic::async_trait]
@@ -168,6 +171,127 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
 
         Ok(Response::new(result.into()))
     }
+
+    async fn set_environment_variables(
+        &self,
+        request: Request<sdk_proto::SetEnvironmentVariablesRequest>,
+    ) -> Result<Response<sdk_proto::SetEnvironmentVariablesResponse>, Status> {
+        use sdk_proto::set_environment_variables_response::Kind;
+        info!(
+            "set_environment_variables called with {} environment variables",
+            request.get_ref().environment_variables.len()
+        );
+
+        let proto_req = request.into_inner();
+        let env_vars: Vec<EnvironmentVariable> = proto_req
+            .environment_variables
+            .into_iter()
+            .map(Into::into)
+            .collect();
+
+        // Get the environment variable handler
+        let handler_guard = self.environment_variable_handler.load();
+        let handler = match handler_guard.as_ref() {
+            Some(h) => h.clone(),
+            None => {
+                info!("No environment variable handler registered");
+                return Ok(Response::new(sdk_proto::SetEnvironmentVariablesResponse {
+                    kind: Some(Kind::Error(sdk_proto::CallbackError {
+                        message: "No environment variable handler registered".to_string(),
+                    })),
+                }));
+            }
+        };
+        // Call the handler
+        info!("invoking set environment variables handler");
+
+        let result = handler(env_vars)
+            .await
+            .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
+
+        info!("set_environment_variables result: {:?}", result);
+
+        let result = result?;
+
+        Ok(Response::new(result.into()))
+    }
+
+    async fn unset_secrets(
+        &self,
+        request: Request<sdk_proto::UnsetSecretRequest>,
+    ) -> Result<Response<sdk_proto::UnsetSecretResponse>, Status> {
+        use sdk_proto::unset_secret_response::Kind;
+        info!("unset_secrets called with key: {}", request.get_ref().key);
+
+        let proto_req = request.into_inner();
+        let req: UnsetSecretRequest = proto_req.into();
+
+        // Get the unset secret handler
+        let handler_guard = self.unset_secret_handler.load();
+        let handler = match handler_guard.as_ref() {
+            Some(h) => h.clone(),
+            None => {
+                info!("No unset secret handler registered");
+                return Ok(Response::new(sdk_proto::UnsetSecretResponse {
+                    kind: Some(Kind::Error(sdk_proto::CallbackError {
+                        message: "No unset secret handler registered".to_string(),
+                    })),
+                }));
+            }
+        };
+        // Call the handler
+        info!("invoking unset secret handler");
+
+        let result = handler(req.key)
+            .await
+            .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
+
+        info!("unset_secrets result: {:?}", result);
+
+        let result = result?;
+
+        Ok(Response::new(result.into()))
+    }
+
+    async fn unset_environment_variables(
+        &self,
+        request: Request<sdk_proto::UnsetEnvironmentVariableRequest>,
+    ) -> Result<Response<sdk_proto::UnsetEnvironmentVariableResponse>, Status> {
+        use sdk_proto::unset_environment_variable_response::Kind;
+        info!(
+            "unset_environment_variables called with key: {}",
+            request.get_ref().key
+        );
+
+        let proto_req = request.into_inner();
+        let req: UnsetEnvironmentVariableRequest = proto_req.into();
+
+        // Get the unset environment variable handler
+        let handler_guard = self.unset_environment_variable_handler.load();
+        let handler = match handler_guard.as_ref() {
+            Some(h) => h.clone(),
+            None => {
+                info!("No unset environment variable handler registered");
+                return Ok(Response::new(sdk_proto::UnsetEnvironmentVariableResponse {
+                    kind: Some(Kind::Error(sdk_proto::CallbackError {
+                        message: "No unset environment variable handler registered".to_string(),
+                    })),
+                }));
+            }
+        };
+        // Call the handler
+        info!("invoking unset environment variable handler");
+
+        let result = handler(req.key)
+            .await
+            .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
+
+        info!("unset_environment_variables result: {:?}", result);
+
+        let result = result?;
+
+        Ok(Response::new(result.into()))
+    }
 }
 
 impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
@@ -177,12 +301,32 @@ impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
             agents: ArcSwap::from_pointee(agents),
             code_generator: Arc::new(code_generator),
             secret_handler: ArcSwap::from_pointee(None),
+            environment_variable_handler: ArcSwap::from_pointee(None),
+            unset_secret_handler: ArcSwap::from_pointee(None),
+            unset_environment_variable_handler: ArcSwap::from_pointee(None),
         }
     }
 
     /// Set the secret handler callback that will be invoked when secrets are synced
     pub fn set_secret_handler(&self, handler: SecretHandler) {
         self.secret_handler.store(Arc::new(Some(handler)));
+    }
+
+    /// Set the environment variable handler callback that will be invoked when environment variables are synced
+    pub fn set_environment_variable_handler(&self, handler: EnvironmentVariableHandler) {
+        self.environment_variable_handler
+            .store(Arc::new(Some(handler)));
+    }
+
+    /// Set the unset secret handler callback that will be invoked when a secret is unset
+    pub fn set_unset_secret_handler(&self, handler: UnsetSecretHandler) {
+        self.unset_secret_handler.store(Arc::new(Some(handler)));
+    }
+
+    /// Set the unset environment variable handler callback that will be invoked when an environment variable is unset
+    pub fn set_unset_environment_variable_handler(&self, handler: UnsetEnvironmentVariableHandler) {
+        self.unset_environment_variable_handler
+            .store(Arc::new(Some(handler)));
     }
 
     /// Add a new provider controller
@@ -433,4 +577,61 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcServiceWrapper<G> {
     ) -> Result<Response<sdk_proto::SetSecretsResponse>, Status> {
         self.0.set_secrets(request).await
     }
+
+    async fn set_environment_variables(
+        &self,
+        request: Request<sdk_proto::SetEnvironmentVariablesRequest>,
+    ) -> Result<Response<sdk_proto::SetEnvironmentVariablesResponse>, Status> {
+        self.0.set_environment_variables(request).await
+    }
+
+    async fn unset_secrets(
+        &self,
+        request: Request<sdk_proto::UnsetSecretRequest>,
+    ) -> Result<Response<sdk_proto::UnsetSecretResponse>, Status> {
+        self.0.unset_secrets(request).await
+    }
+
+    async fn unset_environment_variables(
+        &self,
+        request: Request<sdk_proto::UnsetEnvironmentVariableRequest>,
+    ) -> Result<Response<sdk_proto::UnsetEnvironmentVariableResponse>, Status> {
+        self.0.unset_environment_variables(request).await
+    }
+}
+
+/// Response from resync_sdk operation
+#[derive(Debug, Clone)]
+pub struct ResyncSdkResponse {}
+
+/// Calls the internal resync endpoint on the Soma API server.
+/// This triggers the API server to:
+/// - Fetch metadata from the SDK (providers, agents)
+/// - Sync providers to the bridge registry
+/// - Register Restate deployments for agents
+/// - Sync secrets to the SDK
+/// - Sync environment variables to the SDK
+///
+/// # Arguments
+/// * `base_url` - Optional base URL of the Soma API server (defaults to SOMA_SERVER_BASE_URL env var or http://localhost:3000)
+///
+/// # Returns
+/// The resync response from the server
+pub async fn resync_sdk(base_url: Option<String>) -> Result<ResyncSdkResponse, CommonError> {
+    let api_base_url = base_url
+        .or_else(|| std::env::var("SOMA_SERVER_BASE_URL").ok())
+        .unwrap_or_else(|| "http://localhost:3000".to_string());
+
+    info!("[SDK] Calling resync endpoint at: {}", api_base_url);
+
+    let config = soma_api_client::apis::configuration::Configuration {
+        base_path: api_base_url.clone(),
+        ..Default::default()
+    };
+
+    soma_api_client::apis::internal_api::resync_sdk(&config)
+        .await
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Resync failed: {e:?}")))?;
+
+    Ok(ResyncSdkResponse {})
 }
