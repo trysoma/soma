@@ -328,7 +328,7 @@ impl YamlSomaAgentDefinition {
                 // Only file has secrets: use file's
                 guard.secrets = Some(file_secrets.clone());
             }
-            (None, Some(guard_secrets)) => {
+            (None, Some(_guard_secrets)) => {
                 // Only guard has secrets: use guard's (already set)
             }
             (None, None) => {
