@@ -386,18 +386,7 @@ ${functionRegistrations.join("\n")}
 // Register all agents
 ${agentRegistrations.join("\n")}
 
-console.log("SDK server ready! Triggering resync with API server...");
-
-// Trigger resync with API server to sync providers, agents, secrets, and env vars
-// This must happen after all providers and agents are registered
-try {
-  await resyncSdk();
-  console.log("Resync with API server completed successfully");
-} catch (error) {
-  console.error("Failed to resync with API server:", error);
-  // Don't exit - the API server may not be ready yet, and secrets/env vars
-  // will be synced when the API server connects
-}
+console.log("SDK server ready!");
 
 ${
 	hasAgents
@@ -528,12 +517,34 @@ httpServer.on('error', (err: Error) => {
 });
 
 // Start the server
-httpServer.listen(restatePort, () => {
+httpServer.listen(restatePort, async () => {
   console.log(\`Restate server listening on port \${restatePort}\`);
+
+  // Trigger resync with API server to sync providers, agents, secrets, and env vars
+  // This must happen AFTER the Restate server is listening, so Restate can verify the deployment
+  console.log("Triggering resync with API server...");
+  try {
+    await resyncSdk();
+    console.log("Resync with API server completed successfully");
+  } catch (error) {
+    console.error("Failed to resync with API server:", error);
+    // Don't exit - the API server may not be ready yet, and secrets/env vars
+    // will be synced when the API server connects
+  }
 });
 `
 		: `
 // No agents defined, skipping Restate server startup
+// Trigger resync with API server to sync providers, agents, secrets, and env vars
+console.log("Triggering resync with API server...");
+try {
+  await resyncSdk();
+  console.log("Resync with API server completed successfully");
+} catch (error) {
+  console.error("Failed to resync with API server:", error);
+  // Don't exit - the API server may not be ready yet, and secrets/env vars
+  // will be synced when the API server connects
+}
 // Handle graceful shutdown for gRPC server only
 process.on('SIGINT', () => {
   console.log('\\nShutting down...');
