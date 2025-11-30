@@ -27,6 +27,7 @@ pub struct RestateServerRemoteParams {
 }
 
 #[derive(Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum RestateServerParams {
     Local(RestateServerLocalParams),
     Remote(RestateServerRemoteParams),

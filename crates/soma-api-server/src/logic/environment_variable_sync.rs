@@ -70,12 +70,11 @@ pub async fn fetch_all_environment_variables(
     Ok(all_env_vars)
 }
 
-/// Sync environment variables to the SDK via gRPC
+/// Sync environment variables to the SDK via gRPC (for initial sync - sends all env vars)
 ///
 /// This function interpolates environment variable values before sending:
 /// - Values starting with `$` are replaced with the host environment variable
 /// - Values starting with `$$` become literal `$` + rest of string
-/// Sync environment variables to the SDK via gRPC (for initial sync - sends all env vars)
 pub async fn sync_environment_variables_to_sdk(
     sdk_client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
         tonic::transport::Channel,

@@ -264,7 +264,7 @@ pub async fn delete_secret<R: SecretRepositoryLike>(
     on_change_tx: &SecretChangeTx,
     repository: &R,
     sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
-    crypto_cache: &CryptoCache,
+    _crypto_cache: &CryptoCache,
     id: WrappedUuidV4,
     publish_on_change_evt: bool,
 ) -> Result<DeleteSecretResponse, CommonError> {
