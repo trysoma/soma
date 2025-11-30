@@ -55,7 +55,7 @@ pub struct ApiService {
 pub struct InitApiServiceParams {
     pub host: String,
     pub port: u16,
-    pub sdk_port: u16,
+    pub soma_restate_service_port: u16,
     pub connection_manager: ConnectionManager,
     pub repository: Repository,
     pub mcp_transport_tx:
@@ -117,7 +117,6 @@ impl ApiService {
             std::sync::Arc::new(init_params.repository.clone()),
             init_params.crypto_cache.clone(),
             init_params.restate_params.clone(),
-            init_params.sdk_port,
         ));
 
         let secret_service = Arc::new(SecretService::new(

@@ -47,9 +47,12 @@ impl TryFrom<RemoteRestateParams> for RestateServerParams {
             )));
         }
         Ok(RestateServerParams::Remote(RestateServerRemoteParams {
-            admin_address: params.admin_url.unwrap(),
-            ingress_address: params.ingress_url.unwrap(),
+            admin_address: params.admin_url.clone().unwrap(),
+            ingress_address: params.ingress_url.clone().unwrap(),
             admin_token: params.admin_token,
+            // Default to using the ingress address for the soma restate service
+            soma_restate_service_address: params.ingress_url.unwrap(),
+            soma_restate_service_additional_headers: std::collections::HashMap::new(),
         }))
     }
 }
@@ -116,11 +119,11 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         params.db_conn_string.clone()
     };
 
-    // Find free port for SDK server
-    // let sdk_port = find_free_port(9080, 10080)?;
-
     // Load soma definition
     let soma_definition: Arc<dyn SomaAgentDefinitionLike> = load_soma_definition(&project_dir)?;
+
+    // Find free port for SDK server
+    let soma_restate_service_port = find_free_port(9080, 10080)?;
 
     // Setup Restate parameters
     let restate_params = match params.remote_restate {
@@ -129,13 +132,11 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
             project_dir: project_dir.clone(),
             ingress_port: 8080,
             admin_port: 9070,
-            advertised_node_port: 5122,
+            soma_restate_service_port,
+            soma_restate_service_additional_headers: std::collections::HashMap::new(),
             clean: params.clean,
         }),
     };
-
-    // Find free port for SDK server
-    let sdk_port = find_free_port(9080, 10080)?;
 
     // Start Restate server subsystem
     info!("Starting Restate server...");
@@ -150,7 +151,7 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         project_dir: project_dir.clone(),
         host: params.host.clone(),
         port: params.port,
-        sdk_port,
+        soma_restate_service_port,
         db_conn_string: db_conn_string.to_string(),
         db_auth_token: params.db_auth_token.clone(),
         soma_definition: soma_definition.clone(),

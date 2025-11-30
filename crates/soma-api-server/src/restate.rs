@@ -12,7 +12,8 @@ pub struct RestateServerLocalParams {
     pub project_dir: PathBuf,
     pub ingress_port: u16,
     pub admin_port: u16,
-    pub advertised_node_port: u16,
+    pub soma_restate_service_port: u16,
+    pub soma_restate_service_additional_headers: HashMap<String, String>,
     pub clean: bool,
 }
 
@@ -21,6 +22,8 @@ pub struct RestateServerRemoteParams {
     pub admin_address: Url,
     pub ingress_address: Url,
     pub admin_token: Option<String>,
+    pub soma_restate_service_address: Url,
+    pub soma_restate_service_additional_headers: HashMap<String, String>,
 }
 
 #[derive(Clone)]
@@ -90,15 +93,26 @@ impl RestateServerParams {
         }
     }
 
-    /// Get the service URI for SDK server based on the sdk_port
-    pub fn get_service_uri(&self, sdk_port: u16) -> Url {
-        // Always use localhost for the SDK service URI
-        Url::parse(&format!("http://127.0.0.1:{}", sdk_port))
-            .expect("Failed to parse SDK service URI")
+    /// Get the address where Soma's Restate service is accessible
+    pub fn get_soma_restate_service_address(&self) -> Url {
+        match self {
+            RestateServerParams::Local(params) => {
+                Url::parse(&format!("http://127.0.0.1:{}", params.soma_restate_service_port))
+                    .expect("Failed to parse Soma Restate service address")
+            }
+            RestateServerParams::Remote(params) => params.soma_restate_service_address.clone(),
+        }
     }
 
-    /// Get additional headers for service deployment (empty for now)
-    pub fn get_service_additional_headers(&self) -> HashMap<String, String> {
-        HashMap::new()
+    /// Get additional headers for Soma Restate service deployment
+    pub fn get_soma_restate_service_additional_headers(&self) -> HashMap<String, String> {
+        match self {
+            RestateServerParams::Local(params) => {
+                params.soma_restate_service_additional_headers.clone()
+            }
+            RestateServerParams::Remote(params) => {
+                params.soma_restate_service_additional_headers.clone()
+            }
+        }
     }
 }

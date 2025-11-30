@@ -103,7 +103,6 @@ async fn route_resync_sdk(
         &ctx.repository,
         &ctx.crypto_cache,
         &ctx.restate_params,
-        ctx.sdk_port,
         &ctx.sdk_client,
     )
     .await;
@@ -117,7 +116,6 @@ pub struct InternalService {
     repository: std::sync::Arc<crate::repository::Repository>,
     crypto_cache: CryptoCache,
     restate_params: crate::restate::RestateServerParams,
-    sdk_port: u16,
 }
 
 impl InternalService {
@@ -127,7 +125,6 @@ impl InternalService {
         repository: std::sync::Arc<crate::repository::Repository>,
         crypto_cache: CryptoCache,
         restate_params: crate::restate::RestateServerParams,
-        sdk_port: u16,
     ) -> Self {
         Self {
             bridge_service,
@@ -135,7 +132,6 @@ impl InternalService {
             repository,
             crypto_cache,
             restate_params,
-            sdk_port,
         }
     }
 }

@@ -86,7 +86,6 @@ pub async fn resync_sdk(
     repository: &std::sync::Arc<crate::repository::Repository>,
     crypto_cache: &CryptoCache,
     restate_params: &crate::restate::RestateServerParams,
-    sdk_port: u16,
     sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
 ) -> Result<ResyncSdkResponse, CommonError> {
     let mut sdk_client_guard = sdk_client.lock().await;
@@ -120,7 +119,7 @@ pub async fn resync_sdk(
     if !metadata.agents.is_empty() {
         for agent in metadata.agents {
             let restate_service_id = format!("{}.{}", agent.project_id, agent.id);
-            register_agent_deployment(agent, restate_params, sdk_port, &restate_service_id).await?;
+            register_agent_deployment(agent, restate_params, &restate_service_id).await?;
         }
     }
 
@@ -153,20 +152,19 @@ pub async fn resync_sdk(
 async fn register_agent_deployment(
     agent: sdk_proto::Agent,
     restate_server_params: &crate::restate::RestateServerParams,
-    sdk_port: u16,
     restate_service_id: &str,
 ) -> Result<(), CommonError> {
     use shared::restate;
 
-    let service_uri = restate_server_params.get_service_uri(sdk_port);
+    let service_address = restate_server_params.get_soma_restate_service_address();
     let deployment_type = restate::deploy::DeploymentType::Http {
-        uri: service_uri.to_string(),
-        additional_headers: restate_server_params.get_service_additional_headers(),
+        uri: service_address.to_string(),
+        additional_headers: restate_server_params.get_soma_restate_service_additional_headers(),
     };
 
     info!(
-        "Registering service path: {} with service URI: {}",
-        restate_service_id, service_uri
+        "Registering service path: {} with service address: {}",
+        restate_service_id, service_address
     );
 
     let admin_url = restate_server_params.get_admin_address()?;
