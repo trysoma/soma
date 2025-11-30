@@ -33,15 +33,24 @@ pub async fn fetch_and_decrypt_all_secrets(
         let page = repository.as_ref().get_secrets(&pagination).await?;
 
         for secret in page.items {
+            info!(
+                "Decrypting secret '{}' with DEK alias '{}'",
+                secret.key, secret.dek_alias
+            );
             // Get decryption service for this secret's DEK alias
             match crypto_cache.get_decryption_service(&secret.dek_alias).await {
                 Ok(decryption_service) => {
                     // Decrypt the secret value
                     match decryption_service
-                        .decrypt_data(EncryptedString(secret.encrypted_secret))
+                        .decrypt_data(EncryptedString(secret.encrypted_secret.clone()))
                         .await
                     {
                         Ok(decrypted_value) => {
+                            info!(
+                                "Successfully decrypted secret '{}' (decrypted length: {} bytes)",
+                                secret.key,
+                                decrypted_value.len()
+                            );
                             all_secrets.push(DecryptedSecret {
                                 key: secret.key,
                                 value: decrypted_value,
