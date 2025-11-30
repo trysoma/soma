@@ -468,12 +468,29 @@ async fn handle_secret_event(
 ) -> Result<(), CommonError> {
     match event {
         SecretChangeEvt::Created(secret) => {
-            info!("Secret created: {:?}", secret.key);
-            let config = SecretConfig {
-                value: secret.encrypted_secret,
-                dek_alias: secret.dek_alias,
-            };
-            soma_definition.add_secret(secret.key, config).await?;
+            // Check if this secret already exists in YAML
+            // If it does, skip writing to avoid overwriting with a re-encrypted value
+            // (encryption produces different ciphertext each time due to random nonces)
+            let definition = soma_definition.get_definition().await?;
+            let secret_exists_in_yaml = definition
+                .secrets
+                .as_ref()
+                .map(|secrets| secrets.contains_key(&secret.key))
+                .unwrap_or(false);
+
+            if secret_exists_in_yaml {
+                info!(
+                    "Secret '{}' already exists in YAML, skipping write to preserve encrypted value",
+                    secret.key
+                );
+            } else {
+                info!("Secret created: {:?}", secret.key);
+                let config = SecretConfig {
+                    value: secret.encrypted_secret,
+                    dek_alias: secret.dek_alias,
+                };
+                soma_definition.add_secret(secret.key, config).await?;
+            }
         }
         SecretChangeEvt::Updated(secret) => {
             info!("Secret updated: {:?}", secret.key);
