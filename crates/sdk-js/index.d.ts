@@ -166,6 +166,28 @@ export declare function removeFunction(
 /** Remove a provider controller by type_id */
 export declare function removeProvider(typeId: string): boolean;
 
+/**
+ * Calls the internal resync endpoint on the Soma API server.
+ * This triggers the API server to:
+ * - Fetch metadata from the SDK (providers, agents)
+ * - Sync providers to the bridge registry
+ * - Register Restate deployments for agents
+ * - Sync secrets to the SDK
+ * - Sync environment variables to the SDK
+ *
+ * # Parameters
+ * * `base_url` - Optional base URL of the Soma API server (defaults to SOMA_SERVER_BASE_URL env var or http://localhost:3000)
+ *
+ * # Returns
+ * The resync response from the server
+ */
+export declare function resyncSdk(
+	baseUrl?: string | undefined | null,
+): Promise<ResyncSdkResponse>;
+
+/** Response from resync_sdk operation */
+export type ResyncSdkResponse = {};
+
 export interface Secret {
 	key: string;
 	value: string;

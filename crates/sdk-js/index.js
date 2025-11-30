@@ -784,6 +784,7 @@ module.exports.addProvider = nativeBinding.addProvider;
 module.exports.removeAgent = nativeBinding.removeAgent;
 module.exports.removeFunction = nativeBinding.removeFunction;
 module.exports.removeProvider = nativeBinding.removeProvider;
+module.exports.resyncSdk = nativeBinding.resyncSdk;
 module.exports.setEnvironmentVariableHandler =
 	nativeBinding.setEnvironmentVariableHandler;
 module.exports.setSecretHandler = nativeBinding.setSecretHandler;

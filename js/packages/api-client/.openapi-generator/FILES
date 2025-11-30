@@ -85,7 +85,6 @@ src/models/ProviderInstanceSerialized.ts
 src/models/ProviderInstanceSerializedWithCredentials.ts
 src/models/ProviderInstanceSerializedWithEverything.ts
 src/models/ResourceServerCredentialSerialized.ts
-src/models/ResyncSdkResponse.ts
 src/models/ReturnAddress.ts
 src/models/ReturnAddressUrl.ts
 src/models/Secret.ts
@@ -103,7 +102,6 @@ src/models/TaskTimelineItemPayloadOneOf.ts
 src/models/TaskTimelineItemPayloadOneOf1.ts
 src/models/TaskWithDetails.ts
 src/models/TextPart.ts
-src/models/TriggerCodegenResponse.ts
 src/models/UpdateAliasParams.ts
 src/models/UpdateEnvironmentVariableRequest.ts
 src/models/UpdateProviderInstanceParamsInner.ts

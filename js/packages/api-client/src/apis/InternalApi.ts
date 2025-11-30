@@ -12,14 +12,6 @@
  * Do not edit the class manually.
  */
 
-import type {
-	ResyncSdkResponse,
-	TriggerCodegenResponse,
-} from "../models/index";
-import {
-	ResyncSdkResponseFromJSON,
-	TriggerCodegenResponseFromJSON,
-} from "../models/index";
 import * as runtime from "../runtime";
 
 /**
@@ -69,7 +61,7 @@ export class InternalApi extends runtime.BaseAPI {
 	 */
 	async healthCheckRaw(
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<void>> {
+	): Promise<runtime.ApiResponse<object>> {
 		const queryParameters: any = {};
 
 		const headerParameters: runtime.HTTPHeaders = {};
@@ -86,7 +78,7 @@ export class InternalApi extends runtime.BaseAPI {
 			initOverrides,
 		);
 
-		return new runtime.VoidApiResponse(response);
+		return new runtime.JSONApiResponse<any>(response);
 	}
 
 	/**
@@ -95,8 +87,9 @@ export class InternalApi extends runtime.BaseAPI {
 	 */
 	async healthCheck(
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<void> {
-		await this.healthCheckRaw(initOverrides);
+	): Promise<object> {
+		const response = await this.healthCheckRaw(initOverrides);
+		return await response.value();
 	}
 
 	/**
@@ -105,7 +98,7 @@ export class InternalApi extends runtime.BaseAPI {
 	 */
 	async resyncSdkRaw(
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<ResyncSdkResponse>> {
+	): Promise<runtime.ApiResponse<object>> {
 		const queryParameters: any = {};
 
 		const headerParameters: runtime.HTTPHeaders = {};
@@ -122,9 +115,7 @@ export class InternalApi extends runtime.BaseAPI {
 			initOverrides,
 		);
 
-		return new runtime.JSONApiResponse(response, (jsonValue) =>
-			ResyncSdkResponseFromJSON(jsonValue),
-		);
+		return new runtime.JSONApiResponse<any>(response);
 	}
 
 	/**
@@ -133,7 +124,7 @@ export class InternalApi extends runtime.BaseAPI {
 	 */
 	async resyncSdk(
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<ResyncSdkResponse> {
+	): Promise<object> {
 		const response = await this.resyncSdkRaw(initOverrides);
 		return await response.value();
 	}
@@ -144,7 +135,7 @@ export class InternalApi extends runtime.BaseAPI {
 	 */
 	async triggerCodegenRaw(
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<TriggerCodegenResponse>> {
+	): Promise<runtime.ApiResponse<object>> {
 		const queryParameters: any = {};
 
 		const headerParameters: runtime.HTTPHeaders = {};
@@ -161,9 +152,7 @@ export class InternalApi extends runtime.BaseAPI {
 			initOverrides,
 		);
 
-		return new runtime.JSONApiResponse(response, (jsonValue) =>
-			TriggerCodegenResponseFromJSON(jsonValue),
-		);
+		return new runtime.JSONApiResponse<any>(response);
 	}
 
 	/**
@@ -172,7 +161,7 @@ export class InternalApi extends runtime.BaseAPI {
 	 */
 	async triggerCodegen(
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<TriggerCodegenResponse> {
+	): Promise<object> {
 		const response = await this.triggerCodegenRaw(initOverrides);
 		return await response.value();
 	}

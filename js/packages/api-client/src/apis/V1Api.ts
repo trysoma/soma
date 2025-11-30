@@ -50,14 +50,12 @@ import type {
 	ProviderInstanceSerialized,
 	ProviderInstanceSerializedWithEverything,
 	ResourceServerCredentialSerialized,
-	ResyncSdkResponse,
 	Secret,
 	SomaAgentDefinition,
 	StartUserCredentialBrokeringParamsInner,
 	TaskPaginatedResponse,
 	TaskTimelineItemPaginatedResponse,
 	TaskWithDetails,
-	TriggerCodegenResponse,
 	UpdateAliasParams,
 	UpdateEnvironmentVariableRequest,
 	UpdateProviderInstanceParamsInner,
@@ -105,14 +103,12 @@ import {
 	ProviderInstanceSerializedFromJSON,
 	ProviderInstanceSerializedWithEverythingFromJSON,
 	ResourceServerCredentialSerializedFromJSON,
-	ResyncSdkResponseFromJSON,
 	SecretFromJSON,
 	SomaAgentDefinitionFromJSON,
 	StartUserCredentialBrokeringParamsInnerToJSON,
 	TaskPaginatedResponseFromJSON,
 	TaskTimelineItemPaginatedResponseFromJSON,
 	TaskWithDetailsFromJSON,
-	TriggerCodegenResponseFromJSON,
 	UpdateAliasParamsToJSON,
 	UpdateEnvironmentVariableRequestToJSON,
 	UpdateProviderInstanceParamsInnerToJSON,
@@ -2061,7 +2057,7 @@ export class V1Api extends runtime.BaseAPI {
 	 */
 	async healthCheckRaw(
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<void>> {
+	): Promise<runtime.ApiResponse<object>> {
 		const queryParameters: any = {};
 
 		const headerParameters: runtime.HTTPHeaders = {};
@@ -2078,7 +2074,7 @@ export class V1Api extends runtime.BaseAPI {
 			initOverrides,
 		);
 
-		return new runtime.VoidApiResponse(response);
+		return new runtime.JSONApiResponse<any>(response);
 	}
 
 	/**
@@ -2087,8 +2083,9 @@ export class V1Api extends runtime.BaseAPI {
 	 */
 	async healthCheck(
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<void> {
-		await this.healthCheckRaw(initOverrides);
+	): Promise<object> {
+		const response = await this.healthCheckRaw(initOverrides);
+		return await response.value();
 	}
 
 	/**
@@ -3336,7 +3333,7 @@ export class V1Api extends runtime.BaseAPI {
 	 */
 	async resyncSdkRaw(
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<ResyncSdkResponse>> {
+	): Promise<runtime.ApiResponse<object>> {
 		const queryParameters: any = {};
 
 		const headerParameters: runtime.HTTPHeaders = {};
@@ -3353,9 +3350,7 @@ export class V1Api extends runtime.BaseAPI {
 			initOverrides,
 		);
 
-		return new runtime.JSONApiResponse(response, (jsonValue) =>
-			ResyncSdkResponseFromJSON(jsonValue),
-		);
+		return new runtime.JSONApiResponse<any>(response);
 	}
 
 	/**
@@ -3364,7 +3359,7 @@ export class V1Api extends runtime.BaseAPI {
 	 */
 	async resyncSdk(
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<ResyncSdkResponse> {
+	): Promise<object> {
 		const response = await this.resyncSdkRaw(initOverrides);
 		return await response.value();
 	}
@@ -3590,7 +3585,7 @@ export class V1Api extends runtime.BaseAPI {
 	 */
 	async triggerCodegenRaw(
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<TriggerCodegenResponse>> {
+	): Promise<runtime.ApiResponse<object>> {
 		const queryParameters: any = {};
 
 		const headerParameters: runtime.HTTPHeaders = {};
@@ -3607,9 +3602,7 @@ export class V1Api extends runtime.BaseAPI {
 			initOverrides,
 		);
 
-		return new runtime.JSONApiResponse(response, (jsonValue) =>
-			TriggerCodegenResponseFromJSON(jsonValue),
-		);
+		return new runtime.JSONApiResponse<any>(response);
 	}
 
 	/**
@@ -3618,7 +3611,7 @@ export class V1Api extends runtime.BaseAPI {
 	 */
 	async triggerCodegen(
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<TriggerCodegenResponse> {
+	): Promise<object> {
 		const response = await this.triggerCodegenRaw(initOverrides);
 		return await response.value();
 	}
