@@ -5,8 +5,8 @@ plugins:
       cmd: "sqlc-gen-from-template"
 sql:
   - engine: "sqlite"
-    schema: "./dbs/identity-sts/schema.sql"
-    queries: "./dbs/identity-sts/queries"
+    schema: "./dbs/identity/schema.sql"
+    queries: "./dbs/identity/queries"
     codegen:
       - out: "src/repository/sqlite"
         plugin: "sqlc-gen-from-template"
@@ -82,4 +82,37 @@ sql:
               rust_type: "shared::primitives::WrappedChronoDateTime"
             - db_type: datetime
               column: get_user_groups.group_updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # jwt_signing_key table
+            - db_type: datetime
+              column: jwt_signing_key.expires_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: jwt_signing_key.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: jwt_signing_key.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_jwt_signing_keys query columns
+            - db_type: datetime
+              column: get_jwt_signing_keys.expires_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_jwt_signing_keys.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_jwt_signing_keys.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_jwt_signing_key_by_kid query columns
+            - db_type: datetime
+              column: get_jwt_signing_key_by_kid.expires_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_jwt_signing_key_by_kid.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_jwt_signing_key_by_kid.updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"

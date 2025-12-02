@@ -3179,6 +3179,141 @@
         }
       }
     },
+    "/api/identity/v1/.well-known/jwks.json": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "operationId": "route_get_jwks",
+        "responses": {
+          "200": {
+            "description": "JWKS (JSON Web Key Set)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JwksResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/jwk": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "operationId": "route_list_jwks",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            },
+            "example": "10"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of JWKs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JwkResponsePaginatedResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/jwk/{kid}/invalidate": {
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "operationId": "route_invalidate_jwk",
+        "parameters": [
+          {
+            "name": "kid",
+            "in": "path",
+            "description": "Key ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JWK invalidated successfully"
+          },
+          "404": {
+            "description": "JWK not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/secret/v1": {
       "get": {
         "tags": [
@@ -5552,6 +5687,91 @@
       "JsonrpcRequest": {
         "type": "object"
       },
+      "Jwk": {
+        "type": "object",
+        "required": [
+          "kty",
+          "kid",
+          "use",
+          "alg",
+          "n",
+          "e"
+        ],
+        "properties": {
+          "alg": {
+            "type": "string"
+          },
+          "e": {
+            "type": "string"
+          },
+          "kid": {
+            "type": "string"
+          },
+          "kty": {
+            "type": "string"
+          },
+          "n": {
+            "type": "string"
+          },
+          "use": {
+            "type": "string"
+          }
+        }
+      },
+      "JwkResponse": {
+        "type": "object",
+        "required": [
+          "kid",
+          "publicKey",
+          "expiresAt",
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "expiresAt": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "kid": {
+            "type": "string"
+          },
+          "publicKey": {
+            "type": "string"
+          }
+        }
+      },
+      "JwkResponsePaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JwkResponse"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
+      "JwksResponse": {
+        "type": "object",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Jwk"
+            }
+          }
+        }
+      },
       "ListDecryptedSecretsResponse": {
         "type": "object",
         "required": [
@@ -6664,6 +6884,10 @@
     {
       "name": "a2a",
       "description": "Agent-to-agent communication endpoints for agent cards, definitions, and JSON-RPC requests"
+    },
+    {
+      "name": "identity",
+      "description": "Identity management endpoints for JWKs (JSON Web Keys) and authentication"
     },
     {
       "name": "v1",

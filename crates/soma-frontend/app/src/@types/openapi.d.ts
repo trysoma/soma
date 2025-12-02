@@ -764,6 +764,54 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/api/identity/v1/.well-known/jwks.json": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get: operations["route_get_jwks"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/jwk": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get: operations["route_list_jwks"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/jwk/{kid}/invalidate": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations["route_invalidate_jwk"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/api/secret/v1": {
 		parameters: {
 			query?: never;
@@ -1275,6 +1323,27 @@ export interface components {
 			[key: string]: unknown;
 		};
 		JsonrpcRequest: Record<string, never>;
+		Jwk: {
+			alg: string;
+			e: string;
+			kid: string;
+			kty: string;
+			n: string;
+			use: string;
+		};
+		JwkResponse: {
+			createdAt: components["schemas"]["WrappedChronoDateTime"];
+			expiresAt: components["schemas"]["WrappedChronoDateTime"];
+			kid: string;
+			publicKey: string;
+		};
+		JwkResponsePaginatedResponse: {
+			items: components["schemas"]["JwkResponse"][];
+			next_page_token?: string;
+		};
+		JwksResponse: {
+			keys: components["schemas"]["Jwk"][];
+		};
 		ListDecryptedSecretsResponse: {
 			next_page_token?: string | null;
 			secrets: components["schemas"]["DecryptedSecret"][];
@@ -3900,6 +3969,108 @@ export interface operations {
 				};
 			};
 			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_get_jwks: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description JWKS (JSON Web Key Set) */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["JwksResponse"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_list_jwks: {
+		parameters: {
+			query?: {
+				/** @example 10 */
+				page_size?: number | null;
+				/** @example  */
+				next_page_token?: string | null;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of JWKs */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["JwkResponsePaginatedResponse"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_invalidate_jwk: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Key ID */
+				kid: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description JWK invalidated successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description JWK not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
 			500: {
 				headers: {
 					[name: string]: unknown;

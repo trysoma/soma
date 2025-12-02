@@ -10,16 +10,15 @@ pub mod generated {
 pub use generated::*;
 
 use crate::repository::{
-    ApiKey, ApiKeyWithUser, CreateApiKey, CreateGroup, CreateGroupMembership, CreateUser,
-    Group, GroupMembership, GroupMemberWithUser, UpdateUser, User, UserGroupWithGroup,
-    UserRepositoryLike,
+    ApiKey, ApiKeyWithUser, CreateApiKey, CreateGroup, CreateGroupMembership, CreateJwtSigningKey,
+    CreateUser, Group, GroupMemberWithUser, GroupMembership, JwtSigningKey, UpdateUser, User,
+    UserGroupWithGroup, UserRepositoryLike,
 };
 use anyhow::Context;
-use shared::primitives::{
-    PaginatedResponse, PaginationRequest, WrappedChronoDateTime,
-    decode_pagination_token,
-};
 use shared::error::CommonError;
+use shared::primitives::{
+    PaginatedResponse, PaginationRequest, WrappedChronoDateTime, decode_pagination_token,
+};
 use shared_macros::load_atlas_sql_migrations;
 
 #[derive(Clone)]
@@ -33,8 +32,8 @@ impl Repository {
     }
 }
 
-use std::collections::BTreeMap;
 use shared::primitives::SqlMigrationLoader;
+use std::collections::BTreeMap;
 
 impl SqlMigrationLoader for Repository {
     fn load_sql_migrations() -> BTreeMap<&'static str, BTreeMap<&'static str, &'static str>> {
@@ -64,7 +63,9 @@ impl UserRepositoryLike for Repository {
     }
 
     async fn get_user_by_id(&self, id: &str) -> Result<Option<User>, CommonError> {
-        let sqlc_params = get_user_by_id_params { id: &id.to_string() };
+        let sqlc_params = get_user_by_id_params {
+            id: &id.to_string(),
+        };
 
         let result = get_user_by_id(&self.conn, sqlc_params)
             .await
@@ -105,7 +106,9 @@ impl UserRepositoryLike for Repository {
     }
 
     async fn delete_user(&self, id: &str) -> Result<(), CommonError> {
-        let sqlc_params = delete_user_params { id: &id.to_string() };
+        let sqlc_params = delete_user_params {
+            id: &id.to_string(),
+        };
 
         delete_user(&self.conn, sqlc_params)
             .await
@@ -133,11 +136,12 @@ impl UserRepositoryLike for Repository {
                 None
             } else {
                 Some(
-                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
-                        .map_err(|e| CommonError::Repository {
+                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(|e| {
+                        CommonError::Repository {
                             msg: format!("Invalid datetime in pagination token: {e}"),
                             source: Some(e.into()),
-                        })?,
+                        }
+                    })?,
                 )
             }
         } else {
@@ -237,11 +241,12 @@ impl UserRepositoryLike for Repository {
                 None
             } else {
                 Some(
-                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
-                        .map_err(|e| CommonError::Repository {
+                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(|e| {
+                        CommonError::Repository {
                             msg: format!("Invalid datetime in pagination token: {e}"),
                             source: Some(e.into()),
-                        })?,
+                        }
+                    })?,
                 )
             }
         } else {
@@ -307,7 +312,9 @@ impl UserRepositoryLike for Repository {
     }
 
     async fn get_group_by_id(&self, id: &str) -> Result<Option<Group>, CommonError> {
-        let sqlc_params = get_group_by_id_params { id: &id.to_string() };
+        let sqlc_params = get_group_by_id_params {
+            id: &id.to_string(),
+        };
 
         let result = get_group_by_id(&self.conn, sqlc_params)
             .await
@@ -337,7 +344,9 @@ impl UserRepositoryLike for Repository {
     }
 
     async fn delete_group(&self, id: &str) -> Result<(), CommonError> {
-        let sqlc_params = delete_group_params { id: &id.to_string() };
+        let sqlc_params = delete_group_params {
+            id: &id.to_string(),
+        };
 
         delete_group(&self.conn, sqlc_params)
             .await
@@ -363,11 +372,12 @@ impl UserRepositoryLike for Repository {
                 None
             } else {
                 Some(
-                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
-                        .map_err(|e| CommonError::Repository {
+                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(|e| {
+                        CommonError::Repository {
                             msg: format!("Invalid datetime in pagination token: {e}"),
                             source: Some(e.into()),
-                        })?,
+                        }
+                    })?,
                 )
             }
         } else {
@@ -474,11 +484,12 @@ impl UserRepositoryLike for Repository {
                 None
             } else {
                 Some(
-                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
-                        .map_err(|e| CommonError::Repository {
+                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(|e| {
+                        CommonError::Repository {
                             msg: format!("Invalid datetime in pagination token: {e}"),
                             source: Some(e.into()),
-                        })?,
+                        }
+                    })?,
                 )
             }
         } else {
@@ -523,11 +534,12 @@ impl UserRepositoryLike for Repository {
                 None
             } else {
                 Some(
-                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str())
-                        .map_err(|e| CommonError::Repository {
+                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(|e| {
+                        CommonError::Repository {
                             msg: format!("Invalid datetime in pagination token: {e}"),
                             source: Some(e.into()),
-                        })?,
+                        }
+                    })?,
                 )
             }
         } else {
@@ -557,7 +569,10 @@ impl UserRepositoryLike for Repository {
         ))
     }
 
-    async fn delete_group_memberships_by_group_id(&self, group_id: &str) -> Result<(), CommonError> {
+    async fn delete_group_memberships_by_group_id(
+        &self,
+        group_id: &str,
+    ) -> Result<(), CommonError> {
         let sqlc_params = delete_group_memberships_by_group_id_params {
             group_id: &group_id.to_string(),
         };
@@ -585,6 +600,114 @@ impl UserRepositoryLike for Repository {
                 source: Some(e),
             })?;
         Ok(())
+    }
+
+    // JWT signing key methods
+    async fn create_jwt_signing_key(
+        &self,
+        params: &CreateJwtSigningKey,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = create_jwt_signing_key_params {
+            kid: &params.kid,
+            encrypted_private_key: &params.encrypted_private_key,
+            expires_at: &params.expires_at,
+            public_key: &params.public_key,
+            dek_alias: &params.dek_alias,
+            invalidated: &params.invalidated,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+        };
+
+        create_jwt_signing_key(&self.conn, sqlc_params)
+            .await
+            .context("Failed to create jwt signing key")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn get_jwt_signing_key_by_kid(
+        &self,
+        kid: &str,
+    ) -> Result<Option<JwtSigningKey>, CommonError> {
+        let sqlc_params = get_jwt_signing_key_by_kid_params {
+            kid: &kid.to_string(),
+        };
+
+        let result = get_jwt_signing_key_by_kid(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get jwt signing key by kid")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        Ok(result.map(|row| row.into()))
+    }
+
+    async fn invalidate_jwt_signing_key(&self, kid: &str) -> Result<(), CommonError> {
+        let sqlc_params = invalidate_jwt_signing_key_params {
+            kid: &kid.to_string(),
+        };
+
+        invalidate_jwt_signing_key(&self.conn, sqlc_params)
+            .await
+            .context("Failed to invalidate jwt signing key")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn list_jwt_signing_keys(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<JwtSigningKey>, CommonError> {
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(|e| {
+                        CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        }
+                    })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let sqlc_params = get_jwt_signing_keys_params {
+            cursor: &cursor_datetime,
+            page_size: &pagination.page_size,
+        };
+
+        let rows = get_jwt_signing_keys(&self.conn, sqlc_params)
+            .await
+            .context("Failed to list jwt signing keys")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Vec<JwtSigningKey> = rows.into_iter().map(|row| row.into()).collect();
+
+        Ok(PaginatedResponse::from_items_with_extra(
+            items,
+            pagination,
+            |item| vec![item.created_at.get_inner().to_rfc3339()],
+        ))
     }
 }
 
@@ -614,7 +737,7 @@ mod tests {
             user_type: user_type.to_string(),
             email: email.map(|s| s.to_string()),
             role: role.to_string(),
-            created_at: now.clone(),
+            created_at: now,
             updated_at: now,
         }
     }
@@ -624,7 +747,7 @@ mod tests {
         CreateApiKey {
             hashed_value: hashed_value.to_string(),
             user_id: user_id.to_string(),
-            created_at: now.clone(),
+            created_at: now,
             updated_at: now,
         }
     }
@@ -634,7 +757,7 @@ mod tests {
         CreateGroup {
             id: id.to_string(),
             name: name.to_string(),
-            created_at: now.clone(),
+            created_at: now,
             updated_at: now,
         }
     }
@@ -644,7 +767,27 @@ mod tests {
         CreateGroupMembership {
             group_id: group_id.to_string(),
             user_id: user_id.to_string(),
-            created_at: now.clone(),
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    fn create_test_jwt_signing_key(
+        kid: &str,
+        encrypted_private_key: &str,
+        public_key: &str,
+        dek_alias: &str,
+    ) -> CreateJwtSigningKey {
+        let now = WrappedChronoDateTime::now();
+        let expires_at = *now.get_inner() + chrono::Duration::days(30);
+        CreateJwtSigningKey {
+            kid: kid.to_string(),
+            encrypted_private_key: encrypted_private_key.to_string(),
+            expires_at: WrappedChronoDateTime::new(expires_at),
+            public_key: public_key.to_string(),
+            dek_alias: dek_alias.to_string(),
+            invalidated: false,
+            created_at: now,
             updated_at: now,
         }
     }
@@ -657,7 +800,12 @@ mod tests {
     async fn test_create_and_get_user() {
         let repo = setup_test_db().await;
 
-        let user = create_test_user("user-1", "service_principal", Some("test@example.com"), "admin");
+        let user = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("test@example.com"),
+            "admin",
+        );
         repo.create_user(&user).await.unwrap();
 
         let fetched = repo.get_user_by_id("user-1").await.unwrap();
@@ -681,7 +829,12 @@ mod tests {
     async fn test_update_user() {
         let repo = setup_test_db().await;
 
-        let user = create_test_user("user-1", "service_principal", Some("old@example.com"), "user");
+        let user = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("old@example.com"),
+            "user",
+        );
         repo.create_user(&user).await.unwrap();
 
         let update = UpdateUser {
@@ -699,7 +852,12 @@ mod tests {
     async fn test_update_user_partial() {
         let repo = setup_test_db().await;
 
-        let user = create_test_user("user-1", "service_principal", Some("old@example.com"), "user");
+        let user = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("old@example.com"),
+            "user",
+        );
         repo.create_user(&user).await.unwrap();
 
         // Only update email
@@ -718,7 +876,12 @@ mod tests {
     async fn test_delete_user() {
         let repo = setup_test_db().await;
 
-        let user = create_test_user("user-1", "service_principal", Some("test@example.com"), "admin");
+        let user = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("test@example.com"),
+            "admin",
+        );
         repo.create_user(&user).await.unwrap();
 
         repo.delete_user("user-1").await.unwrap();
@@ -735,7 +898,11 @@ mod tests {
         for i in 1..=5 {
             let user = create_test_user(
                 &format!("user-{i}"),
-                if i % 2 == 0 { "federated_user" } else { "service_principal" },
+                if i % 2 == 0 {
+                    "federated_user"
+                } else {
+                    "service_principal"
+                },
                 Some(&format!("user{i}@example.com")),
                 if i % 2 == 0 { "admin" } else { "user" },
             );
@@ -758,7 +925,10 @@ mod tests {
         assert_eq!(result.items.len(), 3);
 
         // Filter by role
-        let result = repo.list_users(&pagination, None, Some("admin")).await.unwrap();
+        let result = repo
+            .list_users(&pagination, None, Some("admin"))
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 2);
     }
 
@@ -816,14 +986,22 @@ mod tests {
         let repo = setup_test_db().await;
 
         // Create user first
-        let user = create_test_user("user-1", "service_principal", Some("test@example.com"), "admin");
+        let user = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("test@example.com"),
+            "admin",
+        );
         repo.create_user(&user).await.unwrap();
 
         // Create API key
         let api_key = create_test_api_key("hashed-key-1", "user-1");
         repo.create_api_key(&api_key).await.unwrap();
 
-        let fetched = repo.get_api_key_by_hashed_value("hashed-key-1").await.unwrap();
+        let fetched = repo
+            .get_api_key_by_hashed_value("hashed-key-1")
+            .await
+            .unwrap();
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
         assert_eq!(fetched.api_key.hashed_value, "hashed-key-1");
@@ -836,7 +1014,10 @@ mod tests {
     async fn test_get_api_key_not_found() {
         let repo = setup_test_db().await;
 
-        let fetched = repo.get_api_key_by_hashed_value("nonexistent").await.unwrap();
+        let fetched = repo
+            .get_api_key_by_hashed_value("nonexistent")
+            .await
+            .unwrap();
         assert!(fetched.is_none());
     }
 
@@ -844,7 +1025,12 @@ mod tests {
     async fn test_delete_api_key() {
         let repo = setup_test_db().await;
 
-        let user = create_test_user("user-1", "service_principal", Some("test@example.com"), "admin");
+        let user = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("test@example.com"),
+            "admin",
+        );
         repo.create_user(&user).await.unwrap();
 
         let api_key = create_test_api_key("hashed-key-1", "user-1");
@@ -852,7 +1038,10 @@ mod tests {
 
         repo.delete_api_key("hashed-key-1").await.unwrap();
 
-        let fetched = repo.get_api_key_by_hashed_value("hashed-key-1").await.unwrap();
+        let fetched = repo
+            .get_api_key_by_hashed_value("hashed-key-1")
+            .await
+            .unwrap();
         assert!(fetched.is_none());
     }
 
@@ -861,8 +1050,18 @@ mod tests {
         let repo = setup_test_db().await;
 
         // Create users
-        let user1 = create_test_user("user-1", "service_principal", Some("user1@example.com"), "admin");
-        let user2 = create_test_user("user-2", "federated_user", Some("user2@example.com"), "user");
+        let user1 = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("user1@example.com"),
+            "admin",
+        );
+        let user2 = create_test_user(
+            "user-2",
+            "federated_user",
+            Some("user2@example.com"),
+            "user",
+        );
         repo.create_user(&user1).await.unwrap();
         repo.create_user(&user2).await.unwrap();
 
@@ -885,10 +1084,16 @@ mod tests {
         assert_eq!(result.items.len(), 5);
 
         // Filter by user_id
-        let result = repo.list_api_keys(&pagination, Some("user-1")).await.unwrap();
+        let result = repo
+            .list_api_keys(&pagination, Some("user-1"))
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 3);
 
-        let result = repo.list_api_keys(&pagination, Some("user-2")).await.unwrap();
+        let result = repo
+            .list_api_keys(&pagination, Some("user-2"))
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 2);
     }
 
@@ -897,8 +1102,18 @@ mod tests {
         let repo = setup_test_db().await;
 
         // Create users
-        let user1 = create_test_user("user-1", "service_principal", Some("user1@example.com"), "admin");
-        let user2 = create_test_user("user-2", "federated_user", Some("user2@example.com"), "user");
+        let user1 = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("user1@example.com"),
+            "admin",
+        );
+        let user2 = create_test_user(
+            "user-2",
+            "federated_user",
+            Some("user2@example.com"),
+            "user",
+        );
         repo.create_user(&user1).await.unwrap();
         repo.create_user(&user2).await.unwrap();
 
@@ -920,11 +1135,17 @@ mod tests {
             page_size: 10,
             next_page_token: None,
         };
-        let result = repo.list_api_keys(&pagination, Some("user-1")).await.unwrap();
+        let result = repo
+            .list_api_keys(&pagination, Some("user-1"))
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 0);
 
         // Verify user-2's keys still exist
-        let result = repo.list_api_keys(&pagination, Some("user-2")).await.unwrap();
+        let result = repo
+            .list_api_keys(&pagination, Some("user-2"))
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 2);
     }
 
@@ -933,7 +1154,12 @@ mod tests {
         let repo = setup_test_db().await;
 
         // Create user
-        let user = create_test_user("user-1", "service_principal", Some("test@example.com"), "admin");
+        let user = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("test@example.com"),
+            "admin",
+        );
         repo.create_user(&user).await.unwrap();
 
         // Create API keys
@@ -950,7 +1176,10 @@ mod tests {
             page_size: 10,
             next_page_token: None,
         };
-        let result = repo.list_api_keys(&pagination, Some("user-1")).await.unwrap();
+        let result = repo
+            .list_api_keys(&pagination, Some("user-1"))
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 0);
     }
 
@@ -1072,7 +1301,12 @@ mod tests {
         let repo = setup_test_db().await;
 
         // Create user and group first
-        let user = create_test_user("user-1", "service_principal", Some("test@example.com"), "admin");
+        let user = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("test@example.com"),
+            "admin",
+        );
         repo.create_user(&user).await.unwrap();
 
         let group = create_test_group("group-1", "Test Group");
@@ -1082,7 +1316,10 @@ mod tests {
         let membership = create_test_group_membership("group-1", "user-1");
         repo.create_group_membership(&membership).await.unwrap();
 
-        let fetched = repo.get_group_membership("group-1", "user-1").await.unwrap();
+        let fetched = repo
+            .get_group_membership("group-1", "user-1")
+            .await
+            .unwrap();
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
         assert_eq!(fetched.group_id, "group-1");
@@ -1093,7 +1330,10 @@ mod tests {
     async fn test_get_group_membership_not_found() {
         let repo = setup_test_db().await;
 
-        let fetched = repo.get_group_membership("nonexistent", "nonexistent").await.unwrap();
+        let fetched = repo
+            .get_group_membership("nonexistent", "nonexistent")
+            .await
+            .unwrap();
         assert!(fetched.is_none());
     }
 
@@ -1102,7 +1342,12 @@ mod tests {
         let repo = setup_test_db().await;
 
         // Create user, group, and membership
-        let user = create_test_user("user-1", "service_principal", Some("test@example.com"), "admin");
+        let user = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("test@example.com"),
+            "admin",
+        );
         repo.create_user(&user).await.unwrap();
 
         let group = create_test_group("group-1", "Test Group");
@@ -1112,9 +1357,14 @@ mod tests {
         repo.create_group_membership(&membership).await.unwrap();
 
         // Delete membership
-        repo.delete_group_membership("group-1", "user-1").await.unwrap();
+        repo.delete_group_membership("group-1", "user-1")
+            .await
+            .unwrap();
 
-        let fetched = repo.get_group_membership("group-1", "user-1").await.unwrap();
+        let fetched = repo
+            .get_group_membership("group-1", "user-1")
+            .await
+            .unwrap();
         assert!(fetched.is_none());
     }
 
@@ -1144,7 +1394,10 @@ mod tests {
             page_size: 10,
             next_page_token: None,
         };
-        let result = repo.list_group_members("group-1", &pagination).await.unwrap();
+        let result = repo
+            .list_group_members("group-1", &pagination)
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 5);
 
         // Verify joined user data is present
@@ -1179,7 +1432,10 @@ mod tests {
             page_size: 2,
             next_page_token: None,
         };
-        let result = repo.list_group_members("group-1", &pagination).await.unwrap();
+        let result = repo
+            .list_group_members("group-1", &pagination)
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 2);
         assert!(result.next_page_token.is_some());
 
@@ -1188,7 +1444,10 @@ mod tests {
             page_size: 2,
             next_page_token: result.next_page_token,
         };
-        let result = repo.list_group_members("group-1", &pagination).await.unwrap();
+        let result = repo
+            .list_group_members("group-1", &pagination)
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 2);
         assert!(result.next_page_token.is_some());
     }
@@ -1198,7 +1457,12 @@ mod tests {
         let repo = setup_test_db().await;
 
         // Create user
-        let user = create_test_user("user-1", "service_principal", Some("test@example.com"), "admin");
+        let user = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("test@example.com"),
+            "admin",
+        );
         repo.create_user(&user).await.unwrap();
 
         // Create groups and add user to them
@@ -1226,7 +1490,12 @@ mod tests {
         let repo = setup_test_db().await;
 
         // Create user
-        let user = create_test_user("user-1", "service_principal", Some("test@example.com"), "admin");
+        let user = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("test@example.com"),
+            "admin",
+        );
         repo.create_user(&user).await.unwrap();
 
         // Create groups and add user to them with delays
@@ -1286,18 +1555,26 @@ mod tests {
         }
 
         // Delete memberships for group-1
-        repo.delete_group_memberships_by_group_id("group-1").await.unwrap();
+        repo.delete_group_memberships_by_group_id("group-1")
+            .await
+            .unwrap();
 
         // Verify group-1 has no members
         let pagination = PaginationRequest {
             page_size: 10,
             next_page_token: None,
         };
-        let result = repo.list_group_members("group-1", &pagination).await.unwrap();
+        let result = repo
+            .list_group_members("group-1", &pagination)
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 0);
 
         // Verify group-2 still has members
-        let result = repo.list_group_members("group-2", &pagination).await.unwrap();
+        let result = repo
+            .list_group_members("group-2", &pagination)
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 3);
     }
 
@@ -1312,8 +1589,18 @@ mod tests {
         }
 
         // Create users
-        let user1 = create_test_user("user-1", "service_principal", Some("user1@example.com"), "user");
-        let user2 = create_test_user("user-2", "federated_user", Some("user2@example.com"), "user");
+        let user1 = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("user1@example.com"),
+            "user",
+        );
+        let user2 = create_test_user(
+            "user-2",
+            "federated_user",
+            Some("user2@example.com"),
+            "user",
+        );
         repo.create_user(&user1).await.unwrap();
         repo.create_user(&user2).await.unwrap();
 
@@ -1330,7 +1617,9 @@ mod tests {
         }
 
         // Delete memberships for user-1
-        repo.delete_group_memberships_by_user_id("user-1").await.unwrap();
+        repo.delete_group_memberships_by_user_id("user-1")
+            .await
+            .unwrap();
 
         // Verify user-1 has no groups
         let pagination = PaginationRequest {
@@ -1377,7 +1666,10 @@ mod tests {
         };
         // Check users are no longer in the group
         for i in 1..=3 {
-            let result = repo.list_user_groups(&format!("user-{i}"), &pagination).await.unwrap();
+            let result = repo
+                .list_user_groups(&format!("user-{i}"), &pagination)
+                .await
+                .unwrap();
             assert_eq!(result.items.len(), 0);
         }
     }
@@ -1393,7 +1685,12 @@ mod tests {
         }
 
         // Create user and add to all groups
-        let user = create_test_user("user-1", "service_principal", Some("test@example.com"), "admin");
+        let user = create_test_user(
+            "user-1",
+            "service_principal",
+            Some("test@example.com"),
+            "admin",
+        );
         repo.create_user(&user).await.unwrap();
 
         for i in 1..=3 {
@@ -1410,8 +1707,146 @@ mod tests {
             next_page_token: None,
         };
         for i in 1..=3 {
-            let result = repo.list_group_members(&format!("group-{i}"), &pagination).await.unwrap();
+            let result = repo
+                .list_group_members(&format!("group-{i}"), &pagination)
+                .await
+                .unwrap();
             assert_eq!(result.items.len(), 0);
         }
+    }
+
+    // ============================================
+    // JWT signing key tests
+    // ============================================
+
+    #[tokio::test]
+    async fn test_create_and_get_jwt_signing_key() {
+        let repo = setup_test_db().await;
+
+        let key = create_test_jwt_signing_key(
+            "kid-1",
+            "encrypted-private-key-1",
+            "public-key-1",
+            "dek-alias-1",
+        );
+        repo.create_jwt_signing_key(&key).await.unwrap();
+
+        let fetched = repo.get_jwt_signing_key_by_kid("kid-1").await.unwrap();
+        assert!(fetched.is_some());
+        let fetched = fetched.unwrap();
+        assert_eq!(fetched.kid, "kid-1");
+        assert_eq!(fetched.encrypted_private_key, "encrypted-private-key-1");
+        assert_eq!(fetched.public_key, "public-key-1");
+        assert_eq!(fetched.dek_alias, "dek-alias-1");
+    }
+
+    #[tokio::test]
+    async fn test_get_jwt_signing_key_not_found() {
+        let repo = setup_test_db().await;
+
+        let fetched = repo
+            .get_jwt_signing_key_by_kid("nonexistent")
+            .await
+            .unwrap();
+        assert!(fetched.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_invalidate_jwt_signing_key() {
+        let repo = setup_test_db().await;
+
+        let key = create_test_jwt_signing_key(
+            "kid-1",
+            "encrypted-private-key-1",
+            "public-key-1",
+            "dek-alias-1",
+        );
+        repo.create_jwt_signing_key(&key).await.unwrap();
+
+        // Verify key is not invalidated initially
+        let fetched = repo
+            .get_jwt_signing_key_by_kid("kid-1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(!fetched.invalidated);
+
+        // Invalidate the key
+        repo.invalidate_jwt_signing_key("kid-1").await.unwrap();
+
+        // Verify key is now invalidated
+        let fetched = repo
+            .get_jwt_signing_key_by_kid("kid-1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(fetched.invalidated);
+    }
+
+    #[tokio::test]
+    async fn test_list_jwt_signing_keys() {
+        let repo = setup_test_db().await;
+
+        // Create multiple keys
+        for i in 1..=5 {
+            let key = create_test_jwt_signing_key(
+                &format!("kid-{i}"),
+                &format!("encrypted-private-key-{i}"),
+                &format!("public-key-{i}"),
+                &format!("dek-alias-{i}"),
+            );
+            repo.create_jwt_signing_key(&key).await.unwrap();
+        }
+
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let result = repo.list_jwt_signing_keys(&pagination).await.unwrap();
+        assert_eq!(result.items.len(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_list_jwt_signing_keys_pagination() {
+        let repo = setup_test_db().await;
+
+        // Create 5 keys with delays
+        for i in 1..=5 {
+            let key = create_test_jwt_signing_key(
+                &format!("kid-{i}"),
+                &format!("encrypted-private-key-{i}"),
+                &format!("public-key-{i}"),
+                &format!("dek-alias-{i}"),
+            );
+            repo.create_jwt_signing_key(&key).await.unwrap();
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        }
+
+        // Get first page
+        let pagination = PaginationRequest {
+            page_size: 2,
+            next_page_token: None,
+        };
+        let result = repo.list_jwt_signing_keys(&pagination).await.unwrap();
+        assert_eq!(result.items.len(), 2);
+        assert!(result.next_page_token.is_some());
+
+        // Get second page
+        let pagination = PaginationRequest {
+            page_size: 2,
+            next_page_token: result.next_page_token,
+        };
+        let result = repo.list_jwt_signing_keys(&pagination).await.unwrap();
+        assert_eq!(result.items.len(), 2);
+        assert!(result.next_page_token.is_some());
+
+        // Get third page
+        let pagination = PaginationRequest {
+            page_size: 2,
+            next_page_token: result.next_page_token,
+        };
+        let result = repo.list_jwt_signing_keys(&pagination).await.unwrap();
+        assert_eq!(result.items.len(), 1);
+        assert!(result.next_page_token.is_none());
     }
 }

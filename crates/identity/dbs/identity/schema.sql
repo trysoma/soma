@@ -32,3 +32,14 @@ CREATE TABLE IF NOT EXISTS group_membership (
     FOREIGN KEY (group_id) REFERENCES `group`(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS jwt_signing_key (
+    kid TEXT NOT NULL PRIMARY KEY,
+    encrypted_private_key TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    public_key TEXT NOT NULL,
+    dek_alias TEXT NOT NULL,
+    invalidated BOOLEAN NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

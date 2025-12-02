@@ -71,8 +71,11 @@ pub async fn create_api_service(
     info!("Setting up database and repositories...");
     let connection_manager = ConnectionManager::new();
     let db_url = url::Url::parse(&db_conn_string)?;
-    let (_db, _conn, repository, bridge_repo, encryption_repo) =
+    let (_db, conn, repository, bridge_repo, encryption_repo) =
         setup_repository(&db_url, &db_auth_token).await?;
+
+    // Create identity repository (uses same connection)
+    let identity_repo = identity::repository::Repository::new(conn.clone());
 
     // Create the bridge config change channel
     let (on_bridge_config_change_tx, on_bridge_config_change_rx): (OnConfigChangeTx, _) =
@@ -98,9 +101,24 @@ pub async fn create_api_service(
     // Initialize the crypto cache from the encryption repository
     info!("Initializing crypto cache...");
     let local_envelope_encryption_key_path = project_dir.join(".soma/envelope-encryption-keys");
-    let crypto_cache =
-        CryptoCache::new(encryption_repo.clone(), local_envelope_encryption_key_path);
+    let crypto_cache = CryptoCache::new(
+        encryption_repo.clone(),
+        local_envelope_encryption_key_path.clone(),
+    );
     encryption::logic::crypto_services::init_crypto_cache(&crypto_cache).await?;
+
+    // Check and create JWKs on startup
+    info!("Checking JWKs on startup...");
+    // Use a default DEK alias - you may want to make this configurable
+    let default_dek_alias = "default-jwk-dek";
+    let jwks_cache = identity::logic::jwks_cache::JwksCache::new(identity_repo.clone());
+    identity::logic::jwk::check_jwks_exists_on_start(
+        &identity_repo,
+        &crypto_cache,
+        &jwks_cache,
+        default_dek_alias,
+    )
+    .await?;
 
     // Start the unified change pubsub forwarder
     info!("Starting unified change pubsub...");
@@ -288,6 +306,14 @@ pub async fn create_api_service(
     // Initialize API service
     info!("Initializing API service...");
     let local_envelope_encryption_key_path = project_dir.join(".soma/envelope-encryption-keys");
+
+    // Create identity service
+    let identity_service = identity::service::IdentityService::new(
+        identity_repo.clone(),
+        encryption_repo.clone(),
+        local_envelope_encryption_key_path.clone(),
+    );
+
     let api_service = ApiService::new(InitApiServiceParams {
         host: host.clone(),
         port,
@@ -302,6 +328,7 @@ pub async fn create_api_service(
         on_bridge_config_change_tx: on_bridge_config_change_tx.clone(),
         crypto_cache: crypto_cache.clone(),
         bridge_repository: bridge_repo.clone(),
+        identity_service: identity_service.clone(),
         mcp_sse_ping_interval: Duration::from_secs(10),
         sdk_client: sdk_client.clone(),
         on_encryption_change_tx: encryption_change_tx.clone(),
@@ -367,6 +394,16 @@ pub async fn create_api_service(
             system_shutdown_signal.subscribe(),
         )?;
 
+    // Start JWK rotation subsystem
+    info!("Starting JWK rotation subsystem...");
+    let jwk_rotation_handle = start_jwk_rotation_subsystem(
+        identity_repo.clone(),
+        crypto_cache.clone(),
+        jwks_cache.clone(),
+        default_dek_alias.to_string(),
+        system_shutdown_signal.subscribe(),
+    )?;
+
     // Note: Initial sync of secrets and environment variables now happens AFTER SDK server
     // healthcheck passes (see above, around line 171). This ensures the SDK server's gRPC
     // handlers are fully registered before we try to sync.
@@ -380,6 +417,7 @@ pub async fn create_api_service(
             bridge_client_generation: Some(bridge_client_gen_handle),
             secret_sync: Some(secret_sync_handle),
             environment_variable_sync: Some(env_var_sync_handle),
+            jwk_rotation: Some(jwk_rotation_handle),
         },
         soma_change_tx,
     })
@@ -512,6 +550,30 @@ fn start_credential_rotation_subsystem(
             bridge_repo,
             crypto_cache,
             on_bridge_change_tx,
+            shutdown_rx,
+        )
+        .await;
+        signal.signal_with_message("stopped gracefully");
+    });
+
+    Ok(handle)
+}
+
+fn start_jwk_rotation_subsystem(
+    identity_repo: identity::repository::Repository,
+    crypto_cache: CryptoCache,
+    jwks_cache: identity::logic::jwks_cache::JwksCache,
+    default_dek_alias: String,
+    shutdown_rx: broadcast::Receiver<()>,
+) -> Result<SubsystemHandle, CommonError> {
+    let (handle, signal) = SubsystemHandle::new("JWK Rotation");
+
+    tokio::spawn(async move {
+        identity::logic::jwk::jwk_rotation_task(
+            identity_repo,
+            crypto_cache,
+            jwks_cache,
+            default_dek_alias,
             shutdown_rx,
         )
         .await;

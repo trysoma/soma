@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 pub enum AuthConfiguration {
     ApiKey(ApiKeyConfiguration),
     Opaque(OpaqueConfiguration),
@@ -18,16 +16,11 @@ pub struct ApiKeyConfiguration {
     pub role: Role,
 }
 
-pub struct OpaqueConfiguration {
+pub struct OpaqueConfiguration {}
 
-}
-
-pub struct JwtConfiguration {
-
-}
+pub struct JwtConfiguration {}
 
 // pub struct User {
 //     pub id: String,
 //     pub role: Role
 // }
-

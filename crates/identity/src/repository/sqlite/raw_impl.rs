@@ -1,12 +1,13 @@
 use crate::repository::{
-    ApiKey, ApiKeyWithUser, Group, GroupMembership, GroupMemberWithUser, User, UserGroupWithGroup,
+    ApiKey, ApiKeyWithUser, Group, GroupMemberWithUser, GroupMembership, JwtSigningKey, User,
+    UserGroupWithGroup,
 };
 
 // Import generated Row types from parent module
 use super::{
-    Row_get_api_key_by_hashed_value, Row_get_api_keys, Row_get_group_by_id,
-    Row_get_group_members, Row_get_group_membership, Row_get_groups, Row_get_user_by_id,
-    Row_get_user_groups, Row_get_users,
+    Row_get_api_key_by_hashed_value, Row_get_api_keys, Row_get_group_by_id, Row_get_group_members,
+    Row_get_group_membership, Row_get_groups, Row_get_jwt_signing_key_by_kid,
+    Row_get_jwt_signing_keys, Row_get_user_by_id, Row_get_user_groups, Row_get_users,
 };
 
 // Conversions from generated Row types to domain types
@@ -140,6 +141,38 @@ impl From<Row_get_user_groups> for UserGroupWithGroup {
                 created_at: row.group_created_at,
                 updated_at: row.group_updated_at,
             },
+        }
+    }
+}
+
+// JWT signing key conversions
+
+impl From<Row_get_jwt_signing_key_by_kid> for JwtSigningKey {
+    fn from(row: Row_get_jwt_signing_key_by_kid) -> Self {
+        JwtSigningKey {
+            kid: row.kid,
+            encrypted_private_key: row.encrypted_private_key,
+            expires_at: row.expires_at,
+            public_key: row.public_key,
+            dek_alias: row.dek_alias,
+            invalidated: row.invalidated,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }
+    }
+}
+
+impl From<Row_get_jwt_signing_keys> for JwtSigningKey {
+    fn from(row: Row_get_jwt_signing_keys) -> Self {
+        JwtSigningKey {
+            kid: row.kid,
+            encrypted_private_key: row.encrypted_private_key,
+            expires_at: row.expires_at,
+            public_key: row.public_key,
+            dek_alias: row.dek_alias,
+            invalidated: row.invalidated,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
         }
     }
 }

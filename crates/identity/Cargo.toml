@@ -3,6 +3,10 @@ name = "identity"
 version.workspace = true
 edition.workspace = true
 
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["test-util", "macros"] }
+
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
@@ -39,3 +43,8 @@ tokio-stream.workspace = true
 tokio-util.workspace = true
 futures.workspace = true
 arc-swap.workspace = true
+rsa.workspace = true
+pkcs1.workspace = true
+pkcs8.workspace = true
+rand.workspace = true
+dashmap.workspace = true

@@ -58,6 +58,7 @@ uds_windows.workspace = true
 zip.workspace = true
 tera.workspace = true
 encryption.workspace = true
+identity.workspace = true
 
 
 [dev-dependencies]

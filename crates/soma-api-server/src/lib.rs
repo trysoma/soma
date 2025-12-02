@@ -43,6 +43,7 @@ pub struct ApiService {
     pub encryption_service: encryption::router::EncryptionService,
     pub secret_service: Arc<SecretService>,
     pub environment_variable_service: Arc<EnvironmentVariableService>,
+    pub identity_service: identity::service::IdentityService,
     pub sdk_client: Arc<
         tokio::sync::Mutex<
             Option<
@@ -71,6 +72,7 @@ pub struct InitApiServiceParams {
     pub encryption_repository: encryption::repository::Repository,
     pub crypto_cache: CryptoCache,
     pub bridge_repository: ::bridge::repository::Repository,
+    pub identity_service: identity::service::IdentityService,
     pub mcp_sse_ping_interval: Duration,
     pub sdk_client: Arc<
         tokio::sync::Mutex<
@@ -141,6 +143,7 @@ impl ApiService {
             encryption_service,
             secret_service,
             environment_variable_service,
+            identity_service: init_params.identity_service,
             sdk_client: init_params.sdk_client,
         })
     }

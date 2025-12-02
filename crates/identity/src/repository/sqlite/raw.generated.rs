@@ -3,6 +3,181 @@
 #[allow(unused)]
 use serde::{Serialize, Deserialize};
 //  ============================================================================
+//  JWT signing key table queries
+//  ============================================================================
+  pub struct create_jwt_signing_key_params<'a> {
+      pub kid: &'a 
+          String
+      ,
+      pub encrypted_private_key: &'a 
+          String
+      ,
+      pub expires_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+      pub public_key: &'a 
+          String
+      ,
+      pub dek_alias: &'a 
+          String
+      ,
+      pub invalidated: &'a 
+          bool
+      ,
+      pub created_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+      pub updated_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+  }
+
+  pub async fn create_jwt_signing_key(
+    conn: &shared::libsql::Connection
+    ,params: create_jwt_signing_key_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"
+INSERT INTO jwt_signing_key (kid, encrypted_private_key, expires_at, public_key, dek_alias, invalidated, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.kid.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.encrypted_private_key.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.expires_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.public_key.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.dek_alias.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <bool as TryInto<libsql::Value>>::try_into(params.invalidated.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct get_jwt_signing_key_by_kid_params<'a> {
+      pub kid: &'a 
+          String
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_jwt_signing_key_by_kid {
+      pub kid:String,
+      pub encrypted_private_key:String,
+      pub expires_at:shared::primitives::WrappedChronoDateTime,
+      pub public_key:String,
+      pub dek_alias:String,
+      pub invalidated:bool,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn get_jwt_signing_key_by_kid(
+      conn: &shared::libsql::Connection
+      ,params: get_jwt_signing_key_by_kid_params<'_>
+  ) -> Result<Option<Row_get_jwt_signing_key_by_kid>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT kid, encrypted_private_key, expires_at, public_key, dek_alias, invalidated, created_at, updated_at
+FROM jwt_signing_key
+WHERE kid = ?"#).await?;
+      let res = stmt.query_row(
+          libsql::params![params.kid.clone(),],
+      ).await;
+
+      match res {
+          Ok(row) => Ok(Some(Row_get_jwt_signing_key_by_kid {
+                  kid: row.get(0)?,
+                  encrypted_private_key: row.get(1)?,
+                  expires_at: row.get(2)?,
+                  public_key: row.get(3)?,
+                  dek_alias: row.get(4)?,
+                  invalidated: row.get(5)?,
+                  created_at: row.get(6)?,
+                  updated_at: row.get(7)?,
+              })),
+          Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
+          Err(e) => Err(e),
+      }
+  }
+  pub struct invalidate_jwt_signing_key_params<'a> {
+      pub kid: &'a 
+          String
+      ,
+  }
+
+  pub async fn invalidate_jwt_signing_key(
+    conn: &shared::libsql::Connection
+    ,params: invalidate_jwt_signing_key_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"UPDATE jwt_signing_key
+SET invalidated = 1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE kid = ?"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.kid.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct get_jwt_signing_keys_params<'a> {
+      pub cursor: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub page_size: &'a 
+          i64
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_jwt_signing_keys {
+      pub kid:String,
+      pub encrypted_private_key:String,
+      pub expires_at:shared::primitives::WrappedChronoDateTime,
+      pub public_key:String,
+      pub dek_alias:String,
+      pub invalidated:bool,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn get_jwt_signing_keys(
+      conn: &shared::libsql::Connection
+      ,params: get_jwt_signing_keys_params<'_>
+  ) -> Result<Vec<Row_get_jwt_signing_keys>, libsql::Error> {
+      let stmt = conn.prepare(r#"SELECT kid, encrypted_private_key, expires_at, public_key, dek_alias, invalidated, created_at, updated_at
+FROM jwt_signing_key
+WHERE invalidated = 0
+  AND (created_at < ?1 OR ?1 IS NULL)
+ORDER BY created_at DESC
+LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
+      let mut mapped = vec![];
+
+      while let Some(row) = rows.next().await? {
+          mapped.push(Row_get_jwt_signing_keys {
+              kid: row.get(0)?,
+              encrypted_private_key: row.get(1)?,
+              expires_at: row.get(2)?,
+              public_key: row.get(3)?,
+              dek_alias: row.get(4)?,
+              invalidated: row.get(5)?,
+              created_at: row.get(6)?,
+              updated_at: row.get(7)?,
+          });
+      }
+
+      Ok(mapped)
+  }
+//  ============================================================================
 //  User table queries
 //  ============================================================================
   pub struct create_user_params<'a> {
@@ -180,7 +355,7 @@ WHERE id = ?"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_users_params<'_>
   ) -> Result<Vec<Row_get_users>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type as user_type, email, role, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT id, type as user_type, email, role, created_at, updated_at
 FROM user
 WHERE (created_at < ?1 OR ?1 IS NULL)
   AND (type = ?2 OR ?2 IS NULL)
@@ -333,7 +508,7 @@ WHERE ak.hashed_value = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_api_keys_params<'_>
   ) -> Result<Vec<Row_get_api_keys>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT hashed_value, user_id, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT hashed_value, user_id, created_at, updated_at
 FROM api_key
 WHERE (created_at < ?1 OR ?1 IS NULL)
   AND (user_id = ?2 OR ?2 IS NULL)
@@ -506,7 +681,7 @@ WHERE id = ?"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_groups_params<'_>
   ) -> Result<Vec<Row_get_groups>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, name, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT id, name, created_at, updated_at
 FROM `group`
 WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
@@ -655,7 +830,7 @@ WHERE group_id = ? AND user_id = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_group_members_params<'_>
   ) -> Result<Vec<Row_get_group_members>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
+      let stmt = conn.prepare(r#"SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
        u.id as user_id_fk, u.type as user_type, u.email as user_email, u.role as user_role,
        u.created_at as user_created_at, u.updated_at as user_updated_at
 FROM group_membership gm
@@ -712,7 +887,7 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_user_groups_params<'_>
   ) -> Result<Vec<Row_get_user_groups>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
+      let stmt = conn.prepare(r#"SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
        g.id as group_id_fk, g.name as group_name, g.created_at as group_created_at, g.updated_at as group_updated_at
 FROM group_membership gm
 JOIN `group` g ON gm.group_id = g.id
