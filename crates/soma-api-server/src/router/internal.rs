@@ -115,7 +115,7 @@ async fn route_resync_sdk(
 }
 
 pub struct InternalService {
-    bridge_service: bridge::router::bridge::BridgeService,
+    bridge_service: bridge::router::BridgeService,
     sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
     repository: std::sync::Arc<crate::repository::Repository>,
     crypto_cache: CryptoCache,
@@ -124,7 +124,7 @@ pub struct InternalService {
 
 impl InternalService {
     pub fn new(
-        bridge_service: bridge::router::bridge::BridgeService,
+        bridge_service: bridge::router::BridgeService,
         sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
         repository: std::sync::Arc<crate::repository::Repository>,
         crypto_cache: CryptoCache,

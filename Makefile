@@ -232,6 +232,9 @@ db-generate-rs-models: ## Generate Rust models from SQL queries using sqlc
 	@echo "Generating Rust models..."
 	cd crates/encryption && sqlc generate
 	@echo "✓ Rust models generated"
+	@echo "Generating Rust models..."
+	cd crates/identity-sts && sqlc generate
+	@echo "✓ Rust models generated"
 
 db-bridge-generate-migration: ## Create a new bridge database migration using Atlas (usage: make db-bridge-generate-migration NAME=migration_name)
 	$(MAKE) _db-generate-migration ENV=bridge FILE_PATH=crates/bridge/dbs/bridge/schema.sql NAME=$(NAME)
@@ -244,6 +247,12 @@ db-encryption-generate-migration: ## Create a new encryption database migration 
 
 db-encryption-generate-hash: ## Update encryption database migration hash
 	$(MAKE) _db-generate-hash ENV=encryption
+
+db-identity-sts-generate-migration: ## Create a new identity-sts database migration using Atlas (usage: make db-identity-sts-generate-migration NAME=migration_name)
+	$(MAKE) _db-generate-migration ENV=identity-sts FILE_PATH=crates/identity-sts/dbs/identity-sts/schema.sql NAME=$(NAME)
+
+db-identity-sts-generate-hash: ## Update identity-sts database migration hash
+	$(MAKE) _db-generate-hash ENV=identity-sts
 
 db-soma-generate-migration: ## Create a new soma database migration using Atlas (usage: make db-soma-generate-migration NAME=migration_name)
 	$(MAKE) _db-generate-migration ENV=soma FILE_PATH=crates/soma/dbs/soma/schema.sql NAME=$(NAME)

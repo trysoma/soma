@@ -4,7 +4,7 @@ use utoipa::openapi::tag::TagBuilder;
 use utoipa::openapi::{Info, OpenApi};
 
 use crate::ApiService;
-use bridge::router::bridge::create_router as create_bridge_router;
+use bridge::router::create_router as create_bridge_router;
 use encryption::router::create_router as create_encryption_router;
 use shared::error::CommonError;
 

@@ -39,7 +39,7 @@ pub fn start_credential_rotation_subsystem(
 }
 
 pub fn start_mcp_subsystem(
-    bridge_service: bridge::router::bridge::BridgeService,
+    bridge_service: bridge::router::BridgeService,
     mcp_transport_rx: tokio::sync::mpsc::UnboundedReceiver<
         rmcp::transport::sse_server::SseServerTransport,
     >,

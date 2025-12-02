@@ -31,7 +31,7 @@ use crate::{
         credential::{ResourceServerCredentialSerialized, UserCredentialSerialized},
     },
     repository::ProviderRepositoryLike,
-    router::bridge::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY},
+    router::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY},
 };
 use encryption::logic::crypto_services::CryptoCache;
 

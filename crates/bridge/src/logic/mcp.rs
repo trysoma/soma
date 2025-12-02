@@ -17,7 +17,7 @@ use crate::{
         ListFunctionInstancesParams, PROVIDER_REGISTRY, ProviderControllerLike,
         WithFunctionInstanceId, invoke_function, list_function_instances,
     },
-    router::bridge::BridgeService,
+    router::BridgeService,
 };
 
 pub async fn handle_mcp_transport<R, T, E, A>(

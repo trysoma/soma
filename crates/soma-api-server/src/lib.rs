@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use ::bridge::router::bridge::BridgeService;
+use ::bridge::router::BridgeService;
 use bridge::logic::OnConfigChangeTx;
 use encryption::logic::{EncryptionKeyEventSender, crypto_services::CryptoCache};
 use shared::{
@@ -22,7 +22,7 @@ use crate::{
         task::TaskService,
     },
 };
-
+mod auth;
 pub mod factory;
 pub mod logic;
 pub mod repository;
