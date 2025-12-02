@@ -12,6 +12,7 @@ pub mod api_key;
 pub mod auth_client;
 pub mod internal_token_issuance;
 pub mod jwk;
+pub mod scim;
 pub mod sts;
 pub mod token_mapping;
 pub mod user;
