@@ -1,7 +1,15 @@
 name: Code Review
 on:
   pull_request:
-    types: [opened, synchronize]
+    types:
+      - opened
+      - synchronize
+
+permissions:
+  pull-requests: write
+  contents: read
+  id-token: write
+
 jobs:
   review:
     runs-on: ubuntu-latest
