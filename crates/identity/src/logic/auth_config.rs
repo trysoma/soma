@@ -27,6 +27,11 @@ pub struct JwtTokenTemplateConfig {
     pub mapping_template: JwtTokenMappingConfig,
 }
 
+pub enum AuthMiddlewareConfig {
+    JwtTemplate(JwtTokenTemplateConfig),
+    Dynamic
+}
+
 
 #[derive(Debug, Deserialize)]
 pub struct Claims {
