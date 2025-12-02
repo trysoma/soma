@@ -1,3 +1,0 @@
-kind: Fixed (Patch, bug fixes)
-body: release build of the API server was not adding the vite frontend routes
-time: 2025-11-28T10:33:21.192682Z

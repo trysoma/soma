@@ -1,3 +1,0 @@
-kind: Fixed (Patch, bug fixes)
-body: fixed a race condition on saving out the soma.yaml file from cache
-time: 2025-11-28T12:02:12.279786Z
