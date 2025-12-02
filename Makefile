@@ -1,7 +1,10 @@
 .PHONY: help install clean build build-release test test-coverage \
-	lint lint-js lint-rs lint-fix lint-fix-js lint-fix-rs \
-	db-internal-generate-migration db-internal-generate-hash db-generate-rs-models \
-	db-bridge-generate-migration db-bridge-generate-hash db-soma-generate-migration db-soma-generate-hash \
+	lint lint-js lint-rs lint-db lint-fix lint-fix-js lint-fix-rs \
+	db-generate-rs-models \
+	db-bridge-generate-migration db-bridge-generate-hash \
+	db-encryption-generate-migration db-encryption-generate-hash \
+	db-identity-generate-migration db-identity-generate-hash \
+	db-soma-generate-migration db-soma-generate-hash \
 	_db-generate-migration _db-generate-hash _install-sqlc-gen-from-template
 
 help: ## Show this help message
@@ -175,6 +178,18 @@ lint-db: ## Run database linters
 	else \
 		echo "$$bridge_output"; \
 	fi
+	@encryption_output=$$(atlas migrate lint --env encryption --git-base main 2>&1); \
+	if [ -z "$$encryption_output" ]; then \
+		echo "Encryption DB: SUCCESS: checksums match, no breaking changes"; \
+	else \
+		echo "$$encryption_output"; \
+	fi
+	@identity_output=$$(atlas migrate lint --env identity --git-base main 2>&1); \
+	if [ -z "$$identity_output" ]; then \
+		echo "Identity DB: SUCCESS: checksums match, no breaking changes"; \
+	else \
+		echo "$$identity_output"; \
+	fi
 	@echo "✓ Database linters passed"
 
 lint-fix: lint-fix-rs lint-fix-js ## Run all linters with auto-fix (Rust + JS)
@@ -224,17 +239,18 @@ _db-generate-hash: ## Update migration hash file (internal helper)
 	@echo "✓ Migration hash updated"
 
 db-generate-rs-models: ## Generate Rust models from SQL queries using sqlc
-	@echo "Generating Rust models..."
-	cd crates/soma && sqlc generate
-	@echo "Generating Rust models..."
+	@echo "Generating Rust models for soma..."
+	cd crates/soma-api-server && sqlc generate
+	@echo "✓ Soma models generated"
+	@echo "Generating Rust models for bridge..."
 	cd crates/bridge && sqlc generate
-	@echo "✓ Rust models generated"
-	@echo "Generating Rust models..."
+	@echo "✓ Bridge models generated"
+	@echo "Generating Rust models for encryption..."
 	cd crates/encryption && sqlc generate
-	@echo "✓ Rust models generated"
-	@echo "Generating Rust models..."
-	cd crates/identity-sts && sqlc generate
-	@echo "✓ Rust models generated"
+	@echo "✓ Encryption models generated"
+	@echo "Generating Rust models for identity..."
+	cd crates/identity && sqlc generate
+	@echo "✓ Identity models generated"
 
 db-bridge-generate-migration: ## Create a new bridge database migration using Atlas (usage: make db-bridge-generate-migration NAME=migration_name)
 	$(MAKE) _db-generate-migration ENV=bridge FILE_PATH=crates/bridge/dbs/bridge/schema.sql NAME=$(NAME)
@@ -248,11 +264,11 @@ db-encryption-generate-migration: ## Create a new encryption database migration 
 db-encryption-generate-hash: ## Update encryption database migration hash
 	$(MAKE) _db-generate-hash ENV=encryption
 
-db-identity-sts-generate-migration: ## Create a new identity-sts database migration using Atlas (usage: make db-identity-sts-generate-migration NAME=migration_name)
-	$(MAKE) _db-generate-migration ENV=identity-sts FILE_PATH=crates/identity-sts/dbs/identity-sts/schema.sql NAME=$(NAME)
+db-identity-generate-migration: ## Create a new identity database migration using Atlas (usage: make db-identity-generate-migration NAME=migration_name)
+	$(MAKE) _db-generate-migration ENV=identity FILE_PATH=crates/identity/dbs/identity/schema.sql NAME=$(NAME)
 
-db-identity-sts-generate-hash: ## Update identity-sts database migration hash
-	$(MAKE) _db-generate-hash ENV=identity-sts
+db-identity-generate-hash: ## Update identity database migration hash
+	$(MAKE) _db-generate-hash ENV=identity
 
 db-soma-generate-migration: ## Create a new soma database migration using Atlas (usage: make db-soma-generate-migration NAME=migration_name)
 	$(MAKE) _db-generate-migration ENV=soma FILE_PATH=crates/soma/dbs/soma/schema.sql NAME=$(NAME)

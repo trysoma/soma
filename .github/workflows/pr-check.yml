@@ -55,6 +55,14 @@ jobs:
           comment-tag: encryption-db-quality
           display-name: Encryption Database
 
+      - name: Validate Identity database migrations
+        uses: ./.github/actions/atlas-migrate-lint
+        with:
+          env: identity
+          git-base: main
+          comment-tag: identity-db-quality
+          display-name: Identity Database
+
   api-quality:
     name: API quality
     runs-on: ubuntu-latest

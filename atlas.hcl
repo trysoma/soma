@@ -37,11 +37,11 @@ env "encryption" {
   dev = "sqlite://file?mode=memory"
 }
 
-env "identity-sts" {
-  src = "file://crates/identity-sts/dbs/identity-sts/schema.sql"
+env "identity" {
+  src = "file://crates/identity/dbs/identity/schema.sql"
 
   migration {
-    dir = "file://crates/identity-sts/dbs/identity-sts/migrations?format=goose"
+    dir = "file://crates/identity/dbs/identity/migrations?format=goose"
   }
 
   //we don't actually use atlas to deploy to an env
