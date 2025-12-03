@@ -3,11 +3,11 @@
 -- ============================================================================
 
 -- name: create_user :exec
-INSERT INTO user (id, type, email, role, created_at, updated_at)
-VALUES (sqlc.arg(id), sqlc.arg(user_type), sqlc.arg(email), sqlc.arg(role), sqlc.arg(created_at), sqlc.arg(updated_at));
+INSERT INTO user (id, type, email, role, description, created_at, updated_at)
+VALUES (sqlc.arg(id), sqlc.arg(user_type), sqlc.arg(email), sqlc.arg(role), sqlc.arg(description), sqlc.arg(created_at), sqlc.arg(updated_at));
 
 -- name: get_user_by_id :one
-SELECT id, type as user_type, email, role, created_at, updated_at
+SELECT id, type as user_type, email, role, description, created_at, updated_at
 FROM user
 WHERE id = ?;
 
@@ -15,6 +15,7 @@ WHERE id = ?;
 UPDATE user
 SET email = ?,
     role = ?,
+    description = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?;
 
@@ -22,7 +23,7 @@ WHERE id = ?;
 DELETE FROM user WHERE id = ?;
 
 -- name: get_users :many
-SELECT id, type as user_type, email, role, created_at, updated_at
+SELECT id, type as user_type, email, role, description, created_at, updated_at
 FROM user
 WHERE (created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
   AND (type = sqlc.narg(user_type) OR sqlc.narg(user_type) IS NULL)
@@ -35,22 +36,30 @@ LIMIT CAST(sqlc.arg(page_size) AS INTEGER) + 1;
 -- ============================================================================
 
 -- name: create_api_key :exec
-INSERT INTO api_key (hashed_value, user_id, created_at, updated_at)
-VALUES (?, ?, ?, ?);
+INSERT INTO api_key (id, hashed_value, description, user_id, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?);
 
 -- name: get_api_key_by_hashed_value :one
-SELECT ak.hashed_value, ak.user_id, ak.created_at, ak.updated_at,
+SELECT ak.id, ak.hashed_value, ak.description, ak.user_id, ak.created_at, ak.updated_at,
        u.id as user_id_fk, u.type as user_type, u.email as user_email, u.role as user_role,
-       u.created_at as user_created_at, u.updated_at as user_updated_at
+       u.description as user_description, u.created_at as user_created_at, u.updated_at as user_updated_at
 FROM api_key ak
 JOIN user u ON ak.user_id = u.id
 WHERE ak.hashed_value = ?;
 
+-- name: get_api_key_by_id :one
+SELECT ak.id, ak.hashed_value, ak.description, ak.user_id, ak.created_at, ak.updated_at,
+       u.id as user_id_fk, u.type as user_type, u.email as user_email, u.role as user_role,
+       u.description as user_description, u.created_at as user_created_at, u.updated_at as user_updated_at
+FROM api_key ak
+JOIN user u ON ak.user_id = u.id
+WHERE ak.id = ?;
+
 -- name: delete_api_key :exec
-DELETE FROM api_key WHERE hashed_value = ?;
+DELETE FROM api_key WHERE id = ?;
 
 -- name: get_api_keys :many
-SELECT hashed_value, user_id, created_at, updated_at
+SELECT id, hashed_value, description, user_id, created_at, updated_at
 FROM api_key
 WHERE (created_at < sqlc.narg(cursor) OR sqlc.narg(cursor) IS NULL)
   AND (user_id = sqlc.narg(user_id) OR sqlc.narg(user_id) IS NULL)
@@ -108,7 +117,7 @@ WHERE group_id = ? AND user_id = ?;
 -- name: get_group_members :many
 SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
        u.id as user_id_fk, u.type as user_type, u.email as user_email, u.role as user_role,
-       u.created_at as user_created_at, u.updated_at as user_updated_at
+       u.description as user_description, u.created_at as user_created_at, u.updated_at as user_updated_at
 FROM group_membership gm
 JOIN user u ON gm.user_id = u.id
 WHERE gm.group_id = sqlc.arg(group_id)

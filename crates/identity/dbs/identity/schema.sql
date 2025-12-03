@@ -1,23 +1,28 @@
 CREATE TABLE IF NOT EXISTS api_key (
-    hashed_value TEXT NOT NULL PRIMARY KEY,
+    id TEXT NOT NULL PRIMARY KEY,
+    hashed_value TEXT NOT NULL UNIQUE,
+    description TEXT,
     user_id TEXT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS idx_api_key_hashed_value ON api_key(hashed_value);
+
 CREATE TABLE IF NOT EXISTS user (
     id TEXT PRIMARY KEY,
     type TEXT NOT NULL,
     email TEXT,
     role TEXT NOT NULL,
+    description TEXT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT type_check CHECK (type IN ('service_principal', 'federated_user'))
 );
 
 CREATE TABLE IF NOT EXISTS `group` (
-    id TEXT PRIMARY KEY,
+    id TEXT NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP

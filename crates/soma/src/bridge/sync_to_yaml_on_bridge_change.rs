@@ -4,13 +4,14 @@ use std::sync::Arc;
 use bridge::logic::OnConfigChangeEvt;
 use encryption::logic::EncryptionKeyEvent;
 use encryption::logic::envelope::EnvelopeEncryptionKey;
+use identity::logic::OnConfigChangeEvt as IdentityOnConfigChangeEvt;
 use serde_json::json;
 use tracing::{info, warn};
 
 use shared::error::CommonError;
 use shared::soma_agent_definition::{
-    EnvelopeKeyConfig, EnvelopeKeyConfigAwsKms, EnvelopeKeyConfigLocal, SecretConfig,
-    SomaAgentDefinitionLike,
+    ApiKeyYamlConfig, EnvelopeKeyConfig, EnvelopeKeyConfigAwsKms, EnvelopeKeyConfigLocal,
+    SecretConfig, SomaAgentDefinitionLike,
 };
 use soma_api_server::logic::on_change_pubsub::{
     EnvironmentVariableChangeEvt, SecretChangeEvt, SomaChangeEvt, SomaChangeRx,
@@ -47,6 +48,9 @@ pub async fn sync_on_soma_change(
             }
             SomaChangeEvt::EnvironmentVariable(env_var_evt) => {
                 handle_environment_variable_event(env_var_evt, &soma_definition).await?;
+            }
+            SomaChangeEvt::Identity(identity_evt) => {
+                handle_identity_event(identity_evt, &soma_definition).await?;
             }
         }
     }
@@ -528,6 +532,50 @@ async fn handle_environment_variable_event(
         EnvironmentVariableChangeEvt::Deleted { id: _, key } => {
             info!("Environment variable deleted: {:?}", key);
             soma_definition.remove_environment_variable(key).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn handle_identity_event(
+    event: IdentityOnConfigChangeEvt,
+    soma_definition: &Arc<dyn SomaAgentDefinitionLike>,
+) -> Result<(), CommonError> {
+    match event {
+        IdentityOnConfigChangeEvt::ApiKeyCreated(api_key_info) => {
+            info!("API key created: {:?}", api_key_info.id);
+
+            // Check if this API key already exists in YAML
+            // If it does, skip writing to avoid overwriting with a re-encrypted value
+            let definition = soma_definition.get_definition().await?;
+            let api_key_exists_in_yaml = definition
+                .identity
+                .as_ref()
+                .and_then(|identity| identity.api_keys.as_ref())
+                .map(|api_keys| api_keys.contains_key(&api_key_info.id))
+                .unwrap_or(false);
+
+            if api_key_exists_in_yaml {
+                info!(
+                    "API key '{}' already exists in YAML, skipping write to preserve encrypted value",
+                    api_key_info.id
+                );
+            } else {
+                let config = ApiKeyYamlConfig {
+                    description: None, // Description is not included in the event
+                    encrypted_hashed_value: api_key_info.encrypted_hashed_value,
+                    dek_alias: api_key_info.dek_alias,
+                    role: api_key_info.role.as_str().to_string(),
+                    user_id: api_key_info.user_id,
+                };
+                soma_definition
+                    .add_api_key(api_key_info.id, config)
+                    .await?;
+            }
+        }
+        IdentityOnConfigChangeEvt::ApiKeyDeleted(id) => {
+            info!("API key deleted: {:?}", id);
+            soma_definition.remove_api_key(id).await?;
         }
     }
     Ok(())

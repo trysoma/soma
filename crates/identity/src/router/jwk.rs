@@ -1,32 +1,26 @@
 use axum::extract::{Path, Query, State};
 use serde::Deserialize;
 use shared::{
-    adapters::openapi::{API_VERSION_TAG, JsonResponse},
+    adapters::openapi::{JsonResponse, API_VERSION_TAG},
     error::CommonError,
 };
 use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::jwk::{
-    GetJwksResponse, InvalidateJwkParams, InvalidateJwkResponse, ListJwksParams, ListJwksResponse,
-    get_jwks, invalidate_jwk, list_jwks,
+    get_jwks, invalidate_jwk, list_jwks, GetJwksResponse, InvalidateJwkParams, InvalidateJwkResponse,
+    ListJwksParams, ListJwksResponse,
 };
 use crate::service::IdentityService;
 
-pub const PATH_PREFIX: &str = "/api";
-pub const API_VERSION_1: &str = "v1";
-pub const SERVICE_ROUTE_KEY: &str = "identity";
+use super::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY};
 
-pub fn create_router() -> OpenApiRouter<IdentityService> {
+pub fn create_jwk_routes() -> OpenApiRouter<IdentityService> {
     OpenApiRouter::new()
         .routes(routes!(route_invalidate_jwk))
         .routes(routes!(route_list_jwks))
         .routes(routes!(route_get_jwks))
 }
-
-// ============================================================================
-// JWK endpoints
-// ============================================================================
 
 #[utoipa::path(
     post,

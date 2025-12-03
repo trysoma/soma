@@ -5,12 +5,15 @@ src/apis/A2aApi.ts
 src/apis/BridgeApi.ts
 src/apis/EncryptionApi.ts
 src/apis/EnvironmentVariableApi.ts
+src/apis/IdentityApi.ts
 src/apis/InternalApi.ts
 src/apis/SecretApi.ts
 src/apis/TaskApi.ts
 src/apis/V1Api.ts
 src/apis/index.ts
 src/index.ts
+src/models/ApiKey.ts
+src/models/ApiKeyYamlConfig.ts
 src/models/BridgeConfig.ts
 src/models/BrokerAction.ts
 src/models/BrokerActionOneOf.ts
@@ -19,6 +22,8 @@ src/models/BrokerState.ts
 src/models/ConfigurationSchema.ts
 src/models/ContextInfo.ts
 src/models/ContextInfoPaginatedResponse.ts
+src/models/CreateApiKeyParams.ts
+src/models/CreateApiKeyResponse.ts
 src/models/CreateDataEncryptionKeyParamsRoute.ts
 src/models/CreateDekAliasRequest.ts
 src/models/CreateEnvironmentVariableRequest.ts
@@ -35,6 +40,7 @@ src/models/DataEncryptionKeyListItem.ts
 src/models/DataEncryptionKeyListItemPaginatedResponse.ts
 src/models/DecryptedSecret.ts
 src/models/DekConfig.ts
+src/models/DeleteApiKeyResponse.ts
 src/models/DeleteEnvironmentVariableResponse.ts
 src/models/DeleteSecretResponse.ts
 src/models/EncryptCredentialConfigurationParamsInner.ts
@@ -57,6 +63,10 @@ src/models/FunctionInstanceConfigPaginatedResponse.ts
 src/models/FunctionInstanceListItem.ts
 src/models/FunctionInstanceSerialized.ts
 src/models/FunctionInstanceSerializedPaginatedResponse.ts
+src/models/GroupToRoleMappingYaml.ts
+src/models/IdentityConfig.ts
+src/models/ImportApiKeyParams.ts
+src/models/ImportApiKeyResponse.ts
 src/models/ImportDataEncryptionKeyParamsRoute.ts
 src/models/ImportEnvironmentVariableRequest.ts
 src/models/ImportSecretRequest.ts
@@ -65,6 +75,14 @@ src/models/InvokeFunctionParamsInner.ts
 src/models/InvokeResult.ts
 src/models/InvokeResultOneOf.ts
 src/models/InvokeResultOneOf1.ts
+src/models/Jwk.ts
+src/models/JwkResponse.ts
+src/models/JwkResponsePaginatedResponse.ts
+src/models/JwksResponse.ts
+src/models/JwtMappingConfigYaml.ts
+src/models/JwtTemplateConfigYaml.ts
+src/models/JwtValidationConfigYaml.ts
+src/models/ListApiKeysResponse.ts
 src/models/ListDecryptedSecretsResponse.ts
 src/models/ListEnvironmentVariablesResponse.ts
 src/models/ListSecretsResponse.ts
@@ -84,6 +102,7 @@ src/models/ProviderInstanceListItemPaginatedResponse.ts
 src/models/ProviderInstanceSerialized.ts
 src/models/ProviderInstanceSerializedWithCredentials.ts
 src/models/ProviderInstanceSerializedWithEverything.ts
+src/models/RefreshTokenRequest.ts
 src/models/ResourceServerCredentialSerialized.ts
 src/models/ReturnAddress.ts
 src/models/ReturnAddressUrl.ts
@@ -91,6 +110,7 @@ src/models/Secret.ts
 src/models/SecretConfig.ts
 src/models/SomaAgentDefinition.ts
 src/models/StartUserCredentialBrokeringParamsInner.ts
+src/models/StsConfigYaml.ts
 src/models/Task.ts
 src/models/TaskPaginatedResponse.ts
 src/models/TaskStatus.ts
@@ -102,6 +122,10 @@ src/models/TaskTimelineItemPayloadOneOf.ts
 src/models/TaskTimelineItemPayloadOneOf1.ts
 src/models/TaskWithDetails.ts
 src/models/TextPart.ts
+src/models/TokenLocationYaml.ts
+src/models/TokenLocationYamlOneOf.ts
+src/models/TokenLocationYamlOneOf1.ts
+src/models/TokenResponse.ts
 src/models/UpdateAliasParams.ts
 src/models/UpdateEnvironmentVariableRequest.ts
 src/models/UpdateProviderInstanceParamsInner.ts

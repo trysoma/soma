@@ -20,6 +20,8 @@ import {
 	EncryptionConfigFromJSON,
 	EncryptionConfigToJSON,
 } from "./EncryptionConfig";
+import type { IdentityConfig } from "./IdentityConfig";
+import { IdentityConfigFromJSON, IdentityConfigToJSON } from "./IdentityConfig";
 import type { SecretConfig } from "./SecretConfig";
 import { SecretConfigFromJSON, SecretConfigToJSON } from "./SecretConfig";
 
@@ -47,6 +49,12 @@ export interface SomaAgentDefinition {
 	 * @memberof SomaAgentDefinition
 	 */
 	environmentVariables?: { [key: string]: string };
+	/**
+	 *
+	 * @type {IdentityConfig}
+	 * @memberof SomaAgentDefinition
+	 */
+	identity?: IdentityConfig | null;
 	/**
 	 *
 	 * @type {{ [key: string]: SecretConfig; }}
@@ -85,6 +93,8 @@ export function SomaAgentDefinitionFromJSONTyped(
 			json.environment_variables == null
 				? undefined
 				: json.environment_variables,
+		identity:
+			json.identity == null ? undefined : IdentityConfigFromJSON(json.identity),
 		secrets:
 			json.secrets == null
 				? undefined
@@ -108,6 +118,7 @@ export function SomaAgentDefinitionToJSONTyped(
 		bridge: BridgeConfigToJSON(value.bridge),
 		encryption: EncryptionConfigToJSON(value.encryption),
 		environment_variables: value.environmentVariables,
+		identity: IdentityConfigToJSON(value.identity),
 		secrets:
 			value.secrets == null
 				? undefined

@@ -15,6 +15,7 @@ pub struct User {
     pub user_type: String,
     pub email: Option<String>,
     pub role: String,
+    pub description: Option<String>,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
 }
@@ -25,6 +26,7 @@ pub struct CreateUser {
     pub user_type: String,
     pub email: Option<String>,
     pub role: String,
+    pub description: Option<String>,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
 }
@@ -33,12 +35,15 @@ pub struct CreateUser {
 pub struct UpdateUser {
     pub email: Option<String>,
     pub role: Option<String>,
+    pub description: Option<String>,
 }
 
 // API key types
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ApiKey {
+    pub id: String,
     pub hashed_value: String,
+    pub description: Option<String>,
     pub user_id: String,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
@@ -52,7 +57,9 @@ pub struct ApiKeyWithUser {
 
 #[derive(Debug)]
 pub struct CreateApiKey {
+    pub id: String,
     pub hashed_value: String,
+    pub description: Option<String>,
     pub user_id: String,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
@@ -164,7 +171,9 @@ pub trait UserRepositoryLike {
         hashed_value: &str,
     ) -> Result<Option<ApiKeyWithUser>, CommonError>;
 
-    async fn delete_api_key(&self, hashed_value: &str) -> Result<(), CommonError>;
+    async fn get_api_key_by_id(&self, id: &str) -> Result<Option<ApiKeyWithUser>, CommonError>;
+
+    async fn delete_api_key(&self, id: &str) -> Result<(), CommonError>;
 
     async fn list_api_keys(
         &self,

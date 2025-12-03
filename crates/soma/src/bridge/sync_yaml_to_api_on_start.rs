@@ -7,7 +7,7 @@ use shared::{
 use soma_api_client::{
     apis::{
         bridge_api, configuration::Configuration, encryption_api, environment_variable_api,
-        secret_api,
+        identity_api, secret_api,
     },
     models,
 };
@@ -486,6 +486,68 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
     }
 
     info!("Environment variables synced from soma definition");
+
+    // 5. Sync identity configuration (API keys and STS configs)
+    if let Some(identity_config) = &soma_definition.identity {
+        // 5a. Sync API keys
+        if let Some(api_keys) = &identity_config.api_keys {
+            use std::collections::HashSet;
+
+            // Get existing API keys
+            let existing_api_keys: HashSet<String> = {
+                let mut ids = HashSet::new();
+                let mut next_page_token: Option<String> = None;
+                loop {
+                    let response = identity_api::route_list_api_keys(
+                        api_config,
+                        Some(100),
+                        next_page_token.as_deref(),
+                        None, // user_id filter
+                    )
+                    .await
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!("Failed to list API keys: {e:?}"))
+                    })?;
+
+                    for api_key in response.items {
+                        ids.insert(api_key.id);
+                    }
+                    // Handle doubly wrapped Option<Option<String>> from generated API client
+                    match response.next_page_token.flatten() {
+                        Some(token) if !token.is_empty() => {
+                            next_page_token = Some(token);
+                        }
+                        _ => break,
+                    }
+                }
+                ids
+            };
+
+            // Import API keys from yaml (uses import endpoint which decrypts the stored value)
+            for (id, api_key_config) in api_keys {
+                if !existing_api_keys.contains(id) {
+                    let import_req = models::ImportApiKeyParams {
+                        id: id.clone(),
+                        encrypted_hashed_value: api_key_config.encrypted_hashed_value.clone(),
+                        dek_alias: api_key_config.dek_alias.clone(),
+                        description: Some(api_key_config.description.clone()),
+                        role: api_key_config.role.clone(),
+                        user_id: api_key_config.user_id.clone(),
+                    };
+                    identity_api::route_import_api_key(api_config, import_req)
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to import API key '{id}': {e:?}"
+                            ))
+                        })?;
+                    info!("Imported API key '{}'", id);
+                }
+            }
+        }
+
+        info!("Identity configuration synced from soma definition");
+    }
 
     Ok(())
 }

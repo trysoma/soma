@@ -61,6 +61,8 @@ soma-api-server.workspace = true
 soma-api-client.workspace = true
 soma-frontend.workspace = true
 comfy-table.workspace = true
+inquire.workspace = true
+identity.workspace = true
 
 
 [dev-dependencies]

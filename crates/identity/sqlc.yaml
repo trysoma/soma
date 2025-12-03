@@ -40,6 +40,14 @@ sql:
               column: get_api_key_by_hashed_value.user_updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
 
+            # get_api_key_by_id joined user columns
+            - db_type: datetime
+              column: get_api_key_by_id.user_created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_api_key_by_id.user_updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
             # group table
             - db_type: datetime
               column: group.created_at

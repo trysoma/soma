@@ -14,6 +14,8 @@
 
 import type {
 	ContextInfoPaginatedResponse,
+	CreateApiKeyParams,
+	CreateApiKeyResponse,
 	CreateDataEncryptionKeyParamsRoute,
 	CreateDekAliasRequest,
 	CreateEnvironmentVariableRequest,
@@ -26,6 +28,7 @@ import type {
 	DataEncryptionKey,
 	DataEncryptionKeyAlias,
 	DataEncryptionKeyListItemPaginatedResponse,
+	DeleteApiKeyResponse,
 	DeleteEnvironmentVariableResponse,
 	DeleteSecretResponse,
 	EncryptCredentialConfigurationParamsInner,
@@ -35,11 +38,16 @@ import type {
 	FunctionInstanceConfigPaginatedResponse,
 	FunctionInstanceSerialized,
 	FunctionInstanceSerializedPaginatedResponse,
+	ImportApiKeyParams,
+	ImportApiKeyResponse,
 	ImportDataEncryptionKeyParamsRoute,
 	ImportEnvironmentVariableRequest,
 	ImportSecretRequest,
 	InvokeFunctionParamsInner,
 	InvokeResult,
+	JwkResponsePaginatedResponse,
+	JwksResponse,
+	ListApiKeysResponse,
 	ListDecryptedSecretsResponse,
 	ListEnvironmentVariablesResponse,
 	ListSecretsResponse,
@@ -49,6 +57,7 @@ import type {
 	ProviderInstanceListItemPaginatedResponse,
 	ProviderInstanceSerialized,
 	ProviderInstanceSerializedWithEverything,
+	RefreshTokenRequest,
 	ResourceServerCredentialSerialized,
 	Secret,
 	SomaAgentDefinition,
@@ -56,6 +65,7 @@ import type {
 	TaskPaginatedResponse,
 	TaskTimelineItemPaginatedResponse,
 	TaskWithDetails,
+	TokenResponse,
 	UpdateAliasParams,
 	UpdateEnvironmentVariableRequest,
 	UpdateProviderInstanceParamsInner,
@@ -66,6 +76,8 @@ import type {
 } from "../models/index";
 import {
 	ContextInfoPaginatedResponseFromJSON,
+	CreateApiKeyParamsToJSON,
+	CreateApiKeyResponseFromJSON,
 	CreateDataEncryptionKeyParamsRouteToJSON,
 	CreateDekAliasRequestToJSON,
 	CreateEnvironmentVariableRequestToJSON,
@@ -78,6 +90,7 @@ import {
 	DataEncryptionKeyAliasFromJSON,
 	DataEncryptionKeyFromJSON,
 	DataEncryptionKeyListItemPaginatedResponseFromJSON,
+	DeleteApiKeyResponseFromJSON,
 	DeleteEnvironmentVariableResponseFromJSON,
 	DeleteSecretResponseFromJSON,
 	EncryptCredentialConfigurationParamsInnerToJSON,
@@ -88,11 +101,16 @@ import {
 	FunctionInstanceConfigPaginatedResponseFromJSON,
 	FunctionInstanceSerializedFromJSON,
 	FunctionInstanceSerializedPaginatedResponseFromJSON,
+	ImportApiKeyParamsToJSON,
+	ImportApiKeyResponseFromJSON,
 	ImportDataEncryptionKeyParamsRouteToJSON,
 	ImportEnvironmentVariableRequestToJSON,
 	ImportSecretRequestToJSON,
 	InvokeFunctionParamsInnerToJSON,
 	InvokeResultFromJSON,
+	JwkResponsePaginatedResponseFromJSON,
+	JwksResponseFromJSON,
+	ListApiKeysResponseFromJSON,
 	ListDecryptedSecretsResponseFromJSON,
 	ListEnvironmentVariablesResponseFromJSON,
 	ListSecretsResponseFromJSON,
@@ -102,6 +120,7 @@ import {
 	ProviderInstanceListItemPaginatedResponseFromJSON,
 	ProviderInstanceSerializedFromJSON,
 	ProviderInstanceSerializedWithEverythingFromJSON,
+	RefreshTokenRequestToJSON,
 	ResourceServerCredentialSerializedFromJSON,
 	SecretFromJSON,
 	SomaAgentDefinitionFromJSON,
@@ -109,6 +128,7 @@ import {
 	TaskPaginatedResponseFromJSON,
 	TaskTimelineItemPaginatedResponseFromJSON,
 	TaskWithDetailsFromJSON,
+	TokenResponseFromJSON,
 	UpdateAliasParamsToJSON,
 	UpdateEnvironmentVariableRequestToJSON,
 	UpdateProviderInstanceParamsInnerToJSON,
@@ -331,6 +351,41 @@ export interface V1ApiResumeUserCredentialBrokeringRequest {
 	code?: string;
 	error?: string;
 	errorDescription?: string;
+}
+
+export interface V1ApiRouteCreateApiKeyRequest {
+	createApiKeyParams: CreateApiKeyParams;
+}
+
+export interface V1ApiRouteDeleteApiKeyRequest {
+	id: string;
+}
+
+export interface V1ApiRouteExchangeStsTokenRequest {
+	stsConfigId: string;
+}
+
+export interface V1ApiRouteImportApiKeyRequest {
+	importApiKeyParams: ImportApiKeyParams;
+}
+
+export interface V1ApiRouteInvalidateJwkRequest {
+	kid: string;
+}
+
+export interface V1ApiRouteListApiKeysRequest {
+	pageSize?: number | null;
+	nextPageToken?: string | null;
+	userId?: string | null;
+}
+
+export interface V1ApiRouteListJwksRequest {
+	pageSize?: number | null;
+	nextPageToken?: string | null;
+}
+
+export interface V1ApiRouteRefreshTokenRequest {
+	refreshTokenRequest?: RefreshTokenRequest;
 }
 
 export interface V1ApiSendMessageRequest {
@@ -3361,6 +3416,431 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<object> {
 		const response = await this.resyncSdkRaw(initOverrides);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeCreateApiKeyRaw(
+		requestParameters: V1ApiRouteCreateApiKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<CreateApiKeyResponse>> {
+		if (requestParameters.createApiKeyParams == null) {
+			throw new runtime.RequiredError(
+				"createApiKeyParams",
+				'Required parameter "createApiKeyParams" was null or undefined when calling routeCreateApiKey().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		const urlPath = `/api/identity/v1/api-key`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: CreateApiKeyParamsToJSON(requestParameters.createApiKeyParams),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			CreateApiKeyResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 */
+	async routeCreateApiKey(
+		requestParameters: V1ApiRouteCreateApiKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<CreateApiKeyResponse> {
+		const response = await this.routeCreateApiKeyRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeDeleteApiKeyRaw(
+		requestParameters: V1ApiRouteDeleteApiKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<DeleteApiKeyResponse>> {
+		if (requestParameters.id == null) {
+			throw new runtime.RequiredError(
+				"id",
+				'Required parameter "id" was null or undefined when calling routeDeleteApiKey().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/identity/v1/api-key/{id}`;
+		urlPath = urlPath.replace(
+			`{${"id"}}`,
+			encodeURIComponent(String(requestParameters.id)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "DELETE",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			DeleteApiKeyResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 */
+	async routeDeleteApiKey(
+		requestParameters: V1ApiRouteDeleteApiKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<DeleteApiKeyResponse> {
+		const response = await this.routeDeleteApiKeyRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeExchangeStsTokenRaw(
+		requestParameters: V1ApiRouteExchangeStsTokenRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<TokenResponse>> {
+		if (requestParameters.stsConfigId == null) {
+			throw new runtime.RequiredError(
+				"stsConfigId",
+				'Required parameter "stsConfigId" was null or undefined when calling routeExchangeStsToken().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/identity/v1/sts/{sts_config_id}`;
+		urlPath = urlPath.replace(
+			`{${"sts_config_id"}}`,
+			encodeURIComponent(String(requestParameters.stsConfigId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			TokenResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 */
+	async routeExchangeStsToken(
+		requestParameters: V1ApiRouteExchangeStsTokenRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<TokenResponse> {
+		const response = await this.routeExchangeStsTokenRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeGetJwksRaw(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<JwksResponse>> {
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/identity/v1/.well-known/jwks.json`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			JwksResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 */
+	async routeGetJwks(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<JwksResponse> {
+		const response = await this.routeGetJwksRaw(initOverrides);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeImportApiKeyRaw(
+		requestParameters: V1ApiRouteImportApiKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<ImportApiKeyResponse>> {
+		if (requestParameters.importApiKeyParams == null) {
+			throw new runtime.RequiredError(
+				"importApiKeyParams",
+				'Required parameter "importApiKeyParams" was null or undefined when calling routeImportApiKey().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		const urlPath = `/api/identity/v1/api-key/import`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: ImportApiKeyParamsToJSON(requestParameters.importApiKeyParams),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			ImportApiKeyResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 */
+	async routeImportApiKey(
+		requestParameters: V1ApiRouteImportApiKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<ImportApiKeyResponse> {
+		const response = await this.routeImportApiKeyRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeInvalidateJwkRaw(
+		requestParameters: V1ApiRouteInvalidateJwkRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<void>> {
+		if (requestParameters.kid == null) {
+			throw new runtime.RequiredError(
+				"kid",
+				'Required parameter "kid" was null or undefined when calling routeInvalidateJwk().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/identity/v1/jwk/{kid}/invalidate`;
+		urlPath = urlPath.replace(
+			`{${"kid"}}`,
+			encodeURIComponent(String(requestParameters.kid)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.VoidApiResponse(response);
+	}
+
+	/**
+	 */
+	async routeInvalidateJwk(
+		requestParameters: V1ApiRouteInvalidateJwkRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<void> {
+		await this.routeInvalidateJwkRaw(requestParameters, initOverrides);
+	}
+
+	/**
+	 */
+	async routeListApiKeysRaw(
+		requestParameters: V1ApiRouteListApiKeysRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<ListApiKeysResponse>> {
+		const queryParameters: any = {};
+
+		if (requestParameters.pageSize != null) {
+			queryParameters.page_size = requestParameters.pageSize;
+		}
+
+		if (requestParameters.nextPageToken != null) {
+			queryParameters.next_page_token = requestParameters.nextPageToken;
+		}
+
+		if (requestParameters.userId != null) {
+			queryParameters.user_id = requestParameters.userId;
+		}
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/identity/v1/api-key`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			ListApiKeysResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 */
+	async routeListApiKeys(
+		requestParameters: V1ApiRouteListApiKeysRequest = {},
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<ListApiKeysResponse> {
+		const response = await this.routeListApiKeysRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeListJwksRaw(
+		requestParameters: V1ApiRouteListJwksRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<JwkResponsePaginatedResponse>> {
+		const queryParameters: any = {};
+
+		if (requestParameters.pageSize != null) {
+			queryParameters.page_size = requestParameters.pageSize;
+		}
+
+		if (requestParameters.nextPageToken != null) {
+			queryParameters.next_page_token = requestParameters.nextPageToken;
+		}
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/identity/v1/jwk`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			JwkResponsePaginatedResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 */
+	async routeListJwks(
+		requestParameters: V1ApiRouteListJwksRequest = {},
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<JwkResponsePaginatedResponse> {
+		const response = await this.routeListJwksRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeRefreshTokenRaw(
+		requestParameters: V1ApiRouteRefreshTokenRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<TokenResponse>> {
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		const urlPath = `/api/identity/v1/sts/refresh`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: RefreshTokenRequestToJSON(requestParameters.refreshTokenRequest),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			TokenResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 */
+	async routeRefreshToken(
+		requestParameters: V1ApiRouteRefreshTokenRequest = {},
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<TokenResponse> {
+		const response = await this.routeRefreshTokenRaw(
+			requestParameters,
+			initOverrides,
+		);
 		return await response.value();
 	}
 

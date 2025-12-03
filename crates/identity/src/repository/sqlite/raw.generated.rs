@@ -153,7 +153,7 @@ WHERE kid = ?"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_jwt_signing_keys_params<'_>
   ) -> Result<Vec<Row_get_jwt_signing_keys>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT kid, encrypted_private_key, expires_at, public_key, dek_alias, invalidated, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT kid, encrypted_private_key, expires_at, public_key, dek_alias, invalidated, created_at, updated_at
 FROM jwt_signing_key
 WHERE invalidated = 0
   AND (created_at < ?1 OR ?1 IS NULL)
@@ -193,6 +193,9 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       pub role: &'a 
           String
       ,
+      pub description: &'a Option<
+          String
+      >,
       pub created_at: &'a 
           shared::primitives::WrappedChronoDateTime
       ,
@@ -206,8 +209,8 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
     ,params: create_user_params<'_>
 ) -> Result<u64, libsql::Error> {
     conn.execute(r#"
-INSERT INTO user (id, type, email, role, created_at, updated_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#, libsql::params![
+INSERT INTO user (id, type, email, role, description, created_at, updated_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#, libsql::params![
               <String as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
@@ -224,6 +227,14 @@ VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#, libsql::params![
             ,
               <String as TryInto<libsql::Value>>::try_into(params.role.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              match params.description.clone() {
+                Some(value) => {
+                  <String as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
             ,
               <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
@@ -246,6 +257,7 @@ VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#, libsql::params![
       pub user_type:String,
       pub email:Option<String> ,
       pub role:String,
+      pub description:Option<String> ,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
   }
@@ -253,7 +265,7 @@ VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_user_by_id_params<'_>
   ) -> Result<Option<Row_get_user_by_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type as user_type, email, role, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, type as user_type, email, role, description, created_at, updated_at
 FROM user
 WHERE id = ?"#).await?;
       let res = stmt.query_row(
@@ -266,8 +278,9 @@ WHERE id = ?"#).await?;
                   user_type: row.get(1)?,
                   email: row.get(2)?,
                   role: row.get(3)?,
-                  created_at: row.get(4)?,
-                  updated_at: row.get(5)?,
+                  description: row.get(4)?,
+                  created_at: row.get(5)?,
+                  updated_at: row.get(6)?,
               })),
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),
@@ -280,6 +293,9 @@ WHERE id = ?"#).await?;
       pub role: &'a 
           String
       ,
+      pub description: &'a Option<
+          String
+      >,
       pub id: &'a 
           String
       ,
@@ -292,6 +308,7 @@ WHERE id = ?"#).await?;
     conn.execute(r#"UPDATE user
 SET email = ?,
     role = ?,
+    description = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?"#, libsql::params![
               match params.email.clone() {
@@ -304,6 +321,14 @@ WHERE id = ?"#, libsql::params![
             ,
               <String as TryInto<libsql::Value>>::try_into(params.role.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              match params.description.clone() {
+                Some(value) => {
+                  <String as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
             ,
               <String as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
@@ -348,6 +373,7 @@ WHERE id = ?"#, libsql::params![
       pub user_type:String,
       pub email:Option<String> ,
       pub role:String,
+      pub description:Option<String> ,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
   }
@@ -355,7 +381,7 @@ WHERE id = ?"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_users_params<'_>
   ) -> Result<Vec<Row_get_users>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, type as user_type, email, role, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, type as user_type, email, role, description, created_at, updated_at
 FROM user
 WHERE (created_at < ?1 OR ?1 IS NULL)
   AND (type = ?2 OR ?2 IS NULL)
@@ -371,8 +397,9 @@ LIMIT CAST(?4 AS INTEGER) + 1"#).await?;
               user_type: row.get(1)?,
               email: row.get(2)?,
               role: row.get(3)?,
-              created_at: row.get(4)?,
-              updated_at: row.get(5)?,
+              description: row.get(4)?,
+              created_at: row.get(5)?,
+              updated_at: row.get(6)?,
           });
       }
 
@@ -382,9 +409,15 @@ LIMIT CAST(?4 AS INTEGER) + 1"#).await?;
 //  API key table queries
 //  ============================================================================
   pub struct create_api_key_params<'a> {
+      pub id: &'a 
+          String
+      ,
       pub hashed_value: &'a 
           String
       ,
+      pub description: &'a Option<
+          String
+      >,
       pub user_id: &'a 
           String
       ,
@@ -401,10 +434,21 @@ LIMIT CAST(?4 AS INTEGER) + 1"#).await?;
     ,params: create_api_key_params<'_>
 ) -> Result<u64, libsql::Error> {
     conn.execute(r#"
-INSERT INTO api_key (hashed_value, user_id, created_at, updated_at)
-VALUES (?, ?, ?, ?)"#, libsql::params![
+INSERT INTO api_key (id, hashed_value, description, user_id, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?)"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
               <String as TryInto<libsql::Value>>::try_into(params.hashed_value.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              match params.description.clone() {
+                Some(value) => {
+                  <String as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
             ,
               <String as TryInto<libsql::Value>>::try_into(params.user_id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
@@ -426,7 +470,9 @@ VALUES (?, ?, ?, ?)"#, libsql::params![
 
   #[allow(non_camel_case_types)]
   pub struct Row_get_api_key_by_hashed_value {
+      pub id:String,
       pub hashed_value:String,
+      pub description:Option<String> ,
       pub user_id:String,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
@@ -434,6 +480,7 @@ VALUES (?, ?, ?, ?)"#, libsql::params![
       pub user_type:String,
       pub user_email:Option<String> ,
       pub user_role:String,
+      pub user_description:Option<String> ,
       pub user_created_at:shared::primitives::WrappedChronoDateTime,
       pub user_updated_at:shared::primitives::WrappedChronoDateTime,
   }
@@ -441,9 +488,9 @@ VALUES (?, ?, ?, ?)"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_api_key_by_hashed_value_params<'_>
   ) -> Result<Option<Row_get_api_key_by_hashed_value>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT ak.hashed_value, ak.user_id, ak.created_at, ak.updated_at,
+      let mut stmt = conn.prepare(r#"SELECT ak.id, ak.hashed_value, ak.description, ak.user_id, ak.created_at, ak.updated_at,
        u.id as user_id_fk, u.type as user_type, u.email as user_email, u.role as user_role,
-       u.created_at as user_created_at, u.updated_at as user_updated_at
+       u.description as user_description, u.created_at as user_created_at, u.updated_at as user_updated_at
 FROM api_key ak
 JOIN user u ON ak.user_id = u.id
 WHERE ak.hashed_value = ?"#).await?;
@@ -453,23 +500,83 @@ WHERE ak.hashed_value = ?"#).await?;
 
       match res {
           Ok(row) => Ok(Some(Row_get_api_key_by_hashed_value {
-                  hashed_value: row.get(0)?,
-                  user_id: row.get(1)?,
-                  created_at: row.get(2)?,
-                  updated_at: row.get(3)?,
-                  user_id_fk: row.get(4)?,
-                  user_type: row.get(5)?,
-                  user_email: row.get(6)?,
-                  user_role: row.get(7)?,
-                  user_created_at: row.get(8)?,
-                  user_updated_at: row.get(9)?,
+                  id: row.get(0)?,
+                  hashed_value: row.get(1)?,
+                  description: row.get(2)?,
+                  user_id: row.get(3)?,
+                  created_at: row.get(4)?,
+                  updated_at: row.get(5)?,
+                  user_id_fk: row.get(6)?,
+                  user_type: row.get(7)?,
+                  user_email: row.get(8)?,
+                  user_role: row.get(9)?,
+                  user_description: row.get(10)?,
+                  user_created_at: row.get(11)?,
+                  user_updated_at: row.get(12)?,
+              })),
+          Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
+          Err(e) => Err(e),
+      }
+  }
+  pub struct get_api_key_by_id_params<'a> {
+      pub id: &'a 
+          String
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_api_key_by_id {
+      pub id:String,
+      pub hashed_value:String,
+      pub description:Option<String> ,
+      pub user_id:String,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+      pub user_id_fk:String,
+      pub user_type:String,
+      pub user_email:Option<String> ,
+      pub user_role:String,
+      pub user_description:Option<String> ,
+      pub user_created_at:shared::primitives::WrappedChronoDateTime,
+      pub user_updated_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn get_api_key_by_id(
+      conn: &shared::libsql::Connection
+      ,params: get_api_key_by_id_params<'_>
+  ) -> Result<Option<Row_get_api_key_by_id>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT ak.id, ak.hashed_value, ak.description, ak.user_id, ak.created_at, ak.updated_at,
+       u.id as user_id_fk, u.type as user_type, u.email as user_email, u.role as user_role,
+       u.description as user_description, u.created_at as user_created_at, u.updated_at as user_updated_at
+FROM api_key ak
+JOIN user u ON ak.user_id = u.id
+WHERE ak.id = ?"#).await?;
+      let res = stmt.query_row(
+          libsql::params![params.id.clone(),],
+      ).await;
+
+      match res {
+          Ok(row) => Ok(Some(Row_get_api_key_by_id {
+                  id: row.get(0)?,
+                  hashed_value: row.get(1)?,
+                  description: row.get(2)?,
+                  user_id: row.get(3)?,
+                  created_at: row.get(4)?,
+                  updated_at: row.get(5)?,
+                  user_id_fk: row.get(6)?,
+                  user_type: row.get(7)?,
+                  user_email: row.get(8)?,
+                  user_role: row.get(9)?,
+                  user_description: row.get(10)?,
+                  user_created_at: row.get(11)?,
+                  user_updated_at: row.get(12)?,
               })),
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),
       }
   }
   pub struct delete_api_key_params<'a> {
-      pub hashed_value: &'a 
+      pub id: &'a 
           String
       ,
   }
@@ -478,8 +585,8 @@ WHERE ak.hashed_value = ?"#).await?;
     conn: &shared::libsql::Connection
     ,params: delete_api_key_params<'_>
 ) -> Result<u64, libsql::Error> {
-    conn.execute(r#"DELETE FROM api_key WHERE hashed_value = ?"#, libsql::params![
-              <String as TryInto<libsql::Value>>::try_into(params.hashed_value.clone())
+    conn.execute(r#"DELETE FROM api_key WHERE id = ?"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
     ]).await
@@ -499,7 +606,9 @@ WHERE ak.hashed_value = ?"#).await?;
 
   #[allow(non_camel_case_types)]
   pub struct Row_get_api_keys {
+      pub id:String,
       pub hashed_value:String,
+      pub description:Option<String> ,
       pub user_id:String,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
@@ -508,7 +617,7 @@ WHERE ak.hashed_value = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_api_keys_params<'_>
   ) -> Result<Vec<Row_get_api_keys>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT hashed_value, user_id, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, hashed_value, description, user_id, created_at, updated_at
 FROM api_key
 WHERE (created_at < ?1 OR ?1 IS NULL)
   AND (user_id = ?2 OR ?2 IS NULL)
@@ -519,10 +628,12 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
 
       while let Some(row) = rows.next().await? {
           mapped.push(Row_get_api_keys {
-              hashed_value: row.get(0)?,
-              user_id: row.get(1)?,
-              created_at: row.get(2)?,
-              updated_at: row.get(3)?,
+              id: row.get(0)?,
+              hashed_value: row.get(1)?,
+              description: row.get(2)?,
+              user_id: row.get(3)?,
+              created_at: row.get(4)?,
+              updated_at: row.get(5)?,
           });
       }
 
@@ -681,7 +792,7 @@ WHERE id = ?"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_groups_params<'_>
   ) -> Result<Vec<Row_get_groups>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT id, name, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, name, created_at, updated_at
 FROM `group`
 WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
@@ -823,6 +934,7 @@ WHERE group_id = ? AND user_id = ?"#).await?;
       pub user_type:String,
       pub user_email:Option<String> ,
       pub user_role:String,
+      pub user_description:Option<String> ,
       pub user_created_at:shared::primitives::WrappedChronoDateTime,
       pub user_updated_at:shared::primitives::WrappedChronoDateTime,
   }
@@ -830,9 +942,9 @@ WHERE group_id = ? AND user_id = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_group_members_params<'_>
   ) -> Result<Vec<Row_get_group_members>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
+      let mut stmt = conn.prepare(r#"SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
        u.id as user_id_fk, u.type as user_type, u.email as user_email, u.role as user_role,
-       u.created_at as user_created_at, u.updated_at as user_updated_at
+       u.description as user_description, u.created_at as user_created_at, u.updated_at as user_updated_at
 FROM group_membership gm
 JOIN user u ON gm.user_id = u.id
 WHERE gm.group_id = ?1
@@ -852,8 +964,9 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
               user_type: row.get(5)?,
               user_email: row.get(6)?,
               user_role: row.get(7)?,
-              user_created_at: row.get(8)?,
-              user_updated_at: row.get(9)?,
+              user_description: row.get(8)?,
+              user_created_at: row.get(9)?,
+              user_updated_at: row.get(10)?,
           });
       }
 
@@ -887,7 +1000,7 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_user_groups_params<'_>
   ) -> Result<Vec<Row_get_user_groups>, libsql::Error> {
-      let stmt = conn.prepare(r#"SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
+      let mut stmt = conn.prepare(r#"SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
        g.id as group_id_fk, g.name as group_name, g.created_at as group_created_at, g.updated_at as group_updated_at
 FROM group_membership gm
 JOIN `group` g ON gm.group_id = g.id

@@ -30,6 +30,11 @@ impl Repository {
     pub fn new(conn: shared::libsql::Connection) -> Self {
         Self { conn }
     }
+
+    /// Get the underlying connection
+    pub fn connection(&self) -> &shared::libsql::Connection {
+        &self.conn
+    }
 }
 
 use shared::primitives::SqlMigrationLoader;
@@ -48,6 +53,7 @@ impl UserRepositoryLike for Repository {
             user_type: &params.user_type,
             email: &params.email,
             role: &params.role,
+            description: &params.description,
             created_at: &params.created_at,
             updated_at: &params.updated_at,
         };
@@ -88,10 +94,12 @@ impl UserRepositoryLike for Repository {
 
         let email = params.email.clone().or(existing.email);
         let role = params.role.clone().unwrap_or(existing.role);
+        let description = params.description.clone().or(existing.description);
 
         let sqlc_params = update_user_params {
             email: &email,
             role: &role,
+            description: &description,
             id: &id.to_string(),
         };
 
@@ -176,7 +184,9 @@ impl UserRepositoryLike for Repository {
 
     async fn create_api_key(&self, params: &CreateApiKey) -> Result<(), CommonError> {
         let sqlc_params = create_api_key_params {
+            id: &params.id,
             hashed_value: &params.hashed_value,
+            description: &params.description,
             user_id: &params.user_id,
             created_at: &params.created_at,
             updated_at: &params.updated_at,
@@ -211,9 +221,25 @@ impl UserRepositoryLike for Repository {
         Ok(result.map(|row| row.into()))
     }
 
-    async fn delete_api_key(&self, hashed_value: &str) -> Result<(), CommonError> {
+    async fn get_api_key_by_id(&self, id: &str) -> Result<Option<ApiKeyWithUser>, CommonError> {
+        let sqlc_params = get_api_key_by_id_params {
+            id: &id.to_string(),
+        };
+
+        let result = get_api_key_by_id(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get api key by id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        Ok(result.map(|row| row.into()))
+    }
+
+    async fn delete_api_key(&self, id: &str) -> Result<(), CommonError> {
         let sqlc_params = delete_api_key_params {
-            hashed_value: &hashed_value.to_string(),
+            id: &id.to_string(),
         };
 
         delete_api_key(&self.conn, sqlc_params)
@@ -737,15 +763,18 @@ mod tests {
             user_type: user_type.to_string(),
             email: email.map(|s| s.to_string()),
             role: role.to_string(),
+            description: None,
             created_at: now,
             updated_at: now,
         }
     }
 
-    fn create_test_api_key(hashed_value: &str, user_id: &str) -> CreateApiKey {
+    fn create_test_api_key(id: &str, hashed_value: &str, user_id: &str) -> CreateApiKey {
         let now = WrappedChronoDateTime::now();
         CreateApiKey {
+            id: id.to_string(),
             hashed_value: hashed_value.to_string(),
+            description: Some(format!("Test API key {}", id)),
             user_id: user_id.to_string(),
             created_at: now,
             updated_at: now,
@@ -840,6 +869,7 @@ mod tests {
         let update = UpdateUser {
             email: Some("new@example.com".to_string()),
             role: Some("admin".to_string()),
+            description: None,
         };
         repo.update_user("user-1", &update).await.unwrap();
 
@@ -864,6 +894,7 @@ mod tests {
         let update = UpdateUser {
             email: Some("new@example.com".to_string()),
             role: None,
+            description: None,
         };
         repo.update_user("user-1", &update).await.unwrap();
 
@@ -995,7 +1026,7 @@ mod tests {
         repo.create_user(&user).await.unwrap();
 
         // Create API key
-        let api_key = create_test_api_key("hashed-key-1", "user-1");
+        let api_key = create_test_api_key("api-key-1", "hashed-key-1", "user-1");
         repo.create_api_key(&api_key).await.unwrap();
 
         let fetched = repo
@@ -1004,6 +1035,7 @@ mod tests {
             .unwrap();
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
+        assert_eq!(fetched.api_key.id, "api-key-1");
         assert_eq!(fetched.api_key.hashed_value, "hashed-key-1");
         assert_eq!(fetched.api_key.user_id, "user-1");
         assert_eq!(fetched.user.id, "user-1");
@@ -1033,10 +1065,10 @@ mod tests {
         );
         repo.create_user(&user).await.unwrap();
 
-        let api_key = create_test_api_key("hashed-key-1", "user-1");
+        let api_key = create_test_api_key("api-key-1", "hashed-key-1", "user-1");
         repo.create_api_key(&api_key).await.unwrap();
 
-        repo.delete_api_key("hashed-key-1").await.unwrap();
+        repo.delete_api_key("api-key-1").await.unwrap();
 
         let fetched = repo
             .get_api_key_by_hashed_value("hashed-key-1")
@@ -1067,11 +1099,19 @@ mod tests {
 
         // Create API keys
         for i in 1..=3 {
-            let api_key = create_test_api_key(&format!("key-user1-{i}"), "user-1");
+            let api_key = create_test_api_key(
+                &format!("api-key-user1-{i}"),
+                &format!("hash-user1-{i}"),
+                "user-1",
+            );
             repo.create_api_key(&api_key).await.unwrap();
         }
         for i in 1..=2 {
-            let api_key = create_test_api_key(&format!("key-user2-{i}"), "user-2");
+            let api_key = create_test_api_key(
+                &format!("api-key-user2-{i}"),
+                &format!("hash-user2-{i}"),
+                "user-2",
+            );
             repo.create_api_key(&api_key).await.unwrap();
         }
 
@@ -1119,11 +1159,19 @@ mod tests {
 
         // Create API keys for both users
         for i in 1..=3 {
-            let api_key = create_test_api_key(&format!("key-user1-{i}"), "user-1");
+            let api_key = create_test_api_key(
+                &format!("api-key-user1-{i}"),
+                &format!("hash-user1-{i}"),
+                "user-1",
+            );
             repo.create_api_key(&api_key).await.unwrap();
         }
         for i in 1..=2 {
-            let api_key = create_test_api_key(&format!("key-user2-{i}"), "user-2");
+            let api_key = create_test_api_key(
+                &format!("api-key-user2-{i}"),
+                &format!("hash-user2-{i}"),
+                "user-2",
+            );
             repo.create_api_key(&api_key).await.unwrap();
         }
 
@@ -1164,7 +1212,11 @@ mod tests {
 
         // Create API keys
         for i in 1..=3 {
-            let api_key = create_test_api_key(&format!("key-{i}"), "user-1");
+            let api_key = create_test_api_key(
+                &format!("api-key-{i}"),
+                &format!("hash-{i}"),
+                "user-1",
+            );
             repo.create_api_key(&api_key).await.unwrap();
         }
 

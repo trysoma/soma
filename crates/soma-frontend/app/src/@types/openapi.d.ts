@@ -780,6 +780,54 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/api/identity/v1/api-key": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get: operations["route_list_api_keys"];
+		put?: never;
+		post: operations["route_create_api_key"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/api-key/import": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations["route_import_api_key"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/api-key/{id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		delete: operations["route_delete_api_key"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/api/identity/v1/jwk": {
 		parameters: {
 			query?: never;
@@ -806,6 +854,38 @@ export interface paths {
 		get?: never;
 		put?: never;
 		post: operations["route_invalidate_jwk"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/sts/refresh": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations["route_refresh_token"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/sts/{sts_config_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post: operations["route_exchange_sts_token"];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -1053,6 +1133,27 @@ export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
 		AgentCard: Record<string, never>;
+		ApiKey: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			description?: string | null;
+			hashed_value: string;
+			id: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+			user_id: string;
+		};
+		/** @description API key configuration stored in soma.yaml */
+		ApiKeyYamlConfig: {
+			/** @description The DEK alias used for encryption */
+			dek_alias: string;
+			/** @description Description of the API key */
+			description?: string | null;
+			/** @description The encrypted hashed value of the API key */
+			encrypted_hashed_value: string;
+			/** @description The role assigned to this API key */
+			role: string;
+			/** @description The user ID associated with this API key */
+			user_id: string;
+		};
 		BridgeConfig: {
 			providers?: {
 				[key: string]: components["schemas"]["ProviderConfig"];
@@ -1088,6 +1189,20 @@ export interface components {
 		ContextInfoPaginatedResponse: {
 			items: components["schemas"]["ContextInfo"][];
 			next_page_token?: string;
+		};
+		/** @description Parameters for creating an API key */
+		CreateApiKeyParams: {
+			/** @description Description of the API key */
+			description?: string | null;
+			/** @description Role to assign to the API key's user */
+			role: string;
+		};
+		/** @description Response from creating an API key */
+		CreateApiKeyResponse: {
+			/** @description The raw API key value (only returned once, not stored) */
+			api_key: string;
+			/** @description The API key ID */
+			id: string;
 		};
 		CreateDataEncryptionKeyParamsRoute: {
 			encrypted_dek?: string | null;
@@ -1177,6 +1292,11 @@ export interface components {
 		/** @description Data encryption key configuration */
 		DekConfig: {
 			encrypted_key: string;
+		};
+		/** @description Response from deleting an API key */
+		DeleteApiKeyResponse: {
+			/** @description Whether the deletion was successful */
+			success: boolean;
 		};
 		DeleteEnvironmentVariableResponse: {
 			success: boolean;
@@ -1291,6 +1411,46 @@ export interface components {
 			items: components["schemas"]["FunctionInstanceSerialized"][];
 			next_page_token?: string;
 		};
+		/** @description Group to role mapping */
+		GroupToRoleMappingYaml: {
+			/** @description The group name to match */
+			group: string;
+			/** @description The role to assign when matched */
+			role: string;
+		};
+		/** @description Identity configuration for API keys and STS */
+		IdentityConfig: {
+			/** @description API keys configuration (key is the API key ID) */
+			api_keys?: {
+				[key: string]: components["schemas"]["ApiKeyYamlConfig"];
+			} | null;
+			/** @description STS configurations (key is the STS config ID) */
+			sts_configurations?: {
+				[key: string]: components["schemas"]["StsConfigYaml"];
+			} | null;
+		};
+		/** @description Parameters for importing an API key */
+		ImportApiKeyParams: {
+			/** @description The DEK alias used for encryption */
+			dek_alias: string;
+			/** @description Description of the API key */
+			description?: string | null;
+			/** @description The encrypted hashed value of the API key */
+			encrypted_hashed_value: string;
+			/** @description The ID of the API key */
+			id: string;
+			/** @description Role to assign to the API key's user */
+			role: string;
+			/** @description The user ID for this API key */
+			user_id: string;
+		};
+		/** @description Response from importing an API key */
+		ImportApiKeyResponse: {
+			/** @description The API key ID */
+			id: string;
+			/** @description Whether the import was successful */
+			success: boolean;
+		};
 		ImportDataEncryptionKeyParamsRoute: {
 			encrypted_data_encryption_key: string;
 			id?: string | null;
@@ -1343,6 +1503,52 @@ export interface components {
 		};
 		JwksResponse: {
 			keys: components["schemas"]["Jwk"][];
+		};
+		/** @description JWT claim field mapping */
+		JwtMappingConfigYaml: {
+			/** @description Field name for audience (default: "aud") */
+			audience_field?: string;
+			/** @description Field name for email (optional) */
+			email_field?: string | null;
+			/** @description Field name for groups (optional) */
+			groups_field?: string | null;
+			/** @description Field name for issuer (default: "iss") */
+			issuer_field?: string;
+			/** @description Field name for scopes (optional) */
+			scopes_field?: string | null;
+			/** @description Field name for subject (default: "sub") */
+			sub_field?: string;
+		};
+		/** @description JWT template configuration for validating external JWTs */
+		JwtTemplateConfigYaml: {
+			/** @description Group to role mappings */
+			group_to_role_mappings?:
+				| components["schemas"]["GroupToRoleMappingYaml"][]
+				| null;
+			/** @description JWKS URI to fetch public keys from */
+			jwks_uri: string;
+			/** @description Field mapping from JWT claims to internal fields */
+			mapping: components["schemas"]["JwtMappingConfigYaml"];
+			/** @description Where to find the token in the request */
+			token_location: components["schemas"]["TokenLocationYaml"];
+			/** @description Validation rules */
+			validation: components["schemas"]["JwtValidationConfigYaml"];
+		};
+		/** @description JWT validation configuration */
+		JwtValidationConfigYaml: {
+			/** @description Expected issuer (iss claim) */
+			issuer?: string | null;
+			/** @description Required groups */
+			required_groups?: string[] | null;
+			/** @description Required scopes */
+			required_scopes?: string[] | null;
+			/** @description Valid audiences (aud claim) */
+			valid_audiences?: string[] | null;
+		};
+		/** @description Response from listing API keys */
+		ListApiKeysResponse: {
+			items: components["schemas"]["ApiKey"][];
+			next_page_token?: string | null;
 		};
 		ListDecryptedSecretsResponse: {
 			next_page_token?: string | null;
@@ -1447,6 +1653,11 @@ export interface components {
 			credential_controller: components["schemas"]["ProviderCredentialControllerSerialized"];
 			functions: components["schemas"]["FunctionInstanceListItem"][];
 		};
+		/** @description Request body for refresh token endpoint */
+		RefreshTokenRequest: {
+			/** @description The refresh token. If not provided, will be read from cookie. */
+			refresh_token?: string | null;
+		};
 		ResourceServerCredentialSerialized: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			dek_alias: string;
@@ -1489,12 +1700,18 @@ export interface components {
 			environment_variables?: {
 				[key: string]: string;
 			} | null;
+			identity?: null | components["schemas"]["IdentityConfig"];
 			secrets?: {
 				[key: string]: components["schemas"]["SecretConfig"];
 			} | null;
 		};
 		StartUserCredentialBrokeringParamsInner: {
 			provider_instance_id: string;
+		};
+		/** @description STS configuration stored in soma.yaml */
+		StsConfigYaml: components["schemas"]["JwtTemplateConfigYaml"] & {
+			/** @enum {string} */
+			type: "jwt_template";
 		};
 		Task: {
 			context_id: components["schemas"]["WrappedUuidV4"];
@@ -1553,6 +1770,32 @@ export interface components {
 		TextPart: {
 			metadata: components["schemas"]["Metadata"];
 			text: string;
+		};
+		/** @description Where to find the token in the request */
+		TokenLocationYaml:
+			| {
+					name: string;
+					/** @enum {string} */
+					type: "header";
+			  }
+			| {
+					name: string;
+					/** @enum {string} */
+					type: "cookie";
+			  };
+		/** @description Response body for token exchange and refresh endpoints */
+		TokenResponse: {
+			/** @description The access token */
+			access_token: string;
+			/**
+			 * Format: int64
+			 * @description Token expiration time in seconds
+			 */
+			expires_in: number;
+			/** @description The refresh token (only present on exchange, not refresh) */
+			refresh_token?: string | null;
+			/** @description Token type (always "Bearer") */
+			token_type: string;
 		};
 		TriggerCodegenResponse: Record<string, never>;
 		/** @default null */
@@ -4008,6 +4251,167 @@ export interface operations {
 			};
 		};
 	};
+	route_list_api_keys: {
+		parameters: {
+			query?: {
+				/** @example 10 */
+				page_size?: number | null;
+				/** @example  */
+				next_page_token?: string | null;
+				/** @example  */
+				user_id?: string | null;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of API keys */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ListApiKeysResponse"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_create_api_key: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateApiKeyParams"];
+			};
+		};
+		responses: {
+			/** @description API key created successfully */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateApiKeyResponse"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_import_api_key: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ImportApiKeyParams"];
+			};
+		};
+		responses: {
+			/** @description API key imported successfully */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ImportApiKeyResponse"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_delete_api_key: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description ID of the API key to delete */
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description API key deleted successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DeleteApiKeyResponse"];
+				};
+			};
+			/** @description API key not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
 	route_list_jwks: {
 		parameters: {
 			query?: {
@@ -4062,6 +4466,108 @@ export interface operations {
 				content?: never;
 			};
 			/** @description JWK not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_refresh_token: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Optional refresh token in body. If not provided, will be read from cookie. */
+		requestBody?: {
+			content: {
+				"application/json": null | components["schemas"]["RefreshTokenRequest"];
+			};
+		};
+		responses: {
+			/** @description Token refresh successful */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TokenResponse"];
+				};
+			};
+			/** @description Authentication failed */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_exchange_sts_token: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description STS configuration ID */
+				sts_config_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Token exchange successful */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TokenResponse"];
+				};
+			};
+			/** @description Authentication failed */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description STS config not found */
 			404: {
 				headers: {
 					[name: string]: unknown;

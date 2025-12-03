@@ -95,6 +95,12 @@ pub async fn create_api_service(
     let (environment_variable_change_tx, environment_variable_change_rx) =
         crate::logic::on_change_pubsub::create_environment_variable_change_channel(100);
 
+    // Create identity event channel
+    let (identity_change_tx, identity_change_rx): (
+        identity::logic::OnConfigChangeTx,
+        _,
+    ) = tokio::sync::broadcast::channel(100);
+
     // Create the unified soma change channel
     let (soma_change_tx, _soma_change_rx) = create_soma_change_channel(100);
 
@@ -131,6 +137,7 @@ pub async fn create_api_service(
             encryption_change_rx,
             secret_change_rx,
             environment_variable_change_rx,
+            identity_change_rx,
             pubsub_shutdown_rx,
         )
         .await;
@@ -307,11 +314,12 @@ pub async fn create_api_service(
     info!("Initializing API service...");
     let local_envelope_encryption_key_path = project_dir.join(".soma/envelope-encryption-keys");
 
-    // Create identity service
-    let identity_service = identity::service::IdentityService::new(
+    // Create identity service with the broadcaster
+    let identity_service = identity::service::IdentityService::with_broadcaster(
         identity_repo.clone(),
         encryption_repo.clone(),
         local_envelope_encryption_key_path.clone(),
+        identity_change_tx.clone(),
     );
 
     let api_service = ApiService::new(InitApiServiceParams {

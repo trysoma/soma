@@ -5,8 +5,8 @@ use crate::repository::{
 
 // Import generated Row types from parent module
 use super::{
-    Row_get_api_key_by_hashed_value, Row_get_api_keys, Row_get_group_by_id, Row_get_group_members,
-    Row_get_group_membership, Row_get_groups, Row_get_jwt_signing_key_by_kid,
+    Row_get_api_key_by_hashed_value, Row_get_api_key_by_id, Row_get_api_keys, Row_get_group_by_id,
+    Row_get_group_members, Row_get_group_membership, Row_get_groups, Row_get_jwt_signing_key_by_kid,
     Row_get_jwt_signing_keys, Row_get_user_by_id, Row_get_user_groups, Row_get_users,
 };
 
@@ -19,6 +19,7 @@ impl From<Row_get_user_by_id> for User {
             user_type: row.user_type,
             email: row.email,
             role: row.role,
+            description: row.description,
             created_at: row.created_at,
             updated_at: row.updated_at,
         }
@@ -32,6 +33,7 @@ impl From<Row_get_users> for User {
             user_type: row.user_type,
             email: row.email,
             role: row.role,
+            description: row.description,
             created_at: row.created_at,
             updated_at: row.updated_at,
         }
@@ -41,7 +43,9 @@ impl From<Row_get_users> for User {
 impl From<Row_get_api_keys> for ApiKey {
     fn from(row: Row_get_api_keys) -> Self {
         ApiKey {
+            id: row.id,
             hashed_value: row.hashed_value,
+            description: row.description,
             user_id: row.user_id,
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -53,7 +57,9 @@ impl From<Row_get_api_key_by_hashed_value> for ApiKeyWithUser {
     fn from(row: Row_get_api_key_by_hashed_value) -> Self {
         ApiKeyWithUser {
             api_key: ApiKey {
+                id: row.id,
                 hashed_value: row.hashed_value,
+                description: row.description,
                 user_id: row.user_id.clone(),
                 created_at: row.created_at,
                 updated_at: row.updated_at,
@@ -63,6 +69,31 @@ impl From<Row_get_api_key_by_hashed_value> for ApiKeyWithUser {
                 user_type: row.user_type,
                 email: row.user_email,
                 role: row.user_role,
+                description: row.user_description,
+                created_at: row.user_created_at,
+                updated_at: row.user_updated_at,
+            },
+        }
+    }
+}
+
+impl From<Row_get_api_key_by_id> for ApiKeyWithUser {
+    fn from(row: Row_get_api_key_by_id) -> Self {
+        ApiKeyWithUser {
+            api_key: ApiKey {
+                id: row.id,
+                hashed_value: row.hashed_value,
+                description: row.description,
+                user_id: row.user_id.clone(),
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+            },
+            user: User {
+                id: row.user_id_fk,
+                user_type: row.user_type,
+                email: row.user_email,
+                role: row.user_role,
+                description: row.user_description,
                 created_at: row.user_created_at,
                 updated_at: row.user_updated_at,
             },
@@ -119,6 +150,7 @@ impl From<Row_get_group_members> for GroupMemberWithUser {
                 user_type: row.user_type,
                 email: row.user_email,
                 role: row.user_role,
+                description: row.user_description,
                 created_at: row.user_created_at,
                 updated_at: row.user_updated_at,
             },
