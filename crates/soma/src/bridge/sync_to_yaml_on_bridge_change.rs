@@ -11,7 +11,7 @@ use tracing::{info, warn};
 use shared::error::CommonError;
 use shared::soma_agent_definition::{
     ApiKeyYamlConfig, EnvelopeKeyConfig, EnvelopeKeyConfigAwsKms, EnvelopeKeyConfigLocal,
-    SecretConfig, SomaAgentDefinitionLike,
+    SecretConfig, SomaAgentDefinitionLike, StsConfigYaml,
 };
 use soma_api_server::logic::on_change_pubsub::{
     EnvironmentVariableChangeEvt, SecretChangeEvt, SomaChangeEvt, SomaChangeRx,
@@ -576,6 +576,71 @@ async fn handle_identity_event(
         IdentityOnConfigChangeEvt::ApiKeyDeleted(id) => {
             info!("API key deleted: {:?}", id);
             soma_definition.remove_api_key(id).await?;
+        }
+        IdentityOnConfigChangeEvt::StsConfigCreated(sts_config_info) => {
+            info!("STS config created: {:?}", sts_config_info.id);
+
+            // Check if this STS config already exists in YAML
+            let definition = soma_definition.get_definition().await?;
+            let sts_config_exists_in_yaml = definition
+                .identity
+                .as_ref()
+                .and_then(|identity| identity.sts_configurations.as_ref())
+                .map(|sts_configs| sts_configs.contains_key(&sts_config_info.id))
+                .unwrap_or(false);
+
+            if sts_config_exists_in_yaml {
+                info!(
+                    "STS config '{}' already exists in YAML, skipping write",
+                    sts_config_info.id
+                );
+            } else {
+                // Parse the config based on type
+                let yaml_config = match sts_config_info.config_type.as_str() {
+                    "dev" => StsConfigYaml::Dev {},
+                    "jwt_template" => {
+                        if let Some(value) = sts_config_info.value {
+                            // Parse the JSON value into the YAML JWT template config
+                            let parsed: serde_json::Value = serde_json::from_str(&value)
+                                .map_err(|e| {
+                                    CommonError::Unknown(anyhow::anyhow!(
+                                        "Failed to parse STS config value: {e}"
+                                    ))
+                                })?;
+
+                            // Convert to JwtTemplateConfigYaml
+                            let jwt_config =
+                                serde_json::from_value(parsed).map_err(|e| {
+                                    CommonError::Unknown(anyhow::anyhow!(
+                                        "Failed to convert STS config to YAML format: {e}"
+                                    ))
+                                })?;
+                            StsConfigYaml::JwtTemplate(jwt_config)
+                        } else {
+                            warn!(
+                                "STS config '{}' is jwt_template but has no value, skipping",
+                                sts_config_info.id
+                            );
+                            return Ok(());
+                        }
+                    }
+                    _ => {
+                        warn!(
+                            "Unknown STS config type '{}', skipping",
+                            sts_config_info.config_type
+                        );
+                        return Ok(());
+                    }
+                };
+
+                soma_definition
+                    .add_sts_config(sts_config_info.id, yaml_config)
+                    .await?;
+            }
+        }
+        IdentityOnConfigChangeEvt::StsConfigDeleted(id) => {
+            info!("STS config deleted: {:?}", id);
+            soma_definition.remove_sts_config(id).await?;
         }
     }
     Ok(())

@@ -1,5 +1,6 @@
 mod api_key;
 mod jwk;
+mod sts_config;
 mod sts_exchange;
 
 use utoipa_axum::router::OpenApiRouter;
@@ -18,5 +19,6 @@ pub fn create_router() -> OpenApiRouter<IdentityService> {
     OpenApiRouter::new()
         .merge(api_key::create_api_key_routes())
         .merge(jwk::create_jwk_routes())
+        .merge(sts_config::create_sts_config_routes())
         .merge(sts_exchange::create_sts_routes())
 }

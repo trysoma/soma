@@ -8,7 +8,7 @@ pub struct Subsystems {
     pub bridge_client_generation: Option<SubsystemHandle>,
     pub secret_sync: Option<SubsystemHandle>,
     pub environment_variable_sync: Option<SubsystemHandle>,
-    pub jwk_rotation: Option<SubsystemHandle>,
+    pub jwk_init_listener: Option<SubsystemHandle>,
 }
 
 impl Subsystems {
@@ -33,7 +33,7 @@ impl Subsystems {
         if let Some(handle) = self.environment_variable_sync {
             handle.wait_for_shutdown().await;
         }
-        if let Some(handle) = self.jwk_rotation {
+        if let Some(handle) = self.jwk_init_listener {
             handle.wait_for_shutdown().await;
         }
 

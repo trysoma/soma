@@ -6,6 +6,7 @@ pub mod auth_client;
 pub mod auth_config;
 pub mod jwk;
 pub mod jwks_cache;
+pub mod sts_config;
 pub mod sts_exchange;
 
 /// Information about a created API key (for broadcast events)
@@ -21,6 +22,17 @@ pub struct ApiKeyCreatedInfo {
     pub user_id: String,
 }
 
+/// Information about a created STS configuration (for broadcast events)
+#[derive(Clone, Debug)]
+pub struct StsConfigCreatedInfo {
+    /// The STS configuration ID
+    pub id: String,
+    /// The configuration type (e.g., "jwt_template", "dev")
+    pub config_type: String,
+    /// The configuration value (JSON)
+    pub value: Option<String>,
+}
+
 /// Events fired when identity configuration changes
 #[derive(Clone, Debug)]
 pub enum OnConfigChangeEvt {
@@ -28,6 +40,10 @@ pub enum OnConfigChangeEvt {
     ApiKeyCreated(ApiKeyCreatedInfo),
     /// An API key was deleted (contains id)
     ApiKeyDeleted(String),
+    /// An STS configuration was created
+    StsConfigCreated(StsConfigCreatedInfo),
+    /// An STS configuration was deleted (contains id)
+    StsConfigDeleted(String),
 }
 
 /// Sender for config change events

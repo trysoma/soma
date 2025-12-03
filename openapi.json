@@ -3537,6 +3537,290 @@
         }
       }
     },
+    "/api/identity/v1/sts-configuration": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "List STS configurations",
+        "description": "List all STS configurations with optional filtering by type",
+        "operationId": "route_list_sts_configs",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            },
+            "example": "10"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": ""
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by configuration type (jwt_template, dev)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "jwt_template"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of STS configurations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListStsConfigResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Create STS configuration",
+        "description": "Create a new STS configuration (e.g., JWT template or dev settings)",
+        "operationId": "route_create_sts_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStsConfigParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "STS configuration created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateStsConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/sts-configuration/import": {
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Import STS configuration",
+        "description": "Import an STS configuration (idempotent, used for syncing from soma.yaml)",
+        "operationId": "route_import_sts_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStsConfigParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "STS configuration imported successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateStsConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/sts-configuration/{id}": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Get STS configuration",
+        "description": "Get an STS configuration by ID",
+        "operationId": "route_get_sts_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the STS configuration to retrieve",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "STS configuration found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StsConfiguration"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "STS configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Delete STS configuration",
+        "description": "Delete an STS configuration by ID",
+        "operationId": "route_delete_sts_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the STS configuration to delete",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "STS configuration deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteStsConfigResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "STS configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/identity/v1/sts/refresh": {
       "post": {
         "tags": [
@@ -5411,6 +5695,58 @@
           }
         }
       },
+      "CreateStsConfigParams": {
+        "type": "object",
+        "description": "Parameters for creating an STS configuration",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional ID (will be generated if not provided)"
+          },
+          "type": {
+            "type": "string",
+            "description": "The configuration type"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The configuration value (JSON)"
+          }
+        }
+      },
+      "CreateStsConfigResponse": {
+        "type": "object",
+        "description": "Response from creating an STS configuration",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The STS configuration ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "The configuration type"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The configuration value (JSON)"
+          }
+        }
+      },
       "CreateUserCredentialParamsInner": {
         "type": "object",
         "required": [
@@ -5627,6 +5963,19 @@
         "properties": {
           "success": {
             "type": "boolean"
+          }
+        }
+      },
+      "DeleteStsConfigResponse": {
+        "type": "object",
+        "description": "Response from deleting an STS configuration",
+        "required": [
+          "success"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the deletion was successful"
           }
         }
       },
@@ -6419,6 +6768,26 @@
             "$ref": "#/components/schemas/JwtMappingConfigYaml",
             "description": "Field mapping from JWT claims to internal fields"
           },
+          "scope_to_group_mappings": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ScopeToGroupMappingYaml"
+            },
+            "description": "Scope to group mappings (maps scopes to internal groups)"
+          },
+          "scope_to_role_mappings": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ScopeToRoleMappingYaml"
+            },
+            "description": "Scope to role mappings"
+          },
           "token_location": {
             "$ref": "#/components/schemas/TokenLocationYaml",
             "description": "Where to find the token in the request"
@@ -6550,6 +6919,27 @@
             "items": {
               "$ref": "#/components/schemas/Secret"
             }
+          }
+        }
+      },
+      "ListStsConfigResponse": {
+        "type": "object",
+        "description": "Response from listing STS configurations",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StsConfiguration"
+            }
+          },
+          "next_page_token": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -7059,6 +7449,42 @@
       "RuntimeConfigResponse": {
         "type": "object"
       },
+      "ScopeToGroupMappingYaml": {
+        "type": "object",
+        "description": "Scope to group mapping (maps external scopes to internal groups)",
+        "required": [
+          "scope",
+          "group"
+        ],
+        "properties": {
+          "group": {
+            "type": "string",
+            "description": "The internal group to assign when matched"
+          },
+          "scope": {
+            "type": "string",
+            "description": "The scope to match"
+          }
+        }
+      },
+      "ScopeToRoleMappingYaml": {
+        "type": "object",
+        "description": "Scope to role mapping",
+        "required": [
+          "scope",
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "The role to assign when matched"
+          },
+          "scope": {
+            "type": "string",
+            "description": "The scope to match"
+          }
+        }
+      },
       "Secret": {
         "type": "object",
         "required": [
@@ -7202,9 +7628,53 @@
               }
             ],
             "description": "JWT template configuration for external IdPs"
+          },
+          {
+            "type": "object",
+            "description": "Dev mode configuration (allows any authentication in dev)",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "dev"
+                ]
+              }
+            }
           }
         ],
         "description": "STS configuration stored in soma.yaml"
+      },
+      "StsConfiguration": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
       },
       "Task": {
         "type": "object",

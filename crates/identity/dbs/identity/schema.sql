@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS user (
     description TEXT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT type_check CHECK (type IN ('service_principal', 'federated_user'))
+    CONSTRAINT type_check CHECK (type IN ('machine', 'human'))
 );
 
 CREATE TABLE IF NOT EXISTS `group` (
@@ -47,4 +47,13 @@ CREATE TABLE IF NOT EXISTS jwt_signing_key (
     invalidated BOOLEAN NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sts_configuration (
+    id TEXT NOT NULL PRIMARY KEY,
+    type TEXT NOT NULL,
+    value TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT type_check CHECK (type IN ('jwt_template', 'dev'))
 );

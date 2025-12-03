@@ -151,14 +151,10 @@ async fn route_exchange_sts_token(
         sts_token_config_id: sts_config_id,
     };
 
-    let auth_config = service.auth_middleware_config.load();
-
     let result = exchange_sts_token(
         service.repository.as_ref(),
         &service.crypto_cache,
-        &service.jwks_cache,
         &service.external_jwks_cache,
-        &auth_config.sts_token_config,
         params,
     )
     .await;

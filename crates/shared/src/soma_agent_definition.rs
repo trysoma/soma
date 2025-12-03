@@ -69,6 +69,8 @@ pub struct ApiKeyYamlConfig {
 pub enum StsConfigYaml {
     /// JWT template configuration for external IdPs
     JwtTemplate(JwtTemplateConfigYaml),
+    /// Dev mode configuration (allows any authentication in dev)
+    Dev {},
 }
 
 /// JWT template configuration for validating external JWTs
@@ -86,6 +88,12 @@ pub struct JwtTemplateConfigYaml {
     /// Group to role mappings
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group_to_role_mappings: Option<Vec<GroupToRoleMappingYaml>>,
+    /// Scope to role mappings
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_to_role_mappings: Option<Vec<ScopeToRoleMappingYaml>>,
+    /// Scope to group mappings (maps scopes to internal groups)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_to_group_mappings: Option<Vec<ScopeToGroupMappingYaml>>,
 }
 
 /// Where to find the token in the request
@@ -160,6 +168,26 @@ pub struct GroupToRoleMappingYaml {
     pub group: String,
     /// The role to assign when matched
     pub role: String,
+}
+
+/// Scope to role mapping
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ScopeToRoleMappingYaml {
+    /// The scope to match
+    pub scope: String,
+    /// The role to assign when matched
+    pub role: String,
+}
+
+/// Scope to group mapping (maps external scopes to internal groups)
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ScopeToGroupMappingYaml {
+    /// The scope to match
+    pub scope: String,
+    /// The internal group to assign when matched
+    pub group: String,
 }
 
 /// Top-level encryption configuration

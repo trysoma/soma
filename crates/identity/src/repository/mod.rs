@@ -144,6 +144,32 @@ pub struct UpdateJwtSigningKey {
     pub dek_alias: Option<String>,
 }
 
+// STS configuration types
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct StsConfiguration {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub config_type: String,
+    pub value: Option<String>,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+#[derive(Debug)]
+pub struct CreateStsConfiguration {
+    pub id: String,
+    pub config_type: String,
+    pub value: Option<String>,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+#[derive(Debug, Default)]
+pub struct UpdateStsConfiguration {
+    pub config_type: Option<String>,
+    pub value: Option<String>,
+}
+
 // Repository trait for users and API keys
 #[allow(async_fn_in_trait)]
 pub trait UserRepositoryLike {
@@ -247,4 +273,29 @@ pub trait UserRepositoryLike {
         &self,
         pagination: &PaginationRequest,
     ) -> Result<PaginatedResponse<JwtSigningKey>, CommonError>;
+
+    // STS configuration methods
+    async fn create_sts_configuration(
+        &self,
+        params: &CreateStsConfiguration,
+    ) -> Result<(), CommonError>;
+
+    async fn get_sts_configuration_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<StsConfiguration>, CommonError>;
+
+    async fn update_sts_configuration(
+        &self,
+        id: &str,
+        params: &UpdateStsConfiguration,
+    ) -> Result<(), CommonError>;
+
+    async fn delete_sts_configuration(&self, id: &str) -> Result<(), CommonError>;
+
+    async fn list_sts_configurations(
+        &self,
+        pagination: &PaginationRequest,
+        config_type: Option<&str>,
+    ) -> Result<PaginatedResponse<StsConfiguration>, CommonError>;
 }

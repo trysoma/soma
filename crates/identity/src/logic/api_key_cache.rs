@@ -166,7 +166,7 @@ mod tests {
             .repository
             .create_user(&CreateUser {
                 id: user_id.clone(),
-                user_type: "service_principal".to_string(),
+                user_type: "machine".to_string(),
                 email: None,
                 role: role.to_string(),
                 description: None,

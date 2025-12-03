@@ -113,18 +113,11 @@ pub async fn create_api_service(
     );
     encryption::logic::crypto_services::init_crypto_cache(&crypto_cache).await?;
 
-    // Check and create JWKs on startup
-    info!("Checking JWKs on startup...");
-    // Use a default DEK alias - you may want to make this configurable
-    let default_dek_alias = "default-jwk-dek";
+    // Create JWKS cache (JWKs will be created when default DEK alias is available)
     let jwks_cache = identity::logic::jwks_cache::JwksCache::new(identity_repo.clone());
-    identity::logic::jwk::check_jwks_exists_on_start(
-        &identity_repo,
-        &crypto_cache,
-        &jwks_cache,
-        default_dek_alias,
-    )
-    .await?;
+
+    // Create JWK rotation state to track initialization
+    let jwk_rotation_state = crate::logic::identity::JwkRotationState::new();
 
     // Start the unified change pubsub forwarder
     info!("Starting unified change pubsub...");
@@ -402,14 +395,16 @@ pub async fn create_api_service(
             system_shutdown_signal.subscribe(),
         )?;
 
-    // Start JWK rotation subsystem
-    info!("Starting JWK rotation subsystem...");
-    let jwk_rotation_handle = start_jwk_rotation_subsystem(
+    // Start JWK init listener (will start JWK rotation when default DEK is available)
+    info!("Starting JWK init listener...");
+    let encryption_change_rx_for_jwk = encryption_change_tx.subscribe();
+    let jwk_init_handle = crate::logic::identity::start_jwk_init_on_dek_listener(
         identity_repo.clone(),
         crypto_cache.clone(),
         jwks_cache.clone(),
-        default_dek_alias.to_string(),
-        system_shutdown_signal.subscribe(),
+        jwk_rotation_state.clone(),
+        encryption_change_rx_for_jwk,
+        system_shutdown_signal.clone(),
     )?;
 
     // Note: Initial sync of secrets and environment variables now happens AFTER SDK server
@@ -425,7 +420,7 @@ pub async fn create_api_service(
             bridge_client_generation: Some(bridge_client_gen_handle),
             secret_sync: Some(secret_sync_handle),
             environment_variable_sync: Some(env_var_sync_handle),
-            jwk_rotation: Some(jwk_rotation_handle),
+            jwk_init_listener: Some(jwk_init_handle),
         },
         soma_change_tx,
     })
@@ -567,26 +562,3 @@ fn start_credential_rotation_subsystem(
     Ok(handle)
 }
 
-fn start_jwk_rotation_subsystem(
-    identity_repo: identity::repository::Repository,
-    crypto_cache: CryptoCache,
-    jwks_cache: identity::logic::jwks_cache::JwksCache,
-    default_dek_alias: String,
-    shutdown_rx: broadcast::Receiver<()>,
-) -> Result<SubsystemHandle, CommonError> {
-    let (handle, signal) = SubsystemHandle::new("JWK Rotation");
-
-    tokio::spawn(async move {
-        identity::logic::jwk::jwk_rotation_task(
-            identity_repo,
-            crypto_cache,
-            jwks_cache,
-            default_dek_alias,
-            shutdown_rx,
-        )
-        .await;
-        signal.signal_with_message("stopped gracefully");
-    });
-
-    Ok(handle)
-}

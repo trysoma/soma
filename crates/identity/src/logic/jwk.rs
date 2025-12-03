@@ -16,6 +16,9 @@ use crate::repository::{CreateJwtSigningKey, UserRepositoryLike};
 
 use utoipa::ToSchema;
 
+/// Default DEK alias used for JWK encryption
+pub const DEFAULT_JWK_DEK_ALIAS: &str = "default";
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateJwkRequest {

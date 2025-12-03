@@ -1,0 +1,39 @@
+encryption:
+  envelope_keys:
+    local.bin:
+      type: local
+      file_name: local.bin
+      deks:
+        default:
+          encrypted_key: o9MGWpsinfqE4KuWlhor/ZB/srsZAmoXdBdcE6np9Af3YOdSLdMfPo6HTW6QS3zcMxG+mGT7vqpu7zA1
+identity:
+  api_keys:
+    f8d56811-1832-4c51-a891-cec563e4cd45:
+      encrypted_hashed_value: H4IQHPEraeCgSpiavCtFdyNoQmZ+07F8OdjwDDyg02HmjzxL7pfN4+opnU7jnbwxY7l3RPyB7PKOhVah2pyWZHcmMHrj5ao=
+      dek_alias: default
+      role: admin
+      user_id: api-key:f8d56811-1832-4c
+  sts_configurations:
+    dex:
+      type: jwt_template
+      jwks_uri: http://localhost
+      token_location:
+        type: header
+        name: authorization
+      validation:
+        issuer: soma
+        valid_audiences:
+        - soma
+        required_scopes:
+        - read:user
+      mapping:
+        issuer_field: iss
+        audience_field: aud
+        sub_field: sub
+        scopes_field: scope
+      scope_to_role_mappings:
+      - scope: read:user
+        role: admin
+      scope_to_group_mappings:
+      - scope: read:user
+        group: user

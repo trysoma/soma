@@ -35,6 +35,16 @@ pub struct JwtGroupToRoleMapping {
     pub role: Role,
 }
 
+pub struct JwtScopeToRoleMapping {
+    pub scope: String,
+    pub role: Role,
+}
+
+pub struct JwtScopeToGroupMapping {
+    pub scope: String,
+    pub group: String,
+}
+
 pub enum TokenLocation {
     Header(String),
     Cookie(String),
@@ -47,7 +57,9 @@ pub struct JwtTokenTemplateConfig {
     pub token_location: TokenLocation,
     pub validation_template: JwtTokenTemplateValidationConfig,
     pub mapping_template: JwtTokenMappingConfig,
-    pub mapping_to_roles: Vec<JwtGroupToRoleMapping>,
+    pub group_to_role_mappings: Vec<JwtGroupToRoleMapping>,
+    pub scope_to_role_mappings: Vec<JwtScopeToRoleMapping>,
+    pub scope_to_group_mappings: Vec<JwtScopeToGroupMapping>,
 }
 
 pub type EncryptedHashedValue = String;

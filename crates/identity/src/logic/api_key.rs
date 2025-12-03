@@ -144,8 +144,8 @@ pub async fn create_api_key<R: UserRepositoryLike>(
     // Generate unique ID for the API key
     let api_key_id = Uuid::new_v4().to_string();
 
-    // Create user ID for this API key
-    let user_id = format!("api-key:{}", &api_key_id[..16]);
+    // Create user ID for this API key (machine_$generated_id format)
+    let user_id = format!("machine_{}", Uuid::new_v4());
     let now = WrappedChronoDateTime::now();
 
     // Check if user already exists (shouldn't happen with unique UUID)
@@ -155,11 +155,11 @@ pub async fn create_api_key<R: UserRepositoryLike>(
         )));
     }
 
-    // Create the user for this API key (service_principal type)
+    // Create the user for this API key (machine type)
     // The user description is the same as the API key description
     let create_user = CreateUser {
         id: user_id.clone(),
-        user_type: "service_principal".to_string(),
+        user_type: "machine".to_string(),
         email: None,
         role: role.as_str().to_string(),
         description: params.description.clone(),
@@ -245,8 +245,8 @@ pub async fn delete_api_key<R: UserRepositoryLike>(
     repository.delete_api_key(&params.id).await?;
 
     // Delete the associated user if it was created for this API key
-    // service_principal users are created specifically for API keys
-    if api_key_with_user.user.user_type == "service_principal" {
+    // machine users are created specifically for API keys
+    if api_key_with_user.user.user_type == "machine" {
         repository.delete_user(&api_key_with_user.user.id).await?;
     }
 
@@ -336,10 +336,10 @@ pub async fn import_api_key<R: UserRepositoryLike>(
 
     // Check if user already exists
     if repository.get_user_by_id(&params.user_id).await?.is_none() {
-        // Create the user for this API key (service_principal type)
+        // Create the user for this API key (machine type)
         let create_user = CreateUser {
             id: params.user_id.clone(),
-            user_type: "service_principal".to_string(),
+            user_type: "machine".to_string(),
             email: None,
             role: role.as_str().to_string(),
             description: params.description.clone(),
@@ -540,7 +540,8 @@ mod tests {
         let api_key_with_user = ctx.identity_repo.get_api_key_by_id(&response.id).await.unwrap();
         assert!(api_key_with_user.is_some());
         let api_key_with_user = api_key_with_user.unwrap();
-        assert_eq!(api_key_with_user.user.user_type, "service_principal");
+        assert_eq!(api_key_with_user.user.user_type, "machine");
+        assert!(api_key_with_user.user.id.starts_with("machine_"));
         assert_eq!(api_key_with_user.user.role, "agent");
     }
 

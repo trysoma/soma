@@ -860,6 +860,74 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/api/identity/v1/sts-configuration": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List STS configurations
+		 * @description List all STS configurations with optional filtering by type
+		 */
+		get: operations["route_list_sts_configs"];
+		put?: never;
+		/**
+		 * Create STS configuration
+		 * @description Create a new STS configuration (e.g., JWT template or dev settings)
+		 */
+		post: operations["route_create_sts_config"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/sts-configuration/import": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Import STS configuration
+		 * @description Import an STS configuration (idempotent, used for syncing from soma.yaml)
+		 */
+		post: operations["route_import_sts_config"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/sts-configuration/{id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get STS configuration
+		 * @description Get an STS configuration by ID
+		 */
+		get: operations["route_get_sts_config"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete STS configuration
+		 * @description Delete an STS configuration by ID
+		 */
+		delete: operations["route_delete_sts_config"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/api/identity/v1/sts/refresh": {
 		parameters: {
 			query?: never;
@@ -1245,6 +1313,24 @@ export interface components {
 			key: string;
 			raw_value: string;
 		};
+		/** @description Parameters for creating an STS configuration */
+		CreateStsConfigParams: {
+			/** @description Optional ID (will be generated if not provided) */
+			id?: string | null;
+			/** @description The configuration type */
+			type: string;
+			/** @description The configuration value (JSON) */
+			value?: string | null;
+		};
+		/** @description Response from creating an STS configuration */
+		CreateStsConfigResponse: {
+			/** @description The STS configuration ID */
+			id: string;
+			/** @description The configuration type */
+			type: string;
+			/** @description The configuration value (JSON) */
+			value?: string | null;
+		};
 		CreateUserCredentialParamsInner: {
 			dek_alias: string;
 			metadata?: null | components["schemas"]["Metadata"];
@@ -1302,6 +1388,11 @@ export interface components {
 			success: boolean;
 		};
 		DeleteSecretResponse: {
+			success: boolean;
+		};
+		/** @description Response from deleting an STS configuration */
+		DeleteStsConfigResponse: {
+			/** @description Whether the deletion was successful */
 			success: boolean;
 		};
 		EnableFunctionParamsInner: Record<string, never>;
@@ -1529,6 +1620,14 @@ export interface components {
 			jwks_uri: string;
 			/** @description Field mapping from JWT claims to internal fields */
 			mapping: components["schemas"]["JwtMappingConfigYaml"];
+			/** @description Scope to group mappings (maps scopes to internal groups) */
+			scope_to_group_mappings?:
+				| components["schemas"]["ScopeToGroupMappingYaml"][]
+				| null;
+			/** @description Scope to role mappings */
+			scope_to_role_mappings?:
+				| components["schemas"]["ScopeToRoleMappingYaml"][]
+				| null;
 			/** @description Where to find the token in the request */
 			token_location: components["schemas"]["TokenLocationYaml"];
 			/** @description Validation rules */
@@ -1561,6 +1660,11 @@ export interface components {
 		ListSecretsResponse: {
 			next_page_token?: string | null;
 			secrets: components["schemas"]["Secret"][];
+		};
+		/** @description Response from listing STS configurations */
+		ListStsConfigResponse: {
+			items: components["schemas"]["StsConfiguration"][];
+			next_page_token?: string | null;
 		};
 		Message: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
@@ -1679,6 +1783,20 @@ export interface components {
 			url: string;
 		};
 		RuntimeConfigResponse: Record<string, never>;
+		/** @description Scope to group mapping (maps external scopes to internal groups) */
+		ScopeToGroupMappingYaml: {
+			/** @description The internal group to assign when matched */
+			group: string;
+			/** @description The scope to match */
+			scope: string;
+		};
+		/** @description Scope to role mapping */
+		ScopeToRoleMappingYaml: {
+			/** @description The role to assign when matched */
+			role: string;
+			/** @description The scope to match */
+			scope: string;
+		};
 		Secret: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			dek_alias: string;
@@ -1709,9 +1827,21 @@ export interface components {
 			provider_instance_id: string;
 		};
 		/** @description STS configuration stored in soma.yaml */
-		StsConfigYaml: components["schemas"]["JwtTemplateConfigYaml"] & {
-			/** @enum {string} */
-			type: "jwt_template";
+		StsConfigYaml:
+			| (components["schemas"]["JwtTemplateConfigYaml"] & {
+					/** @enum {string} */
+					type: "jwt_template";
+			  })
+			| {
+					/** @enum {string} */
+					type: "dev";
+			  };
+		StsConfiguration: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			id: string;
+			type: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+			value?: string | null;
 		};
 		Task: {
 			context_id: components["schemas"]["WrappedUuidV4"];
@@ -4466,6 +4596,211 @@ export interface operations {
 				content?: never;
 			};
 			/** @description JWK not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_list_sts_configs: {
+		parameters: {
+			query?: {
+				/** @example 10 */
+				page_size?: number | null;
+				/** @example  */
+				next_page_token?: string | null;
+				/**
+				 * @description Filter by configuration type (jwt_template, dev)
+				 * @example jwt_template
+				 */
+				type?: string | null;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of STS configurations */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ListStsConfigResponse"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_create_sts_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateStsConfigParams"];
+			};
+		};
+		responses: {
+			/** @description STS configuration created successfully */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateStsConfigResponse"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_import_sts_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateStsConfigParams"];
+			};
+		};
+		responses: {
+			/** @description STS configuration imported successfully */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateStsConfigResponse"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_get_sts_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description ID of the STS configuration to retrieve */
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description STS configuration found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["StsConfiguration"];
+				};
+			};
+			/** @description STS configuration not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_delete_sts_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description ID of the STS configuration to delete */
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description STS configuration deleted successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DeleteStsConfigResponse"];
+				};
+			};
+			/** @description STS configuration not found */
 			404: {
 				headers: {
 					[name: string]: unknown;

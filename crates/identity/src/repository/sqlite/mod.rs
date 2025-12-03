@@ -11,8 +11,9 @@ pub use generated::*;
 
 use crate::repository::{
     ApiKey, ApiKeyWithUser, CreateApiKey, CreateGroup, CreateGroupMembership, CreateJwtSigningKey,
-    CreateUser, Group, GroupMemberWithUser, GroupMembership, JwtSigningKey, UpdateUser, User,
-    UserGroupWithGroup, UserRepositoryLike,
+    CreateStsConfiguration, CreateUser, Group, GroupMemberWithUser, GroupMembership, JwtSigningKey,
+    StsConfiguration, UpdateStsConfiguration, UpdateUser, User, UserGroupWithGroup,
+    UserRepositoryLike,
 };
 use anyhow::Context;
 use shared::error::CommonError;
@@ -735,6 +736,298 @@ impl UserRepositoryLike for Repository {
             |item| vec![item.created_at.get_inner().to_rfc3339()],
         ))
     }
+
+    // STS configuration methods
+    async fn create_sts_configuration(
+        &self,
+        params: &CreateStsConfiguration,
+    ) -> Result<(), CommonError> {
+        let query = r#"
+            INSERT INTO sts_configuration (id, type, value, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+        "#;
+
+        self.conn
+            .execute(
+                query,
+                vec![
+                    params.id.clone().into(),
+                    params.config_type.clone().into(),
+                    params.value.clone().map(|v| v.into()).unwrap_or(libsql::Value::Null),
+                    params.created_at.to_string().into(),
+                    params.updated_at.to_string().into(),
+                ],
+            )
+            .await
+            .context("Failed to create STS configuration")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        Ok(())
+    }
+
+    async fn get_sts_configuration_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<StsConfiguration>, CommonError> {
+        let query = r#"
+            SELECT id, type, value, created_at, updated_at
+            FROM sts_configuration
+            WHERE id = ?
+        "#;
+
+        let mut rows = self
+            .conn
+            .query(query, vec![libsql::Value::from(id.to_string())])
+            .await
+            .context("Failed to get STS configuration")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        if let Some(row) = rows.next().await.map_err(|e| CommonError::Repository {
+            msg: e.to_string(),
+            source: Some(e.into()),
+        })? {
+            Ok(Some(StsConfiguration {
+                id: row.get::<String>(0).map_err(|e| CommonError::Repository {
+                    msg: e.to_string(),
+                    source: Some(e.into()),
+                })?,
+                config_type: row.get::<String>(1).map_err(|e| CommonError::Repository {
+                    msg: e.to_string(),
+                    source: Some(e.into()),
+                })?,
+                value: row.get::<Option<String>>(2).map_err(|e| CommonError::Repository {
+                    msg: e.to_string(),
+                    source: Some(e.into()),
+                })?,
+                created_at: WrappedChronoDateTime::try_from(
+                    row.get::<String>(3)
+                        .map_err(|e| CommonError::Repository {
+                            msg: e.to_string(),
+                            source: Some(e.into()),
+                        })?
+                        .as_str(),
+                )
+                .map_err(|e| CommonError::Repository {
+                    msg: e.to_string(),
+                    source: Some(e.into()),
+                })?,
+                updated_at: WrappedChronoDateTime::try_from(
+                    row.get::<String>(4)
+                        .map_err(|e| CommonError::Repository {
+                            msg: e.to_string(),
+                            source: Some(e.into()),
+                        })?
+                        .as_str(),
+                )
+                .map_err(|e| CommonError::Repository {
+                    msg: e.to_string(),
+                    source: Some(e.into()),
+                })?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn update_sts_configuration(
+        &self,
+        id: &str,
+        params: &UpdateStsConfiguration,
+    ) -> Result<(), CommonError> {
+        let mut updates = vec![];
+        let mut values: Vec<libsql::Value> = vec![];
+
+        if let Some(ref config_type) = params.config_type {
+            updates.push("type = ?");
+            values.push(config_type.clone().into());
+        }
+
+        if let Some(ref value) = params.value {
+            updates.push("value = ?");
+            values.push(value.clone().into());
+        }
+
+        if updates.is_empty() {
+            return Ok(());
+        }
+
+        updates.push("updated_at = ?");
+        values.push(WrappedChronoDateTime::now().to_string().into());
+        values.push(id.into());
+
+        let query = format!(
+            "UPDATE sts_configuration SET {} WHERE id = ?",
+            updates.join(", ")
+        );
+
+        self.conn
+            .execute(&query, values)
+            .await
+            .context("Failed to update STS configuration")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        Ok(())
+    }
+
+    async fn delete_sts_configuration(&self, id: &str) -> Result<(), CommonError> {
+        let query = "DELETE FROM sts_configuration WHERE id = ?";
+
+        self.conn
+            .execute(query, vec![libsql::Value::from(id.to_string())])
+            .await
+            .context("Failed to delete STS configuration")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        Ok(())
+    }
+
+    async fn list_sts_configurations(
+        &self,
+        pagination: &PaginationRequest,
+        config_type: Option<&str>,
+    ) -> Result<PaginatedResponse<StsConfiguration>, CommonError> {
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(
+                    |e| CommonError::Repository {
+                        msg: format!("Invalid datetime in pagination token: {e}"),
+                        source: Some(e.into()),
+                    },
+                )?)
+            }
+        } else {
+            None
+        };
+
+        let (query, values): (String, Vec<libsql::Value>) = match (config_type, &cursor_datetime) {
+            (Some(ct), Some(cursor)) => (
+                r#"
+                    SELECT id, type, value, created_at, updated_at
+                    FROM sts_configuration
+                    WHERE type = ? AND created_at < ?
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                "#.to_string(),
+                vec![
+                    ct.into(),
+                    cursor.to_string().into(),
+                    (pagination.page_size + 1).into(),
+                ],
+            ),
+            (Some(ct), None) => (
+                r#"
+                    SELECT id, type, value, created_at, updated_at
+                    FROM sts_configuration
+                    WHERE type = ?
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                "#.to_string(),
+                vec![ct.into(), (pagination.page_size + 1).into()],
+            ),
+            (None, Some(cursor)) => (
+                r#"
+                    SELECT id, type, value, created_at, updated_at
+                    FROM sts_configuration
+                    WHERE created_at < ?
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                "#.to_string(),
+                vec![
+                    cursor.to_string().into(),
+                    (pagination.page_size + 1).into(),
+                ],
+            ),
+            (None, None) => (
+                r#"
+                    SELECT id, type, value, created_at, updated_at
+                    FROM sts_configuration
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                "#.to_string(),
+                vec![(pagination.page_size + 1).into()],
+            ),
+        };
+
+        let mut rows = self
+            .conn
+            .query(&query, values)
+            .await
+            .context("Failed to list STS configurations")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let mut items = vec![];
+        while let Some(row) = rows.next().await.map_err(|e| CommonError::Repository {
+            msg: e.to_string(),
+            source: Some(e.into()),
+        })? {
+            items.push(StsConfiguration {
+                id: row.get::<String>(0).map_err(|e| CommonError::Repository {
+                    msg: e.to_string(),
+                    source: Some(e.into()),
+                })?,
+                config_type: row.get::<String>(1).map_err(|e| CommonError::Repository {
+                    msg: e.to_string(),
+                    source: Some(e.into()),
+                })?,
+                value: row.get::<Option<String>>(2).map_err(|e| CommonError::Repository {
+                    msg: e.to_string(),
+                    source: Some(e.into()),
+                })?,
+                created_at: WrappedChronoDateTime::try_from(
+                    row.get::<String>(3)
+                        .map_err(|e| CommonError::Repository {
+                            msg: e.to_string(),
+                            source: Some(e.into()),
+                        })?
+                        .as_str(),
+                )
+                .map_err(|e| CommonError::Repository {
+                    msg: e.to_string(),
+                    source: Some(e.into()),
+                })?,
+                updated_at: WrappedChronoDateTime::try_from(
+                    row.get::<String>(4)
+                        .map_err(|e| CommonError::Repository {
+                            msg: e.to_string(),
+                            source: Some(e.into()),
+                        })?
+                        .as_str(),
+                )
+                .map_err(|e| CommonError::Repository {
+                    msg: e.to_string(),
+                    source: Some(e.into()),
+                })?,
+            });
+        }
+
+        Ok(PaginatedResponse::from_items_with_extra(
+            items,
+            pagination,
+            |item| vec![item.created_at.get_inner().to_rfc3339()],
+        ))
+    }
 }
 
 #[cfg(test)]
@@ -831,7 +1124,7 @@ mod tests {
 
         let user = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("test@example.com"),
             "admin",
         );
@@ -841,7 +1134,7 @@ mod tests {
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
         assert_eq!(fetched.id, "user-1");
-        assert_eq!(fetched.user_type, "service_principal");
+        assert_eq!(fetched.user_type, "machine");
         assert_eq!(fetched.email, Some("test@example.com".to_string()));
         assert_eq!(fetched.role, "admin");
     }
@@ -860,7 +1153,7 @@ mod tests {
 
         let user = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("old@example.com"),
             "user",
         );
@@ -884,7 +1177,7 @@ mod tests {
 
         let user = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("old@example.com"),
             "user",
         );
@@ -909,7 +1202,7 @@ mod tests {
 
         let user = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("test@example.com"),
             "admin",
         );
@@ -930,9 +1223,9 @@ mod tests {
             let user = create_test_user(
                 &format!("user-{i}"),
                 if i % 2 == 0 {
-                    "federated_user"
+                    "human"
                 } else {
-                    "service_principal"
+                    "machine"
                 },
                 Some(&format!("user{i}@example.com")),
                 if i % 2 == 0 { "admin" } else { "user" },
@@ -950,7 +1243,7 @@ mod tests {
 
         // Filter by user_type
         let result = repo
-            .list_users(&pagination, Some("service_principal"), None)
+            .list_users(&pagination, Some("machine"), None)
             .await
             .unwrap();
         assert_eq!(result.items.len(), 3);
@@ -971,7 +1264,7 @@ mod tests {
         for i in 1..=5 {
             let user = create_test_user(
                 &format!("user-{i}"),
-                "service_principal",
+                "machine",
                 Some(&format!("user{i}@example.com")),
                 "user",
             );
@@ -1019,7 +1312,7 @@ mod tests {
         // Create user first
         let user = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("test@example.com"),
             "admin",
         );
@@ -1059,7 +1352,7 @@ mod tests {
 
         let user = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("test@example.com"),
             "admin",
         );
@@ -1084,13 +1377,13 @@ mod tests {
         // Create users
         let user1 = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("user1@example.com"),
             "admin",
         );
         let user2 = create_test_user(
             "user-2",
-            "federated_user",
+            "human",
             Some("user2@example.com"),
             "user",
         );
@@ -1144,13 +1437,13 @@ mod tests {
         // Create users
         let user1 = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("user1@example.com"),
             "admin",
         );
         let user2 = create_test_user(
             "user-2",
-            "federated_user",
+            "human",
             Some("user2@example.com"),
             "user",
         );
@@ -1204,7 +1497,7 @@ mod tests {
         // Create user
         let user = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("test@example.com"),
             "admin",
         );
@@ -1355,7 +1648,7 @@ mod tests {
         // Create user and group first
         let user = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("test@example.com"),
             "admin",
         );
@@ -1396,7 +1689,7 @@ mod tests {
         // Create user, group, and membership
         let user = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("test@example.com"),
             "admin",
         );
@@ -1432,7 +1725,7 @@ mod tests {
         for i in 1..=5 {
             let user = create_test_user(
                 &format!("user-{i}"),
-                "service_principal",
+                "machine",
                 Some(&format!("user{i}@example.com")),
                 "user",
             );
@@ -1468,7 +1761,7 @@ mod tests {
         for i in 1..=5 {
             let user = create_test_user(
                 &format!("user-{i}"),
-                "service_principal",
+                "machine",
                 Some(&format!("user{i}@example.com")),
                 "user",
             );
@@ -1511,7 +1804,7 @@ mod tests {
         // Create user
         let user = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("test@example.com"),
             "admin",
         );
@@ -1544,7 +1837,7 @@ mod tests {
         // Create user
         let user = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("test@example.com"),
             "admin",
         );
@@ -1593,7 +1886,7 @@ mod tests {
         for i in 1..=3 {
             let user = create_test_user(
                 &format!("user-{i}"),
-                "service_principal",
+                "machine",
                 Some(&format!("user{i}@example.com")),
                 "user",
             );
@@ -1643,13 +1936,13 @@ mod tests {
         // Create users
         let user1 = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("user1@example.com"),
             "user",
         );
         let user2 = create_test_user(
             "user-2",
-            "federated_user",
+            "human",
             Some("user2@example.com"),
             "user",
         );
@@ -1698,7 +1991,7 @@ mod tests {
         for i in 1..=3 {
             let user = create_test_user(
                 &format!("user-{i}"),
-                "service_principal",
+                "machine",
                 Some(&format!("user{i}@example.com")),
                 "user",
             );
@@ -1739,7 +2032,7 @@ mod tests {
         // Create user and add to all groups
         let user = create_test_user(
             "user-1",
-            "service_principal",
+            "machine",
             Some("test@example.com"),
             "admin",
         );
@@ -1899,6 +2192,341 @@ mod tests {
         };
         let result = repo.list_jwt_signing_keys(&pagination).await.unwrap();
         assert_eq!(result.items.len(), 1);
+        assert!(result.next_page_token.is_none());
+    }
+
+    // ============================================
+    // STS configuration tests
+    // ============================================
+
+    fn create_test_sts_configuration(
+        id: &str,
+        config_type: &str,
+        value: Option<&str>,
+    ) -> CreateStsConfiguration {
+        let now = WrappedChronoDateTime::now();
+        CreateStsConfiguration {
+            id: id.to_string(),
+            config_type: config_type.to_string(),
+            value: value.map(|s| s.to_string()),
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_and_get_sts_configuration() {
+        let repo = setup_test_db().await;
+
+        let config = create_test_sts_configuration(
+            "config-1",
+            "jwt_template",
+            Some(r#"{"issuer":"test"}"#),
+        );
+        repo.create_sts_configuration(&config).await.unwrap();
+
+        let fetched = repo
+            .get_sts_configuration_by_id("config-1")
+            .await
+            .unwrap();
+        assert!(fetched.is_some());
+        let fetched = fetched.unwrap();
+        assert_eq!(fetched.id, "config-1");
+        assert_eq!(fetched.config_type, "jwt_template");
+        assert_eq!(fetched.value, Some(r#"{"issuer":"test"}"#.to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_create_sts_configuration_with_null_value() {
+        let repo = setup_test_db().await;
+
+        let config = create_test_sts_configuration("config-1", "dev", None);
+        repo.create_sts_configuration(&config).await.unwrap();
+
+        let fetched = repo
+            .get_sts_configuration_by_id("config-1")
+            .await
+            .unwrap();
+        assert!(fetched.is_some());
+        let fetched = fetched.unwrap();
+        assert_eq!(fetched.id, "config-1");
+        assert_eq!(fetched.config_type, "dev");
+        assert!(fetched.value.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_sts_configuration_not_found() {
+        let repo = setup_test_db().await;
+
+        let fetched = repo
+            .get_sts_configuration_by_id("nonexistent")
+            .await
+            .unwrap();
+        assert!(fetched.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_update_sts_configuration() {
+        let repo = setup_test_db().await;
+
+        let config = create_test_sts_configuration(
+            "config-1",
+            "jwt_template",
+            Some(r#"{"issuer":"original"}"#),
+        );
+        repo.create_sts_configuration(&config).await.unwrap();
+
+        // Update the value
+        let update = UpdateStsConfiguration {
+            config_type: None,
+            value: Some(r#"{"issuer":"updated"}"#.to_string()),
+        };
+        repo.update_sts_configuration("config-1", &update)
+            .await
+            .unwrap();
+
+        let fetched = repo
+            .get_sts_configuration_by_id("config-1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(fetched.value, Some(r#"{"issuer":"updated"}"#.to_string()));
+        assert_eq!(fetched.config_type, "jwt_template"); // Unchanged
+    }
+
+    #[tokio::test]
+    async fn test_update_sts_configuration_type() {
+        let repo = setup_test_db().await;
+
+        let config = create_test_sts_configuration("config-1", "jwt_template", None);
+        repo.create_sts_configuration(&config).await.unwrap();
+
+        // Update the type
+        let update = UpdateStsConfiguration {
+            config_type: Some("dev".to_string()),
+            value: None,
+        };
+        repo.update_sts_configuration("config-1", &update)
+            .await
+            .unwrap();
+
+        let fetched = repo
+            .get_sts_configuration_by_id("config-1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(fetched.config_type, "dev");
+    }
+
+    #[tokio::test]
+    async fn test_update_sts_configuration_empty_update() {
+        let repo = setup_test_db().await;
+
+        let config = create_test_sts_configuration(
+            "config-1",
+            "jwt_template",
+            Some(r#"{"issuer":"test"}"#),
+        );
+        repo.create_sts_configuration(&config).await.unwrap();
+
+        // Empty update should succeed without changing anything
+        let update = UpdateStsConfiguration {
+            config_type: None,
+            value: None,
+        };
+        repo.update_sts_configuration("config-1", &update)
+            .await
+            .unwrap();
+
+        let fetched = repo
+            .get_sts_configuration_by_id("config-1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(fetched.config_type, "jwt_template");
+        assert_eq!(fetched.value, Some(r#"{"issuer":"test"}"#.to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_delete_sts_configuration() {
+        let repo = setup_test_db().await;
+
+        let config = create_test_sts_configuration(
+            "config-1",
+            "jwt_template",
+            Some(r#"{"issuer":"test"}"#),
+        );
+        repo.create_sts_configuration(&config).await.unwrap();
+
+        // Verify it exists
+        let fetched = repo
+            .get_sts_configuration_by_id("config-1")
+            .await
+            .unwrap();
+        assert!(fetched.is_some());
+
+        // Delete it
+        repo.delete_sts_configuration("config-1").await.unwrap();
+
+        // Verify it's gone
+        let fetched = repo
+            .get_sts_configuration_by_id("config-1")
+            .await
+            .unwrap();
+        assert!(fetched.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_list_sts_configurations() {
+        let repo = setup_test_db().await;
+
+        // Create multiple configurations
+        for i in 1..=5 {
+            let config = create_test_sts_configuration(
+                &format!("config-{i}"),
+                if i % 2 == 0 { "dev" } else { "jwt_template" },
+                Some(&format!(r#"{{"issuer":"test-{i}"}}"#)),
+            );
+            repo.create_sts_configuration(&config).await.unwrap();
+        }
+
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let result = repo
+            .list_sts_configurations(&pagination, None)
+            .await
+            .unwrap();
+        assert_eq!(result.items.len(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_list_sts_configurations_filter_by_type() {
+        let repo = setup_test_db().await;
+
+        // Create mixed configurations
+        for i in 1..=6 {
+            let config = create_test_sts_configuration(
+                &format!("config-{i}"),
+                if i % 2 == 0 { "dev" } else { "jwt_template" },
+                Some(&format!(r#"{{"issuer":"test-{i}"}}"#)),
+            );
+            repo.create_sts_configuration(&config).await.unwrap();
+        }
+
+        // Filter by jwt_template
+        let pagination = PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+        let result = repo
+            .list_sts_configurations(&pagination, Some("jwt_template"))
+            .await
+            .unwrap();
+        assert_eq!(result.items.len(), 3);
+        assert!(result.items.iter().all(|c| c.config_type == "jwt_template"));
+
+        // Filter by dev
+        let result = repo
+            .list_sts_configurations(&pagination, Some("dev"))
+            .await
+            .unwrap();
+        assert_eq!(result.items.len(), 3);
+        assert!(result.items.iter().all(|c| c.config_type == "dev"));
+    }
+
+    #[tokio::test]
+    async fn test_list_sts_configurations_pagination() {
+        let repo = setup_test_db().await;
+
+        // Create 5 configurations with delays
+        for i in 1..=5 {
+            let config = create_test_sts_configuration(
+                &format!("config-{i}"),
+                "jwt_template",
+                Some(&format!(r#"{{"issuer":"test-{i}"}}"#)),
+            );
+            repo.create_sts_configuration(&config).await.unwrap();
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        }
+
+        // Get first page
+        let pagination = PaginationRequest {
+            page_size: 2,
+            next_page_token: None,
+        };
+        let result = repo
+            .list_sts_configurations(&pagination, None)
+            .await
+            .unwrap();
+        assert_eq!(result.items.len(), 2);
+        assert!(result.next_page_token.is_some());
+
+        // Get second page
+        let pagination = PaginationRequest {
+            page_size: 2,
+            next_page_token: result.next_page_token,
+        };
+        let result = repo
+            .list_sts_configurations(&pagination, None)
+            .await
+            .unwrap();
+        assert_eq!(result.items.len(), 2);
+        assert!(result.next_page_token.is_some());
+
+        // Get third page
+        let pagination = PaginationRequest {
+            page_size: 2,
+            next_page_token: result.next_page_token,
+        };
+        let result = repo
+            .list_sts_configurations(&pagination, None)
+            .await
+            .unwrap();
+        assert_eq!(result.items.len(), 1);
+        assert!(result.next_page_token.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_list_sts_configurations_pagination_with_filter() {
+        let repo = setup_test_db().await;
+
+        // Create mixed configurations with delays
+        for i in 1..=6 {
+            let config = create_test_sts_configuration(
+                &format!("config-{i}"),
+                if i % 2 == 0 { "dev" } else { "jwt_template" },
+                Some(&format!(r#"{{"issuer":"test-{i}"}}"#)),
+            );
+            repo.create_sts_configuration(&config).await.unwrap();
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        }
+
+        // Get first page of jwt_template only
+        let pagination = PaginationRequest {
+            page_size: 2,
+            next_page_token: None,
+        };
+        let result = repo
+            .list_sts_configurations(&pagination, Some("jwt_template"))
+            .await
+            .unwrap();
+        assert_eq!(result.items.len(), 2);
+        assert!(result.items.iter().all(|c| c.config_type == "jwt_template"));
+        assert!(result.next_page_token.is_some());
+
+        // Get second page
+        let pagination = PaginationRequest {
+            page_size: 2,
+            next_page_token: result.next_page_token,
+        };
+        let result = repo
+            .list_sts_configurations(&pagination, Some("jwt_template"))
+            .await
+            .unwrap();
+        assert_eq!(result.items.len(), 1);
+        assert!(result.items.iter().all(|c| c.config_type == "jwt_template"));
         assert!(result.next_page_token.is_none());
     }
 }
