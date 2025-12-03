@@ -828,6 +828,78 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/api/identity/v1/idp-configuration": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List IdP configurations
+		 * @description List all IdP configurations with optional filtering by type
+		 */
+		get: operations["route_list_idp_configs"];
+		put?: never;
+		/**
+		 * Create IdP configuration
+		 * @description Create a new IdP configuration for OAuth/OIDC authorization flows
+		 */
+		post: operations["route_create_idp_config"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/idp-configuration/import": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Import IdP configuration
+		 * @description Import an IdP configuration (idempotent, used for syncing from soma.yaml)
+		 */
+		post: operations["route_import_idp_config"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/idp-configuration/{id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get IdP configuration
+		 * @description Get an IdP configuration by ID
+		 */
+		get: operations["route_get_idp_config"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete IdP configuration
+		 * @description Delete an IdP configuration by ID
+		 */
+		delete: operations["route_delete_idp_config"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update IdP configuration
+		 * @description Update an existing IdP configuration
+		 */
+		patch: operations["route_update_idp_config"];
+		trace?: never;
+	};
 	"/api/identity/v1/jwk": {
 		parameters: {
 			query?: never;
@@ -854,6 +926,46 @@ export interface paths {
 		get?: never;
 		put?: never;
 		post: operations["route_invalidate_jwk"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/oauth/authorize/{config_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Start OAuth authorization
+		 * @description Initiates the OAuth/OIDC authorization flow by redirecting to the external IdP
+		 */
+		get: operations["route_start_authorization"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/oauth/callback/{config_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * OAuth callback
+		 * @description Handles the OAuth/OIDC callback from the external IdP, exchanges the authorization code for tokens
+		 */
+		get: operations["route_oauth_callback"];
+		put?: never;
+		post?: never;
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -1284,6 +1396,18 @@ export interface components {
 			key: string;
 			value: string;
 		};
+		/** @description Parameters for creating an IdP configuration */
+		CreateIdpConfigParams: {
+			/** @description The configuration */
+			config: components["schemas"]["InputIdpConfig"];
+			/** @description Optional ID (will be generated if not provided) */
+			id?: string | null;
+		};
+		/** @description Response from creating an IdP configuration */
+		CreateIdpConfigResponse: {
+			id: string;
+			type: string;
+		};
 		CreateMessageRequest: {
 			metadata: components["schemas"]["Metadata"];
 			parts: components["schemas"]["MessagePart"][];
@@ -1385,6 +1509,10 @@ export interface components {
 			success: boolean;
 		};
 		DeleteEnvironmentVariableResponse: {
+			success: boolean;
+		};
+		/** @description Response from deleting an IdP configuration */
+		DeleteIdpConfigResponse: {
 			success: boolean;
 		};
 		DeleteSecretResponse: {
@@ -1502,6 +1630,14 @@ export interface components {
 			items: components["schemas"]["FunctionInstanceSerialized"][];
 			next_page_token?: string;
 		};
+		/** @description Response from getting an IdP configuration (returns stored format, no secret) */
+		GetIdpConfigResponse: {
+			config: components["schemas"]["StoredIdpConfig"];
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			id: string;
+			type: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+		};
 		/** @description Group to role mapping */
 		GroupToRoleMappingYaml: {
 			/** @description The group name to match */
@@ -1519,6 +1655,14 @@ export interface components {
 			sts_configurations?: {
 				[key: string]: components["schemas"]["StsConfigYaml"];
 			} | null;
+		};
+		/** @description Response item for listing IdP configurations */
+		IdpConfigListItem: {
+			client_id: string;
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			id: string;
+			type: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
 		};
 		/** @description Parameters for importing an API key */
 		ImportApiKeyParams: {
@@ -1554,6 +1698,51 @@ export interface components {
 			dek_alias: string;
 			encrypted_value: string;
 			key: string;
+		};
+		/** @description Input IdP configuration enum (for API) */
+		InputIdpConfig:
+			| (components["schemas"]["InputOidcConfig"] & {
+					/** @enum {string} */
+					type: "oidc_authorization_code";
+			  })
+			| (components["schemas"]["InputOauthConfig"] & {
+					/** @enum {string} */
+					type: "oauth_authorization_code";
+			  })
+			| (components["schemas"]["InputOidcConfig"] & {
+					/** @enum {string} */
+					type: "oidc_authorization_code_pkce";
+			  })
+			| (components["schemas"]["InputOauthConfig"] & {
+					/** @enum {string} */
+					type: "oauth_authorization_code_pkce";
+			  });
+		/** @description Input OAuth config (with plaintext client_secret for API input) */
+		InputOauthConfig: {
+			allowed_domains?: string[];
+			authorization_endpoint: string;
+			client_id: string;
+			/** @description Client secret (will be encrypted before storage) */
+			client_secret: string;
+			default_role?: string;
+			group_to_role_mappings?: components["schemas"]["StoredGroupToRoleMapping"][];
+			mapping_config?: components["schemas"]["StoredMappingConfig"];
+			post_login_redirect_uri?: string;
+			redirect_uri: string;
+			scope_to_group_mappings?: components["schemas"]["StoredScopeToGroupMapping"][];
+			scope_to_role_mappings?: components["schemas"]["StoredScopeToRoleMapping"][];
+			scopes: string[];
+			/** Format: int64 */
+			state_ttl_seconds?: number;
+			token_endpoint: string;
+			userinfo_endpoint?: string | null;
+		};
+		/** @description Input OIDC config */
+		InputOidcConfig: {
+			base_config: components["schemas"]["InputOauthConfig"];
+			discovery_endpoint?: string | null;
+			jwks_uri?: string | null;
+			mapping_config?: components["schemas"]["StoredOidcMappingConfig"];
 		};
 		InvokeError: {
 			message: string;
@@ -1655,6 +1844,11 @@ export interface components {
 		};
 		ListEnvironmentVariablesResponse: {
 			environment_variables: components["schemas"]["EnvironmentVariable"][];
+			next_page_token?: string | null;
+		};
+		/** @description Response from listing IdP configurations */
+		ListIdpConfigResponse: {
+			items: components["schemas"]["IdpConfigListItem"][];
 			next_page_token?: string | null;
 		};
 		ListSecretsResponse: {
@@ -1826,6 +2020,95 @@ export interface components {
 		StartUserCredentialBrokeringParamsInner: {
 			provider_instance_id: string;
 		};
+		/** @description Stored group-to-role mapping */
+		StoredGroupToRoleMapping: {
+			group: string;
+			role: string;
+		};
+		/** @description Stored IdP configuration enum */
+		StoredIdpConfig:
+			| (components["schemas"]["StoredOidcConfig"] & {
+					/** @enum {string} */
+					type: "oidc_authorization_code";
+			  })
+			| (components["schemas"]["StoredOauthConfig"] & {
+					/** @enum {string} */
+					type: "oauth_authorization_code";
+			  })
+			| (components["schemas"]["StoredOidcConfig"] & {
+					/** @enum {string} */
+					type: "oidc_authorization_code_pkce";
+			  })
+			| (components["schemas"]["StoredOauthConfig"] & {
+					/** @enum {string} */
+					type: "oauth_authorization_code_pkce";
+			  });
+		/** @description Stored JWT token mapping config */
+		StoredMappingConfig: {
+			audience_field?: string;
+			email_field?: string | null;
+			groups_field?: string | null;
+			issuer_field?: string;
+			scopes_field?: string | null;
+			sub_field?: string;
+		};
+		/** @description Stored OAuth config (without client_secret, with encrypted version) */
+		StoredOauthConfig: {
+			allowed_domains?: string[];
+			authorization_endpoint: string;
+			client_id: string;
+			default_role?: string;
+			/** @description DEK alias used for encryption */
+			dek_alias: string;
+			/** @description Encrypted client secret (base64 encoded) */
+			encrypted_client_secret: string;
+			group_to_role_mappings?: components["schemas"]["StoredGroupToRoleMapping"][];
+			mapping_config?: components["schemas"]["StoredMappingConfig"];
+			post_login_redirect_uri?: string;
+			redirect_uri: string;
+			scope_to_group_mappings?: components["schemas"]["StoredScopeToGroupMapping"][];
+			scope_to_role_mappings?: components["schemas"]["StoredScopeToRoleMapping"][];
+			scopes: string[];
+			/** Format: int64 */
+			state_ttl_seconds?: number;
+			token_endpoint: string;
+			userinfo_endpoint?: string | null;
+		};
+		/** @description Stored OIDC config */
+		StoredOidcConfig: {
+			base_config: components["schemas"]["StoredOauthConfig"];
+			discovery_endpoint?: string | null;
+			jwks_uri?: string | null;
+			mapping_config?: components["schemas"]["StoredOidcMappingConfig"];
+		};
+		/** @description Stored OIDC mapping config */
+		StoredOidcMappingConfig: {
+			email_field?: null | components["schemas"]["StoredTokenSource"];
+			groups_field?: null | components["schemas"]["StoredTokenSource"];
+			sub_field: components["schemas"]["StoredTokenSource"];
+		};
+		/** @description Stored scope-to-group mapping */
+		StoredScopeToGroupMapping: {
+			group: string;
+			scope: string;
+		};
+		/** @description Stored scope-to-role mapping */
+		StoredScopeToRoleMapping: {
+			role: string;
+			scope: string;
+		};
+		/** @description Stored version of TokenSource for serialization */
+		StoredTokenSource:
+			| {
+					field: string;
+					/** @enum {string} */
+					source: "id_token";
+			  }
+			| {
+					field: string;
+					/** @enum {string} */
+					source: "userinfo";
+			  };
 		/** @description STS configuration stored in soma.yaml */
 		StsConfigYaml:
 			| (components["schemas"]["JwtTemplateConfigYaml"] & {
@@ -1935,6 +2218,15 @@ export interface components {
 		};
 		UpdateEnvironmentVariableRequest: {
 			value: string;
+		};
+		/** @description Parameters for updating an IdP configuration */
+		UpdateIdpConfigParams: {
+			/** @description The new configuration */
+			config: components["schemas"]["InputIdpConfig"];
+		};
+		/** @description Response from updating an IdP configuration */
+		UpdateIdpConfigResponse: {
+			success: boolean;
 		};
 		UpdateProviderInstanceParamsInner: {
 			display_name: string;
@@ -4542,6 +4834,265 @@ export interface operations {
 			};
 		};
 	};
+	route_list_idp_configs: {
+		parameters: {
+			query?: {
+				/** @example 10 */
+				page_size?: number | null;
+				/** @example  */
+				next_page_token?: string | null;
+				/**
+				 * @description Filter by configuration type (oidc_authorization_flow, oauth_authorization_flow)
+				 * @example oidc_authorization_flow
+				 */
+				type?: string | null;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of IdP configurations */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ListIdpConfigResponse"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_create_idp_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateIdpConfigParams"];
+			};
+		};
+		responses: {
+			/** @description IdP configuration created successfully */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateIdpConfigResponse"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_import_idp_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateIdpConfigParams"];
+			};
+		};
+		responses: {
+			/** @description IdP configuration imported successfully */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateIdpConfigResponse"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_get_idp_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description ID of the IdP configuration to retrieve */
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description IdP configuration found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["GetIdpConfigResponse"];
+				};
+			};
+			/** @description IdP configuration not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_delete_idp_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description ID of the IdP configuration to delete */
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description IdP configuration deleted successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DeleteIdpConfigResponse"];
+				};
+			};
+			/** @description IdP configuration not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_update_idp_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description ID of the IdP configuration to update */
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateIdpConfigParams"];
+			};
+		};
+		responses: {
+			/** @description IdP configuration updated successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["UpdateIdpConfigResponse"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description IdP configuration not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
 	route_list_jwks: {
 		parameters: {
 			query?: {
@@ -4597,6 +5148,111 @@ export interface operations {
 			};
 			/** @description JWK not found */
 			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_start_authorization: {
+		parameters: {
+			query?: {
+				/**
+				 * @description Optional override for where to redirect after successful login
+				 * @example /dashboard
+				 */
+				redirect_after_login?: string | null;
+			};
+			header?: never;
+			path: {
+				/** @description ID of the IdP configuration to use */
+				config_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Redirect to IdP authorization endpoint */
+			302: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description IdP configuration not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_oauth_callback: {
+		parameters: {
+			query?: {
+				/**
+				 * @description Authorization code from the IdP
+				 * @example abc123
+				 */
+				code?: string | null;
+				/**
+				 * @description State parameter for CSRF validation
+				 * @example xyz789
+				 */
+				state?: string | null;
+				/**
+				 * @description Error from the IdP (if any)
+				 * @example access_denied
+				 */
+				error?: string | null;
+				/**
+				 * @description Error description from the IdP
+				 * @example User denied access
+				 */
+				error_description?: string | null;
+			};
+			header?: never;
+			path: {
+				/** @description ID of the IdP configuration */
+				config_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Redirect to post-login URL with tokens set */
+			302: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Invalid request or OAuth error */
+			400: {
 				headers: {
 					[name: string]: unknown;
 				};

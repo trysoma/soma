@@ -3433,6 +3433,362 @@
         }
       }
     },
+    "/api/identity/v1/idp-configuration": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "List IdP configurations",
+        "description": "List all IdP configurations with optional filtering by type",
+        "operationId": "route_list_idp_configs",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            },
+            "example": "10"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": ""
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by configuration type (oidc_authorization_flow, oauth_authorization_flow)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "oidc_authorization_flow"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of IdP configurations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListIdpConfigResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Create IdP configuration",
+        "description": "Create a new IdP configuration for OAuth/OIDC authorization flows",
+        "operationId": "route_create_idp_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIdpConfigParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "IdP configuration created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateIdpConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/idp-configuration/import": {
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Import IdP configuration",
+        "description": "Import an IdP configuration (idempotent, used for syncing from soma.yaml)",
+        "operationId": "route_import_idp_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIdpConfigParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "IdP configuration imported successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateIdpConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/idp-configuration/{id}": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Get IdP configuration",
+        "description": "Get an IdP configuration by ID",
+        "operationId": "route_get_idp_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the IdP configuration to retrieve",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "IdP configuration found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetIdpConfigResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "IdP configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Delete IdP configuration",
+        "description": "Delete an IdP configuration by ID",
+        "operationId": "route_delete_idp_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the IdP configuration to delete",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "IdP configuration deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteIdpConfigResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "IdP configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Update IdP configuration",
+        "description": "Update an existing IdP configuration",
+        "operationId": "route_update_idp_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the IdP configuration to update",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIdpConfigParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "IdP configuration updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateIdpConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "IdP configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/identity/v1/jwk": {
       "get": {
         "tags": [
@@ -3516,6 +3872,165 @@
           },
           "404": {
             "description": "JWK not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/oauth/authorize/{config_id}": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Start OAuth authorization",
+        "description": "Initiates the OAuth/OIDC authorization flow by redirecting to the external IdP",
+        "operationId": "route_start_authorization",
+        "parameters": [
+          {
+            "name": "config_id",
+            "in": "path",
+            "description": "ID of the IdP configuration to use",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "redirect_after_login",
+            "in": "query",
+            "description": "Optional override for where to redirect after successful login",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "/dashboard"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to IdP authorization endpoint"
+          },
+          "404": {
+            "description": "IdP configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/oauth/callback/{config_id}": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "OAuth callback",
+        "description": "Handles the OAuth/OIDC callback from the external IdP, exchanges the authorization code for tokens",
+        "operationId": "route_oauth_callback",
+        "parameters": [
+          {
+            "name": "config_id",
+            "in": "path",
+            "description": "ID of the IdP configuration",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "description": "Authorization code from the IdP",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "abc123"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "description": "State parameter for CSRF validation",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "xyz789"
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "description": "Error from the IdP (if any)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "access_denied"
+          },
+          {
+            "name": "error_description",
+            "in": "query",
+            "description": "Error description from the IdP",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "User denied access"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to post-login URL with tokens set"
+          },
+          "400": {
+            "description": "Invalid request or OAuth error",
             "content": {
               "application/json": {
                 "schema": {
@@ -5566,6 +6081,42 @@
           }
         }
       },
+      "CreateIdpConfigParams": {
+        "type": "object",
+        "description": "Parameters for creating an IdP configuration",
+        "required": [
+          "config"
+        ],
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/InputIdpConfig",
+            "description": "The configuration"
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional ID (will be generated if not provided)"
+          }
+        }
+      },
+      "CreateIdpConfigResponse": {
+        "type": "object",
+        "description": "Response from creating an IdP configuration",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
       "CreateMessageRequest": {
         "type": "object",
         "required": [
@@ -5946,6 +6497,18 @@
       },
       "DeleteEnvironmentVariableResponse": {
         "type": "object",
+        "required": [
+          "success"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DeleteIdpConfigResponse": {
+        "type": "object",
+        "description": "Response from deleting an IdP configuration",
         "required": [
           "success"
         ],
@@ -6382,6 +6945,34 @@
           }
         }
       },
+      "GetIdpConfigResponse": {
+        "type": "object",
+        "description": "Response from getting an IdP configuration (returns stored format, no secret)",
+        "required": [
+          "id",
+          "type",
+          "config",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/StoredIdpConfig"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
       "GroupToRoleMappingYaml": {
         "type": "object",
         "description": "Group to role mapping",
@@ -6429,6 +7020,34 @@
             "propertyNames": {
               "type": "string"
             }
+          }
+        }
+      },
+      "IdpConfigListItem": {
+        "type": "object",
+        "description": "Response item for listing IdP configurations",
+        "required": [
+          "id",
+          "type",
+          "client_id",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
           }
         }
       },
@@ -6538,6 +7157,202 @@
           },
           "key": {
             "type": "string"
+          }
+        }
+      },
+      "InputIdpConfig": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InputOidcConfig"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oidc_authorization_code"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InputOauthConfig"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oauth_authorization_code"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InputOidcConfig"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oidc_authorization_code_pkce"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InputOauthConfig"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oauth_authorization_code_pkce"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "Input IdP configuration enum (for API)"
+      },
+      "InputOauthConfig": {
+        "type": "object",
+        "description": "Input OAuth config (with plaintext client_secret for API input)",
+        "required": [
+          "authorization_endpoint",
+          "token_endpoint",
+          "client_id",
+          "client_secret",
+          "scopes",
+          "redirect_uri"
+        ],
+        "properties": {
+          "allowed_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "authorization_endpoint": {
+            "type": "string"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client secret (will be encrypted before storage)"
+          },
+          "default_role": {
+            "type": "string"
+          },
+          "group_to_role_mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoredGroupToRoleMapping"
+            }
+          },
+          "mapping_config": {
+            "$ref": "#/components/schemas/StoredMappingConfig"
+          },
+          "post_login_redirect_uri": {
+            "type": "string"
+          },
+          "redirect_uri": {
+            "type": "string"
+          },
+          "scope_to_group_mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoredScopeToGroupMapping"
+            }
+          },
+          "scope_to_role_mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoredScopeToRoleMapping"
+            }
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "state_ttl_seconds": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "token_endpoint": {
+            "type": "string"
+          },
+          "userinfo_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "InputOidcConfig": {
+        "type": "object",
+        "description": "Input OIDC config",
+        "required": [
+          "base_config"
+        ],
+        "properties": {
+          "base_config": {
+            "$ref": "#/components/schemas/InputOauthConfig"
+          },
+          "discovery_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "jwks_uri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mapping_config": {
+            "$ref": "#/components/schemas/StoredOidcMappingConfig"
           }
         }
       },
@@ -6892,6 +7707,27 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EnvironmentVariable"
+            }
+          },
+          "next_page_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ListIdpConfigResponse": {
+        "type": "object",
+        "description": "Response from listing IdP configurations",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdpConfigListItem"
             }
           },
           "next_page_token": {
@@ -7604,6 +8440,361 @@
           }
         }
       },
+      "StoredGroupToRoleMapping": {
+        "type": "object",
+        "description": "Stored group-to-role mapping",
+        "required": [
+          "group",
+          "role"
+        ],
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      },
+      "StoredIdpConfig": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StoredOidcConfig"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oidc_authorization_code"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StoredOauthConfig"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oauth_authorization_code"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StoredOidcConfig"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oidc_authorization_code_pkce"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StoredOauthConfig"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oauth_authorization_code_pkce"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "Stored IdP configuration enum"
+      },
+      "StoredMappingConfig": {
+        "type": "object",
+        "description": "Stored JWT token mapping config",
+        "properties": {
+          "audience_field": {
+            "type": "string"
+          },
+          "email_field": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groups_field": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "issuer_field": {
+            "type": "string"
+          },
+          "scopes_field": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sub_field": {
+            "type": "string"
+          }
+        }
+      },
+      "StoredOauthConfig": {
+        "type": "object",
+        "description": "Stored OAuth config (without client_secret, with encrypted version)",
+        "required": [
+          "authorization_endpoint",
+          "token_endpoint",
+          "client_id",
+          "encrypted_client_secret",
+          "dek_alias",
+          "scopes",
+          "redirect_uri"
+        ],
+        "properties": {
+          "allowed_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "authorization_endpoint": {
+            "type": "string"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "default_role": {
+            "type": "string"
+          },
+          "dek_alias": {
+            "type": "string",
+            "description": "DEK alias used for encryption"
+          },
+          "encrypted_client_secret": {
+            "type": "string",
+            "description": "Encrypted client secret (base64 encoded)"
+          },
+          "group_to_role_mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoredGroupToRoleMapping"
+            }
+          },
+          "mapping_config": {
+            "$ref": "#/components/schemas/StoredMappingConfig"
+          },
+          "post_login_redirect_uri": {
+            "type": "string"
+          },
+          "redirect_uri": {
+            "type": "string"
+          },
+          "scope_to_group_mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoredScopeToGroupMapping"
+            }
+          },
+          "scope_to_role_mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoredScopeToRoleMapping"
+            }
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "state_ttl_seconds": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "token_endpoint": {
+            "type": "string"
+          },
+          "userinfo_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "StoredOidcConfig": {
+        "type": "object",
+        "description": "Stored OIDC config",
+        "required": [
+          "base_config"
+        ],
+        "properties": {
+          "base_config": {
+            "$ref": "#/components/schemas/StoredOauthConfig"
+          },
+          "discovery_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "jwks_uri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mapping_config": {
+            "$ref": "#/components/schemas/StoredOidcMappingConfig"
+          }
+        }
+      },
+      "StoredOidcMappingConfig": {
+        "type": "object",
+        "description": "Stored OIDC mapping config",
+        "required": [
+          "sub_field"
+        ],
+        "properties": {
+          "email_field": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StoredTokenSource"
+              }
+            ]
+          },
+          "groups_field": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StoredTokenSource"
+              }
+            ]
+          },
+          "sub_field": {
+            "$ref": "#/components/schemas/StoredTokenSource"
+          }
+        }
+      },
+      "StoredScopeToGroupMapping": {
+        "type": "object",
+        "description": "Stored scope-to-group mapping",
+        "required": [
+          "scope",
+          "group"
+        ],
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          }
+        }
+      },
+      "StoredScopeToRoleMapping": {
+        "type": "object",
+        "description": "Stored scope-to-role mapping",
+        "required": [
+          "scope",
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          }
+        }
+      },
+      "StoredTokenSource": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "field",
+              "source"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "id_token"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "field",
+              "source"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "userinfo"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Stored version of TokenSource for serialization"
+      },
       "StsConfigYaml": {
         "oneOf": [
           {
@@ -8007,6 +9198,31 @@
         "properties": {
           "value": {
             "type": "string"
+          }
+        }
+      },
+      "UpdateIdpConfigParams": {
+        "type": "object",
+        "description": "Parameters for updating an IdP configuration",
+        "required": [
+          "config"
+        ],
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/InputIdpConfig",
+            "description": "The new configuration"
+          }
+        }
+      },
+      "UpdateIdpConfigResponse": {
+        "type": "object",
+        "description": "Response from updating an IdP configuration",
+        "required": [
+          "success"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
           }
         }
       },

@@ -1,0 +1,18 @@
+issuer: http://localhost:5556/dex
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+staticClients:
+  - id: trysoma.ai
+    redirectURIs:
+      - http://localhost:5555/callback
+    name: Example App
+    secret: example-secret
+
+connectors:
+  - type: mockCallback
+    id: mock
+    name: Mock

@@ -516,32 +516,21 @@ fn apply_dev_mode_config() -> Result<NormalizedStsFields, CommonError> {
     })
 }
 
-/// Exchange an external STS token for an internal access token.
+/// Create or update a user and issue tokens based on normalized STS fields.
 ///
-/// This function:
-/// 1. Looks up the STS config by ID from the repository
-/// 2. Applies the appropriate config (JWT template or dev mode)
-/// 3. Creates or updates the user and their group memberships
-/// 4. Signs and returns a new internal JWT token with refresh token
-pub async fn exchange_sts_token<R: UserRepositoryLike>(
+/// This is the core function that handles:
+/// 1. Creating or updating the user in the database
+/// 2. Syncing group memberships
+/// 3. Signing and issuing access + refresh tokens
+///
+/// This function is reused by both STS token exchange and OAuth callback flows.
+pub async fn issue_tokens_for_normalized_user<R: UserRepositoryLike>(
     repository: &R,
     crypto_cache: &CryptoCache,
-    external_jwks_cache: &ExternalJwksCache,
-    params: ExchangeStsTokenParams,
+    normalized: NormalizedStsFields,
 ) -> Result<ExchangeStsTokenResult, CommonError> {
-    // 1. Look up the STS config from the repository
-    let config = load_sts_config_from_repository(repository, &params.sts_token_config_id).await?;
-
-    // 2. Apply the appropriate config to get normalized fields
-    let normalized = match &config {
-        StsTokenConfig::JwtTemplate(jwt_config) => {
-            apply_jwt_template_config(jwt_config, external_jwks_cache, &params.headers).await?
-        }
-        StsTokenConfig::DevMode => apply_dev_mode_config()?,
-    };
-
-    // 3. Create or update user
-    // For STS users (federated), use human_$subject format
+    // 1. Create or update user
+    // For federated users, use human_$subject format
     let user_id = format!("human_{}", normalized.subject);
     let now = WrappedChronoDateTime::now();
 
@@ -568,13 +557,13 @@ pub async fn exchange_sts_token<R: UserRepositoryLike>(
         repository.update_user(&user_id, &update_user).await?;
     }
 
-    // 4. Sync group memberships
+    // 2. Sync group memberships
     sync_user_groups(repository, &user_id, &normalized.groups).await?;
 
-    // 5. Get a valid signing key
+    // 3. Get a valid signing key
     let signing_key = get_valid_signing_key(repository, crypto_cache).await?;
 
-    // 6. Create and sign the access token
+    // 4. Create and sign the access token
     let access_token_expires_in: i64 = 3600; // 1 hour
     let refresh_token_expires_in: i64 = 86400 * 7; // 7 days
     let now_ts = Utc::now().timestamp();
@@ -595,7 +584,7 @@ pub async fn exchange_sts_token<R: UserRepositoryLike>(
 
     let access_token = sign_jwt(&access_claims, &signing_key, crypto_cache).await?;
 
-    // 7. Create and sign the refresh token
+    // 5. Create and sign the refresh token
     let refresh_claims = RefreshTokenClaims {
         sub: user_id,
         iss: ISSUER.to_string(),
@@ -614,6 +603,34 @@ pub async fn exchange_sts_token<R: UserRepositoryLike>(
         refresh_token: Some(refresh_token),
         expires_in: access_token_expires_in,
     })
+}
+
+/// Exchange an external STS token for an internal access token.
+///
+/// This function:
+/// 1. Looks up the STS config by ID from the repository
+/// 2. Applies the appropriate config (JWT template or dev mode)
+/// 3. Creates or updates the user and their group memberships
+/// 4. Signs and returns a new internal JWT token with refresh token
+pub async fn exchange_sts_token<R: UserRepositoryLike>(
+    repository: &R,
+    crypto_cache: &CryptoCache,
+    external_jwks_cache: &ExternalJwksCache,
+    params: ExchangeStsTokenParams,
+) -> Result<ExchangeStsTokenResult, CommonError> {
+    // 1. Look up the STS config from the repository
+    let config = load_sts_config_from_repository(repository, &params.sts_token_config_id).await?;
+
+    // 2. Apply the appropriate config to get normalized fields
+    let normalized = match &config {
+        StsTokenConfig::JwtTemplate(jwt_config) => {
+            apply_jwt_template_config(jwt_config, external_jwks_cache, &params.headers).await?
+        }
+        StsTokenConfig::DevMode => apply_dev_mode_config()?,
+    };
+
+    // 3. Issue tokens using the shared function
+    issue_tokens_for_normalized_user(repository, crypto_cache, normalized).await
 }
 
 /// Refresh an access token using a valid refresh token.

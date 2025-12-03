@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
+use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
+use utoipa::ToSchema;
 
 use crate::logic::api_key::hash_api_key;
 use crate::logic::api_key_cache::ApiKeyCache;
@@ -11,7 +13,8 @@ use crate::logic::jwks_cache::JwksCache;
 use crate::logic::sts_exchange::{AccessTokenClaims, AUDIENCE, ISSUER};
 
 /// User role in the system
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ToSchema, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Role {
     Admin,
     Maintainer,

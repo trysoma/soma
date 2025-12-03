@@ -170,6 +170,64 @@ pub struct UpdateStsConfiguration {
     pub value: Option<String>,
 }
 
+// IdP configuration types (for OAuth/OIDC authorization flows)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct IdpConfiguration {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub config_type: String,
+    /// JSON configuration object (deserialized from config column)
+    pub config: String,
+    /// Encrypted client secret (optional, for confidential clients)
+    pub encrypted_client_secret: Option<String>,
+    /// DEK alias for decrypting client secret
+    pub dek_alias: Option<String>,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+#[derive(Debug)]
+pub struct CreateIdpConfiguration {
+    pub id: String,
+    pub config_type: String,
+    pub config: String,
+    pub encrypted_client_secret: Option<String>,
+    pub dek_alias: Option<String>,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+#[derive(Debug, Default)]
+pub struct UpdateIdpConfiguration {
+    pub config_type: Option<String>,
+    pub config: Option<String>,
+    pub encrypted_client_secret: Option<String>,
+    pub dek_alias: Option<String>,
+}
+
+// OAuth state types (for CSRF protection and PKCE)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct OAuthState {
+    pub state: String,
+    pub config_id: String,
+    pub code_verifier: Option<String>,
+    pub nonce: Option<String>,
+    pub redirect_uri: Option<String>,
+    pub created_at: WrappedChronoDateTime,
+    pub expires_at: WrappedChronoDateTime,
+}
+
+#[derive(Debug)]
+pub struct CreateOAuthState {
+    pub state: String,
+    pub config_id: String,
+    pub code_verifier: Option<String>,
+    pub nonce: Option<String>,
+    pub redirect_uri: Option<String>,
+    pub created_at: WrappedChronoDateTime,
+    pub expires_at: WrappedChronoDateTime,
+}
+
 // Repository trait for users and API keys
 #[allow(async_fn_in_trait)]
 pub trait UserRepositoryLike {
@@ -298,4 +356,38 @@ pub trait UserRepositoryLike {
         pagination: &PaginationRequest,
         config_type: Option<&str>,
     ) -> Result<PaginatedResponse<StsConfiguration>, CommonError>;
+
+    // IdP configuration methods
+    async fn create_idp_configuration(
+        &self,
+        params: &CreateIdpConfiguration,
+    ) -> Result<(), CommonError>;
+
+    async fn get_idp_configuration_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<IdpConfiguration>, CommonError>;
+
+    async fn update_idp_configuration(
+        &self,
+        id: &str,
+        params: &UpdateIdpConfiguration,
+    ) -> Result<(), CommonError>;
+
+    async fn delete_idp_configuration(&self, id: &str) -> Result<(), CommonError>;
+
+    async fn list_idp_configurations(
+        &self,
+        pagination: &PaginationRequest,
+        config_type: Option<&str>,
+    ) -> Result<PaginatedResponse<IdpConfiguration>, CommonError>;
+
+    // OAuth state methods
+    async fn create_oauth_state(&self, params: &CreateOAuthState) -> Result<(), CommonError>;
+
+    async fn get_oauth_state_by_state(&self, state: &str) -> Result<Option<OAuthState>, CommonError>;
+
+    async fn delete_oauth_state(&self, state: &str) -> Result<(), CommonError>;
+
+    async fn delete_expired_oauth_states(&self) -> Result<u64, CommonError>;
 }

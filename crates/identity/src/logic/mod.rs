@@ -4,10 +4,16 @@ pub mod api_key;
 pub mod api_key_cache;
 pub mod auth_client;
 pub mod auth_config;
+pub mod idp_config;
 pub mod jwk;
 pub mod jwks_cache;
+pub mod oauth;
 pub mod sts_config;
 pub mod sts_exchange;
+
+
+/// Default DEK alias for client secret encryption
+pub const DEFAULT_DEK_ALIAS: &str = "default";
 
 /// Information about a created API key (for broadcast events)
 #[derive(Clone, Debug)]
@@ -33,6 +39,17 @@ pub struct StsConfigCreatedInfo {
     pub value: Option<String>,
 }
 
+/// Information about a created IdP configuration (for broadcast events)
+#[derive(Clone, Debug)]
+pub struct IdpConfigCreatedInfo {
+    /// The IdP configuration ID
+    pub id: String,
+    /// The configuration type (e.g., "oidc_authorization_flow", "oauth_authorization_flow")
+    pub config_type: String,
+    /// The configuration (JSON)
+    pub config: String,
+}
+
 /// Events fired when identity configuration changes
 #[derive(Clone, Debug)]
 pub enum OnConfigChangeEvt {
@@ -44,6 +61,10 @@ pub enum OnConfigChangeEvt {
     StsConfigCreated(StsConfigCreatedInfo),
     /// An STS configuration was deleted (contains id)
     StsConfigDeleted(String),
+    /// An IdP configuration was created
+    IdpConfigCreated(IdpConfigCreatedInfo),
+    /// An IdP configuration was deleted (contains id)
+    IdpConfigDeleted(String),
 }
 
 /// Sender for config change events

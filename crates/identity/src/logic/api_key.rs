@@ -9,13 +9,11 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::logic::api_key_cache::{ApiKeyCache, CachedApiKey};
-use crate::logic::{ApiKeyCreatedInfo, OnConfigChangeEvt, OnConfigChangeTx};
+use crate::logic::{ApiKeyCreatedInfo, DEFAULT_DEK_ALIAS, OnConfigChangeEvt, OnConfigChangeTx};
 use crate::repository::{ApiKey, CreateApiKey, CreateUser, UserRepositoryLike};
 
 use super::auth_client::Role;
 
-/// Default DEK alias for API key encryption
-pub const DEFAULT_DEK_ALIAS: &str = "default";
 
 /// Parameters for creating an API key
 #[derive(Debug, Deserialize, ToSchema)]
@@ -379,6 +377,7 @@ pub async fn import_api_key<R: UserRepositoryLike>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::logic::DEFAULT_DEK_ALIAS;
     use crate::repository::Repository;
     use encryption::logic::crypto_services::init_crypto_cache;
     use encryption::logic::dek::{CreateDekInnerParams, CreateDekParams};

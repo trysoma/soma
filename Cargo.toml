@@ -139,6 +139,10 @@ pkcs1 = "0.7"
 pkcs8 = "0.10"
 zeroize = { version = "1.8", features = ["derive"] }
 
+## OAuth/OIDC
+openidconnect = { version = "4.0", default-features = false, features = ["reqwest", "rustls-tls"] }
+oauth2 = { version = "5.0", default-features = false, features = ["reqwest", "rustls-tls"] }
+
 ## Additional dependencies
 arc-swap = "1.7.1"
 convert_case = "0.8.0"

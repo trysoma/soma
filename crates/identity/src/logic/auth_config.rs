@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use jsonwebtoken::DecodingKey;
+use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
+use utoipa::ToSchema;
 
 use crate::logic::auth_client::Role;
 
@@ -14,6 +16,7 @@ pub struct JwtTokenTemplateValidationConfig {
     pub required_groups: Option<Vec<String>>,
 }
 
+#[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
 pub struct JwtTokenMappingConfig {
     pub issuer_field: String,
     pub audience_field: String,
@@ -23,24 +26,20 @@ pub struct JwtTokenMappingConfig {
     pub groups_field: Option<String>,
 }
 
-pub struct NormalizedStsFields {
-    pub subject: String,
-    pub email: Option<String>,
-    pub groups: Vec<String>,
-    pub role: Role,
-}
-
-pub struct JwtGroupToRoleMapping {
+#[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
+pub struct GroupToRoleMapping {
     pub group: String,
     pub role: Role,
 }
 
-pub struct JwtScopeToRoleMapping {
+#[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
+pub struct ScopeToRoleMapping {
     pub scope: String,
     pub role: Role,
 }
 
-pub struct JwtScopeToGroupMapping {
+#[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
+pub struct ScopeToGroupMapping {
     pub scope: String,
     pub group: String,
 }
@@ -50,6 +49,7 @@ pub enum TokenLocation {
     Cookie(String),
 }
 
+
 pub type StsConfigId = String;
 pub struct JwtTokenTemplateConfig {
     pub id: StsConfigId,
@@ -57,9 +57,9 @@ pub struct JwtTokenTemplateConfig {
     pub token_location: TokenLocation,
     pub validation_template: JwtTokenTemplateValidationConfig,
     pub mapping_template: JwtTokenMappingConfig,
-    pub group_to_role_mappings: Vec<JwtGroupToRoleMapping>,
-    pub scope_to_role_mappings: Vec<JwtScopeToRoleMapping>,
-    pub scope_to_group_mappings: Vec<JwtScopeToGroupMapping>,
+    pub group_to_role_mappings: Vec<GroupToRoleMapping>,
+    pub scope_to_role_mappings: Vec<ScopeToRoleMapping>,
+    pub scope_to_group_mappings: Vec<ScopeToGroupMapping>,
 }
 
 pub type EncryptedHashedValue = String;
