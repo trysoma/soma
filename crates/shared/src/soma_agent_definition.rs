@@ -9,20 +9,6 @@ use utoipa::ToSchema;
 use crate::error::CommonError;
 use async_trait::async_trait;
 
-/// Information about a registered agent
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct AgentInfo {
-    /// The agent ID
-    pub id: String,
-    /// The project ID the agent belongs to
-    pub project_id: String,
-    /// Display name of the agent
-    pub name: String,
-    /// Description of the agent
-    pub description: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct SomaAgentDefinition {
@@ -34,9 +20,8 @@ pub struct SomaAgentDefinition {
     pub secrets: Option<HashMap<String, SecretConfig>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub environment_variables: Option<HashMap<String, String>>,
-    /// List of registered agents from the SDK
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents: Option<Vec<AgentInfo>>,
+    pub identity: Option<IdentityConfig>,
 }
 
 /// Configuration for a secret stored in soma.yaml
@@ -47,6 +32,225 @@ pub struct SecretConfig {
     pub value: String,
     /// The DEK alias used to encrypt this secret
     pub dek_alias: String,
+}
+
+/// Identity configuration for API keys, STS, and user auth flows
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, Default)]
+#[serde(rename_all = "snake_case")]
+pub struct IdentityConfig {
+    /// API keys configuration (key is the API key ID)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_keys: Option<HashMap<String, ApiKeyYamlConfig>>,
+    /// STS configurations (key is the STS config ID)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sts_configurations: Option<HashMap<String, StsConfigYaml>>,
+    /// User auth flow configurations (key is the config ID)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_auth_flows: Option<HashMap<String, UserAuthFlowYamlConfig>>,
+}
+
+/// API key configuration stored in soma.yaml
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ApiKeyYamlConfig {
+    /// Description of the API key
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// The encrypted hashed value of the API key
+    pub encrypted_hashed_value: String,
+    /// The DEK alias used for encryption
+    pub dek_alias: String,
+    /// The role assigned to this API key
+    pub role: String,
+    /// The user ID associated with this API key
+    pub user_id: String,
+}
+
+/// STS configuration stored in soma.yaml
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[allow(clippy::large_enum_variant)]
+pub enum StsConfigYaml {
+    /// JWT template configuration for external IdPs
+    JwtTemplate(JwtTemplateConfigYaml),
+    /// Dev mode configuration (allows any authentication in dev)
+    Dev {},
+}
+
+/// User auth flow configuration stored in soma.yaml (encrypted)
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum UserAuthFlowYamlConfig {
+    /// OIDC authorization code flow
+    OidcAuthorizationCodeFlow(EncryptedOidcYamlConfig),
+    /// OAuth authorization code flow
+    OauthAuthorizationCodeFlow(EncryptedOauthYamlConfig),
+    /// OIDC authorization code flow with PKCE
+    OidcAuthorizationCodePkceFlow(EncryptedOidcYamlConfig),
+    /// OAuth authorization code flow with PKCE
+    OauthAuthorizationCodePkceFlow(EncryptedOauthYamlConfig),
+}
+
+/// Encrypted OAuth configuration for YAML storage
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct EncryptedOauthYamlConfig {
+    /// Authorization endpoint URL
+    pub authorization_endpoint: String,
+    /// Token endpoint URL
+    pub token_endpoint: String,
+    /// JWKS endpoint URL for token verification
+    pub jwks_endpoint: String,
+    /// OAuth client ID
+    pub client_id: String,
+    /// Encrypted client secret
+    pub encrypted_client_secret: String,
+    /// DEK alias used for encryption
+    pub dek_alias: String,
+    /// OAuth scopes
+    pub scopes: Vec<String>,
+    /// Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub introspect_url: Option<String>,
+    /// Token mapping configuration (serialized as JSON)
+    pub oauth_mapping_config: serde_json::Value,
+}
+
+/// Encrypted OIDC configuration for YAML storage
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct EncryptedOidcYamlConfig {
+    #[serde(flatten)]
+    /// Base OAuth configuration
+    pub base_config: EncryptedOauthYamlConfig,
+    /// OIDC discovery endpoint (optional)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discovery_endpoint: Option<String>,
+    /// Userinfo endpoint URL (optional)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub userinfo_endpoint: Option<String>,
+    /// Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub introspect_url: Option<String>,
+    /// Token mapping configuration (serialized as JSON)
+    pub oidc_mapping_config: serde_json::Value,
+}
+
+/// JWT template configuration for validating external JWTs
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct JwtTemplateConfigYaml {
+    /// JWKS URI to fetch public keys from
+    pub jwks_uri: String,
+    /// Where to find the token in the request
+    pub token_location: TokenLocationYaml,
+    /// Validation rules
+    pub validation: JwtValidationConfigYaml,
+    /// Field mapping from JWT claims to internal fields
+    pub mapping: JwtMappingConfigYaml,
+    /// Group to role mappings
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group_to_role_mappings: Option<Vec<GroupToRoleMappingYaml>>,
+    /// Scope to role mappings
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_to_role_mappings: Option<Vec<ScopeToRoleMappingYaml>>,
+    /// Scope to group mappings (maps scopes to internal groups)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_to_group_mappings: Option<Vec<ScopeToGroupMappingYaml>>,
+}
+
+/// Where to find the token in the request
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum TokenLocationYaml {
+    /// Token is in a header (e.g., Authorization: Bearer <token>)
+    Header { name: String },
+    /// Token is in a cookie
+    Cookie { name: String },
+}
+
+/// JWT validation configuration
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct JwtValidationConfigYaml {
+    /// Expected issuer (iss claim)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub issuer: Option<String>,
+    /// Valid audiences (aud claim)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub valid_audiences: Option<Vec<String>>,
+    /// Required scopes
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_scopes: Option<Vec<String>>,
+    /// Required groups
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_groups: Option<Vec<String>>,
+}
+
+/// JWT claim field mapping
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct JwtMappingConfigYaml {
+    /// Field name for issuer (default: "iss")
+    #[serde(default = "default_iss_field")]
+    pub issuer_field: String,
+    /// Field name for audience (default: "aud")
+    #[serde(default = "default_aud_field")]
+    pub audience_field: String,
+    /// Field name for subject (default: "sub")
+    #[serde(default = "default_sub_field")]
+    pub sub_field: String,
+    /// Field name for email (optional)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email_field: Option<String>,
+    /// Field name for groups (optional)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub groups_field: Option<String>,
+    /// Field name for scopes (optional)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scopes_field: Option<String>,
+}
+
+fn default_iss_field() -> String {
+    "iss".to_string()
+}
+
+fn default_aud_field() -> String {
+    "aud".to_string()
+}
+
+fn default_sub_field() -> String {
+    "sub".to_string()
+}
+
+/// Group to role mapping
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct GroupToRoleMappingYaml {
+    /// The group name to match
+    pub group: String,
+    /// The role to assign when matched
+    pub role: String,
+}
+
+/// Scope to role mapping
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ScopeToRoleMappingYaml {
+    /// The scope to match
+    pub scope: String,
+    /// The role to assign when matched
+    pub role: String,
+}
+
+/// Scope to group mapping (maps external scopes to internal groups)
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ScopeToGroupMappingYaml {
+    /// The scope to match
+    pub scope: String,
+    /// The internal group to assign when matched
+    pub group: String,
 }
 
 /// Top-level encryption configuration
@@ -286,6 +490,22 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
     ) -> Result<(), CommonError>;
     async fn remove_environment_variable(&self, key: String) -> Result<(), CommonError>;
 
+    // Identity operations - API keys
+    async fn add_api_key(&self, id: String, config: ApiKeyYamlConfig) -> Result<(), CommonError>;
+    async fn remove_api_key(&self, id: String) -> Result<(), CommonError>;
+
+    // Identity operations - STS configurations
+    async fn add_sts_config(&self, id: String, config: StsConfigYaml) -> Result<(), CommonError>;
+    async fn remove_sts_config(&self, id: String) -> Result<(), CommonError>;
+
+    // Identity operations - User auth flow configurations
+    async fn add_user_auth_flow(
+        &self,
+        id: String,
+        config: UserAuthFlowYamlConfig,
+    ) -> Result<(), CommonError>;
+    async fn remove_user_auth_flow(&self, id: String) -> Result<(), CommonError>;
+
     async fn reload(&self) -> Result<(), CommonError>;
 }
 
@@ -401,6 +621,12 @@ impl YamlSomaAgentDefinition {
     fn ensure_bridge_config(definition: &mut SomaAgentDefinition) {
         if definition.bridge.is_none() {
             definition.bridge = Some(BridgeConfig { providers: None });
+        }
+    }
+
+    fn ensure_identity_config(definition: &mut SomaAgentDefinition) {
+        if definition.identity.is_none() {
+            definition.identity = Some(IdentityConfig::default());
         }
     }
 }
@@ -769,6 +995,106 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             env_vars.remove(&key);
             info!("Environment variable removed: {:?}", key);
             self.save(definition).await?;
+        }
+        Ok(())
+    }
+
+    async fn add_api_key(&self, id: String, config: ApiKeyYamlConfig) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_identity_config(&mut definition);
+
+        let identity = definition.identity.as_mut().unwrap();
+        if identity.api_keys.is_none() {
+            identity.api_keys = Some(HashMap::new());
+        }
+
+        identity
+            .api_keys
+            .as_mut()
+            .unwrap()
+            .insert(id.clone(), config);
+        info!("API key added: {:?}", id);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_api_key(&self, id: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(identity) = &mut definition.identity {
+            if let Some(api_keys) = &mut identity.api_keys {
+                api_keys.remove(&id);
+                info!("API key removed: {:?}", id);
+                self.save(definition).await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn add_sts_config(&self, id: String, config: StsConfigYaml) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_identity_config(&mut definition);
+
+        let identity = definition.identity.as_mut().unwrap();
+        if identity.sts_configurations.is_none() {
+            identity.sts_configurations = Some(HashMap::new());
+        }
+
+        identity
+            .sts_configurations
+            .as_mut()
+            .unwrap()
+            .insert(id.clone(), config);
+        info!("STS configuration added: {:?}", id);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_sts_config(&self, id: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(identity) = &mut definition.identity {
+            if let Some(sts_configs) = &mut identity.sts_configurations {
+                sts_configs.remove(&id);
+                info!("STS configuration removed: {:?}", id);
+                self.save(definition).await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn add_user_auth_flow(
+        &self,
+        id: String,
+        config: UserAuthFlowYamlConfig,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_identity_config(&mut definition);
+
+        let identity = definition.identity.as_mut().unwrap();
+        if identity.user_auth_flows.is_none() {
+            identity.user_auth_flows = Some(HashMap::new());
+        }
+
+        identity
+            .user_auth_flows
+            .as_mut()
+            .unwrap()
+            .insert(id.clone(), config);
+        info!("User auth flow configuration added: {:?}", id);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_user_auth_flow(&self, id: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(identity) = &mut definition.identity {
+            if let Some(user_auth_flows) = &mut identity.user_auth_flows {
+                user_auth_flows.remove(&id);
+                info!("User auth flow configuration removed: {:?}", id);
+                self.save(definition).await?;
+            }
         }
         Ok(())
     }
