@@ -34,7 +34,7 @@ pub struct SecretConfig {
     pub dek_alias: String,
 }
 
-/// Identity configuration for API keys and STS
+/// Identity configuration for API keys, STS, and user auth flows
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct IdentityConfig {
@@ -44,6 +44,9 @@ pub struct IdentityConfig {
     /// STS configurations (key is the STS config ID)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sts_configurations: Option<HashMap<String, StsConfigYaml>>,
+    /// User auth flow configurations (key is the config ID)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_auth_flows: Option<HashMap<String, UserAuthFlowYamlConfig>>,
 }
 
 /// API key configuration stored in soma.yaml
@@ -71,6 +74,56 @@ pub enum StsConfigYaml {
     JwtTemplate(JwtTemplateConfigYaml),
     /// Dev mode configuration (allows any authentication in dev)
     Dev {},
+}
+
+/// User auth flow configuration stored in soma.yaml (encrypted)
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum UserAuthFlowYamlConfig {
+    /// OIDC authorization code flow
+    OidcAuthorizationCodeFlow(EncryptedOidcYamlConfig),
+    /// OAuth authorization code flow
+    OauthAuthorizationCodeFlow(EncryptedOauthYamlConfig),
+    /// OIDC authorization code flow with PKCE
+    OidcAuthorizationCodePkceFlow(EncryptedOidcYamlConfig),
+    /// OAuth authorization code flow with PKCE
+    OauthAuthorizationCodePkceFlow(EncryptedOauthYamlConfig),
+}
+
+/// Encrypted OAuth configuration for YAML storage
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct EncryptedOauthYamlConfig {
+    /// Authorization endpoint URL
+    pub authorization_endpoint: String,
+    /// Token endpoint URL
+    pub token_endpoint: String,
+    /// Userinfo endpoint URL (optional)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub userinfo_endpoint: Option<String>,
+    /// OAuth client ID
+    pub client_id: String,
+    /// Encrypted client secret
+    pub encrypted_client_secret: String,
+    /// DEK alias used for encryption
+    pub dek_alias: String,
+    /// OAuth scopes
+    pub scopes: Vec<String>,
+    /// Token mapping configuration (serialized as JSON)
+    pub mapping: serde_json::Value,
+}
+
+/// Encrypted OIDC configuration for YAML storage
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct EncryptedOidcYamlConfig {
+    /// Base OAuth configuration
+    pub base_config: EncryptedOauthYamlConfig,
+    /// OIDC discovery endpoint (optional)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discovery_endpoint: Option<String>,
+    /// Token mapping configuration (serialized as JSON)
+    pub mapping: serde_json::Value,
 }
 
 /// JWT template configuration for validating external JWTs
@@ -442,6 +495,14 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
         config: StsConfigYaml,
     ) -> Result<(), CommonError>;
     async fn remove_sts_config(&self, id: String) -> Result<(), CommonError>;
+
+    // Identity operations - User auth flow configurations
+    async fn add_user_auth_flow(
+        &self,
+        id: String,
+        config: UserAuthFlowYamlConfig,
+    ) -> Result<(), CommonError>;
+    async fn remove_user_auth_flow(&self, id: String) -> Result<(), CommonError>;
 
     async fn reload(&self) -> Result<(), CommonError>;
 }
@@ -994,6 +1055,42 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             if let Some(sts_configs) = &mut identity.sts_configurations {
                 sts_configs.remove(&id);
                 info!("STS configuration removed: {:?}", id);
+                self.save(definition).await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn add_user_auth_flow(
+        &self,
+        id: String,
+        config: UserAuthFlowYamlConfig,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_identity_config(&mut definition);
+
+        let identity = definition.identity.as_mut().unwrap();
+        if identity.user_auth_flows.is_none() {
+            identity.user_auth_flows = Some(HashMap::new());
+        }
+
+        identity
+            .user_auth_flows
+            .as_mut()
+            .unwrap()
+            .insert(id.clone(), config);
+        info!("User auth flow configuration added: {:?}", id);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_user_auth_flow(&self, id: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(identity) = &mut definition.identity {
+            if let Some(user_auth_flows) = &mut identity.user_auth_flows {
+                user_auth_flows.remove(&id);
+                info!("User auth flow configuration removed: {:?}", id);
                 self.save(definition).await?;
             }
         }

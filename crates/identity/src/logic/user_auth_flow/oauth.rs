@@ -9,16 +9,16 @@
 use chrono::{Duration, Utc};
 use encryption::logic::CryptoCache;
 use oauth2::{AuthUrl, ClientId, CsrfToken, PkceCodeChallenge, RedirectUrl, Scope, TokenUrl};
-use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use shared::error::CommonError;
 use shared::primitives::WrappedChronoDateTime;
 use utoipa::ToSchema;
 
-use crate::logic::internal_token_issuance::{NormalizedTokenInputFields, NormalizedTokenIssuanceResult, issue_tokens_for_normalized_user};
+use crate::logic::internal_token_issuance::{NormalizedTokenInputFields, issue_tokens_for_normalized_user};
 use crate::logic::token_mapping::template::{apply_mapping_template, DecodedTokenSources};
 use crate::logic::token_mapping::TokenMapping;
-use crate::logic::user_auth_flow::config::{OauthConfig, UserAuthFlowConfig};
+use crate::logic::user_auth_flow::{OAuthCallbackParams, OAuthCallbackResult, StartAuthorizationParams, StartAuthorizationResult};
+use crate::logic::user_auth_flow::config::UserAuthFlowConfig;
 use crate::repository::{CreateOAuthState, UserRepositoryLike};
 
 // ============================================
@@ -37,47 +37,6 @@ pub struct OAuthState {
     pub expires_at: WrappedChronoDateTime,
 }
 
-/// Parameters for starting the OAuth authorization flow
-#[derive(Debug)]
-pub struct StartAuthorizationParams {
-    /// IdP configuration ID
-    pub config_id: String,
-    /// Optional override for post-login redirect
-    pub redirect_after_login: Option<String>,
-}
-
-/// Result of starting the authorization flow
-#[derive(Debug, Serialize, ToSchema)]
-pub struct StartAuthorizationResult {
-    /// The URL to redirect the user to
-    pub login_redirect_url: String,
-}
-
-/// Parameters for handling the OAuth callback
-#[derive(Debug, Deserialize)]
-pub struct OAuthCallbackParams {
-    /// Authorization code from the IdP
-    pub code: String,
-    /// State parameter (for CSRF validation)
-    pub state: String,
-    /// Error from the IdP (if any)
-    pub error: Option<String>,
-    /// Error description from the IdP
-    pub error_description: Option<String>,
-}
-
-/// Result of handling the OAuth callback
-#[derive(Debug, Serialize, ToSchema)]
-pub struct OAuthCallbackResult {
-    /// Access token
-    pub access_token: String,
-    /// Refresh token
-    pub refresh_token: String,
-    /// Token expiration in seconds
-    pub expires_in: i64,
-    /// Optional redirect URI after login
-    pub redirect_uri: Option<String>,
-}
 
 // ============================================
 // Base Authorization Flow Parameters
@@ -207,9 +166,7 @@ pub async fn exchange_code_for_tokens(
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
         return Err(CommonError::Unknown(anyhow::anyhow!(
-            "Token exchange failed: HTTP {} - {}",
-            status,
-            body
+            "Token exchange failed: HTTP {status} - {body}"
         )));
     }
 
@@ -411,7 +368,7 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
     repository: &R,
     crypto_cache: &CryptoCache,
     params: OAuthCallbackParams,
-) -> Result<NormalizedTokenIssuanceResult, CommonError> {
+) -> Result<OAuthCallbackResult, CommonError> {
     // Check for error response from IdP
     if let Some(error) = &params.error {
         return Err(CommonError::InvalidRequest {
@@ -506,7 +463,9 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
     let token_result =
         issue_tokens_for_normalized_user(repository, crypto_cache, normalized).await?;
 
-    Ok(token_result)
-
+    Ok(OAuthCallbackResult {
+        issued_tokens: token_result,
+        redirect_uri: oauth_state.redirect_uri,
+    })
     
 }

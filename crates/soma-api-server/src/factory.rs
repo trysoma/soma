@@ -114,7 +114,7 @@ pub async fn create_api_service(
     encryption::logic::crypto_services::init_crypto_cache(&crypto_cache).await?;
 
     // Create JWKS cache (JWKs will be created when default DEK alias is available)
-    let jwks_cache = identity::logic::jwks_cache::JwksCache::new(identity_repo.clone());
+    let jwks_cache = identity::logic::jwk::cache::JwksCache::new(identity_repo.clone());
 
     // Create JWK rotation state to track initialization
     let jwk_rotation_state = crate::logic::identity::JwkRotationState::new();

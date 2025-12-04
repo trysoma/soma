@@ -1,6 +1,7 @@
 use chrono::Utc;
 use encryption::logic::CryptoCache;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
+use serde::Serialize;
 use shared::error::CommonError;
 use shared::primitives::{PaginationRequest, WrappedChronoDateTime};
 use utoipa::ToSchema;
@@ -244,6 +245,7 @@ pub async fn sign_refresh_token<R: UserRepositoryLike>(
 }
 
 
+#[derive(Debug, Serialize, ToSchema)]
 pub struct NormalizedTokenIssuanceResult {
     pub access_token: String,
     pub refresh_token: String,
@@ -353,7 +355,7 @@ pub async fn refresh_access_token<R: UserRepositoryLike>(
     let jwks = jwks_cache.get_cached_jwks();
     let jwk = jwks.iter().find(|k| k.kid == kid).ok_or_else(|| {
         CommonError::Authentication {
-            msg: format!("Signing key '{}' not found in JWKS", kid),
+            msg: format!("Signing key '{kid}' not found in JWKS"),
             source: None,
         }
     })?;

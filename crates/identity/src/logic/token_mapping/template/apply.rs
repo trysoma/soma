@@ -125,8 +125,7 @@ fn extract_string_field(
     let value = extract_field_from_sources(sources, mapping_source)
         .ok_or_else(|| {
             CommonError::Unknown(anyhow::anyhow!(
-                "Missing '{}' field in token/userinfo",
-                field_name
+                "Missing '{field_name}' field in token/userinfo"
             ))
         })?;
 
@@ -134,8 +133,7 @@ fn extract_string_field(
         .as_str()
         .ok_or_else(|| {
             CommonError::Unknown(anyhow::anyhow!(
-                "Field '{}' is not a string",
-                field_name
+                "Field '{field_name}' is not a string"
             ))
         })
         .map(|s| s.to_string())
@@ -164,7 +162,7 @@ fn extract_groups(
         .map(|v| {
             if let Some(arr) = v.as_array() {
                 arr.iter()
-                    .filter_map(|g| g.as_str().map(|s| standardize_group_name(s)))
+                    .filter_map(|g| g.as_str().map(standardize_group_name))
                     .collect()
             } else if let Some(s) = v.as_str() {
                 vec![standardize_group_name(s)]

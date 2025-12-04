@@ -3221,40 +3221,21 @@
           {
             "name": "page_size",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "int32",
-              "minimum": 0
+              "type": "integer",
+              "format": "int64"
             },
-            "example": "10"
+            "style": "form"
           },
           {
             "name": "next_page_token",
             "in": "query",
             "required": false,
             "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": "string"
             },
-            "example": ""
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "example": ""
+            "style": "form"
           }
         ],
         "responses": {
@@ -3341,7 +3322,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ImportApiKeyParams"
+                "$ref": "#/components/schemas/EncryptedApiKeyConfig"
               }
             }
           },
@@ -3353,7 +3334,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ImportApiKeyResponse"
+                  "$ref": "#/components/schemas/TupleUnit"
                 }
               }
             }
@@ -3405,7 +3386,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeleteApiKeyResponse"
+                  "$ref": "#/components/schemas/TupleUnit"
                 }
               }
             }
@@ -3433,480 +3414,20 @@
         }
       }
     },
-    "/api/identity/v1/idp-configuration": {
+    "/api/identity/v1/auth/authorize/{config_id}": {
       "get": {
         "tags": [
           "identity",
           "v1"
         ],
-        "summary": "List IdP configurations",
-        "description": "List all IdP configurations with optional filtering by type",
-        "operationId": "route_list_idp_configs",
-        "parameters": [
-          {
-            "name": "page_size",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "int32",
-              "minimum": 0
-            },
-            "example": "10"
-          },
-          {
-            "name": "next_page_token",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "example": ""
-          },
-          {
-            "name": "type",
-            "in": "query",
-            "description": "Filter by configuration type (oidc_authorization_flow, oauth_authorization_flow)",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "example": "oidc_authorization_flow"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of IdP configurations",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListIdpConfigResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
-        "summary": "Create IdP configuration",
-        "description": "Create a new IdP configuration for OAuth/OIDC authorization flows",
-        "operationId": "route_create_idp_config",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateIdpConfigParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "IdP configuration created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateIdpConfigResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/identity/v1/idp-configuration/import": {
-      "post": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
-        "summary": "Import IdP configuration",
-        "description": "Import an IdP configuration (idempotent, used for syncing from soma.yaml)",
-        "operationId": "route_import_idp_config",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateIdpConfigParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "IdP configuration imported successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateIdpConfigResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/identity/v1/idp-configuration/{id}": {
-      "get": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
-        "summary": "Get IdP configuration",
-        "description": "Get an IdP configuration by ID",
-        "operationId": "route_get_idp_config",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of the IdP configuration to retrieve",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "IdP configuration found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetIdpConfigResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "IdP configuration not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
-        "summary": "Delete IdP configuration",
-        "description": "Delete an IdP configuration by ID",
-        "operationId": "route_delete_idp_config",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of the IdP configuration to delete",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "IdP configuration deleted successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeleteIdpConfigResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "IdP configuration not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
-        "summary": "Update IdP configuration",
-        "description": "Update an existing IdP configuration",
-        "operationId": "route_update_idp_config",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of the IdP configuration to update",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateIdpConfigParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "IdP configuration updated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UpdateIdpConfigResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "IdP configuration not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/identity/v1/jwk": {
-      "get": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
-        "operationId": "route_list_jwks",
-        "parameters": [
-          {
-            "name": "page_size",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "int32",
-              "minimum": 0
-            },
-            "example": "10"
-          },
-          {
-            "name": "next_page_token",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "example": ""
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of JWKs",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JwkResponsePaginatedResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/identity/v1/jwk/{kid}/invalidate": {
-      "post": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
-        "operationId": "route_invalidate_jwk",
-        "parameters": [
-          {
-            "name": "kid",
-            "in": "path",
-            "description": "Key ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "JWK invalidated successfully"
-          },
-          "404": {
-            "description": "JWK not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/identity/v1/oauth/authorize/{config_id}": {
-      "get": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
-        "summary": "Start OAuth authorization",
+        "summary": "Start authorization",
         "description": "Initiates the OAuth/OIDC authorization flow by redirecting to the external IdP",
         "operationId": "route_start_authorization",
         "parameters": [
           {
             "name": "config_id",
             "in": "path",
-            "description": "ID of the IdP configuration to use",
+            "description": "ID of the user auth flow configuration to use",
             "required": true,
             "schema": {
               "type": "string"
@@ -3923,7 +3444,7 @@
                 "null"
               ]
             },
-            "example": "/dashboard"
+            "example": "/"
           }
         ],
         "responses": {
@@ -3931,7 +3452,7 @@
             "description": "Redirect to IdP authorization endpoint"
           },
           "404": {
-            "description": "IdP configuration not found",
+            "description": "Configuration not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3953,20 +3474,20 @@
         }
       }
     },
-    "/api/identity/v1/oauth/callback/{config_id}": {
+    "/api/identity/v1/auth/callback/{config_id}": {
       "get": {
         "tags": [
           "identity",
           "v1"
         ],
-        "summary": "OAuth callback",
+        "summary": "Authorization callback",
         "description": "Handles the OAuth/OIDC callback from the external IdP, exchanges the authorization code for tokens",
-        "operationId": "route_oauth_callback",
+        "operationId": "route_auth_callback",
         "parameters": [
           {
             "name": "config_id",
             "in": "path",
-            "description": "ID of the IdP configuration",
+            "description": "ID of the user auth flow configuration",
             "required": true,
             "schema": {
               "type": "string"
@@ -4052,296 +3573,14 @@
         }
       }
     },
-    "/api/identity/v1/sts-configuration": {
-      "get": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
-        "summary": "List STS configurations",
-        "description": "List all STS configurations with optional filtering by type",
-        "operationId": "route_list_sts_configs",
-        "parameters": [
-          {
-            "name": "page_size",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "int32",
-              "minimum": 0
-            },
-            "example": "10"
-          },
-          {
-            "name": "next_page_token",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "example": ""
-          },
-          {
-            "name": "type",
-            "in": "query",
-            "description": "Filter by configuration type (jwt_template, dev)",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "example": "jwt_template"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of STS configurations",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListStsConfigResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
+    "/api/identity/v1/auth/refresh": {
       "post": {
         "tags": [
           "identity",
           "v1"
         ],
-        "summary": "Create STS configuration",
-        "description": "Create a new STS configuration (e.g., JWT template or dev settings)",
-        "operationId": "route_create_sts_config",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateStsConfigParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "STS configuration created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateStsConfigResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/identity/v1/sts-configuration/import": {
-      "post": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
-        "summary": "Import STS configuration",
-        "description": "Import an STS configuration (idempotent, used for syncing from soma.yaml)",
-        "operationId": "route_import_sts_config",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateStsConfigParams"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "STS configuration imported successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateStsConfigResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/identity/v1/sts-configuration/{id}": {
-      "get": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
-        "summary": "Get STS configuration",
-        "description": "Get an STS configuration by ID",
-        "operationId": "route_get_sts_config",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of the STS configuration to retrieve",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "STS configuration found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StsConfiguration"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "STS configuration not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
-        "summary": "Delete STS configuration",
-        "description": "Delete an STS configuration by ID",
-        "operationId": "route_delete_sts_config",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of the STS configuration to delete",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "STS configuration deleted successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeleteStsConfigResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "STS configuration not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/identity/v1/sts/refresh": {
-      "post": {
-        "tags": [
-          "identity",
-          "v1"
-        ],
+        "summary": "Refresh access token",
+        "description": "Refreshes an access token using a refresh token from the request body or cookie",
         "operationId": "route_refresh_token",
         "requestBody": {
           "description": "Optional refresh token in body. If not provided, will be read from cookie.",
@@ -4404,12 +3643,322 @@
         }
       }
     },
+    "/api/identity/v1/jwk": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "operationId": "route_list_jwks",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of JWKs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JwkResponsePaginatedResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/jwk/{kid}/invalidate": {
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "operationId": "route_invalidate_jwk",
+        "parameters": [
+          {
+            "name": "kid",
+            "in": "path",
+            "description": "Key ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JWK invalidated successfully"
+          },
+          "404": {
+            "description": "JWK not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/sts-configuration": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "List STS configurations",
+        "description": "List all STS configurations with optional filtering by type",
+        "operationId": "route_list_sts_configs",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of STS configurations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StsTokenConfigPaginatedResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Create STS configuration",
+        "description": "Create a new STS configuration (e.g., JWT template or dev settings)",
+        "operationId": "route_create_sts_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StsTokenConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "STS configuration created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StsTokenConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/sts-configuration/{id}": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Get STS configuration",
+        "description": "Get an STS configuration by ID",
+        "operationId": "route_get_sts_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the STS configuration to retrieve",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "STS configuration found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StsTokenConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "STS configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Delete STS configuration",
+        "description": "Delete an STS configuration by ID",
+        "operationId": "route_delete_sts_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the STS configuration to delete",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "STS configuration deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TupleUnit"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "STS configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/identity/v1/sts/{sts_config_id}": {
       "post": {
         "tags": [
           "identity",
           "v1"
         ],
+        "summary": "Exchange STS token",
+        "description": "Exchange an external token for internal access and refresh tokens using an STS configuration",
         "operationId": "route_exchange_sts_token",
         "parameters": [
           {
@@ -4428,7 +3977,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
+                  "$ref": "#/components/schemas/NormalizedTokenIssuanceResult"
                 }
               }
             }
@@ -4445,6 +3994,290 @@
           },
           "404": {
             "description": "STS config not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/user-auth-flow-config": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "List user auth flow configurations",
+        "description": "List all user auth flow configurations with optional filtering by type",
+        "operationId": "route_list_user_auth_flow_configs",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            },
+            "example": "10"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": ""
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by configuration type (oidc_authorization_code_flow, oauth_authorization_code_flow, etc.)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "oidc_authorization_code_flow"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of user auth flow configurations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListUserAuthFlowConfigResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Create user auth flow configuration",
+        "description": "Create a new user auth flow configuration for OAuth/OIDC authorization flows. The configuration will be encrypted before storage.",
+        "operationId": "route_create_user_auth_flow_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserAuthFlowConfigParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "User auth flow configuration created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserAuthFlowConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/user-auth-flow-config/import": {
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Import user auth flow configuration",
+        "description": "Import an already encrypted user auth flow configuration (idempotent, used for syncing from soma.yaml)",
+        "operationId": "route_import_user_auth_flow_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportUserAuthFlowConfigParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "User auth flow configuration imported successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TupleUnit"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/user-auth-flow-config/{id}": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Get user auth flow configuration",
+        "description": "Get a user auth flow configuration by ID. Returns the encrypted configuration.",
+        "operationId": "route_get_user_auth_flow_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the user auth flow configuration to retrieve",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User auth flow configuration found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserAuthFlowConfigResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User auth flow configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Delete user auth flow configuration",
+        "description": "Delete a user auth flow configuration by ID",
+        "operationId": "route_delete_user_auth_flow_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the user auth flow configuration to delete",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User auth flow configuration deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TupleUnit"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User auth flow configuration not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -5790,39 +5623,6 @@
       "AgentCard": {
         "type": "object"
       },
-      "ApiKey": {
-        "type": "object",
-        "required": [
-          "id",
-          "hashed_value",
-          "user_id",
-          "created_at",
-          "updated_at"
-        ],
-        "properties": {
-          "created_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "description": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "hashed_value": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          },
-          "updated_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "user_id": {
-            "type": "string"
-          }
-        }
-      },
       "ApiKeyYamlConfig": {
         "type": "object",
         "description": "API key configuration stored in soma.yaml",
@@ -6000,6 +5800,7 @@
         "type": "object",
         "description": "Parameters for creating an API key",
         "required": [
+          "id",
           "role"
         ],
         "properties": {
@@ -6010,8 +5811,12 @@
             ],
             "description": "Description of the API key"
           },
-          "role": {
+          "id": {
             "type": "string",
+            "description": "The ID for this API key"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role",
             "description": "Role to assign to the API key's user"
           }
         }
@@ -6077,42 +5882,6 @@
             "type": "string"
           },
           "value": {
-            "type": "string"
-          }
-        }
-      },
-      "CreateIdpConfigParams": {
-        "type": "object",
-        "description": "Parameters for creating an IdP configuration",
-        "required": [
-          "config"
-        ],
-        "properties": {
-          "config": {
-            "$ref": "#/components/schemas/InputIdpConfig",
-            "description": "The configuration"
-          },
-          "id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Optional ID (will be generated if not provided)"
-          }
-        }
-      },
-      "CreateIdpConfigResponse": {
-        "type": "object",
-        "description": "Response from creating an IdP configuration",
-        "required": [
-          "id",
-          "type"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "type": {
             "type": "string"
           }
         }
@@ -6246,55 +6015,29 @@
           }
         }
       },
-      "CreateStsConfigParams": {
+      "CreateUserAuthFlowConfigParams": {
         "type": "object",
-        "description": "Parameters for creating an STS configuration",
+        "description": "Parameters for creating a user auth flow configuration",
         "required": [
-          "type"
+          "config"
         ],
         "properties": {
-          "id": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Optional ID (will be generated if not provided)"
-          },
-          "type": {
-            "type": "string",
-            "description": "The configuration type"
-          },
-          "value": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "The configuration value (JSON)"
+          "config": {
+            "$ref": "#/components/schemas/UserAuthFlowConfig",
+            "description": "The configuration to create (unencrypted)"
           }
         }
       },
-      "CreateStsConfigResponse": {
+      "CreateUserAuthFlowConfigResponse": {
         "type": "object",
-        "description": "Response from creating an STS configuration",
+        "description": "Response from creating a user auth flow configuration",
         "required": [
-          "id",
-          "type"
+          "id"
         ],
         "properties": {
           "id": {
             "type": "string",
-            "description": "The STS configuration ID"
-          },
-          "type": {
-            "type": "string",
-            "description": "The configuration type"
-          },
-          "value": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "The configuration value (JSON)"
+            "description": "The ID of the created configuration"
           }
         }
       },
@@ -6482,33 +6225,8 @@
           }
         }
       },
-      "DeleteApiKeyResponse": {
-        "type": "object",
-        "description": "Response from deleting an API key",
-        "required": [
-          "success"
-        ],
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "description": "Whether the deletion was successful"
-          }
-        }
-      },
       "DeleteEnvironmentVariableResponse": {
         "type": "object",
-        "required": [
-          "success"
-        ],
-        "properties": {
-          "success": {
-            "type": "boolean"
-          }
-        }
-      },
-      "DeleteIdpConfigResponse": {
-        "type": "object",
-        "description": "Response from deleting an IdP configuration",
         "required": [
           "success"
         ],
@@ -6529,16 +6247,14 @@
           }
         }
       },
-      "DeleteStsConfigResponse": {
+      "DevModeConfig": {
         "type": "object",
-        "description": "Response from deleting an STS configuration",
         "required": [
-          "success"
+          "id"
         ],
         "properties": {
-          "success": {
-            "type": "boolean",
-            "description": "Whether the deletion was successful"
+          "id": {
+            "$ref": "#/components/schemas/String"
           }
         }
       },
@@ -6563,8 +6279,250 @@
           }
         }
       },
+      "EncryptedApiKeyConfig": {
+        "type": "object",
+        "description": "Parameters for importing an API key",
+        "required": [
+          "id",
+          "encrypted_hashed_value",
+          "dek_alias",
+          "role",
+          "user_id"
+        ],
+        "properties": {
+          "dek_alias": {
+            "type": "string",
+            "description": "The DEK alias used for encryption"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Description of the API key"
+          },
+          "encrypted_hashed_value": {
+            "type": "string",
+            "description": "The encrypted hashed value of the API key"
+          },
+          "id": {
+            "type": "string",
+            "description": "The ID of the API key"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role",
+            "description": "Role to assign to the API key's user"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The user ID for this API key"
+          }
+        }
+      },
       "EncryptedDataEncryptionKey": {
         "type": "string"
+      },
+      "EncryptedOauthConfig": {
+        "type": "object",
+        "description": "OAuth2 configuration for authorization code flow",
+        "required": [
+          "id",
+          "authorization_endpoint",
+          "token_endpoint",
+          "client_id",
+          "encrypted_client_secret",
+          "dek_alias",
+          "scopes",
+          "mapping"
+        ],
+        "properties": {
+          "authorization_endpoint": {
+            "type": "string"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "dek_alias": {
+            "type": "string"
+          },
+          "encrypted_client_secret": {
+            "$ref": "#/components/schemas/EncryptedString"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/TokenMapping"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token_endpoint": {
+            "type": "string"
+          },
+          "userinfo_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "EncryptedOauthYamlConfig": {
+        "type": "object",
+        "description": "Encrypted OAuth configuration for YAML storage",
+        "required": [
+          "authorization_endpoint",
+          "token_endpoint",
+          "client_id",
+          "encrypted_client_secret",
+          "dek_alias",
+          "scopes",
+          "mapping"
+        ],
+        "properties": {
+          "authorization_endpoint": {
+            "type": "string",
+            "description": "Authorization endpoint URL"
+          },
+          "client_id": {
+            "type": "string",
+            "description": "OAuth client ID"
+          },
+          "dek_alias": {
+            "type": "string",
+            "description": "DEK alias used for encryption"
+          },
+          "encrypted_client_secret": {
+            "type": "string",
+            "description": "Encrypted client secret"
+          },
+          "mapping": {
+            "description": "Token mapping configuration (serialized as JSON)"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "OAuth scopes"
+          },
+          "token_endpoint": {
+            "type": "string",
+            "description": "Token endpoint URL"
+          },
+          "userinfo_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Userinfo endpoint URL (optional)"
+          }
+        }
+      },
+      "EncryptedOidcConfig": {
+        "type": "object",
+        "description": "OIDC configuration extending OAuth2 with discovery and ID token support",
+        "required": [
+          "id",
+          "base_config",
+          "mapping"
+        ],
+        "properties": {
+          "base_config": {
+            "$ref": "#/components/schemas/EncryptedOauthConfig"
+          },
+          "discovery_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/TokenMapping"
+          }
+        }
+      },
+      "EncryptedOidcYamlConfig": {
+        "type": "object",
+        "description": "Encrypted OIDC configuration for YAML storage",
+        "required": [
+          "base_config",
+          "mapping"
+        ],
+        "properties": {
+          "base_config": {
+            "$ref": "#/components/schemas/EncryptedOauthYamlConfig",
+            "description": "Base OAuth configuration"
+          },
+          "discovery_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "OIDC discovery endpoint (optional)"
+          },
+          "mapping": {
+            "description": "Token mapping configuration (serialized as JSON)"
+          }
+        }
+      },
+      "EncryptedString": {
+        "type": "string"
+      },
+      "EncryptedUserAuthFlowConfig": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "OidcAuthorizationCodeFlow"
+            ],
+            "properties": {
+              "OidcAuthorizationCodeFlow": {
+                "$ref": "#/components/schemas/EncryptedOidcConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "OauthAuthorizationCodeFlow"
+            ],
+            "properties": {
+              "OauthAuthorizationCodeFlow": {
+                "$ref": "#/components/schemas/EncryptedOauthConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "OidcAuthorizationCodePkceFlow"
+            ],
+            "properties": {
+              "OidcAuthorizationCodePkceFlow": {
+                "$ref": "#/components/schemas/EncryptedOidcConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "OauthAuthorizationCodePkceFlow"
+            ],
+            "properties": {
+              "OauthAuthorizationCodePkceFlow": {
+                "$ref": "#/components/schemas/EncryptedOauthConfig"
+              }
+            }
+          }
+        ]
       },
       "EncryptionConfig": {
         "type": "object",
@@ -6945,31 +6903,41 @@
           }
         }
       },
-      "GetIdpConfigResponse": {
+      "GetUserAuthFlowConfigResponse": {
         "type": "object",
-        "description": "Response from getting an IdP configuration (returns stored format, no secret)",
+        "description": "Response from getting a user auth flow configuration",
         "required": [
-          "id",
-          "type",
           "config",
           "created_at",
           "updated_at"
         ],
         "properties": {
           "config": {
-            "$ref": "#/components/schemas/StoredIdpConfig"
+            "$ref": "#/components/schemas/EncryptedUserAuthFlowConfig",
+            "description": "The configuration (encrypted)"
           },
           "created_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "id": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
+            "$ref": "#/components/schemas/WrappedChronoDateTime",
+            "description": "When the configuration was created"
           },
           "updated_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
+            "$ref": "#/components/schemas/WrappedChronoDateTime",
+            "description": "When the configuration was last updated"
+          }
+        }
+      },
+      "GroupToRoleMapping": {
+        "type": "object",
+        "required": [
+          "group",
+          "role"
+        ],
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
           }
         }
       },
@@ -6991,9 +6959,42 @@
           }
         }
       },
+      "HashedApiKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "hashed_value",
+          "user_id",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hashed_value": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        }
+      },
       "IdentityConfig": {
         "type": "object",
-        "description": "Identity configuration for API keys and STS",
+        "description": "Identity configuration for API keys, STS, and user auth flows",
         "properties": {
           "api_keys": {
             "type": [
@@ -7020,92 +7021,19 @@
             "propertyNames": {
               "type": "string"
             }
-          }
-        }
-      },
-      "IdpConfigListItem": {
-        "type": "object",
-        "description": "Response item for listing IdP configurations",
-        "required": [
-          "id",
-          "type",
-          "client_id",
-          "created_at",
-          "updated_at"
-        ],
-        "properties": {
-          "client_id": {
-            "type": "string"
           },
-          "created_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "id": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
-          },
-          "updated_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          }
-        }
-      },
-      "ImportApiKeyParams": {
-        "type": "object",
-        "description": "Parameters for importing an API key",
-        "required": [
-          "id",
-          "encrypted_hashed_value",
-          "dek_alias",
-          "role",
-          "user_id"
-        ],
-        "properties": {
-          "dek_alias": {
-            "type": "string",
-            "description": "The DEK alias used for encryption"
-          },
-          "description": {
+          "user_auth_flows": {
             "type": [
-              "string",
+              "object",
               "null"
             ],
-            "description": "Description of the API key"
-          },
-          "encrypted_hashed_value": {
-            "type": "string",
-            "description": "The encrypted hashed value of the API key"
-          },
-          "id": {
-            "type": "string",
-            "description": "The ID of the API key"
-          },
-          "role": {
-            "type": "string",
-            "description": "Role to assign to the API key's user"
-          },
-          "user_id": {
-            "type": "string",
-            "description": "The user ID for this API key"
-          }
-        }
-      },
-      "ImportApiKeyResponse": {
-        "type": "object",
-        "description": "Response from importing an API key",
-        "required": [
-          "id",
-          "success"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "The API key ID"
-          },
-          "success": {
-            "type": "boolean",
-            "description": "Whether the import was successful"
+            "description": "User auth flow configurations (key is the config ID)",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UserAuthFlowYamlConfig"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           }
         }
       },
@@ -7160,199 +7088,16 @@
           }
         }
       },
-      "InputIdpConfig": {
-        "oneOf": [
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/InputOidcConfig"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "oidc_authorization_code"
-                    ]
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/InputOauthConfig"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "oauth_authorization_code"
-                    ]
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/InputOidcConfig"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "oidc_authorization_code_pkce"
-                    ]
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/InputOauthConfig"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "oauth_authorization_code_pkce"
-                    ]
-                  }
-                }
-              }
-            ]
-          }
-        ],
-        "description": "Input IdP configuration enum (for API)"
-      },
-      "InputOauthConfig": {
+      "ImportUserAuthFlowConfigParams": {
         "type": "object",
-        "description": "Input OAuth config (with plaintext client_secret for API input)",
+        "description": "Parameters for importing a user auth flow configuration (already encrypted)",
         "required": [
-          "authorization_endpoint",
-          "token_endpoint",
-          "client_id",
-          "client_secret",
-          "scopes",
-          "redirect_uri"
+          "config"
         ],
         "properties": {
-          "allowed_domains": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "authorization_endpoint": {
-            "type": "string"
-          },
-          "client_id": {
-            "type": "string"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "Client secret (will be encrypted before storage)"
-          },
-          "default_role": {
-            "type": "string"
-          },
-          "group_to_role_mappings": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StoredGroupToRoleMapping"
-            }
-          },
-          "mapping_config": {
-            "$ref": "#/components/schemas/StoredMappingConfig"
-          },
-          "post_login_redirect_uri": {
-            "type": "string"
-          },
-          "redirect_uri": {
-            "type": "string"
-          },
-          "scope_to_group_mappings": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StoredScopeToGroupMapping"
-            }
-          },
-          "scope_to_role_mappings": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StoredScopeToRoleMapping"
-            }
-          },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "state_ttl_seconds": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 0
-          },
-          "token_endpoint": {
-            "type": "string"
-          },
-          "userinfo_endpoint": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        }
-      },
-      "InputOidcConfig": {
-        "type": "object",
-        "description": "Input OIDC config",
-        "required": [
-          "base_config"
-        ],
-        "properties": {
-          "base_config": {
-            "$ref": "#/components/schemas/InputOauthConfig"
-          },
-          "discovery_endpoint": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "jwks_uri": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "mapping_config": {
-            "$ref": "#/components/schemas/StoredOidcMappingConfig"
+          "config": {
+            "$ref": "#/components/schemas/EncryptedUserAuthFlowConfig",
+            "description": "The encrypted configuration to import"
           }
         }
       },
@@ -7613,6 +7358,174 @@
           }
         }
       },
+      "JwtTemplateModeConfig": {
+        "type": "object",
+        "required": [
+          "id",
+          "mapping_template",
+          "validation_template"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/String"
+          },
+          "mapping_template": {
+            "$ref": "#/components/schemas/JwtTokenTemplateConfig"
+          },
+          "validation_template": {
+            "$ref": "#/components/schemas/JwtTokenTemplateValidationConfig"
+          }
+        }
+      },
+      "JwtTokenMappingConfig": {
+        "type": "object",
+        "required": [
+          "issuer_field",
+          "audience_field",
+          "sub_field",
+          "group_to_role_mappings",
+          "scope_to_role_mappings",
+          "scope_to_group_mappings"
+        ],
+        "properties": {
+          "audience_field": {
+            "$ref": "#/components/schemas/MappingSource_String"
+          },
+          "email_field": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MappingSource_String"
+              }
+            ]
+          },
+          "group_to_role_mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupToRoleMapping"
+            }
+          },
+          "groups_field": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MappingSource_String"
+              }
+            ]
+          },
+          "issuer_field": {
+            "$ref": "#/components/schemas/MappingSource_String"
+          },
+          "scope_to_group_mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeToGroupMapping"
+            }
+          },
+          "scope_to_role_mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeToRoleMapping"
+            }
+          },
+          "scopes_field": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MappingSource_String"
+              }
+            ]
+          },
+          "sub_field": {
+            "$ref": "#/components/schemas/MappingSource_String"
+          }
+        }
+      },
+      "JwtTokenTemplateConfig": {
+        "type": "object",
+        "required": [
+          "jwks_uri",
+          "mapping_template"
+        ],
+        "properties": {
+          "access_token_location": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TokenLocation"
+              }
+            ]
+          },
+          "id_token_location": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TokenLocation"
+              }
+            ]
+          },
+          "jwks_uri": {
+            "type": "string"
+          },
+          "mapping_template": {
+            "$ref": "#/components/schemas/JwtTokenMappingConfig"
+          },
+          "userinfo_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "JwtTokenTemplateValidationConfig": {
+        "type": "object",
+        "properties": {
+          "issuer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "required_groups": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "required_scopes": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "valid_audiences": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "JwtValidationConfigYaml": {
         "type": "object",
         "description": "JWT validation configuration",
@@ -7666,7 +7579,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ApiKey"
+              "$ref": "#/components/schemas/HashedApiKey"
             }
           },
           "next_page_token": {
@@ -7717,27 +7630,6 @@
           }
         }
       },
-      "ListIdpConfigResponse": {
-        "type": "object",
-        "description": "Response from listing IdP configurations",
-        "required": [
-          "items"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/IdpConfigListItem"
-            }
-          },
-          "next_page_token": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        }
-      },
       "ListSecretsResponse": {
         "type": "object",
         "required": [
@@ -7758,9 +7650,9 @@
           }
         }
       },
-      "ListStsConfigResponse": {
+      "ListUserAuthFlowConfigResponse": {
         "type": "object",
-        "description": "Response from listing STS configurations",
+        "description": "Response from listing user auth flow configurations",
         "required": [
           "items"
         ],
@@ -7768,16 +7660,80 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/StsConfiguration"
-            }
+              "$ref": "#/components/schemas/GetUserAuthFlowConfigResponse"
+            },
+            "description": "The configurations"
           },
           "next_page_token": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Token for the next page, if any"
           }
         }
+      },
+      "MappingSource_String": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Field is in the OIDC ID token",
+            "required": [
+              "field",
+              "type"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "id_token"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Field is in the OAuth userinfo",
+            "required": [
+              "field",
+              "type"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "userinfo"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Field is in the OAuth access token response",
+            "required": [
+              "field",
+              "type"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "access_token"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Indicates which token type (ID token for OIDC, access token response for OAuth)\ncontains the field"
       },
       "Message": {
         "type": "object",
@@ -7889,6 +7845,97 @@
         "properties": {
           "to_envelope_encryption_key_id": {
             "type": "string"
+          }
+        }
+      },
+      "NormalizedTokenIssuanceResult": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "expires_in": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "refresh_token": {
+            "type": "string"
+          }
+        }
+      },
+      "OauthConfig": {
+        "type": "object",
+        "description": "OAuth2 configuration for authorization code flow",
+        "required": [
+          "id",
+          "authorization_endpoint",
+          "token_endpoint",
+          "client_id",
+          "client_secret",
+          "scopes",
+          "mapping"
+        ],
+        "properties": {
+          "authorization_endpoint": {
+            "type": "string"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "client_secret": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/TokenMapping"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token_endpoint": {
+            "type": "string"
+          },
+          "userinfo_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "OidcConfig": {
+        "type": "object",
+        "description": "OIDC configuration extending OAuth2 with discovery and ID token support",
+        "required": [
+          "id",
+          "base_config",
+          "mapping"
+        ],
+        "properties": {
+          "base_config": {
+            "$ref": "#/components/schemas/OauthConfig"
+          },
+          "discovery_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/TokenMapping"
           }
         }
       },
@@ -8282,8 +8329,34 @@
           }
         }
       },
+      "Role": {
+        "type": "string",
+        "description": "User role in the system",
+        "enum": [
+          "admin",
+          "maintainer",
+          "read_only_maintainer",
+          "agent",
+          "user"
+        ]
+      },
       "RuntimeConfigResponse": {
         "type": "object"
+      },
+      "ScopeToGroupMapping": {
+        "type": "object",
+        "required": [
+          "scope",
+          "group"
+        ],
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          }
+        }
       },
       "ScopeToGroupMappingYaml": {
         "type": "object",
@@ -8300,6 +8373,21 @@
           "scope": {
             "type": "string",
             "description": "The scope to match"
+          }
+        }
+      },
+      "ScopeToRoleMapping": {
+        "type": "object",
+        "required": [
+          "scope",
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "scope": {
+            "type": "string"
           }
         }
       },
@@ -8440,360 +8528,8 @@
           }
         }
       },
-      "StoredGroupToRoleMapping": {
-        "type": "object",
-        "description": "Stored group-to-role mapping",
-        "required": [
-          "group",
-          "role"
-        ],
-        "properties": {
-          "group": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string"
-          }
-        }
-      },
-      "StoredIdpConfig": {
-        "oneOf": [
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StoredOidcConfig"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "oidc_authorization_code"
-                    ]
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StoredOauthConfig"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "oauth_authorization_code"
-                    ]
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StoredOidcConfig"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "oidc_authorization_code_pkce"
-                    ]
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StoredOauthConfig"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "oauth_authorization_code_pkce"
-                    ]
-                  }
-                }
-              }
-            ]
-          }
-        ],
-        "description": "Stored IdP configuration enum"
-      },
-      "StoredMappingConfig": {
-        "type": "object",
-        "description": "Stored JWT token mapping config",
-        "properties": {
-          "audience_field": {
-            "type": "string"
-          },
-          "email_field": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "groups_field": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "issuer_field": {
-            "type": "string"
-          },
-          "scopes_field": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "sub_field": {
-            "type": "string"
-          }
-        }
-      },
-      "StoredOauthConfig": {
-        "type": "object",
-        "description": "Stored OAuth config (without client_secret, with encrypted version)",
-        "required": [
-          "authorization_endpoint",
-          "token_endpoint",
-          "client_id",
-          "encrypted_client_secret",
-          "dek_alias",
-          "scopes",
-          "redirect_uri"
-        ],
-        "properties": {
-          "allowed_domains": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "authorization_endpoint": {
-            "type": "string"
-          },
-          "client_id": {
-            "type": "string"
-          },
-          "default_role": {
-            "type": "string"
-          },
-          "dek_alias": {
-            "type": "string",
-            "description": "DEK alias used for encryption"
-          },
-          "encrypted_client_secret": {
-            "type": "string",
-            "description": "Encrypted client secret (base64 encoded)"
-          },
-          "group_to_role_mappings": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StoredGroupToRoleMapping"
-            }
-          },
-          "mapping_config": {
-            "$ref": "#/components/schemas/StoredMappingConfig"
-          },
-          "post_login_redirect_uri": {
-            "type": "string"
-          },
-          "redirect_uri": {
-            "type": "string"
-          },
-          "scope_to_group_mappings": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StoredScopeToGroupMapping"
-            }
-          },
-          "scope_to_role_mappings": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StoredScopeToRoleMapping"
-            }
-          },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "state_ttl_seconds": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 0
-          },
-          "token_endpoint": {
-            "type": "string"
-          },
-          "userinfo_endpoint": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        }
-      },
-      "StoredOidcConfig": {
-        "type": "object",
-        "description": "Stored OIDC config",
-        "required": [
-          "base_config"
-        ],
-        "properties": {
-          "base_config": {
-            "$ref": "#/components/schemas/StoredOauthConfig"
-          },
-          "discovery_endpoint": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "jwks_uri": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "mapping_config": {
-            "$ref": "#/components/schemas/StoredOidcMappingConfig"
-          }
-        }
-      },
-      "StoredOidcMappingConfig": {
-        "type": "object",
-        "description": "Stored OIDC mapping config",
-        "required": [
-          "sub_field"
-        ],
-        "properties": {
-          "email_field": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/StoredTokenSource"
-              }
-            ]
-          },
-          "groups_field": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/StoredTokenSource"
-              }
-            ]
-          },
-          "sub_field": {
-            "$ref": "#/components/schemas/StoredTokenSource"
-          }
-        }
-      },
-      "StoredScopeToGroupMapping": {
-        "type": "object",
-        "description": "Stored scope-to-group mapping",
-        "required": [
-          "scope",
-          "group"
-        ],
-        "properties": {
-          "group": {
-            "type": "string"
-          },
-          "scope": {
-            "type": "string"
-          }
-        }
-      },
-      "StoredScopeToRoleMapping": {
-        "type": "object",
-        "description": "Stored scope-to-role mapping",
-        "required": [
-          "scope",
-          "role"
-        ],
-        "properties": {
-          "role": {
-            "type": "string"
-          },
-          "scope": {
-            "type": "string"
-          }
-        }
-      },
-      "StoredTokenSource": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "field",
-              "source"
-            ],
-            "properties": {
-              "field": {
-                "type": "string"
-              },
-              "source": {
-                "type": "string",
-                "enum": [
-                  "id_token"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "field",
-              "source"
-            ],
-            "properties": {
-              "field": {
-                "type": "string"
-              },
-              "source": {
-                "type": "string",
-                "enum": [
-                  "userinfo"
-                ]
-              }
-            }
-          }
-        ],
-        "description": "Stored version of TokenSource for serialization"
+      "String": {
+        "type": "string"
       },
       "StsConfigYaml": {
         "oneOf": [
@@ -8838,32 +8574,46 @@
         ],
         "description": "STS configuration stored in soma.yaml"
       },
-      "StsConfiguration": {
+      "StsTokenConfig": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "JwtTemplate"
+            ],
+            "properties": {
+              "JwtTemplate": {
+                "$ref": "#/components/schemas/JwtTemplateModeConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "DevMode"
+            ],
+            "properties": {
+              "DevMode": {
+                "$ref": "#/components/schemas/DevModeConfig"
+              }
+            }
+          }
+        ]
+      },
+      "StsTokenConfigPaginatedResponse": {
         "type": "object",
         "required": [
-          "id",
-          "type",
-          "created_at",
-          "updated_at"
+          "items"
         ],
         "properties": {
-          "created_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StsTokenConfig"
+            }
           },
-          "id": {
+          "next_page_token": {
             "type": "string"
-          },
-          "type": {
-            "type": "string"
-          },
-          "updated_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "value": {
-            "type": [
-              "string",
-              "null"
-            ]
           }
         }
       },
@@ -9099,6 +8849,32 @@
           }
         }
       },
+      "TokenLocation": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Header"
+            ],
+            "properties": {
+              "Header": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Cookie"
+            ],
+            "properties": {
+              "Cookie": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
       "TokenLocationYaml": {
         "oneOf": [
           {
@@ -9142,9 +8918,31 @@
         ],
         "description": "Where to find the token in the request"
       },
+      "TokenMapping": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "jwt_template"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/JwtTokenMappingConfig"
+              }
+            }
+          }
+        ]
+      },
       "TokenResponse": {
         "type": "object",
-        "description": "Response body for token exchange and refresh endpoints",
+        "description": "Response body for token refresh endpoint",
         "required": [
           "access_token",
           "expires_in",
@@ -9165,7 +8963,7 @@
               "string",
               "null"
             ],
-            "description": "The refresh token (only present on exchange, not refresh)"
+            "description": "The refresh token (only present on initial auth, not refresh)"
           },
           "token_type": {
             "type": "string",
@@ -9198,31 +8996,6 @@
         "properties": {
           "value": {
             "type": "string"
-          }
-        }
-      },
-      "UpdateIdpConfigParams": {
-        "type": "object",
-        "description": "Parameters for updating an IdP configuration",
-        "required": [
-          "config"
-        ],
-        "properties": {
-          "config": {
-            "$ref": "#/components/schemas/InputIdpConfig",
-            "description": "The new configuration"
-          }
-        }
-      },
-      "UpdateIdpConfigResponse": {
-        "type": "object",
-        "description": "Response from updating an IdP configuration",
-        "required": [
-          "success"
-        ],
-        "properties": {
-          "success": {
-            "type": "boolean"
           }
         }
       },
@@ -9268,6 +9041,180 @@
             "$ref": "#/components/schemas/TaskStatus"
           }
         }
+      },
+      "UserAuthFlowConfig": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "oidc_authorization_code_flow"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/OidcConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "oauth_authorization_code_flow"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/OauthConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "oidc_authorization_code_pkce_flow"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/OidcConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "oauth_authorization_code_pkce_flow"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/OauthConfig"
+              }
+            }
+          }
+        ],
+        "description": "The four supported IdP configuration types"
+      },
+      "UserAuthFlowYamlConfig": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EncryptedOidcYamlConfig",
+                "description": "OIDC authorization code flow"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oidc_authorization_code_flow"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "OIDC authorization code flow"
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EncryptedOauthYamlConfig",
+                "description": "OAuth authorization code flow"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oauth_authorization_code_flow"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "OAuth authorization code flow"
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EncryptedOidcYamlConfig",
+                "description": "OIDC authorization code flow with PKCE"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oidc_authorization_code_pkce_flow"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "OIDC authorization code flow with PKCE"
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EncryptedOauthYamlConfig",
+                "description": "OAuth authorization code flow with PKCE"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oauth_authorization_code_pkce_flow"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "OAuth authorization code flow with PKCE"
+          }
+        ],
+        "description": "User auth flow configuration stored in soma.yaml (encrypted)"
       },
       "UserCredentialBrokeringResponse": {
         "oneOf": [

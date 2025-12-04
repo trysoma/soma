@@ -1,15 +1,13 @@
 use axum::extract::{Path, Query, State};
-use serde::Deserialize;
+use shared::primitives::PaginationRequest;
 use shared::{
     adapters::openapi::{JsonResponse, API_VERSION_TAG},
     error::CommonError,
 };
-use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::jwk::{
-    get_jwks, invalidate_jwk, list_jwks, GetJwksResponse, InvalidateJwkParams, InvalidateJwkResponse,
-    ListJwksParams, ListJwksResponse,
+    get_jwks, invalidate_jwk, list_jwks, GetJwksResponse, InvalidateJwkParams, InvalidateJwkResponse, ListJwksResponse,
 };
 use crate::service::IdentityService;
 
@@ -44,20 +42,12 @@ async fn route_invalidate_jwk(
     JsonResponse::from(result)
 }
 
-#[derive(Debug, Deserialize, IntoParams)]
-pub struct ListJwksQuery {
-    #[param(example = "10")]
-    page_size: Option<u32>,
-    #[param(example = "")]
-    next_page_token: Option<String>,
-}
-
 #[utoipa::path(
     get,
     path = format!("{}/{}/{}/jwk", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
-        ListJwksQuery
+        PaginationRequest
     ),
     responses(
         (status = 200, description = "List of JWKs", body = ListJwksResponse),
@@ -66,16 +56,9 @@ pub struct ListJwksQuery {
 )]
 async fn route_list_jwks(
     State(service): State<IdentityService>,
-    Query(query): Query<ListJwksQuery>,
+    Query(query): Query<PaginationRequest>,
 ) -> JsonResponse<ListJwksResponse, CommonError> {
-    use shared::primitives::PaginationRequest;
-    let params = ListJwksParams {
-        pagination: PaginationRequest {
-            page_size: query.page_size.unwrap_or(10) as i64,
-            next_page_token: query.next_page_token,
-        },
-    };
-    let result = list_jwks(service.repository.as_ref(), params).await;
+    let result = list_jwks(service.repository.as_ref(), &query).await;
     JsonResponse::from(result)
 }
 

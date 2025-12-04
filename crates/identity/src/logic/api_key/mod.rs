@@ -10,15 +10,17 @@ use shared::primitives::{PaginationRequest, WrappedChronoDateTime};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::logic::api_key::cache::{ApiKeyCache};
-use crate::logic::{DEFAULT_DEK_ALIAS, OnConfigChangeEvt, OnConfigChangeTx};
-use crate::repository::{HashedApiKey as ApiKey, UserRepositoryLike};
+use crate::logic::api_key::cache::ApiKeyCache;
+use crate::logic::{validate_id, DEFAULT_DEK_ALIAS, OnConfigChangeEvt, OnConfigChangeTx};
+use crate::repository::UserRepositoryLike;
 
 use crate::logic::user::{Role, User, UserType};
 
 /// Parameters for creating an API key
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateApiKeyParams {
+    /// The ID for this API key
+    pub id: String,
     /// Description of the API key
     pub description: Option<String>,
     /// Role to assign to the API key's user
@@ -100,7 +102,7 @@ fn generate_api_key() -> String {
     let mut bytes = [0u8; 24];
     rand::thread_rng().fill_bytes(&mut bytes);
     let random_part = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
-    format!("sk--{}", random_part)
+    format!("sk--{random_part}")
 }
 
 /// Hash an API key using SHA-256
@@ -134,14 +136,23 @@ pub async fn create_api_key<R: UserRepositoryLike>(
     params: CreateApiKeyParams,
     publish_on_change_evt: bool,
 ) -> Result<CreateApiKeyResponse, CommonError> {
+    // Validate the ID
+    validate_id(&params.id, "API key")?;
 
+    // Check if API key with this ID already exists
+    if repository.get_api_key_by_id(&params.id).await?.is_some() {
+        return Err(CommonError::InvalidRequest {
+            msg: format!("API key with ID '{}' already exists", params.id),
+            source: None,
+        });
+    }
 
     // Generate API key and hash
     let raw_api_key = generate_api_key();
     let hashed_value = hash_api_key(&raw_api_key);
 
     // Generate unique ID for the API key
-    let api_key_id = Uuid::new_v4().to_string();
+    let api_key_id = params.id.clone();
 
     // Create user ID for this API key (machine_$generated_id format)
     let user_id = format!("machine_{}", Uuid::new_v4());
@@ -271,10 +282,10 @@ pub async fn delete_api_key<R: UserRepositoryLike>(
 /// Note: The raw API key values are never returned, only the hashed values.
 pub async fn list_api_keys<R: UserRepositoryLike>(
     repository: &R,
-    params: ListApiKeysParams,
+    params: PaginationRequest,
 ) -> Result<ListApiKeysResponse, CommonError> {
     let result = repository
-        .list_api_keys(&params.pagination, params.user_id.as_deref())
+        .list_api_keys(&params, None)
         .await?;
 
     Ok(ListApiKeysResponse {

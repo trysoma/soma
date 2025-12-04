@@ -13,13 +13,13 @@ use serde_json::Map;
 use shared::error::CommonError;
 use shared::primitives::WrappedChronoDateTime;
 
-use crate::logic::internal_token_issuance::{NormalizedTokenInputFields, NormalizedTokenIssuanceResult, issue_tokens_for_normalized_user};
+use crate::logic::internal_token_issuance::{NormalizedTokenInputFields, issue_tokens_for_normalized_user};
 use crate::logic::token_mapping::template::DecodedTokenSources;
-use crate::logic::user_auth_flow::config::{OidcConfig, UserAuthFlowConfig};
+use crate::logic::user_auth_flow::{OAuthCallbackParams, OAuthCallbackResult};
+use crate::logic::user_auth_flow::{StartAuthorizationParams, StartAuthorizationResult, config::{OidcConfig, UserAuthFlowConfig}};
 use crate::logic::user_auth_flow::oauth::{
     apply_token_mapping, build_authorization_url, decode_jwt_claims_unsafe,
     exchange_code_for_tokens, fetch_userinfo, BaseAuthorizationParams, BaseTokenExchangeParams,
-    OAuthCallbackParams, OAuthCallbackResult, StartAuthorizationParams, StartAuthorizationResult,
 };
 use crate::repository::{CreateOAuthState, UserRepositoryLike};
 
@@ -130,7 +130,7 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
     repository: &R,
     crypto_cache: &CryptoCache,
     params: OAuthCallbackParams,
-) -> Result<NormalizedTokenIssuanceResult, CommonError> {
+) -> Result<OAuthCallbackResult, CommonError> {
     // Check for error response from IdP
     if let Some(error) = &params.error {
         return Err(CommonError::InvalidRequest {
@@ -207,7 +207,10 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
     let token_result =
         issue_tokens_for_normalized_user(repository, crypto_cache, normalized).await?;
 
-    Ok(token_result)
+    Ok(OAuthCallbackResult {
+        issued_tokens: token_result,
+        redirect_uri: oauth_state.redirect_uri,
+    })
 }
 
 // ============================================

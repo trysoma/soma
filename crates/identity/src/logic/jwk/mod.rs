@@ -168,12 +168,12 @@ where
 /// List JWT signing keys with pagination
 pub async fn list_jwks<R>(
     repository: &R,
-    params: ListJwksParams,
+    pagination: &PaginationRequest,
 ) -> Result<ListJwksResponse, CommonError>
 where
     R: UserRepositoryLike,
 {
-    let result = repository.list_jwt_signing_keys(&params.pagination).await?;
+    let result = repository.list_jwt_signing_keys(pagination).await?;
 
     let items: Vec<JwkResponse> = result
         .items
@@ -604,8 +604,7 @@ mod tests {
             next_page_token: None,
         };
 
-        let params = ListJwksParams { pagination };
-        let result = list_jwks(&ctx.identity_repo, params).await.unwrap();
+        let result = list_jwks(&ctx.identity_repo, &pagination).await.unwrap();
         assert_eq!(result.items.len(), 3);
     }
 

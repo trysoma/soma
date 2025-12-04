@@ -3,11 +3,10 @@ use http::HeaderMap;
 use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use serde_json::{Map, Value};
 use shared::error::CommonError;
-use shared::primitives::{PaginationRequest, WrappedChronoDateTime};
 
 use crate::logic::user::Role;
 use crate::logic::internal_token_issuance::{
-    NormalizedTokenInputFields, NormalizedTokenIssuanceResult, SignAccessTokenParams, SignRefreshTokenParams, issue_tokens_for_normalized_user, sign_access_token, sign_refresh_token
+    NormalizedTokenInputFields, NormalizedTokenIssuanceResult, issue_tokens_for_normalized_user
 };
 use crate::logic::sts::config::{StsConfigId, StsTokenConfig};
 use crate::logic::sts::external_jwk_cache::ExternalJwksCache;
@@ -15,9 +14,7 @@ use crate::logic::token_mapping::template::{
     apply_mapping_template, DecodedTokenSources, JwtTokenTemplateConfig,
     JwtTokenTemplateValidationConfig, TokenLocation,
 };
-use crate::repository::{
-    CreateGroupMembership, Group, UpdateUser, User, UserRepositoryLike,
-};
+use crate::repository::UserRepositoryLike;
 
 /// Apply dev mode configuration - returns a default dev user
 fn apply_dev_mode_config() -> Result<NormalizedTokenInputFields, CommonError> {
@@ -43,7 +40,7 @@ fn extract_token_from_headers(headers: &HeaderMap, location: &TokenLocation) -> 
             let header_value = headers
                 .get(header_name)
                 .ok_or_else(|| CommonError::Authentication {
-                    msg: format!("Missing '{}' header", header_name),
+                    msg: format!("Missing '{header_name}' header"),
                     source: None,
                 })?
                 .to_str()
@@ -82,7 +79,7 @@ fn extract_token_from_headers(headers: &HeaderMap, location: &TokenLocation) -> 
             }
 
             Err(CommonError::Authentication {
-                msg: format!("Missing '{}' cookie", cookie_name),
+                msg: format!("Missing '{cookie_name}' cookie"),
                 source: None,
             })
         }
@@ -113,9 +110,7 @@ async fn decode_jwt_to_claims(
         .get_key(jwks_uri, &kid)
         .ok_or_else(|| {
             CommonError::Unknown(anyhow::anyhow!(
-                "Key '{}' not found in JWKS from {}",
-                kid,
-                jwks_uri
+                "Key '{kid}' not found in JWKS from {jwks_uri}"
             ))
         })?;
 

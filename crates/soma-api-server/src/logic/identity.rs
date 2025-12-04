@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use encryption::logic::crypto_services::CryptoCache;
 use encryption::logic::EncryptionKeyEvent;
+use identity::logic::jwk::cache::JwksCache;
 use identity::logic::jwk::DEFAULT_JWK_DEK_ALIAS;
-use identity::logic::jwks_cache::JwksCache;
 use identity::repository::Repository as IdentityRepository;
 use shared::error::CommonError;
 use shared::subsystem::SubsystemHandle;

@@ -10,8 +10,9 @@ use tracing::{info, warn};
 
 use shared::error::CommonError;
 use shared::soma_agent_definition::{
-    ApiKeyYamlConfig, EnvelopeKeyConfig, EnvelopeKeyConfigAwsKms, EnvelopeKeyConfigLocal,
-    SecretConfig, SomaAgentDefinitionLike, StsConfigYaml,
+    ApiKeyYamlConfig, EncryptedOauthYamlConfig, EncryptedOidcYamlConfig, EnvelopeKeyConfig,
+    EnvelopeKeyConfigAwsKms, EnvelopeKeyConfigLocal, SecretConfig, SomaAgentDefinitionLike,
+    StsConfigYaml, UserAuthFlowYamlConfig,
 };
 use soma_api_server::logic::on_change_pubsub::{
     EnvironmentVariableChangeEvt, SecretChangeEvt, SomaChangeEvt, SomaChangeRx,
@@ -578,7 +579,14 @@ async fn handle_identity_event(
             soma_definition.remove_api_key(id).await?;
         }
         IdentityOnConfigChangeEvt::StsConfigCreated(sts_config_info) => {
-            info!("STS config created: {:?}", sts_config_info.id);
+            use identity::logic::sts::config::StsTokenConfig as IdentityStsTokenConfig;
+
+            let config_id = match &sts_config_info {
+                IdentityStsTokenConfig::JwtTemplate(config) => config.id.clone(),
+                IdentityStsTokenConfig::DevMode(config) => config.id.clone(),
+            };
+
+            info!("STS config created: {:?}", config_id);
 
             // Check if this STS config already exists in YAML
             let definition = soma_definition.get_definition().await?;
@@ -586,55 +594,33 @@ async fn handle_identity_event(
                 .identity
                 .as_ref()
                 .and_then(|identity| identity.sts_configurations.as_ref())
-                .map(|sts_configs| sts_configs.contains_key(&sts_config_info.id))
+                .map(|sts_configs| sts_configs.contains_key(&config_id))
                 .unwrap_or(false);
 
             if sts_config_exists_in_yaml {
                 info!(
                     "STS config '{}' already exists in YAML, skipping write",
-                    sts_config_info.id
+                    config_id
                 );
             } else {
-                // Parse the config based on type
-                let yaml_config = match sts_config_info.config_type.as_str() {
-                    "dev" => StsConfigYaml::Dev {},
-                    "jwt_template" => {
-                        if let Some(value) = sts_config_info.value {
-                            // Parse the JSON value into the YAML JWT template config
-                            let parsed: serde_json::Value = serde_json::from_str(&value)
-                                .map_err(|e| {
-                                    CommonError::Unknown(anyhow::anyhow!(
-                                        "Failed to parse STS config value: {e}"
-                                    ))
-                                })?;
-
-                            // Convert to JwtTemplateConfigYaml
-                            let jwt_config =
-                                serde_json::from_value(parsed).map_err(|e| {
-                                    CommonError::Unknown(anyhow::anyhow!(
-                                        "Failed to convert STS config to YAML format: {e}"
-                                    ))
-                                })?;
-                            StsConfigYaml::JwtTemplate(jwt_config)
-                        } else {
-                            warn!(
-                                "STS config '{}' is jwt_template but has no value, skipping",
-                                sts_config_info.id
-                            );
-                            return Ok(());
-                        }
-                    }
-                    _ => {
-                        warn!(
-                            "Unknown STS config type '{}', skipping",
-                            sts_config_info.config_type
-                        );
-                        return Ok(());
+                // Convert identity STS config to YAML config
+                let yaml_config = match &sts_config_info {
+                    IdentityStsTokenConfig::DevMode(_) => StsConfigYaml::Dev {},
+                    IdentityStsTokenConfig::JwtTemplate(jwt_config) => {
+                        // Convert the JwtTemplateModeConfig to JwtTemplateConfigYaml
+                        let jwt_yaml = serde_json::to_value(jwt_config)
+                            .and_then(|v| serde_json::from_value(v))
+                            .map_err(|e| {
+                                CommonError::Unknown(anyhow::anyhow!(
+                                    "Failed to convert STS config to YAML format: {e}"
+                                ))
+                            })?;
+                        StsConfigYaml::JwtTemplate(jwt_yaml)
                     }
                 };
 
                 soma_definition
-                    .add_sts_config(sts_config_info.id, yaml_config)
+                    .add_sts_config(config_id, yaml_config)
                     .await?;
             }
         }
@@ -642,6 +628,96 @@ async fn handle_identity_event(
             info!("STS config deleted: {:?}", id);
             soma_definition.remove_sts_config(id).await?;
         }
+        IdentityOnConfigChangeEvt::UserAuthFlowConfigCreated(config) => {
+            let config_id = config.id().to_string();
+            info!("User auth flow config created: {:?}", config_id);
+
+            // Check if this config already exists in YAML
+            let definition = soma_definition.get_definition().await?;
+            let config_exists_in_yaml = definition
+                .identity
+                .as_ref()
+                .and_then(|identity| identity.user_auth_flows.as_ref())
+                .map(|configs| configs.contains_key(&config_id))
+                .unwrap_or(false);
+
+            if config_exists_in_yaml {
+                info!(
+                    "User auth flow config '{}' already exists in YAML, skipping write to preserve encrypted value",
+                    config_id
+                );
+            } else {
+                // Convert from identity crate type to YAML type
+                let yaml_config = convert_user_auth_flow_to_yaml(&config)?;
+                soma_definition
+                    .add_user_auth_flow(config_id, yaml_config)
+                    .await?;
+            }
+        }
+        IdentityOnConfigChangeEvt::UserAuthFlowConfigDeleted(id) => {
+            info!("User auth flow config deleted: {:?}", id);
+            soma_definition.remove_user_auth_flow(id).await?;
+        }
     }
     Ok(())
+}
+
+/// Convert an EncryptedUserAuthFlowConfig from the identity crate to the YAML config type
+fn convert_user_auth_flow_to_yaml(
+    config: &identity::logic::user_auth_flow::EncryptedUserAuthFlowConfig,
+) -> Result<UserAuthFlowYamlConfig, CommonError> {
+    use identity::logic::user_auth_flow::{EncryptedOauthConfig, EncryptedOidcConfig, EncryptedUserAuthFlowConfig};
+
+    fn convert_oauth_config(oauth: &EncryptedOauthConfig) -> Result<EncryptedOauthYamlConfig, CommonError> {
+        let mapping_json = serde_json::to_value(&oauth.mapping).map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to serialize token mapping: {e}"))
+        })?;
+
+        Ok(EncryptedOauthYamlConfig {
+            authorization_endpoint: oauth.authorization_endpoint.clone(),
+            token_endpoint: oauth.token_endpoint.clone(),
+            userinfo_endpoint: oauth.userinfo_endpoint.clone(),
+            client_id: oauth.client_id.clone(),
+            encrypted_client_secret: oauth.encrypted_client_secret.0.clone(),
+            dek_alias: oauth.dek_alias.clone(),
+            scopes: oauth.scopes.clone(),
+            mapping: mapping_json,
+        })
+    }
+
+    fn convert_oidc_config(oidc: &EncryptedOidcConfig) -> Result<EncryptedOidcYamlConfig, CommonError> {
+        let base_config = convert_oauth_config(&oidc.base_config)?;
+        let mapping_json = serde_json::to_value(&oidc.mapping).map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to serialize token mapping: {e}"))
+        })?;
+
+        Ok(EncryptedOidcYamlConfig {
+            base_config,
+            discovery_endpoint: oidc.discovery_endpoint.clone(),
+            mapping: mapping_json,
+        })
+    }
+
+    match config {
+        EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(oidc) => {
+            Ok(UserAuthFlowYamlConfig::OidcAuthorizationCodeFlow(
+                convert_oidc_config(oidc)?,
+            ))
+        }
+        EncryptedUserAuthFlowConfig::OauthAuthorizationCodeFlow(oauth) => {
+            Ok(UserAuthFlowYamlConfig::OauthAuthorizationCodeFlow(
+                convert_oauth_config(oauth)?,
+            ))
+        }
+        EncryptedUserAuthFlowConfig::OidcAuthorizationCodePkceFlow(oidc) => {
+            Ok(UserAuthFlowYamlConfig::OidcAuthorizationCodePkceFlow(
+                convert_oidc_config(oidc)?,
+            ))
+        }
+        EncryptedUserAuthFlowConfig::OauthAuthorizationCodePkceFlow(oauth) => {
+            Ok(UserAuthFlowYamlConfig::OauthAuthorizationCodePkceFlow(
+                convert_oauth_config(oauth)?,
+            ))
+        }
+    }
 }

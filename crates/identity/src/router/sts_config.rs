@@ -1,19 +1,17 @@
 use axum::extract::{Path, Query, State};
 use axum::Json;
-use serde::Deserialize;
+use shared::primitives::PaginationRequest;
 use shared::{
     adapters::openapi::{JsonResponse, API_VERSION_TAG},
     error::CommonError,
 };
-use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::sts::config::{
     create_sts_config, delete_sts_config, get_sts_config, list_sts_configs,
     DeleteStsConfigParams, DeleteStsConfigResponse,
-    GetStsConfigParams, ListStsConfigParams, ListStsConfigResponse, StsTokenConfig, StsTokenConfigType,
+    GetStsConfigParams, ListStsConfigResponse, StsTokenConfig,
 };
-use crate::repository::StsConfigurationDb;
 use crate::service::IdentityService;
 
 use super::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY};
@@ -24,20 +22,9 @@ pub fn create_sts_config_routes() -> OpenApiRouter<IdentityService> {
         .routes(routes!(route_get_sts_config))
         .routes(routes!(route_delete_sts_config))
         .routes(routes!(route_list_sts_configs))
-        .routes(routes!(route_import_sts_config))
 }
 
-#[derive(Debug, Deserialize, IntoParams)]
-pub struct ListStsConfigsQuery {
-    #[param(example = "10")]
-    page_size: Option<u32>,
-    #[param(example = "")]
-    next_page_token: Option<String>,
-    /// Filter by configuration type (jwt_template, dev)
-    #[param(example = "jwt_template")]
-    #[serde(rename = "type")]
-    config_type: Option<String>,
-}
+
 
 #[utoipa::path(
     post,
@@ -125,7 +112,7 @@ async fn route_delete_sts_config(
     path = format!("{}/{}/{}/sts-configuration", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
-        ListStsConfigsQuery
+        PaginationRequest
     ),
     responses(
         (status = 200, description = "List of STS configurations", body = ListStsConfigResponse),
@@ -136,49 +123,8 @@ async fn route_delete_sts_config(
 )]
 async fn route_list_sts_configs(
     State(service): State<IdentityService>,
-    Query(query): Query<ListStsConfigsQuery>,
+    Query(query): Query<PaginationRequest>,
 ) -> JsonResponse<ListStsConfigResponse, CommonError> {
-    use shared::primitives::PaginationRequest;
-    let config_type = query.config_type.and_then(|s| match s.as_str() {
-        "jwt_template" => Some(StsTokenConfigType::JwtTemplate),
-        "dev" | "dev_mode" => Some(StsTokenConfigType::DevMode),
-        _ => None,
-    });
-    let params = ListStsConfigParams {
-        pagination: PaginationRequest {
-            page_size: query.page_size.unwrap_or(10) as i64,
-            next_page_token: query.next_page_token,
-        },
-        config_type,
-    };
-    let result = list_sts_configs(service.repository.as_ref(), params).await;
-    JsonResponse::from(result)
-}
-
-#[utoipa::path(
-    post,
-    path = format!("{}/{}/{}/sts-configuration/import", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
-    request_body = StsTokenConfig,
-    responses(
-        (status = 201, description = "STS configuration imported successfully", body = StsTokenConfig),
-        (status = 400, description = "Invalid request", body = CommonError),
-        (status = 500, description = "Internal server error", body = CommonError),
-    ),
-    summary = "Import STS configuration",
-    description = "Import an STS configuration (idempotent, used for syncing from soma.yaml)",
-)]
-async fn route_import_sts_config(
-    State(service): State<IdentityService>,
-    Json(params): Json<StsTokenConfig>,
-) -> JsonResponse<StsTokenConfig, CommonError> {
-    // Import uses create without broadcasting events
-    let result = create_sts_config(
-        service.repository.as_ref(),
-        service.on_config_change_tx(),
-        params,
-        false, // don't publish event on import
-    )
-    .await;
+    let result = list_sts_configs(service.repository.as_ref(), &query).await;
     JsonResponse::from(result)
 }

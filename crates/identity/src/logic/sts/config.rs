@@ -4,12 +4,11 @@ use shared::primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDate
 use utoipa::ToSchema;
 
 use crate::logic::token_mapping::template::{
-    GroupToRoleMapping, JwtTokenMappingConfig, JwtTokenTemplateConfig,
-    JwtTokenTemplateValidationConfig, ScopeToGroupMapping, ScopeToRoleMapping, TokenLocation,
+    JwtTokenTemplateConfig,
+    JwtTokenTemplateValidationConfig,
 };
 use crate::logic::{OnConfigChangeEvt, OnConfigChangeTx};
 use crate::repository::{StsConfigurationDb, UserRepositoryLike};
-use std::collections::HashMap;
 
 pub type StsConfigId = String;
 
@@ -64,7 +63,7 @@ pub async fn create_sts_config<R: UserRepositoryLike>(
     // Check if config with this ID already exists
     if repository.get_sts_configuration_by_id(&id).await?.is_some() {
         return Err(CommonError::InvalidRequest {
-            msg: format!("STS configuration with id '{}' already exists", id),
+            msg: format!("STS configuration with id '{id}' already exists"),
             source: None,
         });
     }
@@ -177,10 +176,10 @@ pub type ListStsConfigResponse = PaginatedResponse<StsTokenConfig>;
 /// This function lists all STS configurations with optional filtering by config_type.
 pub async fn list_sts_configs<R: UserRepositoryLike>(
     repository: &R,
-    params: ListStsConfigParams,
+    pagination: &PaginationRequest,
 ) -> Result<ListStsConfigResponse, CommonError> {
     let result = repository
-        .list_sts_configurations(&params.pagination, params.config_type)
+        .list_sts_configurations(pagination, None)
         .await?;
 
     Ok(ListStsConfigResponse {

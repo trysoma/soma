@@ -8,7 +8,7 @@ web:
 staticClients:
   - id: trysoma.ai
     redirectURIs:
-      - http://localhost:5555/callback
+      - http://localhost:3000/api/v1/auth/callback
     name: Example App
     secret: example-secret
 

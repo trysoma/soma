@@ -4,9 +4,9 @@ use tracing::error;
 
 use crate::{
     commands::{
-        self, api_key::ApiKeyParams, codegen::CodegenParams, completions::CompletionShell,
-        dev::DevParams, encryption::EncKeyParams, environment::EnvironmentParams, init::InitParams,
-        secret::SecretParams, sts::StsParams,
+        self, api_key::ApiKeyParams, auth::AuthParams, codegen::CodegenParams,
+        completions::CompletionShell, dev::DevParams, encryption::EncKeyParams,
+        environment::EnvironmentParams, init::InitParams, secret::SecretParams, sts::StsParams,
     },
     utils::get_or_init_cli_config,
 };
@@ -54,6 +54,8 @@ pub enum Commands {
     /// Manage API keys
     #[command(name = "api-key")]
     ApiKey(ApiKeyParams),
+    /// Manage user authentication flow configurations (OAuth/OIDC)
+    Auth(AuthParams),
     /// Manage STS (Security Token Service) configurations
     Sts(StsParams),
     /// Show Soma version
@@ -79,6 +81,7 @@ pub async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
             commands::environment::cmd_environment(params, &mut config).await
         }
         Commands::ApiKey(params) => commands::api_key::cmd_api_key(params, &mut config).await,
+        Commands::Auth(params) => commands::auth::cmd_auth(params, &mut config).await,
         Commands::Sts(params) => commands::sts::cmd_sts(params, &mut config).await,
         Commands::Version => {
             println!("Soma CLI version: {CLI_VERSION}");

@@ -2,7 +2,7 @@ mod sqlite;
 
 use shared::{
     error::CommonError,
-    primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue},
+    primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime},
 };
 use utoipa::ToSchema;
 

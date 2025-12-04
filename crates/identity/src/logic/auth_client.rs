@@ -1,15 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
 
-use arc_swap::ArcSwap;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
-use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
-use utoipa::ToSchema;
 
-use crate::logic::api_key::{EncryptedApiKeyConfig, hash_api_key};
+use crate::logic::api_key::hash_api_key;
 use crate::logic::api_key::cache::ApiKeyCache;
 use crate::logic::jwk::cache::JwksCache;
-use crate::logic::sts::config::StsTokenConfig;
 use crate::logic::user::Role;
 use crate::logic::internal_token_issuance::{ISSUER, AUDIENCE, AccessTokenClaims, AccessTokenType};
 
@@ -178,7 +173,7 @@ impl AuthClient {
         // 2. Get the JWK from our cache
         let jwk = self.jwks_cache.get_jwk(&kid).ok_or_else(|| {
             CommonError::Authentication {
-                msg: format!("Signing key '{}' not found", kid),
+                msg: format!("Signing key '{kid}' not found"),
                 source: None,
             }
         })?;

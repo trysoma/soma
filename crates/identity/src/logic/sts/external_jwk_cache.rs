@@ -11,6 +11,12 @@ pub struct ExternalJwksCache {
     keys: std::sync::Arc<dashmap::DashMap<String, HashMap<String, DecodingKey>>>,
 }
 
+impl Default for ExternalJwksCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExternalJwksCache {
     pub fn new() -> Self {
         Self {

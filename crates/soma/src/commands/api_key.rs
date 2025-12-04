@@ -25,6 +25,8 @@ pub struct ApiKeyParams {
 pub enum ApiKeyCommands {
     /// Create a new API key
     Add {
+        /// Unique ID for the API key (lowercase letters, numbers, and hyphens only)
+        id: String,
         /// Role for the API key (admin, maintainer, read-only-maintainer, agent, user)
         #[arg(long)]
         role: String,
@@ -47,9 +49,11 @@ pub async fn cmd_api_key(
     _cli_config: &mut CliConfig,
 ) -> Result<(), CommonError> {
     match params.command {
-        ApiKeyCommands::Add { role, description } => {
-            cmd_api_key_add(role, description, &params.api_url, params.timeout_secs).await
-        }
+        ApiKeyCommands::Add {
+            id,
+            role,
+            description,
+        } => cmd_api_key_add(id, role, description, &params.api_url, params.timeout_secs).await,
         ApiKeyCommands::Remove { id } => {
             cmd_api_key_rm(id, &params.api_url, params.timeout_secs).await
         }
@@ -58,6 +62,7 @@ pub async fn cmd_api_key(
 }
 
 pub async fn cmd_api_key_add(
+    id: String,
     role: String,
     description: Option<String>,
     api_url: &str,
@@ -79,10 +84,26 @@ pub async fn cmd_api_key_add(
     // Create API client and wait for server to be ready
     let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
 
-    info!("Creating new API key with role: {}", role);
+    // Convert role string to enum
+    let role_enum = match role.to_lowercase().as_str() {
+        "admin" => models::Role::Admin,
+        "maintainer" => models::Role::Maintainer,
+        "read-only-maintainer" => models::Role::ReadOnlyMaintainer,
+        "agent" => models::Role::Agent,
+        "user" => models::Role::User,
+        _ => {
+            return Err(CommonError::InvalidRequest {
+                msg: format!("Invalid role: {}", role),
+                source: None,
+            });
+        }
+    };
+
+    info!("Creating new API key '{}' with role: {}", id, role);
     let create_req = models::CreateApiKeyParams {
+        id,
         description: Some(description),
-        role,
+        role: role_enum,
     };
     let response = identity_api::route_create_api_key(&api_config, create_req)
         .await
@@ -119,15 +140,14 @@ pub async fn cmd_api_key_list(api_url: &str, timeout_secs: u64) -> Result<(), Co
     let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
 
     // Fetch all API keys with pagination
-    let mut all_api_keys: Vec<models::ApiKey> = Vec::new();
+    let mut all_api_keys: Vec<models::HashedApiKey> = Vec::new();
     let mut next_page_token: Option<String> = None;
 
     loop {
         let response = identity_api::route_list_api_keys(
             &api_config,
-            Some(DEFAULT_PAGE_SIZE as i32),
+            DEFAULT_PAGE_SIZE,
             next_page_token.as_deref(),
-            None, // user_id filter
         )
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to list API keys: {e:?}")))?;

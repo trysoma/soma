@@ -37,13 +37,6 @@ pub enum StsCommands {
     },
     /// List all STS configurations
     List,
-    /// Add a dev mode STS configuration (for development only)
-    #[command(name = "add-dev")]
-    AddDev {
-        /// The ID for the dev configuration
-        #[arg(default_value = "dev")]
-        id: String,
-    },
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -62,9 +55,6 @@ pub async fn cmd_sts(params: StsParams, _cli_config: &mut CliConfig) -> Result<(
         },
         StsCommands::Remove { id } => cmd_sts_remove(id, &params.api_url, params.timeout_secs).await,
         StsCommands::List => cmd_sts_list(&params.api_url, params.timeout_secs).await,
-        StsCommands::AddDev { id } => {
-            cmd_sts_add_dev(id, &params.api_url, params.timeout_secs).await
-        }
     }
 }
 
@@ -412,18 +402,28 @@ async fn cmd_sts_add_from_template(
         },
     };
 
-    // Convert to JSON string for storage
-    let value = serde_json::to_string(&jwt_template_config)
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to serialize config: {e}")))?;
-
     // Wait for API server and create config
     let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
 
-    let params = soma_api_client::models::CreateStsConfigParams {
-        id: Some(Some(id.clone())),
-        r#type: "jwt_template".to_string(),
-        value: Some(Some(value)),
-    };
+    // Convert JwtTemplateConfigYaml to the API model
+    let mapping_template = serde_json::to_value(&jwt_template_config)
+        .and_then(|v| serde_json::from_value(v))
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to convert JWT template config: {e}")))?;
+
+    let params = soma_api_client::models::StsTokenConfig::StsTokenConfigOneOf(
+        soma_api_client::models::StsTokenConfigOneOf {
+            jwt_template: soma_api_client::models::JwtTemplateModeConfig {
+                id: id.clone(),
+                mapping_template,
+                validation_template: soma_api_client::models::JwtTokenTemplateValidationConfig {
+                    issuer: jwt_template_config.validation.issuer.clone().map(Some),
+                    valid_audiences: jwt_template_config.validation.valid_audiences.clone().map(Some),
+                    required_groups: jwt_template_config.validation.required_groups.clone().map(Some),
+                    required_scopes: jwt_template_config.validation.required_scopes.clone().map(Some),
+                },
+            },
+        },
+    );
 
     identity_api::route_create_sts_config(&api_config, params)
         .await
@@ -444,11 +444,13 @@ async fn cmd_sts_add_dev(
 ) -> Result<(), CommonError> {
     let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
 
-    let params = soma_api_client::models::CreateStsConfigParams {
-        id: Some(Some(id.clone())),
-        r#type: "dev".to_string(),
-        value: None,
-    };
+    let params = soma_api_client::models::StsTokenConfig::StsTokenConfigOneOf1(
+        soma_api_client::models::StsTokenConfigOneOf1 {
+            dev_mode: soma_api_client::models::DevModeConfig {
+                id: id.clone(),
+            },
+        },
+    );
 
     identity_api::route_create_sts_config(&api_config, params)
         .await
@@ -494,7 +496,7 @@ async fn cmd_sts_remove(
 async fn cmd_sts_list(api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
     let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
 
-    let result = identity_api::route_list_sts_configs(&api_config, None, None, None)
+    let result = identity_api::route_list_sts_configs(&api_config, 100, None)
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to list STS configs: {e:?}")))?;
 
@@ -507,60 +509,43 @@ async fn cmd_sts_list(api_url: &str, timeout_secs: u64) -> Result<(), CommonErro
         println!("STS Configurations:");
         println!("===================");
         for config in result.items {
+            let (config_id, config_type) = match &config {
+                soma_api_client::models::StsTokenConfig::StsTokenConfigOneOf(c) => {
+                    (c.jwt_template.id.clone(), "JWT Template")
+                }
+                soma_api_client::models::StsTokenConfig::StsTokenConfigOneOf1(c) => {
+                    (c.dev_mode.id.clone(), "Dev Mode")
+                }
+            };
             println!();
-            println!("ID: {}", config.id);
-            println!("  Type: {}", config.r#type);
-            if let Some(Some(value)) = config.value {
-                // Try to parse and display the value nicely
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&value) {
-                    if let Ok(jwt_config) =
-                        serde_json::from_value::<JwtTemplateConfigYaml>(parsed.clone())
-                    {
-                        println!("  JWKS URI: {}", jwt_config.jwks_uri);
-                        match &jwt_config.token_location {
-                            TokenLocationYaml::Header { name } => {
-                                println!("  Token Location: Header ({})", name);
-                            }
-                            TokenLocationYaml::Cookie { name } => {
-                                println!("  Token Location: Cookie ({})", name);
-                            }
+            println!("ID: {}", config_id);
+            println!("  Type: {}", config_type);
+
+            // Display config-specific details
+            match &config {
+                soma_api_client::models::StsTokenConfig::StsTokenConfigOneOf(c) => {
+                    let validation = &c.jwt_template.validation_template;
+                    if let Some(Some(issuer)) = &validation.issuer {
+                        println!("  Issuer: {}", issuer);
+                    }
+                    if let Some(Some(audiences)) = &validation.valid_audiences {
+                        println!("  Audiences: {}", audiences.join(", "));
+                    }
+                    if let Some(Some(required_scopes)) = &validation.required_scopes {
+                        if !required_scopes.is_empty() {
+                            println!("  Required Scopes: {}", required_scopes.join(", "));
                         }
-                        if let Some(issuer) = &jwt_config.validation.issuer {
-                            println!("  Issuer: {}", issuer);
-                        }
-                        if let Some(audiences) = &jwt_config.validation.valid_audiences {
-                            println!("  Audiences: {}", audiences.join(", "));
-                        }
-                        if let Some(mappings) = &jwt_config.scope_to_role_mappings {
-                            if !mappings.is_empty() {
-                                println!("  Scope-to-Role Mappings:");
-                                for mapping in mappings {
-                                    println!("    {} -> {}", mapping.scope, mapping.role);
-                                }
-                            }
-                        }
-                        if let Some(mappings) = &jwt_config.scope_to_group_mappings {
-                            if !mappings.is_empty() {
-                                println!("  Scope-to-Group Mappings:");
-                                for mapping in mappings {
-                                    println!("    {} -> {}", mapping.scope, mapping.group);
-                                }
-                            }
-                        }
-                        if let Some(mappings) = &jwt_config.group_to_role_mappings {
-                            if !mappings.is_empty() {
-                                println!("  Group-to-Role Mappings:");
-                                for mapping in mappings {
-                                    println!("    {} -> {}", mapping.group, mapping.role);
-                                }
-                            }
+                    }
+                    if let Some(Some(required_groups)) = &validation.required_groups {
+                        if !required_groups.is_empty() {
+                            println!("  Required Groups: {}", required_groups.join(", "));
                         }
                     }
                 }
-            } else if config.r#type == "dev" {
-                println!("  (Allows unauthenticated access for development)");
+                soma_api_client::models::StsTokenConfig::StsTokenConfigOneOf1(_) => {
+                    println!("  (Allows unauthenticated access for development)");
+                }
             }
-            println!("  Created: {}", config.created_at);
         }
     }
 

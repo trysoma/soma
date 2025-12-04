@@ -1,17 +1,16 @@
 use axum::extract::{Path, Query, State};
 use axum::Json;
-use serde::Deserialize;
+use shared::primitives::PaginationRequest;
 use shared::{
     adapters::openapi::{JsonResponse, API_VERSION_TAG},
     error::CommonError,
 };
-use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::api_key::{
     create_api_key, delete_api_key, import_api_key, list_api_keys, CreateApiKeyParams,
     CreateApiKeyResponse, DeleteApiKeyParams, DeleteApiKeyResponse, EncryptedApiKeyConfig,
-    ImportApiKeyResponse, ListApiKeysParams, ListApiKeysResponse,
+    ImportApiKeyResponse, ListApiKeysResponse,
 };
 use crate::service::IdentityService;
 
@@ -25,15 +24,6 @@ pub fn create_api_key_routes() -> OpenApiRouter<IdentityService> {
         .routes(routes!(route_import_api_key))
 }
 
-#[derive(Debug, Deserialize, IntoParams)]
-pub struct ListApiKeysQuery {
-    #[param(example = "10")]
-    page_size: Option<u32>,
-    #[param(example = "")]
-    next_page_token: Option<String>,
-    #[param(example = "")]
-    user_id: Option<String>,
-}
 
 #[utoipa::path(
     post,
@@ -96,7 +86,7 @@ async fn route_delete_api_key(
     path = format!("{}/{}/{}/api-key", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
-        ListApiKeysQuery
+        PaginationRequest
     ),
     responses(
         (status = 200, description = "List of API keys", body = ListApiKeysResponse),
@@ -105,17 +95,10 @@ async fn route_delete_api_key(
 )]
 async fn route_list_api_keys(
     State(service): State<IdentityService>,
-    Query(query): Query<ListApiKeysQuery>,
+    Query(query): Query<PaginationRequest>,
 ) -> JsonResponse<ListApiKeysResponse, CommonError> {
-    use shared::primitives::PaginationRequest;
-    let params = ListApiKeysParams {
-        pagination: PaginationRequest {
-            page_size: query.page_size.unwrap_or(10) as i64,
-            next_page_token: query.next_page_token,
-        },
-        user_id: query.user_id,
-    };
-    let result = list_api_keys(service.repository.as_ref(), params).await;
+    
+    let result = list_api_keys(service.repository.as_ref(), query).await;
     JsonResponse::from(result)
 }
 
