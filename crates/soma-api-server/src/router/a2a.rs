@@ -1,12 +1,9 @@
 use a2a_rs::agent_execution::SimpleRequestContextBuilder;
 use a2a_rs::agent_execution::agent_executor::BoxedFuture;
-use a2a_rs::errors::A2aServerError;
 use a2a_rs::events::InMemoryQueueManager;
-use a2a_rs::service::A2aServiceLike;
 use a2a_rs::tasks::base_push_notification_sender::BasePushNotificationSenderBuilder;
 use a2a_rs::tasks::in_memory_push_notification_config_store::InMemoryPushNotificationConfigStoreBuilder;
 use a2a_rs::{
-    adapters::jsonrpc::axum::create_router as create_a2a_router,
     agent_execution::{agent_executor::AgentExecutor, context::RequestContext},
     events::event_queue::{Event, EventQueue},
     request_handlers::{
@@ -14,20 +11,25 @@ use a2a_rs::{
     },
     types::{Task, TaskState, TaskStatus},
 };
-use async_trait::async_trait;
-use axum::extract::State;
+use axum::Json;
+use axum::extract::{Path, State};
+use axum::response::IntoResponse;
+use axum::response::sse::{Event as SseEvent, Sse};
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use shared::adapters::openapi::{API_VERSION_TAG, JsonResponse};
 use shared::error::CommonError;
 use shared::primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4};
-use shared::uds::{DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client};
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::time::Duration;
 use std::{pin::Pin, sync::Arc};
 use tokio::sync::RwLock;
+use tokio_stream::StreamExt as TokioStreamExt;
 use tracing::info;
 use url::Url;
+use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
@@ -46,15 +48,35 @@ pub const PATH_PREFIX: &str = "/api";
 pub const SERVICE_ROUTE_KEY: &str = "a2a";
 pub const API_VERSION_1: &str = "v1";
 
+/// Path parameters for multi-agent routes
+#[derive(Debug, Clone, Deserialize)]
+pub struct AgentPathParams {
+    pub project_id: String,
+    pub agent_id: String,
+}
+
+/// Agent list item for list response
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct AgentListItem {
+    /// The project ID
+    pub project_id: String,
+    /// The agent ID
+    pub agent_id: String,
+}
+
+/// Response for listing agents
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ListAgentsResponse {
+    /// List of agents
+    pub agents: Vec<AgentListItem>,
+}
+
 pub fn create_router() -> OpenApiRouter<Arc<Agent2AgentService>> {
-    let openapi_router = OpenApiRouter::new().routes(routes!(route_definition));
-
-    let a2a_router: OpenApiRouter<Arc<Agent2AgentService>> = create_a2a_router();
-
-    openapi_router.nest(
-        &format!("{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}"),
-        a2a_router,
-    )
+    OpenApiRouter::new()
+        .routes(routes!(route_definition))
+        .routes(routes!(route_list_agents))
+        .routes(routes!(route_agent_card))
+        .routes(routes!(route_jsonrpc))
 }
 
 #[utoipa::path(
@@ -75,10 +97,293 @@ async fn route_definition(
     JsonResponse::from(soma_definition)
 }
 
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/agents", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    responses(
+        (status = 200, description = "List of agents", body = ListAgentsResponse),
+    ),
+    summary = "List available agents",
+    description = "List all available agents by querying Restate services",
+    operation_id = "list-agents",
+)]
+async fn route_list_agents(
+    State(ctx): State<Arc<Agent2AgentService>>,
+) -> JsonResponse<ListAgentsResponse, CommonError> {
+    use shared::restate::admin_interface::AdminClientInterface;
+
+    let services_result = ctx.restate_admin_client.get_services().await;
+
+    match services_result {
+        Ok(envelope) => {
+            let body = match envelope.into_body().await {
+                Ok(body) => body,
+                Err(e) => {
+                    return JsonResponse::from(Err(CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to parse services response: {e}"
+                    ))));
+                }
+            };
+
+            let agents: Vec<AgentListItem> = body
+                .services
+                .into_iter()
+                .filter_map(|service| {
+                    // Service names follow the pattern: {project_id}.{agent_id}
+                    let name = service.name;
+                    let parts: Vec<&str> = name.splitn(2, '.').collect();
+                    if parts.len() == 2 {
+                        Some(AgentListItem {
+                            project_id: parts[0].to_string(),
+                            agent_id: parts[1].to_string(),
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            JsonResponse::from(Ok(ListAgentsResponse { agents }))
+        }
+        Err(e) => JsonResponse::from(Err(CommonError::Unknown(anyhow::anyhow!(
+            "Failed to list agents: {e}"
+        )))),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/{{project_id}}/{{agent_id}}/.well-known/agent.json", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("project_id" = String, Path, description = "Project ID"),
+        ("agent_id" = String, Path, description = "Agent ID"),
+    ),
+    responses(
+        (status = 200, description = "Agent card", body = a2a_rs::types::AgentCard),
+    ),
+    summary = "Get agent card for specific agent",
+    description = "Get the agent card describing agent capabilities and metadata for a specific agent",
+    operation_id = "get-agent-card",
+)]
+async fn route_agent_card(
+    State(ctx): State<Arc<Agent2AgentService>>,
+    Path(path_params): Path<AgentPathParams>,
+) -> impl IntoResponse {
+    info!(
+        "Received agent card request for project: {}, agent: {}",
+        path_params.project_id, path_params.agent_id
+    );
+
+    match ctx.get_agent_card(&path_params).await {
+        Ok(card) => (http::StatusCode::OK, Json(card)).into_response(),
+        Err(e) => (http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = format!("{}/{}/{}/{{project_id}}/{{agent_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("project_id" = String, Path, description = "Project ID"),
+        ("agent_id" = String, Path, description = "Agent ID"),
+    ),
+    responses(
+        (status = 200, description = "Successful response"),
+        (status = 500, description = "Internal Server Error"),
+    ),
+    summary = "Handle JSON-RPC for specific agent",
+    description = "Handle JSON-RPC requests for agent-to-agent communication for a specific agent",
+    operation_id = "handle-jsonrpc-request",
+)]
+async fn route_jsonrpc(
+    State(ctx): State<Arc<Agent2AgentService>>,
+    Path(path_params): Path<AgentPathParams>,
+    Json(body): Json<a2a_rs::types::JsonrpcRequest>,
+) -> impl IntoResponse {
+    info!(
+        "Received JSON-RPC request for project: {}, agent: {}, method: {}",
+        path_params.project_id, path_params.agent_id, body.method
+    );
+
+    // Get the request handler with path params context
+    let handler = ctx.get_request_handler_with_params(&path_params);
+
+    // Handle the JSON-RPC method
+    let id = body.id.clone();
+    let result = match body.method.as_str() {
+        "message/send" => {
+            let params: a2a_rs::types::MessageSendParams =
+                match serde_json::from_value(serde_json::Value::Object(body.params)) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        return (http::StatusCode::BAD_REQUEST, e.to_string()).into_response();
+                    }
+                };
+            match handler.on_message_send(params).await {
+                Ok(result) => serde_json::to_value(result).unwrap(),
+                Err(e) => {
+                    return (http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+                        .into_response();
+                }
+            }
+        }
+        "tasks/get" => {
+            let params: a2a_rs::types::TaskQueryParams =
+                match serde_json::from_value(serde_json::Value::Object(body.params)) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        return (http::StatusCode::BAD_REQUEST, e.to_string()).into_response();
+                    }
+                };
+            match handler.on_get_task(params).await {
+                Ok(result) => serde_json::to_value(result).unwrap(),
+                Err(e) => {
+                    return (http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+                        .into_response();
+                }
+            }
+        }
+        "tasks/cancel" => {
+            let params: a2a_rs::types::TaskIdParams =
+                match serde_json::from_value(serde_json::Value::Object(body.params)) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        return (http::StatusCode::BAD_REQUEST, e.to_string()).into_response();
+                    }
+                };
+            match handler.on_cancel_task(params).await {
+                Ok(result) => serde_json::to_value(result).unwrap(),
+                Err(e) => {
+                    return (http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+                        .into_response();
+                }
+            }
+        }
+        "message/stream" => {
+            info!("Received message/stream request");
+            let params: a2a_rs::types::MessageSendParams =
+                match serde_json::from_value(serde_json::Value::Object(body.params)) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        return (http::StatusCode::BAD_REQUEST, e.to_string()).into_response();
+                    }
+                };
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+            let id_for_task = id.clone();
+
+            tokio::spawn(async move {
+                let stream_res = handler.on_message_send_stream(params).await;
+
+                match stream_res {
+                    Ok(mut stream) => {
+                        while let Some(item) = stream.next().await {
+                            info!("Sending message stream item");
+                            if tx.send(item).is_err() {
+                                break;
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        let _ = tx.send(Err(err));
+                    }
+                }
+            });
+
+            let stream = tokio_stream::wrappers::UnboundedReceiverStream::new(rx);
+            let stream = TokioStreamExt::map(stream, move |item| {
+                let data: a2a_rs::types::CustomJsonRpcPayload<
+                    a2a_rs::types::SendStreamingMessageSuccessResponseResult,
+                > = item.into();
+                let res = a2a_rs::types::CustomJsonrpcResponse::new(id_for_task.clone(), data);
+                info!(
+                    "Sending message stream item {:?}",
+                    serde_json::to_string(&res).unwrap()
+                );
+                SseEvent::default().json_data(res)
+            });
+
+            return Sse::new(stream)
+                .keep_alive(
+                    axum::response::sse::KeepAlive::new()
+                        .interval(Duration::from_secs(1))
+                        .text("keep-alive"),
+                )
+                .into_response();
+        }
+        "tasks/resubscribe" => {
+            info!("Received tasks/resubscribe request");
+            let params: a2a_rs::types::TaskIdParams =
+                match serde_json::from_value(serde_json::Value::Object(body.params)) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        return (http::StatusCode::BAD_REQUEST, e.to_string()).into_response();
+                    }
+                };
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+            let id_for_task = id.clone();
+
+            tokio::spawn(async move {
+                let stream_res = handler.on_resubscribe_to_task(params);
+
+                match stream_res {
+                    Ok(mut stream) => {
+                        while let Some(item) = stream.next().await {
+                            if tx.send(item).is_err() {
+                                break;
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        let _ = tx.send(Err(err));
+                    }
+                }
+            });
+
+            let stream = tokio_stream::wrappers::UnboundedReceiverStream::new(rx);
+            let stream = TokioStreamExt::map(stream, move |item| {
+                let data: a2a_rs::types::CustomJsonRpcPayload<
+                    a2a_rs::types::SendStreamingMessageSuccessResponseResult,
+                > = item.into();
+                let res = a2a_rs::types::CustomJsonrpcResponse::new(id_for_task.clone(), data);
+                SseEvent::default().json_data(res)
+            });
+
+            return Sse::new(stream)
+                .keep_alive(
+                    axum::response::sse::KeepAlive::new()
+                        .interval(Duration::from_secs(1))
+                        .text("keep-alive"),
+                )
+                .into_response();
+        }
+        _ => {
+            return (http::StatusCode::NOT_FOUND, "Unknown method").into_response();
+        }
+    };
+
+    let response = a2a_rs::types::CustomJsonrpcResponse::new(
+        id,
+        a2a_rs::types::CustomJsonRpcPayload::Ok(result),
+    );
+    (http::StatusCode::OK, Json(response)).into_response()
+}
+
 pub struct Agent2AgentService {
     soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     host: Url,
-    request_handler: Arc<dyn RequestHandler + Send + Sync>,
+    // Store components needed to create request handlers per request
+    connection_manager: ConnectionManager,
+    repository: Repository,
+    task_store: Arc<RepositoryTaskStore>,
+    queue_manager: Arc<InMemoryQueueManager>,
+    config_store: Arc<
+        a2a_rs::tasks::in_memory_push_notification_config_store::InMemoryPushNotificationConfigStore,
+    >,
+    restate_ingress_client: RestateIngressClient,
+    restate_admin_client: AdminClient,
 }
 
 pub struct Agent2AgentServiceParams {
@@ -100,14 +405,6 @@ impl Agent2AgentService {
             restate_ingress_client,
             restate_admin_client,
         } = params;
-        // Create the agent executor
-        let agent_executor = Arc::new(ProxiedAgent {
-            connection_manager,
-            soma_definition: soma_definition.clone(),
-            repository: repository.clone(),
-            restate_ingress_client,
-            restate_admin_client,
-        });
 
         // Create a task store
         let task_store = Arc::new(RepositoryTaskStore::new(repository.clone()));
@@ -117,44 +414,32 @@ impl Agent2AgentService {
                 .build()
                 .unwrap(),
         );
-        // Create the request handler
-        let request_handler: Arc<dyn RequestHandler + Send + Sync> =
-            Arc::new(DefaultRequestHandler::new(
-                agent_executor.clone(),
-                task_store.clone(),
-                Some(Arc::new(InMemoryQueueManager::new())),
-                Some(config_store.clone()),
-                Some(Arc::new(
-                    BasePushNotificationSenderBuilder::default()
-                        .client(Arc::new(Client::new()))
-                        .config_store(config_store)
-                        .build()
-                        .unwrap(),
-                )),
-                Some(Arc::new(SimpleRequestContextBuilder::new(
-                    false,
-                    Some(task_store),
-                ))),
-            ));
+        let queue_manager = Arc::new(InMemoryQueueManager::new());
 
         Self {
             soma_definition: soma_definition.clone(),
             host,
-            request_handler,
+            connection_manager,
+            repository,
+            task_store,
+            queue_manager,
+            config_store,
+            restate_ingress_client,
+            restate_admin_client,
         }
     }
-}
 
-#[async_trait]
-impl A2aServiceLike for Agent2AgentService {
-    async fn agent_card(
+    /// Get agent card for a specific project/agent
+    pub async fn get_agent_card(
         &self,
-        _context: a2a_rs::service::RequestContext,
-    ) -> Result<a2a_rs::types::AgentCard, A2aServerError> {
+        path_params: &AgentPathParams,
+    ) -> Result<a2a_rs::types::AgentCard, CommonError> {
         let soma_definition = self.soma_definition.get_definition().await?;
+
         let mut full_url = self.host.clone();
         full_url.set_path(&format!(
-            "{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}"
+            "{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}/{}/{}",
+            path_params.project_id, path_params.agent_id
         ));
 
         let card = construct_agent_card(ConstructAgentCardParams {
@@ -164,18 +449,39 @@ impl A2aServiceLike for Agent2AgentService {
         Ok(card)
     }
 
-    async fn extended_agent_card(
+    /// Create a request handler for a specific project/agent
+    pub fn get_request_handler_with_params(
         &self,
-        _context: a2a_rs::service::RequestContext,
-    ) -> Result<Option<a2a_rs::types::AgentCard>, A2aServerError> {
-        Ok(None)
-    }
+        path_params: &AgentPathParams,
+    ) -> Arc<dyn RequestHandler + Send + Sync> {
+        // Create the agent executor with path params
+        let agent_executor: Arc<dyn AgentExecutor + Send + Sync> = Arc::new(ProxiedAgent {
+            connection_manager: self.connection_manager.clone(),
+            soma_definition: self.soma_definition.clone(),
+            repository: self.repository.clone(),
+            restate_ingress_client: self.restate_ingress_client.clone(),
+            restate_admin_client: self.restate_admin_client.clone(),
+            project_id: path_params.project_id.clone(),
+            agent_id: path_params.agent_id.clone(),
+        });
 
-    fn request_handler(
-        &self,
-        _context: a2a_rs::service::RequestContext,
-    ) -> Arc<dyn a2a_rs::request_handlers::request_handler::RequestHandler + Send + Sync> {
-        self.request_handler.clone()
+        Arc::new(DefaultRequestHandler::new(
+            agent_executor,
+            self.task_store.clone(),
+            Some(self.queue_manager.clone()),
+            Some(self.config_store.clone()),
+            Some(Arc::new(
+                BasePushNotificationSenderBuilder::default()
+                    .client(Arc::new(Client::new()))
+                    .config_store(self.config_store.clone())
+                    .build()
+                    .unwrap(),
+            )),
+            Some(Arc::new(SimpleRequestContextBuilder::new(
+                false,
+                Some(self.task_store.clone()),
+            ))),
+        ))
     }
 }
 
@@ -186,6 +492,9 @@ struct ProxiedAgent {
     repository: Repository,
     restate_ingress_client: RestateIngressClient,
     restate_admin_client: AdminClient,
+    // Path params for multi-agent routing
+    project_id: String,
+    agent_id: String,
 }
 
 impl AgentExecutor for ProxiedAgent {
@@ -351,40 +660,9 @@ impl AgentExecutor for ProxiedAgent {
                 .await
                 .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>)?;
 
-            // Get agent metadata
-            let socket_path = std::env::var("SOMA_SERVER_SOCK")
-                .unwrap_or_else(|_| DEFAULT_SOMA_SERVER_SOCK.to_string());
-            let mut sdk_client =
-                create_soma_unix_socket_client(&socket_path)
-                    .await
-                    .map_err(|e| {
-                        Box::new(CommonError::Unknown(anyhow::anyhow!(
-                            "Failed to connect to SDK: {e}"
-                        )))
-                            as Box<dyn std::error::Error + Send + Sync + 'static>
-                    })?;
-            let metadata_response =
-                sdk_client
-                    .metadata(tonic::Request::new(()))
-                    .await
-                    .map_err(|e| {
-                        Box::new(CommonError::Unknown(anyhow::anyhow!(
-                            "Failed to get SDK metadata: {e}"
-                        )))
-                            as Box<dyn std::error::Error + Send + Sync + 'static>
-                    })?;
-            let metadata = metadata_response.into_inner();
-            let project_id = metadata
-                .agents
-                .first()
-                .map(|agent| &agent.project_id)
-                .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("No agents registered")))?;
-            let agent_id = metadata
-                .agents
-                .first()
-                .map(|agent| &agent.id)
-                .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("No agents registered")))?;
-            let service_name = format!("{project_id}.{agent_id}");
+            // Use path params stored in the agent to construct service name
+            let service_name = format!("{}.{}", self.project_id, self.agent_id);
+            info!("Using agent service: {} from path params", service_name);
             let object_id = construct_initial_object_id(&task.id);
 
             // Use the task status from the database if available, otherwise convert from context task

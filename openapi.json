@@ -140,101 +140,22 @@
         }
       }
     },
-    "/api/a2a/v1": {
-      "post": {
-        "tags": [
-          "a2a",
-          "v1"
-        ],
-        "summary": "Handle JSON-RPC",
-        "description": "Handle JSON-RPC requests for agent-to-agent communication (tasks, messages, etc.)",
-        "operationId": "handle-jsonrpc-request",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JsonrpcRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response"
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/a2a/v1/.well-known/agent.json": {
+    "/api/a2a/v1/agents": {
       "get": {
         "tags": [
           "a2a",
           "v1"
         ],
-        "summary": "Get agent card",
-        "description": "Get the agent card describing agent capabilities and metadata",
-        "operationId": "get-agent-card",
+        "summary": "List available agents",
+        "description": "List all available agents by querying Restate services",
+        "operationId": "list-agents",
         "responses": {
           "200": {
-            "description": "Successful response",
+            "description": "List of agents",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentCard"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/a2a/v1/agent/authenticatedExtendedCard": {
-      "get": {
-        "tags": [
-          "a2a",
-          "v1"
-        ],
-        "summary": "Get extended agent card",
-        "description": "Get the authenticated extended agent card with additional metadata",
-        "operationId": "get-extended-agent-card",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentCard"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/ListAgentsResponse"
                 }
               }
             }
@@ -258,6 +179,98 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SomaAgentDefinition"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/a2a/v1/{project_id}/{agent_id}": {
+      "post": {
+        "tags": [
+          "a2a",
+          "v1"
+        ],
+        "summary": "Handle JSON-RPC for specific agent",
+        "description": "Handle JSON-RPC requests for agent-to-agent communication for a specific agent",
+        "operationId": "handle-jsonrpc-request",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agent_id",
+            "in": "path",
+            "description": "Agent ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonrpcRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/a2a/v1/{project_id}/{agent_id}/.well-known/agent.json": {
+      "get": {
+        "tags": [
+          "a2a",
+          "v1"
+        ],
+        "summary": "Get agent card for specific agent",
+        "description": "Get the agent card describing agent capabilities and metadata for a specific agent",
+        "operationId": "get-agent-card",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "description": "Project ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agent_id",
+            "in": "path",
+            "description": "Agent ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentCard"
                 }
               }
             }
@@ -4503,6 +4516,24 @@
       "AgentCard": {
         "type": "object"
       },
+      "AgentInfo": {
+        "type": "object",
+        "description": "Agent info for list response",
+        "required": [
+          "project_id",
+          "agent_id"
+        ],
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "The agent ID"
+          },
+          "project_id": {
+            "type": "string",
+            "description": "The project ID"
+          }
+        }
+      },
       "BridgeConfig": {
         "type": "object",
         "properties": {
@@ -5282,11 +5313,14 @@
       "Error": {
         "type": "object",
         "required": [
+          "name",
           "message"
         ],
         "properties": {
-          "data": {},
           "message": {
+            "type": "string"
+          },
+          "name": {
             "type": "string"
           }
         }
@@ -5551,6 +5585,22 @@
       },
       "JsonrpcRequest": {
         "type": "object"
+      },
+      "ListAgentsResponse": {
+        "type": "object",
+        "description": "Response for listing agents",
+        "required": [
+          "agents"
+        ],
+        "properties": {
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentInfo"
+            },
+            "description": "List of agents"
+          }
+        }
       },
       "ListDecryptedSecretsResponse": {
         "type": "object",
@@ -6157,6 +6207,16 @@
       "SomaAgentDefinition": {
         "type": "object",
         "properties": {
+          "agents": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AgentInfo"
+            },
+            "description": "List of registered agents from the SDK"
+          },
           "bridge": {
             "oneOf": [
               {

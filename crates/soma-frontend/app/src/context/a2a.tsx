@@ -17,6 +17,12 @@ import type { components } from "@/@types/openapi";
 import $api from "@/lib/api-client";
 export const DEFAULT_AGENT_CARD_PATH = "/api/a2a/v1/.well-known/agent.json";
 export const DEFAULT_AGENT_SSE_PATH = "/api/a2a/v1";
+
+// Helper to construct agent-specific paths
+export const getAgentCardPath = (projectId: string, agentId: string) =>
+	`/api/a2a/v1/${projectId}/${agentId}/.well-known/agent.json`;
+export const getAgentSsePath = (projectId: string, agentId: string) =>
+	`/api/a2a/v1/${projectId}/${agentId}`;
 // type User = Awaited<WhoAmI>;
 
 // type UserContextValue = {
@@ -280,7 +286,18 @@ const mapA2aTaskStatusUpdateToWrappedTask = (
 	});
 	return wrappedTask;
 };
-function A2aProviderInner({ children }: { children: ReactNode }) {
+interface A2aProviderProps {
+	children: ReactNode;
+	projectId?: string;
+	agentId?: string;
+}
+
+function A2aProviderInner({ children, projectId, agentId }: A2aProviderProps) {
+	// Construct agent-specific paths if projectId and agentId are provided
+	const agentCardPath =
+		projectId && agentId
+			? getAgentCardPath(projectId, agentId)
+			: DEFAULT_AGENT_CARD_PATH;
 	const [ready, setReady] = useState(false);
 	const [agentCard, setAgentCard] = useState<AgentCard | null>(null);
 	const [contexts, setContexts] = useState<Context[]>([]);
@@ -601,11 +618,13 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		(async () => {
 			try {
-				const agentCard = await fetch(DEFAULT_AGENT_CARD_PATH);
-				if (!agentCard.ok) {
-					throw new Error(`Failed to fetch agent card: ${agentCard.status}`);
+				const agentCardResponse = await fetch(agentCardPath);
+				if (!agentCardResponse.ok) {
+					throw new Error(
+						`Failed to fetch agent card: ${agentCardResponse.status}`,
+					);
 				}
-				const agentCardJson: AgentCard = await agentCard.json();
+				const agentCardJson: AgentCard = await agentCardResponse.json();
 				a2aClient.current = new A2AClient(agentCardJson);
 
 				setAgentCard(agentCardJson);
@@ -614,7 +633,7 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 				console.error("Error initializing A2A client:", error);
 			}
 		})();
-	}, []);
+	}, [agentCardPath]);
 
 	// Cleanup on unmount
 	useEffect(() => {
@@ -836,10 +855,16 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 	);
 }
 
-export function A2aProvider({ children }: { children: ReactNode }) {
+export function A2aProvider({
+	children,
+	projectId,
+	agentId,
+}: A2aProviderProps) {
 	return (
 		<Suspense fallback={<></>}>
-			<A2aProviderInner>{children}</A2aProviderInner>
+			<A2aProviderInner projectId={projectId} agentId={agentId}>
+				{children}
+			</A2aProviderInner>
 		</Suspense>
 	);
 }

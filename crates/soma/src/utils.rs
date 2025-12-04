@@ -193,7 +193,7 @@ pub async fn create_and_wait_for_api_client(
     let mut connected = false;
 
     for attempt in 1..=max_retries {
-        match a2a_api::get_agent_card(&api_config).await {
+        match a2a_api::get_agent_definition(&api_config).await {
             Ok(_) => {
                 info!("Connected to Soma API server successfully");
                 connected = true;
