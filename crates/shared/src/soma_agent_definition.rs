@@ -9,20 +9,6 @@ use utoipa::ToSchema;
 use crate::error::CommonError;
 use async_trait::async_trait;
 
-/// Information about a registered agent
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct AgentInfo {
-    /// The agent ID
-    pub id: String,
-    /// The project ID the agent belongs to
-    pub project_id: String,
-    /// Display name of the agent
-    pub name: String,
-    /// Description of the agent
-    pub description: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct SomaAgentDefinition {
@@ -34,9 +20,6 @@ pub struct SomaAgentDefinition {
     pub secrets: Option<HashMap<String, SecretConfig>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub environment_variables: Option<HashMap<String, String>>,
-    /// List of registered agents from the SDK
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agents: Option<Vec<AgentInfo>>,
 }
 
 /// Configuration for a secret stored in soma.yaml
