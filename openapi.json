@@ -6481,10 +6481,10 @@
           {
             "type": "object",
             "required": [
-              "OidcAuthorizationCodeFlow"
+              "oidc_authorization_code_flow"
             ],
             "properties": {
-              "OidcAuthorizationCodeFlow": {
+              "oidc_authorization_code_flow": {
                 "$ref": "#/components/schemas/EncryptedOidcConfig"
               }
             }
@@ -6492,10 +6492,10 @@
           {
             "type": "object",
             "required": [
-              "OauthAuthorizationCodeFlow"
+              "oauth_authorization_code_flow"
             ],
             "properties": {
-              "OauthAuthorizationCodeFlow": {
+              "oauth_authorization_code_flow": {
                 "$ref": "#/components/schemas/EncryptedOauthConfig"
               }
             }
@@ -6503,10 +6503,10 @@
           {
             "type": "object",
             "required": [
-              "OidcAuthorizationCodePkceFlow"
+              "oidc_authorization_code_pkce_flow"
             ],
             "properties": {
-              "OidcAuthorizationCodePkceFlow": {
+              "oidc_authorization_code_pkce_flow": {
                 "$ref": "#/components/schemas/EncryptedOidcConfig"
               }
             }
@@ -6514,10 +6514,10 @@
           {
             "type": "object",
             "required": [
-              "OauthAuthorizationCodePkceFlow"
+              "oauth_authorization_code_pkce_flow"
             ],
             "properties": {
-              "OauthAuthorizationCodePkceFlow": {
+              "oauth_authorization_code_pkce_flow": {
                 "$ref": "#/components/schemas/EncryptedOauthConfig"
               }
             }

@@ -1547,16 +1547,16 @@ export interface components {
 		EncryptedString: string;
 		EncryptedUserAuthFlowConfig:
 			| {
-					OidcAuthorizationCodeFlow: components["schemas"]["EncryptedOidcConfig"];
+					oidc_authorization_code_flow: components["schemas"]["EncryptedOidcConfig"];
 			  }
 			| {
-					OauthAuthorizationCodeFlow: components["schemas"]["EncryptedOauthConfig"];
+					oauth_authorization_code_flow: components["schemas"]["EncryptedOauthConfig"];
 			  }
 			| {
-					OidcAuthorizationCodePkceFlow: components["schemas"]["EncryptedOidcConfig"];
+					oidc_authorization_code_pkce_flow: components["schemas"]["EncryptedOidcConfig"];
 			  }
 			| {
-					OauthAuthorizationCodePkceFlow: components["schemas"]["EncryptedOauthConfig"];
+					oauth_authorization_code_pkce_flow: components["schemas"]["EncryptedOauthConfig"];
 			  };
 		/** @description Top-level encryption configuration */
 		EncryptionConfig: {

@@ -581,6 +581,12 @@ async fn handle_identity_event(
         IdentityOnConfigChangeEvt::StsConfigCreated(sts_config_info) => {
             use identity::logic::sts::config::StsTokenConfig as IdentityStsTokenConfig;
 
+            // Skip syncing DevMode configs to YAML - they are ephemeral and only used in dev
+            if matches!(&sts_config_info, IdentityStsTokenConfig::DevMode(_)) {
+                info!("Skipping DevMode STS config sync to YAML (dev mode configs are ephemeral)");
+                return Ok(());
+            }
+
             let config_id = match &sts_config_info {
                 IdentityStsTokenConfig::JwtTemplate(config) => config.id.clone(),
                 IdentityStsTokenConfig::DevMode(config) => config.id.clone(),
@@ -605,7 +611,10 @@ async fn handle_identity_event(
             } else {
                 // Convert identity STS config to YAML config
                 let yaml_config = match &sts_config_info {
-                    IdentityStsTokenConfig::DevMode(_) => StsConfigYaml::Dev {},
+                    IdentityStsTokenConfig::DevMode(_) => {
+                        // This branch should never be reached due to early return above
+                        unreachable!("DevMode configs should be skipped earlier")
+                    }
                     IdentityStsTokenConfig::JwtTemplate(jwt_config) => {
                         // Convert the JwtTemplateModeConfig to JwtTemplateConfigYaml
                         let jwt_yaml = serde_json::to_value(jwt_config)

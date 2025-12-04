@@ -227,6 +227,14 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     .await?;
     info!("Bridge sync completed");
 
+    // Enable dev mode STS config for development
+    info!("Enabling dev mode STS configuration...");
+    let dev_sts_result = enable_dev_mode_sts(&api_config).await;
+    match dev_sts_result {
+        Ok(()) => info!("Dev mode STS configuration enabled"),
+        Err(e) => warn!("Failed to enable dev mode STS configuration: {:?}. Continuing without it.", e),
+    }
+
     // Give SDK server time to fully initialize its gRPC handlers after bridge sync
     // This ensures that secrets/env vars created during bridge sync can be synced properly
     info!("Waiting for SDK server to be fully ready after bridge sync...");
@@ -427,4 +435,45 @@ fn load_soma_definition(
     }
     let soma_definition = YamlSomaAgentDefinition::load_from_file(path_to_soma_definition)?;
     Ok(Arc::new(soma_definition))
+}
+
+/// Enables the dev mode STS configuration for development
+/// This allows unauthenticated access during development
+async fn enable_dev_mode_sts(
+    api_config: &soma_api_client::apis::configuration::Configuration,
+) -> Result<(), CommonError> {
+    use soma_api_client::apis::identity_api;
+    use soma_api_client::models;
+
+    const DEV_MODE_STS_ID: &str = "dev-mode";
+
+    // Check if dev mode STS config already exists
+    let existing_configs = identity_api::route_list_sts_configs(api_config, 100, None)
+        .await
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to list STS configs: {e:?}")))?;
+
+    let dev_mode_exists = existing_configs.items.iter().any(|config| {
+        match config {
+            models::StsTokenConfig::StsTokenConfigOneOf1(c) => c.dev_mode.id == DEV_MODE_STS_ID,
+            _ => false,
+        }
+    });
+
+    if dev_mode_exists {
+        info!("Dev mode STS configuration already exists");
+        return Ok(());
+    }
+
+    // Create dev mode STS config
+    let params = models::StsTokenConfig::StsTokenConfigOneOf1(models::StsTokenConfigOneOf1 {
+        dev_mode: models::DevModeConfig {
+            id: DEV_MODE_STS_ID.to_string(),
+        },
+    });
+
+    identity_api::route_create_sts_config(api_config, params)
+        .await
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create dev mode STS config: {e:?}")))?;
+
+    Ok(())
 }

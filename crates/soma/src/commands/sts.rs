@@ -437,34 +437,6 @@ async fn cmd_sts_add_from_template(
     Ok(())
 }
 
-async fn cmd_sts_add_dev(
-    id: String,
-    api_url: &str,
-    timeout_secs: u64,
-) -> Result<(), CommonError> {
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
-
-    let params = soma_api_client::models::StsTokenConfig::StsTokenConfigOneOf1(
-        soma_api_client::models::StsTokenConfigOneOf1 {
-            dev_mode: soma_api_client::models::DevModeConfig {
-                id: id.clone(),
-            },
-        },
-    );
-
-    identity_api::route_create_sts_config(&api_config, params)
-        .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create STS config: {e:?}")))?;
-
-    info!("STS dev configuration '{}' created", id);
-    println!("Successfully added dev mode STS configuration: {}", id);
-    println!("The configuration has been synced to soma.yaml.");
-    println!();
-    println!("WARNING: Dev mode allows unauthenticated access. Only use in development!");
-
-    Ok(())
-}
-
 async fn cmd_sts_remove(
     id: String,
     api_url: &str,

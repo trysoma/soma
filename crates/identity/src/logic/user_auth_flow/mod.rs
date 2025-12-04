@@ -124,7 +124,7 @@ pub async fn create_user_auth_flow_config<R: UserRepositoryLike>(
         .is_some()
     {
         return Err(CommonError::InvalidRequest {
-            msg: format!("User auth flow config with ID '{}' already exists", id),
+            msg: format!("User auth flow config with ID '{id}' already exists"),
             source: None,
         });
     }

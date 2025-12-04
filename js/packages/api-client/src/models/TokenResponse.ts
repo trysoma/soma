@@ -13,7 +13,7 @@
  */
 
 /**
- * Response body for token exchange and refresh endpoints
+ * Response body for token refresh endpoint
  * @export
  * @interface TokenResponse
  */
@@ -31,7 +31,7 @@ export interface TokenResponse {
 	 */
 	expiresIn: number;
 	/**
-	 * The refresh token (only present on exchange, not refresh)
+	 * The refresh token (only present on initial auth, not refresh)
 	 * @type {string}
 	 * @memberof TokenResponse
 	 */

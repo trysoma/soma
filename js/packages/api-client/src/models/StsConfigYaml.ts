@@ -12,92 +12,25 @@
  * Do not edit the class manually.
  */
 
-import type { GroupToRoleMappingYaml } from "./GroupToRoleMappingYaml";
+import type { StsConfigYamlOneOf } from "./StsConfigYamlOneOf";
 import {
-	GroupToRoleMappingYamlFromJSON,
-	GroupToRoleMappingYamlToJSON,
-} from "./GroupToRoleMappingYaml";
-import type { JwtMappingConfigYaml } from "./JwtMappingConfigYaml";
+	instanceOfStsConfigYamlOneOf,
+	StsConfigYamlOneOfFromJSONTyped,
+	StsConfigYamlOneOfToJSON,
+} from "./StsConfigYamlOneOf";
+import type { StsConfigYamlOneOf1 } from "./StsConfigYamlOneOf1";
 import {
-	JwtMappingConfigYamlFromJSON,
-	JwtMappingConfigYamlToJSON,
-} from "./JwtMappingConfigYaml";
-import type { JwtValidationConfigYaml } from "./JwtValidationConfigYaml";
-import {
-	JwtValidationConfigYamlFromJSON,
-	JwtValidationConfigYamlToJSON,
-} from "./JwtValidationConfigYaml";
-import type { TokenLocationYaml } from "./TokenLocationYaml";
-import {
-	TokenLocationYamlFromJSON,
-	TokenLocationYamlToJSON,
-} from "./TokenLocationYaml";
+	instanceOfStsConfigYamlOneOf1,
+	StsConfigYamlOneOf1FromJSONTyped,
+	StsConfigYamlOneOf1ToJSON,
+} from "./StsConfigYamlOneOf1";
 
 /**
- * JWT template configuration for external IdPs
- * @export
- * @interface StsConfigYaml
- */
-export interface StsConfigYaml {
-	/**
-	 * Group to role mappings
-	 * @type {Array<GroupToRoleMappingYaml>}
-	 * @memberof StsConfigYaml
-	 */
-	groupToRoleMappings?: Array<GroupToRoleMappingYaml>;
-	/**
-	 * JWKS URI to fetch public keys from
-	 * @type {string}
-	 * @memberof StsConfigYaml
-	 */
-	jwksUri: string;
-	/**
-	 * Field mapping from JWT claims to internal fields
-	 * @type {JwtMappingConfigYaml}
-	 * @memberof StsConfigYaml
-	 */
-	mapping: JwtMappingConfigYaml;
-	/**
-	 * Where to find the token in the request
-	 * @type {TokenLocationYaml}
-	 * @memberof StsConfigYaml
-	 */
-	tokenLocation: TokenLocationYaml;
-	/**
-	 * Validation rules
-	 * @type {JwtValidationConfigYaml}
-	 * @memberof StsConfigYaml
-	 */
-	validation: JwtValidationConfigYaml;
-	/**
-	 *
-	 * @type {string}
-	 * @memberof StsConfigYaml
-	 */
-	type: StsConfigYamlTypeEnum;
-}
-
-/**
+ * @type StsConfigYaml
+ * STS configuration stored in soma.yaml
  * @export
  */
-export const StsConfigYamlTypeEnum = {
-	JwtTemplate: "jwt_template",
-} as const;
-export type StsConfigYamlTypeEnum =
-	(typeof StsConfigYamlTypeEnum)[keyof typeof StsConfigYamlTypeEnum];
-
-/**
- * Check if a given object implements the StsConfigYaml interface.
- */
-export function instanceOfStsConfigYaml(value: object): value is StsConfigYaml {
-	if (!("jwksUri" in value) || value.jwksUri === undefined) return false;
-	if (!("mapping" in value) || value.mapping === undefined) return false;
-	if (!("tokenLocation" in value) || value.tokenLocation === undefined)
-		return false;
-	if (!("validation" in value) || value.validation === undefined) return false;
-	if (!("type" in value) || value.type === undefined) return false;
-	return true;
-}
+export type StsConfigYaml = StsConfigYamlOneOf | StsConfigYamlOneOf1;
 
 export function StsConfigYamlFromJSON(json: any): StsConfigYaml {
 	return StsConfigYamlFromJSONTyped(json, false);
@@ -110,22 +43,20 @@ export function StsConfigYamlFromJSONTyped(
 	if (json == null) {
 		return json;
 	}
-	return {
-		groupToRoleMappings:
-			json.group_to_role_mappings == null
-				? undefined
-				: (json.group_to_role_mappings as Array<any>).map(
-						GroupToRoleMappingYamlFromJSON,
-					),
-		jwksUri: json.jwks_uri,
-		mapping: JwtMappingConfigYamlFromJSON(json.mapping),
-		tokenLocation: TokenLocationYamlFromJSON(json.token_location),
-		validation: JwtValidationConfigYamlFromJSON(json.validation),
-		type: json.type,
-	};
+	if (typeof json !== "object") {
+		return json;
+	}
+	if (instanceOfStsConfigYamlOneOf(json)) {
+		return StsConfigYamlOneOfFromJSONTyped(json, true);
+	}
+	if (instanceOfStsConfigYamlOneOf1(json)) {
+		return StsConfigYamlOneOf1FromJSONTyped(json, true);
+	}
+
+	return {} as any;
 }
 
-export function StsConfigYamlToJSON(json: any): StsConfigYaml {
+export function StsConfigYamlToJSON(json: any): any {
 	return StsConfigYamlToJSONTyped(json, false);
 }
 
@@ -136,18 +67,15 @@ export function StsConfigYamlToJSONTyped(
 	if (value == null) {
 		return value;
 	}
+	if (typeof value !== "object") {
+		return value;
+	}
+	if (instanceOfStsConfigYamlOneOf(value)) {
+		return StsConfigYamlOneOfToJSON(value as StsConfigYamlOneOf);
+	}
+	if (instanceOfStsConfigYamlOneOf1(value)) {
+		return StsConfigYamlOneOf1ToJSON(value as StsConfigYamlOneOf1);
+	}
 
-	return {
-		group_to_role_mappings:
-			value.groupToRoleMappings == null
-				? undefined
-				: (value.groupToRoleMappings as Array<any>).map(
-						GroupToRoleMappingYamlToJSON,
-					),
-		jwks_uri: value.jwksUri,
-		mapping: JwtMappingConfigYamlToJSON(value.mapping),
-		token_location: TokenLocationYamlToJSON(value.tokenLocation),
-		validation: JwtValidationConfigYamlToJSON(value.validation),
-		type: value.type,
-	};
+	return {};
 }

@@ -748,7 +748,7 @@ impl UserRepositoryLike for Repository {
         // Extract id and config_type from the StsTokenConfig
         let (id, config_type, value) = match &params.config {
             crate::logic::sts::config::StsTokenConfig::DevMode(config) => {
-                (config.id.clone(), "dev_mode".to_string(), None)
+                (config.id.clone(), "dev".to_string(), None)
             }
             crate::logic::sts::config::StsTokenConfig::JwtTemplate(config) => {
                 let json_value = serde_json::to_value(config).map_err(|e| CommonError::Repository {
@@ -840,7 +840,7 @@ impl UserRepositoryLike for Repository {
             None
         };
         let config_type_owned = config_type.map(|ct| match ct {
-            StsTokenConfigType::DevMode => "dev_mode".to_string(),
+            StsTokenConfigType::DevMode => "dev".to_string(),
             StsTokenConfigType::JwtTemplate => "jwt_template".to_string(),
         });
 
@@ -2277,7 +2277,7 @@ mod tests {
 
     fn get_sts_config_type(config: &StsTokenConfig) -> &str {
         match config {
-            StsTokenConfig::DevMode(_) => "dev_mode",
+            StsTokenConfig::DevMode(_) => "dev",
             StsTokenConfig::JwtTemplate(_) => "jwt_template",
         }
     }
@@ -2313,7 +2313,7 @@ mod tests {
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
         assert_eq!(get_sts_config_id(&fetched.config), "config-1");
-        assert_eq!(get_sts_config_type(&fetched.config), "dev_mode");
+        assert_eq!(get_sts_config_type(&fetched.config), "dev");
     }
 
     #[tokio::test]
@@ -2409,7 +2409,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result.items.len(), 3);
-        assert!(result.items.iter().all(|c| get_sts_config_type(&c.config) == "dev_mode"));
+        assert!(result.items.iter().all(|c| get_sts_config_type(&c.config) == "dev"));
     }
 
     #[tokio::test]

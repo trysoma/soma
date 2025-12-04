@@ -12,6 +12,9 @@
  * Do not edit the class manually.
  */
 
+import type { Role } from "./Role";
+import { RoleFromJSON, RoleToJSON } from "./Role";
+
 /**
  * Parameters for creating an API key
  * @export
@@ -25,11 +28,17 @@ export interface CreateApiKeyParams {
 	 */
 	description?: string | null;
 	/**
-	 * Role to assign to the API key's user
+	 * The ID for this API key
 	 * @type {string}
 	 * @memberof CreateApiKeyParams
 	 */
-	role: string;
+	id: string;
+	/**
+	 * Role to assign to the API key's user
+	 * @type {Role}
+	 * @memberof CreateApiKeyParams
+	 */
+	role: Role;
 }
 
 /**
@@ -38,6 +47,7 @@ export interface CreateApiKeyParams {
 export function instanceOfCreateApiKeyParams(
 	value: object,
 ): value is CreateApiKeyParams {
+	if (!("id" in value) || value.id === undefined) return false;
 	if (!("role" in value) || value.role === undefined) return false;
 	return true;
 }
@@ -55,7 +65,8 @@ export function CreateApiKeyParamsFromJSONTyped(
 	}
 	return {
 		description: json.description == null ? undefined : json.description,
-		role: json.role,
+		id: json.id,
+		role: RoleFromJSON(json.role),
 	};
 }
 
@@ -73,6 +84,7 @@ export function CreateApiKeyParamsToJSONTyped(
 
 	return {
 		description: value.description,
-		role: value.role,
+		id: value.id,
+		role: RoleToJSON(value.role),
 	};
 }

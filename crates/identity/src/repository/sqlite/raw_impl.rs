@@ -25,7 +25,7 @@ fn deserialize_sts_config(
     value: Option<shared::primitives::WrappedJsonValue>,
 ) -> Result<StsTokenConfig, CommonError> {
     match config_type.as_str() {
-        "dev_mode" => Ok(StsTokenConfig::DevMode(
+        "dev" => Ok(StsTokenConfig::DevMode(
             crate::logic::sts::config::DevModeConfig { id },
         )),
         "jwt_template" => {

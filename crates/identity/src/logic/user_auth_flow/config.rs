@@ -113,6 +113,7 @@ pub struct EncryptedOidcConfig {
 }
 
 #[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum EncryptedUserAuthFlowConfig {
     OidcAuthorizationCodeFlow(EncryptedOidcConfig),
     OauthAuthorizationCodeFlow(EncryptedOauthConfig),

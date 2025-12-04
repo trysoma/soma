@@ -27,7 +27,7 @@ pub const DEFAULT_DEK_ALIAS: &str = "default";
 pub fn validate_id(id: &str, resource_type: &str) -> Result<(), CommonError> {
     if id.is_empty() {
         return Err(CommonError::InvalidRequest {
-            msg: format!("{} ID cannot be empty", resource_type),
+            msg: format!("{resource_type} ID cannot be empty"),
             source: None,
         });
     }
@@ -36,8 +36,7 @@ pub fn validate_id(id: &str, resource_type: &str) -> Result<(), CommonError> {
     if !id.chars().next().unwrap().is_ascii_lowercase() {
         return Err(CommonError::InvalidRequest {
             msg: format!(
-                "{} ID must start with a lowercase letter, got: '{}'",
-                resource_type, id
+                "{resource_type} ID must start with a lowercase letter, got: '{id}'"
             ),
             source: None,
         });
@@ -48,8 +47,7 @@ pub fn validate_id(id: &str, resource_type: &str) -> Result<(), CommonError> {
         if !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '-' {
             return Err(CommonError::InvalidRequest {
                 msg: format!(
-                    "{} ID can only contain lowercase letters, numbers, and hyphens. Invalid character '{}' at position {}",
-                    resource_type, c, i
+                    "{resource_type} ID can only contain lowercase letters, numbers, and hyphens. Invalid character '{c}' at position {i}"
                 ),
                 source: None,
             });
@@ -59,7 +57,7 @@ pub fn validate_id(id: &str, resource_type: &str) -> Result<(), CommonError> {
     // Check that it doesn't end with a hyphen
     if id.ends_with('-') {
         return Err(CommonError::InvalidRequest {
-            msg: format!("{} ID cannot end with a hyphen: '{}'", resource_type, id),
+            msg: format!("{resource_type} ID cannot end with a hyphen: '{id}'"),
             source: None,
         });
     }
@@ -68,8 +66,7 @@ pub fn validate_id(id: &str, resource_type: &str) -> Result<(), CommonError> {
     if id.contains("--") {
         return Err(CommonError::InvalidRequest {
             msg: format!(
-                "{} ID cannot contain consecutive hyphens: '{}'",
-                resource_type, id
+                "{resource_type} ID cannot contain consecutive hyphens: '{id}'"
             ),
             source: None,
         });

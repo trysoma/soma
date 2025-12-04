@@ -20,9 +20,14 @@ import {
 } from "./ApiKeyYamlConfig";
 import type { StsConfigYaml } from "./StsConfigYaml";
 import { StsConfigYamlFromJSON, StsConfigYamlToJSON } from "./StsConfigYaml";
+import type { UserAuthFlowYamlConfig } from "./UserAuthFlowYamlConfig";
+import {
+	UserAuthFlowYamlConfigFromJSON,
+	UserAuthFlowYamlConfigToJSON,
+} from "./UserAuthFlowYamlConfig";
 
 /**
- * Identity configuration for API keys and STS
+ * Identity configuration for API keys, STS, and user auth flows
  * @export
  * @interface IdentityConfig
  */
@@ -39,6 +44,12 @@ export interface IdentityConfig {
 	 * @memberof IdentityConfig
 	 */
 	stsConfigurations?: { [key: string]: StsConfigYaml };
+	/**
+	 * User auth flow configurations (key is the config ID)
+	 * @type {{ [key: string]: UserAuthFlowYamlConfig; }}
+	 * @memberof IdentityConfig
+	 */
+	userAuthFlows?: { [key: string]: UserAuthFlowYamlConfig };
 }
 
 /**
@@ -70,6 +81,10 @@ export function IdentityConfigFromJSONTyped(
 			json.sts_configurations == null
 				? undefined
 				: mapValues(json.sts_configurations, StsConfigYamlFromJSON),
+		userAuthFlows:
+			json.user_auth_flows == null
+				? undefined
+				: mapValues(json.user_auth_flows, UserAuthFlowYamlConfigFromJSON),
 	};
 }
 
@@ -94,5 +109,9 @@ export function IdentityConfigToJSONTyped(
 			value.stsConfigurations == null
 				? undefined
 				: mapValues(value.stsConfigurations, StsConfigYamlToJSON),
+		user_auth_flows:
+			value.userAuthFlows == null
+				? undefined
+				: mapValues(value.userAuthFlows, UserAuthFlowYamlConfigToJSON),
 	};
 }

@@ -27,6 +27,16 @@ import {
 	JwtValidationConfigYamlFromJSON,
 	JwtValidationConfigYamlToJSON,
 } from "./JwtValidationConfigYaml";
+import type { ScopeToGroupMappingYaml } from "./ScopeToGroupMappingYaml";
+import {
+	ScopeToGroupMappingYamlFromJSON,
+	ScopeToGroupMappingYamlToJSON,
+} from "./ScopeToGroupMappingYaml";
+import type { ScopeToRoleMappingYaml } from "./ScopeToRoleMappingYaml";
+import {
+	ScopeToRoleMappingYamlFromJSON,
+	ScopeToRoleMappingYamlToJSON,
+} from "./ScopeToRoleMappingYaml";
 import type { TokenLocationYaml } from "./TokenLocationYaml";
 import {
 	TokenLocationYamlFromJSON,
@@ -57,6 +67,18 @@ export interface JwtTemplateConfigYaml {
 	 * @memberof JwtTemplateConfigYaml
 	 */
 	mapping: JwtMappingConfigYaml;
+	/**
+	 * Scope to group mappings (maps scopes to internal groups)
+	 * @type {Array<ScopeToGroupMappingYaml>}
+	 * @memberof JwtTemplateConfigYaml
+	 */
+	scopeToGroupMappings?: Array<ScopeToGroupMappingYaml> | null;
+	/**
+	 * Scope to role mappings
+	 * @type {Array<ScopeToRoleMappingYaml>}
+	 * @memberof JwtTemplateConfigYaml
+	 */
+	scopeToRoleMappings?: Array<ScopeToRoleMappingYaml> | null;
 	/**
 	 * Where to find the token in the request
 	 * @type {TokenLocationYaml}
@@ -107,6 +129,18 @@ export function JwtTemplateConfigYamlFromJSONTyped(
 					),
 		jwksUri: json.jwks_uri,
 		mapping: JwtMappingConfigYamlFromJSON(json.mapping),
+		scopeToGroupMappings:
+			json.scope_to_group_mappings == null
+				? undefined
+				: (json.scope_to_group_mappings as Array<any>).map(
+						ScopeToGroupMappingYamlFromJSON,
+					),
+		scopeToRoleMappings:
+			json.scope_to_role_mappings == null
+				? undefined
+				: (json.scope_to_role_mappings as Array<any>).map(
+						ScopeToRoleMappingYamlFromJSON,
+					),
 		tokenLocation: TokenLocationYamlFromJSON(json.token_location),
 		validation: JwtValidationConfigYamlFromJSON(json.validation),
 	};
@@ -133,6 +167,18 @@ export function JwtTemplateConfigYamlToJSONTyped(
 					),
 		jwks_uri: value.jwksUri,
 		mapping: JwtMappingConfigYamlToJSON(value.mapping),
+		scope_to_group_mappings:
+			value.scopeToGroupMappings == null
+				? undefined
+				: (value.scopeToGroupMappings as Array<any>).map(
+						ScopeToGroupMappingYamlToJSON,
+					),
+		scope_to_role_mappings:
+			value.scopeToRoleMappings == null
+				? undefined
+				: (value.scopeToRoleMappings as Array<any>).map(
+						ScopeToRoleMappingYamlToJSON,
+					),
 		token_location: TokenLocationYamlToJSON(value.tokenLocation),
 		validation: JwtValidationConfigYamlToJSON(value.validation),
 	};

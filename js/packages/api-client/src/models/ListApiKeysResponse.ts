@@ -12,8 +12,8 @@
  * Do not edit the class manually.
  */
 
-import type { ApiKey } from "./ApiKey";
-import { ApiKeyFromJSON, ApiKeyToJSON } from "./ApiKey";
+import type { HashedApiKey } from "./HashedApiKey";
+import { HashedApiKeyFromJSON, HashedApiKeyToJSON } from "./HashedApiKey";
 
 /**
  * Response from listing API keys
@@ -23,10 +23,10 @@ import { ApiKeyFromJSON, ApiKeyToJSON } from "./ApiKey";
 export interface ListApiKeysResponse {
 	/**
 	 *
-	 * @type {Array<ApiKey>}
+	 * @type {Array<HashedApiKey>}
 	 * @memberof ListApiKeysResponse
 	 */
-	items: Array<ApiKey>;
+	items: Array<HashedApiKey>;
 	/**
 	 *
 	 * @type {string}
@@ -57,7 +57,7 @@ export function ListApiKeysResponseFromJSONTyped(
 		return json;
 	}
 	return {
-		items: (json.items as Array<any>).map(ApiKeyFromJSON),
+		items: (json.items as Array<any>).map(HashedApiKeyFromJSON),
 		nextPageToken:
 			json.next_page_token == null ? undefined : json.next_page_token,
 	};
@@ -76,7 +76,7 @@ export function ListApiKeysResponseToJSONTyped(
 	}
 
 	return {
-		items: (value.items as Array<any>).map(ApiKeyToJSON),
+		items: (value.items as Array<any>).map(HashedApiKeyToJSON),
 		next_page_token: value.nextPageToken,
 	};
 }

@@ -177,10 +177,9 @@ async fn cmd_auth_add_oidc(
 
     // Collect base OAuth configuration
     let oauth_config = collect_oauth_config(&id).await?;
-    let base_mapping = collect_token_mapping().await?;
     let mapping = collect_token_mapping().await?;
 
-    // Build the request
+    // Build the request - use the same mapping for both base OAuth and OIDC
     let base_oauth = models::OauthConfig {
         id: id.clone(),
         authorization_endpoint: oauth_config.authorization_endpoint,
@@ -189,7 +188,7 @@ async fn cmd_auth_add_oidc(
         client_id: oauth_config.client_id,
         client_secret: oauth_config.client_secret,
         scopes: oauth_config.scopes,
-        mapping: base_mapping,
+        mapping: mapping.clone(),
     };
 
     let oidc_value = models::OidcConfig {
