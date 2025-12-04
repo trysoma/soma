@@ -8,12 +8,12 @@ use shared::{
 use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::logic::sts_config::{
-    create_sts_config, delete_sts_config, get_sts_config, import_sts_config, list_sts_configs,
-    CreateStsConfigParams, CreateStsConfigResponse, DeleteStsConfigParams, DeleteStsConfigResponse,
-    GetStsConfigParams, ListStsConfigParams, ListStsConfigResponse,
+use crate::logic::sts::config::{
+    create_sts_config, delete_sts_config, get_sts_config, list_sts_configs,
+    DeleteStsConfigParams, DeleteStsConfigResponse,
+    GetStsConfigParams, ListStsConfigParams, ListStsConfigResponse, StsTokenConfig, StsTokenConfigType,
 };
-use crate::repository::StsConfiguration;
+use crate::repository::StsConfigurationDb;
 use crate::service::IdentityService;
 
 use super::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY};
@@ -43,9 +43,9 @@ pub struct ListStsConfigsQuery {
     post,
     path = format!("{}/{}/{}/sts-configuration", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
-    request_body = CreateStsConfigParams,
+    request_body = StsTokenConfig,
     responses(
-        (status = 201, description = "STS configuration created successfully", body = CreateStsConfigResponse),
+        (status = 201, description = "STS configuration created successfully", body = StsTokenConfig),
         (status = 400, description = "Invalid request", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
@@ -54,8 +54,8 @@ pub struct ListStsConfigsQuery {
 )]
 async fn route_create_sts_config(
     State(service): State<IdentityService>,
-    Json(params): Json<CreateStsConfigParams>,
-) -> JsonResponse<CreateStsConfigResponse, CommonError> {
+    Json(params): Json<StsTokenConfig>,
+) -> JsonResponse<StsTokenConfig, CommonError> {
     let result = create_sts_config(
         service.repository.as_ref(),
         service.on_config_change_tx(),
@@ -74,7 +74,7 @@ async fn route_create_sts_config(
         ("id" = String, Path, description = "ID of the STS configuration to retrieve")
     ),
     responses(
-        (status = 200, description = "STS configuration found", body = StsConfiguration),
+        (status = 200, description = "STS configuration found", body = StsTokenConfig),
         (status = 404, description = "STS configuration not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
@@ -84,7 +84,7 @@ async fn route_create_sts_config(
 async fn route_get_sts_config(
     State(service): State<IdentityService>,
     Path(id): Path<String>,
-) -> JsonResponse<StsConfiguration, CommonError> {
+) -> JsonResponse<StsTokenConfig, CommonError> {
     let params = GetStsConfigParams { id };
     let result = get_sts_config(service.repository.as_ref(), params).await;
     JsonResponse::from(result)
@@ -139,12 +139,17 @@ async fn route_list_sts_configs(
     Query(query): Query<ListStsConfigsQuery>,
 ) -> JsonResponse<ListStsConfigResponse, CommonError> {
     use shared::primitives::PaginationRequest;
+    let config_type = query.config_type.and_then(|s| match s.as_str() {
+        "jwt_template" => Some(StsTokenConfigType::JwtTemplate),
+        "dev" | "dev_mode" => Some(StsTokenConfigType::DevMode),
+        _ => None,
+    });
     let params = ListStsConfigParams {
         pagination: PaginationRequest {
             page_size: query.page_size.unwrap_or(10) as i64,
             next_page_token: query.next_page_token,
         },
-        config_type: query.config_type,
+        config_type,
     };
     let result = list_sts_configs(service.repository.as_ref(), params).await;
     JsonResponse::from(result)
@@ -154,9 +159,9 @@ async fn route_list_sts_configs(
     post,
     path = format!("{}/{}/{}/sts-configuration/import", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
-    request_body = CreateStsConfigParams,
+    request_body = StsTokenConfig,
     responses(
-        (status = 201, description = "STS configuration imported successfully", body = CreateStsConfigResponse),
+        (status = 201, description = "STS configuration imported successfully", body = StsTokenConfig),
         (status = 400, description = "Invalid request", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
@@ -165,8 +170,15 @@ async fn route_list_sts_configs(
 )]
 async fn route_import_sts_config(
     State(service): State<IdentityService>,
-    Json(params): Json<CreateStsConfigParams>,
-) -> JsonResponse<CreateStsConfigResponse, CommonError> {
-    let result = import_sts_config(service.repository.as_ref(), params).await;
+    Json(params): Json<StsTokenConfig>,
+) -> JsonResponse<StsTokenConfig, CommonError> {
+    // Import uses create without broadcasting events
+    let result = create_sts_config(
+        service.repository.as_ref(),
+        service.on_config_change_tx(),
+        params,
+        false, // don't publish event on import
+    )
+    .await;
     JsonResponse::from(result)
 }

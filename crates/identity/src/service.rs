@@ -1,12 +1,12 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
-use arc_swap::ArcSwap;
 use encryption::logic::crypto_services::CryptoCache;
 use encryption::repository::Repository as EncryptionRepository;
 
-use crate::logic::api_key_cache::ApiKeyCache;
-use crate::logic::auth_config::{AuthConfig, ExternalJwksCache};
-use crate::logic::jwks_cache::JwksCache;
+use crate::logic::api_key::cache::ApiKeyCache;
+use crate::logic::jwk::cache::JwksCache;
+use crate::logic::sts::cache::StsConfigCache;
+use crate::logic::sts::external_jwk_cache::ExternalJwksCache;
 use crate::logic::{OnConfigChangeTx, OnConfigChangeEvt};
 use crate::repository::Repository;
 
@@ -19,8 +19,8 @@ pub struct IdentityService {
     pub crypto_cache: CryptoCache,
     pub jwks_cache: JwksCache,
     pub api_key_cache: ApiKeyCache,
+    pub sts_config_cache: StsConfigCache,
     pub external_jwks_cache: ExternalJwksCache,
-    pub auth_middleware_config: Arc<ArcSwap<AuthConfig>>,
     pub on_config_change_tx: OnConfigChangeTx,
 }
 
@@ -35,11 +35,8 @@ impl IdentityService {
             CryptoCache::new(encryption_repository, local_envelope_encryption_key_path);
         let jwks_cache = JwksCache::new(Repository::new(repository.connection().clone()));
         let api_key_cache = ApiKeyCache::new(repository.clone());
+        let sts_config_cache = StsConfigCache::new(repository.clone());
         let external_jwks_cache = ExternalJwksCache::new();
-        let auth_middleware_config = Arc::new(ArcSwap::from_pointee(AuthConfig {
-            api_keys: HashMap::new(),
-            sts_token_config: HashMap::new(),
-        }));
         let (on_config_change_tx, _) =
             tokio::sync::broadcast::channel::<OnConfigChangeEvt>(BROADCAST_CHANNEL_CAPACITY);
 
@@ -48,8 +45,8 @@ impl IdentityService {
             crypto_cache,
             jwks_cache,
             api_key_cache,
+            sts_config_cache,
             external_jwks_cache,
-            auth_middleware_config,
             on_config_change_tx,
         }
     }
@@ -66,19 +63,16 @@ impl IdentityService {
             CryptoCache::new(encryption_repository, local_envelope_encryption_key_path);
         let jwks_cache = JwksCache::new(Repository::new(repository.connection().clone()));
         let api_key_cache = ApiKeyCache::new(repository.clone());
+        let sts_config_cache = StsConfigCache::new(repository.clone());
         let external_jwks_cache = ExternalJwksCache::new();
-        let auth_middleware_config = Arc::new(ArcSwap::from_pointee(AuthConfig {
-            api_keys: HashMap::new(),
-            sts_token_config: HashMap::new(),
-        }));
 
         Self {
             repository,
             crypto_cache,
             jwks_cache,
             api_key_cache,
+            sts_config_cache,
             external_jwks_cache,
-            auth_middleware_config,
             on_config_change_tx,
         }
     }

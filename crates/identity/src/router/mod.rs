@@ -1,5 +1,6 @@
 mod api_key;
-mod idp_config;
+// TODO: idp_config needs CRUD functions implemented in logic/user_auth_flow
+// mod idp_config;
 mod jwk;
 mod oauth;
 mod sts_config;
@@ -23,6 +24,7 @@ pub fn create_router() -> OpenApiRouter<IdentityService> {
         .merge(jwk::create_jwk_routes())
         .merge(sts_config::create_sts_config_routes())
         .merge(sts_exchange::create_sts_routes())
-        .merge(idp_config::create_idp_config_routes())
+        // TODO: re-enable once idp_config CRUD functions exist
+        // .merge(idp_config::create_idp_config_routes())
         .merge(oauth::create_oauth_routes())
 }

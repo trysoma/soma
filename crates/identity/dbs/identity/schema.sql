@@ -58,15 +58,13 @@ CREATE TABLE IF NOT EXISTS sts_configuration (
     CONSTRAINT type_check CHECK (type IN ('jwt_template', 'dev'))
 );
 
-CREATE TABLE IF NOT EXISTS idp_configuration (
+CREATE TABLE IF NOT EXISTS user_auth_flow_configuration (
     id TEXT NOT NULL PRIMARY KEY,
     type TEXT NOT NULL,
     config TEXT NOT NULL,
-    encrypted_client_secret TEXT,
-    dek_alias TEXT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT type_check CHECK (type IN ('oidc_authorization_flow', 'oauth_authorization_flow'))
+    CONSTRAINT type_check CHECK (type IN ('oidc_authorization_code_flow', 'oauth_authorization_code_flow', 'oidc_authorization_code_pkce_flow', 'oauth_authorization_code_pkce_flow'))
 );
 
 CREATE TABLE IF NOT EXISTS oauth_state (
@@ -77,7 +75,7 @@ CREATE TABLE IF NOT EXISTS oauth_state (
     redirect_uri TEXT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at DATETIME NOT NULL,
-    FOREIGN KEY (config_id) REFERENCES idp_configuration(id) ON DELETE CASCADE
+    FOREIGN KEY (config_id) REFERENCES user_auth_flow_configuration(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_oauth_state_expires_at ON oauth_state(expires_at);

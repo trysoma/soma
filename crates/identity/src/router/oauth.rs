@@ -7,7 +7,10 @@ use shared::{adapters::openapi::API_VERSION_TAG, error::CommonError};
 use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::logic::oauth::{handle_callback, start_authorization, OAuthCallbackParams, StartAuthorizationParams};
+use crate::logic::user_auth_flow::oauth::{
+    handle_authorization_handshake_callback, start_authorization_handshake,
+    OAuthCallbackParams, StartAuthorizationParams,
+};
 use crate::service::IdentityService;
 
 use super::{
@@ -71,8 +74,8 @@ async fn route_start_authorization(
         redirect_after_login: query.redirect_after_login,
     };
 
-    match start_authorization(service.repository.as_ref(), &service.crypto_cache, params).await {
-        Ok(result) => Redirect::temporary(&result.authorization_url).into_response(),
+    match start_authorization_handshake(service.repository.as_ref(), &service.crypto_cache, params).await {
+        Ok(result) => Redirect::temporary(&result.login_redirect_url).into_response(),
         Err(e) => {
             let status = match &e {
                 CommonError::NotFound { .. } => StatusCode::NOT_FOUND,
@@ -130,7 +133,7 @@ async fn route_oauth_callback(
         error_description: query.error_description,
     };
 
-    match handle_callback(
+    match handle_authorization_handshake_callback(
         service.repository.as_ref(),
         &service.crypto_cache,
         params,
@@ -148,19 +151,18 @@ async fn route_oauth_callback(
             );
             headers.insert(header::SET_COOKIE, access_cookie.parse().unwrap());
 
-            // Refresh token cookie (if present)
-            if let Some(ref refresh_token) = result.refresh_token {
-                let refresh_cookie = format!(
-                    "{}={}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age={}",
-                    REFRESH_TOKEN_COOKIE_NAME,
-                    refresh_token,
-                    86400 * 7 // 7 days in seconds
-                );
-                headers.append(header::SET_COOKIE, refresh_cookie.parse().unwrap());
-            }
+            // Refresh token cookie
+            let refresh_cookie = format!(
+                "{}={}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age={}",
+                REFRESH_TOKEN_COOKIE_NAME,
+                result.refresh_token,
+                86400 * 7 // 7 days in seconds
+            );
+            headers.append(header::SET_COOKIE, refresh_cookie.parse().unwrap());
 
-            // Redirect to post-login URL
-            headers.insert(header::LOCATION, result.redirect_uri.parse().unwrap());
+            // Redirect to post-login URL (default to "/" if no redirect specified)
+            // TODO: The callback function should return redirect_uri from stored OAuth state
+            headers.insert(header::LOCATION, "/".parse().unwrap());
 
             (StatusCode::FOUND, headers).into_response()
         }

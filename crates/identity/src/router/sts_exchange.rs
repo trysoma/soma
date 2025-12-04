@@ -9,8 +9,11 @@ use shared::{adapters::openapi::API_VERSION_TAG, error::CommonError};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::logic::sts_exchange::{
-    ExchangeStsTokenParams, RefreshTokenParams, exchange_sts_token, refresh_access_token,
+use crate::logic::sts::exchange::{
+    ExchangeStsTokenParams, exchange_sts_token,
+};
+use crate::logic::internal_token_issuance::{
+    RefreshTokenParams, refresh_access_token,
 };
 use crate::service::IdentityService;
 
@@ -162,7 +165,7 @@ async fn route_exchange_sts_token(
     match result {
         Ok(token_result) => build_token_response(
             token_result.access_token,
-            token_result.refresh_token,
+            Some(token_result.refresh_token),
             token_result.expires_in,
         ),
         Err(error) => build_error_response(error),

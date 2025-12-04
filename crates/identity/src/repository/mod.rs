@@ -2,34 +2,17 @@ mod sqlite;
 
 use shared::{
     error::CommonError,
-    primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime},
+    primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue},
 };
 use utoipa::ToSchema;
 
 pub use sqlite::Repository;
 
-// User types
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct User {
-    pub id: String,
-    pub user_type: String,
-    pub email: Option<String>,
-    pub role: String,
-    pub description: Option<String>,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-#[derive(Debug)]
-pub struct CreateUser {
-    pub id: String,
-    pub user_type: String,
-    pub email: Option<String>,
-    pub role: String,
-    pub description: Option<String>,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
+// Re-export types from logic modules that are used in repository trait
+pub use crate::logic::user::{Role, User, Group, GroupMembership, GroupMemberWithUser, UserGroupWithGroup};
+pub use crate::logic::api_key::{HashedApiKey, HashedApiKeyWithUser};
+use crate::logic::sts::config::{StsTokenConfig, StsTokenConfigType};
+use crate::logic::user_auth_flow::config::EncryptedUserAuthFlowConfig;
 
 #[derive(Debug, Default)]
 pub struct UpdateUser {
@@ -38,80 +21,8 @@ pub struct UpdateUser {
     pub description: Option<String>,
 }
 
-// API key types
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct ApiKey {
-    pub id: String,
-    pub hashed_value: String,
-    pub description: Option<String>,
-    pub user_id: String,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct ApiKeyWithUser {
-    pub api_key: ApiKey,
-    pub user: User,
-}
-
-#[derive(Debug)]
-pub struct CreateApiKey {
-    pub id: String,
-    pub hashed_value: String,
-    pub description: Option<String>,
-    pub user_id: String,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-// Group types
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct Group {
-    pub id: String,
-    pub name: String,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-#[derive(Debug)]
-pub struct CreateGroup {
-    pub id: String,
-    pub name: String,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-// Group membership types
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct GroupMembership {
-    pub group_id: String,
-    pub user_id: String,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct GroupMemberWithUser {
-    pub membership: GroupMembership,
-    pub user: User,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct UserGroupWithGroup {
-    pub membership: GroupMembership,
-    pub group: Group,
-}
-
-#[derive(Debug)]
-pub struct CreateGroupMembership {
-    pub group_id: String,
-    pub user_id: String,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-// JWT signing key types
+// JWT Signing Key types
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct JwtSigningKey {
     pub kid: String,
@@ -124,7 +35,7 @@ pub struct JwtSigningKey {
     pub updated_at: WrappedChronoDateTime,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CreateJwtSigningKey {
     pub kid: String,
     pub encrypted_private_key: String,
@@ -136,76 +47,16 @@ pub struct CreateJwtSigningKey {
     pub updated_at: WrappedChronoDateTime,
 }
 
-#[derive(Debug, Default)]
-pub struct UpdateJwtSigningKey {
-    pub encrypted_private_key: Option<String>,
-    pub expires_at: Option<WrappedChronoDateTime>,
-    pub public_key: Option<String>,
-    pub dek_alias: Option<String>,
-}
-
-// STS configuration types
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct StsConfiguration {
-    pub id: String,
-    #[serde(rename = "type")]
-    pub config_type: String,
-    pub value: Option<String>,
+// Group membership creation type
+#[derive(Debug, Clone)]
+pub struct CreateGroupMembership {
+    pub group_id: String,
+    pub user_id: String,
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
 }
 
-#[derive(Debug)]
-pub struct CreateStsConfiguration {
-    pub id: String,
-    pub config_type: String,
-    pub value: Option<String>,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-#[derive(Debug, Default)]
-pub struct UpdateStsConfiguration {
-    pub config_type: Option<String>,
-    pub value: Option<String>,
-}
-
-// IdP configuration types (for OAuth/OIDC authorization flows)
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct IdpConfiguration {
-    pub id: String,
-    #[serde(rename = "type")]
-    pub config_type: String,
-    /// JSON configuration object (deserialized from config column)
-    pub config: String,
-    /// Encrypted client secret (optional, for confidential clients)
-    pub encrypted_client_secret: Option<String>,
-    /// DEK alias for decrypting client secret
-    pub dek_alias: Option<String>,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-#[derive(Debug)]
-pub struct CreateIdpConfiguration {
-    pub id: String,
-    pub config_type: String,
-    pub config: String,
-    pub encrypted_client_secret: Option<String>,
-    pub dek_alias: Option<String>,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-#[derive(Debug, Default)]
-pub struct UpdateIdpConfiguration {
-    pub config_type: Option<String>,
-    pub config: Option<String>,
-    pub encrypted_client_secret: Option<String>,
-    pub dek_alias: Option<String>,
-}
-
-// OAuth state types (for CSRF protection and PKCE)
+// OAuth state types
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct OAuthState {
     pub state: String,
@@ -217,7 +68,7 @@ pub struct OAuthState {
     pub expires_at: WrappedChronoDateTime,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CreateOAuthState {
     pub state: String,
     pub config_id: String,
@@ -228,11 +79,28 @@ pub struct CreateOAuthState {
     pub expires_at: WrappedChronoDateTime,
 }
 
+// STS configuration types (raw database format)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct StsConfigurationDb {
+    pub config: StsTokenConfig,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+// IdP configuration types (for OAuth/OIDC authorization flows)
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct UserAuthFlowConfigDb {
+    pub id: String,
+    pub config: EncryptedUserAuthFlowConfig,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
 // Repository trait for users and API keys
 #[allow(async_fn_in_trait)]
 pub trait UserRepositoryLike {
     // User methods
-    async fn create_user(&self, params: &CreateUser) -> Result<(), CommonError>;
+    async fn create_user(&self, params: &User) -> Result<(), CommonError>;
 
     async fn get_user_by_id(&self, id: &str) -> Result<Option<User>, CommonError>;
 
@@ -248,14 +116,14 @@ pub trait UserRepositoryLike {
     ) -> Result<PaginatedResponse<User>, CommonError>;
 
     // API key methods
-    async fn create_api_key(&self, params: &CreateApiKey) -> Result<(), CommonError>;
+    async fn create_api_key(&self, params: &HashedApiKey) -> Result<(), CommonError>;
 
     async fn get_api_key_by_hashed_value(
         &self,
         hashed_value: &str,
-    ) -> Result<Option<ApiKeyWithUser>, CommonError>;
+    ) -> Result<Option<HashedApiKeyWithUser>, CommonError>;
 
-    async fn get_api_key_by_id(&self, id: &str) -> Result<Option<ApiKeyWithUser>, CommonError>;
+    async fn get_api_key_by_id(&self, id: &str) -> Result<Option<HashedApiKeyWithUser>, CommonError>;
 
     async fn delete_api_key(&self, id: &str) -> Result<(), CommonError>;
 
@@ -263,12 +131,12 @@ pub trait UserRepositoryLike {
         &self,
         pagination: &PaginationRequest,
         user_id: Option<&str>,
-    ) -> Result<PaginatedResponse<ApiKey>, CommonError>;
+    ) -> Result<PaginatedResponse<HashedApiKey>, CommonError>;
 
     async fn delete_api_keys_by_user_id(&self, user_id: &str) -> Result<(), CommonError>;
 
     // Group methods
-    async fn create_group(&self, params: &CreateGroup) -> Result<(), CommonError>;
+    async fn create_group(&self, params: &Group) -> Result<(), CommonError>;
 
     async fn get_group_by_id(&self, id: &str) -> Result<Option<Group>, CommonError>;
 
@@ -335,52 +203,40 @@ pub trait UserRepositoryLike {
     // STS configuration methods
     async fn create_sts_configuration(
         &self,
-        params: &CreateStsConfiguration,
+        params: &StsConfigurationDb,
     ) -> Result<(), CommonError>;
 
     async fn get_sts_configuration_by_id(
         &self,
         id: &str,
-    ) -> Result<Option<StsConfiguration>, CommonError>;
-
-    async fn update_sts_configuration(
-        &self,
-        id: &str,
-        params: &UpdateStsConfiguration,
-    ) -> Result<(), CommonError>;
+    ) -> Result<Option<StsConfigurationDb>, CommonError>;
 
     async fn delete_sts_configuration(&self, id: &str) -> Result<(), CommonError>;
 
     async fn list_sts_configurations(
         &self,
         pagination: &PaginationRequest,
-        config_type: Option<&str>,
-    ) -> Result<PaginatedResponse<StsConfiguration>, CommonError>;
+        config_type: Option<StsTokenConfigType>,
+    ) -> Result<PaginatedResponse<StsConfigurationDb>, CommonError>;
 
     // IdP configuration methods
-    async fn create_idp_configuration(
+    async fn create_user_auth_flow_config(
         &self,
-        params: &CreateIdpConfiguration,
+        params: &UserAuthFlowConfigDb,
     ) -> Result<(), CommonError>;
 
-    async fn get_idp_configuration_by_id(
+    async fn get_user_auth_flow_config_by_id(
         &self,
         id: &str,
-    ) -> Result<Option<IdpConfiguration>, CommonError>;
+    ) -> Result<Option<UserAuthFlowConfigDb>, CommonError>;
 
-    async fn update_idp_configuration(
-        &self,
-        id: &str,
-        params: &UpdateIdpConfiguration,
-    ) -> Result<(), CommonError>;
+    async fn delete_user_auth_flow_config(&self, id: &str) -> Result<(), CommonError>;
 
-    async fn delete_idp_configuration(&self, id: &str) -> Result<(), CommonError>;
-
-    async fn list_idp_configurations(
+    async fn list_user_auth_flow_configs(
         &self,
         pagination: &PaginationRequest,
         config_type: Option<&str>,
-    ) -> Result<PaginatedResponse<IdpConfiguration>, CommonError>;
+    ) -> Result<PaginatedResponse<UserAuthFlowConfigDb>, CommonError>;
 
     // OAuth state methods
     async fn create_oauth_state(&self, params: &CreateOAuthState) -> Result<(), CommonError>;

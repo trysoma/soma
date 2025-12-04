@@ -1,3 +1,5 @@
+pub mod cache;
+
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use chrono::Utc;
 use encryption::logic::CryptoCache;
@@ -11,7 +13,7 @@ use shared::{
 };
 use uuid::Uuid;
 
-use crate::logic::jwks_cache::JwksCache;
+use crate::logic::jwk::cache::JwksCache;
 use crate::repository::{CreateJwtSigningKey, UserRepositoryLike};
 
 use utoipa::ToSchema;
@@ -152,7 +154,7 @@ where
 /// Invalidate a JWT signing key
 pub async fn invalidate_jwk<R>(
     repository: &R,
-    jwks_cache: &crate::logic::jwks_cache::JwksCache,
+    jwks_cache: &JwksCache,
     params: InvalidateJwkParams,
 ) -> Result<InvalidateJwkResponse, CommonError>
 where
@@ -194,7 +196,7 @@ where
 /// This function checks the cache first, then falls back to repository if cache is empty
 pub async fn get_jwks<R>(
     repository: &R,
-    jwks_cache: &crate::logic::jwks_cache::JwksCache,
+    jwks_cache: &JwksCache,
 ) -> Result<GetJwksResponse, CommonError>
 where
     R: UserRepositoryLike,
@@ -293,7 +295,7 @@ where
 pub async fn jwk_rotation_task<R>(
     repo: R,
     crypto_cache: CryptoCache,
-    jwks_cache: crate::logic::jwks_cache::JwksCache,
+    jwks_cache: JwksCache,
     default_dek_alias: String,
     mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
 ) where
@@ -508,7 +510,7 @@ mod tests {
         .await
         .unwrap();
 
-        let jwks_cache = crate::logic::jwks_cache::JwksCache::new(identity_repo.clone());
+        let jwks_cache = JwksCache::new(identity_repo.clone());
 
         TestContext {
             identity_repo,

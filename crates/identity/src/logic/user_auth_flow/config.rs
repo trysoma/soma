@@ -1,0 +1,212 @@
+//! IdP Configuration management for OAuth/OIDC external identity providers.
+//!
+//! This module contains:
+//! - Business logic types for working with IdP configurations in memory
+//! - Stored types for serialization to/from the database (with encrypted secrets)
+//! - CRUD operations for IdP configurations
+
+use encryption::logic::crypto_services::EncryptedString;
+use encryption::logic::CryptoCache;
+use serde::{Deserialize, Serialize};
+use shared::error::CommonError;
+use shared::primitives::{PaginationRequest, WrappedChronoDateTime};
+use utoipa::ToSchema;
+use uuid::Uuid;
+
+use crate::logic::user::Role;
+
+use crate::logic::token_mapping::TokenMapping;
+use crate::logic::token_mapping::template::JwtTokenTemplateConfig;
+use crate::logic::{IdpConfigCreatedInfo, OnConfigChangeEvt, OnConfigChangeTx, DEFAULT_DEK_ALIAS};
+
+// ============================================
+// Business Logic Types (used in application code)
+// ============================================
+
+/// OAuth2 configuration for authorization code flow
+#[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
+pub struct OauthConfig {
+    pub authorization_endpoint: String,
+    pub token_endpoint: String,
+    pub userinfo_endpoint: Option<String>,
+    pub client_id: String,
+    pub client_secret: String,
+    pub scopes: Vec<String>,
+
+    pub mapping: TokenMapping,
+}
+
+/// OIDC configuration extending OAuth2 with discovery and ID token support
+#[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
+pub struct OidcConfig {
+    pub base_config: OauthConfig,
+    pub discovery_endpoint: Option<String>,
+    pub mapping: TokenMapping,
+}
+
+/// The four supported IdP configuration types
+#[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "value")]
+pub enum UserAuthFlowConfig {
+    OidcAuthorizationCodeFlow(OidcConfig),
+    OauthAuthorizationCodeFlow(OauthConfig),
+    OidcAuthorizationCodePkceFlow(OidcConfig),
+    OauthAuthorizationCodePkceFlow(OauthConfig),
+}
+
+/// OAuth2 configuration for authorization code flow
+#[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
+pub struct EncryptedOauthConfig {
+    pub authorization_endpoint: String,
+    pub token_endpoint: String,
+    pub userinfo_endpoint: Option<String>,
+    pub client_id: String,
+    pub encrypted_client_secret: EncryptedString,
+    pub dek_alias: String,
+    pub scopes: Vec<String>,
+
+    pub mapping: TokenMapping,
+}
+
+/// OIDC configuration extending OAuth2 with discovery and ID token support
+#[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
+pub struct EncryptedOidcConfig {
+    pub base_config: EncryptedOauthConfig,
+    pub discovery_endpoint: Option<String>,
+    pub mapping: TokenMapping,
+}
+
+#[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
+pub enum EncryptedUserAuthFlowConfig {
+    OidcAuthorizationCodeFlow(EncryptedOidcConfig),
+    OauthAuthorizationCodeFlow(EncryptedOauthConfig),
+    OidcAuthorizationCodePkceFlow(EncryptedOidcConfig),
+    OauthAuthorizationCodePkceFlow(EncryptedOauthConfig),
+}
+
+impl EncryptedUserAuthFlowConfig {
+    /// Decrypt an encrypted user auth flow config using the crypto cache.
+    /// The appropriate DEK is looked up using the dek_alias stored in the encrypted config.
+    pub async fn decrypt(
+        &self,
+        crypto_cache: &CryptoCache,
+    ) -> Result<UserAuthFlowConfig, CommonError> {
+        match self {
+            EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(encrypted_oidc) => {
+                let oidc = decrypt_oidc_config(crypto_cache, encrypted_oidc).await?;
+                Ok(UserAuthFlowConfig::OidcAuthorizationCodeFlow(oidc))
+            }
+            EncryptedUserAuthFlowConfig::OauthAuthorizationCodeFlow(encrypted_oauth) => {
+                let oauth = decrypt_oauth_config(crypto_cache, encrypted_oauth).await?;
+                Ok(UserAuthFlowConfig::OauthAuthorizationCodeFlow(oauth))
+            }
+            EncryptedUserAuthFlowConfig::OidcAuthorizationCodePkceFlow(encrypted_oidc) => {
+                let oidc = decrypt_oidc_config(crypto_cache, encrypted_oidc).await?;
+                Ok(UserAuthFlowConfig::OidcAuthorizationCodePkceFlow(oidc))
+            }
+            EncryptedUserAuthFlowConfig::OauthAuthorizationCodePkceFlow(encrypted_oauth) => {
+                let oauth = decrypt_oauth_config(crypto_cache, encrypted_oauth).await?;
+                Ok(UserAuthFlowConfig::OauthAuthorizationCodePkceFlow(oauth))
+            }
+        }
+    }
+}
+
+impl UserAuthFlowConfig {
+    /// Encrypt a user auth flow config using the crypto cache and the specified DEK alias.
+    pub async fn encrypt(
+        &self,
+        crypto_cache: &CryptoCache,
+        dek_alias: &str,
+    ) -> Result<EncryptedUserAuthFlowConfig, CommonError> {
+        match self {
+            UserAuthFlowConfig::OidcAuthorizationCodeFlow(oidc) => {
+                let encrypted_oidc = encrypt_oidc_config(crypto_cache, dek_alias, oidc).await?;
+                Ok(EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(encrypted_oidc))
+            }
+            UserAuthFlowConfig::OauthAuthorizationCodeFlow(oauth) => {
+                let encrypted_oauth = encrypt_oauth_config(crypto_cache, dek_alias, oauth).await?;
+                Ok(EncryptedUserAuthFlowConfig::OauthAuthorizationCodeFlow(encrypted_oauth))
+            }
+            UserAuthFlowConfig::OidcAuthorizationCodePkceFlow(oidc) => {
+                let encrypted_oidc = encrypt_oidc_config(crypto_cache, dek_alias, oidc).await?;
+                Ok(EncryptedUserAuthFlowConfig::OidcAuthorizationCodePkceFlow(encrypted_oidc))
+            }
+            UserAuthFlowConfig::OauthAuthorizationCodePkceFlow(oauth) => {
+                let encrypted_oauth = encrypt_oauth_config(crypto_cache, dek_alias, oauth).await?;
+                Ok(EncryptedUserAuthFlowConfig::OauthAuthorizationCodePkceFlow(encrypted_oauth))
+            }
+        }
+    }
+}
+
+// Helper functions for encrypting/decrypting OAuth and OIDC configs
+
+async fn decrypt_oauth_config(
+    crypto_cache: &CryptoCache,
+    encrypted: &EncryptedOauthConfig,
+) -> Result<OauthConfig, CommonError> {
+    let decryption_service = crypto_cache.get_decryption_service(&encrypted.dek_alias).await?;
+    let client_secret = decryption_service
+        .decrypt_data(encrypted.encrypted_client_secret.clone())
+        .await?;
+
+    Ok(OauthConfig {
+        authorization_endpoint: encrypted.authorization_endpoint.clone(),
+        token_endpoint: encrypted.token_endpoint.clone(),
+        userinfo_endpoint: encrypted.userinfo_endpoint.clone(),
+        client_id: encrypted.client_id.clone(),
+        client_secret,
+        scopes: encrypted.scopes.clone(),
+        mapping: encrypted.mapping.clone(),
+    })
+}
+
+async fn encrypt_oauth_config(
+    crypto_cache: &CryptoCache,
+    dek_alias: &str,
+    oauth: &OauthConfig,
+) -> Result<EncryptedOauthConfig, CommonError> {
+    let encryption_service = crypto_cache.get_encryption_service(dek_alias).await?;
+    let encrypted_client_secret = encryption_service
+        .encrypt_data(oauth.client_secret.clone())
+        .await?;
+
+    Ok(EncryptedOauthConfig {
+        authorization_endpoint: oauth.authorization_endpoint.clone(),
+        token_endpoint: oauth.token_endpoint.clone(),
+        userinfo_endpoint: oauth.userinfo_endpoint.clone(),
+        client_id: oauth.client_id.clone(),
+        encrypted_client_secret,
+        dek_alias: dek_alias.to_string(),
+        scopes: oauth.scopes.clone(),
+        mapping: oauth.mapping.clone(),
+    })
+}
+
+async fn decrypt_oidc_config(
+    crypto_cache: &CryptoCache,
+    encrypted: &EncryptedOidcConfig,
+) -> Result<OidcConfig, CommonError> {
+    let base_config = decrypt_oauth_config(crypto_cache, &encrypted.base_config).await?;
+
+    Ok(OidcConfig {
+        base_config,
+        discovery_endpoint: encrypted.discovery_endpoint.clone(),
+        mapping: encrypted.mapping.clone(),
+    })
+}
+
+async fn encrypt_oidc_config(
+    crypto_cache: &CryptoCache,
+    dek_alias: &str,
+    oidc: &OidcConfig,
+) -> Result<EncryptedOidcConfig, CommonError> {
+    let base_config = encrypt_oauth_config(crypto_cache, dek_alias, &oidc.base_config).await?;
+
+    Ok(EncryptedOidcConfig {
+        base_config,
+        discovery_endpoint: oidc.discovery_endpoint.clone(),
+        mapping: oidc.mapping.clone(),
+    })
+}

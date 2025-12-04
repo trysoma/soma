@@ -22,7 +22,6 @@ use crate::{
         task::TaskService,
     },
 };
-mod auth;
 pub mod factory;
 pub mod logic;
 pub mod repository;

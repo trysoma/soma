@@ -1,32 +1,21 @@
-use crate::logic::auth_client::Role;
+use crate::logic::api_key::EncryptedApiKeyConfig;
+use crate::logic::sts::config::StsTokenConfig;
+use serde::{Deserialize, Serialize};
+use shared::primitives::WrappedChronoDateTime;
+use utoipa::ToSchema;
 
 pub mod api_key;
-pub mod api_key_cache;
 pub mod auth_client;
-pub mod auth_config;
-pub mod idp_config;
+pub mod user_auth_flow;
 pub mod jwk;
-pub mod jwks_cache;
-pub mod oauth;
-pub mod sts_config;
-pub mod sts_exchange;
-
+pub mod sts;
+pub mod token_mapping;
+pub mod internal_token_issuance;
+pub mod user;
 
 /// Default DEK alias for client secret encryption
 pub const DEFAULT_DEK_ALIAS: &str = "default";
 
-/// Information about a created API key (for broadcast events)
-#[derive(Clone, Debug)]
-pub struct ApiKeyCreatedInfo {
-    /// The API key ID
-    pub id: String,
-    /// The encrypted hashed value of the API key
-    pub encrypted_hashed_value: String,
-    /// The DEK alias used for encryption
-    pub dek_alias: String,
-    pub role: Role,
-    pub user_id: String,
-}
 
 /// Information about a created STS configuration (for broadcast events)
 #[derive(Clone, Debug)]
@@ -54,11 +43,11 @@ pub struct IdpConfigCreatedInfo {
 #[derive(Clone, Debug)]
 pub enum OnConfigChangeEvt {
     /// An API key was created
-    ApiKeyCreated(ApiKeyCreatedInfo),
+    ApiKeyCreated(EncryptedApiKeyConfig),
     /// An API key was deleted (contains id)
     ApiKeyDeleted(String),
     /// An STS configuration was created
-    StsConfigCreated(StsConfigCreatedInfo),
+    StsConfigCreated(StsTokenConfig),
     /// An STS configuration was deleted (contains id)
     StsConfigDeleted(String),
     /// An IdP configuration was created
@@ -71,3 +60,4 @@ pub enum OnConfigChangeEvt {
 pub type OnConfigChangeTx = tokio::sync::broadcast::Sender<OnConfigChangeEvt>;
 /// Receiver for config change events
 pub type OnConfigChangeRx = tokio::sync::broadcast::Receiver<OnConfigChangeEvt>;
+

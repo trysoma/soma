@@ -10,7 +10,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::api_key::{
     create_api_key, delete_api_key, import_api_key, list_api_keys, CreateApiKeyParams,
-    CreateApiKeyResponse, DeleteApiKeyParams, DeleteApiKeyResponse, ImportApiKeyParams,
+    CreateApiKeyResponse, DeleteApiKeyParams, DeleteApiKeyResponse, EncryptedApiKeyConfig,
     ImportApiKeyResponse, ListApiKeysParams, ListApiKeysResponse,
 };
 use crate::service::IdentityService;
@@ -123,7 +123,7 @@ async fn route_list_api_keys(
     post,
     path = format!("{}/{}/{}/api-key/import", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
-    request_body = ImportApiKeyParams,
+    request_body = EncryptedApiKeyConfig,
     responses(
         (status = 201, description = "API key imported successfully", body = ImportApiKeyResponse),
         (status = 400, description = "Invalid request", body = CommonError),
@@ -132,7 +132,7 @@ async fn route_list_api_keys(
 )]
 async fn route_import_api_key(
     State(service): State<IdentityService>,
-    Json(params): Json<ImportApiKeyParams>,
+    Json(params): Json<EncryptedApiKeyConfig>,
 ) -> JsonResponse<ImportApiKeyResponse, CommonError> {
     let result = import_api_key(
         service.repository.as_ref(),

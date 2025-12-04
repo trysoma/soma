@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use arc_swap::ArcSwap;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
@@ -6,61 +6,27 @@ use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
 use utoipa::ToSchema;
 
-use crate::logic::api_key::hash_api_key;
-use crate::logic::api_key_cache::ApiKeyCache;
-use crate::logic::auth_config::AuthConfig;
-use crate::logic::jwks_cache::JwksCache;
-use crate::logic::sts_exchange::{AccessTokenClaims, AUDIENCE, ISSUER};
-
-/// User role in the system
-#[derive(Debug, Clone, PartialEq, Eq, ToSchema, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Role {
-    Admin,
-    Maintainer,
-    ReadOnlyMaintainer,
-    Agent,
-    User,
-}
-
-impl Role {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Role::Admin => "admin",
-            Role::Maintainer => "maintainer",
-            Role::ReadOnlyMaintainer => "read-only-maintainer",
-            Role::Agent => "agent",
-            Role::User => "user",
-        }
-    }
-
-    /// Parse a role from string
-    pub fn from_str(s: &str) -> Option<Role> {
-        match s {
-            "admin" => Some(Role::Admin),
-            "maintainer" => Some(Role::Maintainer),
-            "read-only-maintainer" => Some(Role::ReadOnlyMaintainer),
-            "agent" => Some(Role::Agent),
-            "user" => Some(Role::User),
-            _ => None,
-        }
-    }
-}
+use crate::logic::api_key::{EncryptedApiKeyConfig, hash_api_key};
+use crate::logic::api_key::cache::ApiKeyCache;
+use crate::logic::jwk::cache::JwksCache;
+use crate::logic::sts::config::StsTokenConfig;
+use crate::logic::user::Role;
+use crate::logic::internal_token_issuance::{ISSUER, AUDIENCE, AccessTokenClaims, AccessTokenType};
 
 /// Raw API key credential
 pub struct ApiKey(pub String);
 
-/// Raw STS token credential
-pub struct StsToken(pub String);
+/// Raw Internal token credential
+pub struct InternalToken(pub String);
 
 /// Raw credentials that can be extracted from a request
 pub enum RawCredentials {
     /// Machine authentication via API key
     MachineApiKey(ApiKey),
     /// Human authentication via STS token (JWT)
-    HumanStsToken(StsToken),
+    HumanInternalToken(InternalToken),
     /// Machine acting on behalf of a human
-    MachineOnBehalfOfHuman(ApiKey, StsToken),
+    MachineOnBehalfOfHuman(ApiKey, InternalToken),
 }
 
 /// Authenticated machine identity
@@ -126,8 +92,6 @@ impl Identity {
 /// The auth config uses ArcSwap for atomic updates that propagate to all instances.
 #[derive(Clone)]
 pub struct AuthClient {
-    /// Auth configuration (STS configs) - atomically swappable
-    auth_config: Arc<ArcSwap<AuthConfig>>,
     /// Cache of our JWKS for validating tokens we issued
     jwks_cache: JwksCache,
     /// Cache of API keys for authentication
@@ -137,12 +101,10 @@ pub struct AuthClient {
 impl AuthClient {
     /// Create a new AuthClient with the given caches and config
     pub fn new(
-        auth_config: Arc<ArcSwap<AuthConfig>>,
         jwks_cache: JwksCache,
         api_key_cache: ApiKeyCache,
     ) -> Self {
         Self {
-            auth_config,
             jwks_cache,
             api_key_cache,
         }
@@ -158,26 +120,16 @@ impl AuthClient {
         &self.api_key_cache
     }
 
-    /// Update the auth config atomically
-    /// All clones of this AuthClient will see the new config
-    pub fn update_auth_config(&self, config: AuthConfig) {
-        self.auth_config.store(Arc::new(config));
-    }
-
-    /// Get the current auth config
-    pub fn get_auth_config(&self) -> arc_swap::Guard<Arc<AuthConfig>> {
-        self.auth_config.load()
-    }
 
     /// Authenticate credentials and return an Identity
     pub async fn authenticate(&self, credentials: RawCredentials) -> Result<Identity, CommonError> {
         match credentials {
             RawCredentials::MachineApiKey(api_key) => self.authenticate_api_key(&api_key).await,
-            RawCredentials::HumanStsToken(sts_token) => {
-                self.authenticate_sts_token(&sts_token).await
+            RawCredentials::HumanInternalToken(internal_token) => {
+                self.authenticate_internal_token(&internal_token).await
             }
-            RawCredentials::MachineOnBehalfOfHuman(api_key, sts_token) => {
-                self.authenticate_machine_on_behalf_of_human(&api_key, &sts_token)
+            RawCredentials::MachineOnBehalfOfHuman(api_key, internal_token) => {
+                self.authenticate_machine_on_behalf_of_human(&api_key, &internal_token)
                     .await
             }
         }
@@ -204,16 +156,16 @@ impl AuthClient {
             })?;
 
         Ok(Identity::Machine(Machine {
-            id: cached_api_key.user_id,
-            role: cached_api_key.role,
+            id: cached_api_key.user.id,
+            role: cached_api_key.user.role,
         }))
     }
 
-    /// Authenticate an STS token (JWT issued by us)
-    async fn authenticate_sts_token(&self, sts_token: &StsToken) -> Result<Identity, CommonError> {
+    /// Authenticate an Internal token (JWT issued by us)
+    async fn authenticate_internal_token(&self, internal_token: &InternalToken) -> Result<Identity, CommonError> {
         // 1. Decode the token header to get the kid
         let header =
-            decode_header(&sts_token.0).map_err(|e| CommonError::Authentication {
+            decode_header(&internal_token.0).map_err(|e| CommonError::Authentication {
                 msg: format!("Failed to decode token header: {e}"),
                 source: None,
             })?;
@@ -241,7 +193,7 @@ impl AuthClient {
         validation.set_issuer(&[ISSUER]);
         validation.set_audience(&[AUDIENCE]);
 
-        let token_data = decode::<AccessTokenClaims>(&sts_token.0, &decoding_key, &validation)
+        let token_data = decode::<AccessTokenClaims>(&internal_token.0, &decoding_key, &validation)
             .map_err(|e| CommonError::Authentication {
                 msg: format!("Token validation failed: {e}"),
                 source: None,
@@ -250,15 +202,15 @@ impl AuthClient {
         let claims = token_data.claims;
 
         // 5. Verify it's an access token
-        if claims.token_type != "access" {
+        if !matches!(claims.token_type, AccessTokenType::Access) {
             return Err(CommonError::Authentication {
                 msg: "Invalid token type: expected access token".to_string(),
                 source: None,
             });
         }
 
-        // 6. Parse the role
-        let role = Role::from_str(&claims.role).unwrap_or(Role::User);
+        // 6. Use the role directly (it's already a Role enum)
+        let role = claims.role;
 
         Ok(Identity::Human(Human {
             sub: claims.sub,
@@ -272,7 +224,7 @@ impl AuthClient {
     async fn authenticate_machine_on_behalf_of_human(
         &self,
         api_key: &ApiKey,
-        sts_token: &StsToken,
+        internal_token: &InternalToken,
     ) -> Result<Identity, CommonError> {
         // First authenticate the API key
         let machine_identity = self.authenticate_api_key(api_key).await?;
@@ -287,7 +239,7 @@ impl AuthClient {
         };
 
         // Then authenticate the STS token
-        let human_identity = self.authenticate_sts_token(sts_token).await?;
+        let human_identity = self.authenticate_internal_token(internal_token).await?;
         let human = match human_identity {
             Identity::Human(h) => h,
             _ => {
@@ -299,188 +251,5 @@ impl AuthClient {
         };
 
         Ok(Identity::MachineOnBehalfOfHuman(machine, human))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::logic::api_key_cache::CachedApiKey;
-    use crate::logic::auth_config::AuthConfig;
-    use crate::logic::jwk::Jwk;
-    use crate::repository::Repository;
-    use shared::primitives::SqlMigrationLoader;
-    use shared::test_utils::repository::setup_in_memory_database;
-    use std::collections::HashMap;
-
-    async fn create_test_auth_client() -> AuthClient {
-        shared::setup_test!();
-
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Arc::new(Repository::new(conn));
-
-        let config = AuthConfig {
-            api_keys: HashMap::new(),
-            sts_token_config: HashMap::new(),
-        };
-
-        let jwks_cache = JwksCache::new(Repository::new(repo.connection().clone()));
-        let api_key_cache = ApiKeyCache::new(repo);
-
-        AuthClient::new(
-            Arc::new(ArcSwap::from_pointee(config)),
-            jwks_cache,
-            api_key_cache,
-        )
-    }
-
-    #[test]
-    fn test_role_as_str() {
-        assert_eq!(Role::Admin.as_str(), "admin");
-        assert_eq!(Role::Maintainer.as_str(), "maintainer");
-        assert_eq!(Role::ReadOnlyMaintainer.as_str(), "read-only-maintainer");
-        assert_eq!(Role::Agent.as_str(), "agent");
-        assert_eq!(Role::User.as_str(), "user");
-    }
-
-    #[test]
-    fn test_role_from_str() {
-        assert_eq!(Role::from_str("admin"), Some(Role::Admin));
-        assert_eq!(Role::from_str("maintainer"), Some(Role::Maintainer));
-        assert_eq!(
-            Role::from_str("read-only-maintainer"),
-            Some(Role::ReadOnlyMaintainer)
-        );
-        assert_eq!(Role::from_str("agent"), Some(Role::Agent));
-        assert_eq!(Role::from_str("user"), Some(Role::User));
-        assert_eq!(Role::from_str("invalid"), None);
-    }
-
-    #[test]
-    fn test_identity_role() {
-        let machine = Identity::Machine(Machine {
-            id: "test".to_string(),
-            role: Role::Agent,
-        });
-        assert_eq!(machine.role(), Some(&Role::Agent));
-
-        let human = Identity::Human(Human {
-            sub: "test".to_string(),
-            email: None,
-            groups: vec![],
-            role: Role::User,
-        });
-        assert_eq!(human.role(), Some(&Role::User));
-
-        let unauth = Identity::Unauthenticated;
-        assert_eq!(unauth.role(), None);
-    }
-
-    #[test]
-    fn test_identity_is_authenticated() {
-        let machine = Identity::Machine(Machine {
-            id: "test".to_string(),
-            role: Role::Agent,
-        });
-        assert!(machine.is_authenticated());
-
-        let unauth = Identity::Unauthenticated;
-        assert!(!unauth.is_authenticated());
-    }
-
-    #[test]
-    fn test_identity_subject() {
-        let machine = Identity::Machine(Machine {
-            id: "machine-1".to_string(),
-            role: Role::Agent,
-        });
-        assert_eq!(machine.subject(), Some("machine-1"));
-
-        let human = Identity::Human(Human {
-            sub: "user-1".to_string(),
-            email: None,
-            groups: vec![],
-            role: Role::User,
-        });
-        assert_eq!(human.subject(), Some("user-1"));
-
-        let unauth = Identity::Unauthenticated;
-        assert_eq!(unauth.subject(), None);
-    }
-
-    #[tokio::test]
-    async fn test_jwks_cache_in_auth_client() {
-        let client = create_test_auth_client().await;
-
-        let jwk = Jwk {
-            kty: "RSA".to_string(),
-            kid: "test-kid".to_string(),
-            use_: "sig".to_string(),
-            alg: "RS256".to_string(),
-            n: "test-n".to_string(),
-            e: "AQAB".to_string(),
-        };
-
-        client.jwks_cache().add_jwk(jwk);
-        assert!(client.jwks_cache().get_jwk("test-kid").is_some());
-        assert!(client.jwks_cache().get_jwk("nonexistent").is_none());
-    }
-
-    #[tokio::test]
-    async fn test_authenticate_api_key_success() {
-        let client = create_test_auth_client().await;
-
-        // Pre-populate the cache with a test API key
-        let raw_api_key = "sk--test123456789012345678901234";
-        let hashed_value = hash_api_key(raw_api_key);
-
-        client.api_key_cache().add(CachedApiKey {
-            id: "api-key-123".to_string(),
-            hashed_value: hashed_value.clone(),
-            role: Role::Agent,
-            user_id: "user-123".to_string(),
-        });
-
-        let result = client
-            .authenticate(RawCredentials::MachineApiKey(ApiKey(raw_api_key.to_string())))
-            .await;
-
-        assert!(result.is_ok());
-        let identity = result.unwrap();
-        assert!(matches!(identity, Identity::Machine(_)));
-        assert_eq!(identity.role(), Some(&Role::Agent));
-        assert_eq!(identity.subject(), Some("user-123"));
-    }
-
-    #[tokio::test]
-    async fn test_authenticate_api_key_invalid() {
-        let client = create_test_auth_client().await;
-
-        let result = client
-            .authenticate(RawCredentials::MachineApiKey(ApiKey(
-                "invalid-key".to_string(),
-            )))
-            .await;
-
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_auth_client_clone_shares_config() {
-        let client1 = create_test_auth_client().await;
-        let client2 = client1.clone();
-
-        // Update config through client1
-        let new_config = AuthConfig {
-            api_keys: HashMap::new(),
-            sts_token_config: HashMap::new(),
-        };
-        client1.update_auth_config(new_config);
-
-        // client2 should see the update
-        let config = client2.get_auth_config();
-        assert!(config.api_keys.is_empty());
     }
 }

@@ -16,6 +16,12 @@ use crate::repository::DataEncryptionKeyRepositoryLike;
 #[serde(transparent)]
 pub struct EncryptedString(pub String);
 
+impl std::fmt::Debug for EncryptedString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "EncryptedString(************)")
+    }
+}
+
 // encryption services
 
 #[derive(Clone, Debug)]

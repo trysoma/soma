@@ -9,13 +9,13 @@ pub mod generated {
 
 pub use generated::*;
 
+use crate::logic::sts::config::StsTokenConfigType;
 use crate::repository::{
-    ApiKey, ApiKeyWithUser, CreateApiKey, CreateGroup, CreateGroupMembership,
-    CreateIdpConfiguration, CreateJwtSigningKey, CreateOAuthState, CreateStsConfiguration,
-    CreateUser, Group, GroupMemberWithUser, GroupMembership, IdpConfiguration, JwtSigningKey,
-    OAuthState, StsConfiguration, UpdateIdpConfiguration, UpdateStsConfiguration, UpdateUser, User,
-    UserGroupWithGroup, UserRepositoryLike,
+    CreateGroupMembership, CreateJwtSigningKey, CreateOAuthState,
+    Group, GroupMemberWithUser, GroupMembership, HashedApiKey, HashedApiKeyWithUser, JwtSigningKey, OAuthState,
+    StsConfigurationDb, UpdateUser, User, UserAuthFlowConfigDb, UserGroupWithGroup, UserRepositoryLike
 };
+
 use anyhow::Context;
 use shared::error::CommonError;
 use shared::primitives::{
@@ -49,12 +49,14 @@ impl SqlMigrationLoader for Repository {
 }
 
 impl UserRepositoryLike for Repository {
-    async fn create_user(&self, params: &CreateUser) -> Result<(), CommonError> {
+    async fn create_user(&self, params: &User) -> Result<(), CommonError> {
+        let user_type_str = params.user_type.as_str().to_string();
+        let role_str = params.role.as_str().to_string();
         let sqlc_params = create_user_params {
             id: &params.id,
-            user_type: &params.user_type,
+            user_type: &user_type_str,
             email: &params.email,
-            role: &params.role,
+            role: &role_str,
             description: &params.description,
             created_at: &params.created_at,
             updated_at: &params.updated_at,
@@ -95,7 +97,7 @@ impl UserRepositoryLike for Repository {
         })?;
 
         let email = params.email.clone().or(existing.email);
-        let role = params.role.clone().unwrap_or(existing.role);
+        let role = params.role.clone().unwrap_or_else(|| existing.role.as_str().to_string());
         let description = params.description.clone().or(existing.description);
 
         let sqlc_params = update_user_params {
@@ -184,7 +186,7 @@ impl UserRepositoryLike for Repository {
         ))
     }
 
-    async fn create_api_key(&self, params: &CreateApiKey) -> Result<(), CommonError> {
+    async fn create_api_key(&self, params: &HashedApiKey) -> Result<(), CommonError> {
         let sqlc_params = create_api_key_params {
             id: &params.id,
             hashed_value: &params.hashed_value,
@@ -207,7 +209,7 @@ impl UserRepositoryLike for Repository {
     async fn get_api_key_by_hashed_value(
         &self,
         hashed_value: &str,
-    ) -> Result<Option<ApiKeyWithUser>, CommonError> {
+    ) -> Result<Option<HashedApiKeyWithUser>, CommonError> {
         let sqlc_params = get_api_key_by_hashed_value_params {
             hashed_value: &hashed_value.to_string(),
         };
@@ -223,7 +225,7 @@ impl UserRepositoryLike for Repository {
         Ok(result.map(|row| row.into()))
     }
 
-    async fn get_api_key_by_id(&self, id: &str) -> Result<Option<ApiKeyWithUser>, CommonError> {
+    async fn get_api_key_by_id(&self, id: &str) -> Result<Option<HashedApiKeyWithUser>, CommonError> {
         let sqlc_params = get_api_key_by_id_params {
             id: &id.to_string(),
         };
@@ -258,7 +260,7 @@ impl UserRepositoryLike for Repository {
         &self,
         pagination: &PaginationRequest,
         user_id: Option<&str>,
-    ) -> Result<PaginatedResponse<ApiKey>, CommonError> {
+    ) -> Result<PaginatedResponse<HashedApiKey>, CommonError> {
         let cursor_datetime = if let Some(token) = &pagination.next_page_token {
             let decoded_parts =
                 decode_pagination_token(token).map_err(|e| CommonError::Repository {
@@ -296,7 +298,7 @@ impl UserRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Vec<ApiKey> = rows.into_iter().map(|row| row.into()).collect();
+        let items: Vec<HashedApiKey> = rows.into_iter().map(|row| row.into()).collect();
 
         Ok(PaginatedResponse::from_items_with_extra(
             items,
@@ -321,7 +323,7 @@ impl UserRepositoryLike for Repository {
     }
 
     // Group methods
-    async fn create_group(&self, params: &CreateGroup) -> Result<(), CommonError> {
+    async fn create_group(&self, params: &Group) -> Result<(), CommonError> {
         let sqlc_params = create_group_params {
             id: &params.id,
             name: &params.name,
@@ -741,164 +743,83 @@ impl UserRepositoryLike for Repository {
     // STS configuration methods
     async fn create_sts_configuration(
         &self,
-        params: &CreateStsConfiguration,
+        params: &StsConfigurationDb,
     ) -> Result<(), CommonError> {
-        let query = r#"
-            INSERT INTO sts_configuration (id, type, value, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-        "#;
+        // Extract id and config_type from the StsTokenConfig
+        let (id, config_type, value) = match &params.config {
+            crate::logic::sts::config::StsTokenConfig::DevMode(config) => {
+                (config.id.clone(), "dev_mode".to_string(), None)
+            }
+            crate::logic::sts::config::StsTokenConfig::JwtTemplate(config) => {
+                let json_value = serde_json::to_value(config).map_err(|e| CommonError::Repository {
+                    msg: format!("Failed to serialize jwt_template config: {e}"),
+                    source: Some(e.into()),
+                })?;
+                (
+                    config.id.clone(),
+                    "jwt_template".to_string(),
+                    Some(shared::primitives::WrappedJsonValue::new(json_value)),
+                )
+            }
+        };
 
-        self.conn
-            .execute(
-                query,
-                vec![
-                    params.id.clone().into(),
-                    params.config_type.clone().into(),
-                    params.value.clone().map(|v| v.into()).unwrap_or(libsql::Value::Null),
-                    params.created_at.to_string().into(),
-                    params.updated_at.to_string().into(),
-                ],
-            )
+        let sqlc_params = create_sts_configuration_params {
+            id: &id,
+            config_type: &config_type,
+            value: &value,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+        };
+
+        create_sts_configuration(&self.conn, sqlc_params)
             .await
             .context("Failed to create STS configuration")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
             })?;
-
         Ok(())
     }
 
     async fn get_sts_configuration_by_id(
         &self,
         id: &str,
-    ) -> Result<Option<StsConfiguration>, CommonError> {
-        let query = r#"
-            SELECT id, type, value, created_at, updated_at
-            FROM sts_configuration
-            WHERE id = ?
-        "#;
+    ) -> Result<Option<StsConfigurationDb>, CommonError> {
+        let sqlc_params = get_sts_configuration_by_id_params {
+            id: &id.to_string(),
+        };
 
-        let mut rows = self
-            .conn
-            .query(query, vec![libsql::Value::from(id.to_string())])
+        let result = get_sts_configuration_by_id(&self.conn, sqlc_params)
             .await
-            .context("Failed to get STS configuration")
+            .context("Failed to get STS configuration by id")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
             })?;
 
-        if let Some(row) = rows.next().await.map_err(|e| CommonError::Repository {
-            msg: e.to_string(),
-            source: Some(e.into()),
-        })? {
-            Ok(Some(StsConfiguration {
-                id: row.get::<String>(0).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                config_type: row.get::<String>(1).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                value: row.get::<Option<String>>(2).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                created_at: WrappedChronoDateTime::try_from(
-                    row.get::<String>(3)
-                        .map_err(|e| CommonError::Repository {
-                            msg: e.to_string(),
-                            source: Some(e.into()),
-                        })?
-                        .as_str(),
-                )
-                .map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                updated_at: WrappedChronoDateTime::try_from(
-                    row.get::<String>(4)
-                        .map_err(|e| CommonError::Repository {
-                            msg: e.to_string(),
-                            source: Some(e.into()),
-                        })?
-                        .as_str(),
-                )
-                .map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-            }))
-        } else {
-            Ok(None)
-        }
-    }
-
-    async fn update_sts_configuration(
-        &self,
-        id: &str,
-        params: &UpdateStsConfiguration,
-    ) -> Result<(), CommonError> {
-        let mut updates = vec![];
-        let mut values: Vec<libsql::Value> = vec![];
-
-        if let Some(ref config_type) = params.config_type {
-            updates.push("type = ?");
-            values.push(config_type.clone().into());
-        }
-
-        if let Some(ref value) = params.value {
-            updates.push("value = ?");
-            values.push(value.clone().into());
-        }
-
-        if updates.is_empty() {
-            return Ok(());
-        }
-
-        updates.push("updated_at = ?");
-        values.push(WrappedChronoDateTime::now().to_string().into());
-        values.push(id.into());
-
-        let query = format!(
-            "UPDATE sts_configuration SET {} WHERE id = ?",
-            updates.join(", ")
-        );
-
-        self.conn
-            .execute(&query, values)
-            .await
-            .context("Failed to update STS configuration")
-            .map_err(|e| CommonError::Repository {
-                msg: e.to_string(),
-                source: Some(e),
-            })?;
-
-        Ok(())
+        result.map(|row| row.try_into()).transpose()
     }
 
     async fn delete_sts_configuration(&self, id: &str) -> Result<(), CommonError> {
-        let query = "DELETE FROM sts_configuration WHERE id = ?";
+        let sqlc_params = delete_sts_configuration_params {
+            id: &id.to_string(),
+        };
 
-        self.conn
-            .execute(query, vec![libsql::Value::from(id.to_string())])
+        delete_sts_configuration(&self.conn, sqlc_params)
             .await
             .context("Failed to delete STS configuration")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
             })?;
-
         Ok(())
     }
 
     async fn list_sts_configurations(
         &self,
         pagination: &PaginationRequest,
-        config_type: Option<&str>,
-    ) -> Result<PaginatedResponse<StsConfiguration>, CommonError> {
+        config_type: Option<StsTokenConfigType>,
+    ) -> Result<PaginatedResponse<StsConfigurationDb>, CommonError> {
         let cursor_datetime = if let Some(token) = &pagination.next_page_token {
             let decoded_parts =
                 decode_pagination_token(token).map_err(|e| CommonError::Repository {
@@ -918,59 +839,18 @@ impl UserRepositoryLike for Repository {
         } else {
             None
         };
+        let config_type_owned = config_type.map(|ct| match ct {
+            StsTokenConfigType::DevMode => "dev_mode".to_string(),
+            StsTokenConfigType::JwtTemplate => "jwt_template".to_string(),
+        });
 
-        let (query, values): (String, Vec<libsql::Value>) = match (config_type, &cursor_datetime) {
-            (Some(ct), Some(cursor)) => (
-                r#"
-                    SELECT id, type, value, created_at, updated_at
-                    FROM sts_configuration
-                    WHERE type = ? AND created_at < ?
-                    ORDER BY created_at DESC
-                    LIMIT ?
-                "#.to_string(),
-                vec![
-                    ct.into(),
-                    cursor.to_string().into(),
-                    (pagination.page_size + 1).into(),
-                ],
-            ),
-            (Some(ct), None) => (
-                r#"
-                    SELECT id, type, value, created_at, updated_at
-                    FROM sts_configuration
-                    WHERE type = ?
-                    ORDER BY created_at DESC
-                    LIMIT ?
-                "#.to_string(),
-                vec![ct.into(), (pagination.page_size + 1).into()],
-            ),
-            (None, Some(cursor)) => (
-                r#"
-                    SELECT id, type, value, created_at, updated_at
-                    FROM sts_configuration
-                    WHERE created_at < ?
-                    ORDER BY created_at DESC
-                    LIMIT ?
-                "#.to_string(),
-                vec![
-                    cursor.to_string().into(),
-                    (pagination.page_size + 1).into(),
-                ],
-            ),
-            (None, None) => (
-                r#"
-                    SELECT id, type, value, created_at, updated_at
-                    FROM sts_configuration
-                    ORDER BY created_at DESC
-                    LIMIT ?
-                "#.to_string(),
-                vec![(pagination.page_size + 1).into()],
-            ),
+        let sqlc_params = get_sts_configurations_params {
+            cursor: &cursor_datetime,
+            config_type: &config_type_owned,
+            page_size: &pagination.page_size,
         };
 
-        let mut rows = self
-            .conn
-            .query(&query, values)
+        let rows = get_sts_configurations(&self.conn, sqlc_params)
             .await
             .context("Failed to list STS configurations")
             .map_err(|e| CommonError::Repository {
@@ -978,50 +858,10 @@ impl UserRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let mut items = vec![];
-        while let Some(row) = rows.next().await.map_err(|e| CommonError::Repository {
-            msg: e.to_string(),
-            source: Some(e.into()),
-        })? {
-            items.push(StsConfiguration {
-                id: row.get::<String>(0).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                config_type: row.get::<String>(1).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                value: row.get::<Option<String>>(2).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                created_at: WrappedChronoDateTime::try_from(
-                    row.get::<String>(3)
-                        .map_err(|e| CommonError::Repository {
-                            msg: e.to_string(),
-                            source: Some(e.into()),
-                        })?
-                        .as_str(),
-                )
-                .map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                updated_at: WrappedChronoDateTime::try_from(
-                    row.get::<String>(4)
-                        .map_err(|e| CommonError::Repository {
-                            msg: e.to_string(),
-                            source: Some(e.into()),
-                        })?
-                        .as_str(),
-                )
-                .map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-            });
-        }
+        let items: Vec<StsConfigurationDb> = rows
+            .into_iter()
+            .map(|row| row.try_into())
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(PaginatedResponse::from_items_with_extra(
             items,
@@ -1030,199 +870,73 @@ impl UserRepositoryLike for Repository {
         ))
     }
 
-    // IdP configuration methods
-    async fn create_idp_configuration(
+    // User auth flow configuration methods
+    async fn create_user_auth_flow_config(
         &self,
-        params: &CreateIdpConfiguration,
+        params: &UserAuthFlowConfigDb,
     ) -> Result<(), CommonError> {
-        let query = r#"
-            INSERT INTO idp_configuration (id, type, config, encrypted_client_secret, dek_alias, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        "#;
+        let (config_type, config_json) = params.config.to_db_values()?;
 
-        self.conn
-            .execute(
-                query,
-                vec![
-                    params.id.clone().into(),
-                    params.config_type.clone().into(),
-                    params.config.clone().into(),
-                    params
-                        .encrypted_client_secret
-                        .clone()
-                        .map(|v| v.into())
-                        .unwrap_or(libsql::Value::Null),
-                    params
-                        .dek_alias
-                        .clone()
-                        .map(|v| v.into())
-                        .unwrap_or(libsql::Value::Null),
-                    params.created_at.to_string().into(),
-                    params.updated_at.to_string().into(),
-                ],
-            )
+        let sqlc_params = create_user_auth_flow_config_params {
+            id: &params.id,
+            config_type: &config_type,
+            config: &config_json,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+        };
+
+        create_user_auth_flow_config(&self.conn, sqlc_params)
             .await
-            .context("Failed to create IdP configuration")
+            .context("Failed to create user auth flow configuration")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
             })?;
-
         Ok(())
     }
 
-    async fn get_idp_configuration_by_id(
+    async fn get_user_auth_flow_config_by_id(
         &self,
         id: &str,
-    ) -> Result<Option<IdpConfiguration>, CommonError> {
-        let query = r#"
-            SELECT id, type, config, encrypted_client_secret, dek_alias, created_at, updated_at
-            FROM idp_configuration
-            WHERE id = ?
-        "#;
+    ) -> Result<Option<UserAuthFlowConfigDb>, CommonError> {
+        let sqlc_params = get_user_auth_flow_config_by_id_params {
+            id: &id.to_string(),
+        };
 
-        let mut rows = self
-            .conn
-            .query(query, vec![libsql::Value::from(id.to_string())])
+        let result = get_user_auth_flow_config_by_id(&self.conn, sqlc_params)
             .await
-            .context("Failed to get IdP configuration")
+            .context("Failed to get user auth flow configuration by id")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
             })?;
 
-        if let Some(row) = rows.next().await.map_err(|e| CommonError::Repository {
-            msg: e.to_string(),
-            source: Some(e.into()),
-        })? {
-            Ok(Some(IdpConfiguration {
-                id: row.get::<String>(0).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                config_type: row.get::<String>(1).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                config: row.get::<String>(2).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                encrypted_client_secret: row
-                    .get::<Option<String>>(3)
-                    .map_err(|e| CommonError::Repository {
-                        msg: e.to_string(),
-                        source: Some(e.into()),
-                    })?,
-                dek_alias: row
-                    .get::<Option<String>>(4)
-                    .map_err(|e| CommonError::Repository {
-                        msg: e.to_string(),
-                        source: Some(e.into()),
-                    })?,
-                created_at: WrappedChronoDateTime::try_from(
-                    row.get::<String>(5)
-                        .map_err(|e| CommonError::Repository {
-                            msg: e.to_string(),
-                            source: Some(e.into()),
-                        })?
-                        .as_str(),
-                )
-                .map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                updated_at: WrappedChronoDateTime::try_from(
-                    row.get::<String>(6)
-                        .map_err(|e| CommonError::Repository {
-                            msg: e.to_string(),
-                            source: Some(e.into()),
-                        })?
-                        .as_str(),
-                )
-                .map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-            }))
-        } else {
-            Ok(None)
+        match result {
+            Some(row) => Ok(Some(row.try_into()?)),
+            None => Ok(None),
         }
     }
 
-    async fn update_idp_configuration(
-        &self,
-        id: &str,
-        params: &UpdateIdpConfiguration,
-    ) -> Result<(), CommonError> {
-        let mut updates = vec![];
-        let mut values: Vec<libsql::Value> = vec![];
+    async fn delete_user_auth_flow_config(&self, id: &str) -> Result<(), CommonError> {
+        let sqlc_params = delete_user_auth_flow_config_params {
+            id: &id.to_string(),
+        };
 
-        if let Some(ref config_type) = params.config_type {
-            updates.push("type = ?");
-            values.push(config_type.clone().into());
-        }
-
-        if let Some(ref config) = params.config {
-            updates.push("config = ?");
-            values.push(config.clone().into());
-        }
-
-        if let Some(ref encrypted_client_secret) = params.encrypted_client_secret {
-            updates.push("encrypted_client_secret = ?");
-            values.push(encrypted_client_secret.clone().into());
-        }
-
-        if let Some(ref dek_alias) = params.dek_alias {
-            updates.push("dek_alias = ?");
-            values.push(dek_alias.clone().into());
-        }
-
-        if updates.is_empty() {
-            return Ok(());
-        }
-
-        updates.push("updated_at = ?");
-        values.push(WrappedChronoDateTime::now().to_string().into());
-        values.push(id.into());
-
-        let query = format!(
-            "UPDATE idp_configuration SET {} WHERE id = ?",
-            updates.join(", ")
-        );
-
-        self.conn
-            .execute(&query, values)
+        delete_user_auth_flow_config(&self.conn, sqlc_params)
             .await
-            .context("Failed to update IdP configuration")
+            .context("Failed to delete user auth flow configuration")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
             })?;
-
         Ok(())
     }
 
-    async fn delete_idp_configuration(&self, id: &str) -> Result<(), CommonError> {
-        let query = "DELETE FROM idp_configuration WHERE id = ?";
-
-        self.conn
-            .execute(query, vec![libsql::Value::from(id.to_string())])
-            .await
-            .context("Failed to delete IdP configuration")
-            .map_err(|e| CommonError::Repository {
-                msg: e.to_string(),
-                source: Some(e),
-            })?;
-
-        Ok(())
-    }
-
-    async fn list_idp_configurations(
+    async fn list_user_auth_flow_configs(
         &self,
         pagination: &PaginationRequest,
         config_type: Option<&str>,
-    ) -> Result<PaginatedResponse<IdpConfiguration>, CommonError> {
+    ) -> Result<PaginatedResponse<UserAuthFlowConfigDb>, CommonError> {
         let cursor_datetime = if let Some(token) = &pagination.next_page_token {
             let decoded_parts =
                 decode_pagination_token(token).map_err(|e| CommonError::Repository {
@@ -1242,129 +956,26 @@ impl UserRepositoryLike for Repository {
         } else {
             None
         };
+        let config_type_owned = config_type.map(|s| s.to_string());
 
-        let (query, values): (String, Vec<libsql::Value>) = match (config_type, &cursor_datetime) {
-            (Some(ct), Some(cursor)) => (
-                r#"
-                    SELECT id, type, config, encrypted_client_secret, dek_alias, created_at, updated_at
-                    FROM idp_configuration
-                    WHERE type = ? AND created_at < ?
-                    ORDER BY created_at DESC
-                    LIMIT ?
-                "#
-                .to_string(),
-                vec![
-                    ct.into(),
-                    cursor.to_string().into(),
-                    (pagination.page_size + 1).into(),
-                ],
-            ),
-            (Some(ct), None) => (
-                r#"
-                    SELECT id, type, config, encrypted_client_secret, dek_alias, created_at, updated_at
-                    FROM idp_configuration
-                    WHERE type = ?
-                    ORDER BY created_at DESC
-                    LIMIT ?
-                "#
-                .to_string(),
-                vec![ct.into(), (pagination.page_size + 1).into()],
-            ),
-            (None, Some(cursor)) => (
-                r#"
-                    SELECT id, type, config, encrypted_client_secret, dek_alias, created_at, updated_at
-                    FROM idp_configuration
-                    WHERE created_at < ?
-                    ORDER BY created_at DESC
-                    LIMIT ?
-                "#
-                .to_string(),
-                vec![
-                    cursor.to_string().into(),
-                    (pagination.page_size + 1).into(),
-                ],
-            ),
-            (None, None) => (
-                r#"
-                    SELECT id, type, config, encrypted_client_secret, dek_alias, created_at, updated_at
-                    FROM idp_configuration
-                    ORDER BY created_at DESC
-                    LIMIT ?
-                "#
-                .to_string(),
-                vec![(pagination.page_size + 1).into()],
-            ),
+        let sqlc_params = get_user_auth_flow_configs_params {
+            cursor: &cursor_datetime,
+            config_type: &config_type_owned,
+            page_size: &pagination.page_size,
         };
 
-        let mut rows = self
-            .conn
-            .query(&query, values)
+        let rows = get_user_auth_flow_configs(&self.conn, sqlc_params)
             .await
-            .context("Failed to list IdP configurations")
+            .context("Failed to list user auth flow configurations")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
             })?;
 
-        let mut items = vec![];
-        while let Some(row) = rows.next().await.map_err(|e| CommonError::Repository {
-            msg: e.to_string(),
-            source: Some(e.into()),
-        })? {
-            items.push(IdpConfiguration {
-                id: row.get::<String>(0).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                config_type: row.get::<String>(1).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                config: row.get::<String>(2).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                encrypted_client_secret: row
-                    .get::<Option<String>>(3)
-                    .map_err(|e| CommonError::Repository {
-                        msg: e.to_string(),
-                        source: Some(e.into()),
-                    })?,
-                dek_alias: row
-                    .get::<Option<String>>(4)
-                    .map_err(|e| CommonError::Repository {
-                        msg: e.to_string(),
-                        source: Some(e.into()),
-                    })?,
-                created_at: WrappedChronoDateTime::try_from(
-                    row.get::<String>(5)
-                        .map_err(|e| CommonError::Repository {
-                            msg: e.to_string(),
-                            source: Some(e.into()),
-                        })?
-                        .as_str(),
-                )
-                .map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                updated_at: WrappedChronoDateTime::try_from(
-                    row.get::<String>(6)
-                        .map_err(|e| CommonError::Repository {
-                            msg: e.to_string(),
-                            source: Some(e.into()),
-                        })?
-                        .as_str(),
-                )
-                .map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-            });
-        }
+        let items: Result<Vec<UserAuthFlowConfigDb>, CommonError> = rows.into_iter().map(|row| row.try_into()).collect();
 
         Ok(PaginatedResponse::from_items_with_extra(
-            items,
+            items?,
             pagination,
             |item| vec![item.created_at.get_inner().to_rfc3339()],
         ))
@@ -1372,43 +983,23 @@ impl UserRepositoryLike for Repository {
 
     // OAuth state methods
     async fn create_oauth_state(&self, params: &CreateOAuthState) -> Result<(), CommonError> {
-        let query = r#"
-            INSERT INTO oauth_state (state, config_id, code_verifier, nonce, redirect_uri, created_at, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        "#;
+        let sqlc_params = create_oauth_state_params {
+            state: &params.state,
+            config_id: &params.config_id,
+            code_verifier: &params.code_verifier,
+            nonce: &params.nonce,
+            redirect_uri: &params.redirect_uri,
+            created_at: &params.created_at,
+            expires_at: &params.expires_at,
+        };
 
-        self.conn
-            .execute(
-                query,
-                vec![
-                    params.state.clone().into(),
-                    params.config_id.clone().into(),
-                    params
-                        .code_verifier
-                        .clone()
-                        .map(|v| v.into())
-                        .unwrap_or(libsql::Value::Null),
-                    params
-                        .nonce
-                        .clone()
-                        .map(|v| v.into())
-                        .unwrap_or(libsql::Value::Null),
-                    params
-                        .redirect_uri
-                        .clone()
-                        .map(|v| v.into())
-                        .unwrap_or(libsql::Value::Null),
-                    params.created_at.to_string().into(),
-                    params.expires_at.to_string().into(),
-                ],
-            )
+        create_oauth_state(&self.conn, sqlc_params)
             .await
             .context("Failed to create OAuth state")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
             })?;
-
         Ok(())
     }
 
@@ -1416,113 +1007,47 @@ impl UserRepositoryLike for Repository {
         &self,
         state: &str,
     ) -> Result<Option<OAuthState>, CommonError> {
-        let query = r#"
-            SELECT state, config_id, code_verifier, nonce, redirect_uri, created_at, expires_at
-            FROM oauth_state
-            WHERE state = ?
-        "#;
+        let sqlc_params = get_oauth_state_by_state_params {
+            state: &state.to_string(),
+        };
 
-        let mut rows = self
-            .conn
-            .query(query, vec![libsql::Value::from(state.to_string())])
+        let result = get_oauth_state_by_state(&self.conn, sqlc_params)
             .await
-            .context("Failed to get OAuth state")
+            .context("Failed to get OAuth state by state")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
             })?;
 
-        if let Some(row) = rows.next().await.map_err(|e| CommonError::Repository {
-            msg: e.to_string(),
-            source: Some(e.into()),
-        })? {
-            Ok(Some(OAuthState {
-                state: row.get::<String>(0).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                config_id: row.get::<String>(1).map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                code_verifier: row
-                    .get::<Option<String>>(2)
-                    .map_err(|e| CommonError::Repository {
-                        msg: e.to_string(),
-                        source: Some(e.into()),
-                    })?,
-                nonce: row
-                    .get::<Option<String>>(3)
-                    .map_err(|e| CommonError::Repository {
-                        msg: e.to_string(),
-                        source: Some(e.into()),
-                    })?,
-                redirect_uri: row
-                    .get::<Option<String>>(4)
-                    .map_err(|e| CommonError::Repository {
-                        msg: e.to_string(),
-                        source: Some(e.into()),
-                    })?,
-                created_at: WrappedChronoDateTime::try_from(
-                    row.get::<String>(5)
-                        .map_err(|e| CommonError::Repository {
-                            msg: e.to_string(),
-                            source: Some(e.into()),
-                        })?
-                        .as_str(),
-                )
-                .map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-                expires_at: WrappedChronoDateTime::try_from(
-                    row.get::<String>(6)
-                        .map_err(|e| CommonError::Repository {
-                            msg: e.to_string(),
-                            source: Some(e.into()),
-                        })?
-                        .as_str(),
-                )
-                .map_err(|e| CommonError::Repository {
-                    msg: e.to_string(),
-                    source: Some(e.into()),
-                })?,
-            }))
-        } else {
-            Ok(None)
-        }
+        Ok(result.map(|row| row.into()))
     }
 
     async fn delete_oauth_state(&self, state: &str) -> Result<(), CommonError> {
-        let query = "DELETE FROM oauth_state WHERE state = ?";
+        let sqlc_params = delete_oauth_state_params {
+            state: &state.to_string(),
+        };
 
-        self.conn
-            .execute(query, vec![libsql::Value::from(state.to_string())])
+        delete_oauth_state(&self.conn, sqlc_params)
             .await
             .context("Failed to delete OAuth state")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
             })?;
-
         Ok(())
     }
 
     async fn delete_expired_oauth_states(&self) -> Result<u64, CommonError> {
         let now = WrappedChronoDateTime::now();
-        let query = "DELETE FROM oauth_state WHERE expires_at < ?";
+        let sqlc_params = delete_expired_oauth_states_params { now: &now };
 
-        let rows_affected = self
-            .conn
-            .execute(query, vec![libsql::Value::from(now.to_string())])
+        delete_expired_oauth_states(&self.conn, sqlc_params)
             .await
             .context("Failed to delete expired OAuth states")
             .map_err(|e| CommonError::Repository {
                 msg: e.to_string(),
                 source: Some(e),
-            })?;
-
-        Ok(rows_affected)
+            })
     }
 }
 
@@ -2695,48 +2220,73 @@ mod tests {
     // STS configuration tests
     // ============================================
 
-    fn create_test_sts_configuration(
-        id: &str,
-        config_type: &str,
-        value: Option<&str>,
-    ) -> CreateStsConfiguration {
+    use crate::logic::sts::config::{DevModeConfig, JwtTemplateModeConfig, StsTokenConfig};
+    use crate::logic::token_mapping::template::{JwtTokenMappingConfig, JwtTokenTemplateConfig, JwtTokenTemplateValidationConfig, TokenLocation, MappingSource};
+
+    fn create_test_sts_dev_mode_config(id: &str) -> StsConfigurationDb {
         let now = WrappedChronoDateTime::now();
-        CreateStsConfiguration {
-            id: id.to_string(),
-            config_type: config_type.to_string(),
-            value: value.map(|s| s.to_string()),
+        StsConfigurationDb {
+            config: StsTokenConfig::DevMode(DevModeConfig {
+                id: id.to_string(),
+            }),
             created_at: now,
             updated_at: now,
         }
     }
 
-    #[tokio::test]
-    async fn test_create_and_get_sts_configuration() {
-        let repo = setup_test_db().await;
+    fn create_test_sts_jwt_template_config(id: &str) -> StsConfigurationDb {
+        let now = WrappedChronoDateTime::now();
+        StsConfigurationDb {
+            config: StsTokenConfig::JwtTemplate(JwtTemplateModeConfig {
+                id: id.to_string(),
+                mapping_template: JwtTokenTemplateConfig {
+                    jwks_uri: "https://example.com/.well-known/jwks.json".to_string(),
+                    userinfo_url: None,
+                    access_token_location: Some(TokenLocation::Header("Authorization".to_string())),
+                    id_token_location: None,
+                    mapping_template: JwtTokenMappingConfig {
+                        issuer_field: MappingSource::AccessToken("iss".to_string()),
+                        audience_field: MappingSource::AccessToken("aud".to_string()),
+                        scopes_field: Some(MappingSource::AccessToken("scope".to_string())),
+                        sub_field: MappingSource::AccessToken("sub".to_string()),
+                        email_field: Some(MappingSource::AccessToken("email".to_string())),
+                        groups_field: Some(MappingSource::AccessToken("groups".to_string())),
+                        group_to_role_mappings: vec![],
+                        scope_to_role_mappings: vec![],
+                        scope_to_group_mappings: vec![],
+                    },
+                },
+                validation_template: JwtTokenTemplateValidationConfig {
+                    issuer: Some("https://example.com".to_string()),
+                    valid_audiences: Some(vec!["test-audience".to_string()]),
+                    required_scopes: None,
+                    required_groups: None,
+                },
+            }),
+            created_at: now,
+            updated_at: now,
+        }
+    }
 
-        let config = create_test_sts_configuration(
-            "config-1",
-            "jwt_template",
-            Some(r#"{"issuer":"test"}"#),
-        );
-        repo.create_sts_configuration(&config).await.unwrap();
+    fn get_sts_config_id(config: &StsTokenConfig) -> &str {
+        match config {
+            StsTokenConfig::DevMode(c) => &c.id,
+            StsTokenConfig::JwtTemplate(c) => &c.id,
+        }
+    }
 
-        let fetched = repo
-            .get_sts_configuration_by_id("config-1")
-            .await
-            .unwrap();
-        assert!(fetched.is_some());
-        let fetched = fetched.unwrap();
-        assert_eq!(fetched.id, "config-1");
-        assert_eq!(fetched.config_type, "jwt_template");
-        assert_eq!(fetched.value, Some(r#"{"issuer":"test"}"#.to_string()));
+    fn get_sts_config_type(config: &StsTokenConfig) -> &str {
+        match config {
+            StsTokenConfig::DevMode(_) => "dev_mode",
+            StsTokenConfig::JwtTemplate(_) => "jwt_template",
+        }
     }
 
     #[tokio::test]
-    async fn test_create_sts_configuration_with_null_value() {
+    async fn test_create_and_get_sts_configuration_jwt_template() {
         let repo = setup_test_db().await;
 
-        let config = create_test_sts_configuration("config-1", "dev", None);
+        let config = create_test_sts_jwt_template_config("config-1");
         repo.create_sts_configuration(&config).await.unwrap();
 
         let fetched = repo
@@ -2745,9 +2295,25 @@ mod tests {
             .unwrap();
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
-        assert_eq!(fetched.id, "config-1");
-        assert_eq!(fetched.config_type, "dev");
-        assert!(fetched.value.is_none());
+        assert_eq!(get_sts_config_id(&fetched.config), "config-1");
+        assert_eq!(get_sts_config_type(&fetched.config), "jwt_template");
+    }
+
+    #[tokio::test]
+    async fn test_create_and_get_sts_configuration_dev_mode() {
+        let repo = setup_test_db().await;
+
+        let config = create_test_sts_dev_mode_config("config-1");
+        repo.create_sts_configuration(&config).await.unwrap();
+
+        let fetched = repo
+            .get_sts_configuration_by_id("config-1")
+            .await
+            .unwrap();
+        assert!(fetched.is_some());
+        let fetched = fetched.unwrap();
+        assert_eq!(get_sts_config_id(&fetched.config), "config-1");
+        assert_eq!(get_sts_config_type(&fetched.config), "dev_mode");
     }
 
     #[tokio::test]
@@ -2762,96 +2328,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_update_sts_configuration() {
-        let repo = setup_test_db().await;
-
-        let config = create_test_sts_configuration(
-            "config-1",
-            "jwt_template",
-            Some(r#"{"issuer":"original"}"#),
-        );
-        repo.create_sts_configuration(&config).await.unwrap();
-
-        // Update the value
-        let update = UpdateStsConfiguration {
-            config_type: None,
-            value: Some(r#"{"issuer":"updated"}"#.to_string()),
-        };
-        repo.update_sts_configuration("config-1", &update)
-            .await
-            .unwrap();
-
-        let fetched = repo
-            .get_sts_configuration_by_id("config-1")
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(fetched.value, Some(r#"{"issuer":"updated"}"#.to_string()));
-        assert_eq!(fetched.config_type, "jwt_template"); // Unchanged
-    }
-
-    #[tokio::test]
-    async fn test_update_sts_configuration_type() {
-        let repo = setup_test_db().await;
-
-        let config = create_test_sts_configuration("config-1", "jwt_template", None);
-        repo.create_sts_configuration(&config).await.unwrap();
-
-        // Update the type
-        let update = UpdateStsConfiguration {
-            config_type: Some("dev".to_string()),
-            value: None,
-        };
-        repo.update_sts_configuration("config-1", &update)
-            .await
-            .unwrap();
-
-        let fetched = repo
-            .get_sts_configuration_by_id("config-1")
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(fetched.config_type, "dev");
-    }
-
-    #[tokio::test]
-    async fn test_update_sts_configuration_empty_update() {
-        let repo = setup_test_db().await;
-
-        let config = create_test_sts_configuration(
-            "config-1",
-            "jwt_template",
-            Some(r#"{"issuer":"test"}"#),
-        );
-        repo.create_sts_configuration(&config).await.unwrap();
-
-        // Empty update should succeed without changing anything
-        let update = UpdateStsConfiguration {
-            config_type: None,
-            value: None,
-        };
-        repo.update_sts_configuration("config-1", &update)
-            .await
-            .unwrap();
-
-        let fetched = repo
-            .get_sts_configuration_by_id("config-1")
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(fetched.config_type, "jwt_template");
-        assert_eq!(fetched.value, Some(r#"{"issuer":"test"}"#.to_string()));
-    }
-
-    #[tokio::test]
     async fn test_delete_sts_configuration() {
         let repo = setup_test_db().await;
 
-        let config = create_test_sts_configuration(
-            "config-1",
-            "jwt_template",
-            Some(r#"{"issuer":"test"}"#),
-        );
+        let config = create_test_sts_jwt_template_config("config-1");
         repo.create_sts_configuration(&config).await.unwrap();
 
         // Verify it exists
@@ -2878,11 +2358,11 @@ mod tests {
 
         // Create multiple configurations
         for i in 1..=5 {
-            let config = create_test_sts_configuration(
-                &format!("config-{i}"),
-                if i % 2 == 0 { "dev" } else { "jwt_template" },
-                Some(&format!(r#"{{"issuer":"test-{i}"}}"#)),
-            );
+            let config = if i % 2 == 0 {
+                create_test_sts_dev_mode_config(&format!("config-{i}"))
+            } else {
+                create_test_sts_jwt_template_config(&format!("config-{i}"))
+            };
             repo.create_sts_configuration(&config).await.unwrap();
         }
 
@@ -2903,11 +2383,11 @@ mod tests {
 
         // Create mixed configurations
         for i in 1..=6 {
-            let config = create_test_sts_configuration(
-                &format!("config-{i}"),
-                if i % 2 == 0 { "dev" } else { "jwt_template" },
-                Some(&format!(r#"{{"issuer":"test-{i}"}}"#)),
-            );
+            let config = if i % 2 == 0 {
+                create_test_sts_dev_mode_config(&format!("config-{i}"))
+            } else {
+                create_test_sts_jwt_template_config(&format!("config-{i}"))
+            };
             repo.create_sts_configuration(&config).await.unwrap();
         }
 
@@ -2917,19 +2397,19 @@ mod tests {
             next_page_token: None,
         };
         let result = repo
-            .list_sts_configurations(&pagination, Some("jwt_template"))
+            .list_sts_configurations(&pagination, Some(StsTokenConfigType::JwtTemplate))
             .await
             .unwrap();
         assert_eq!(result.items.len(), 3);
-        assert!(result.items.iter().all(|c| c.config_type == "jwt_template"));
+        assert!(result.items.iter().all(|c| get_sts_config_type(&c.config) == "jwt_template"));
 
-        // Filter by dev
+        // Filter by dev_mode
         let result = repo
-            .list_sts_configurations(&pagination, Some("dev"))
+            .list_sts_configurations(&pagination, Some(StsTokenConfigType::DevMode))
             .await
             .unwrap();
         assert_eq!(result.items.len(), 3);
-        assert!(result.items.iter().all(|c| c.config_type == "dev"));
+        assert!(result.items.iter().all(|c| get_sts_config_type(&c.config) == "dev_mode"));
     }
 
     #[tokio::test]
@@ -2938,11 +2418,7 @@ mod tests {
 
         // Create 5 configurations with delays
         for i in 1..=5 {
-            let config = create_test_sts_configuration(
-                &format!("config-{i}"),
-                "jwt_template",
-                Some(&format!(r#"{{"issuer":"test-{i}"}}"#)),
-            );
+            let config = create_test_sts_jwt_template_config(&format!("config-{i}"));
             repo.create_sts_configuration(&config).await.unwrap();
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         }
@@ -2990,11 +2466,11 @@ mod tests {
 
         // Create mixed configurations with delays
         for i in 1..=6 {
-            let config = create_test_sts_configuration(
-                &format!("config-{i}"),
-                if i % 2 == 0 { "dev" } else { "jwt_template" },
-                Some(&format!(r#"{{"issuer":"test-{i}"}}"#)),
-            );
+            let config = if i % 2 == 0 {
+                create_test_sts_dev_mode_config(&format!("config-{i}"))
+            } else {
+                create_test_sts_jwt_template_config(&format!("config-{i}"))
+            };
             repo.create_sts_configuration(&config).await.unwrap();
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         }
@@ -3005,11 +2481,11 @@ mod tests {
             next_page_token: None,
         };
         let result = repo
-            .list_sts_configurations(&pagination, Some("jwt_template"))
+            .list_sts_configurations(&pagination, Some(StsTokenConfigType::JwtTemplate))
             .await
             .unwrap();
         assert_eq!(result.items.len(), 2);
-        assert!(result.items.iter().all(|c| c.config_type == "jwt_template"));
+        assert!(result.items.iter().all(|c| get_sts_config_type(&c.config) == "jwt_template"));
         assert!(result.next_page_token.is_some());
 
         // Get second page
@@ -3018,228 +2494,21 @@ mod tests {
             next_page_token: result.next_page_token,
         };
         let result = repo
-            .list_sts_configurations(&pagination, Some("jwt_template"))
+            .list_sts_configurations(&pagination, Some(StsTokenConfigType::JwtTemplate))
             .await
             .unwrap();
         assert_eq!(result.items.len(), 1);
-        assert!(result.items.iter().all(|c| c.config_type == "jwt_template"));
-        assert!(result.next_page_token.is_none());
-    }
-
-    // ============================================
-    // IdP Configuration tests
-    // ============================================
-
-    fn create_test_idp_configuration(
-        id: &str,
-        config_type: &str,
-        config: &str,
-    ) -> CreateIdpConfiguration {
-        let now = WrappedChronoDateTime::now();
-        CreateIdpConfiguration {
-            id: id.to_string(),
-            config_type: config_type.to_string(),
-            config: config.to_string(),
-            encrypted_client_secret: Some("encrypted_secret".to_string()),
-            dek_alias: Some("default".to_string()),
-            created_at: now,
-            updated_at: now,
-        }
-    }
-
-    #[tokio::test]
-    async fn test_create_and_get_idp_configuration() {
-        let repo = setup_test_db().await;
-
-        let config_json = r#"{"name":"Google","client_id":"test","redirect_uri":"http://localhost/callback","issuer_url":"https://accounts.google.com"}"#;
-        let config = create_test_idp_configuration("idp-1", "oidc_authorization_flow", config_json);
-        repo.create_idp_configuration(&config).await.unwrap();
-
-        let fetched = repo.get_idp_configuration_by_id("idp-1").await.unwrap();
-        assert!(fetched.is_some());
-        let fetched = fetched.unwrap();
-        assert_eq!(fetched.id, "idp-1");
-        assert_eq!(fetched.config_type, "oidc_authorization_flow");
-        assert_eq!(fetched.encrypted_client_secret, Some("encrypted_secret".to_string()));
-        assert_eq!(fetched.dek_alias, Some("default".to_string()));
-    }
-
-    #[tokio::test]
-    async fn test_get_idp_configuration_not_found() {
-        let repo = setup_test_db().await;
-
-        let fetched = repo.get_idp_configuration_by_id("nonexistent").await.unwrap();
-        assert!(fetched.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_update_idp_configuration() {
-        let repo = setup_test_db().await;
-
-        let config_json = r#"{"name":"Google","client_id":"test","redirect_uri":"http://localhost/callback","issuer_url":"https://accounts.google.com"}"#;
-        let config = create_test_idp_configuration("idp-1", "oidc_authorization_flow", config_json);
-        repo.create_idp_configuration(&config).await.unwrap();
-
-        let new_config_json = r#"{"name":"Google Updated","client_id":"test-updated","redirect_uri":"http://localhost/callback","issuer_url":"https://accounts.google.com"}"#;
-        let update = UpdateIdpConfiguration {
-            config_type: None,
-            config: Some(new_config_json.to_string()),
-            encrypted_client_secret: Some("new_encrypted_secret".to_string()),
-            dek_alias: Some("new_alias".to_string()),
-        };
-        repo.update_idp_configuration("idp-1", &update).await.unwrap();
-
-        let fetched = repo.get_idp_configuration_by_id("idp-1").await.unwrap().unwrap();
-        assert!(fetched.config.contains("Google Updated"));
-        assert_eq!(fetched.encrypted_client_secret, Some("new_encrypted_secret".to_string()));
-        assert_eq!(fetched.dek_alias, Some("new_alias".to_string()));
-    }
-
-    #[tokio::test]
-    async fn test_update_idp_configuration_partial() {
-        let repo = setup_test_db().await;
-
-        let config_json = r#"{"name":"Google","client_id":"test","redirect_uri":"http://localhost/callback","issuer_url":"https://accounts.google.com"}"#;
-        let config = create_test_idp_configuration("idp-1", "oidc_authorization_flow", config_json);
-        repo.create_idp_configuration(&config).await.unwrap();
-
-        // Only update encrypted_client_secret
-        let update = UpdateIdpConfiguration {
-            config_type: None,
-            config: None,
-            encrypted_client_secret: Some("new_encrypted_secret".to_string()),
-            dek_alias: None,
-        };
-        repo.update_idp_configuration("idp-1", &update).await.unwrap();
-
-        let fetched = repo.get_idp_configuration_by_id("idp-1").await.unwrap().unwrap();
-        assert!(fetched.config.contains("Google")); // Original config unchanged
-        assert_eq!(fetched.encrypted_client_secret, Some("new_encrypted_secret".to_string()));
-        assert_eq!(fetched.dek_alias, Some("default".to_string())); // Original dek_alias unchanged
-    }
-
-    #[tokio::test]
-    async fn test_delete_idp_configuration() {
-        let repo = setup_test_db().await;
-
-        let config_json = r#"{"name":"Google","client_id":"test","redirect_uri":"http://localhost/callback","issuer_url":"https://accounts.google.com"}"#;
-        let config = create_test_idp_configuration("idp-1", "oidc_authorization_flow", config_json);
-        repo.create_idp_configuration(&config).await.unwrap();
-
-        repo.delete_idp_configuration("idp-1").await.unwrap();
-
-        let fetched = repo.get_idp_configuration_by_id("idp-1").await.unwrap();
-        assert!(fetched.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_list_idp_configurations() {
-        let repo = setup_test_db().await;
-
-        for i in 1..=5 {
-            let config_json = format!(r#"{{"name":"Provider {}","client_id":"test","redirect_uri":"http://localhost/callback","issuer_url":"https://example{}.com"}}"#, i, i);
-            let config = create_test_idp_configuration(
-                &format!("idp-{}", i),
-                "oidc_authorization_flow",
-                &config_json,
-            );
-            repo.create_idp_configuration(&config).await.unwrap();
-        }
-
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-        let result = repo.list_idp_configurations(&pagination, None).await.unwrap();
-        assert_eq!(result.items.len(), 5);
-    }
-
-    #[tokio::test]
-    async fn test_list_idp_configurations_by_type() {
-        let repo = setup_test_db().await;
-
-        // Create OIDC configs
-        for i in 1..=3 {
-            let config_json = format!(r#"{{"name":"OIDC Provider {}","client_id":"test","redirect_uri":"http://localhost/callback","issuer_url":"https://oidc{}.com"}}"#, i, i);
-            let config = create_test_idp_configuration(
-                &format!("oidc-{}", i),
-                "oidc_authorization_flow",
-                &config_json,
-            );
-            repo.create_idp_configuration(&config).await.unwrap();
-        }
-
-        // Create OAuth configs
-        for i in 1..=2 {
-            let config_json = format!(r#"{{"name":"OAuth Provider {}","client_id":"test","redirect_uri":"http://localhost/callback","authorization_endpoint":"https://oauth{}.com/auth","token_endpoint":"https://oauth{}.com/token"}}"#, i, i, i);
-            let config = create_test_idp_configuration(
-                &format!("oauth-{}", i),
-                "oauth_authorization_flow",
-                &config_json,
-            );
-            repo.create_idp_configuration(&config).await.unwrap();
-        }
-
-        // List only OIDC
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-        let result = repo.list_idp_configurations(&pagination, Some("oidc_authorization_flow")).await.unwrap();
-        assert_eq!(result.items.len(), 3);
-        assert!(result.items.iter().all(|c| c.config_type == "oidc_authorization_flow"));
-
-        // List only OAuth
-        let result = repo.list_idp_configurations(&pagination, Some("oauth_authorization_flow")).await.unwrap();
-        assert_eq!(result.items.len(), 2);
-        assert!(result.items.iter().all(|c| c.config_type == "oauth_authorization_flow"));
-    }
-
-    #[tokio::test]
-    async fn test_list_idp_configurations_pagination() {
-        let repo = setup_test_db().await;
-
-        for i in 1..=5 {
-            let config_json = format!(r#"{{"name":"Provider {}","client_id":"test","redirect_uri":"http://localhost/callback","issuer_url":"https://example{}.com"}}"#, i, i);
-            let config = create_test_idp_configuration(
-                &format!("idp-{}", i),
-                "oidc_authorization_flow",
-                &config_json,
-            );
-            repo.create_idp_configuration(&config).await.unwrap();
-        }
-
-        // First page
-        let pagination = PaginationRequest {
-            page_size: 2,
-            next_page_token: None,
-        };
-        let result = repo.list_idp_configurations(&pagination, None).await.unwrap();
-        assert_eq!(result.items.len(), 2);
-        assert!(result.next_page_token.is_some());
-
-        // Second page
-        let pagination = PaginationRequest {
-            page_size: 2,
-            next_page_token: result.next_page_token,
-        };
-        let result = repo.list_idp_configurations(&pagination, None).await.unwrap();
-        assert_eq!(result.items.len(), 2);
-        assert!(result.next_page_token.is_some());
-
-        // Third page
-        let pagination = PaginationRequest {
-            page_size: 2,
-            next_page_token: result.next_page_token,
-        };
-        let result = repo.list_idp_configurations(&pagination, None).await.unwrap();
-        assert_eq!(result.items.len(), 1);
+        assert!(result.items.iter().all(|c| get_sts_config_type(&c.config) == "jwt_template"));
         assert!(result.next_page_token.is_none());
     }
 
     // ============================================
     // OAuth State tests
     // ============================================
+
+    use crate::logic::user_auth_flow::config::{
+        EncryptedUserAuthFlowConfig, OidcAuthorizationCodeFlowConfig,
+    };
 
     fn create_test_oauth_state(state: &str, config_id: &str) -> CreateOAuthState {
         let now = WrappedChronoDateTime::now();
@@ -3255,10 +2524,25 @@ mod tests {
         }
     }
 
-    async fn setup_test_idp_config(repo: &Repository, id: &str) {
-        let config_json = r#"{"name":"Test Provider","client_id":"test","redirect_uri":"http://localhost/callback","issuer_url":"https://example.com"}"#;
-        let config = create_test_idp_configuration(id, "oidc_authorization_flow", config_json);
-        repo.create_idp_configuration(&config).await.unwrap();
+    async fn setup_test_user_auth_flow_config(repo: &Repository, id: &str) {
+        let now = WrappedChronoDateTime::now();
+        let config = UserAuthFlowConfigDb {
+            id: id.to_string(),
+            config: EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(
+                OidcAuthorizationCodeFlowConfig {
+                    name: "Test Provider".to_string(),
+                    client_id: "test".to_string(),
+                    encrypted_client_secret: "encrypted_secret".to_string(),
+                    dek_alias: "default".to_string(),
+                    redirect_uri: "http://localhost/callback".to_string(),
+                    issuer_url: "https://example.com".to_string(),
+                    scopes: vec!["openid".to_string()],
+                },
+            ),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_user_auth_flow_config(&config).await.unwrap();
     }
 
     #[tokio::test]
@@ -3266,7 +2550,7 @@ mod tests {
         let repo = setup_test_db().await;
 
         // Create required IdP configuration first
-        setup_test_idp_config(&repo, "config-1").await;
+        setup_test_user_auth_flow_config(&repo, "config-1").await;
 
         let oauth_state = create_test_oauth_state("state123", "config-1");
         repo.create_oauth_state(&oauth_state).await.unwrap();
@@ -3294,7 +2578,7 @@ mod tests {
         let repo = setup_test_db().await;
 
         // Create required IdP configuration first
-        setup_test_idp_config(&repo, "config-1").await;
+        setup_test_user_auth_flow_config(&repo, "config-1").await;
 
         let oauth_state = create_test_oauth_state("state123", "config-1");
         repo.create_oauth_state(&oauth_state).await.unwrap();
@@ -3316,7 +2600,7 @@ mod tests {
         let repo = setup_test_db().await;
 
         // Create required IdP configuration first
-        setup_test_idp_config(&repo, "config-1").await;
+        setup_test_user_auth_flow_config(&repo, "config-1").await;
 
         // Create expired state
         let now = WrappedChronoDateTime::now();
@@ -3354,7 +2638,7 @@ mod tests {
         let repo = setup_test_db().await;
 
         // Create required IdP configuration first
-        setup_test_idp_config(&repo, "config-1").await;
+        setup_test_user_auth_flow_config(&repo, "config-1").await;
 
         let now = WrappedChronoDateTime::now();
         let expires_at = *now.get_inner() + chrono::Duration::seconds(300);
