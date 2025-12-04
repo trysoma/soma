@@ -3,9 +3,9 @@
 //! This module provides logic functions for syncing external IDP users and groups
 //! into our repository based on the SCIM 2.0 specification.
 
+use crate::logic::user::{Group, Role, User, UserType};
 use crate::repository::{
-    CreateGroup, CreateGroupMembership, CreateUser, Group, GroupMemberWithUser, UpdateUser, User,
-    UserRepositoryLike,
+    CreateGroupMembership, GroupMemberWithUser, UpdateUser, UserRepositoryLike,
 };
 use serde::{Deserialize, Serialize};
 use shared::{
@@ -436,16 +436,17 @@ pub async fn create_user_from_scim(
         });
     }
 
-    let create_user = CreateUser {
+    let user = User {
         id: user_id.clone(),
-        user_type: "federated_user".to_string(),
+        user_type: UserType::Human,
         email,
-        role: "user".to_string(),
+        role: Role::User,
+        description: None,
         created_at: now.clone(),
         updated_at: now,
     };
 
-    repo.create_user(&create_user).await?;
+    repo.create_user(&user).await?;
 
     // Fetch the created user and return as SCIM
     let user = repo
@@ -558,7 +559,11 @@ pub async fn replace_user_scim(
             }
         });
 
-    let update_user = UpdateUser { email, role: None };
+    let update_user = UpdateUser {
+        email,
+        role: None,
+        description: None,
+    };
 
     repo.update_user(user_id, &update_user).await?;
 
@@ -584,7 +589,7 @@ pub async fn patch_user_scim(
         })?;
 
     let mut email = existing.email.clone();
-    let role = Some(existing.role.clone());
+    let role: Option<String> = None; // SCIM doesn't update roles
 
     for op in patch_request.operations {
         match op.op {
@@ -633,7 +638,11 @@ pub async fn patch_user_scim(
         }
     }
 
-    let update_user = UpdateUser { email, role };
+    let update_user = UpdateUser {
+        email,
+        role,
+        description: None,
+    };
     repo.update_user(user_id, &update_user).await?;
 
     get_user_scim(repo, user_id, base_url).await
@@ -691,14 +700,14 @@ pub async fn create_group_from_scim(
         });
     }
 
-    let create_group = CreateGroup {
+    let group = Group {
         id: group_id.clone(),
         name: scim_group.display_name.clone(),
         created_at: now.clone(),
         updated_at: now.clone(),
     };
 
-    repo.create_group(&create_group).await?;
+    repo.create_group(&group).await?;
 
     // Add members if provided
     for member in &scim_group.members {
@@ -1575,9 +1584,10 @@ mod tests {
     async fn test_user_to_scim_conversion() {
         let user = User {
             id: "user-123".to_string(),
-            user_type: "federated_user".to_string(),
+            user_type: UserType::Human,
             email: Some("test@example.com".to_string()),
-            role: "user".to_string(),
+            role: Role::User,
+            description: None,
             created_at: WrappedChronoDateTime::now(),
             updated_at: WrappedChronoDateTime::now(),
         };

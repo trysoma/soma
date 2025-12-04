@@ -7,10 +7,10 @@
 
 pub mod scim;
 
+use crate::logic::user::{Group, Role, User, UserType};
 use crate::repository::Repository;
 use crate::repository::{
-    CreateGroup, CreateGroupMembership, CreateUser, Group, GroupMemberWithUser, UpdateUser, User,
-    UserGroupWithGroup, UserRepositoryLike,
+    CreateGroupMembership, GroupMemberWithUser, UpdateUser, UserGroupWithGroup, UserRepositoryLike,
 };
 use axum::extract::{Json, Path, Query, State};
 use serde::{Deserialize, Serialize};
@@ -201,17 +201,21 @@ async fn route_create_user(
     let now = WrappedChronoDateTime::now();
     let user_id = req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
-    let create_user = CreateUser {
+    let user_type = UserType::from_str(&req.user_type).unwrap_or(UserType::Human);
+    let role = Role::from_str(&req.role).unwrap_or(Role::User);
+
+    let user = User {
         id: user_id.clone(),
-        user_type: req.user_type,
+        user_type,
         email: req.email,
-        role: req.role,
+        role,
+        description: None,
         created_at: now.clone(),
         updated_at: now,
     };
 
     let res = async {
-        ctx.repository().create_user(&create_user).await?;
+        ctx.repository().create_user(&user).await?;
         ctx.repository()
             .get_user_by_id(&user_id)
             .await?
@@ -294,6 +298,7 @@ async fn route_update_user(
         let update_user = UpdateUser {
             email: req.email,
             role: req.role,
+            description: None,
         };
 
         ctx.repository().update_user(&user_id, &update_user).await?;
@@ -466,7 +471,7 @@ async fn route_create_group(
     let now = WrappedChronoDateTime::now();
     let group_id = req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
-    let create_group = CreateGroup {
+    let group = Group {
         id: group_id.clone(),
         name: req.name,
         created_at: now.clone(),
@@ -474,7 +479,7 @@ async fn route_create_group(
     };
 
     let res = async {
-        ctx.repository().create_group(&create_group).await?;
+        ctx.repository().create_group(&group).await?;
         ctx.repository()
             .get_group_by_id(&group_id)
             .await?
