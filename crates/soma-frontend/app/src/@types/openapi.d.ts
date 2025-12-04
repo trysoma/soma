@@ -84,27 +84,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/a2a/v1": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Handle JSON-RPC
-		 * @description Handle JSON-RPC requests for agent-to-agent communication (tasks, messages, etc.)
-		 */
-		post: operations["handle-jsonrpc-request"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/a2a/v1/.well-known/agent.json": {
+	"/api/a2a/v1/agents": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -112,30 +92,10 @@ export interface paths {
 			cookie?: never;
 		};
 		/**
-		 * Get agent card
-		 * @description Get the agent card describing agent capabilities and metadata
+		 * List available agents
+		 * @description List all available agents by querying Restate services
 		 */
-		get: operations["get-agent-card"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/a2a/v1/agent/authenticatedExtendedCard": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get extended agent card
-		 * @description Get the authenticated extended agent card with additional metadata
-		 */
-		get: operations["get-extended-agent-card"];
+		get: operations["list-agents"];
 		put?: never;
 		post?: never;
 		delete?: never;
@@ -156,6 +116,46 @@ export interface paths {
 		 * @description Get the agent definition (capabilities and metadata)
 		 */
 		get: operations["get-agent-definition"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/a2a/v1/{project_id}/{agent_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Handle JSON-RPC for specific agent
+		 * @description Handle JSON-RPC requests for agent-to-agent communication for a specific agent
+		 */
+		post: operations["handle-jsonrpc-request"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/a2a/v1/{project_id}/{agent_id}/.well-known/agent.json": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get agent card for specific agent
+		 * @description Get the agent card describing agent capabilities and metadata for a specific agent
+		 */
+		get: operations["get-agent-card"];
 		put?: never;
 		post?: never;
 		delete?: never;
@@ -1005,6 +1005,13 @@ export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
 		AgentCard: Record<string, never>;
+		/** @description Agent info for list response */
+		AgentInfo: {
+			/** @description The agent ID */
+			agent_id: string;
+			/** @description The project ID */
+			project_id: string;
+		};
 		BridgeConfig: {
 			providers?: {
 				[key: string]: components["schemas"]["ProviderConfig"];
@@ -1209,8 +1216,8 @@ export interface components {
 			value: string;
 		};
 		Error: {
-			data?: unknown;
 			message: string;
+			name: string;
 		};
 		FunctionControllerSerialized: {
 			categories: string[];
@@ -1275,6 +1282,11 @@ export interface components {
 			[key: string]: unknown;
 		};
 		JsonrpcRequest: Record<string, never>;
+		/** @description Response for listing agents */
+		ListAgentsResponse: {
+			/** @description List of agents */
+			agents: components["schemas"]["AgentInfo"][];
+		};
 		ListDecryptedSecretsResponse: {
 			next_page_token?: string | null;
 			secrets: components["schemas"]["DecryptedSecret"][];
@@ -1415,6 +1427,8 @@ export interface components {
 			value: string;
 		};
 		SomaAgentDefinition: {
+			/** @description List of registered agents from the SDK */
+			agents?: components["schemas"]["AgentInfo"][] | null;
 			bridge?: null | components["schemas"]["BridgeConfig"];
 			encryption?: null | components["schemas"]["EncryptionConfig"];
 			environment_variables?: {
@@ -1667,38 +1681,7 @@ export interface operations {
 			};
 		};
 	};
-	"handle-jsonrpc-request": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["JsonrpcRequest"];
-			};
-		};
-		responses: {
-			/** @description Successful response */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"get-agent-card": {
+	"list-agents": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -1707,51 +1690,13 @@ export interface operations {
 		};
 		requestBody?: never;
 		responses: {
-			/** @description Successful response */
+			/** @description List of agents */
 			200: {
 				headers: {
 					[name: string]: unknown;
 				};
 				content: {
-					"application/json": components["schemas"]["AgentCard"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"get-extended-agent-card": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Successful response */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["AgentCard"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
+					"application/json": components["schemas"]["ListAgentsResponse"];
 				};
 			};
 		};
@@ -1772,6 +1717,65 @@ export interface operations {
 				};
 				content: {
 					"application/json": components["schemas"]["SomaAgentDefinition"];
+				};
+			};
+		};
+	};
+	"handle-jsonrpc-request": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Project ID */
+				project_id: string;
+				/** @description Agent ID */
+				agent_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["JsonrpcRequest"];
+			};
+		};
+		responses: {
+			/** @description Successful response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+		};
+	};
+	"get-agent-card": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Project ID */
+				project_id: string;
+				/** @description Agent ID */
+				agent_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Agent card */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["AgentCard"];
 				};
 			};
 		};
