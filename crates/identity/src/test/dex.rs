@@ -140,7 +140,9 @@ pub async fn perform_dex_mock_oauth_login() -> Result<DexOidcTokens, anyhow::Err
 }
 
 /// Perform mock login with custom scopes.
-async fn perform_dex_mock_login_with_scopes(scopes: &[&str]) -> Result<DexOidcTokens, anyhow::Error> {
+async fn perform_dex_mock_login_with_scopes(
+    scopes: &[&str],
+) -> Result<DexOidcTokens, anyhow::Error> {
     use reqwest::redirect::Policy;
     use url::Url;
 
@@ -207,11 +209,10 @@ async fn perform_dex_mock_login_with_scopes(scopes: &[&str]) -> Result<DexOidcTo
     };
 
     // Step 3: Extract the authorization code from the final callback URL
-    let parsed_url = Url::parse(&callback_url)
-        .or_else(|_| {
-            // If the URL is relative, prepend the base URL
-            Url::parse(&format!("{DEX_BASE_URL}{callback_url}"))
-        })?;
+    let parsed_url = Url::parse(&callback_url).or_else(|_| {
+        // If the URL is relative, prepend the base URL
+        Url::parse(&format!("{DEX_BASE_URL}{callback_url}"))
+    })?;
 
     let code = parsed_url
         .query_pairs()
@@ -247,18 +248,11 @@ async fn perform_dex_mock_login_with_scopes(scopes: &[&str]) -> Result<DexOidcTo
         .ok_or_else(|| anyhow::anyhow!("No access_token in response"))?
         .to_string();
 
-    let id_token = token_json["id_token"]
-        .as_str()
-        .unwrap_or("")
-        .to_string();
+    let id_token = token_json["id_token"].as_str().unwrap_or("").to_string();
 
-    let refresh_token = token_json["refresh_token"]
-        .as_str()
-        .map(|s| s.to_string());
+    let refresh_token = token_json["refresh_token"].as_str().map(|s| s.to_string());
 
-    let expires_in = token_json["expires_in"]
-        .as_i64()
-        .unwrap_or(3600);
+    let expires_in = token_json["expires_in"].as_i64().unwrap_or(3600);
 
     Ok(DexOidcTokens {
         access_token,

@@ -386,8 +386,8 @@ mod integration_test {
     use crate::logic::token_mapping::TokenMapping;
     use crate::logic::token_mapping::template::{JwtTokenMappingConfig, MappingSource};
     use crate::test::dex::{
-        DEX_AUTH_ENDPOINT, DEX_CLIENT_ID, DEX_CLIENT_SECRET, DEX_JWKS_ENDPOINT,
-        DEX_OAUTH_SCOPES, DEX_REDIRECT_URI, DEX_TOKEN_ENDPOINT,
+        DEX_AUTH_ENDPOINT, DEX_CLIENT_ID, DEX_CLIENT_SECRET, DEX_JWKS_ENDPOINT, DEX_OAUTH_SCOPES,
+        DEX_REDIRECT_URI, DEX_TOKEN_ENDPOINT,
     };
 
     /// Create a test OAuth config using Dex endpoints (no OIDC/userinfo).
@@ -430,7 +430,10 @@ mod integration_test {
             token_endpoint: DEX_TOKEN_ENDPOINT,
             redirect_uri: DEX_REDIRECT_URI,
             client_id: DEX_CLIENT_ID,
-            scopes: &DEX_OAUTH_SCOPES.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            scopes: &DEX_OAUTH_SCOPES
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
             pkce_challenge: None,
             csrf_state: &csrf_state,
             extra_params: vec![],
@@ -441,7 +444,10 @@ mod integration_test {
         // Verify URL structure
         assert!(url.starts_with(DEX_AUTH_ENDPOINT));
         assert!(url.contains(&format!("client_id={DEX_CLIENT_ID}")));
-        assert!(url.contains(&format!("redirect_uri={}", urlencoding::encode(DEX_REDIRECT_URI))));
+        assert!(url.contains(&format!(
+            "redirect_uri={}",
+            urlencoding::encode(DEX_REDIRECT_URI)
+        )));
         assert!(url.contains("response_type=code"));
         assert!(url.contains(&format!("state={}", csrf_state.secret())));
     }
@@ -456,7 +462,10 @@ mod integration_test {
             token_endpoint: DEX_TOKEN_ENDPOINT,
             redirect_uri: DEX_REDIRECT_URI,
             client_id: DEX_CLIENT_ID,
-            scopes: &DEX_OAUTH_SCOPES.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            scopes: &DEX_OAUTH_SCOPES
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
             pkce_challenge: Some(&pkce_challenge),
             csrf_state: &csrf_state,
             extra_params: vec![],
@@ -478,7 +487,10 @@ mod integration_test {
             token_endpoint: DEX_TOKEN_ENDPOINT,
             redirect_uri: DEX_REDIRECT_URI,
             client_id: DEX_CLIENT_ID,
-            scopes: &DEX_OAUTH_SCOPES.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            scopes: &DEX_OAUTH_SCOPES
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
             pkce_challenge: None,
             csrf_state: &csrf_state,
             extra_params: vec![("nonce", "test-nonce-123".to_string())],
@@ -492,7 +504,6 @@ mod integration_test {
 
     #[tokio::test]
     async fn test_oauth_token_exchange_invalid_code() {
-        
         let params = BaseTokenExchangeParams {
             token_endpoint: DEX_TOKEN_ENDPOINT,
             client_id: DEX_CLIENT_ID,
@@ -504,7 +515,10 @@ mod integration_test {
 
         let result = exchange_code_for_tokens(params).await;
 
-        assert!(result.is_err(), "Should fail with invalid authorization code");
+        assert!(
+            result.is_err(),
+            "Should fail with invalid authorization code"
+        );
     }
 
     #[tokio::test]

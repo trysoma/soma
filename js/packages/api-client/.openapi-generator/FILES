@@ -78,7 +78,13 @@ src/models/GetUserAuthFlowConfigResponse.ts
 src/models/GroupToRoleMapping.ts
 src/models/GroupToRoleMappingYaml.ts
 src/models/HashedApiKey.ts
+src/models/Human.ts
+src/models/Identity.ts
 src/models/IdentityConfig.ts
+src/models/IdentityOneOf.ts
+src/models/IdentityOneOf1.ts
+src/models/IdentityOneOf2.ts
+src/models/IdentityOneOf3.ts
 src/models/ImportDataEncryptionKeyParamsRoute.ts
 src/models/ImportEnvironmentVariableRequest.ts
 src/models/ImportSecretRequest.ts
@@ -104,6 +110,7 @@ src/models/ListDecryptedSecretsResponse.ts
 src/models/ListEnvironmentVariablesResponse.ts
 src/models/ListSecretsResponse.ts
 src/models/ListUserAuthFlowConfigResponse.ts
+src/models/Machine.ts
 src/models/MappingSourceString.ts
 src/models/MappingSourceStringOneOf.ts
 src/models/MappingSourceStringOneOf1.ts

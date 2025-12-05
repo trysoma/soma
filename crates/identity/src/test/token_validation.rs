@@ -8,7 +8,7 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use shared::error::CommonError;
 
 use crate::logic::internal_token_issuance::{
-    AccessTokenClaims, AUDIENCE, ISSUER, RefreshTokenClaims,
+    AUDIENCE, AccessTokenClaims, ISSUER, RefreshTokenClaims,
 };
 use crate::logic::jwk::cache::JwksCache;
 use crate::logic::user::Role;
@@ -65,9 +65,8 @@ pub fn decode_and_validate_access_token(
         })?;
 
     // 3. Create decoding key from RSA components
-    let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to create decoding key: {e}"))
-    })?;
+    let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create decoding key: {e}")))?;
 
     // 4. Set up validation
     let mut validation = Validation::new(Algorithm::RS256);
@@ -75,12 +74,13 @@ pub fn decode_and_validate_access_token(
     validation.set_audience(&[AUDIENCE]);
 
     // 5. Decode and validate
-    let token_data = decode::<AccessTokenClaims>(token, &decoding_key, &validation).map_err(
-        |e| CommonError::Authentication {
-            msg: format!("Token validation failed: {e}"),
-            source: None,
-        },
-    )?;
+    let token_data =
+        decode::<AccessTokenClaims>(token, &decoding_key, &validation).map_err(|e| {
+            CommonError::Authentication {
+                msg: format!("Token validation failed: {e}"),
+                source: None,
+            }
+        })?;
 
     Ok(ValidatedAccessToken {
         claims: token_data.claims,
@@ -122,9 +122,8 @@ pub fn decode_and_validate_refresh_token(
         })?;
 
     // 3. Create decoding key from RSA components
-    let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to create decoding key: {e}"))
-    })?;
+    let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create decoding key: {e}")))?;
 
     // 4. Set up validation
     let mut validation = Validation::new(Algorithm::RS256);
@@ -132,12 +131,13 @@ pub fn decode_and_validate_refresh_token(
     validation.set_audience(&[AUDIENCE]);
 
     // 5. Decode and validate
-    let token_data = decode::<RefreshTokenClaims>(token, &decoding_key, &validation).map_err(
-        |e| CommonError::Authentication {
-            msg: format!("Refresh token validation failed: {e}"),
-            source: None,
-        },
-    )?;
+    let token_data =
+        decode::<RefreshTokenClaims>(token, &decoding_key, &validation).map_err(|e| {
+            CommonError::Authentication {
+                msg: format!("Refresh token validation failed: {e}"),
+                source: None,
+            }
+        })?;
 
     Ok(ValidatedRefreshToken {
         claims: token_data.claims,
@@ -252,13 +252,9 @@ impl<'a> AccessTokenAssertions<'a> {
 
     /// Assert token has a valid JTI (non-empty UUID format).
     pub fn assert_valid_jti(&self) -> &Self {
-        assert!(
-            !self.token.claims.jti.is_empty(),
-            "JTI should not be empty"
-        );
+        assert!(!self.token.claims.jti.is_empty(), "JTI should not be empty");
         // Try to parse as UUID
-        uuid::Uuid::parse_str(&self.token.claims.jti)
-            .expect("JTI should be a valid UUID");
+        uuid::Uuid::parse_str(&self.token.claims.jti).expect("JTI should be a valid UUID");
         self
     }
 

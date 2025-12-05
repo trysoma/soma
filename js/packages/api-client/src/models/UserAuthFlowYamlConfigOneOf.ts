@@ -37,11 +37,23 @@ export interface UserAuthFlowYamlConfigOneOf {
 	 */
 	discoveryEndpoint?: string;
 	/**
+	 * Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque
+	 * @type {string}
+	 * @memberof UserAuthFlowYamlConfigOneOf
+	 */
+	introspectUrl?: string;
+	/**
 	 *
 	 * @type {any}
 	 * @memberof UserAuthFlowYamlConfigOneOf
 	 */
 	mapping: any | null;
+	/**
+	 * Userinfo endpoint URL (optional)
+	 * @type {string}
+	 * @memberof UserAuthFlowYamlConfigOneOf
+	 */
+	userinfoEndpoint?: string;
 	/**
 	 *
 	 * @type {string}
@@ -88,7 +100,11 @@ export function UserAuthFlowYamlConfigOneOfFromJSONTyped(
 		baseConfig: EncryptedOauthYamlConfigFromJSON(json.base_config),
 		discoveryEndpoint:
 			json.discovery_endpoint == null ? undefined : json.discovery_endpoint,
+		introspectUrl:
+			json.introspect_url == null ? undefined : json.introspect_url,
 		mapping: json.mapping,
+		userinfoEndpoint:
+			json.userinfo_endpoint == null ? undefined : json.userinfo_endpoint,
 		type: json.type,
 	};
 }
@@ -110,7 +126,9 @@ export function UserAuthFlowYamlConfigOneOfToJSONTyped(
 	return {
 		base_config: EncryptedOauthYamlConfigToJSON(value.baseConfig),
 		discovery_endpoint: value.discoveryEndpoint,
+		introspect_url: value.introspectUrl,
 		mapping: value.mapping,
+		userinfo_endpoint: value.userinfoEndpoint,
 		type: value.type,
 	};
 }

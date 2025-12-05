@@ -1,9 +1,8 @@
 use crate::logic::sts::config::{JwtTemplateModeConfig, StsTokenConfig};
-use crate::logic::user::UserType;
 use crate::logic::user_auth_flow::config::EncryptedUserAuthFlowConfig;
 use crate::repository::{
     Group, GroupMemberWithUser, GroupMembership, HashedApiKey, HashedApiKeyWithUser, JwtSigningKey,
-    OAuthState, Role, StsConfigurationDb, User, UserAuthFlowConfigDb, UserGroupWithGroup,
+    OAuthState, StsConfigurationDb, User, UserAuthFlowConfigDb, UserGroupWithGroup,
 };
 use shared::error::CommonError;
 use shared::primitives::WrappedJsonValue;

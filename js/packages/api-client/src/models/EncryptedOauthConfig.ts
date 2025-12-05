@@ -52,6 +52,18 @@ export interface EncryptedOauthConfig {
 	 */
 	id: string;
 	/**
+	 * Token introspection endpoint URL (RFC 7662)
+	 * @type {string}
+	 * @memberof EncryptedOauthConfig
+	 */
+	introspectUrl?: string | null;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof EncryptedOauthConfig
+	 */
+	jwksEndpoint: string;
+	/**
 	 *
 	 * @type {TokenMapping}
 	 * @memberof EncryptedOauthConfig
@@ -69,12 +81,6 @@ export interface EncryptedOauthConfig {
 	 * @memberof EncryptedOauthConfig
 	 */
 	tokenEndpoint: string;
-	/**
-	 *
-	 * @type {string}
-	 * @memberof EncryptedOauthConfig
-	 */
-	userinfoEndpoint?: string | null;
 }
 
 /**
@@ -96,6 +102,8 @@ export function instanceOfEncryptedOauthConfig(
 	)
 		return false;
 	if (!("id" in value) || value.id === undefined) return false;
+	if (!("jwksEndpoint" in value) || value.jwksEndpoint === undefined)
+		return false;
 	if (!("mapping" in value) || value.mapping === undefined) return false;
 	if (!("scopes" in value) || value.scopes === undefined) return false;
 	if (!("tokenEndpoint" in value) || value.tokenEndpoint === undefined)
@@ -120,11 +128,12 @@ export function EncryptedOauthConfigFromJSONTyped(
 		dekAlias: json.dek_alias,
 		encryptedClientSecret: json.encrypted_client_secret,
 		id: json.id,
+		introspectUrl:
+			json.introspect_url == null ? undefined : json.introspect_url,
+		jwksEndpoint: json.jwks_endpoint,
 		mapping: TokenMappingFromJSON(json.mapping),
 		scopes: json.scopes,
 		tokenEndpoint: json.token_endpoint,
-		userinfoEndpoint:
-			json.userinfo_endpoint == null ? undefined : json.userinfo_endpoint,
 	};
 }
 
@@ -146,9 +155,10 @@ export function EncryptedOauthConfigToJSONTyped(
 		dek_alias: value.dekAlias,
 		encrypted_client_secret: value.encryptedClientSecret,
 		id: value.id,
+		introspect_url: value.introspectUrl,
+		jwks_endpoint: value.jwksEndpoint,
 		mapping: TokenMappingToJSON(value.mapping),
 		scopes: value.scopes,
 		token_endpoint: value.tokenEndpoint,
-		userinfo_endpoint: value.userinfoEndpoint,
 	};
 }

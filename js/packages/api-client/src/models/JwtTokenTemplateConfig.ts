@@ -43,6 +43,12 @@ export interface JwtTokenTemplateConfig {
 	 * @type {string}
 	 * @memberof JwtTokenTemplateConfig
 	 */
+	introspectUrl?: string | null;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof JwtTokenTemplateConfig
+	 */
 	jwksUri: string;
 	/**
 	 *
@@ -92,6 +98,8 @@ export function JwtTokenTemplateConfigFromJSONTyped(
 			json.id_token_location == null
 				? undefined
 				: TokenLocationFromJSON(json.id_token_location),
+		introspectUrl:
+			json.introspect_url == null ? undefined : json.introspect_url,
 		jwksUri: json.jwks_uri,
 		mappingTemplate: JwtTokenMappingConfigFromJSON(json.mapping_template),
 		userinfoUrl: json.userinfo_url == null ? undefined : json.userinfo_url,
@@ -115,6 +123,7 @@ export function JwtTokenTemplateConfigToJSONTyped(
 	return {
 		access_token_location: TokenLocationToJSON(value.accessTokenLocation),
 		id_token_location: TokenLocationToJSON(value.idTokenLocation),
+		introspect_url: value.introspectUrl,
 		jwks_uri: value.jwksUri,
 		mapping_template: JwtTokenMappingConfigToJSON(value.mappingTemplate),
 		userinfo_url: value.userinfoUrl,

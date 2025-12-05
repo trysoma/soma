@@ -45,11 +45,23 @@ export interface EncryptedOidcConfig {
 	 */
 	id: string;
 	/**
+	 * Token introspection endpoint URL (RFC 7662)
+	 * @type {string}
+	 * @memberof EncryptedOidcConfig
+	 */
+	introspectUrl?: string | null;
+	/**
 	 *
 	 * @type {TokenMapping}
 	 * @memberof EncryptedOidcConfig
 	 */
 	mapping: TokenMapping;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof EncryptedOidcConfig
+	 */
+	userinfoEndpoint?: string | null;
 }
 
 /**
@@ -80,7 +92,11 @@ export function EncryptedOidcConfigFromJSONTyped(
 		discoveryEndpoint:
 			json.discovery_endpoint == null ? undefined : json.discovery_endpoint,
 		id: json.id,
+		introspectUrl:
+			json.introspect_url == null ? undefined : json.introspect_url,
 		mapping: TokenMappingFromJSON(json.mapping),
+		userinfoEndpoint:
+			json.userinfo_endpoint == null ? undefined : json.userinfo_endpoint,
 	};
 }
 
@@ -100,6 +116,8 @@ export function EncryptedOidcConfigToJSONTyped(
 		base_config: EncryptedOauthConfigToJSON(value.baseConfig),
 		discovery_endpoint: value.discoveryEndpoint,
 		id: value.id,
+		introspect_url: value.introspectUrl,
 		mapping: TokenMappingToJSON(value.mapping),
+		userinfo_endpoint: value.userinfoEndpoint,
 	};
 }

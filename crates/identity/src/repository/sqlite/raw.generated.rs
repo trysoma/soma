@@ -214,7 +214,7 @@ WHERE ak.id = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_api_keys_params<'_>
   ) -> Result<Vec<Row_get_api_keys>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, hashed_value, description, user_id, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT id, hashed_value, description, user_id, created_at, updated_at
 FROM api_key
 WHERE (created_at < ?1 OR ?1 IS NULL)
   AND (user_id = ?2 OR ?2 IS NULL)
@@ -389,7 +389,7 @@ WHERE id = ?"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_groups_params<'_>
   ) -> Result<Vec<Row_get_groups>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, name, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT id, name, created_at, updated_at
 FROM `group`
 WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
@@ -539,7 +539,7 @@ WHERE group_id = ? AND user_id = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_group_members_params<'_>
   ) -> Result<Vec<Row_get_group_members>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
+      let stmt = conn.prepare(r#"SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
        u.id as user_id_fk, u.type as user_type, u.email as user_email, u.role as user_role,
        u.description as user_description, u.created_at as user_created_at, u.updated_at as user_updated_at
 FROM group_membership gm
@@ -597,7 +597,7 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_user_groups_params<'_>
   ) -> Result<Vec<Row_get_user_groups>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
+      let stmt = conn.prepare(r#"SELECT gm.group_id, gm.user_id, gm.created_at as membership_created_at, gm.updated_at as membership_updated_at,
        g.id as group_id_fk, g.name as group_name, g.created_at as group_created_at, g.updated_at as group_updated_at
 FROM group_membership gm
 JOIN `group` g ON gm.group_id = g.id
@@ -806,7 +806,7 @@ WHERE kid = ?"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_jwt_signing_keys_params<'_>
   ) -> Result<Vec<Row_get_jwt_signing_keys>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT kid, encrypted_private_key, expires_at, public_key, dek_alias, invalidated, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT kid, encrypted_private_key, expires_at, public_key, dek_alias, invalidated, created_at, updated_at
 FROM jwt_signing_key
 WHERE invalidated = 0
   AND (created_at < ?1 OR ?1 IS NULL)
@@ -1105,7 +1105,7 @@ WHERE id = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_sts_configurations_params<'_>
   ) -> Result<Vec<Row_get_sts_configurations>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type as config_type, value, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT id, type as config_type, value, created_at, updated_at
 FROM sts_configuration
 WHERE (created_at < ?1 OR ?1 IS NULL)
   AND (type = ?2 OR ?2 IS NULL)
@@ -1330,7 +1330,7 @@ WHERE id = ?"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_users_params<'_>
   ) -> Result<Vec<Row_get_users>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type as user_type, email, role, description, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT id, type as user_type, email, role, description, created_at, updated_at
 FROM user
 WHERE (created_at < ?1 OR ?1 IS NULL)
   AND (type = ?2 OR ?2 IS NULL)
@@ -1478,7 +1478,7 @@ WHERE id = ?"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_user_auth_flow_configs_params<'_>
   ) -> Result<Vec<Row_get_user_auth_flow_configs>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, type as config_type, config, created_at, updated_at
+      let stmt = conn.prepare(r#"SELECT id, type as config_type, config, created_at, updated_at
 FROM user_auth_flow_configuration
 WHERE (created_at < ?1 OR ?1 IS NULL)
   AND (type = ?2 OR ?2 IS NULL)

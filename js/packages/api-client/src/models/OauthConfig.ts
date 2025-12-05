@@ -46,6 +46,19 @@ export interface OauthConfig {
 	 */
 	id: string;
 	/**
+	 * Token introspection endpoint URL (RFC 7662)
+	 * If set, access tokens are treated as opaque and introspected via this endpoint
+	 * @type {string}
+	 * @memberof OauthConfig
+	 */
+	introspectUrl?: string | null;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof OauthConfig
+	 */
+	jwksEndpoint: string;
+	/**
 	 *
 	 * @type {TokenMapping}
 	 * @memberof OauthConfig
@@ -63,12 +76,6 @@ export interface OauthConfig {
 	 * @memberof OauthConfig
 	 */
 	tokenEndpoint: string;
-	/**
-	 *
-	 * @type {string}
-	 * @memberof OauthConfig
-	 */
-	userinfoEndpoint?: string | null;
 }
 
 /**
@@ -84,6 +91,8 @@ export function instanceOfOauthConfig(value: object): value is OauthConfig {
 	if (!("clientSecret" in value) || value.clientSecret === undefined)
 		return false;
 	if (!("id" in value) || value.id === undefined) return false;
+	if (!("jwksEndpoint" in value) || value.jwksEndpoint === undefined)
+		return false;
 	if (!("mapping" in value) || value.mapping === undefined) return false;
 	if (!("scopes" in value) || value.scopes === undefined) return false;
 	if (!("tokenEndpoint" in value) || value.tokenEndpoint === undefined)
@@ -107,11 +116,12 @@ export function OauthConfigFromJSONTyped(
 		clientId: json.client_id,
 		clientSecret: json.client_secret,
 		id: json.id,
+		introspectUrl:
+			json.introspect_url == null ? undefined : json.introspect_url,
+		jwksEndpoint: json.jwks_endpoint,
 		mapping: TokenMappingFromJSON(json.mapping),
 		scopes: json.scopes,
 		tokenEndpoint: json.token_endpoint,
-		userinfoEndpoint:
-			json.userinfo_endpoint == null ? undefined : json.userinfo_endpoint,
 	};
 }
 
@@ -132,9 +142,10 @@ export function OauthConfigToJSONTyped(
 		client_id: value.clientId,
 		client_secret: value.clientSecret,
 		id: value.id,
+		introspect_url: value.introspectUrl,
+		jwks_endpoint: value.jwksEndpoint,
 		mapping: TokenMappingToJSON(value.mapping),
 		scopes: value.scopes,
 		token_endpoint: value.tokenEndpoint,
-		userinfo_endpoint: value.userinfoEndpoint,
 	};
 }

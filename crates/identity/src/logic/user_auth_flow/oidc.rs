@@ -377,7 +377,6 @@ mod integration_test {
 
     #[tokio::test]
     async fn test_dex_jwks_endpoint_reachable() {
-
         // Fetch JWKS from Dex
         let response = reqwest::get(DEX_JWKS_ENDPOINT)
             .await
@@ -425,7 +424,6 @@ mod integration_test {
 
     #[tokio::test]
     async fn test_dex_userinfo_endpoint_requires_auth() {
-
         // Userinfo endpoint should require authentication
         let response = reqwest::get(DEX_USERINFO_ENDPOINT)
             .await
@@ -441,7 +439,6 @@ mod integration_test {
 
     #[tokio::test]
     async fn test_token_exchange_with_invalid_code() {
-
         let params = BaseTokenExchangeParams {
             token_endpoint: DEX_TOKEN_ENDPOINT,
             client_id: DEX_CLIENT_ID,
@@ -454,13 +451,14 @@ mod integration_test {
         let result = exchange_code_for_tokens(params).await;
 
         // Should fail with invalid code
-        assert!(result.is_err(), "Token exchange should fail with invalid code");
+        assert!(
+            result.is_err(),
+            "Token exchange should fail with invalid code"
+        );
     }
 
     #[tokio::test]
     async fn test_token_exchange_with_wrong_client_secret() {
-        
-
         let params = BaseTokenExchangeParams {
             token_endpoint: DEX_TOKEN_ENDPOINT,
             client_id: DEX_CLIENT_ID,
@@ -488,17 +486,12 @@ mod integration_test {
         assert_eq!(config.base_config.token_endpoint, DEX_TOKEN_ENDPOINT);
         assert_eq!(config.base_config.jwks_endpoint, DEX_JWKS_ENDPOINT);
         assert!(config.userinfo_endpoint.is_some());
-        assert!(config
-            .base_config
-            .scopes
-            .contains(&"openid".to_string()));
+        assert!(config.base_config.scopes.contains(&"openid".to_string()));
     }
 
     #[tokio::test]
     async fn test_fetch_userinfo_with_invalid_token() {
         use crate::logic::fetch_userinfo;
-
-        
 
         let result = fetch_userinfo(DEX_USERINFO_ENDPOINT, "invalid_access_token").await;
 

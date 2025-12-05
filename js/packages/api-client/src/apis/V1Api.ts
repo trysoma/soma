@@ -41,6 +41,7 @@ import type {
 	FunctionInstanceSerialized,
 	FunctionInstanceSerializedPaginatedResponse,
 	GetUserAuthFlowConfigResponse,
+	Identity,
 	ImportDataEncryptionKeyParamsRoute,
 	ImportEnvironmentVariableRequest,
 	ImportSecretRequest,
@@ -110,6 +111,7 @@ import {
 	FunctionInstanceSerializedFromJSON,
 	FunctionInstanceSerializedPaginatedResponseFromJSON,
 	GetUserAuthFlowConfigResponseFromJSON,
+	IdentityFromJSON,
 	ImportDataEncryptionKeyParamsRouteToJSON,
 	ImportEnvironmentVariableRequestToJSON,
 	ImportSecretRequestToJSON,
@@ -367,7 +369,6 @@ export interface V1ApiResumeUserCredentialBrokeringRequest {
 }
 
 export interface V1ApiRouteAuthCallbackRequest {
-	configId: string;
 	code?: string | null;
 	state?: string | null;
 	error?: string | null;
@@ -3491,13 +3492,6 @@ export class V1Api extends runtime.BaseAPI {
 		requestParameters: V1ApiRouteAuthCallbackRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<void>> {
-		if (requestParameters.configId == null) {
-			throw new runtime.RequiredError(
-				"configId",
-				'Required parameter "configId" was null or undefined when calling routeAuthCallback().',
-			);
-		}
-
 		const queryParameters: any = {};
 
 		if (requestParameters.code != null) {
@@ -3518,11 +3512,7 @@ export class V1Api extends runtime.BaseAPI {
 
 		const headerParameters: runtime.HTTPHeaders = {};
 
-		let urlPath = `/api/identity/v1/auth/callback/{config_id}`;
-		urlPath = urlPath.replace(
-			`{${"config_id"}}`,
-			encodeURIComponent(String(requestParameters.configId)),
-		);
+		const urlPath = `/api/identity/v1/auth/callback`;
 
 		const response = await this.request(
 			{
@@ -3542,7 +3532,7 @@ export class V1Api extends runtime.BaseAPI {
 	 * Authorization callback
 	 */
 	async routeAuthCallback(
-		requestParameters: V1ApiRouteAuthCallbackRequest,
+		requestParameters: V1ApiRouteAuthCallbackRequest = {},
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.routeAuthCallbackRaw(requestParameters, initOverrides);
@@ -4556,6 +4546,45 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.routeStartAuthorizationRaw(requestParameters, initOverrides);
+	}
+
+	/**
+	 * Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)
+	 * Get current identity
+	 */
+	async routeWhoamiRaw(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<Identity>> {
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/identity/v1/auth/whoami`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			IdentityFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)
+	 * Get current identity
+	 */
+	async routeWhoami(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<Identity> {
+		const response = await this.routeWhoamiRaw(initOverrides);
+		return await response.value();
 	}
 
 	/**

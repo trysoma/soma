@@ -258,12 +258,9 @@ async fn apply_jwt_template_config(
 mod integration_test {
     use super::*;
     use crate::logic::sts::config::{DevModeConfig, JwtTemplateModeConfig, create_sts_config};
-    use crate::logic::token_mapping::template::{
-        JwtTokenMappingConfig, MappingSource,
-    };
+    use crate::logic::token_mapping::template::{JwtTokenMappingConfig, MappingSource};
     use crate::test::dex::{
-        DEX_JWKS_ENDPOINT, DEX_MOCK_USER_EMAIL, DEX_USERINFO_ENDPOINT,
-        perform_dex_mock_oidc_login,
+        DEX_JWKS_ENDPOINT, DEX_MOCK_USER_EMAIL, DEX_USERINFO_ENDPOINT, perform_dex_mock_oidc_login,
     };
     use crate::test::fixtures::TestContext;
     use crate::test::token_validation::{
@@ -375,7 +372,10 @@ mod integration_test {
             .get_user_by_id("human_dev-user")
             .await
             .expect("Query should succeed");
-        assert!(user_before.is_none(), "User should not exist before exchange");
+        assert!(
+            user_before.is_none(),
+            "User should not exist before exchange"
+        );
 
         // Exchange with dev mode
         let params = ExchangeStsTokenParams {
@@ -414,7 +414,10 @@ mod integration_test {
             .await
             .expect("Failed to get tokens from Dex");
 
-        assert!(!dex_tokens.access_token.is_empty(), "Should have access token");
+        assert!(
+            !dex_tokens.access_token.is_empty(),
+            "Should have access token"
+        );
         assert!(!dex_tokens.id_token.is_empty(), "Should have ID token");
 
         // Create JWT template STS config
@@ -428,12 +431,11 @@ mod integration_test {
         let mut headers = HeaderMap::new();
         headers.insert(
             "authorization",
-            format!("Bearer {}", dex_tokens.access_token).parse().unwrap(),
+            format!("Bearer {}", dex_tokens.access_token)
+                .parse()
+                .unwrap(),
         );
-        headers.insert(
-            "x-id-token",
-            dex_tokens.id_token.parse().unwrap(),
-        );
+        headers.insert("x-id-token", dex_tokens.id_token.parse().unwrap());
 
         let params = ExchangeStsTokenParams {
             headers,
@@ -492,12 +494,11 @@ mod integration_test {
         let mut headers = HeaderMap::new();
         headers.insert(
             "authorization",
-            format!("Bearer {}", dex_tokens.access_token).parse().unwrap(),
+            format!("Bearer {}", dex_tokens.access_token)
+                .parse()
+                .unwrap(),
         );
-        headers.insert(
-            "x-id-token",
-            dex_tokens.id_token.parse().unwrap(),
-        );
+        headers.insert("x-id-token", dex_tokens.id_token.parse().unwrap());
 
         let params = ExchangeStsTokenParams {
             headers,
@@ -586,8 +587,7 @@ mod integration_test {
         let err = result.unwrap_err();
         assert!(
             matches!(err, CommonError::Authentication { .. }),
-            "Should be Authentication error, got: {:?}",
-            err
+            "Should be Authentication error, got: {err:?}"
         );
     }
 
@@ -629,9 +629,11 @@ mod integration_test {
         let mut headers = HeaderMap::new();
         headers.insert("authorization", "Bearer my-token-value".parse().unwrap());
 
-        let result =
-            extract_token_from_headers(&headers, &TokenLocation::Header("authorization".to_string()))
-                .expect("Should extract token");
+        let result = extract_token_from_headers(
+            &headers,
+            &TokenLocation::Header("authorization".to_string()),
+        )
+        .expect("Should extract token");
 
         assert_eq!(result, "my-token-value");
     }
@@ -655,7 +657,9 @@ mod integration_test {
         let mut headers = HeaderMap::new();
         headers.insert(
             "cookie",
-            "session=abc123; access_token=my-cookie-token; other=value".parse().unwrap(),
+            "session=abc123; access_token=my-cookie-token; other=value"
+                .parse()
+                .unwrap(),
         );
 
         let result = extract_token_from_headers(

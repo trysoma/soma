@@ -11,7 +11,7 @@ pub use sqlite::Repository;
 // Re-export types from logic modules that are used in repository trait
 pub use crate::logic::api_key::{HashedApiKey, HashedApiKeyWithUser};
 pub use crate::logic::user::{
-    Group, GroupMemberWithUser, GroupMembership, Role, User, UserType, UserGroupWithGroup,
+    Group, GroupMemberWithUser, GroupMembership, Role, User, UserGroupWithGroup, UserType,
 };
 use crate::logic::user_auth_flow::config::EncryptedUserAuthFlowConfig;
 use crate::logic::{

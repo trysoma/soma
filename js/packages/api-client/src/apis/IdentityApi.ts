@@ -19,6 +19,7 @@ import type {
 	CreateUserAuthFlowConfigResponse,
 	EncryptedApiKeyConfig,
 	GetUserAuthFlowConfigResponse,
+	Identity,
 	ImportUserAuthFlowConfigParams,
 	JwkResponsePaginatedResponse,
 	JwksResponse,
@@ -37,6 +38,7 @@ import {
 	CreateUserAuthFlowConfigResponseFromJSON,
 	EncryptedApiKeyConfigToJSON,
 	GetUserAuthFlowConfigResponseFromJSON,
+	IdentityFromJSON,
 	ImportUserAuthFlowConfigParamsToJSON,
 	JwkResponsePaginatedResponseFromJSON,
 	JwksResponseFromJSON,
@@ -52,7 +54,6 @@ import {
 import * as runtime from "../runtime";
 
 export interface IdentityApiRouteAuthCallbackRequest {
-	configId: string;
 	code?: string | null;
 	state?: string | null;
 	error?: string | null;
@@ -149,13 +150,6 @@ export class IdentityApi extends runtime.BaseAPI {
 		requestParameters: IdentityApiRouteAuthCallbackRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<void>> {
-		if (requestParameters.configId == null) {
-			throw new runtime.RequiredError(
-				"configId",
-				'Required parameter "configId" was null or undefined when calling routeAuthCallback().',
-			);
-		}
-
 		const queryParameters: any = {};
 
 		if (requestParameters.code != null) {
@@ -176,11 +170,7 @@ export class IdentityApi extends runtime.BaseAPI {
 
 		const headerParameters: runtime.HTTPHeaders = {};
 
-		let urlPath = `/api/identity/v1/auth/callback/{config_id}`;
-		urlPath = urlPath.replace(
-			`{${"config_id"}}`,
-			encodeURIComponent(String(requestParameters.configId)),
-		);
+		const urlPath = `/api/identity/v1/auth/callback`;
 
 		const response = await this.request(
 			{
@@ -200,7 +190,7 @@ export class IdentityApi extends runtime.BaseAPI {
 	 * Authorization callback
 	 */
 	async routeAuthCallback(
-		requestParameters: IdentityApiRouteAuthCallbackRequest,
+		requestParameters: IdentityApiRouteAuthCallbackRequest = {},
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.routeAuthCallbackRaw(requestParameters, initOverrides);
@@ -1214,5 +1204,44 @@ export class IdentityApi extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.routeStartAuthorizationRaw(requestParameters, initOverrides);
+	}
+
+	/**
+	 * Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)
+	 * Get current identity
+	 */
+	async routeWhoamiRaw(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<Identity>> {
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/identity/v1/auth/whoami`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			IdentityFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)
+	 * Get current identity
+	 */
+	async routeWhoami(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<Identity> {
+		const response = await this.routeWhoamiRaw(initOverrides);
+		return await response.value();
 	}
 }

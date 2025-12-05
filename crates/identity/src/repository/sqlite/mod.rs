@@ -10,8 +10,8 @@ pub mod generated {
 pub use generated::*;
 
 use crate::logic::sts::config::StsTokenConfigType;
-use crate::logic::user_auth_flow::oauth::OAuthState;
 use crate::logic::user::{Role, UserType};
+use crate::logic::user_auth_flow::oauth::OAuthState;
 use crate::repository::{
     Group, GroupMemberWithUser, GroupMembership, HashedApiKey, HashedApiKeyWithUser, JwtSigningKey,
     StsConfigurationDb, UpdateUser, User, UserAuthFlowConfigDb, UserGroupWithGroup,
@@ -159,8 +159,8 @@ impl UserRepositoryLike for Repository {
         } else {
             None
         };
-        let user_type_owned = user_type.map(|s| s.clone());
-        let role_owned = role.map(|r| r.clone());
+        let user_type_owned = user_type.cloned();
+        let role_owned = role.cloned();
         let sqlc_params = get_users_params {
             cursor: &cursor_datetime,
             user_type: &user_type_owned,

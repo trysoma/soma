@@ -37,11 +37,23 @@ export interface EncryptedOidcYamlConfig {
 	 */
 	discoveryEndpoint?: string | null;
 	/**
+	 * Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque
+	 * @type {string}
+	 * @memberof EncryptedOidcYamlConfig
+	 */
+	introspectUrl?: string | null;
+	/**
 	 *
 	 * @type {any}
 	 * @memberof EncryptedOidcYamlConfig
 	 */
 	mapping: any | null;
+	/**
+	 * Userinfo endpoint URL (optional)
+	 * @type {string}
+	 * @memberof EncryptedOidcYamlConfig
+	 */
+	userinfoEndpoint?: string | null;
 }
 
 /**
@@ -72,7 +84,11 @@ export function EncryptedOidcYamlConfigFromJSONTyped(
 		baseConfig: EncryptedOauthYamlConfigFromJSON(json.base_config),
 		discoveryEndpoint:
 			json.discovery_endpoint == null ? undefined : json.discovery_endpoint,
+		introspectUrl:
+			json.introspect_url == null ? undefined : json.introspect_url,
 		mapping: json.mapping,
+		userinfoEndpoint:
+			json.userinfo_endpoint == null ? undefined : json.userinfo_endpoint,
 	};
 }
 
@@ -93,6 +109,8 @@ export function EncryptedOidcYamlConfigToJSONTyped(
 	return {
 		base_config: EncryptedOauthYamlConfigToJSON(value.baseConfig),
 		discovery_endpoint: value.discoveryEndpoint,
+		introspect_url: value.introspectUrl,
 		mapping: value.mapping,
+		userinfo_endpoint: value.userinfoEndpoint,
 	};
 }

@@ -1387,7 +1387,7 @@ mod unit_test {
 mod integration_test {
     use super::*;
     use identity::test::dex::{
-        DEX_AUTH_ENDPOINT, DEX_CLIENT_ID, DEX_CLIENT_SECRET, DEX_JWKS_ENDPOINT, DEX_ISSUER,
+        DEX_AUTH_ENDPOINT, DEX_CLIENT_ID, DEX_CLIENT_SECRET, DEX_ISSUER, DEX_JWKS_ENDPOINT,
         DEX_OAUTH_SCOPES, DEX_TOKEN_ENDPOINT, DEX_USERINFO_ENDPOINT,
     };
 
@@ -1422,10 +1422,7 @@ mod integration_test {
         };
 
         assert_eq!(controller.type_id(), "oauth_auth_flow");
-        assert_eq!(
-            OauthAuthFlowController::static_type_id(),
-            "oauth_auth_flow"
-        );
+        assert_eq!(OauthAuthFlowController::static_type_id(), "oauth_auth_flow");
     }
 
     #[tokio::test]
@@ -1453,15 +1450,15 @@ mod integration_test {
 
         // OAuth controller should provide rotateable credential support
         assert!(
-            controller.as_rotateable_controller_user_credential().is_some(),
+            controller
+                .as_rotateable_controller_user_credential()
+                .is_some(),
             "OAuth controller should provide rotateable credential support"
         );
     }
 
     #[tokio::test]
     async fn test_dex_token_endpoint_reachable() {
-       
-
         // Token endpoint should return an error for invalid requests (not 404)
         let client = reqwest::Client::new();
         let response = client
@@ -1481,8 +1478,6 @@ mod integration_test {
 
     #[tokio::test]
     async fn test_token_refresh_invalid_token() {
-        
-
         // Attempt to refresh with an invalid token
         let client = reqwest::Client::new();
         let response = client

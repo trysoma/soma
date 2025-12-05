@@ -42,11 +42,24 @@ export interface OidcConfig {
 	 */
 	id: string;
 	/**
+	 * Token introspection endpoint URL (RFC 7662)
+	 * If set, access tokens are treated as opaque and introspected via this endpoint
+	 * @type {string}
+	 * @memberof OidcConfig
+	 */
+	introspectUrl?: string | null;
+	/**
 	 *
 	 * @type {TokenMapping}
 	 * @memberof OidcConfig
 	 */
 	mapping: TokenMapping;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof OidcConfig
+	 */
+	userinfoEndpoint?: string | null;
 }
 
 /**
@@ -75,7 +88,11 @@ export function OidcConfigFromJSONTyped(
 		discoveryEndpoint:
 			json.discovery_endpoint == null ? undefined : json.discovery_endpoint,
 		id: json.id,
+		introspectUrl:
+			json.introspect_url == null ? undefined : json.introspect_url,
 		mapping: TokenMappingFromJSON(json.mapping),
+		userinfoEndpoint:
+			json.userinfo_endpoint == null ? undefined : json.userinfo_endpoint,
 	};
 }
 
@@ -95,6 +112,8 @@ export function OidcConfigToJSONTyped(
 		base_config: OauthConfigToJSON(value.baseConfig),
 		discovery_endpoint: value.discoveryEndpoint,
 		id: value.id,
+		introspect_url: value.introspectUrl,
 		mapping: TokenMappingToJSON(value.mapping),
+		userinfo_endpoint: value.userinfoEndpoint,
 	};
 }

@@ -17,7 +17,9 @@ pub enum Role {
 impl FromValue for Role {
     fn from_sql(val: libsql::Value) -> libsql::Result<Self> {
         match val {
-            libsql::Value::Text(s) => Role::parse(&s).ok_or_else(|| libsql::Error::InvalidColumnType),
+            libsql::Value::Text(s) => {
+                Role::parse(&s).ok_or_else(|| libsql::Error::InvalidColumnType)
+            }
             _ => Err(libsql::Error::InvalidColumnType),
         }
     }
@@ -63,7 +65,9 @@ pub enum UserType {
 impl FromValue for UserType {
     fn from_sql(val: libsql::Value) -> libsql::Result<Self> {
         match val {
-            libsql::Value::Text(s) => UserType::parse(&s).ok_or_else(|| libsql::Error::InvalidColumnType),
+            libsql::Value::Text(s) => {
+                UserType::parse(&s).ok_or_else(|| libsql::Error::InvalidColumnType)
+            }
             _ => Err(libsql::Error::InvalidColumnType),
         }
     }

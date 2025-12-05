@@ -43,6 +43,18 @@ export interface UserAuthFlowYamlConfigOneOf3 {
 	 */
 	encryptedClientSecret: string;
 	/**
+	 * Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque
+	 * @type {string}
+	 * @memberof UserAuthFlowYamlConfigOneOf3
+	 */
+	introspectUrl?: string;
+	/**
+	 * JWKS endpoint URL for token verification
+	 * @type {string}
+	 * @memberof UserAuthFlowYamlConfigOneOf3
+	 */
+	jwksEndpoint: string;
+	/**
 	 *
 	 * @type {any}
 	 * @memberof UserAuthFlowYamlConfigOneOf3
@@ -60,12 +72,6 @@ export interface UserAuthFlowYamlConfigOneOf3 {
 	 * @memberof UserAuthFlowYamlConfigOneOf3
 	 */
 	tokenEndpoint: string;
-	/**
-	 * Userinfo endpoint URL (optional)
-	 * @type {string}
-	 * @memberof UserAuthFlowYamlConfigOneOf3
-	 */
-	userinfoEndpoint?: string;
 	/**
 	 *
 	 * @type {string}
@@ -101,6 +107,8 @@ export function instanceOfUserAuthFlowYamlConfigOneOf3(
 		value.encryptedClientSecret === undefined
 	)
 		return false;
+	if (!("jwksEndpoint" in value) || value.jwksEndpoint === undefined)
+		return false;
 	if (!("mapping" in value) || value.mapping === undefined) return false;
 	if (!("scopes" in value) || value.scopes === undefined) return false;
 	if (!("tokenEndpoint" in value) || value.tokenEndpoint === undefined)
@@ -127,11 +135,12 @@ export function UserAuthFlowYamlConfigOneOf3FromJSONTyped(
 		clientId: json.client_id,
 		dekAlias: json.dek_alias,
 		encryptedClientSecret: json.encrypted_client_secret,
+		introspectUrl:
+			json.introspect_url == null ? undefined : json.introspect_url,
+		jwksEndpoint: json.jwks_endpoint,
 		mapping: json.mapping,
 		scopes: json.scopes,
 		tokenEndpoint: json.token_endpoint,
-		userinfoEndpoint:
-			json.userinfo_endpoint == null ? undefined : json.userinfo_endpoint,
 		type: json.type,
 	};
 }
@@ -155,10 +164,11 @@ export function UserAuthFlowYamlConfigOneOf3ToJSONTyped(
 		client_id: value.clientId,
 		dek_alias: value.dekAlias,
 		encrypted_client_secret: value.encryptedClientSecret,
+		introspect_url: value.introspectUrl,
+		jwks_endpoint: value.jwksEndpoint,
 		mapping: value.mapping,
 		scopes: value.scopes,
 		token_endpoint: value.tokenEndpoint,
-		userinfo_endpoint: value.userinfoEndpoint,
 		type: value.type,
 	};
 }
