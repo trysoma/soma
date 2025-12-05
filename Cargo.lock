@@ -32,7 +32,7 @@ dependencies = [
  "tower 0.5.2",
  "tracing",
  "tracing-subscriber",
- "typify 0.4.3",
+ "typify",
  "utoipa",
  "utoipa-axum",
  "uuid",
@@ -1250,7 +1250,7 @@ dependencies = [
 [[package]]
 name = "codederror"
 version = "1.6.0-dev"
-source = "git+https://github.com/restatedev/restate#abef1fdff16ba034f0d0868246474c8af38f2330"
+source = "git+https://github.com/restatedev/restate?rev=51d96ca2bb121a08192d541ccff5da839c0e590b#51d96ca2bb121a08192d541ccff5da839c0e590b"
 dependencies = [
  "codederror-derive",
  "restate-workspace-hack",
@@ -1259,7 +1259,7 @@ dependencies = [
 [[package]]
 name = "codederror-derive"
 version = "0.1.0"
-source = "git+https://github.com/restatedev/restate#abef1fdff16ba034f0d0868246474c8af38f2330"
+source = "git+https://github.com/restatedev/restate?rev=51d96ca2bb121a08192d541ccff5da839c0e590b#51d96ca2bb121a08192d541ccff5da839c0e590b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2110,7 +2110,7 @@ dependencies = [
  "atomic",
  "pear",
  "serde",
- "toml 0.8.23",
+ "toml",
  "uncased",
  "version_check",
 ]
@@ -3493,17 +3493,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df1d3c3b53da64cf5760482273a98e575c651a67eec7f77df96b5b642de8f039"
 
 [[package]]
-name = "listenfd"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b87bc54a4629b4294d0b3ef041b64c40c611097a677d9dc07b2c67739fe39dba"
-dependencies = [
- "libc",
- "uuid",
- "winapi",
-]
-
-[[package]]
 name = "litemap"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3863,6 +3852,19 @@ dependencies = [
 
 [[package]]
 name = "notify-debouncer-full"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2d88b1a7538054351c8258338df7c931a590513fb3745e8c15eb9ff4199b8d1"
+dependencies = [
+ "file-id",
+ "log",
+ "notify",
+ "notify-types",
+ "walkdir",
+]
+
+[[package]]
+name = "notify-debouncer-full"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "375bd3a138be7bfeff3480e4a623df4cbfb55b79df617c055cd810ba466fa078"
@@ -4104,9 +4106,9 @@ checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
 name = "opentelemetry"
-version = "0.31.0"
+version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b84bcd6ae87133e903af7ef497404dda70c60d0ea14895fc8a5e6722754fc2a0"
+checksum = "aaf416e4cb72756655126f7dd7bb0af49c674f4c1b9903e80c009e0c37e552e6"
 dependencies = [
  "futures-core",
  "futures-sink",
@@ -4627,9 +4629,9 @@ dependencies = [
 
 [[package]]
 name = "prost-dto"
-version = "0.0.4"
+version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21d6a1a4955045eceb2da65e27029648c023113f746833c3068e2a8de1e8f226"
+checksum = "507287d74904a170345662840a603bd5d937b39d3d6a589916cd33c9deda8ecd"
 dependencies = [
  "prost-dto-core",
  "prost-dto-derive",
@@ -4637,11 +4639,12 @@ dependencies = [
 
 [[package]]
 name = "prost-dto-core"
-version = "0.0.4"
+version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bb93dd17a53bea4223a3e5b0311f3d53660aea6b818ee8626a2f81b57ba4376"
+checksum = "9d8c10eed0bdb7f642bf4c2dd85c289e9fc6db578a37b8689c6b166196b0d36c"
 dependencies = [
- "darling 0.21.3",
+ "chrono",
+ "darling 0.20.11",
  "proc-macro2",
  "quote",
  "syn 2.0.111",
@@ -4649,9 +4652,9 @@ dependencies = [
 
 [[package]]
 name = "prost-dto-derive"
-version = "0.0.4"
+version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0543913bb6fe67eec51dd00f7861d6f7d0d7917080a7e13f547c89f84d376de7"
+checksum = "f1ccc60758662c45ce4c5a5f9fa72f87c47bd282416c23e7b78e12c00b9fe344"
 dependencies = [
  "proc-macro2",
  "prost-dto-core",
@@ -4946,7 +4949,7 @@ dependencies = [
 [[package]]
 name = "restate-admin-rest-model"
 version = "1.6.0-dev"
-source = "git+https://github.com/restatedev/restate#abef1fdff16ba034f0d0868246474c8af38f2330"
+source = "git+https://github.com/restatedev/restate?rev=51d96ca2bb121a08192d541ccff5da839c0e590b#51d96ca2bb121a08192d541ccff5da839c0e590b"
 dependencies = [
  "bytes",
  "derive_more",
@@ -4967,7 +4970,7 @@ dependencies = [
 [[package]]
 name = "restate-base64-util"
 version = "1.6.0-dev"
-source = "git+https://github.com/restatedev/restate#abef1fdff16ba034f0d0868246474c8af38f2330"
+source = "git+https://github.com/restatedev/restate?rev=51d96ca2bb121a08192d541ccff5da839c0e590b#51d96ca2bb121a08192d541ccff5da839c0e590b"
 dependencies = [
  "base64 0.22.1",
  "restate-workspace-hack",
@@ -4976,7 +4979,7 @@ dependencies = [
 [[package]]
 name = "restate-encoding"
 version = "1.6.0-dev"
-source = "git+https://github.com/restatedev/restate#abef1fdff16ba034f0d0868246474c8af38f2330"
+source = "git+https://github.com/restatedev/restate?rev=51d96ca2bb121a08192d541ccff5da839c0e590b#51d96ca2bb121a08192d541ccff5da839c0e590b"
 dependencies = [
  "bilrost",
  "bytes",
@@ -4988,7 +4991,7 @@ dependencies = [
 [[package]]
 name = "restate-encoding-derive"
 version = "0.1.0"
-source = "git+https://github.com/restatedev/restate#abef1fdff16ba034f0d0868246474c8af38f2330"
+source = "git+https://github.com/restatedev/restate?rev=51d96ca2bb121a08192d541ccff5da839c0e590b#51d96ca2bb121a08192d541ccff5da839c0e590b"
 dependencies = [
  "quote",
  "restate-workspace-hack",
@@ -4998,7 +5001,7 @@ dependencies = [
 [[package]]
 name = "restate-errors"
 version = "1.6.0-dev"
-source = "git+https://github.com/restatedev/restate#abef1fdff16ba034f0d0868246474c8af38f2330"
+source = "git+https://github.com/restatedev/restate?rev=51d96ca2bb121a08192d541ccff5da839c0e590b#51d96ca2bb121a08192d541ccff5da839c0e590b"
 dependencies = [
  "codederror",
  "paste",
@@ -5009,7 +5012,7 @@ dependencies = [
 [[package]]
 name = "restate-serde-util"
 version = "1.6.0-dev"
-source = "git+https://github.com/restatedev/restate#abef1fdff16ba034f0d0868246474c8af38f2330"
+source = "git+https://github.com/restatedev/restate?rev=51d96ca2bb121a08192d541ccff5da839c0e590b#51d96ca2bb121a08192d541ccff5da839c0e590b"
 dependencies = [
  "bytesize",
  "http 1.4.0",
@@ -5025,7 +5028,7 @@ dependencies = [
 [[package]]
 name = "restate-time-util"
 version = "1.6.0-dev"
-source = "git+https://github.com/restatedev/restate#abef1fdff16ba034f0d0868246474c8af38f2330"
+source = "git+https://github.com/restatedev/restate?rev=51d96ca2bb121a08192d541ccff5da839c0e590b#51d96ca2bb121a08192d541ccff5da839c0e590b"
 dependencies = [
  "jiff",
  "restate-workspace-hack",
@@ -5039,7 +5042,7 @@ dependencies = [
 [[package]]
 name = "restate-types"
 version = "1.6.0-dev"
-source = "git+https://github.com/restatedev/restate#abef1fdff16ba034f0d0868246474c8af38f2330"
+source = "git+https://github.com/restatedev/restate?rev=51d96ca2bb121a08192d541ccff5da839c0e590b#51d96ca2bb121a08192d541ccff5da839c0e590b"
 dependencies = [
  "ahash",
  "anyhow",
@@ -5063,7 +5066,6 @@ dependencies = [
  "enumset",
  "figment",
  "flexbuffers",
- "futures",
  "gardal",
  "generic-array 1.3.5",
  "hostname",
@@ -5074,11 +5076,10 @@ dependencies = [
  "jiff",
  "jsonptr",
  "jsonschema",
- "listenfd",
  "metrics",
  "moka",
  "notify",
- "notify-debouncer-full",
+ "notify-debouncer-full 0.5.0",
  "num-traits",
  "opentelemetry",
  "parking_lot",
@@ -5098,7 +5099,6 @@ dependencies = [
  "restate-time-util",
  "restate-utoipa",
  "restate-workspace-hack",
- "rustc-hash 2.1.1",
  "schemars 0.8.22",
  "semver",
  "serde",
@@ -5111,16 +5111,16 @@ dependencies = [
  "static_assertions",
  "strum",
  "syn 2.0.111",
+ "sync_wrapper 1.0.2",
  "thiserror 2.0.17",
  "tiny-gradient",
  "tokio",
  "tokio-stream",
- "tokio-util",
- "toml 0.9.8",
+ "toml",
  "tonic 0.14.2",
  "tracing",
  "typed-builder",
- "typify 0.5.0",
+ "typify",
  "ulid",
  "xxhash-rust",
 ]
@@ -5128,7 +5128,7 @@ dependencies = [
 [[package]]
 name = "restate-utoipa"
 version = "1.6.0-dev"
-source = "git+https://github.com/restatedev/restate#abef1fdff16ba034f0d0868246474c8af38f2330"
+source = "git+https://github.com/restatedev/restate?rev=51d96ca2bb121a08192d541ccff5da839c0e590b#51d96ca2bb121a08192d541ccff5da839c0e590b"
 dependencies = [
  "indexmap 2.12.1",
  "restate-workspace-hack",
@@ -5753,15 +5753,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_spanned"
-version = "1.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e24345aa0fe688594e73770a5f6d1b216508b4f93484c0026d521acd30134392"
-dependencies = [
- "serde_core",
-]
-
-[[package]]
 name = "serde_tokenstream"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6085,7 +6076,7 @@ dependencies = [
  "inquire",
  "libsql",
  "notify",
- "notify-debouncer-full",
+ "notify-debouncer-full 0.6.0",
  "reqwest",
  "rmcp",
  "schemars 1.1.0",
@@ -6158,7 +6149,7 @@ dependencies = [
  "identity",
  "libsql",
  "notify",
- "notify-debouncer-full",
+ "notify-debouncer-full 0.6.0",
  "rand 0.8.5",
  "reqwest",
  "restate-admin-rest-model",
@@ -6614,24 +6605,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc1beb996b9d83529a9e75c17a1686767d148d70663143c7854d8b4a09ced362"
 dependencies = [
  "serde",
- "serde_spanned 0.6.9",
- "toml_datetime 0.6.11",
+ "serde_spanned",
+ "toml_datetime",
  "toml_edit 0.22.27",
-]
-
-[[package]]
-name = "toml"
-version = "0.9.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0dc8b1fb61449e27716ec0e1bdf0f6b8f3e8f6b05391e8497b8b6d7804ea6d8"
-dependencies = [
- "indexmap 2.12.1",
- "serde_core",
- "serde_spanned 1.0.3",
- "toml_datetime 0.7.3",
- "toml_parser",
- "toml_writer",
- "winnow 0.7.14",
 ]
 
 [[package]]
@@ -6644,22 +6620,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "toml_datetime"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2cdb639ebbc97961c51720f858597f7f24c4fc295327923af55b74c3c724533"
-dependencies = [
- "serde_core",
-]
-
-[[package]]
 name = "toml_edit"
 version = "0.19.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
 dependencies = [
  "indexmap 2.12.1",
- "toml_datetime 0.6.11",
+ "toml_datetime",
  "winnow 0.5.40",
 ]
 
@@ -6671,18 +6638,9 @@ checksum = "41fe8c660ae4257887cf66394862d21dbca4a6ddd26f04a3560410406a2f819a"
 dependencies = [
  "indexmap 2.12.1",
  "serde",
- "serde_spanned 0.6.9",
- "toml_datetime 0.6.11",
+ "serde_spanned",
+ "toml_datetime",
  "toml_write",
- "winnow 0.7.14",
-]
-
-[[package]]
-name = "toml_parser"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0cbe268d35bdb4bb5a56a2de88d0ad0eb70af5384a99d648cd4b3d04039800e"
-dependencies = [
  "winnow 0.7.14",
 ]
 
@@ -6691,12 +6649,6 @@ name = "toml_write"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
-
-[[package]]
-name = "toml_writer"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df8b2b54733674ad286d16267dcfc7a71ed5c776e4ac7aa3c3e2561f7c637bf2"
 
 [[package]]
 name = "tonic"
@@ -6981,18 +6933,18 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "typed-builder"
-version = "0.23.2"
+version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31aa81521b70f94402501d848ccc0ecaa8f93c8eb6999eb9747e72287757ffda"
+checksum = "fef81aec2ca29576f9f6ae8755108640d0a86dd3161b2e8bca6cfa554e98f77d"
 dependencies = [
  "typed-builder-macro",
 ]
 
 [[package]]
 name = "typed-builder-macro"
-version = "0.23.2"
+version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "076a02dc54dd46795c2e9c8282ed40bcfb1e22747e955de9389a1de28190fb26"
+checksum = "1ecb9ecf7799210407c14a8cfdfe0173365780968dc57973ed082211958e0b18"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7011,18 +6963,8 @@ version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7144144e97e987c94758a3017c920a027feac0799df325d6df4fc8f08d02068e"
 dependencies = [
- "typify-impl 0.4.3",
- "typify-macro 0.4.3",
-]
-
-[[package]]
-name = "typify"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6d5bcc6f62eb1fa8aa4098f39b29f93dcb914e17158b76c50360911257aa629"
-dependencies = [
- "typify-impl 0.5.0",
- "typify-macro 0.5.0",
+ "typify-impl",
+ "typify-macro",
 ]
 
 [[package]]
@@ -7030,26 +6972,6 @@ name = "typify-impl"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "062879d46aa4c9dfe0d33b035bbaf512da192131645d05deacb7033ec8581a09"
-dependencies = [
- "heck",
- "log",
- "proc-macro2",
- "quote",
- "regress",
- "schemars 0.8.22",
- "semver",
- "serde",
- "serde_json",
- "syn 2.0.111",
- "thiserror 2.0.17",
- "unicode-ident",
-]
-
-[[package]]
-name = "typify-impl"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1eb359f7ffa4f9ebe947fa11a1b2da054564502968db5f317b7e37693cb2240"
 dependencies = [
  "heck",
  "log",
@@ -7079,24 +7001,7 @@ dependencies = [
  "serde_json",
  "serde_tokenstream",
  "syn 2.0.111",
- "typify-impl 0.4.3",
-]
-
-[[package]]
-name = "typify-macro"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "911c32f3c8514b048c1b228361bebb5e6d73aeec01696e8cc0e82e2ffef8ab7a"
-dependencies = [
- "proc-macro2",
- "quote",
- "schemars 0.8.22",
- "semver",
- "serde",
- "serde_json",
- "serde_tokenstream",
- "syn 2.0.111",
- "typify-impl 0.5.0",
+ "typify-impl",
 ]
 
 [[package]]
@@ -7934,7 +7839,7 @@ dependencies = [
  "tokio-rustls 0.26.4",
  "tokio-stream",
  "tokio-util",
- "toml_datetime 0.6.11",
+ "toml_datetime",
  "tower 0.5.2",
  "tower-http 0.6.7",
  "tracing",

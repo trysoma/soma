@@ -116,9 +116,10 @@ typify = "0.4.2"
 tera = "1.20.0"
 
 ## External services
-restate-admin-rest-model = { git = "https://github.com/restatedev/restate", package = "restate-admin-rest-model", features = ["schema"] }
-restate-types = { git = "https://github.com/restatedev/restate", package = "restate-types", features = ["schemars"] }
-restate-serde-util = { git = "https://github.com/restatedev/restate", package = "restate-serde-util", features = ["schema"] }
+# Pinned to commit compatible with rustc 1.88.0 (CI version)
+restate-admin-rest-model = { git = "https://github.com/restatedev/restate", rev = "51d96ca2bb121a08192d541ccff5da839c0e590b", package = "restate-admin-rest-model", features = ["schema"] }
+restate-types = { git = "https://github.com/restatedev/restate", rev = "51d96ca2bb121a08192d541ccff5da839c0e590b", package = "restate-types", features = ["schemars"] }
+restate-serde-util = { git = "https://github.com/restatedev/restate", rev = "51d96ca2bb121a08192d541ccff5da839c0e590b", package = "restate-serde-util", features = ["schema"] }
 clerk-rs = { git = "https://github.com/trysoma/clerk-rs", rev = "5b45669779e5178b870df2a7d24d780213f180bb" }
 
 ## File system / utilities

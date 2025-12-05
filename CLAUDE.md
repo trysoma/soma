@@ -45,8 +45,23 @@ For pagination, JSON serialization and deserialization and other coding opinions
 3. dependency inject all required parameters to the logic function
 
 
-See `crates/bridge/src/router.rs` as a starting point for code styles and opinions
+### Writing tests
 
+* prefer simplicity and re-usability over complex functions
+* never write tests for the sake of tests. Tests must be useful, impactful
+* always make sure the tests you've added / modified pass before finishing
+* put unit tests in the file the code is in: 
+```rust
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {}
+```
+See `crates/bridge/src/router.rs` as a starting point for code styles and opinions
+* put integration tests (that test specific functions with externalities) in the file the code is in:
+
+```rust
+#[cfg(all(test, feature = "integration_test"))]
+mod integration_test { }
+```
 
 
 ## Notes
