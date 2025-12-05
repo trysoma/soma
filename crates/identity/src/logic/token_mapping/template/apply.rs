@@ -125,7 +125,7 @@ fn extract_string_field(
     let value = extract_field_from_sources(sources, mapping_source)
         .ok_or_else(|| {
             CommonError::Unknown(anyhow::anyhow!(
-                "Missing '{field_name}' field in token/userinfo"
+                "Missing '{field_name}' field in token/userinfo/introspection"
             ))
         })?;
 

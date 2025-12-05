@@ -23,11 +23,13 @@ pub struct OauthConfig {
     pub id: String,
     pub authorization_endpoint: String,
     pub token_endpoint: String,
-    pub userinfo_endpoint: Option<String>,
     pub client_id: String,
     pub client_secret: String,
     pub scopes: Vec<String>,
-
+    pub jwks_endpoint: String,
+    /// Token introspection endpoint URL (RFC 7662)
+    /// If set, access tokens are treated as opaque and introspected via this endpoint
+    pub introspect_url: Option<String>,
     pub mapping: TokenMapping,
 }
 
@@ -38,6 +40,10 @@ pub struct OidcConfig {
     pub base_config: OauthConfig,
     pub discovery_endpoint: Option<String>,
     pub mapping: TokenMapping,
+    pub userinfo_endpoint: Option<String>,
+    /// Token introspection endpoint URL (RFC 7662)
+    /// If set, access tokens are treated as opaque and introspected via this endpoint
+    pub introspect_url: Option<String>,
 }
 
 /// The four supported IdP configuration types
@@ -94,12 +100,13 @@ pub struct EncryptedOauthConfig {
     pub id: String,
     pub authorization_endpoint: String,
     pub token_endpoint: String,
-    pub userinfo_endpoint: Option<String>,
+    pub jwks_endpoint: String,
     pub client_id: String,
     pub encrypted_client_secret: EncryptedString,
     pub dek_alias: String,
     pub scopes: Vec<String>,
-
+    /// Token introspection endpoint URL (RFC 7662)
+    pub introspect_url: Option<String>,
     pub mapping: TokenMapping,
 }
 
@@ -109,6 +116,9 @@ pub struct EncryptedOidcConfig {
     pub id: String,
     pub base_config: EncryptedOauthConfig,
     pub discovery_endpoint: Option<String>,
+    pub userinfo_endpoint: Option<String>,
+    /// Token introspection endpoint URL (RFC 7662)
+    pub introspect_url: Option<String>,
     pub mapping: TokenMapping,
 }
 
@@ -174,7 +184,7 @@ async fn decrypt_oauth_config(
         id: encrypted.id.clone(),
         authorization_endpoint: encrypted.authorization_endpoint.clone(),
         token_endpoint: encrypted.token_endpoint.clone(),
-        userinfo_endpoint: encrypted.userinfo_endpoint.clone(),
+        jwks_endpoint: encrypted.jwks_endpoint.clone(),
         client_id: encrypted.client_id.clone(),
         client_secret,
         scopes: encrypted.scopes.clone(),
@@ -196,7 +206,7 @@ async fn encrypt_oauth_config(
         id: oauth.id.clone(),
         authorization_endpoint: oauth.authorization_endpoint.clone(),
         token_endpoint: oauth.token_endpoint.clone(),
-        userinfo_endpoint: oauth.userinfo_endpoint.clone(),
+        jwks_endpoint: oauth.jwks_endpoint.clone(),
         client_id: oauth.client_id.clone(),
         encrypted_client_secret,
         dek_alias: dek_alias.to_string(),
@@ -215,6 +225,8 @@ async fn decrypt_oidc_config(
         id: encrypted.id.clone(),
         base_config,
         discovery_endpoint: encrypted.discovery_endpoint.clone(),
+        userinfo_endpoint: encrypted.userinfo_endpoint.clone(),
+        introspect_url: encrypted.introspect_url.clone(),
         mapping: encrypted.mapping.clone(),
     })
 }
@@ -230,6 +242,8 @@ async fn encrypt_oidc_config(
         id: oidc.id.clone(),
         base_config,
         discovery_endpoint: oidc.discovery_endpoint.clone(),
+        userinfo_endpoint: oidc.userinfo_endpoint.clone(),
+        introspect_url: oidc.introspect_url.clone(),
         mapping: oidc.mapping.clone(),
     })
 }

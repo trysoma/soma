@@ -45,7 +45,7 @@ async fn route_create_sts_config(
 ) -> JsonResponse<StsTokenConfig, CommonError> {
     let result = create_sts_config(
         service.repository.as_ref(),
-        service.on_config_change_tx(),
+        &service.on_config_change_tx,
         params,
         true, // publish_on_change_evt
     )
@@ -99,7 +99,7 @@ async fn route_delete_sts_config(
     let params = DeleteStsConfigParams { id };
     let result = delete_sts_config(
         service.repository.as_ref(),
-        service.on_config_change_tx(),
+        &service.on_config_change_tx,
         params,
         true, // publish_on_change_evt
     )

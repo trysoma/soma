@@ -98,9 +98,8 @@ pub struct EncryptedOauthYamlConfig {
     pub authorization_endpoint: String,
     /// Token endpoint URL
     pub token_endpoint: String,
-    /// Userinfo endpoint URL (optional)
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub userinfo_endpoint: Option<String>,
+    /// JWKS endpoint URL for token verification
+    pub jwks_endpoint: String,
     /// OAuth client ID
     pub client_id: String,
     /// Encrypted client secret
@@ -122,6 +121,12 @@ pub struct EncryptedOidcYamlConfig {
     /// OIDC discovery endpoint (optional)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub discovery_endpoint: Option<String>,
+    /// Userinfo endpoint URL (optional)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub userinfo_endpoint: Option<String>,
+    /// Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub introspect_url: Option<String>,
     /// Token mapping configuration (serialized as JSON)
     pub mapping: serde_json::Value,
 }

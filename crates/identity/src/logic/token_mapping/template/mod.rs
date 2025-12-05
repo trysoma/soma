@@ -71,6 +71,7 @@ pub struct JwtTokenTemplateValidationConfig {
 pub struct JwtTokenTemplateConfig {
     pub jwks_uri: String,
     pub userinfo_url: Option<String>,
+    pub introspect_url: Option<String>,
     pub access_token_location: Option<TokenLocation>,
     pub id_token_location: Option<TokenLocation>,
     pub mapping_template: JwtTokenMappingConfig,

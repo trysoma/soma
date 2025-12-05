@@ -352,6 +352,7 @@ impl TryFrom<Row_get_user_auth_flow_configs> for UserAuthFlowConfigDb {
 impl EncryptedUserAuthFlowConfig {
     /// Convert the encrypted config to database values (config_type, config_json)
     pub fn to_db_values(&self) -> Result<(String, WrappedJsonValue), CommonError> {
+        tracing::debug!("Converting EncryptedUserAuthFlowConfig variant: {:?}", std::mem::discriminant(self));
         let (config_type, config_value) = match self {
             EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(config) => {
                 let json = serde_json::to_value(config).map_err(|e| CommonError::Repository {

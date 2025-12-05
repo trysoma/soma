@@ -685,7 +685,7 @@ fn convert_user_auth_flow_to_yaml(
         Ok(EncryptedOauthYamlConfig {
             authorization_endpoint: oauth.authorization_endpoint.clone(),
             token_endpoint: oauth.token_endpoint.clone(),
-            userinfo_endpoint: oauth.userinfo_endpoint.clone(),
+            jwks_endpoint: oauth.jwks_endpoint.clone(),
             client_id: oauth.client_id.clone(),
             encrypted_client_secret: oauth.encrypted_client_secret.0.clone(),
             dek_alias: oauth.dek_alias.clone(),
@@ -703,6 +703,8 @@ fn convert_user_auth_flow_to_yaml(
         Ok(EncryptedOidcYamlConfig {
             base_config,
             discovery_endpoint: oidc.discovery_endpoint.clone(),
+            userinfo_endpoint: oidc.userinfo_endpoint.clone(),
+            introspect_url: oidc.introspect_url.clone(),
             mapping: mapping_json,
         })
     }

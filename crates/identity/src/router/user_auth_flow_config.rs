@@ -61,7 +61,7 @@ async fn route_create_user_auth_flow_config(
     let result = create_user_auth_flow_config(
         service.repository.as_ref(),
         &service.crypto_cache,
-        service.on_config_change_tx(),
+        &service.on_config_change_tx,
         params,
         true, // publish_on_change_evt
     )
@@ -115,7 +115,7 @@ async fn route_delete_user_auth_flow_config(
     let params = DeleteUserAuthFlowConfigParams { id };
     let result = delete_user_auth_flow_config(
         service.repository.as_ref(),
-        service.on_config_change_tx(),
+        &service.on_config_change_tx,
         params,
         true, // publish_on_change_evt
     )
@@ -170,6 +170,7 @@ async fn route_import_user_auth_flow_config(
     State(service): State<IdentityService>,
     Json(params): Json<ImportUserAuthFlowConfigParams>,
 ) -> JsonResponse<ImportUserAuthFlowConfigResponse, CommonError> {
+    tracing::info!("Importing user auth flow config: {:?}", params.config);
     let result = import_user_auth_flow_config(service.repository.as_ref(), params).await;
     JsonResponse::from(result)
 }

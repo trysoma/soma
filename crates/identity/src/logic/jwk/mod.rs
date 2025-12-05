@@ -13,8 +13,8 @@ use shared::{
 };
 use uuid::Uuid;
 
-use crate::logic::jwk::cache::JwksCache;
-use crate::repository::{CreateJwtSigningKey, UserRepositoryLike};
+use crate::logic::{internal_token_issuance::JwtSigningKey, jwk::cache::JwksCache};
+use crate::repository::{ UserRepositoryLike};
 
 use utoipa::ToSchema;
 
@@ -122,7 +122,7 @@ where
 
     // Store in database
     let public_key_pem_str = public_key_pem.to_string();
-    let create_params = CreateJwtSigningKey {
+    let create_params = JwtSigningKey {
         kid: kid.clone(),
         encrypted_private_key: encrypted_private_key.0,
         expires_at: WrappedChronoDateTime::new(expires_at),

@@ -34,20 +34,6 @@ fn build_token_response(
     (jar, Json(tokens)).into_response()
 }
 
-/// Build error response from CommonError
-fn build_error_response(error: CommonError) -> Response {
-    let status = match &error {
-        CommonError::NotFound { .. } => StatusCode::NOT_FOUND,
-        CommonError::Authentication { .. } => StatusCode::UNAUTHORIZED,
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
-    };
-
-    let body = serde_json::json!({
-        "error": error.to_string(),
-    });
-
-    (status, Json(body)).into_response()
-}
 
 #[utoipa::path(
     post,
@@ -70,7 +56,7 @@ async fn route_exchange_sts_token(
     Path(sts_config_id): Path<String>,
     headers: HeaderMap,
     jar: CookieJar,
-) -> Response {
+) -> impl IntoResponse {
     let params = ExchangeStsTokenParams {
         headers,
         sts_token_config_id: sts_config_id,
@@ -86,6 +72,6 @@ async fn route_exchange_sts_token(
 
     match result {
         Ok(token_result) => build_token_response(jar, &token_result),
-        Err(error) => build_error_response(error),
+        Err(error) => error.into_response(),
     }
 }

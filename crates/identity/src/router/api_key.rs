@@ -43,7 +43,7 @@ async fn route_create_api_key(
     let result = create_api_key(
         service.repository.as_ref(),
         &service.crypto_cache,
-        service.on_config_change_tx(),
+        &service.on_config_change_tx,
         Some(&service.api_key_cache),
         params,
         true, // publish_on_change_evt
@@ -72,7 +72,7 @@ async fn route_delete_api_key(
     let params = DeleteApiKeyParams { id };
     let result = delete_api_key(
         service.repository.as_ref(),
-        service.on_config_change_tx(),
+        &service.on_config_change_tx,
         Some(&service.api_key_cache),
         params,
         true, // publish_on_change_evt

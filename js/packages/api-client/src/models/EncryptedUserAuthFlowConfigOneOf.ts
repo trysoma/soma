@@ -61,7 +61,7 @@ export function EncryptedUserAuthFlowConfigOneOfFromJSONTyped(
 	}
 	return {
 		oidcAuthorizationCodeFlow: EncryptedOidcConfigFromJSON(
-			json.OidcAuthorizationCodeFlow,
+			json.oidc_authorization_code_flow,
 		),
 	};
 }
@@ -81,7 +81,7 @@ export function EncryptedUserAuthFlowConfigOneOfToJSONTyped(
 	}
 
 	return {
-		OidcAuthorizationCodeFlow: EncryptedOidcConfigToJSON(
+		oidc_authorization_code_flow: EncryptedOidcConfigToJSON(
 			value.oidcAuthorizationCodeFlow,
 		),
 	};

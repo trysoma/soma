@@ -758,7 +758,7 @@ fn convert_yaml_to_api_user_auth_flow(
             id: id.to_string(),
             authorization_endpoint: oauth.authorization_endpoint.clone(),
             token_endpoint: oauth.token_endpoint.clone(),
-            userinfo_endpoint: oauth.userinfo_endpoint.clone().map(Some),
+            jwks_endpoint: oauth.jwks_endpoint.clone(),
             client_id: oauth.client_id.clone(),
             encrypted_client_secret: oauth.encrypted_client_secret.clone(),
             dek_alias: oauth.dek_alias.clone(),
@@ -778,6 +778,8 @@ fn convert_yaml_to_api_user_auth_flow(
             id: id.to_string(),
             base_config,
             discovery_endpoint: oidc.discovery_endpoint.clone().map(Some),
+            userinfo_endpoint: oidc.userinfo_endpoint.clone().map(Some),
+            introspect_url: oidc.introspect_url.clone().map(Some),
             mapping: serde_json::from_value(oidc.mapping.clone()).map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to parse token mapping: {e}"))
             })?,

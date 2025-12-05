@@ -11,7 +11,7 @@ pub use sqlite::Repository;
 // Re-export types from logic modules that are used in repository trait
 pub use crate::logic::user::{Role, User, Group, GroupMembership, GroupMemberWithUser, UserGroupWithGroup};
 pub use crate::logic::api_key::{HashedApiKey, HashedApiKeyWithUser};
-use crate::logic::sts::config::{StsTokenConfig, StsTokenConfigType};
+use crate::logic::{internal_token_issuance::JwtSigningKey, sts::config::{StsTokenConfig, StsTokenConfigType}, user_auth_flow::oauth::OAuthState};
 use crate::logic::user_auth_flow::config::EncryptedUserAuthFlowConfig;
 
 #[derive(Debug, Default)]
@@ -22,62 +22,6 @@ pub struct UpdateUser {
 }
 
 
-// JWT Signing Key types
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct JwtSigningKey {
-    pub kid: String,
-    pub encrypted_private_key: String,
-    pub expires_at: WrappedChronoDateTime,
-    pub public_key: String,
-    pub dek_alias: String,
-    pub invalidated: bool,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-#[derive(Debug, Clone)]
-pub struct CreateJwtSigningKey {
-    pub kid: String,
-    pub encrypted_private_key: String,
-    pub expires_at: WrappedChronoDateTime,
-    pub public_key: String,
-    pub dek_alias: String,
-    pub invalidated: bool,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-// Group membership creation type
-#[derive(Debug, Clone)]
-pub struct CreateGroupMembership {
-    pub group_id: String,
-    pub user_id: String,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-// OAuth state types
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct OAuthState {
-    pub state: String,
-    pub config_id: String,
-    pub code_verifier: Option<String>,
-    pub nonce: Option<String>,
-    pub redirect_uri: Option<String>,
-    pub created_at: WrappedChronoDateTime,
-    pub expires_at: WrappedChronoDateTime,
-}
-
-#[derive(Debug, Clone)]
-pub struct CreateOAuthState {
-    pub state: String,
-    pub config_id: String,
-    pub code_verifier: Option<String>,
-    pub nonce: Option<String>,
-    pub redirect_uri: Option<String>,
-    pub created_at: WrappedChronoDateTime,
-    pub expires_at: WrappedChronoDateTime,
-}
 
 // STS configuration types (raw database format)
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -152,7 +96,7 @@ pub trait UserRepositoryLike {
     // Group membership methods
     async fn create_group_membership(
         &self,
-        params: &CreateGroupMembership,
+        params: &GroupMembership,
     ) -> Result<(), CommonError>;
 
     async fn get_group_membership(
@@ -185,7 +129,7 @@ pub trait UserRepositoryLike {
     async fn delete_group_memberships_by_user_id(&self, user_id: &str) -> Result<(), CommonError>;
 
     // JWT signing key methods
-    async fn create_jwt_signing_key(&self, params: &CreateJwtSigningKey)
+    async fn create_jwt_signing_key(&self, params: &JwtSigningKey)
     -> Result<(), CommonError>;
 
     async fn get_jwt_signing_key_by_kid(
@@ -239,7 +183,7 @@ pub trait UserRepositoryLike {
     ) -> Result<PaginatedResponse<UserAuthFlowConfigDb>, CommonError>;
 
     // OAuth state methods
-    async fn create_oauth_state(&self, params: &CreateOAuthState) -> Result<(), CommonError>;
+    async fn create_oauth_state(&self, params: &OAuthState) -> Result<(), CommonError>;
 
     async fn get_oauth_state_by_state(&self, state: &str) -> Result<Option<OAuthState>, CommonError>;
 

@@ -1,6 +1,6 @@
 use shared::{error::CommonError, primitives::{PaginationRequest, WrappedChronoDateTime}};
 
-use crate::repository::{CreateGroupMembership, Group, UserRepositoryLike};
+use crate::repository::{ Group, GroupMembership, UserRepositoryLike};
 
 
 
@@ -40,7 +40,7 @@ pub async fn sync_user_groups<R: UserRepositoryLike>(
         }
 
         // Create membership
-        let create_membership = CreateGroupMembership {
+        let create_membership = GroupMembership {
             group_id: group_id.clone(),
             user_id: user_id.to_string(),
             created_at: now,

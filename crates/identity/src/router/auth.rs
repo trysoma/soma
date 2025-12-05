@@ -12,7 +12,7 @@ use crate::logic::internal_token_issuance::{
     NormalizedTokenIssuanceResult, RefreshTokenParams, RefreshTokenResult, refresh_access_token,
 };
 use crate::logic::user_auth_flow::{OAuthCallbackParams, StartAuthorizationParams};
-use crate::logic::user_auth_flow::oauth::{
+use crate::logic::user_auth_flow::{
     handle_authorization_handshake_callback, start_authorization_handshake,
 };
 use crate::service::IdentityService;
@@ -113,18 +113,6 @@ fn build_refresh_token_response(
     (jar, Json(body)).into_response()
 }
 
-/// Build error response from CommonError
-fn build_error_response(error: CommonError) -> Response {
-    let status = match &error {
-        CommonError::NotFound { .. } => StatusCode::NOT_FOUND,
-        CommonError::Authentication { .. } => StatusCode::UNAUTHORIZED,
-        CommonError::InvalidRequest { .. } => StatusCode::BAD_REQUEST,
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
-    };
-
-    (status, Json(error)).into_response()
-}
-
 // ============================================
 // Route Handlers
 // ============================================
@@ -150,25 +138,24 @@ async fn route_start_authorization(
     State(service): State<IdentityService>,
     Path(config_id): Path<String>,
     Query(query): Query<StartAuthorizationQuery>,
-) -> Response {
+) -> impl IntoResponse {
     let params = StartAuthorizationParams {
         config_id,
         redirect_after_login: query.redirect_after_login,
     };
 
-    match start_authorization_handshake(service.repository.as_ref(), &service.crypto_cache, params).await {
+    match start_authorization_handshake(service.repository.as_ref(), &service.crypto_cache, &service.base_redirect_uri, params).await {
         Ok(result) => Redirect::temporary(&result.login_redirect_url).into_response(),
-        Err(e) => build_error_response(e),
+        Err(e) => e.into_response(),
     }
 }
 
 /// Authorization callback endpoint - handles the IdP response
 #[utoipa::path(
     get,
-    path = format!("{}/{}/{}/auth/callback/{{config_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/auth/callback", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
-        ("config_id" = String, Path, description = "ID of the user auth flow configuration"),
         AuthCallbackQuery
     ),
     responses(
@@ -181,18 +168,17 @@ async fn route_start_authorization(
 )]
 async fn route_auth_callback(
     State(service): State<IdentityService>,
-    Path(_config_id): Path<String>,
     Query(query): Query<AuthCallbackQuery>,
     jar: CookieJar,
-) -> Response {
+) -> impl IntoResponse {
     // Check for required parameters
     let state = match query.state {
         Some(s) => s,
         None => {
-            return build_error_response(CommonError::InvalidRequest {
+            return CommonError::InvalidRequest {
                 msg: "Missing state parameter".to_string(),
                 source: None,
-            });
+            }.into_response();
         }
     };
 
@@ -208,7 +194,9 @@ async fn route_auth_callback(
     match handle_authorization_handshake_callback(
         service.repository.as_ref(),
         &service.crypto_cache,
+        &service.external_jwks_cache,
         params,
+        &service.base_redirect_uri,
     )
     .await
     {
@@ -221,7 +209,7 @@ async fn route_auth_callback(
 
             (jar, Redirect::to(redirect_uri)).into_response()
         }
-        Err(e) => build_error_response(e),
+        Err(e) => e.into_response(),
     }
 }
 
@@ -251,10 +239,10 @@ async fn route_refresh_token(
         .or_else(|| extract_refresh_token_from_jar(&jar));
 
     let Some(refresh_token) = refresh_token else {
-        return build_error_response(CommonError::Authentication {
+        return CommonError::Authentication {
             msg: "No refresh token provided in body or cookie".to_string(),
             source: None,
-        });
+        }.into_response();
     };
 
     let params = RefreshTokenParams { refresh_token };
@@ -272,6 +260,6 @@ async fn route_refresh_token(
             // Only set access token cookie on refresh, don't update refresh token
             build_refresh_token_response(jar, &token_result)
         }
-        Err(error) => build_error_response(error),
+        Err(error) => error.into_response(),
     }
 }

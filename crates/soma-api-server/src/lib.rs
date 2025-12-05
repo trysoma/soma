@@ -53,6 +53,7 @@ pub struct ApiService {
 }
 
 pub struct InitApiServiceParams {
+    pub base_url: String,
     pub host: String,
     pub port: u16,
     pub soma_restate_service_port: u16,
@@ -71,7 +72,7 @@ pub struct InitApiServiceParams {
     pub encryption_repository: encryption::repository::Repository,
     pub crypto_cache: CryptoCache,
     pub bridge_repository: ::bridge::repository::Repository,
-    pub identity_service: identity::service::IdentityService,
+    pub identity_repository: identity::repository::Repository,
     pub mcp_sse_ping_interval: Duration,
     pub sdk_client: Arc<
         tokio::sync::Mutex<
@@ -134,6 +135,14 @@ impl ApiService {
             init_params.sdk_client.clone(),
         ));
 
+        // Construct identity service
+        let identity_service = identity::service::IdentityService::new(
+            init_params.base_url.clone(),
+            init_params.identity_repository,
+            init_params.encryption_repository.clone(),
+            init_params.local_envelope_encryption_key_path,
+        );
+
         Ok(Self {
             agent_service,
             task_service,
@@ -142,7 +151,7 @@ impl ApiService {
             encryption_service,
             secret_service,
             environment_variable_service,
-            identity_service: init_params.identity_service,
+            identity_service,
             sdk_client: init_params.sdk_client,
         })
     }

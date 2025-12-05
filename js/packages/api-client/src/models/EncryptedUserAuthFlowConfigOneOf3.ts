@@ -61,7 +61,7 @@ export function EncryptedUserAuthFlowConfigOneOf3FromJSONTyped(
 	}
 	return {
 		oauthAuthorizationCodePkceFlow: EncryptedOauthConfigFromJSON(
-			json.OauthAuthorizationCodePkceFlow,
+			json.oauth_authorization_code_pkce_flow,
 		),
 	};
 }
@@ -81,7 +81,7 @@ export function EncryptedUserAuthFlowConfigOneOf3ToJSONTyped(
 	}
 
 	return {
-		OauthAuthorizationCodePkceFlow: EncryptedOauthConfigToJSON(
+		oauth_authorization_code_pkce_flow: EncryptedOauthConfigToJSON(
 			value.oauthAuthorizationCodePkceFlow,
 		),
 	};

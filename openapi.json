@@ -3474,7 +3474,7 @@
         }
       }
     },
-    "/api/identity/v1/auth/callback/{config_id}": {
+    "/api/identity/v1/auth/callback": {
       "get": {
         "tags": [
           "identity",
@@ -3484,15 +3484,6 @@
         "description": "Handles the OAuth/OIDC callback from the external IdP, exchanges the authorization code for tokens",
         "operationId": "route_auth_callback",
         "parameters": [
-          {
-            "name": "config_id",
-            "in": "path",
-            "description": "ID of the user auth flow configuration",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "code",
             "in": "query",
@@ -6329,6 +6320,7 @@
           "id",
           "authorization_endpoint",
           "token_endpoint",
+          "jwks_endpoint",
           "client_id",
           "encrypted_client_secret",
           "dek_alias",
@@ -6351,6 +6343,9 @@
           "id": {
             "type": "string"
           },
+          "jwks_endpoint": {
+            "type": "string"
+          },
           "mapping": {
             "$ref": "#/components/schemas/TokenMapping"
           },
@@ -6362,12 +6357,6 @@
           },
           "token_endpoint": {
             "type": "string"
-          },
-          "userinfo_endpoint": {
-            "type": [
-              "string",
-              "null"
-            ]
           }
         }
       },
@@ -6377,6 +6366,7 @@
         "required": [
           "authorization_endpoint",
           "token_endpoint",
+          "jwks_endpoint",
           "client_id",
           "encrypted_client_secret",
           "dek_alias",
@@ -6400,6 +6390,10 @@
             "type": "string",
             "description": "Encrypted client secret"
           },
+          "jwks_endpoint": {
+            "type": "string",
+            "description": "JWKS endpoint URL for token verification"
+          },
           "mapping": {
             "description": "Token mapping configuration (serialized as JSON)"
           },
@@ -6413,13 +6407,6 @@
           "token_endpoint": {
             "type": "string",
             "description": "Token endpoint URL"
-          },
-          "userinfo_endpoint": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Userinfo endpoint URL (optional)"
           }
         }
       },
@@ -6444,8 +6431,21 @@
           "id": {
             "type": "string"
           },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token introspection endpoint URL (RFC 7662)"
+          },
           "mapping": {
             "$ref": "#/components/schemas/TokenMapping"
+          },
+          "userinfo_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -6468,8 +6468,22 @@
             ],
             "description": "OIDC discovery endpoint (optional)"
           },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque"
+          },
           "mapping": {
             "description": "Token mapping configuration (serialized as JSON)"
+          },
+          "userinfo_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Userinfo endpoint URL (optional)"
           }
         }
       },
@@ -7474,6 +7488,12 @@
               }
             ]
           },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "jwks_uri": {
             "type": "string"
           },
@@ -7878,6 +7898,7 @@
           "client_id",
           "client_secret",
           "scopes",
+          "jwks_endpoint",
           "mapping"
         ],
         "properties": {
@@ -7893,6 +7914,9 @@
           "id": {
             "type": "string"
           },
+          "jwks_endpoint": {
+            "type": "string"
+          },
           "mapping": {
             "$ref": "#/components/schemas/TokenMapping"
           },
@@ -7904,12 +7928,6 @@
           },
           "token_endpoint": {
             "type": "string"
-          },
-          "userinfo_endpoint": {
-            "type": [
-              "string",
-              "null"
-            ]
           }
         }
       },
@@ -7934,8 +7952,21 @@
           "id": {
             "type": "string"
           },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token introspection endpoint URL (RFC 7662)\nIf set, access tokens are treated as opaque and introspected via this endpoint"
+          },
           "mapping": {
             "$ref": "#/components/schemas/TokenMapping"
+          },
+          "userinfo_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },

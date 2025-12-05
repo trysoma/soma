@@ -1,5 +1,2 @@
-h1:Owy7cOxgBxuU0ap1Aa5k2kkH98gsz79d3c/eVaWN2YE=
-20251201215819_initial.sql h1:7s8DsGSmiHui4zifC58+Qv163CvdifVzXuDXos0Cv0g=
-20251201221716_add_groups.sql h1:gmFDapEYmSkePUN6ZIDEGGTc0mSUB0QQg3pfMHGQU+c=
-20251202213400_add_jwt_signing_key.sql h1:mA/dxon+TmNsFCywyzCreoCnNAeAc0/Ohl1986Pzsow=
-20251202223757_add_invalidated_to_jwt_signing_key.sql h1:wWeo7GFUPme03e5XBkJBRq2v6BMKt7z+9yHFmsLVqek=
+h1:OEwvIlwTLt9qHeSPP+0V2gSVZhtJTG+NS86C/cpqWAM=
+20251204182716_init.sql h1:P+uGe6OfPtnrmeM7E4J7uio9lX3+oUNp5TYSLdTy5pM=

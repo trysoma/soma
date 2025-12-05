@@ -14,12 +14,15 @@ use shared::error::CommonError;
 use shared::primitives::WrappedChronoDateTime;
 use utoipa::ToSchema;
 
+use crate::logic::decode_jwt_to_claims_unsafe;
 use crate::logic::internal_token_issuance::{NormalizedTokenInputFields, issue_tokens_for_normalized_user};
+use crate::logic::sts::external_jwk_cache::ExternalJwksCache;
 use crate::logic::token_mapping::template::{apply_mapping_template, DecodedTokenSources};
 use crate::logic::token_mapping::TokenMapping;
-use crate::logic::user_auth_flow::{OAuthCallbackParams, OAuthCallbackResult, StartAuthorizationParams, StartAuthorizationResult};
+use crate::logic::user_auth_flow::{OAuthCallbackParams, OAuthCallbackResult, OauthConfig, StartAuthorizationParams, StartAuthorizationResult};
 use crate::logic::user_auth_flow::config::UserAuthFlowConfig;
-use crate::repository::{CreateOAuthState, UserRepositoryLike};
+use crate::repository::UserRepositoryLike;
+use crate::router::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY};
 
 // ============================================
 // Authorization Flow Types
@@ -183,71 +186,6 @@ pub async fn exchange_code_for_tokens(
     }
 }
 
-// ============================================
-// Userinfo Fetching
-// ============================================
-
-/// Fetch userinfo from endpoint
-pub async fn fetch_userinfo(
-    userinfo_url: &str,
-    access_token: &str,
-) -> Result<Map<String, Value>, CommonError> {
-    let client = create_http_client()?;
-
-    let response = client
-        .get(userinfo_url)
-        .bearer_auth(access_token)
-        .send()
-        .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to fetch userinfo: {e}")))?;
-
-    if !response.status().is_success() {
-        return Err(CommonError::Unknown(anyhow::anyhow!(
-            "Userinfo endpoint returned status: {}",
-            response.status()
-        )));
-    }
-
-    let value: Value = response
-        .json()
-        .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse userinfo: {e}")))?;
-
-    match value {
-        Value::Object(obj) => Ok(obj),
-        _ => Err(CommonError::Unknown(anyhow::anyhow!(
-            "Userinfo response is not a JSON object"
-        ))),
-    }
-}
-
-// ============================================
-// JWT Decoding
-// ============================================
-
-/// Decode JWT claims without signature verification (unsafe - only use when you trust the source)
-pub fn decode_jwt_claims_unsafe(token: &str) -> Result<Map<String, Value>, CommonError> {
-    let parts: Vec<&str> = token.split('.').collect();
-    if parts.len() != 3 {
-        return Err(CommonError::Unknown(anyhow::anyhow!("Invalid JWT format")));
-    }
-
-    // Decode the payload (second part)
-    use base64::Engine;
-    let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(parts[1])
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to decode JWT payload: {e}")))?;
-
-    let claims: Value = serde_json::from_slice(&payload)
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse JWT claims: {e}")))?;
-
-    match claims {
-        Value::Object(obj) => Ok(obj),
-        _ => Err(CommonError::Unknown(anyhow::anyhow!(
-            "JWT claims is not a JSON object"
-        ))),
-    }
-}
 
 // ============================================
 // Token Mapping
@@ -342,7 +280,7 @@ pub async fn start_authorization_handshake<R: UserRepositoryLike>(
     let expires_at = now + Duration::seconds(state_ttl);
 
     // Store state in database
-    let create_state = CreateOAuthState {
+    let create_state = OAuthState {
         state: csrf_state.secret().to_string(),
         config_id: params.config_id,
         code_verifier: pkce_verifier.map(|v| v.secret().to_string()),
@@ -367,70 +305,19 @@ pub async fn start_authorization_handshake<R: UserRepositoryLike>(
 pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
     repository: &R,
     crypto_cache: &CryptoCache,
+    external_jwks_cache: &ExternalJwksCache,
+    base_redirect_uri: &str,
     params: OAuthCallbackParams,
+    config: &OauthConfig,
+    oauth_state: &OAuthState,
 ) -> Result<OAuthCallbackResult, CommonError> {
-    // Check for error response from IdP
-    if let Some(error) = &params.error {
-        return Err(CommonError::InvalidRequest {
-            msg: format!(
-                "OAuth error from IdP: {} - {}",
-                error,
-                params.error_description.as_deref().unwrap_or("No description")
-            ),
-            source: None,
-        });
-    }
-
-    // Validate state and get stored data
-    let oauth_state = repository
-        .get_oauth_state_by_state(&params.state)
-        .await?
-        .ok_or_else(|| CommonError::InvalidRequest {
-            msg: "Invalid or expired state parameter".to_string(),
-            source: None,
-        })?;
-
-    // Check if state has expired
-    if oauth_state.expires_at.get_inner() < &Utc::now() {
-        repository.delete_oauth_state(&params.state).await?;
-        return Err(CommonError::InvalidRequest {
-            msg: "State parameter has expired".to_string(),
-            source: None,
-        });
-    }
-
-    // Delete state (one-time use)
-    repository.delete_oauth_state(&params.state).await?;
-
-    // Load and decrypt config
-    let config_db = repository
-        .get_user_auth_flow_config_by_id(&oauth_state.config_id)
-        .await?
-        .ok_or_else(|| CommonError::InvalidRequest {
-            msg: "Configuration not found".to_string(),
-            source: None,
-        })?;
-
-    let config = config_db.config.decrypt(crypto_cache).await?;
-
-    // Only handle OAuth flows
-    let oauth_config = match &config {
-        UserAuthFlowConfig::OauthAuthorizationCodeFlow(oauth)
-        | UserAuthFlowConfig::OauthAuthorizationCodePkceFlow(oauth) => oauth,
-        _ => {
-            return Err(CommonError::InvalidRequest {
-                msg: "Configuration is not an OAuth2 flow".to_string(),
-                source: None,
-            });
-        }
-    };
-
+    
     // Exchange code for tokens
     let token_exchange_params = BaseTokenExchangeParams {
-        token_endpoint: &oauth_config.token_endpoint,
-        client_id: &oauth_config.client_id,
-        client_secret: &oauth_config.client_secret,
-        redirect_uri: &oauth_config.authorization_endpoint, // Should be app's redirect URI
+        token_endpoint: &config.token_endpoint,
+        client_id: &config.client_id,
+        client_secret: &config.client_secret,
+        redirect_uri: &format!("{}{}/{}/{}/auth/callback", base_redirect_uri, PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
         code: &params.code,
         code_verifier: oauth_state.code_verifier.as_deref(),
     };
@@ -443,21 +330,40 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
         .and_then(|v| v.as_str())
         .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("No access token in response")))?;
 
-    // For OAuth2, we need to fetch userinfo
-    let userinfo_endpoint = oauth_config.userinfo_endpoint.as_ref().ok_or_else(|| {
-        CommonError::InvalidRequest {
-            msg: "userinfo_endpoint is required for OAuth2 flows".to_string(),
-            source: None,
-        }
-    })?;
-
-    let userinfo_claims = fetch_userinfo(userinfo_endpoint, access_token).await?;
-
+        let access_token_claims = if let Some(introspect_url) = &config.introspect_url {
+            // If introspect_url is set, use token introspection (RFC 7662)
+            // This treats the access token as opaque and validates it via the introspection endpoint
+            tracing::debug!("Using token introspection for access token");
+            Some(introspect_token(
+                introspect_url,
+                &access_token,
+                &config.base_config.client_id,
+                &config.base_config.client_secret,
+            ).await?)
+        } else {
+            // Try to decode access token as JWT
+            match decode_jwt_to_claims_unsafe(
+                &access_token,
+                &config.base_config.jwks_endpoint,
+                external_jwks_cache,
+            )
+            .await {
+                Ok(claims) => Some(claims),
+                Err(e) => {
+                    // Access token is not a JWT and no introspection endpoint configured
+                    // This is an error - we need to be able to get claims from the access token
+                    tracing::error!("Access token is not a JWT and no introspect_url configured: {:?}", e);
+                    return Err(e)
+                }
+            }
+        };
+    
     // Build decoded token sources
-    let sources = DecodedTokenSources::new().with_userinfo(userinfo_claims);
+    let sources = DecodedTokenSources::new()
+        .with_access_token(access_token_claims);
 
     // Apply mapping template
-    let normalized = apply_token_mapping(&oauth_config.mapping, &sources)?;
+    let normalized = apply_token_mapping(&config.mapping, &sources)?;
 
     // Issue internal tokens
     let token_result =
@@ -465,7 +371,7 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
 
     Ok(OAuthCallbackResult {
         issued_tokens: token_result,
-        redirect_uri: oauth_state.redirect_uri,
+        redirect_uri: oauth_state.redirect_uri.clone(),
     })
     
 }

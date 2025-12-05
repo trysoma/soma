@@ -32,7 +32,7 @@ pub struct JwtSigningKey {
 /// Get a valid (non-expired, non-invalidated) signing key from the repository
 async fn get_valid_signing_key<R: UserRepositoryLike>(
     repository: &R,
-) -> Result<crate::repository::JwtSigningKey, CommonError> {
+) -> Result<JwtSigningKey, CommonError> {
     let now = Utc::now();
     let mut next_page_token: Option<String> = None;
 
@@ -69,7 +69,7 @@ async fn get_valid_signing_key<R: UserRepositoryLike>(
 /// Sign a JWT with the given claims and signing key
 async fn sign_jwt<T: serde::Serialize>(
     claims: &T,
-    signing_key: &crate::repository::JwtSigningKey,
+    signing_key: &JwtSigningKey,
     crypto_cache: &CryptoCache,
 ) -> Result<String, CommonError> {
     use jsonwebtoken::{EncodingKey, Header};

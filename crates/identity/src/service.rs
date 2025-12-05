@@ -15,6 +15,7 @@ const BROADCAST_CHANNEL_CAPACITY: usize = 100;
 
 #[derive(Clone)]
 pub struct IdentityService {
+    pub base_redirect_uri: String,
     pub repository: Arc<Repository>,
     pub crypto_cache: CryptoCache,
     pub jwks_cache: JwksCache,
@@ -26,6 +27,7 @@ pub struct IdentityService {
 
 impl IdentityService {
     pub fn new(
+        base_redirect_uri: String,
         repository: Repository,
         encryption_repository: EncryptionRepository,
         local_envelope_encryption_key_path: PathBuf,
@@ -41,6 +43,7 @@ impl IdentityService {
             tokio::sync::broadcast::channel::<OnConfigChangeEvt>(BROADCAST_CHANNEL_CAPACITY);
 
         Self {
+            base_redirect_uri,
             repository,
             crypto_cache,
             jwks_cache,
@@ -51,39 +54,4 @@ impl IdentityService {
         }
     }
 
-    /// Create a new service with an externally provided broadcaster
-    pub fn with_broadcaster(
-        repository: Repository,
-        encryption_repository: EncryptionRepository,
-        local_envelope_encryption_key_path: PathBuf,
-        on_config_change_tx: OnConfigChangeTx,
-    ) -> Self {
-        let repository = Arc::new(repository);
-        let crypto_cache =
-            CryptoCache::new(encryption_repository, local_envelope_encryption_key_path);
-        let jwks_cache = JwksCache::new(Repository::new(repository.connection().clone()));
-        let api_key_cache = ApiKeyCache::new(repository.clone());
-        let sts_config_cache = StsConfigCache::new(repository.clone());
-        let external_jwks_cache = ExternalJwksCache::new();
-
-        Self {
-            repository,
-            crypto_cache,
-            jwks_cache,
-            api_key_cache,
-            sts_config_cache,
-            external_jwks_cache,
-            on_config_change_tx,
-        }
-    }
-
-    /// Get a reference to the config change broadcaster
-    pub fn on_config_change_tx(&self) -> &OnConfigChangeTx {
-        &self.on_config_change_tx
-    }
-
-    /// Subscribe to config change events
-    pub fn subscribe_to_config_changes(&self) -> crate::logic::OnConfigChangeRx {
-        self.on_config_change_tx.subscribe()
-    }
 }

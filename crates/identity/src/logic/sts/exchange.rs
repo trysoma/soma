@@ -4,6 +4,7 @@ use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use serde_json::{Map, Value};
 use shared::error::CommonError;
 
+use crate::logic::{decode_jwt_to_claims, fetch_userinfo};
 use crate::logic::user::Role;
 use crate::logic::internal_token_issuance::{
     NormalizedTokenInputFields, NormalizedTokenIssuanceResult, issue_tokens_for_normalized_user
@@ -86,84 +87,6 @@ fn extract_token_from_headers(headers: &HeaderMap, location: &TokenLocation) -> 
     }
 }
 
-/// Decode a JWT token and return its claims as a serde_json Map.
-/// Validates the signature using the provided JWKS cache.
-async fn decode_jwt_to_claims(
-    token: &str,
-    jwks_uri: &str,
-    external_jwks_cache: &ExternalJwksCache,
-    validation_config: &JwtTokenTemplateValidationConfig,
-) -> Result<Map<String, Value>, CommonError> {
-    let header = decode_header(token)
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to decode JWT header: {e}")))?;
-
-    let kid = header.kid.ok_or_else(|| {
-        CommonError::Unknown(anyhow::anyhow!("JWT token missing 'kid' in header"))
-    })?;
-
-    // Get or fetch the external JWKS
-    if external_jwks_cache.get_key(jwks_uri, &kid).is_none() {
-        external_jwks_cache.fetch_jwks(jwks_uri).await?;
-    }
-
-    let decoding_key = external_jwks_cache
-        .get_key(jwks_uri, &kid)
-        .ok_or_else(|| {
-            CommonError::Unknown(anyhow::anyhow!(
-                "Key '{kid}' not found in JWKS from {jwks_uri}"
-            ))
-        })?;
-
-    // Build validation
-    let mut validation = Validation::new(Algorithm::RS256);
-
-    if let Some(issuer) = &validation_config.issuer {
-        validation.set_issuer(&[issuer]);
-    }
-
-    if let Some(audiences) = &validation_config.valid_audiences {
-        validation.set_audience(audiences);
-    }
-
-    let token_data = decode::<Value>(token, &decoding_key, &validation)
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("JWT validation failed: {e}")))?;
-
-    match token_data.claims {
-        Value::Object(obj) => Ok(obj),
-        _ => Err(CommonError::Unknown(anyhow::anyhow!("Invalid token claims"))),
-    }
-}
-
-/// Fetch userinfo from the userinfo endpoint using the access token
-async fn fetch_userinfo(
-    userinfo_url: &str,
-    access_token: &str,
-) -> Result<Map<String, Value>, CommonError> {
-    let client = reqwest::Client::new();
-    let response = client
-        .get(userinfo_url)
-        .bearer_auth(access_token)
-        .send()
-        .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to fetch userinfo: {e}")))?;
-
-    if !response.status().is_success() {
-        return Err(CommonError::Unknown(anyhow::anyhow!(
-            "Userinfo endpoint returned status: {}",
-            response.status()
-        )));
-    }
-
-    let value: Value = response
-        .json()
-        .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse userinfo response: {e}")))?;
-
-    match value {
-        Value::Object(obj) => Ok(obj),
-        _ => Err(CommonError::Unknown(anyhow::anyhow!("Userinfo response is not a JSON object"))),
-    }
-}
 
 /// Exchange an external STS token for an internal access token.
 ///

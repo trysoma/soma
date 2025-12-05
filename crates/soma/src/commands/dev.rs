@@ -151,6 +151,7 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         project_dir: project_dir.clone(),
         host: params.host.clone(),
         port: params.port,
+        base_url: format!("http://{}:{}", params.host, params.port),
         soma_restate_service_port,
         db_conn_string: db_conn_string.to_string(),
         db_auth_token: params.db_auth_token.clone(),
@@ -445,7 +446,7 @@ async fn enable_dev_mode_sts(
     use soma_api_client::apis::identity_api;
     use soma_api_client::models;
 
-    const DEV_MODE_STS_ID: &str = "dev-mode";
+    const DEV_MODE_STS_ID: &str = "dev";
 
     // Check if dev mode STS config already exists
     let existing_configs = identity_api::route_list_sts_configs(api_config, 100, None)

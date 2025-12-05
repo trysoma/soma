@@ -10,9 +10,9 @@ pub mod generated {
 pub use generated::*;
 
 use crate::logic::sts::config::StsTokenConfigType;
+use crate::logic::user_auth_flow::oauth::OAuthState;
 use crate::repository::{
-    CreateGroupMembership, CreateJwtSigningKey, CreateOAuthState,
-    Group, GroupMemberWithUser, GroupMembership, HashedApiKey, HashedApiKeyWithUser, JwtSigningKey, OAuthState,
+    Group, GroupMemberWithUser, GroupMembership, HashedApiKey, HashedApiKeyWithUser, JwtSigningKey,
     StsConfigurationDb, UpdateUser, User, UserAuthFlowConfigDb, UserGroupWithGroup, UserRepositoryLike
 };
 
@@ -439,7 +439,7 @@ impl UserRepositoryLike for Repository {
     // Group membership methods
     async fn create_group_membership(
         &self,
-        params: &CreateGroupMembership,
+        params: &GroupMembership,
     ) -> Result<(), CommonError> {
         let sqlc_params = create_group_membership_params {
             group_id: &params.group_id,
@@ -635,7 +635,7 @@ impl UserRepositoryLike for Repository {
     // JWT signing key methods
     async fn create_jwt_signing_key(
         &self,
-        params: &CreateJwtSigningKey,
+        params: &JwtSigningKey,
     ) -> Result<(), CommonError> {
         let sqlc_params = create_jwt_signing_key_params {
             kid: &params.kid,
@@ -877,6 +877,8 @@ impl UserRepositoryLike for Repository {
     ) -> Result<(), CommonError> {
         let (config_type, config_json) = params.config.to_db_values()?;
 
+        tracing::info!("Creating user auth flow(s) config with type: {}", config_type);
+
         let sqlc_params = create_user_auth_flow_config_params {
             id: &params.id,
             config_type: &config_type,
@@ -982,7 +984,7 @@ impl UserRepositoryLike for Repository {
     }
 
     // OAuth state methods
-    async fn create_oauth_state(&self, params: &CreateOAuthState) -> Result<(), CommonError> {
+    async fn create_oauth_state(&self, params: &OAuthState) -> Result<(), CommonError> {
         let sqlc_params = create_oauth_state_params {
             state: &params.state,
             config_id: &params.config_id,
@@ -2510,10 +2512,10 @@ mod tests {
         EncryptedUserAuthFlowConfig, OidcAuthorizationCodeFlowConfig,
     };
 
-    fn create_test_oauth_state(state: &str, config_id: &str) -> CreateOAuthState {
+    fn create_test_oauth_state(state: &str, config_id: &str) -> OAuthState {
         let now = WrappedChronoDateTime::now();
         let expires_at = *now.get_inner() + chrono::Duration::seconds(300);
-        CreateOAuthState {
+        OAuthState {
             state: state.to_string(),
             config_id: config_id.to_string(),
             code_verifier: Some("verifier123".to_string()),
@@ -2605,7 +2607,7 @@ mod tests {
         // Create expired state
         let now = WrappedChronoDateTime::now();
         let past = *now.get_inner() - chrono::Duration::seconds(100);
-        let expired_state = CreateOAuthState {
+        let expired_state = OAuthState {
             state: "expired-state".to_string(),
             config_id: "config-1".to_string(),
             code_verifier: None,
@@ -2642,7 +2644,7 @@ mod tests {
 
         let now = WrappedChronoDateTime::now();
         let expires_at = *now.get_inner() + chrono::Duration::seconds(300);
-        let oauth_state = CreateOAuthState {
+        let oauth_state = OAuthState {
             state: "state-minimal".to_string(),
             config_id: "config-1".to_string(),
             code_verifier: None,

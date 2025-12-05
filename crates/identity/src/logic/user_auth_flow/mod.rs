@@ -6,6 +6,7 @@ pub mod config;
 pub mod oauth;
 pub mod oidc;
 
+use chrono::Utc;
 use encryption::logic::CryptoCache;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
@@ -13,6 +14,7 @@ use shared::primitives::{PaginationRequest, WrappedChronoDateTime};
 use utoipa::ToSchema;
 
 use crate::logic::internal_token_issuance::NormalizedTokenIssuanceResult;
+use crate::logic::sts::external_jwk_cache::ExternalJwksCache;
 use crate::logic::{validate_id, OnConfigChangeEvt, OnConfigChangeTx, DEFAULT_DEK_ALIAS};
 use crate::repository::{UserAuthFlowConfigDb, UserRepositoryLike};
 
@@ -293,6 +295,7 @@ pub struct StartAuthorizationResult {
 pub async fn start_authorization_handshake<R: UserRepositoryLike>(
     repository: &R,
     crypto_cache: &CryptoCache,
+    base_redirect_uri: &str,
     params: StartAuthorizationParams,
 ) -> Result<StartAuthorizationResult, CommonError> {
     let config = repository
@@ -310,13 +313,13 @@ pub async fn start_authorization_handshake<R: UserRepositoryLike>(
 
     match config {
         UserAuthFlowConfig::OidcAuthorizationCodeFlow(_) => {
-            return self::oidc::start_authorization_handshake(repository, crypto_cache, params).await;
+            return self::oidc::start_authorization_handshake(repository, crypto_cache, base_redirect_uri, params).await;
         }
         UserAuthFlowConfig::OauthAuthorizationCodeFlow(_) => {
             return self::oauth::start_authorization_handshake(repository, crypto_cache, params).await;
         }
         UserAuthFlowConfig::OidcAuthorizationCodePkceFlow(_) => {
-            return self::oidc::start_authorization_handshake(repository, crypto_cache, params).await;
+            return self::oidc::start_authorization_handshake(repository, crypto_cache, base_redirect_uri, params).await;
         }
         UserAuthFlowConfig::OauthAuthorizationCodePkceFlow(_) => {
             return self::oauth::start_authorization_handshake(repository, crypto_cache, params).await;
@@ -344,4 +347,81 @@ pub struct OAuthCallbackResult {
     pub issued_tokens: NormalizedTokenIssuanceResult,
     /// Optional redirect URI after login
     pub redirect_uri: Option<String>,
+}
+
+
+/// Handle the OAuth2 callback.
+///
+/// This function:
+/// 1. Validates state parameter
+/// 2. Exchanges authorization code for tokens
+/// 3. Fetches userinfo
+/// 4. Applies the mapping template to extract normalized fields
+/// 5. Issues internal access/refresh tokens
+pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
+    repository: &R,
+    crypto_cache: &CryptoCache,
+    external_jwks_cache: &ExternalJwksCache,
+    params: OAuthCallbackParams,
+    base_redirect_uri: &str,
+) -> Result<OAuthCallbackResult, CommonError> {
+    // Check for error response from IdP
+    if let Some(error) = &params.error {
+        return Err(CommonError::InvalidRequest {
+            msg: format!(
+                "OAuth error from IdP: {} - {}",
+                error,
+                params.error_description.as_deref().unwrap_or("No description")
+            ),
+            source: None,
+        });
+    }
+
+    // Validate state and get stored data
+    let oauth_state = repository
+        .get_oauth_state_by_state(&params.state)
+        .await?
+        .ok_or_else(|| CommonError::InvalidRequest {
+            msg: "Invalid or expired state parameter".to_string(),
+            source: None,
+        })?;
+
+    // Check if state has expired
+    if oauth_state.expires_at.get_inner() < &Utc::now() {
+        repository.delete_oauth_state(&params.state).await?;
+        return Err(CommonError::InvalidRequest {
+            msg: "State parameter has expired".to_string(),
+            source: None,
+        });
+    }
+
+    // Delete state (one-time use)
+    repository.delete_oauth_state(&params.state).await?;
+
+    // Load and decrypt config
+    let config_db = repository
+        .get_user_auth_flow_config_by_id(&oauth_state.config_id)
+        .await?
+        .ok_or_else(|| CommonError::InvalidRequest {
+            msg: "Configuration not found".to_string(),
+            source: None,
+        })?;
+
+    let config = config_db.config.decrypt(crypto_cache).await?;
+
+    match config {
+        UserAuthFlowConfig::OidcAuthorizationCodeFlow(config) => {
+            return self::oidc::handle_authorization_handshake_callback(repository, crypto_cache, external_jwks_cache, base_redirect_uri, params, &config, &oauth_state).await;
+        }
+        UserAuthFlowConfig::OauthAuthorizationCodeFlow(config) => {
+            return self::oauth::handle_authorization_handshake_callback(repository, crypto_cache, external_jwks_cache, base_redirect_uri, params, &config, &oauth_state).await;
+        },
+        UserAuthFlowConfig::OidcAuthorizationCodePkceFlow(config) => {
+            return self::oidc::handle_authorization_handshake_callback(repository, crypto_cache, external_jwks_cache, base_redirect_uri, params, &config, &oauth_state).await;
+        }
+        UserAuthFlowConfig::OauthAuthorizationCodePkceFlow(config) => {
+            return self::oauth::handle_authorization_handshake_callback(repository, crypto_cache, external_jwks_cache, base_redirect_uri, params, &config, &oauth_state).await;
+        }
+    }
+    
 }

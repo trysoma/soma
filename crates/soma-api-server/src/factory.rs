@@ -22,6 +22,7 @@ use crate::subsystems::Subsystems;
 use crate::{ApiService, InitApiServiceParams};
 
 pub struct CreateApiServiceParams {
+    pub base_url: String,
     pub project_dir: PathBuf,
     pub host: String,
     pub port: u16,
@@ -46,6 +47,7 @@ pub async fn create_api_service(
     params: CreateApiServiceParams,
 ) -> Result<ApiServiceBundle, CommonError> {
     let CreateApiServiceParams {
+        base_url,
         project_dir,
         host,
         port,
@@ -95,12 +97,6 @@ pub async fn create_api_service(
     let (environment_variable_change_tx, environment_variable_change_rx) =
         crate::logic::on_change_pubsub::create_environment_variable_change_channel(100);
 
-    // Create identity event channel
-    let (identity_change_tx, identity_change_rx): (
-        identity::logic::OnConfigChangeTx,
-        _,
-    ) = tokio::sync::broadcast::channel(100);
-
     // Create the unified soma change channel
     let (soma_change_tx, _soma_change_rx) = create_soma_change_channel(100);
 
@@ -118,23 +114,6 @@ pub async fn create_api_service(
 
     // Create JWK rotation state to track initialization
     let jwk_rotation_state = crate::logic::identity::JwkRotationState::new();
-
-    // Start the unified change pubsub forwarder
-    info!("Starting unified change pubsub...");
-    let soma_change_tx_clone = soma_change_tx.clone();
-    let pubsub_shutdown_rx = system_shutdown_signal.subscribe();
-    tokio::spawn(async move {
-        run_change_pubsub(
-            soma_change_tx_clone,
-            on_bridge_config_change_rx,
-            encryption_change_rx,
-            secret_change_rx,
-            environment_variable_change_rx,
-            identity_change_rx,
-            pubsub_shutdown_rx,
-        )
-        .await;
-    });
 
     // Restate server is started by caller (soma crate)
     // We just use the passed-in handle
@@ -306,16 +285,8 @@ pub async fn create_api_service(
     // Initialize API service
     info!("Initializing API service...");
     let local_envelope_encryption_key_path = project_dir.join(".soma/envelope-encryption-keys");
-
-    // Create identity service with the broadcaster
-    let identity_service = identity::service::IdentityService::with_broadcaster(
-        identity_repo.clone(),
-        encryption_repo.clone(),
-        local_envelope_encryption_key_path.clone(),
-        identity_change_tx.clone(),
-    );
-
     let api_service = ApiService::new(InitApiServiceParams {
+        base_url: base_url.clone(),
         host: host.clone(),
         port,
         soma_restate_service_port,
@@ -329,7 +300,7 @@ pub async fn create_api_service(
         on_bridge_config_change_tx: on_bridge_config_change_tx.clone(),
         crypto_cache: crypto_cache.clone(),
         bridge_repository: bridge_repo.clone(),
-        identity_service: identity_service.clone(),
+        identity_repository: identity_repo.clone(),
         mcp_sse_ping_interval: Duration::from_secs(10),
         sdk_client: sdk_client.clone(),
         on_encryption_change_tx: encryption_change_tx.clone(),
@@ -340,6 +311,24 @@ pub async fn create_api_service(
     })
     .await?;
     info!("API service initialized");
+
+    // Start the unified change pubsub forwarder (after api_service is created so we can subscribe to identity events)
+    info!("Starting unified change pubsub...");
+    let soma_change_tx_clone = soma_change_tx.clone();
+    let pubsub_shutdown_rx = system_shutdown_signal.subscribe();
+    let identity_change_rx = api_service.identity_service.on_config_change_tx.subscribe();
+    tokio::spawn(async move {
+        run_change_pubsub(
+            soma_change_tx_clone,
+            on_bridge_config_change_rx,
+            encryption_change_rx,
+            secret_change_rx,
+            environment_variable_change_rx,
+            identity_change_rx,
+            pubsub_shutdown_rx,
+        )
+        .await;
+    });
 
     // Start MCP connection manager
     info!("Starting MCP connection manager...");

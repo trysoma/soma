@@ -848,7 +848,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/identity/v1/auth/callback/{config_id}": {
+	"/api/identity/v1/auth/callback": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -1504,10 +1504,10 @@ export interface components {
 			dek_alias: string;
 			encrypted_client_secret: components["schemas"]["EncryptedString"];
 			id: string;
+			jwks_endpoint: string;
 			mapping: components["schemas"]["TokenMapping"];
 			scopes: string[];
 			token_endpoint: string;
-			userinfo_endpoint?: string | null;
 		};
 		/** @description Encrypted OAuth configuration for YAML storage */
 		EncryptedOauthYamlConfig: {
@@ -1519,21 +1519,24 @@ export interface components {
 			dek_alias: string;
 			/** @description Encrypted client secret */
 			encrypted_client_secret: string;
+			/** @description JWKS endpoint URL for token verification */
+			jwks_endpoint: string;
 			/** @description Token mapping configuration (serialized as JSON) */
 			mapping: unknown;
 			/** @description OAuth scopes */
 			scopes: string[];
 			/** @description Token endpoint URL */
 			token_endpoint: string;
-			/** @description Userinfo endpoint URL (optional) */
-			userinfo_endpoint?: string | null;
 		};
 		/** @description OIDC configuration extending OAuth2 with discovery and ID token support */
 		EncryptedOidcConfig: {
 			base_config: components["schemas"]["EncryptedOauthConfig"];
 			discovery_endpoint?: string | null;
 			id: string;
+			/** @description Token introspection endpoint URL (RFC 7662) */
+			introspect_url?: string | null;
 			mapping: components["schemas"]["TokenMapping"];
+			userinfo_endpoint?: string | null;
 		};
 		/** @description Encrypted OIDC configuration for YAML storage */
 		EncryptedOidcYamlConfig: {
@@ -1541,8 +1544,12 @@ export interface components {
 			base_config: components["schemas"]["EncryptedOauthYamlConfig"];
 			/** @description OIDC discovery endpoint (optional) */
 			discovery_endpoint?: string | null;
+			/** @description Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque */
+			introspect_url?: string | null;
 			/** @description Token mapping configuration (serialized as JSON) */
 			mapping: unknown;
+			/** @description Userinfo endpoint URL (optional) */
+			userinfo_endpoint?: string | null;
 		};
 		EncryptedString: string;
 		EncryptedUserAuthFlowConfig:
@@ -1811,6 +1818,7 @@ export interface components {
 		JwtTokenTemplateConfig: {
 			access_token_location?: null | components["schemas"]["TokenLocation"];
 			id_token_location?: null | components["schemas"]["TokenLocation"];
+			introspect_url?: string | null;
 			jwks_uri: string;
 			mapping_template: components["schemas"]["JwtTokenMappingConfig"];
 			userinfo_url?: string | null;
@@ -1915,17 +1923,23 @@ export interface components {
 			client_id: string;
 			client_secret: string;
 			id: string;
+			jwks_endpoint: string;
 			mapping: components["schemas"]["TokenMapping"];
 			scopes: string[];
 			token_endpoint: string;
-			userinfo_endpoint?: string | null;
 		};
 		/** @description OIDC configuration extending OAuth2 with discovery and ID token support */
 		OidcConfig: {
 			base_config: components["schemas"]["OauthConfig"];
 			discovery_endpoint?: string | null;
 			id: string;
+			/**
+			 * @description Token introspection endpoint URL (RFC 7662)
+			 *     If set, access tokens are treated as opaque and introspected via this endpoint
+			 */
+			introspect_url?: string | null;
 			mapping: components["schemas"]["TokenMapping"];
+			userinfo_endpoint?: string | null;
 		};
 		ProviderConfig: {
 			credential_controller_type_id: string;
@@ -4912,10 +4926,7 @@ export interface operations {
 				error_description?: string | null;
 			};
 			header?: never;
-			path: {
-				/** @description ID of the user auth flow configuration */
-				config_id: string;
-			};
+			path?: never;
 			cookie?: never;
 		};
 		requestBody?: never;

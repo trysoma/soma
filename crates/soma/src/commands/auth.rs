@@ -101,7 +101,7 @@ async fn cmd_auth_add_oauth(
         id: id.clone(),
         authorization_endpoint: oauth_config.authorization_endpoint,
         token_endpoint: oauth_config.token_endpoint,
-        userinfo_endpoint: oauth_config.userinfo_endpoint.map(Some),
+        jwks_endpoint: oauth_config.jwks_endpoint,
         client_id: oauth_config.client_id,
         client_secret: oauth_config.client_secret,
         scopes: oauth_config.scopes,
@@ -175,6 +175,32 @@ async fn cmd_auth_add_oidc(
         Some(discovery_endpoint)
     };
 
+    let userinfo_endpoint = Text::new("Userinfo endpoint URL (optional):")
+        .with_help_message(
+            "URL to fetch user profile information (e.g., 'https://provider.com/oauth/userinfo')",
+        )
+        .prompt()
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+
+    let userinfo_endpoint = if userinfo_endpoint.trim().is_empty() {
+        None
+    } else {
+        Some(userinfo_endpoint)
+    };
+
+    let introspect_url = Text::new("Token introspection URL (optional):")
+        .with_help_message(
+            "RFC 7662 token introspection endpoint for opaque access tokens (e.g., 'https://provider.com/oauth/introspect')",
+        )
+        .prompt()
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+
+    let introspect_url = if introspect_url.trim().is_empty() {
+        None
+    } else {
+        Some(introspect_url)
+    };
+
     // Collect base OAuth configuration
     let oauth_config = collect_oauth_config(&id).await?;
     let mapping = collect_token_mapping().await?;
@@ -184,7 +210,7 @@ async fn cmd_auth_add_oidc(
         id: id.clone(),
         authorization_endpoint: oauth_config.authorization_endpoint,
         token_endpoint: oauth_config.token_endpoint,
-        userinfo_endpoint: oauth_config.userinfo_endpoint.map(Some),
+        jwks_endpoint: oauth_config.jwks_endpoint,
         client_id: oauth_config.client_id,
         client_secret: oauth_config.client_secret,
         scopes: oauth_config.scopes,
@@ -195,6 +221,8 @@ async fn cmd_auth_add_oidc(
         id: id.clone(),
         base_config: base_oauth,
         discovery_endpoint: discovery_endpoint.map(Some),
+        userinfo_endpoint: userinfo_endpoint.map(Some),
+        introspect_url: introspect_url.map(Some),
         mapping,
     };
 
@@ -325,7 +353,7 @@ async fn cmd_auth_list(api_url: &str, timeout_secs: u64) -> Result<(), CommonErr
 struct OauthConfigInput {
     authorization_endpoint: String,
     token_endpoint: String,
-    userinfo_endpoint: Option<String>,
+    jwks_endpoint: String,
     client_id: String,
     client_secret: String,
     scopes: Vec<String>,
@@ -359,16 +387,17 @@ async fn collect_oauth_config(_id: &str) -> Result<OauthConfigInput, CommonError
         });
     }
 
-    let userinfo_input = Text::new("Userinfo endpoint URL (optional):")
-        .with_help_message("URL to fetch user profile information (e.g., 'https://provider.com/oauth/userinfo')")
+    let jwks_endpoint = Text::new("JWKS endpoint URL:")
+        .with_help_message("URL to fetch JSON Web Key Set for token validation (e.g., 'https://provider.com/.well-known/jwks.json')")
         .prompt()
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
 
-    let userinfo_endpoint = if userinfo_input.trim().is_empty() {
-        None
-    } else {
-        Some(userinfo_input)
-    };
+    if !jwks_endpoint.starts_with("https://") && !jwks_endpoint.starts_with("http://") {
+        return Err(CommonError::InvalidRequest {
+            msg: "JWKS endpoint must be a valid HTTP(S) URL".to_string(),
+            source: None,
+        });
+    }
 
     println!();
     println!("Client Credentials");
@@ -417,7 +446,7 @@ async fn collect_oauth_config(_id: &str) -> Result<OauthConfigInput, CommonError
     Ok(OauthConfigInput {
         authorization_endpoint,
         token_endpoint,
-        userinfo_endpoint,
+        jwks_endpoint,
         client_id,
         client_secret,
         scopes,
