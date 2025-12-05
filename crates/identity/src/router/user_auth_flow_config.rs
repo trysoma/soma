@@ -1,20 +1,20 @@
-use axum::extract::{Path, Query, State};
 use axum::Json;
+use axum::extract::{Path, Query, State};
 use serde::Deserialize;
 use shared::{
-    adapters::openapi::{JsonResponse, API_VERSION_TAG},
+    adapters::openapi::{API_VERSION_TAG, JsonResponse},
     error::CommonError,
 };
 use utoipa::IntoParams;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::user_auth_flow::{
+    CreateUserAuthFlowConfigParams, CreateUserAuthFlowConfigResponse,
+    DeleteUserAuthFlowConfigParams, DeleteUserAuthFlowConfigResponse, GetUserAuthFlowConfigParams,
+    GetUserAuthFlowConfigResponse, ImportUserAuthFlowConfigParams,
+    ImportUserAuthFlowConfigResponse, ListUserAuthFlowConfigParams, ListUserAuthFlowConfigResponse,
     create_user_auth_flow_config, delete_user_auth_flow_config, get_user_auth_flow_config,
-    import_user_auth_flow_config, list_user_auth_flow_configs, CreateUserAuthFlowConfigParams,
-    CreateUserAuthFlowConfigResponse, DeleteUserAuthFlowConfigParams,
-    DeleteUserAuthFlowConfigResponse, GetUserAuthFlowConfigParams, GetUserAuthFlowConfigResponse,
-    ImportUserAuthFlowConfigParams, ImportUserAuthFlowConfigResponse, ListUserAuthFlowConfigParams,
-    ListUserAuthFlowConfigResponse,
+    import_user_auth_flow_config, list_user_auth_flow_configs,
 };
 use crate::service::IdentityService;
 

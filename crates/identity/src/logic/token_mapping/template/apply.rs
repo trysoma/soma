@@ -1,11 +1,11 @@
 use serde_json::{Map, Value};
 use shared::error::CommonError;
 
-use crate::logic::user::Role;
 use super::{
-    GroupToRoleMapping, JwtTokenMappingConfig, MappingSource,
-    ScopeToGroupMapping, ScopeToRoleMapping,
+    GroupToRoleMapping, JwtTokenMappingConfig, MappingSource, ScopeToGroupMapping,
+    ScopeToRoleMapping,
 };
+use crate::logic::user::Role;
 
 /// Result of applying a mapping template to extract normalized user fields
 pub struct NormalizedMappingResult {
@@ -104,15 +104,18 @@ fn extract_field_from_sources<'a>(
     mapping_source: &MappingSource<String>,
 ) -> Option<&'a Value> {
     match mapping_source {
-        MappingSource::IdToken(field) => {
-            sources.id_token.as_ref().and_then(|claims| claims.get(field))
-        }
-        MappingSource::Userinfo(field) => {
-            sources.userinfo.as_ref().and_then(|claims| claims.get(field))
-        }
-        MappingSource::AccessToken(field) => {
-            sources.access_token.as_ref().and_then(|claims| claims.get(field))
-        }
+        MappingSource::IdToken(field) => sources
+            .id_token
+            .as_ref()
+            .and_then(|claims| claims.get(field)),
+        MappingSource::Userinfo(field) => sources
+            .userinfo
+            .as_ref()
+            .and_then(|claims| claims.get(field)),
+        MappingSource::AccessToken(field) => sources
+            .access_token
+            .as_ref()
+            .and_then(|claims| claims.get(field)),
     }
 }
 
@@ -122,19 +125,16 @@ fn extract_string_field(
     mapping_source: &MappingSource<String>,
     field_name: &str,
 ) -> Result<String, CommonError> {
-    let value = extract_field_from_sources(sources, mapping_source)
-        .ok_or_else(|| {
-            CommonError::Unknown(anyhow::anyhow!(
-                "Missing '{field_name}' field in token/userinfo/introspection"
-            ))
-        })?;
+    let value = extract_field_from_sources(sources, mapping_source).ok_or_else(|| {
+        CommonError::Unknown(anyhow::anyhow!(
+            "Missing '{field_name}' field in token/userinfo/introspection"
+        ))
+    })?;
 
     value
         .as_str()
         .ok_or_else(|| {
-            CommonError::Unknown(anyhow::anyhow!(
-                "Field '{field_name}' is not a string"
-            ))
+            CommonError::Unknown(anyhow::anyhow!("Field '{field_name}' is not a string"))
         })
         .map(|s| s.to_string())
 }
@@ -219,7 +219,11 @@ fn determine_role_from_groups(groups: &[String], mappings: &[GroupToRoleMapping]
 }
 
 /// Map scopes to additional groups using the configured mappings
-fn map_scopes_to_groups(scopes: &[String], groups: &mut Vec<String>, mappings: &[ScopeToGroupMapping]) {
+fn map_scopes_to_groups(
+    scopes: &[String],
+    groups: &mut Vec<String>,
+    mappings: &[ScopeToGroupMapping],
+) {
     for mapping in mappings {
         if scopes.contains(&mapping.scope) {
             let group = standardize_group_name(&mapping.group);
@@ -253,11 +257,17 @@ pub fn apply_mapping_template(
     let scopes = extract_scopes(sources, &mapping_config.scopes_field);
 
     // Map scopes to additional groups
-    map_scopes_to_groups(&scopes, &mut groups, &mapping_config.scope_to_group_mappings);
+    map_scopes_to_groups(
+        &scopes,
+        &mut groups,
+        &mapping_config.scope_to_group_mappings,
+    );
 
     // Determine role - first check scope-to-role mappings, then group-to-role mappings
     let role = determine_role_from_scopes(&scopes, &mapping_config.scope_to_role_mappings)
-        .unwrap_or_else(|| determine_role_from_groups(&groups, &mapping_config.group_to_role_mappings));
+        .unwrap_or_else(|| {
+            determine_role_from_groups(&groups, &mapping_config.group_to_role_mappings)
+        });
 
     Ok(NormalizedMappingResult {
         subject,

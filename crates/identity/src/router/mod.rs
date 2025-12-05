@@ -31,10 +31,7 @@ pub const REFRESH_TOKEN_MAX_AGE_SECONDS: i64 = 86400 * 7;
 /// - SameSite::Lax (allows cookies on top-level navigations)
 /// - Secure: false (allows non-HTTPS in development)
 /// - HttpOnly: true (prevents JavaScript access for security)
-pub fn add_token_cookies(
-    jar: CookieJar,
-    tokens: &NormalizedTokenIssuanceResult,
-) -> CookieJar {
+pub fn add_token_cookies(jar: CookieJar, tokens: &NormalizedTokenIssuanceResult) -> CookieJar {
     add_token_cookies_with_options(jar, tokens, true)
 }
 
@@ -62,13 +59,14 @@ pub fn add_token_cookies_with_options(
 
     // Optionally add refresh token cookie
     if include_refresh_token {
-        let refresh_cookie = Cookie::build((REFRESH_TOKEN_COOKIE_NAME, tokens.refresh_token.clone()))
-            .path("/")
-            .secure(false) // Allow non-HTTPS for development
-            .http_only(true)
-            .same_site(SameSite::Lax) // Allow cross-site top-level navigations
-            .max_age(Duration::seconds(REFRESH_TOKEN_MAX_AGE_SECONDS))
-            .build();
+        let refresh_cookie =
+            Cookie::build((REFRESH_TOKEN_COOKIE_NAME, tokens.refresh_token.clone()))
+                .path("/")
+                .secure(false) // Allow non-HTTPS for development
+                .http_only(true)
+                .same_site(SameSite::Lax) // Allow cross-site top-level navigations
+                .max_age(Duration::seconds(REFRESH_TOKEN_MAX_AGE_SECONDS))
+                .build();
 
         jar.add(refresh_cookie)
     } else {

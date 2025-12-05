@@ -15,7 +15,7 @@ use utoipa::ToSchema;
 
 use crate::logic::internal_token_issuance::NormalizedTokenIssuanceResult;
 use crate::logic::sts::external_jwk_cache::ExternalJwksCache;
-use crate::logic::{validate_id, OnConfigChangeEvt, OnConfigChangeTx, DEFAULT_DEK_ALIAS};
+use crate::logic::{DEFAULT_DEK_ALIAS, OnConfigChangeEvt, OnConfigChangeTx, validate_id};
 use crate::repository::{UserAuthFlowConfigDb, UserRepositoryLike};
 
 pub use config::{
@@ -132,7 +132,10 @@ pub async fn create_user_auth_flow_config<R: UserRepositoryLike>(
     }
 
     // Encrypt the configuration
-    let encrypted_config = params.config.encrypt(crypto_cache, DEFAULT_DEK_ALIAS).await?;
+    let encrypted_config = params
+        .config
+        .encrypt(crypto_cache, DEFAULT_DEK_ALIAS)
+        .await?;
 
     let now = WrappedChronoDateTime::now();
 
@@ -148,7 +151,9 @@ pub async fn create_user_auth_flow_config<R: UserRepositoryLike>(
     // Broadcast config change event
     if publish_on_change_evt {
         on_config_change_tx
-            .send(OnConfigChangeEvt::UserAuthFlowConfigCreated(encrypted_config))
+            .send(OnConfigChangeEvt::UserAuthFlowConfigCreated(
+                encrypted_config,
+            ))
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
             })?;
@@ -275,7 +280,6 @@ pub async fn import_user_auth_flow_config<R: UserRepositoryLike>(
     Ok(())
 }
 
-
 /// Parameters for starting the OAuth authorization flow
 #[derive(Debug)]
 pub struct StartAuthorizationParams {
@@ -303,30 +307,45 @@ pub async fn start_authorization_handshake<R: UserRepositoryLike>(
         .await?;
     let config = match config {
         Some(config) => config,
-        None => return Err(CommonError::InvalidRequest {
-            msg: "Invalid or expired config_id".to_string(),
-            source: None,
-        }),
+        None => {
+            return Err(CommonError::InvalidRequest {
+                msg: "Invalid or expired config_id".to_string(),
+                source: None,
+            });
+        }
     };
 
     let config = config.config.decrypt(crypto_cache).await?;
 
     match config {
         UserAuthFlowConfig::OidcAuthorizationCodeFlow(_) => {
-            return self::oidc::start_authorization_handshake(repository, crypto_cache, base_redirect_uri, params).await;
+            return self::oidc::start_authorization_handshake(
+                repository,
+                crypto_cache,
+                base_redirect_uri,
+                params,
+            )
+            .await;
         }
         UserAuthFlowConfig::OauthAuthorizationCodeFlow(_) => {
-            return self::oauth::start_authorization_handshake(repository, crypto_cache, params).await;
+            return self::oauth::start_authorization_handshake(repository, crypto_cache, params)
+                .await;
         }
         UserAuthFlowConfig::OidcAuthorizationCodePkceFlow(_) => {
-            return self::oidc::start_authorization_handshake(repository, crypto_cache, base_redirect_uri, params).await;
+            return self::oidc::start_authorization_handshake(
+                repository,
+                crypto_cache,
+                base_redirect_uri,
+                params,
+            )
+            .await;
         }
         UserAuthFlowConfig::OauthAuthorizationCodePkceFlow(_) => {
-            return self::oauth::start_authorization_handshake(repository, crypto_cache, params).await;
+            return self::oauth::start_authorization_handshake(repository, crypto_cache, params)
+                .await;
         }
     }
 }
-
 
 /// Parameters for handling the OAuth callback
 #[derive(Debug, Deserialize)]
@@ -349,7 +368,6 @@ pub struct OAuthCallbackResult {
     pub redirect_uri: Option<String>,
 }
 
-
 /// Handle the OAuth2 callback.
 ///
 /// This function:
@@ -371,7 +389,10 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
             msg: format!(
                 "OAuth error from IdP: {} - {}",
                 error,
-                params.error_description.as_deref().unwrap_or("No description")
+                params
+                    .error_description
+                    .as_deref()
+                    .unwrap_or("No description")
             ),
             source: None,
         });
@@ -411,17 +432,52 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
 
     match config {
         UserAuthFlowConfig::OidcAuthorizationCodeFlow(config) => {
-            return self::oidc::handle_authorization_handshake_callback(repository, crypto_cache, external_jwks_cache, base_redirect_uri, params, &config, &oauth_state).await;
+            return self::oidc::handle_authorization_handshake_callback(
+                repository,
+                crypto_cache,
+                external_jwks_cache,
+                base_redirect_uri,
+                params,
+                &config,
+                &oauth_state,
+            )
+            .await;
         }
         UserAuthFlowConfig::OauthAuthorizationCodeFlow(config) => {
-            return self::oauth::handle_authorization_handshake_callback(repository, crypto_cache, external_jwks_cache, base_redirect_uri, params, &config, &oauth_state).await;
-        },
+            return self::oauth::handle_authorization_handshake_callback(
+                repository,
+                crypto_cache,
+                external_jwks_cache,
+                base_redirect_uri,
+                params,
+                &config,
+                &oauth_state,
+            )
+            .await;
+        }
         UserAuthFlowConfig::OidcAuthorizationCodePkceFlow(config) => {
-            return self::oidc::handle_authorization_handshake_callback(repository, crypto_cache, external_jwks_cache, base_redirect_uri, params, &config, &oauth_state).await;
+            return self::oidc::handle_authorization_handshake_callback(
+                repository,
+                crypto_cache,
+                external_jwks_cache,
+                base_redirect_uri,
+                params,
+                &config,
+                &oauth_state,
+            )
+            .await;
         }
         UserAuthFlowConfig::OauthAuthorizationCodePkceFlow(config) => {
-            return self::oauth::handle_authorization_handshake_callback(repository, crypto_cache, external_jwks_cache, base_redirect_uri, params, &config, &oauth_state).await;
+            return self::oauth::handle_authorization_handshake_callback(
+                repository,
+                crypto_cache,
+                external_jwks_cache,
+                base_redirect_uri,
+                params,
+                &config,
+                &oauth_state,
+            )
+            .await;
         }
     }
-    
 }

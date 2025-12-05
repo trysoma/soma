@@ -1,8 +1,9 @@
-use shared::{error::CommonError, primitives::{PaginationRequest, WrappedChronoDateTime}};
+use shared::{
+    error::CommonError,
+    primitives::{PaginationRequest, WrappedChronoDateTime},
+};
 
-use crate::repository::{ Group, GroupMembership, UserRepositoryLike};
-
-
+use crate::repository::{Group, GroupMembership, UserRepositoryLike};
 
 /// Sync user's group memberships - add new groups, remove old ones
 pub async fn sync_user_groups<R: UserRepositoryLike>(
@@ -46,7 +47,9 @@ pub async fn sync_user_groups<R: UserRepositoryLike>(
             created_at: now,
             updated_at: now,
         };
-        repository.create_group_membership(&create_membership).await?;
+        repository
+            .create_group_membership(&create_membership)
+            .await?;
     }
 
     // Remove memberships from groups no longer in the token
@@ -58,4 +61,3 @@ pub async fn sync_user_groups<R: UserRepositoryLike>(
 
     Ok(())
 }
-

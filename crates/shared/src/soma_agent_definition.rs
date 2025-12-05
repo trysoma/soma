@@ -108,6 +108,9 @@ pub struct EncryptedOauthYamlConfig {
     pub dek_alias: String,
     /// OAuth scopes
     pub scopes: Vec<String>,
+    /// Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub introspect_url: Option<String>,
     /// Token mapping configuration (serialized as JSON)
     pub mapping: serde_json::Value,
 }
@@ -486,19 +489,11 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
     async fn remove_environment_variable(&self, key: String) -> Result<(), CommonError>;
 
     // Identity operations - API keys
-    async fn add_api_key(
-        &self,
-        id: String,
-        config: ApiKeyYamlConfig,
-    ) -> Result<(), CommonError>;
+    async fn add_api_key(&self, id: String, config: ApiKeyYamlConfig) -> Result<(), CommonError>;
     async fn remove_api_key(&self, id: String) -> Result<(), CommonError>;
 
     // Identity operations - STS configurations
-    async fn add_sts_config(
-        &self,
-        id: String,
-        config: StsConfigYaml,
-    ) -> Result<(), CommonError>;
+    async fn add_sts_config(&self, id: String, config: StsConfigYaml) -> Result<(), CommonError>;
     async fn remove_sts_config(&self, id: String) -> Result<(), CommonError>;
 
     // Identity operations - User auth flow configurations

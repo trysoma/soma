@@ -3634,6 +3634,49 @@
         }
       }
     },
+    "/api/identity/v1/auth/whoami": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Get current identity",
+        "description": "Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)",
+        "operationId": "route_whoami",
+        "responses": {
+          "200": {
+            "description": "Current authenticated identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/identity/v1/jwk": {
       "get": {
         "tags": [
@@ -6343,6 +6386,13 @@
           "id": {
             "type": "string"
           },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token introspection endpoint URL (RFC 7662)"
+          },
           "jwks_endpoint": {
             "type": "string"
           },
@@ -6389,6 +6439,13 @@
           "encrypted_client_secret": {
             "type": "string",
             "description": "Encrypted client secret"
+          },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque"
           },
           "jwks_endpoint": {
             "type": "string",
@@ -7005,6 +7062,124 @@
             "type": "string"
           }
         }
+      },
+      "Human": {
+        "type": "object",
+        "description": "Authenticated human identity",
+        "required": [
+          "sub",
+          "groups",
+          "role"
+        ],
+        "properties": {
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "sub": {
+            "type": "string"
+          }
+        }
+      },
+      "Identity": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Machine",
+                "description": "Machine identity (API key authentication)"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "machine"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "Machine identity (API key authentication)"
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Human",
+                "description": "Human identity (STS token authentication)"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "human"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "Human identity (STS token authentication)"
+          },
+          {
+            "type": "object",
+            "description": "Machine acting on behalf of a human",
+            "required": [
+              "machine",
+              "human",
+              "type"
+            ],
+            "properties": {
+              "human": {
+                "$ref": "#/components/schemas/Human"
+              },
+              "machine": {
+                "$ref": "#/components/schemas/Machine"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "machine_on_behalf_of_human"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Unauthenticated request",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "unauthenticated"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Authenticated identity"
       },
       "IdentityConfig": {
         "type": "object",
@@ -7693,6 +7868,22 @@
           }
         }
       },
+      "Machine": {
+        "type": "object",
+        "description": "Authenticated machine identity",
+        "required": [
+          "sub",
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "sub": {
+            "type": "string"
+          }
+        }
+      },
       "MappingSource_String": {
         "oneOf": [
           {
@@ -7913,6 +8104,13 @@
           },
           "id": {
             "type": "string"
+          },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token introspection endpoint URL (RFC 7662)\nIf set, access tokens are treated as opaque and introspected via this endpoint"
           },
           "jwks_endpoint": {
             "type": "string"

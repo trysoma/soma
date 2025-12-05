@@ -888,6 +888,26 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/api/identity/v1/auth/whoami": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get current identity
+		 * @description Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)
+		 */
+		get: operations["route_whoami"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	"/api/identity/v1/jwk": {
 		parameters: {
 			query?: never;
@@ -1504,6 +1524,8 @@ export interface components {
 			dek_alias: string;
 			encrypted_client_secret: components["schemas"]["EncryptedString"];
 			id: string;
+			/** @description Token introspection endpoint URL (RFC 7662) */
+			introspect_url?: string | null;
 			jwks_endpoint: string;
 			mapping: components["schemas"]["TokenMapping"];
 			scopes: string[];
@@ -1519,6 +1541,8 @@ export interface components {
 			dek_alias: string;
 			/** @description Encrypted client secret */
 			encrypted_client_secret: string;
+			/** @description Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque */
+			introspect_url?: string | null;
 			/** @description JWKS endpoint URL for token verification */
 			jwks_endpoint: string;
 			/** @description Token mapping configuration (serialized as JSON) */
@@ -1688,6 +1712,33 @@ export interface components {
 			updated_at: components["schemas"]["WrappedChronoDateTime"];
 			user_id: string;
 		};
+		/** @description Authenticated human identity */
+		Human: {
+			email?: string | null;
+			groups: string[];
+			role: components["schemas"]["Role"];
+			sub: string;
+		};
+		/** @description Authenticated identity */
+		Identity:
+			| (components["schemas"]["Machine"] & {
+					/** @enum {string} */
+					type: "machine";
+			  })
+			| (components["schemas"]["Human"] & {
+					/** @enum {string} */
+					type: "human";
+			  })
+			| {
+					human: components["schemas"]["Human"];
+					machine: components["schemas"]["Machine"];
+					/** @enum {string} */
+					type: "machine_on_behalf_of_human";
+			  }
+			| {
+					/** @enum {string} */
+					type: "unauthenticated";
+			  };
 		/** @description Identity configuration for API keys, STS, and user auth flows */
 		IdentityConfig: {
 			/** @description API keys configuration (key is the API key ID) */
@@ -1864,6 +1915,11 @@ export interface components {
 			/** @description Token for the next page, if any */
 			next_page_token?: string | null;
 		};
+		/** @description Authenticated machine identity */
+		Machine: {
+			role: components["schemas"]["Role"];
+			sub: string;
+		};
 		/**
 		 * @description Indicates which token type (ID token for OIDC, access token response for OAuth)
 		 *     contains the field
@@ -1923,6 +1979,11 @@ export interface components {
 			client_id: string;
 			client_secret: string;
 			id: string;
+			/**
+			 * @description Token introspection endpoint URL (RFC 7662)
+			 *     If set, access tokens are treated as opaque and introspected via this endpoint
+			 */
+			introspect_url?: string | null;
 			jwks_endpoint: string;
 			mapping: components["schemas"]["TokenMapping"];
 			scopes: string[];
@@ -4992,6 +5053,44 @@ export interface operations {
 			};
 			/** @description User not found */
 			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_whoami: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Current authenticated identity */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Identity"];
+				};
+			};
+			/** @description Authentication failed */
+			401: {
 				headers: {
 					[name: string]: unknown;
 				};

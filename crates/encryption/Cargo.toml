@@ -3,6 +3,10 @@ name = "encryption"
 version.workspace = true
 edition.workspace = true
 
+[features]
+unit_test = []
+integration_test = []
+
 [dependencies]
 aes-gcm.workspace = true
 anyhow.workspace = true

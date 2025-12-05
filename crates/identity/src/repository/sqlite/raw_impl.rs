@@ -2,20 +2,20 @@ use crate::logic::sts::config::{JwtTemplateModeConfig, StsTokenConfig};
 use crate::logic::user::UserType;
 use crate::logic::user_auth_flow::config::EncryptedUserAuthFlowConfig;
 use crate::repository::{
-    Group, GroupMemberWithUser, GroupMembership, HashedApiKey, HashedApiKeyWithUser,
-    JwtSigningKey, OAuthState, Role, StsConfigurationDb, User, UserAuthFlowConfigDb, UserGroupWithGroup,
+    Group, GroupMemberWithUser, GroupMembership, HashedApiKey, HashedApiKeyWithUser, JwtSigningKey,
+    OAuthState, Role, StsConfigurationDb, User, UserAuthFlowConfigDb, UserGroupWithGroup,
 };
 use shared::error::CommonError;
 use shared::primitives::WrappedJsonValue;
 
 // Import generated Row types from parent module
 use super::{
-    Row_get_api_key_by_hashed_value, Row_get_api_key_by_id, Row_get_api_keys,
-    Row_get_group_by_id, Row_get_group_members, Row_get_group_membership, Row_get_groups,
-    Row_get_jwt_signing_key_by_kid,
-    Row_get_jwt_signing_keys, Row_get_oauth_state_by_state, Row_get_sts_configuration_by_id,
-    Row_get_sts_configurations, Row_get_user_by_id, Row_get_user_groups, Row_get_users,
-    Row_get_user_auth_flow_config_by_id, Row_get_user_auth_flow_configs,
+    Row_get_api_key_by_hashed_value, Row_get_api_key_by_id, Row_get_api_keys, Row_get_group_by_id,
+    Row_get_group_members, Row_get_group_membership, Row_get_groups,
+    Row_get_jwt_signing_key_by_kid, Row_get_jwt_signing_keys, Row_get_oauth_state_by_state,
+    Row_get_sts_configuration_by_id, Row_get_sts_configurations,
+    Row_get_user_auth_flow_config_by_id, Row_get_user_auth_flow_configs, Row_get_user_by_id,
+    Row_get_user_groups, Row_get_users,
 };
 
 // Helper function to deserialize StsTokenConfig from database row
@@ -33,8 +33,8 @@ fn deserialize_sts_config(
                 msg: "jwt_template config requires a value".to_string(),
                 source: None,
             })?;
-            let config: JwtTemplateModeConfig =
-                serde_json::from_value(value.into_inner()).map_err(|e| CommonError::Repository {
+            let config: JwtTemplateModeConfig = serde_json::from_value(value.into_inner())
+                .map_err(|e| CommonError::Repository {
                     msg: format!("Failed to deserialize jwt_template config: {e}"),
                     source: Some(e.into()),
                 })?;
@@ -283,36 +283,52 @@ fn deserialize_user_auth_flow_config(
 ) -> Result<EncryptedUserAuthFlowConfig, CommonError> {
     match config_type.as_str() {
         "oidc_authorization_code_flow" => {
-            let config = serde_json::from_value(config_json.into_inner())
-                .map_err(|e| CommonError::Repository {
+            let config = serde_json::from_value(config_json.into_inner()).map_err(|e| {
+                CommonError::Repository {
                     msg: format!("Failed to deserialize oidc_authorization_code_flow config: {e}"),
                     source: Some(e.into()),
-                })?;
-            Ok(EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(config))
+                }
+            })?;
+            Ok(EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(
+                config,
+            ))
         }
         "oauth_authorization_code_flow" => {
-            let config = serde_json::from_value(config_json.into_inner())
-                .map_err(|e| CommonError::Repository {
+            let config = serde_json::from_value(config_json.into_inner()).map_err(|e| {
+                CommonError::Repository {
                     msg: format!("Failed to deserialize oauth_authorization_code_flow config: {e}"),
                     source: Some(e.into()),
-                })?;
-            Ok(EncryptedUserAuthFlowConfig::OauthAuthorizationCodeFlow(config))
+                }
+            })?;
+            Ok(EncryptedUserAuthFlowConfig::OauthAuthorizationCodeFlow(
+                config,
+            ))
         }
         "oidc_authorization_code_pkce_flow" => {
-            let config = serde_json::from_value(config_json.into_inner())
-                .map_err(|e| CommonError::Repository {
-                    msg: format!("Failed to deserialize oidc_authorization_code_pkce_flow config: {e}"),
+            let config = serde_json::from_value(config_json.into_inner()).map_err(|e| {
+                CommonError::Repository {
+                    msg: format!(
+                        "Failed to deserialize oidc_authorization_code_pkce_flow config: {e}"
+                    ),
                     source: Some(e.into()),
-                })?;
-            Ok(EncryptedUserAuthFlowConfig::OidcAuthorizationCodePkceFlow(config))
+                }
+            })?;
+            Ok(EncryptedUserAuthFlowConfig::OidcAuthorizationCodePkceFlow(
+                config,
+            ))
         }
         "oauth_authorization_code_pkce_flow" => {
-            let config = serde_json::from_value(config_json.into_inner())
-                .map_err(|e| CommonError::Repository {
-                    msg: format!("Failed to deserialize oauth_authorization_code_pkce_flow config: {e}"),
+            let config = serde_json::from_value(config_json.into_inner()).map_err(|e| {
+                CommonError::Repository {
+                    msg: format!(
+                        "Failed to deserialize oauth_authorization_code_pkce_flow config: {e}"
+                    ),
                     source: Some(e.into()),
-                })?;
-            Ok(EncryptedUserAuthFlowConfig::OauthAuthorizationCodePkceFlow(config))
+                }
+            })?;
+            Ok(EncryptedUserAuthFlowConfig::OauthAuthorizationCodePkceFlow(
+                config,
+            ))
         }
         _ => Err(CommonError::Repository {
             msg: format!("Unknown user auth flow config type: {config_type}"),
@@ -352,7 +368,10 @@ impl TryFrom<Row_get_user_auth_flow_configs> for UserAuthFlowConfigDb {
 impl EncryptedUserAuthFlowConfig {
     /// Convert the encrypted config to database values (config_type, config_json)
     pub fn to_db_values(&self) -> Result<(String, WrappedJsonValue), CommonError> {
-        tracing::debug!("Converting EncryptedUserAuthFlowConfig variant: {:?}", std::mem::discriminant(self));
+        tracing::debug!(
+            "Converting EncryptedUserAuthFlowConfig variant: {:?}",
+            std::mem::discriminant(self)
+        );
         let (config_type, config_value) = match self {
             EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(config) => {
                 let json = serde_json::to_value(config).map_err(|e| CommonError::Repository {
@@ -370,14 +389,18 @@ impl EncryptedUserAuthFlowConfig {
             }
             EncryptedUserAuthFlowConfig::OidcAuthorizationCodePkceFlow(config) => {
                 let json = serde_json::to_value(config).map_err(|e| CommonError::Repository {
-                    msg: format!("Failed to serialize oidc_authorization_code_pkce_flow config: {e}"),
+                    msg: format!(
+                        "Failed to serialize oidc_authorization_code_pkce_flow config: {e}"
+                    ),
                     source: Some(e.into()),
                 })?;
                 ("oidc_authorization_code_pkce_flow".to_string(), json)
             }
             EncryptedUserAuthFlowConfig::OauthAuthorizationCodePkceFlow(config) => {
                 let json = serde_json::to_value(config).map_err(|e| CommonError::Repository {
-                    msg: format!("Failed to serialize oauth_authorization_code_pkce_flow config: {e}"),
+                    msg: format!(
+                        "Failed to serialize oauth_authorization_code_pkce_flow config: {e}"
+                    ),
                     source: Some(e.into()),
                 })?;
                 ("oauth_authorization_code_pkce_flow".to_string(), json)

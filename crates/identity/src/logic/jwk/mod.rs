@@ -14,7 +14,7 @@ use shared::{
 use uuid::Uuid;
 
 use crate::logic::{internal_token_issuance::JwtSigningKey, jwk::cache::JwksCache};
-use crate::repository::{ UserRepositoryLike};
+use crate::repository::UserRepositoryLike;
 
 use utoipa::ToSchema;
 
@@ -417,8 +417,8 @@ fn pem_to_jwk(pem: &str, kid: &str) -> Result<Jwk, CommonError> {
     })
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use crate::repository::Repository;
     use encryption::logic::crypto_services::{CryptoCache, init_crypto_cache};

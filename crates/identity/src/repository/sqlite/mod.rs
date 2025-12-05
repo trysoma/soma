@@ -13,7 +13,8 @@ use crate::logic::sts::config::StsTokenConfigType;
 use crate::logic::user_auth_flow::oauth::OAuthState;
 use crate::repository::{
     Group, GroupMemberWithUser, GroupMembership, HashedApiKey, HashedApiKeyWithUser, JwtSigningKey,
-    StsConfigurationDb, UpdateUser, User, UserAuthFlowConfigDb, UserGroupWithGroup, UserRepositoryLike
+    StsConfigurationDb, UpdateUser, User, UserAuthFlowConfigDb, UserGroupWithGroup,
+    UserRepositoryLike,
 };
 
 use anyhow::Context;
@@ -97,7 +98,10 @@ impl UserRepositoryLike for Repository {
         })?;
 
         let email = params.email.clone().or(existing.email);
-        let role = params.role.clone().unwrap_or_else(|| existing.role.as_str().to_string());
+        let role = params
+            .role
+            .clone()
+            .unwrap_or_else(|| existing.role.as_str().to_string());
         let description = params.description.clone().or(existing.description);
 
         let sqlc_params = update_user_params {
@@ -225,7 +229,10 @@ impl UserRepositoryLike for Repository {
         Ok(result.map(|row| row.into()))
     }
 
-    async fn get_api_key_by_id(&self, id: &str) -> Result<Option<HashedApiKeyWithUser>, CommonError> {
+    async fn get_api_key_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<HashedApiKeyWithUser>, CommonError> {
         let sqlc_params = get_api_key_by_id_params {
             id: &id.to_string(),
         };
@@ -437,10 +444,7 @@ impl UserRepositoryLike for Repository {
     }
 
     // Group membership methods
-    async fn create_group_membership(
-        &self,
-        params: &GroupMembership,
-    ) -> Result<(), CommonError> {
+    async fn create_group_membership(&self, params: &GroupMembership) -> Result<(), CommonError> {
         let sqlc_params = create_group_membership_params {
             group_id: &params.group_id,
             user_id: &params.user_id,
@@ -633,10 +637,7 @@ impl UserRepositoryLike for Repository {
     }
 
     // JWT signing key methods
-    async fn create_jwt_signing_key(
-        &self,
-        params: &JwtSigningKey,
-    ) -> Result<(), CommonError> {
+    async fn create_jwt_signing_key(&self, params: &JwtSigningKey) -> Result<(), CommonError> {
         let sqlc_params = create_jwt_signing_key_params {
             kid: &params.kid,
             encrypted_private_key: &params.encrypted_private_key,
@@ -751,10 +752,11 @@ impl UserRepositoryLike for Repository {
                 (config.id.clone(), "dev".to_string(), None)
             }
             crate::logic::sts::config::StsTokenConfig::JwtTemplate(config) => {
-                let json_value = serde_json::to_value(config).map_err(|e| CommonError::Repository {
-                    msg: format!("Failed to serialize jwt_template config: {e}"),
-                    source: Some(e.into()),
-                })?;
+                let json_value =
+                    serde_json::to_value(config).map_err(|e| CommonError::Repository {
+                        msg: format!("Failed to serialize jwt_template config: {e}"),
+                        source: Some(e.into()),
+                    })?;
                 (
                     config.id.clone(),
                     "jwt_template".to_string(),
@@ -829,12 +831,14 @@ impl UserRepositoryLike for Repository {
             if decoded_parts.is_empty() {
                 None
             } else {
-                Some(WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(
-                    |e| CommonError::Repository {
-                        msg: format!("Invalid datetime in pagination token: {e}"),
-                        source: Some(e.into()),
-                    },
-                )?)
+                Some(
+                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(|e| {
+                        CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        }
+                    })?,
+                )
             }
         } else {
             None
@@ -877,7 +881,10 @@ impl UserRepositoryLike for Repository {
     ) -> Result<(), CommonError> {
         let (config_type, config_json) = params.config.to_db_values()?;
 
-        tracing::info!("Creating user auth flow(s) config with type: {}", config_type);
+        tracing::info!(
+            "Creating user auth flow(s) config with type: {}",
+            config_type
+        );
 
         let sqlc_params = create_user_auth_flow_config_params {
             id: &params.id,
@@ -948,12 +955,14 @@ impl UserRepositoryLike for Repository {
             if decoded_parts.is_empty() {
                 None
             } else {
-                Some(WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(
-                    |e| CommonError::Repository {
-                        msg: format!("Invalid datetime in pagination token: {e}"),
-                        source: Some(e.into()),
-                    },
-                )?)
+                Some(
+                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(|e| {
+                        CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        }
+                    })?,
+                )
             }
         } else {
             None
@@ -974,7 +983,8 @@ impl UserRepositoryLike for Repository {
                 source: Some(e),
             })?;
 
-        let items: Result<Vec<UserAuthFlowConfigDb>, CommonError> = rows.into_iter().map(|row| row.try_into()).collect();
+        let items: Result<Vec<UserAuthFlowConfigDb>, CommonError> =
+            rows.into_iter().map(|row| row.try_into()).collect();
 
         Ok(PaginatedResponse::from_items_with_extra(
             items?,
@@ -1053,11 +1063,12 @@ impl UserRepositoryLike for Repository {
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
-    use crate::repository::CreateGroup;
-    use crate::repository::CreateGroupMembership;
+    use crate::logic::api_key::HashedApiKey;
+    use crate::logic::internal_token_issuance::JwtSigningKey;
+    use crate::logic::user::{Group, GroupMembership, Role, User, UserType};
     use shared::primitives::WrappedChronoDateTime;
 
     async fn setup_test_db() -> Repository {
@@ -1072,34 +1083,34 @@ mod tests {
         Repository::new(conn)
     }
 
-    fn create_test_user(id: &str, user_type: &str, email: Option<&str>, role: &str) -> CreateUser {
+    fn create_test_user(id: &str, user_type: UserType, email: Option<&str>, role: Role) -> User {
         let now = WrappedChronoDateTime::now();
-        CreateUser {
+        User {
             id: id.to_string(),
-            user_type: user_type.to_string(),
+            user_type,
             email: email.map(|s| s.to_string()),
-            role: role.to_string(),
+            role,
             description: None,
             created_at: now,
             updated_at: now,
         }
     }
 
-    fn create_test_api_key(id: &str, hashed_value: &str, user_id: &str) -> CreateApiKey {
+    fn create_test_api_key(id: &str, hashed_value: &str, user_id: &str) -> HashedApiKey {
         let now = WrappedChronoDateTime::now();
-        CreateApiKey {
+        HashedApiKey {
             id: id.to_string(),
             hashed_value: hashed_value.to_string(),
-            description: Some(format!("Test API key {}", id)),
+            description: Some(format!("Test API key {id}")),
             user_id: user_id.to_string(),
             created_at: now,
             updated_at: now,
         }
     }
 
-    fn create_test_group(id: &str, name: &str) -> CreateGroup {
+    fn create_test_group(id: &str, name: &str) -> Group {
         let now = WrappedChronoDateTime::now();
-        CreateGroup {
+        Group {
             id: id.to_string(),
             name: name.to_string(),
             created_at: now,
@@ -1107,9 +1118,9 @@ mod tests {
         }
     }
 
-    fn create_test_group_membership(group_id: &str, user_id: &str) -> CreateGroupMembership {
+    fn create_test_group_membership(group_id: &str, user_id: &str) -> GroupMembership {
         let now = WrappedChronoDateTime::now();
-        CreateGroupMembership {
+        GroupMembership {
             group_id: group_id.to_string(),
             user_id: user_id.to_string(),
             created_at: now,
@@ -1122,10 +1133,10 @@ mod tests {
         encrypted_private_key: &str,
         public_key: &str,
         dek_alias: &str,
-    ) -> CreateJwtSigningKey {
+    ) -> JwtSigningKey {
         let now = WrappedChronoDateTime::now();
         let expires_at = *now.get_inner() + chrono::Duration::days(30);
-        CreateJwtSigningKey {
+        JwtSigningKey {
             kid: kid.to_string(),
             encrypted_private_key: encrypted_private_key.to_string(),
             expires_at: WrappedChronoDateTime::new(expires_at),
@@ -1147,9 +1158,9 @@ mod tests {
 
         let user = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("test@example.com"),
-            "admin",
+            Role::Admin,
         );
         repo.create_user(&user).await.unwrap();
 
@@ -1157,9 +1168,9 @@ mod tests {
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
         assert_eq!(fetched.id, "user-1");
-        assert_eq!(fetched.user_type, "machine");
+        assert_eq!(fetched.user_type, UserType::Machine);
         assert_eq!(fetched.email, Some("test@example.com".to_string()));
-        assert_eq!(fetched.role, "admin");
+        assert_eq!(fetched.role, Role::Admin);
     }
 
     #[tokio::test]
@@ -1176,9 +1187,9 @@ mod tests {
 
         let user = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("old@example.com"),
-            "user",
+            Role::User,
         );
         repo.create_user(&user).await.unwrap();
 
@@ -1191,7 +1202,7 @@ mod tests {
 
         let fetched = repo.get_user_by_id("user-1").await.unwrap().unwrap();
         assert_eq!(fetched.email, Some("new@example.com".to_string()));
-        assert_eq!(fetched.role, "admin");
+        assert_eq!(fetched.role, Role::Admin);
     }
 
     #[tokio::test]
@@ -1200,9 +1211,9 @@ mod tests {
 
         let user = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("old@example.com"),
-            "user",
+            Role::User,
         );
         repo.create_user(&user).await.unwrap();
 
@@ -1216,7 +1227,7 @@ mod tests {
 
         let fetched = repo.get_user_by_id("user-1").await.unwrap().unwrap();
         assert_eq!(fetched.email, Some("new@example.com".to_string()));
-        assert_eq!(fetched.role, "user"); // Should be unchanged
+        assert_eq!(fetched.role, Role::User); // Should be unchanged
     }
 
     #[tokio::test]
@@ -1225,9 +1236,9 @@ mod tests {
 
         let user = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("test@example.com"),
-            "admin",
+            Role::Admin,
         );
         repo.create_user(&user).await.unwrap();
 
@@ -1246,12 +1257,12 @@ mod tests {
             let user = create_test_user(
                 &format!("user-{i}"),
                 if i % 2 == 0 {
-                    "human"
+                    UserType::Human
                 } else {
-                    "machine"
+                    UserType::Machine
                 },
                 Some(&format!("user{i}@example.com")),
-                if i % 2 == 0 { "admin" } else { "user" },
+                if i % 2 == 0 { Role::Admin } else { Role::User },
             );
             repo.create_user(&user).await.unwrap();
         }
@@ -1287,9 +1298,9 @@ mod tests {
         for i in 1..=5 {
             let user = create_test_user(
                 &format!("user-{i}"),
-                "machine",
+                UserType::Machine,
                 Some(&format!("user{i}@example.com")),
-                "user",
+                Role::User,
             );
             repo.create_user(&user).await.unwrap();
             // Small delay to ensure different created_at timestamps
@@ -1335,9 +1346,9 @@ mod tests {
         // Create user first
         let user = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("test@example.com"),
-            "admin",
+            Role::Admin,
         );
         repo.create_user(&user).await.unwrap();
 
@@ -1375,9 +1386,9 @@ mod tests {
 
         let user = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("test@example.com"),
-            "admin",
+            Role::Admin,
         );
         repo.create_user(&user).await.unwrap();
 
@@ -1400,15 +1411,15 @@ mod tests {
         // Create users
         let user1 = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("user1@example.com"),
-            "admin",
+            Role::Admin,
         );
         let user2 = create_test_user(
             "user-2",
-            "human",
+            UserType::Human,
             Some("user2@example.com"),
-            "user",
+            Role::User,
         );
         repo.create_user(&user1).await.unwrap();
         repo.create_user(&user2).await.unwrap();
@@ -1460,15 +1471,15 @@ mod tests {
         // Create users
         let user1 = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("user1@example.com"),
-            "admin",
+            Role::Admin,
         );
         let user2 = create_test_user(
             "user-2",
-            "human",
+            UserType::Human,
             Some("user2@example.com"),
-            "user",
+            Role::User,
         );
         repo.create_user(&user1).await.unwrap();
         repo.create_user(&user2).await.unwrap();
@@ -1520,19 +1531,16 @@ mod tests {
         // Create user
         let user = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("test@example.com"),
-            "admin",
+            Role::Admin,
         );
         repo.create_user(&user).await.unwrap();
 
         // Create API keys
         for i in 1..=3 {
-            let api_key = create_test_api_key(
-                &format!("api-key-{i}"),
-                &format!("hash-{i}"),
-                "user-1",
-            );
+            let api_key =
+                create_test_api_key(&format!("api-key-{i}"), &format!("hash-{i}"), "user-1");
             repo.create_api_key(&api_key).await.unwrap();
         }
 
@@ -1671,9 +1679,9 @@ mod tests {
         // Create user and group first
         let user = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("test@example.com"),
-            "admin",
+            Role::Admin,
         );
         repo.create_user(&user).await.unwrap();
 
@@ -1712,9 +1720,9 @@ mod tests {
         // Create user, group, and membership
         let user = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("test@example.com"),
-            "admin",
+            Role::Admin,
         );
         repo.create_user(&user).await.unwrap();
 
@@ -1748,9 +1756,9 @@ mod tests {
         for i in 1..=5 {
             let user = create_test_user(
                 &format!("user-{i}"),
-                "machine",
+                UserType::Machine,
                 Some(&format!("user{i}@example.com")),
-                "user",
+                Role::User,
             );
             repo.create_user(&user).await.unwrap();
 
@@ -1784,9 +1792,9 @@ mod tests {
         for i in 1..=5 {
             let user = create_test_user(
                 &format!("user-{i}"),
-                "machine",
+                UserType::Machine,
                 Some(&format!("user{i}@example.com")),
-                "user",
+                Role::User,
             );
             repo.create_user(&user).await.unwrap();
 
@@ -1827,9 +1835,9 @@ mod tests {
         // Create user
         let user = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("test@example.com"),
-            "admin",
+            Role::Admin,
         );
         repo.create_user(&user).await.unwrap();
 
@@ -1860,9 +1868,9 @@ mod tests {
         // Create user
         let user = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("test@example.com"),
-            "admin",
+            Role::Admin,
         );
         repo.create_user(&user).await.unwrap();
 
@@ -1909,9 +1917,9 @@ mod tests {
         for i in 1..=3 {
             let user = create_test_user(
                 &format!("user-{i}"),
-                "machine",
+                UserType::Machine,
                 Some(&format!("user{i}@example.com")),
-                "user",
+                Role::User,
             );
             repo.create_user(&user).await.unwrap();
 
@@ -1959,15 +1967,15 @@ mod tests {
         // Create users
         let user1 = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("user1@example.com"),
-            "user",
+            Role::User,
         );
         let user2 = create_test_user(
             "user-2",
-            "human",
+            UserType::Human,
             Some("user2@example.com"),
-            "user",
+            Role::User,
         );
         repo.create_user(&user1).await.unwrap();
         repo.create_user(&user2).await.unwrap();
@@ -2014,9 +2022,9 @@ mod tests {
         for i in 1..=3 {
             let user = create_test_user(
                 &format!("user-{i}"),
-                "machine",
+                UserType::Machine,
                 Some(&format!("user{i}@example.com")),
-                "user",
+                Role::User,
             );
             repo.create_user(&user).await.unwrap();
 
@@ -2055,9 +2063,9 @@ mod tests {
         // Create user and add to all groups
         let user = create_test_user(
             "user-1",
-            "machine",
+            UserType::Machine,
             Some("test@example.com"),
-            "admin",
+            Role::Admin,
         );
         repo.create_user(&user).await.unwrap();
 
@@ -2223,14 +2231,15 @@ mod tests {
     // ============================================
 
     use crate::logic::sts::config::{DevModeConfig, JwtTemplateModeConfig, StsTokenConfig};
-    use crate::logic::token_mapping::template::{JwtTokenMappingConfig, JwtTokenTemplateConfig, JwtTokenTemplateValidationConfig, TokenLocation, MappingSource};
+    use crate::logic::token_mapping::template::{
+        JwtTokenMappingConfig, JwtTokenTemplateConfig, JwtTokenTemplateValidationConfig,
+        MappingSource, TokenLocation,
+    };
 
     fn create_test_sts_dev_mode_config(id: &str) -> StsConfigurationDb {
         let now = WrappedChronoDateTime::now();
         StsConfigurationDb {
-            config: StsTokenConfig::DevMode(DevModeConfig {
-                id: id.to_string(),
-            }),
+            config: StsTokenConfig::DevMode(DevModeConfig { id: id.to_string() }),
             created_at: now,
             updated_at: now,
         }
@@ -2244,6 +2253,7 @@ mod tests {
                 mapping_template: JwtTokenTemplateConfig {
                     jwks_uri: "https://example.com/.well-known/jwks.json".to_string(),
                     userinfo_url: None,
+                    introspect_url: None,
                     access_token_location: Some(TokenLocation::Header("Authorization".to_string())),
                     id_token_location: None,
                     mapping_template: JwtTokenMappingConfig {
@@ -2291,10 +2301,7 @@ mod tests {
         let config = create_test_sts_jwt_template_config("config-1");
         repo.create_sts_configuration(&config).await.unwrap();
 
-        let fetched = repo
-            .get_sts_configuration_by_id("config-1")
-            .await
-            .unwrap();
+        let fetched = repo.get_sts_configuration_by_id("config-1").await.unwrap();
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
         assert_eq!(get_sts_config_id(&fetched.config), "config-1");
@@ -2308,10 +2315,7 @@ mod tests {
         let config = create_test_sts_dev_mode_config("config-1");
         repo.create_sts_configuration(&config).await.unwrap();
 
-        let fetched = repo
-            .get_sts_configuration_by_id("config-1")
-            .await
-            .unwrap();
+        let fetched = repo.get_sts_configuration_by_id("config-1").await.unwrap();
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
         assert_eq!(get_sts_config_id(&fetched.config), "config-1");
@@ -2337,20 +2341,14 @@ mod tests {
         repo.create_sts_configuration(&config).await.unwrap();
 
         // Verify it exists
-        let fetched = repo
-            .get_sts_configuration_by_id("config-1")
-            .await
-            .unwrap();
+        let fetched = repo.get_sts_configuration_by_id("config-1").await.unwrap();
         assert!(fetched.is_some());
 
         // Delete it
         repo.delete_sts_configuration("config-1").await.unwrap();
 
         // Verify it's gone
-        let fetched = repo
-            .get_sts_configuration_by_id("config-1")
-            .await
-            .unwrap();
+        let fetched = repo.get_sts_configuration_by_id("config-1").await.unwrap();
         assert!(fetched.is_none());
     }
 
@@ -2403,7 +2401,12 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result.items.len(), 3);
-        assert!(result.items.iter().all(|c| get_sts_config_type(&c.config) == "jwt_template"));
+        assert!(
+            result
+                .items
+                .iter()
+                .all(|c| get_sts_config_type(&c.config) == "jwt_template")
+        );
 
         // Filter by dev_mode
         let result = repo
@@ -2411,7 +2414,12 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result.items.len(), 3);
-        assert!(result.items.iter().all(|c| get_sts_config_type(&c.config) == "dev"));
+        assert!(
+            result
+                .items
+                .iter()
+                .all(|c| get_sts_config_type(&c.config) == "dev")
+        );
     }
 
     #[tokio::test]
@@ -2487,7 +2495,12 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result.items.len(), 2);
-        assert!(result.items.iter().all(|c| get_sts_config_type(&c.config) == "jwt_template"));
+        assert!(
+            result
+                .items
+                .iter()
+                .all(|c| get_sts_config_type(&c.config) == "jwt_template")
+        );
         assert!(result.next_page_token.is_some());
 
         // Get second page
@@ -2500,7 +2513,12 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result.items.len(), 1);
-        assert!(result.items.iter().all(|c| get_sts_config_type(&c.config) == "jwt_template"));
+        assert!(
+            result
+                .items
+                .iter()
+                .all(|c| get_sts_config_type(&c.config) == "jwt_template")
+        );
         assert!(result.next_page_token.is_none());
     }
 
@@ -2508,9 +2526,11 @@ mod tests {
     // OAuth State tests
     // ============================================
 
+    use crate::logic::token_mapping::TokenMapping;
     use crate::logic::user_auth_flow::config::{
-        EncryptedUserAuthFlowConfig, OidcAuthorizationCodeFlowConfig,
+        EncryptedOauthConfig, EncryptedOidcConfig, EncryptedUserAuthFlowConfig,
     };
+    use encryption::logic::crypto_services::EncryptedString;
 
     fn create_test_oauth_state(state: &str, config_id: &str) -> OAuthState {
         let now = WrappedChronoDateTime::now();
@@ -2530,17 +2550,47 @@ mod tests {
         let now = WrappedChronoDateTime::now();
         let config = UserAuthFlowConfigDb {
             id: id.to_string(),
-            config: EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(
-                OidcAuthorizationCodeFlowConfig {
-                    name: "Test Provider".to_string(),
+            config: EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(EncryptedOidcConfig {
+                id: id.to_string(),
+                base_config: EncryptedOauthConfig {
+                    id: id.to_string(),
+                    authorization_endpoint: "https://example.com/authorize".to_string(),
+                    token_endpoint: "https://example.com/token".to_string(),
+                    jwks_endpoint: "https://example.com/.well-known/jwks.json".to_string(),
                     client_id: "test".to_string(),
-                    encrypted_client_secret: "encrypted_secret".to_string(),
+                    encrypted_client_secret: EncryptedString("encrypted_secret".to_string()),
                     dek_alias: "default".to_string(),
-                    redirect_uri: "http://localhost/callback".to_string(),
-                    issuer_url: "https://example.com".to_string(),
                     scopes: vec!["openid".to_string()],
+                    introspect_url: None,
+                    mapping: TokenMapping::JwtTemplate(JwtTokenMappingConfig {
+                        issuer_field: MappingSource::AccessToken("iss".to_string()),
+                        audience_field: MappingSource::AccessToken("aud".to_string()),
+                        scopes_field: None,
+                        sub_field: MappingSource::AccessToken("sub".to_string()),
+                        email_field: None,
+                        groups_field: None,
+                        group_to_role_mappings: vec![],
+                        scope_to_role_mappings: vec![],
+                        scope_to_group_mappings: vec![],
+                    }),
                 },
-            ),
+                discovery_endpoint: Some(
+                    "https://example.com/.well-known/openid-configuration".to_string(),
+                ),
+                userinfo_endpoint: None,
+                introspect_url: None,
+                mapping: TokenMapping::JwtTemplate(JwtTokenMappingConfig {
+                    issuer_field: MappingSource::AccessToken("iss".to_string()),
+                    audience_field: MappingSource::AccessToken("aud".to_string()),
+                    scopes_field: None,
+                    sub_field: MappingSource::AccessToken("sub".to_string()),
+                    email_field: None,
+                    groups_field: None,
+                    group_to_role_mappings: vec![],
+                    scope_to_role_mappings: vec![],
+                    scope_to_group_mappings: vec![],
+                }),
+            }),
             created_at: now,
             updated_at: now,
         };
@@ -2627,7 +2677,10 @@ mod tests {
         assert_eq!(deleted, 1);
 
         // Verify expired is gone
-        let fetched = repo.get_oauth_state_by_state("expired-state").await.unwrap();
+        let fetched = repo
+            .get_oauth_state_by_state("expired-state")
+            .await
+            .unwrap();
         assert!(fetched.is_none());
 
         // Verify valid still exists
@@ -2655,7 +2708,10 @@ mod tests {
         };
         repo.create_oauth_state(&oauth_state).await.unwrap();
 
-        let fetched = repo.get_oauth_state_by_state("state-minimal").await.unwrap();
+        let fetched = repo
+            .get_oauth_state_by_state("state-minimal")
+            .await
+            .unwrap();
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
         assert_eq!(fetched.state, "state-minimal");

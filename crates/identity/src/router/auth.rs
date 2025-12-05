@@ -1,13 +1,14 @@
-use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Redirect, Response};
 use axum::Json;
+use axum::extract::{Path, Query, State};
+use axum::response::{IntoResponse, Redirect, Response};
 use axum_extra::extract::cookie::CookieJar;
+use http::HeaderMap;
 use serde::{Deserialize, Serialize};
 use shared::{adapters::openapi::API_VERSION_TAG, error::CommonError};
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
+use crate::logic::auth_client::Identity;
 use crate::logic::internal_token_issuance::{
     NormalizedTokenIssuanceResult, RefreshTokenParams, RefreshTokenResult, refresh_access_token,
 };
@@ -18,8 +19,8 @@ use crate::logic::user_auth_flow::{
 use crate::service::IdentityService;
 
 use super::{
-    add_token_cookies, add_token_cookies_with_options,
-    API_VERSION_1, PATH_PREFIX, REFRESH_TOKEN_COOKIE_NAME, SERVICE_ROUTE_KEY,
+    API_VERSION_1, PATH_PREFIX, REFRESH_TOKEN_COOKIE_NAME, SERVICE_ROUTE_KEY, add_token_cookies,
+    add_token_cookies_with_options,
 };
 
 pub fn create_auth_routes() -> OpenApiRouter<IdentityService> {
@@ -27,6 +28,7 @@ pub fn create_auth_routes() -> OpenApiRouter<IdentityService> {
         .routes(routes!(route_start_authorization))
         .routes(routes!(route_auth_callback))
         .routes(routes!(route_refresh_token))
+        .routes(routes!(route_whoami))
 }
 
 // ============================================
@@ -89,10 +91,7 @@ fn extract_refresh_token_from_jar(jar: &CookieJar) -> Option<String> {
 }
 
 /// Build response with token cookies and JSON body for refresh (access token only)
-fn build_refresh_token_response(
-    jar: CookieJar,
-    tokens: &RefreshTokenResult,
-) -> Response {
+fn build_refresh_token_response(jar: CookieJar, tokens: &RefreshTokenResult) -> Response {
     let body = TokenResponse {
         access_token: tokens.access_token.clone(),
         refresh_token: None,
@@ -144,7 +143,14 @@ async fn route_start_authorization(
         redirect_after_login: query.redirect_after_login,
     };
 
-    match start_authorization_handshake(service.repository.as_ref(), &service.crypto_cache, &service.base_redirect_uri, params).await {
+    match start_authorization_handshake(
+        service.repository.as_ref(),
+        &service.crypto_cache,
+        &service.base_redirect_uri,
+        params,
+    )
+    .await
+    {
         Ok(result) => Redirect::temporary(&result.login_redirect_url).into_response(),
         Err(e) => e.into_response(),
     }
@@ -178,7 +184,8 @@ async fn route_auth_callback(
             return CommonError::InvalidRequest {
                 msg: "Missing state parameter".to_string(),
                 source: None,
-            }.into_response();
+            }
+            .into_response();
         }
     };
 
@@ -242,7 +249,8 @@ async fn route_refresh_token(
         return CommonError::Authentication {
             msg: "No refresh token provided in body or cookie".to_string(),
             source: None,
-        }.into_response();
+        }
+        .into_response();
     };
 
     let params = RefreshTokenParams { refresh_token };
@@ -260,6 +268,28 @@ async fn route_refresh_token(
             // Only set access token cookie on refresh, don't update refresh token
             build_refresh_token_response(jar, &token_result)
         }
+        Err(error) => error.into_response(),
+    }
+}
+
+/// Get current authenticated identity
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/auth/whoami", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    responses(
+        (status = 200, description = "Current authenticated identity", body = Identity),
+        (status = 401, description = "Authentication failed", body = CommonError),
+        (status = 500, description = "Internal server error", body = CommonError),
+    ),
+    summary = "Get current identity",
+    description = "Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)",
+)]
+async fn route_whoami(State(service): State<IdentityService>, headers: HeaderMap) -> Response {
+    let auth_client = service.auth_client();
+
+    match auth_client.authenticate_from_headers(&headers).await {
+        Ok(identity) => Json(identity).into_response(),
         Err(error) => error.into_response(),
     }
 }

@@ -30,7 +30,7 @@ pub mod router;
 pub mod sdk;
 pub mod subsystems;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "unit_test"))]
 pub mod test;
 
 #[derive(Clone)]

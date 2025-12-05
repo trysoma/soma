@@ -233,7 +233,10 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     let dev_sts_result = enable_dev_mode_sts(&api_config).await;
     match dev_sts_result {
         Ok(()) => info!("Dev mode STS configuration enabled"),
-        Err(e) => warn!("Failed to enable dev mode STS configuration: {:?}. Continuing without it.", e),
+        Err(e) => warn!(
+            "Failed to enable dev mode STS configuration: {:?}. Continuing without it.",
+            e
+        ),
     }
 
     // Give SDK server time to fully initialize its gRPC handlers after bridge sync
@@ -453,11 +456,9 @@ async fn enable_dev_mode_sts(
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to list STS configs: {e:?}")))?;
 
-    let dev_mode_exists = existing_configs.items.iter().any(|config| {
-        match config {
-            models::StsTokenConfig::StsTokenConfigOneOf1(c) => c.dev_mode.id == DEV_MODE_STS_ID,
-            _ => false,
-        }
+    let dev_mode_exists = existing_configs.items.iter().any(|config| match config {
+        models::StsTokenConfig::StsTokenConfigOneOf1(c) => c.dev_mode.id == DEV_MODE_STS_ID,
+        _ => false,
     });
 
     if dev_mode_exists {
@@ -474,7 +475,11 @@ async fn enable_dev_mode_sts(
 
     identity_api::route_create_sts_config(api_config, params)
         .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create dev mode STS config: {e:?}")))?;
+        .map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!(
+                "Failed to create dev mode STS config: {e:?}"
+            ))
+        })?;
 
     Ok(())
 }

@@ -6,7 +6,6 @@ use shared::error::CommonError;
 use crate::logic::api_key::HashedApiKeyWithUser;
 use crate::repository::{Repository, UserRepositoryLike};
 
-
 /// Cache for API keys with repository fallback
 ///
 /// This cache stores API keys keyed by their hashed value for fast O(1) lookups
@@ -43,11 +42,15 @@ impl ApiKeyCache {
         }
 
         // Fall back to repository
-        let api_key_with_user = self.repository.get_api_key_by_hashed_value(hashed_value).await?;
+        let api_key_with_user = self
+            .repository
+            .get_api_key_by_hashed_value(hashed_value)
+            .await?;
 
         if let Some(api_key_with_user) = api_key_with_user {
             // Add to cache for future lookups
-            self.cache.insert(hashed_value.to_string(), api_key_with_user.clone());
+            self.cache
+                .insert(hashed_value.to_string(), api_key_with_user.clone());
             Ok(Some(api_key_with_user))
         } else {
             Ok(None)
@@ -90,15 +93,22 @@ impl ApiKeyCache {
     /// Refresh a specific API key from the repository
     ///
     /// This is useful after an API key is updated.
-    pub async fn refresh(&self, hashed_value: &str) -> Result<Option<HashedApiKeyWithUser>, CommonError> {
+    pub async fn refresh(
+        &self,
+        hashed_value: &str,
+    ) -> Result<Option<HashedApiKeyWithUser>, CommonError> {
         // Remove from cache first
         self.cache.remove(hashed_value);
 
         // Fetch fresh from repository
-        let api_key_with_user = self.repository.get_api_key_by_hashed_value(hashed_value).await?;
+        let api_key_with_user = self
+            .repository
+            .get_api_key_by_hashed_value(hashed_value)
+            .await?;
 
         if let Some(api_key_with_user) = api_key_with_user {
-            self.cache.insert(hashed_value.to_string(), api_key_with_user.clone());
+            self.cache
+                .insert(hashed_value.to_string(), api_key_with_user.clone());
             Ok(Some(api_key_with_user))
         } else {
             Ok(None)

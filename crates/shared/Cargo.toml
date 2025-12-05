@@ -64,3 +64,4 @@ tonic-build.workspace = true
 default = ["sqlite", "duckdb"]
 sqlite = []
 duckdb = []
+unit_test = []

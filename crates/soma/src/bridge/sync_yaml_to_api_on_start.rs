@@ -585,15 +585,11 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 if !existing_sts_configs.contains(id) {
                     use shared::soma_agent_definition::StsConfigYaml;
                     let create_req = match sts_config {
-                        StsConfigYaml::Dev {} => {
-                            models::StsTokenConfig::StsTokenConfigOneOf1(
-                                models::StsTokenConfigOneOf1 {
-                                    dev_mode: models::DevModeConfig {
-                                        id: id.clone(),
-                                    },
-                                },
-                            )
-                        }
+                        StsConfigYaml::Dev {} => models::StsTokenConfig::StsTokenConfigOneOf1(
+                            models::StsTokenConfigOneOf1 {
+                                dev_mode: models::DevModeConfig { id: id.clone() },
+                            },
+                        ),
                         StsConfigYaml::JwtTemplate(jwt_config) => {
                             let mapping_template = convert_jwt_template_to_api(jwt_config)?;
                             models::StsTokenConfig::StsTokenConfigOneOf(
@@ -601,12 +597,29 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                     jwt_template: models::JwtTemplateModeConfig {
                                         id: id.clone(),
                                         mapping_template,
-                                        validation_template: models::JwtTokenTemplateValidationConfig {
-                                            issuer: jwt_config.validation.issuer.clone().map(Some),
-                                            valid_audiences: jwt_config.validation.valid_audiences.clone().map(Some),
-                                            required_groups: jwt_config.validation.required_groups.clone().map(Some),
-                                            required_scopes: jwt_config.validation.required_scopes.clone().map(Some),
-                                        },
+                                        validation_template:
+                                            models::JwtTokenTemplateValidationConfig {
+                                                issuer: jwt_config
+                                                    .validation
+                                                    .issuer
+                                                    .clone()
+                                                    .map(Some),
+                                                valid_audiences: jwt_config
+                                                    .validation
+                                                    .valid_audiences
+                                                    .clone()
+                                                    .map(Some),
+                                                required_groups: jwt_config
+                                                    .validation
+                                                    .required_groups
+                                                    .clone()
+                                                    .map(Some),
+                                                required_scopes: jwt_config
+                                                    .validation
+                                                    .required_scopes
+                                                    .clone()
+                                                    .map(Some),
+                                            },
                                     },
                                 },
                             )
@@ -722,7 +735,7 @@ fn parse_role_string(role: &str) -> Result<models::Role, CommonError> {
         "agent" => Ok(models::Role::Agent),
         "user" => Ok(models::Role::User),
         _ => Err(CommonError::InvalidRequest {
-            msg: format!("Invalid role: {}", role),
+            msg: format!("Invalid role: {role}"),
             source: None,
         }),
     }
@@ -734,10 +747,14 @@ fn convert_jwt_template_to_api(
 ) -> Result<models::JwtTokenTemplateConfig, CommonError> {
     // Convert the config using serde_json (the types should be compatible)
     let json_value = serde_json::to_value(jwt_config).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to serialize JWT template config: {e}"))
+        CommonError::Unknown(anyhow::anyhow!(
+            "Failed to serialize JWT template config: {e}"
+        ))
     })?;
     serde_json::from_value(json_value).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to convert JWT template config: {e}"))
+        CommonError::Unknown(anyhow::anyhow!(
+            "Failed to convert JWT template config: {e}"
+        ))
     })
 }
 
@@ -763,6 +780,7 @@ fn convert_yaml_to_api_user_auth_flow(
             encrypted_client_secret: oauth.encrypted_client_secret.clone(),
             dek_alias: oauth.dek_alias.clone(),
             scopes: oauth.scopes.clone(),
+            introspect_url: oauth.introspect_url.clone().map(Some),
             mapping: serde_json::from_value(oauth.mapping.clone()).map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to parse token mapping: {e}"))
             })?,
@@ -787,34 +805,34 @@ fn convert_yaml_to_api_user_auth_flow(
     }
 
     match config {
-        UserAuthFlowYamlConfig::OidcAuthorizationCodeFlow(oidc) => {
-            Ok(models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf(
+        UserAuthFlowYamlConfig::OidcAuthorizationCodeFlow(oidc) => Ok(
+            models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf(
                 models::EncryptedUserAuthFlowConfigOneOf {
                     oidc_authorization_code_flow: convert_oidc_yaml_to_api(id, oidc)?,
                 },
-            ))
-        }
-        UserAuthFlowYamlConfig::OauthAuthorizationCodeFlow(oauth) => {
-            Ok(models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf1(
+            ),
+        ),
+        UserAuthFlowYamlConfig::OauthAuthorizationCodeFlow(oauth) => Ok(
+            models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf1(
                 models::EncryptedUserAuthFlowConfigOneOf1 {
                     oauth_authorization_code_flow: convert_oauth_yaml_to_api(id, oauth)?,
                 },
-            ))
-        }
-        UserAuthFlowYamlConfig::OidcAuthorizationCodePkceFlow(oidc) => {
-            Ok(models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf2(
+            ),
+        ),
+        UserAuthFlowYamlConfig::OidcAuthorizationCodePkceFlow(oidc) => Ok(
+            models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf2(
                 models::EncryptedUserAuthFlowConfigOneOf2 {
                     oidc_authorization_code_pkce_flow: convert_oidc_yaml_to_api(id, oidc)?,
                 },
-            ))
-        }
-        UserAuthFlowYamlConfig::OauthAuthorizationCodePkceFlow(oauth) => {
-            Ok(models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf3(
+            ),
+        ),
+        UserAuthFlowYamlConfig::OauthAuthorizationCodePkceFlow(oauth) => Ok(
+            models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf3(
                 models::EncryptedUserAuthFlowConfigOneOf3 {
                     oauth_authorization_code_pkce_flow: convert_oauth_yaml_to_api(id, oauth)?,
                 },
-            ))
-        }
+            ),
+        ),
     }
 }
 

@@ -20,7 +20,6 @@ pub mod user_auth_flow;
 /// Default DEK alias for client secret encryption
 pub const DEFAULT_DEK_ALIAS: &str = "default";
 
-
 /// Decode a JWT token and return its claims as a serde_json Map.
 /// Validates the signature using the provided JWKS cache.
 pub async fn decode_jwt_to_claims(
@@ -41,13 +40,11 @@ pub async fn decode_jwt_to_claims(
         external_jwks_cache.fetch_jwks(jwks_uri).await?;
     }
 
-    let decoding_key = external_jwks_cache
-        .get_key(jwks_uri, &kid)
-        .ok_or_else(|| {
-            CommonError::Unknown(anyhow::anyhow!(
-                "Key '{kid}' not found in JWKS from {jwks_uri}"
-            ))
-        })?;
+    let decoding_key = external_jwks_cache.get_key(jwks_uri, &kid).ok_or_else(|| {
+        CommonError::Unknown(anyhow::anyhow!(
+            "Key '{kid}' not found in JWKS from {jwks_uri}"
+        ))
+    })?;
 
     // Build validation
     let mut validation = Validation::new(Algorithm::RS256);
@@ -65,10 +62,11 @@ pub async fn decode_jwt_to_claims(
 
     match token_data.claims {
         Value::Object(obj) => Ok(obj),
-        _ => Err(CommonError::Unknown(anyhow::anyhow!("Invalid token claims"))),
+        _ => Err(CommonError::Unknown(anyhow::anyhow!(
+            "Invalid token claims"
+        ))),
     }
 }
-
 
 /// Decode a JWT token and return its claims as a serde_json Map.
 /// Validates the signature using the provided JWKS cache.
@@ -89,27 +87,27 @@ pub async fn decode_jwt_to_claims_unsafe(
         external_jwks_cache.fetch_jwks(jwks_uri).await?;
     }
 
-    let decoding_key = external_jwks_cache
-        .get_key(jwks_uri, &kid)
-        .ok_or_else(|| {
-            CommonError::Unknown(anyhow::anyhow!(
-                "Key '{kid}' not found in JWKS from {jwks_uri}"
-            ))
-        })?;
+    let decoding_key = external_jwks_cache.get_key(jwks_uri, &kid).ok_or_else(|| {
+        CommonError::Unknown(anyhow::anyhow!(
+            "Key '{kid}' not found in JWKS from {jwks_uri}"
+        ))
+    })?;
 
     // Build validation - disable all validation since we just want to extract claims
     // The token comes from a trusted source (the IdP's token endpoint over HTTPS)
     let mut validation = Validation::new(Algorithm::RS256);
     validation.insecure_disable_signature_validation();
-    validation.validate_aud = false;  // Don't validate audience
-    validation.validate_exp = false;  // Don't validate expiration (we'll use our own token expiry)
+    validation.validate_aud = false; // Don't validate audience
+    validation.validate_exp = false; // Don't validate expiration (we'll use our own token expiry)
 
     let token_data = decode::<Value>(token, &decoding_key, &validation)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("JWT validation failed: {e}")))?;
 
     match token_data.claims {
         Value::Object(obj) => Ok(obj),
-        _ => Err(CommonError::Unknown(anyhow::anyhow!("Invalid token claims"))),
+        _ => Err(CommonError::Unknown(anyhow::anyhow!(
+            "Invalid token claims"
+        ))),
     }
 }
 
@@ -133,14 +131,15 @@ pub async fn fetch_userinfo(
         )));
     }
 
-    let value: Value = response
-        .json()
-        .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse userinfo response: {e}")))?;
+    let value: Value = response.json().await.map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!("Failed to parse userinfo response: {e}"))
+    })?;
 
     match value {
         Value::Object(obj) => Ok(obj),
-        _ => Err(CommonError::Unknown(anyhow::anyhow!("Userinfo response is not a JSON object"))),
+        _ => Err(CommonError::Unknown(anyhow::anyhow!(
+            "Userinfo response is not a JSON object"
+        ))),
     }
 }
 
@@ -177,24 +176,24 @@ pub async fn introspect_token(
         )));
     }
 
-    let value: Value = response
-        .json()
-        .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse introspection response: {e}")))?;
+    let value: Value = response.json().await.map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!(
+            "Failed to parse introspection response: {e}"
+        ))
+    })?;
 
     let obj = match value {
         Value::Object(obj) => obj,
-        _ => return Err(CommonError::Unknown(anyhow::anyhow!(
-            "Token introspection response is not a JSON object"
-        ))),
+        _ => {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Token introspection response is not a JSON object"
+            )));
+        }
     };
 
     // RFC 7662: Check if token is active
     // The "active" claim is REQUIRED in the response
-    let is_active = obj
-        .get("active")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+    let is_active = obj.get("active").and_then(|v| v.as_bool()).unwrap_or(false);
 
     if !is_active {
         return Err(CommonError::Authentication {
@@ -226,9 +225,7 @@ pub fn validate_id(id: &str, resource_type: &str) -> Result<(), CommonError> {
     // Check that it starts with a letter
     if !id.chars().next().unwrap().is_ascii_lowercase() {
         return Err(CommonError::InvalidRequest {
-            msg: format!(
-                "{resource_type} ID must start with a lowercase letter, got: '{id}'"
-            ),
+            msg: format!("{resource_type} ID must start with a lowercase letter, got: '{id}'"),
             source: None,
         });
     }
@@ -256,9 +253,7 @@ pub fn validate_id(id: &str, resource_type: &str) -> Result<(), CommonError> {
     // Check for consecutive hyphens
     if id.contains("--") {
         return Err(CommonError::InvalidRequest {
-            msg: format!(
-                "{resource_type} ID cannot contain consecutive hyphens: '{id}'"
-            ),
+            msg: format!("{resource_type} ID cannot contain consecutive hyphens: '{id}'"),
             source: None,
         });
     }
@@ -287,4 +282,3 @@ pub enum OnConfigChangeEvt {
 pub type OnConfigChangeTx = tokio::sync::broadcast::Sender<OnConfigChangeEvt>;
 /// Receiver for config change events
 pub type OnConfigChangeRx = tokio::sync::broadcast::Receiver<OnConfigChangeEvt>;
-

@@ -3,6 +3,8 @@ name = "soma"
 version.workspace = true
 edition.workspace = true
 
+[features]
+unit_test = []
 
 [[bin]]
 name = "soma"

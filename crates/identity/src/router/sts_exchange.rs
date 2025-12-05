@@ -1,7 +1,7 @@
 use axum::{
     Json,
     extract::{Path, State},
-    http::{HeaderMap, StatusCode},
+    http::HeaderMap,
     response::{IntoResponse, Response},
 };
 use axum_extra::extract::cookie::CookieJar;
@@ -9,31 +9,21 @@ use shared::{adapters::openapi::API_VERSION_TAG, error::CommonError};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::internal_token_issuance::NormalizedTokenIssuanceResult;
-use crate::logic::sts::exchange::{
-    ExchangeStsTokenParams, exchange_sts_token,
-};
+use crate::logic::sts::exchange::{ExchangeStsTokenParams, exchange_sts_token};
 use crate::service::IdentityService;
 
-use super::{
-    add_token_cookies_with_options,
-    API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY,
-};
+use super::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY, add_token_cookies_with_options};
 
 pub fn create_sts_routes() -> OpenApiRouter<IdentityService> {
-    OpenApiRouter::new()
-        .routes(routes!(route_exchange_sts_token))
+    OpenApiRouter::new().routes(routes!(route_exchange_sts_token))
 }
 
 /// Build response with token cookies and JSON body for full token issuance
-fn build_token_response(
-    jar: CookieJar,
-    tokens: &NormalizedTokenIssuanceResult,
-) -> Response {
+fn build_token_response(jar: CookieJar, tokens: &NormalizedTokenIssuanceResult) -> Response {
     let jar = add_token_cookies_with_options(jar, tokens, true);
 
     (jar, Json(tokens)).into_response()
 }
-
 
 #[utoipa::path(
     post,

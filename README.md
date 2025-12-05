@@ -34,6 +34,9 @@ Before you begin, ensure you have the following installed:
 * [Atlas](https://atlasgo.io/) ([GitHub](https://github.com/ariga/atlas)) (for database migrations) (ensure you install community version: ```curl -sSf https://atlasgo.sh | sh -s -- --community -y```)
 * [OpenAPI Generator](https://openapi-generator.tech/docs/installation) (npm install is easiest: ```npm install @openapitools/openapi-generator-cli -g```)
 * [Cargo about](https://github.com/EmbarkStudios/cargo-about) (for license information generation)
+* [uv](https://docs.astral.sh/uv/)
+* Python 3
+
 ## Development
 
 ### Getting started

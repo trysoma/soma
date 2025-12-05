@@ -148,8 +148,8 @@ pub async fn init_sts_config_cache(cache: &StsConfigCache) -> Result<(), CommonE
     cache.refresh_all().await
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use crate::logic::sts::config::DevModeConfig;
     use crate::repository::Repository;
@@ -167,9 +167,7 @@ mod tests {
     }
 
     fn create_test_config(id: &str) -> StsTokenConfig {
-        StsTokenConfig::DevMode(DevModeConfig {
-            id: id.to_string(),
-        })
+        StsTokenConfig::DevMode(DevModeConfig { id: id.to_string() })
     }
 
     #[tokio::test]

@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use jsonwebtoken::DecodingKey;
 use shared::error::CommonError;
 
-
 /// External JWKS cache for fetching public keys from external identity providers
 #[derive(Clone)]
 pub struct ExternalJwksCache {

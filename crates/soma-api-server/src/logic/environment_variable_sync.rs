@@ -320,8 +320,8 @@ pub fn start_environment_variable_sync_subsystem(
     Ok(handle)
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
 
     #[test]

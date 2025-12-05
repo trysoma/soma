@@ -69,7 +69,13 @@ pub async fn cmd_api_key_add(
     timeout_secs: u64,
 ) -> Result<(), CommonError> {
     // Validate role
-    let valid_roles = ["admin", "maintainer", "read-only-maintainer", "agent", "user"];
+    let valid_roles = [
+        "admin",
+        "maintainer",
+        "read-only-maintainer",
+        "agent",
+        "user",
+    ];
     if !valid_roles.contains(&role.as_str()) {
         return Err(CommonError::InvalidRequest {
             msg: format!(
@@ -93,7 +99,7 @@ pub async fn cmd_api_key_add(
         "user" => models::Role::User,
         _ => {
             return Err(CommonError::InvalidRequest {
-                msg: format!("Invalid role: {}", role),
+                msg: format!("Invalid role: {role}"),
                 source: None,
             });
         }
@@ -129,7 +135,9 @@ pub async fn cmd_api_key_rm(
     info!("Deleting API key: {}", id);
     identity_api::route_delete_api_key(&api_config, &id)
         .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to delete API key '{id}': {e:?}")))?;
+        .map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to delete API key '{id}': {e:?}"))
+        })?;
 
     println!("Deleted API key: {id}");
     Ok(())

@@ -11,7 +11,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::logic::api_key::cache::ApiKeyCache;
-use crate::logic::{validate_id, DEFAULT_DEK_ALIAS, OnConfigChangeEvt, OnConfigChangeTx};
+use crate::logic::{DEFAULT_DEK_ALIAS, OnConfigChangeEvt, OnConfigChangeTx, validate_id};
 use crate::repository::UserRepositoryLike;
 
 use crate::logic::user::{Role, User, UserType};
@@ -54,7 +54,7 @@ pub struct ListApiKeysParams {
 }
 
 /// Parameters for importing an API key
-#[derive(Debug,Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct EncryptedApiKeyConfig {
     /// The ID of the API key
     pub id: String,
@@ -191,16 +191,15 @@ pub async fn create_api_key<R: UserRepositoryLike>(
 
     // Update the API key cache if provided
     if let Some(cache) = api_key_cache {
-        cache.add(HashedApiKeyWithUser {
-            api_key,
-            user,
-        });
+        cache.add(HashedApiKeyWithUser { api_key, user });
     }
 
     // Broadcast config change event with encrypted hashed value
     if publish_on_change_evt {
         // Get encryption service for the default DEK
-        let encryption_service = crypto_cache.get_encryption_service(DEFAULT_DEK_ALIAS).await?;
+        let encryption_service = crypto_cache
+            .get_encryption_service(DEFAULT_DEK_ALIAS)
+            .await?;
 
         // Encrypt the hashed value
         let encrypted_hashed_value = encryption_service.encrypt_data(hashed_value).await?;
@@ -284,9 +283,7 @@ pub async fn list_api_keys<R: UserRepositoryLike>(
     repository: &R,
     params: PaginationRequest,
 ) -> Result<ListApiKeysResponse, CommonError> {
-    let result = repository
-        .list_api_keys(&params, None)
-        .await?;
+    let result = repository.list_api_keys(&params, None).await?;
 
     Ok(ListApiKeysResponse {
         items: result.items,

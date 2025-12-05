@@ -5,8 +5,8 @@
 //! - Stored types for serialization to/from the database (with encrypted secrets)
 //! - CRUD operations for IdP configurations
 
-use encryption::logic::crypto_services::EncryptedString;
 use encryption::logic::CryptoCache;
+use encryption::logic::crypto_services::EncryptedString;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
 use utoipa::ToSchema;
@@ -76,19 +76,27 @@ impl UserAuthFlowConfig {
         match self {
             UserAuthFlowConfig::OidcAuthorizationCodeFlow(oidc) => {
                 let encrypted_oidc = encrypt_oidc_config(crypto_cache, dek_alias, oidc).await?;
-                Ok(EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(encrypted_oidc))
+                Ok(EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(
+                    encrypted_oidc,
+                ))
             }
             UserAuthFlowConfig::OauthAuthorizationCodeFlow(oauth) => {
                 let encrypted_oauth = encrypt_oauth_config(crypto_cache, dek_alias, oauth).await?;
-                Ok(EncryptedUserAuthFlowConfig::OauthAuthorizationCodeFlow(encrypted_oauth))
+                Ok(EncryptedUserAuthFlowConfig::OauthAuthorizationCodeFlow(
+                    encrypted_oauth,
+                ))
             }
             UserAuthFlowConfig::OidcAuthorizationCodePkceFlow(oidc) => {
                 let encrypted_oidc = encrypt_oidc_config(crypto_cache, dek_alias, oidc).await?;
-                Ok(EncryptedUserAuthFlowConfig::OidcAuthorizationCodePkceFlow(encrypted_oidc))
+                Ok(EncryptedUserAuthFlowConfig::OidcAuthorizationCodePkceFlow(
+                    encrypted_oidc,
+                ))
             }
             UserAuthFlowConfig::OauthAuthorizationCodePkceFlow(oauth) => {
                 let encrypted_oauth = encrypt_oauth_config(crypto_cache, dek_alias, oauth).await?;
-                Ok(EncryptedUserAuthFlowConfig::OauthAuthorizationCodePkceFlow(encrypted_oauth))
+                Ok(EncryptedUserAuthFlowConfig::OauthAuthorizationCodePkceFlow(
+                    encrypted_oauth,
+                ))
             }
         }
     }
@@ -175,7 +183,9 @@ async fn decrypt_oauth_config(
     crypto_cache: &CryptoCache,
     encrypted: &EncryptedOauthConfig,
 ) -> Result<OauthConfig, CommonError> {
-    let decryption_service = crypto_cache.get_decryption_service(&encrypted.dek_alias).await?;
+    let decryption_service = crypto_cache
+        .get_decryption_service(&encrypted.dek_alias)
+        .await?;
     let client_secret = decryption_service
         .decrypt_data(encrypted.encrypted_client_secret.clone())
         .await?;
@@ -188,6 +198,7 @@ async fn decrypt_oauth_config(
         client_id: encrypted.client_id.clone(),
         client_secret,
         scopes: encrypted.scopes.clone(),
+        introspect_url: encrypted.introspect_url.clone(),
         mapping: encrypted.mapping.clone(),
     })
 }
@@ -211,6 +222,7 @@ async fn encrypt_oauth_config(
         encrypted_client_secret,
         dek_alias: dek_alias.to_string(),
         scopes: oauth.scopes.clone(),
+        introspect_url: oauth.introspect_url.clone(),
         mapping: oauth.mapping.clone(),
     })
 }

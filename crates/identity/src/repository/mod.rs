@@ -9,10 +9,16 @@ use utoipa::ToSchema;
 pub use sqlite::Repository;
 
 // Re-export types from logic modules that are used in repository trait
-pub use crate::logic::user::{Role, User, Group, GroupMembership, GroupMemberWithUser, UserGroupWithGroup};
 pub use crate::logic::api_key::{HashedApiKey, HashedApiKeyWithUser};
-use crate::logic::{internal_token_issuance::JwtSigningKey, sts::config::{StsTokenConfig, StsTokenConfigType}, user_auth_flow::oauth::OAuthState};
+pub use crate::logic::user::{
+    Group, GroupMemberWithUser, GroupMembership, Role, User, UserGroupWithGroup,
+};
 use crate::logic::user_auth_flow::config::EncryptedUserAuthFlowConfig;
+use crate::logic::{
+    internal_token_issuance::JwtSigningKey,
+    sts::config::{StsTokenConfig, StsTokenConfigType},
+    user_auth_flow::oauth::OAuthState,
+};
 
 #[derive(Debug, Default)]
 pub struct UpdateUser {
@@ -20,8 +26,6 @@ pub struct UpdateUser {
     pub role: Option<String>,
     pub description: Option<String>,
 }
-
-
 
 // STS configuration types (raw database format)
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -67,7 +71,10 @@ pub trait UserRepositoryLike {
         hashed_value: &str,
     ) -> Result<Option<HashedApiKeyWithUser>, CommonError>;
 
-    async fn get_api_key_by_id(&self, id: &str) -> Result<Option<HashedApiKeyWithUser>, CommonError>;
+    async fn get_api_key_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<HashedApiKeyWithUser>, CommonError>;
 
     async fn delete_api_key(&self, id: &str) -> Result<(), CommonError>;
 
@@ -94,10 +101,7 @@ pub trait UserRepositoryLike {
     ) -> Result<PaginatedResponse<Group>, CommonError>;
 
     // Group membership methods
-    async fn create_group_membership(
-        &self,
-        params: &GroupMembership,
-    ) -> Result<(), CommonError>;
+    async fn create_group_membership(&self, params: &GroupMembership) -> Result<(), CommonError>;
 
     async fn get_group_membership(
         &self,
@@ -129,8 +133,7 @@ pub trait UserRepositoryLike {
     async fn delete_group_memberships_by_user_id(&self, user_id: &str) -> Result<(), CommonError>;
 
     // JWT signing key methods
-    async fn create_jwt_signing_key(&self, params: &JwtSigningKey)
-    -> Result<(), CommonError>;
+    async fn create_jwt_signing_key(&self, params: &JwtSigningKey) -> Result<(), CommonError>;
 
     async fn get_jwt_signing_key_by_kid(
         &self,
@@ -185,7 +188,10 @@ pub trait UserRepositoryLike {
     // OAuth state methods
     async fn create_oauth_state(&self, params: &OAuthState) -> Result<(), CommonError>;
 
-    async fn get_oauth_state_by_state(&self, state: &str) -> Result<Option<OAuthState>, CommonError>;
+    async fn get_oauth_state_by_state(
+        &self,
+        state: &str,
+    ) -> Result<Option<OAuthState>, CommonError>;
 
     async fn delete_oauth_state(&self, state: &str) -> Result<(), CommonError>;
 

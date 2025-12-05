@@ -1,13 +1,14 @@
 use axum::extract::{Path, Query, State};
 use shared::primitives::PaginationRequest;
 use shared::{
-    adapters::openapi::{JsonResponse, API_VERSION_TAG},
+    adapters::openapi::{API_VERSION_TAG, JsonResponse},
     error::CommonError,
 };
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::jwk::{
-    get_jwks, invalidate_jwk, list_jwks, GetJwksResponse, InvalidateJwkParams, InvalidateJwkResponse, ListJwksResponse,
+    GetJwksResponse, InvalidateJwkParams, InvalidateJwkResponse, ListJwksResponse, get_jwks,
+    invalidate_jwk, list_jwks,
 };
 use crate::service::IdentityService;
 

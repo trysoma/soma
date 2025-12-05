@@ -53,22 +53,23 @@ pub async fn cmd_sts(params: StsParams, _cli_config: &mut CliConfig) -> Result<(
                 cmd_sts_add_from_template(&params.api_url, params.timeout_secs).await
             }
         },
-        StsCommands::Remove { id } => cmd_sts_remove(id, &params.api_url, params.timeout_secs).await,
+        StsCommands::Remove { id } => {
+            cmd_sts_remove(id, &params.api_url, params.timeout_secs).await
+        }
         StsCommands::List => cmd_sts_list(&params.api_url, params.timeout_secs).await,
     }
 }
 
-async fn cmd_sts_add_from_template(
-    api_url: &str,
-    timeout_secs: u64,
-) -> Result<(), CommonError> {
+async fn cmd_sts_add_from_template(api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
     println!("Add STS JWT Template Configuration");
     println!("===================================");
     println!();
 
     // Configuration ID
     let id = Text::new("Configuration ID:")
-        .with_help_message("A unique identifier for this STS configuration (e.g., 'clerk', 'auth0')")
+        .with_help_message(
+            "A unique identifier for this STS configuration (e.g., 'clerk', 'auth0')",
+        )
         .prompt()
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
 
@@ -94,9 +95,12 @@ async fn cmd_sts_add_from_template(
 
     // Token Location
     let token_location_options = vec!["Header", "Cookie"];
-    let token_location_choice = Select::new("Where should the token be read from?", token_location_options)
-        .prompt()
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+    let token_location_choice = Select::new(
+        "Where should the token be read from?",
+        token_location_options,
+    )
+    .prompt()
+    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
 
     let token_location = if token_location_choice == "Header" {
         let header_name = Text::new("Header name:")
@@ -151,10 +155,11 @@ async fn cmd_sts_add_from_template(
     };
 
     // Valid Audiences (optional)
-    let audiences_input = Text::new("What are valid audience (aud) values to validate against? (comma-separated)")
-        .with_help_message("Expected audience values (leave empty to skip validation)")
-        .prompt()
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+    let audiences_input =
+        Text::new("What are valid audience (aud) values to validate against? (comma-separated)")
+            .with_help_message("Expected audience values (leave empty to skip validation)")
+            .prompt()
+            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
     let valid_audiences = if audiences_input.trim().is_empty() {
         None
     } else {
@@ -194,10 +199,11 @@ async fn cmd_sts_add_from_template(
         scopes_field = Some(scopes_field_input);
 
         // Required scopes
-        let required_scopes_input = Text::new("What scopes need to be present? (comma-separated, leave empty to skip)")
-            .with_help_message("Scopes that must be present in the token for access")
-            .prompt()
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+        let required_scopes_input =
+            Text::new("What scopes need to be present? (comma-separated, leave empty to skip)")
+                .with_help_message("Scopes that must be present in the token for access")
+                .prompt()
+                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
         required_scopes = if required_scopes_input.trim().is_empty() {
             None
         } else {
@@ -229,14 +235,17 @@ async fn cmd_sts_add_from_template(
 
             for (role_value, role_display) in roles {
                 let scopes_for_role = Text::new(&format!(
-                    "Which scopes should map to {} role? (comma-separated, leave empty to skip)",
-                    role_display
+                    "Which scopes should map to {role_display} role? (comma-separated, leave empty to skip)"
                 ))
                 .prompt()
                 .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
 
                 if !scopes_for_role.trim().is_empty() {
-                    for scope in scopes_for_role.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+                    for scope in scopes_for_role
+                        .split(',')
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                    {
                         scope_to_role_mappings.push(ScopeToRoleMappingYaml {
                             scope: scope.to_string(),
                             role: role_value.to_string(),
@@ -247,19 +256,19 @@ async fn cmd_sts_add_from_template(
         }
 
         // Scope to group mappings
-        let map_scopes_to_groups = Select::new(
-            "Would you like to map scopes to groups?",
-            vec!["No", "Yes"],
-        )
-        .prompt()
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+        let map_scopes_to_groups =
+            Select::new("Would you like to map scopes to groups?", vec!["No", "Yes"])
+                .prompt()
+                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
 
         if map_scopes_to_groups == "Yes" {
             loop {
                 let scope = Text::new("Scope name (press Enter to finish):")
                     .with_help_message("The scope value to match")
                     .prompt()
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}"))
+                    })?;
 
                 if scope.trim().is_empty() {
                     break;
@@ -268,19 +277,21 @@ async fn cmd_sts_add_from_template(
                 let group = Text::new("Group name:")
                     .with_help_message("The internal group to assign when this scope is present")
                     .prompt()
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}"))
+                    })?;
 
                 if !group.trim().is_empty() {
-                    scope_to_group_mappings.push(ScopeToGroupMappingYaml {
-                        scope,
-                        group,
-                    });
+                    scope_to_group_mappings.push(ScopeToGroupMappingYaml { scope, group });
                     println!("Added scope-to-group mapping.");
                 }
 
-                let add_another = Select::new("Add another scope-to-group mapping?", vec!["Yes", "No"])
-                    .prompt()
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+                let add_another =
+                    Select::new("Add another scope-to-group mapping?", vec!["Yes", "No"])
+                        .prompt()
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}"))
+                        })?;
 
                 if add_another == "No" {
                     break;
@@ -314,10 +325,11 @@ async fn cmd_sts_add_from_template(
         groups_field = Some(groups_field_input);
 
         // Required groups (optional)
-        let required_groups_input = Text::new("What groups must be present? (comma-separated, leave empty to skip)")
-            .with_help_message("Groups the user must belong to for access")
-            .prompt()
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+        let required_groups_input =
+            Text::new("What groups must be present? (comma-separated, leave empty to skip)")
+                .with_help_message("Groups the user must belong to for access")
+                .prompt()
+                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
         required_groups = if required_groups_input.trim().is_empty() {
             None
         } else {
@@ -349,14 +361,17 @@ async fn cmd_sts_add_from_template(
 
             for (role_value, role_display) in roles {
                 let groups_for_role = Text::new(&format!(
-                    "Which groups should map to {} role? (comma-separated, leave empty to skip)",
-                    role_display
+                    "Which groups should map to {role_display} role? (comma-separated, leave empty to skip)"
                 ))
                 .prompt()
                 .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
 
                 if !groups_for_role.trim().is_empty() {
-                    for group in groups_for_role.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+                    for group in groups_for_role
+                        .split(',')
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                    {
                         group_to_role_mappings.push(GroupToRoleMappingYaml {
                             group: group.to_string(),
                             role: role_value.to_string(),
@@ -407,8 +422,12 @@ async fn cmd_sts_add_from_template(
 
     // Convert JwtTemplateConfigYaml to the API model
     let mapping_template = serde_json::to_value(&jwt_template_config)
-        .and_then(|v| serde_json::from_value(v))
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to convert JWT template config: {e}")))?;
+        .and_then(serde_json::from_value)
+        .map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!(
+                "Failed to convert JWT template config: {e}"
+            ))
+        })?;
 
     let params = soma_api_client::models::StsTokenConfig::StsTokenConfigOneOf(
         soma_api_client::models::StsTokenConfigOneOf {
@@ -417,9 +436,21 @@ async fn cmd_sts_add_from_template(
                 mapping_template,
                 validation_template: soma_api_client::models::JwtTokenTemplateValidationConfig {
                     issuer: jwt_template_config.validation.issuer.clone().map(Some),
-                    valid_audiences: jwt_template_config.validation.valid_audiences.clone().map(Some),
-                    required_groups: jwt_template_config.validation.required_groups.clone().map(Some),
-                    required_scopes: jwt_template_config.validation.required_scopes.clone().map(Some),
+                    valid_audiences: jwt_template_config
+                        .validation
+                        .valid_audiences
+                        .clone()
+                        .map(Some),
+                    required_groups: jwt_template_config
+                        .validation
+                        .required_groups
+                        .clone()
+                        .map(Some),
+                    required_scopes: jwt_template_config
+                        .validation
+                        .required_scopes
+                        .clone()
+                        .map(Some),
                 },
             },
         },
@@ -431,17 +462,13 @@ async fn cmd_sts_add_from_template(
 
     info!("STS configuration '{}' created", id);
     println!();
-    println!("Successfully added STS configuration: {}", id);
+    println!("Successfully added STS configuration: {id}");
     println!("The configuration has been synced to soma.yaml.");
 
     Ok(())
 }
 
-async fn cmd_sts_remove(
-    id: String,
-    api_url: &str,
-    timeout_secs: u64,
-) -> Result<(), CommonError> {
+async fn cmd_sts_remove(id: String, api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
     let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
 
     identity_api::route_delete_sts_config(&api_config, &id)
@@ -450,7 +477,7 @@ async fn cmd_sts_remove(
             if let soma_api_client::apis::Error::ResponseError(resp) = &e {
                 if resp.status.as_u16() == 404 {
                     return CommonError::NotFound {
-                        msg: format!("STS configuration '{}' not found", id),
+                        msg: format!("STS configuration '{id}' not found"),
                         lookup_id: id.clone(),
                         source: None,
                     };
@@ -460,7 +487,7 @@ async fn cmd_sts_remove(
         })?;
 
     info!("STS configuration '{}' removed", id);
-    println!("Successfully removed STS configuration: {}", id);
+    println!("Successfully removed STS configuration: {id}");
 
     Ok(())
 }
@@ -490,15 +517,15 @@ async fn cmd_sts_list(api_url: &str, timeout_secs: u64) -> Result<(), CommonErro
                 }
             };
             println!();
-            println!("ID: {}", config_id);
-            println!("  Type: {}", config_type);
+            println!("ID: {config_id}");
+            println!("  Type: {config_type}");
 
             // Display config-specific details
             match &config {
                 soma_api_client::models::StsTokenConfig::StsTokenConfigOneOf(c) => {
                     let validation = &c.jwt_template.validation_template;
                     if let Some(Some(issuer)) = &validation.issuer {
-                        println!("  Issuer: {}", issuer);
+                        println!("  Issuer: {issuer}");
                     }
                     if let Some(Some(audiences)) = &validation.valid_audiences {
                         println!("  Audiences: {}", audiences.join(", "));

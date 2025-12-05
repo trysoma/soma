@@ -954,8 +954,8 @@ impl RotateableControllerUserCredentialLike for Oauth2JwtBearerAssertionFlowCont
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use shared::primitives::{SqlMigrationLoader, WrappedUuidV4};
 

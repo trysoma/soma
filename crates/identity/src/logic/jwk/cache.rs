@@ -87,8 +87,8 @@ pub async fn init_jwks_cache(cache: &JwksCache) -> Result<(), CommonError> {
     cache.refresh_cache().await
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use crate::logic::jwk::Jwk;
     use crate::repository::Repository;

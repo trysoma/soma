@@ -1,20 +1,18 @@
 use encryption::logic::CryptoCache;
 use http::HeaderMap;
-use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
-use serde_json::{Map, Value};
 use shared::error::CommonError;
 
-use crate::logic::{decode_jwt_to_claims, fetch_userinfo};
-use crate::logic::user::Role;
 use crate::logic::internal_token_issuance::{
-    NormalizedTokenInputFields, NormalizedTokenIssuanceResult, issue_tokens_for_normalized_user
+    NormalizedTokenInputFields, NormalizedTokenIssuanceResult, issue_tokens_for_normalized_user,
 };
 use crate::logic::sts::config::{StsConfigId, StsTokenConfig};
 use crate::logic::sts::external_jwk_cache::ExternalJwksCache;
 use crate::logic::token_mapping::template::{
-    apply_mapping_template, DecodedTokenSources, JwtTokenTemplateConfig,
-    JwtTokenTemplateValidationConfig, TokenLocation,
+    DecodedTokenSources, JwtTokenTemplateConfig, JwtTokenTemplateValidationConfig, TokenLocation,
+    apply_mapping_template,
 };
+use crate::logic::user::Role;
+use crate::logic::{decode_jwt_to_claims, fetch_userinfo};
 use crate::repository::UserRepositoryLike;
 
 /// Apply dev mode configuration - returns a default dev user
@@ -27,15 +25,16 @@ fn apply_dev_mode_config() -> Result<NormalizedTokenInputFields, CommonError> {
     })
 }
 
-
-
 pub struct ExchangeStsTokenParams {
     pub headers: HeaderMap,
     pub sts_token_config_id: StsConfigId,
 }
 
 /// Extract token from headers based on token location configuration
-fn extract_token_from_headers(headers: &HeaderMap, location: &TokenLocation) -> Result<String, CommonError> {
+fn extract_token_from_headers(
+    headers: &HeaderMap,
+    location: &TokenLocation,
+) -> Result<String, CommonError> {
     match location {
         TokenLocation::Header(header_name) => {
             let header_value = headers
@@ -87,7 +86,6 @@ fn extract_token_from_headers(headers: &HeaderMap, location: &TokenLocation) -> 
     }
 }
 
-
 /// Exchange an external STS token for an internal access token.
 ///
 /// This function:
@@ -105,15 +103,19 @@ pub async fn exchange_sts_token<R: UserRepositoryLike>(
     params: ExchangeStsTokenParams,
 ) -> Result<NormalizedTokenIssuanceResult, CommonError> {
     // 1. Look up the STS config from the repository
-    let config = repository.get_sts_configuration_by_id(&params.sts_token_config_id).await?;
+    let config = repository
+        .get_sts_configuration_by_id(&params.sts_token_config_id)
+        .await?;
 
     let config = match config {
         Some(config) => config.config,
-        None => return Err(CommonError::NotFound {
-            msg: "STS configuration not found".to_string(),
-            lookup_id: params.sts_token_config_id.clone(),
-            source: None,
-        }),
+        None => {
+            return Err(CommonError::NotFound {
+                msg: "STS configuration not found".to_string(),
+                lookup_id: params.sts_token_config_id.clone(),
+                source: None,
+            });
+        }
     };
 
     // 2. Apply the appropriate config to get normalized fields
@@ -124,7 +126,8 @@ pub async fn exchange_sts_token<R: UserRepositoryLike>(
                 &jwt_config.validation_template,
                 external_jwks_cache,
                 &params.headers,
-            ).await?
+            )
+            .await?
         }
         StsTokenConfig::DevMode(_) => apply_dev_mode_config()?,
     };
@@ -148,18 +151,20 @@ async fn apply_jwt_template_config(
     headers: &HeaderMap,
 ) -> Result<NormalizedTokenInputFields, CommonError> {
     // 1. Extract and decode access token if configured
-    let (access_token_raw, access_token_claims) = if let Some(location) = &jwt_config.access_token_location {
-        let token = extract_token_from_headers(headers, location)?;
-        let claims = decode_jwt_to_claims(
-            &token,
-            &jwt_config.jwks_uri,
-            external_jwks_cache,
-            validation_config,
-        ).await?;
-        (Some(token), Some(claims))
-    } else {
-        (None, None)
-    };
+    let (access_token_raw, access_token_claims) =
+        if let Some(location) = &jwt_config.access_token_location {
+            let token = extract_token_from_headers(headers, location)?;
+            let claims = decode_jwt_to_claims(
+                &token,
+                &jwt_config.jwks_uri,
+                external_jwks_cache,
+                validation_config,
+            )
+            .await?;
+            (Some(token), Some(claims))
+        } else {
+            (None, None)
+        };
 
     // 2. Extract and decode ID token if configured
     let id_token_claims = if let Some(location) = &jwt_config.id_token_location {
@@ -169,7 +174,8 @@ async fn apply_jwt_template_config(
             &jwt_config.jwks_uri,
             external_jwks_cache,
             validation_config,
-        ).await?;
+        )
+        .await?;
         Some(claims)
     } else {
         None
@@ -204,10 +210,7 @@ async fn apply_jwt_template_config(
     }
 
     // 5. Apply the mapping template
-    let mapping_result = apply_mapping_template(
-        &sources,
-        &jwt_config.mapping_template,
-    )?;
+    let mapping_result = apply_mapping_template(&sources, &jwt_config.mapping_template)?;
 
     // 6. Validate required groups
     if let Some(required_groups) = &validation_config.required_groups {
@@ -232,7 +235,9 @@ async fn apply_jwt_template_config(
 
     // 7. Validate required scopes
     if let Some(required_scopes) = &validation_config.required_scopes {
-        let has_required = required_scopes.iter().all(|required| mapping_result.scopes.contains(required));
+        let has_required = required_scopes
+            .iter()
+            .all(|required| mapping_result.scopes.contains(required));
         if !has_required {
             return Err(CommonError::Authentication {
                 msg: "User does not have required scopes".to_string(),

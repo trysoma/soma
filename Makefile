@@ -1,4 +1,5 @@
-.PHONY: help install clean build build-release test test-coverage \
+.PHONY: help install clean build build-release \
+	test test-unit test-integration test-all test-coverage \
 	lint lint-js lint-rs lint-db lint-fix lint-fix-js lint-fix-rs \
 	db-generate-rs-models \
 	db-bridge-generate-migration db-bridge-generate-hash \
@@ -110,11 +111,29 @@ clean: ## Clean build artifacts and cache files
 	find . -type d -name "coverage" -not -path "./node_modules/*" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✓ Clean completed"
 
-test: ## Run all tests (Rust + JS)
-	@echo "Running Rust tests..."
-	cargo nextest run
+test: test-unit ## Run unit tests only (Rust + JS) - alias for test-unit
+
+test-unit: ## Run unit tests only (Rust + JS) - excludes AWS integration tests
+	@echo "Running Rust unit tests..."
+	cargo nextest run --features unit_test
 	@echo "Running JS tests..."
 	pnpm -r --workspace-concurrency=1 run test
+	@echo "✓ Unit tests passed"
+
+test-integration: ## Run integration tests only (requires AWS credentials)
+	@echo "Running Rust integration tests (requires AWS credentials)..."
+	cd test && docker compose up -d && cd ../
+	cargo nextest run --features integration_test
+	cd test && docker compose down && cd ../
+	@echo "✓ Integration tests passed"
+
+test-all: ## Run all tests including integration tests (Rust + JS)
+	@echo "Running all Rust tests (unit + integration)..."
+	cd test && docker compose up -d && cd ../
+	cargo nextest run --features unit_test,integration_test
+	@echo "Running JS tests..."
+	pnpm -r --workspace-concurrency=1 run test
+	cd test && docker compose down && cd ../
 	@echo "✓ All tests passed"
 
 test-coverage: ## Run tests with coverage and generate merged report
@@ -122,7 +141,8 @@ test-coverage: ## Run tests with coverage and generate merged report
 	@rm -rf coverage .coverage-tmp
 	@mkdir -p .coverage-tmp coverage
 	@echo "Running Rust tests with coverage..."
-	cargo llvm-cov nextest --all-features --workspace  --lcov --output-path .coverage-tmp/rust.lcov
+	cd test && docker compose up -d && cd ../
+	cargo llvm-cov nextest --features unit_test,integration_test --workspace --lcov --output-path .coverage-tmp/rust.lcov
 	@echo "✓ Rust coverage generated"
 	@echo "Running JS tests with coverage..."
 	pnpm -r --workspace-concurrency=1 --filter './js/packages/*' --filter './crates/sdk-js' run test:coverage
@@ -143,6 +163,7 @@ test-coverage: ## Run tests with coverage and generate merged report
 
 	@echo "Cleaning up temporary files..."
 	@rm -rf .coverage-tmp
+	@cd test && docker compose down && cd ../
 	@echo "✓ Test coverage complete"
 
 

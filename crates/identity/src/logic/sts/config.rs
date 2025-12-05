@@ -4,8 +4,7 @@ use shared::primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDate
 use utoipa::ToSchema;
 
 use crate::logic::token_mapping::template::{
-    JwtTokenTemplateConfig,
-    JwtTokenTemplateValidationConfig,
+    JwtTokenTemplateConfig, JwtTokenTemplateValidationConfig,
 };
 use crate::logic::{OnConfigChangeEvt, OnConfigChangeTx};
 use crate::repository::{StsConfigurationDb, UserRepositoryLike};
@@ -37,9 +36,6 @@ pub enum StsTokenConfigType {
     DevMode,
 }
 
-
-
-
 /// Create a new STS configuration
 ///
 /// This function:
@@ -53,7 +49,6 @@ pub async fn create_sts_config<R: UserRepositoryLike>(
     params: StsTokenConfig,
     publish_on_change_evt: bool,
 ) -> Result<StsTokenConfig, CommonError> {
-   
     let now = WrappedChronoDateTime::now();
     let id = match &params {
         StsTokenConfig::JwtTemplate(config) => config.id.clone(),
@@ -68,11 +63,13 @@ pub async fn create_sts_config<R: UserRepositoryLike>(
         });
     }
 
-    repository.create_sts_configuration(&StsConfigurationDb {
-        config: params.clone(),
-        created_at: now,
-        updated_at: now,
-    }).await?;
+    repository
+        .create_sts_configuration(&StsConfigurationDb {
+            config: params.clone(),
+            created_at: now,
+            updated_at: now,
+        })
+        .await?;
 
     // Broadcast config change event
     if publish_on_change_evt {
@@ -86,7 +83,6 @@ pub async fn create_sts_config<R: UserRepositoryLike>(
     Ok(params)
 }
 
-
 /// Parameters for deleting an STS configuration
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct DeleteStsConfigParams {
@@ -96,7 +92,6 @@ pub struct DeleteStsConfigParams {
 
 /// Response from deleting an STS configuration
 pub type DeleteStsConfigResponse = ();
-
 
 /// Delete an STS configuration
 ///
@@ -135,7 +130,6 @@ pub async fn delete_sts_config<R: UserRepositoryLike>(
     Ok(())
 }
 
-
 /// Parameters for getting an STS configuration
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct GetStsConfigParams {
@@ -159,7 +153,6 @@ pub async fn get_sts_config<R: UserRepositoryLike>(
         .map(|config| config.config)
 }
 
-
 /// Parameters for listing STS configurations
 #[derive(Debug)]
 pub struct ListStsConfigParams {
@@ -170,7 +163,6 @@ pub struct ListStsConfigParams {
 /// Response from listing STS configurations
 pub type ListStsConfigResponse = PaginatedResponse<StsTokenConfig>;
 
-
 /// List STS configurations
 ///
 /// This function lists all STS configurations with optional filtering by config_type.
@@ -178,12 +170,14 @@ pub async fn list_sts_configs<R: UserRepositoryLike>(
     repository: &R,
     pagination: &PaginationRequest,
 ) -> Result<ListStsConfigResponse, CommonError> {
-    let result = repository
-        .list_sts_configurations(pagination, None)
-        .await?;
+    let result = repository.list_sts_configurations(pagination, None).await?;
 
     Ok(ListStsConfigResponse {
-        items: result.items.into_iter().map(|config| config.config).collect(),
+        items: result
+            .items
+            .into_iter()
+            .map(|config| config.config)
+            .collect(),
         next_page_token: result.next_page_token,
     })
 }

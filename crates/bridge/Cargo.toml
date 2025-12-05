@@ -3,6 +3,9 @@ name = "bridge"
 version.workspace = true
 edition.workspace = true
 
+[features]
+unit_test = []
+
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true

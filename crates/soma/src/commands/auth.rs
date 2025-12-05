@@ -6,7 +6,7 @@ use soma_api_client::apis::identity_api;
 use soma_api_client::models;
 use tracing::info;
 
-use crate::utils::{create_and_wait_for_api_client, CliConfig};
+use crate::utils::{CliConfig, create_and_wait_for_api_client};
 
 #[derive(Args, Debug, Clone)]
 pub struct AuthParams {
@@ -88,7 +88,7 @@ async fn cmd_auth_add_oauth(
         "OAuth Authorization Code Flow"
     };
 
-    println!("Add {} Configuration", flow_type);
+    println!("Add {flow_type} Configuration");
     println!("{}", "=".repeat(flow_type.len() + 20));
     println!();
 
@@ -105,23 +105,20 @@ async fn cmd_auth_add_oauth(
         client_id: oauth_config.client_id,
         client_secret: oauth_config.client_secret,
         scopes: oauth_config.scopes,
+        introspect_url: None,
         mapping,
     };
 
     let config = if use_pkce {
-        models::UserAuthFlowConfig::UserAuthFlowConfigOneOf3(
-            models::UserAuthFlowConfigOneOf3 {
-                r#type: models::user_auth_flow_config_one_of_3::Type::OauthAuthorizationCodePkceFlow,
-                value: oauth_value,
-            },
-        )
+        models::UserAuthFlowConfig::UserAuthFlowConfigOneOf3(models::UserAuthFlowConfigOneOf3 {
+            r#type: models::user_auth_flow_config_one_of_3::Type::OauthAuthorizationCodePkceFlow,
+            value: oauth_value,
+        })
     } else {
-        models::UserAuthFlowConfig::UserAuthFlowConfigOneOf1(
-            models::UserAuthFlowConfigOneOf1 {
-                r#type: models::user_auth_flow_config_one_of_1::Type::OauthAuthorizationCodeFlow,
-                value: oauth_value,
-            },
-        )
+        models::UserAuthFlowConfig::UserAuthFlowConfigOneOf1(models::UserAuthFlowConfigOneOf1 {
+            r#type: models::user_auth_flow_config_one_of_1::Type::OauthAuthorizationCodeFlow,
+            value: oauth_value,
+        })
     };
 
     // Wait for API server and create config
@@ -139,7 +136,7 @@ async fn cmd_auth_add_oauth(
 
     info!("User auth flow configuration '{}' created", id);
     println!();
-    println!("Successfully added user auth flow configuration: {}", id);
+    println!("Successfully added user auth flow configuration: {id}");
     println!("The configuration has been synced to soma.yaml.");
 
     Ok(())
@@ -157,7 +154,7 @@ async fn cmd_auth_add_oidc(
         "OIDC Authorization Code Flow"
     };
 
-    println!("Add {} Configuration", flow_type);
+    println!("Add {flow_type} Configuration");
     println!("{}", "=".repeat(flow_type.len() + 20));
     println!();
 
@@ -214,6 +211,7 @@ async fn cmd_auth_add_oidc(
         client_id: oauth_config.client_id,
         client_secret: oauth_config.client_secret,
         scopes: oauth_config.scopes,
+        introspect_url: None,
         mapping: mapping.clone(),
     };
 
@@ -227,19 +225,15 @@ async fn cmd_auth_add_oidc(
     };
 
     let config = if use_pkce {
-        models::UserAuthFlowConfig::UserAuthFlowConfigOneOf2(
-            models::UserAuthFlowConfigOneOf2 {
-                r#type: models::user_auth_flow_config_one_of_2::Type::OidcAuthorizationCodePkceFlow,
-                value: oidc_value,
-            },
-        )
+        models::UserAuthFlowConfig::UserAuthFlowConfigOneOf2(models::UserAuthFlowConfigOneOf2 {
+            r#type: models::user_auth_flow_config_one_of_2::Type::OidcAuthorizationCodePkceFlow,
+            value: oidc_value,
+        })
     } else {
-        models::UserAuthFlowConfig::UserAuthFlowConfigOneOf(
-            models::UserAuthFlowConfigOneOf {
-                r#type: models::user_auth_flow_config_one_of::Type::OidcAuthorizationCodeFlow,
-                value: oidc_value,
-            },
-        )
+        models::UserAuthFlowConfig::UserAuthFlowConfigOneOf(models::UserAuthFlowConfigOneOf {
+            r#type: models::user_auth_flow_config_one_of::Type::OidcAuthorizationCodeFlow,
+            value: oidc_value,
+        })
     };
 
     // Wait for API server and create config
@@ -257,17 +251,13 @@ async fn cmd_auth_add_oidc(
 
     info!("User auth flow configuration '{}' created", id);
     println!();
-    println!("Successfully added user auth flow configuration: {}", id);
+    println!("Successfully added user auth flow configuration: {id}");
     println!("The configuration has been synced to soma.yaml.");
 
     Ok(())
 }
 
-async fn cmd_auth_remove(
-    id: String,
-    api_url: &str,
-    timeout_secs: u64,
-) -> Result<(), CommonError> {
+async fn cmd_auth_remove(id: String, api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
     let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
 
     identity_api::route_delete_user_auth_flow_config(&api_config, &id)
@@ -276,7 +266,7 @@ async fn cmd_auth_remove(
             if let soma_api_client::apis::Error::ResponseError(resp) = &e {
                 if resp.status.as_u16() == 404 {
                     return CommonError::NotFound {
-                        msg: format!("User auth flow configuration '{}' not found", id),
+                        msg: format!("User auth flow configuration '{id}' not found"),
                         lookup_id: id.clone(),
                         source: None,
                     };
@@ -288,7 +278,7 @@ async fn cmd_auth_remove(
         })?;
 
     info!("User auth flow configuration '{}' removed", id);
-    println!("Successfully removed user auth flow configuration: {}", id);
+    println!("Successfully removed user auth flow configuration: {id}");
 
     Ok(())
 }
@@ -321,18 +311,29 @@ async fn cmd_auth_list(api_url: &str, timeout_secs: u64) -> Result<(), CommonErr
 
         for item in result.items {
             let (config_type, client_id, config_id) = match &item.config {
-                models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf(c) => {
-                    ("OIDC", c.oidc_authorization_code_flow.base_config.client_id.clone(), c.oidc_authorization_code_flow.id.clone())
-                }
-                models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf1(c) => {
-                    ("OAuth", c.oauth_authorization_code_flow.client_id.clone(), c.oauth_authorization_code_flow.id.clone())
-                }
-                models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf2(c) => {
-                    ("OIDC + PKCE", c.oidc_authorization_code_pkce_flow.base_config.client_id.clone(), c.oidc_authorization_code_pkce_flow.id.clone())
-                }
-                models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf3(c) => {
-                    ("OAuth + PKCE", c.oauth_authorization_code_pkce_flow.client_id.clone(), c.oauth_authorization_code_pkce_flow.id.clone())
-                }
+                models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf(c) => (
+                    "OIDC",
+                    c.oidc_authorization_code_flow.base_config.client_id.clone(),
+                    c.oidc_authorization_code_flow.id.clone(),
+                ),
+                models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf1(c) => (
+                    "OAuth",
+                    c.oauth_authorization_code_flow.client_id.clone(),
+                    c.oauth_authorization_code_flow.id.clone(),
+                ),
+                models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf2(c) => (
+                    "OIDC + PKCE",
+                    c.oidc_authorization_code_pkce_flow
+                        .base_config
+                        .client_id
+                        .clone(),
+                    c.oidc_authorization_code_pkce_flow.id.clone(),
+                ),
+                models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf3(c) => (
+                    "OAuth + PKCE",
+                    c.oauth_authorization_code_pkce_flow.client_id.clone(),
+                    c.oauth_authorization_code_pkce_flow.id.clone(),
+                ),
             };
 
             table.add_row(vec![
@@ -368,7 +369,9 @@ async fn collect_oauth_config(_id: &str) -> Result<OauthConfigInput, CommonError
         .prompt()
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
 
-    if !authorization_endpoint.starts_with("https://") && !authorization_endpoint.starts_with("http://") {
+    if !authorization_endpoint.starts_with("https://")
+        && !authorization_endpoint.starts_with("http://")
+    {
         return Err(CommonError::InvalidRequest {
             msg: "Authorization endpoint must be a valid HTTP(S) URL".to_string(),
             source: None,
@@ -558,14 +561,17 @@ async fn collect_token_mapping() -> Result<models::TokenMapping, CommonError> {
 
             for (role_variant, role_display) in roles {
                 let scopes_for_role = Text::new(&format!(
-                    "Which scopes should map to {} role? (comma-separated, leave empty to skip)",
-                    role_display
+                    "Which scopes should map to {role_display} role? (comma-separated, leave empty to skip)"
                 ))
                 .prompt()
                 .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
 
                 if !scopes_for_role.trim().is_empty() {
-                    for scope in scopes_for_role.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+                    for scope in scopes_for_role
+                        .split(',')
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                    {
                         scope_to_role_mappings.push(models::ScopeToRoleMapping {
                             scope: scope.to_string(),
                             role: string_to_role(role_variant),
@@ -576,35 +582,38 @@ async fn collect_token_mapping() -> Result<models::TokenMapping, CommonError> {
         }
 
         // Scope to group mappings
-        let map_scopes_to_groups = Select::new(
-            "Would you like to map scopes to groups?",
-            vec!["No", "Yes"],
-        )
-        .prompt()
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+        let map_scopes_to_groups =
+            Select::new("Would you like to map scopes to groups?", vec!["No", "Yes"])
+                .prompt()
+                .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
 
         if map_scopes_to_groups == "Yes" {
             loop {
                 let scope = Text::new("Scope name (press Enter to finish):")
                     .prompt()
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}"))
+                    })?;
 
                 if scope.trim().is_empty() {
                     break;
                 }
 
-                let group = Text::new("Group name:")
-                    .prompt()
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+                let group = Text::new("Group name:").prompt().map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}"))
+                })?;
 
                 if !group.trim().is_empty() {
                     scope_to_group_mappings.push(models::ScopeToGroupMapping { scope, group });
                     println!("Added scope-to-group mapping.");
                 }
 
-                let add_another = Select::new("Add another scope-to-group mapping?", vec!["Yes", "No"])
-                    .prompt()
-                    .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
+                let add_another =
+                    Select::new("Add another scope-to-group mapping?", vec!["Yes", "No"])
+                        .prompt()
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}"))
+                        })?;
 
                 if add_another == "No" {
                     break;
@@ -633,14 +642,17 @@ async fn collect_token_mapping() -> Result<models::TokenMapping, CommonError> {
 
             for (role_variant, role_display) in roles {
                 let groups_for_role = Text::new(&format!(
-                    "Which groups should map to {} role? (comma-separated, leave empty to skip)",
-                    role_display
+                    "Which groups should map to {role_display} role? (comma-separated, leave empty to skip)"
                 ))
                 .prompt()
                 .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read input: {e}")))?;
 
                 if !groups_for_role.trim().is_empty() {
-                    for group in groups_for_role.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+                    for group in groups_for_role
+                        .split(',')
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                    {
                         group_to_role_mappings.push(models::GroupToRoleMapping {
                             group: group.to_string(),
                             role: string_to_role(role_variant),
@@ -670,7 +682,7 @@ async fn collect_token_mapping() -> Result<models::TokenMapping, CommonError> {
 fn select_mapping_source(field_name: &str) -> Result<String, CommonError> {
     let options = vec!["ID Token", "Userinfo", "Access Token"];
     Select::new(
-        &format!("Where is the {} field located?", field_name),
+        &format!("Where is the {field_name} field located?"),
         options,
     )
     .prompt()

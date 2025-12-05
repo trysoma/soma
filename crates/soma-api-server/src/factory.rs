@@ -550,4 +550,3 @@ fn start_credential_rotation_subsystem(
 
     Ok(handle)
 }
-

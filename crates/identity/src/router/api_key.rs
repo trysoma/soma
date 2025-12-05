@@ -1,16 +1,16 @@
-use axum::extract::{Path, Query, State};
 use axum::Json;
+use axum::extract::{Path, Query, State};
 use shared::primitives::PaginationRequest;
 use shared::{
-    adapters::openapi::{JsonResponse, API_VERSION_TAG},
+    adapters::openapi::{API_VERSION_TAG, JsonResponse},
     error::CommonError,
 };
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::api_key::{
-    create_api_key, delete_api_key, import_api_key, list_api_keys, CreateApiKeyParams,
-    CreateApiKeyResponse, DeleteApiKeyParams, DeleteApiKeyResponse, EncryptedApiKeyConfig,
-    ImportApiKeyResponse, ListApiKeysResponse,
+    CreateApiKeyParams, CreateApiKeyResponse, DeleteApiKeyParams, DeleteApiKeyResponse,
+    EncryptedApiKeyConfig, ImportApiKeyResponse, ListApiKeysResponse, create_api_key,
+    delete_api_key, import_api_key, list_api_keys,
 };
 use crate::service::IdentityService;
 
@@ -23,7 +23,6 @@ pub fn create_api_key_routes() -> OpenApiRouter<IdentityService> {
         .routes(routes!(route_list_api_keys))
         .routes(routes!(route_import_api_key))
 }
-
 
 #[utoipa::path(
     post,
@@ -97,7 +96,6 @@ async fn route_list_api_keys(
     State(service): State<IdentityService>,
     Query(query): Query<PaginationRequest>,
 ) -> JsonResponse<ListApiKeysResponse, CommonError> {
-    
     let result = list_api_keys(service.repository.as_ref(), query).await;
     JsonResponse::from(result)
 }

@@ -3,7 +3,6 @@ use utoipa::ToSchema;
 
 use crate::logic::token_mapping::template::JwtTokenMappingConfig;
 
-
 pub mod dynamic;
 pub mod template;
 

@@ -569,9 +569,7 @@ async fn handle_identity_event(
                     role: api_key_info.role.as_str().to_string(),
                     user_id: api_key_info.user_id,
                 };
-                soma_definition
-                    .add_api_key(api_key_info.id, config)
-                    .await?;
+                soma_definition.add_api_key(api_key_info.id, config).await?;
             }
         }
         IdentityOnConfigChangeEvt::ApiKeyDeleted(id) => {
@@ -618,7 +616,7 @@ async fn handle_identity_event(
                     IdentityStsTokenConfig::JwtTemplate(jwt_config) => {
                         // Convert the JwtTemplateModeConfig to JwtTemplateConfigYaml
                         let jwt_yaml = serde_json::to_value(jwt_config)
-                            .and_then(|v| serde_json::from_value(v))
+                            .and_then(serde_json::from_value)
                             .map_err(|e| {
                                 CommonError::Unknown(anyhow::anyhow!(
                                     "Failed to convert STS config to YAML format: {e}"
@@ -675,9 +673,13 @@ async fn handle_identity_event(
 fn convert_user_auth_flow_to_yaml(
     config: &identity::logic::user_auth_flow::EncryptedUserAuthFlowConfig,
 ) -> Result<UserAuthFlowYamlConfig, CommonError> {
-    use identity::logic::user_auth_flow::{EncryptedOauthConfig, EncryptedOidcConfig, EncryptedUserAuthFlowConfig};
+    use identity::logic::user_auth_flow::{
+        EncryptedOauthConfig, EncryptedOidcConfig, EncryptedUserAuthFlowConfig,
+    };
 
-    fn convert_oauth_config(oauth: &EncryptedOauthConfig) -> Result<EncryptedOauthYamlConfig, CommonError> {
+    fn convert_oauth_config(
+        oauth: &EncryptedOauthConfig,
+    ) -> Result<EncryptedOauthYamlConfig, CommonError> {
         let mapping_json = serde_json::to_value(&oauth.mapping).map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!("Failed to serialize token mapping: {e}"))
         })?;
@@ -690,11 +692,14 @@ fn convert_user_auth_flow_to_yaml(
             encrypted_client_secret: oauth.encrypted_client_secret.0.clone(),
             dek_alias: oauth.dek_alias.clone(),
             scopes: oauth.scopes.clone(),
+            introspect_url: oauth.introspect_url.clone(),
             mapping: mapping_json,
         })
     }
 
-    fn convert_oidc_config(oidc: &EncryptedOidcConfig) -> Result<EncryptedOidcYamlConfig, CommonError> {
+    fn convert_oidc_config(
+        oidc: &EncryptedOidcConfig,
+    ) -> Result<EncryptedOidcYamlConfig, CommonError> {
         let base_config = convert_oauth_config(&oidc.base_config)?;
         let mapping_json = serde_json::to_value(&oidc.mapping).map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!("Failed to serialize token mapping: {e}"))
@@ -710,25 +715,17 @@ fn convert_user_auth_flow_to_yaml(
     }
 
     match config {
-        EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(oidc) => {
-            Ok(UserAuthFlowYamlConfig::OidcAuthorizationCodeFlow(
-                convert_oidc_config(oidc)?,
-            ))
-        }
-        EncryptedUserAuthFlowConfig::OauthAuthorizationCodeFlow(oauth) => {
-            Ok(UserAuthFlowYamlConfig::OauthAuthorizationCodeFlow(
-                convert_oauth_config(oauth)?,
-            ))
-        }
-        EncryptedUserAuthFlowConfig::OidcAuthorizationCodePkceFlow(oidc) => {
-            Ok(UserAuthFlowYamlConfig::OidcAuthorizationCodePkceFlow(
-                convert_oidc_config(oidc)?,
-            ))
-        }
-        EncryptedUserAuthFlowConfig::OauthAuthorizationCodePkceFlow(oauth) => {
-            Ok(UserAuthFlowYamlConfig::OauthAuthorizationCodePkceFlow(
-                convert_oauth_config(oauth)?,
-            ))
-        }
+        EncryptedUserAuthFlowConfig::OidcAuthorizationCodeFlow(oidc) => Ok(
+            UserAuthFlowYamlConfig::OidcAuthorizationCodeFlow(convert_oidc_config(oidc)?),
+        ),
+        EncryptedUserAuthFlowConfig::OauthAuthorizationCodeFlow(oauth) => Ok(
+            UserAuthFlowYamlConfig::OauthAuthorizationCodeFlow(convert_oauth_config(oauth)?),
+        ),
+        EncryptedUserAuthFlowConfig::OidcAuthorizationCodePkceFlow(oidc) => Ok(
+            UserAuthFlowYamlConfig::OidcAuthorizationCodePkceFlow(convert_oidc_config(oidc)?),
+        ),
+        EncryptedUserAuthFlowConfig::OauthAuthorizationCodePkceFlow(oauth) => Ok(
+            UserAuthFlowYamlConfig::OauthAuthorizationCodePkceFlow(convert_oauth_config(oauth)?),
+        ),
     }
 }

@@ -4,10 +4,11 @@ use encryption::logic::crypto_services::CryptoCache;
 use encryption::repository::Repository as EncryptionRepository;
 
 use crate::logic::api_key::cache::ApiKeyCache;
+use crate::logic::auth_client::AuthClient;
 use crate::logic::jwk::cache::JwksCache;
 use crate::logic::sts::cache::StsConfigCache;
 use crate::logic::sts::external_jwk_cache::ExternalJwksCache;
-use crate::logic::{OnConfigChangeTx, OnConfigChangeEvt};
+use crate::logic::{OnConfigChangeEvt, OnConfigChangeTx};
 use crate::repository::Repository;
 
 /// Default broadcast channel capacity
@@ -54,4 +55,8 @@ impl IdentityService {
         }
     }
 
+    /// Create an AuthClient from this service's caches
+    pub fn auth_client(&self) -> AuthClient {
+        AuthClient::new(self.jwks_cache.clone(), self.api_key_cache.clone())
+    }
 }

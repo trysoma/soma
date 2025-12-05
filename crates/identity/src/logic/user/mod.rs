@@ -37,7 +37,7 @@ impl Role {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum UserType {
     Machine,
@@ -71,7 +71,6 @@ pub struct User {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
 }
-
 
 // Group types
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

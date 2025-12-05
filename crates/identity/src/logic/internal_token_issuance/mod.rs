@@ -7,13 +7,12 @@ use shared::primitives::{PaginationRequest, WrappedChronoDateTime};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::logic::user::{Role, UserType};
 use crate::logic::jwk::cache::JwksCache;
+use crate::logic::user::{Role, UserType};
 use crate::repository::{UpdateUser, User, UserRepositoryLike};
 
 pub mod idp_to_soma_sync;
 pub use idp_to_soma_sync::*;
-
 
 // JWT signing key types
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -27,7 +26,6 @@ pub struct JwtSigningKey {
     pub created_at: WrappedChronoDateTime,
     pub updated_at: WrappedChronoDateTime,
 }
-
 
 /// Get a valid (non-expired, non-invalidated) signing key from the repository
 async fn get_valid_signing_key<R: UserRepositoryLike>(
@@ -65,7 +63,6 @@ async fn get_valid_signing_key<R: UserRepositoryLike>(
     )))
 }
 
-
 /// Sign a JWT with the given claims and signing key
 async fn sign_jwt<T: serde::Serialize>(
     claims: &T,
@@ -99,8 +96,6 @@ async fn sign_jwt<T: serde::Serialize>(
 
     Ok(token)
 }
-
-
 
 pub const ISSUER: &str = "soma-identity";
 pub const AUDIENCE: &str = "soma";
@@ -186,7 +181,6 @@ pub struct RefreshTokenResult {
     pub expires_in: i64,
 }
 
-
 pub struct SignAccessTokenParams {
     pub sub: String,
     pub email: Option<String>,
@@ -220,7 +214,6 @@ pub async fn sign_access_token<R: UserRepositoryLike>(
     Ok(access_token)
 }
 
-
 pub async fn sign_refresh_token<R: UserRepositoryLike>(
     params: SignRefreshTokenParams,
     repository: &R,
@@ -243,7 +236,6 @@ pub async fn sign_refresh_token<R: UserRepositoryLike>(
     let refresh_token = sign_jwt(&refresh_claims, &signing_key, crypto_cache).await?;
     Ok(refresh_token)
 }
-
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct NormalizedTokenIssuanceResult {
@@ -308,15 +300,15 @@ pub async fn issue_tokens_for_normalized_user<R: UserRepositoryLike>(
         },
         repository,
         crypto_cache,
-    ).await?;
+    )
+    .await?;
 
     let refresh_token = sign_refresh_token(
-        SignRefreshTokenParams {
-            sub: user_id,
-        },
+        SignRefreshTokenParams { sub: user_id },
         repository,
         crypto_cache,
-    ).await?;
+    )
+    .await?;
 
     Ok(NormalizedTokenIssuanceResult {
         access_token,
@@ -324,7 +316,6 @@ pub async fn issue_tokens_for_normalized_user<R: UserRepositoryLike>(
         expires_in: access_token_expires_in,
     })
 }
-
 
 /// Refresh an access token using a valid refresh token.
 ///
@@ -353,17 +344,17 @@ pub async fn refresh_access_token<R: UserRepositoryLike>(
 
     // 2. Get our JWKS and find the matching key
     let jwks = jwks_cache.get_cached_jwks();
-    let jwk = jwks.iter().find(|k| k.kid == kid).ok_or_else(|| {
-        CommonError::Authentication {
+    let jwk = jwks
+        .iter()
+        .find(|k| k.kid == kid)
+        .ok_or_else(|| CommonError::Authentication {
             msg: format!("Signing key '{kid}' not found in JWKS"),
             source: None,
-        }
-    })?;
+        })?;
 
     // 3. Create decoding key from our public key
-    let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("Failed to create decoding key: {e}"))
-    })?;
+    let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create decoding key: {e}")))?;
 
     // 4. Validate and decode the refresh token
     let mut validation = Validation::new(Algorithm::RS256);

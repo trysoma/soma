@@ -449,8 +449,8 @@ async fn try_register_deployment(
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
 
     #[test]

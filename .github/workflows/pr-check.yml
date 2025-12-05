@@ -160,15 +160,17 @@ jobs:
           tool: cargo-llvm-cov,cargo-nextest
 
       - name: Run cargo clippy
-        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+        run: cargo clippy --all-targets --features unit_test,integration_test --locked -- -D warnings
 
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
 
-      - name: Run cargo nextest with coverage
+      - name: Run cargo nextest with coverage (all tests including integration)
         run: |
           mkdir -p .coverage-tmp
-          cargo llvm-cov nextest --all-features --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov
+          # Run with unit_test and integration_test features to include all tests
+          # This requires AWS credentials to be configured (done above)
+          cargo llvm-cov nextest --features unit_test,integration_test --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov
 
       - name: Upload Rust coverage LCOV
         uses: actions/upload-artifact@v4

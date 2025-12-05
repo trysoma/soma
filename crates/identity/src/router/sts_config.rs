@@ -1,16 +1,15 @@
-use axum::extract::{Path, Query, State};
 use axum::Json;
+use axum::extract::{Path, Query, State};
 use shared::primitives::PaginationRequest;
 use shared::{
-    adapters::openapi::{JsonResponse, API_VERSION_TAG},
+    adapters::openapi::{API_VERSION_TAG, JsonResponse},
     error::CommonError,
 };
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::sts::config::{
-    create_sts_config, delete_sts_config, get_sts_config, list_sts_configs,
-    DeleteStsConfigParams, DeleteStsConfigResponse,
-    GetStsConfigParams, ListStsConfigResponse, StsTokenConfig,
+    DeleteStsConfigParams, DeleteStsConfigResponse, GetStsConfigParams, ListStsConfigResponse,
+    StsTokenConfig, create_sts_config, delete_sts_config, get_sts_config, list_sts_configs,
 };
 use crate::service::IdentityService;
 
@@ -23,8 +22,6 @@ pub fn create_sts_config_routes() -> OpenApiRouter<IdentityService> {
         .routes(routes!(route_delete_sts_config))
         .routes(routes!(route_list_sts_configs))
 }
-
-
 
 #[utoipa::path(
     post,

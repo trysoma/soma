@@ -22,7 +22,7 @@ use crate::logic::user_auth_flow::oauth::{
     BaseAuthorizationParams, BaseTokenExchangeParams, OAuthState, apply_token_mapping,
     build_authorization_url, exchange_code_for_tokens,
 };
-use crate::logic::user_auth_flow::{OAuthCallbackParams, OAuthCallbackResult, OauthConfig};
+use crate::logic::user_auth_flow::{OAuthCallbackParams, OAuthCallbackResult};
 use crate::logic::user_auth_flow::{
     StartAuthorizationParams, StartAuthorizationResult,
     config::{OidcConfig, UserAuthFlowConfig},
@@ -96,7 +96,9 @@ pub async fn start_authorization_handshake<R: UserRepositoryLike>(
     let base_params = BaseAuthorizationParams {
         authorization_endpoint: &oidc_config.base_config.authorization_endpoint,
         token_endpoint: &oidc_config.base_config.token_endpoint,
-        redirect_uri: &format!("{}{}/{}/{}/auth/callback", base_redirect_uri, PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+        redirect_uri: &format!(
+            "{base_redirect_uri}{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}/auth/callback"
+        ),
         client_id: &oidc_config.base_config.client_id,
         scopes: &scopes,
         pkce_challenge: pkce_challenge.as_ref(),
@@ -151,15 +153,19 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
         token_endpoint: &config.base_config.token_endpoint,
         client_id: &config.base_config.client_id,
         client_secret: &config.base_config.client_secret,
-        redirect_uri: &format!("{}{}/{}/{}/auth/callback", base_redirect_uri, PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+        redirect_uri: &format!(
+            "{base_redirect_uri}{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}/auth/callback"
+        ),
         code: &params.code,
         code_verifier: None,
     };
 
-    let token_response = exchange_code_for_tokens(token_exchange_params).await.map_err(|e| {
-        tracing::error!("OIDC callback: token exchange failed: {:?}", e);
-        e
-    })?;
+    let token_response = exchange_code_for_tokens(token_exchange_params)
+        .await
+        .map_err(|e| {
+            tracing::error!("OIDC callback: token exchange failed: {:?}", e);
+            e
+        })?;
 
     tracing::debug!("OIDC callback: extracting claims from token response");
 
@@ -179,8 +185,9 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
     tracing::debug!("OIDC callback: issuing internal tokens for user");
 
     // Issue internal tokens
-    let token_result =
-        issue_tokens_for_normalized_user(repository, crypto_cache, normalized).await.map_err(|e| {
+    let token_result = issue_tokens_for_normalized_user(repository, crypto_cache, normalized)
+        .await
+        .map_err(|e| {
             tracing::error!("OIDC callback: token issuance failed: {:?}", e);
             e
         })?;
@@ -232,25 +239,31 @@ async fn extract_oidc_claims(
     let access_token = match token_response
         .get("access_token")
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string()) {
-            Some(access_token) => access_token,
-            None => return Err(CommonError::InvalidRequest {
+        .map(|s| s.to_string())
+    {
+        Some(access_token) => access_token,
+        None => {
+            return Err(CommonError::InvalidRequest {
                 msg: "No access token in OIDC token response".to_string(),
                 source: None,
-            }),
-        };
+            });
+        }
+    };
 
     // Get access token claims - either via introspection or JWT decoding
     let access_token_claims = if let Some(introspect_url) = &config.introspect_url {
         // If introspect_url is set, use token introspection (RFC 7662)
         // This treats the access token as opaque and validates it via the introspection endpoint
         tracing::debug!("Using token introspection for access token");
-        Some(introspect_token(
-            introspect_url,
-            &access_token,
-            &config.base_config.client_id,
-            &config.base_config.client_secret,
-        ).await?)
+        Some(
+            introspect_token(
+                introspect_url,
+                &access_token,
+                &config.base_config.client_id,
+                &config.base_config.client_secret,
+            )
+            .await?,
+        )
     } else {
         // Try to decode access token as JWT
         match decode_jwt_to_claims_unsafe(
@@ -258,13 +271,17 @@ async fn extract_oidc_claims(
             &config.base_config.jwks_endpoint,
             external_jwks_cache,
         )
-        .await {
+        .await
+        {
             Ok(claims) => Some(claims),
             Err(e) => {
                 // Access token is not a JWT and no introspection endpoint configured
                 // This is an error - we need to be able to get claims from the access token
-                tracing::error!("Access token is not a JWT and no introspect_url configured: {:?}", e);
-                return Err(e)
+                tracing::error!(
+                    "Access token is not a JWT and no introspect_url configured: {:?}",
+                    e
+                );
+                return Err(e);
             }
         }
     };
@@ -287,12 +304,9 @@ async fn extract_oidc_claims(
         }
     }
 
-    
     // Optionally fetch userinfo for additional claims
     let userinfo_claims = match &config.userinfo_endpoint {
-        Some(userinfo_endpoint) => {
-            Some(fetch_userinfo(&userinfo_endpoint, &access_token).await?)
-        }
+        Some(userinfo_endpoint) => Some(fetch_userinfo(userinfo_endpoint, &access_token).await?),
         None => None,
     };
 

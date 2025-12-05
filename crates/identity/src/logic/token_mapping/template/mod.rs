@@ -6,7 +6,6 @@ use utoipa::ToSchema;
 
 use crate::logic::user::Role;
 
-
 /// Indicates which token type (ID token for OIDC, access token response for OAuth)
 /// contains the field
 #[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
@@ -16,10 +15,9 @@ pub enum MappingSource<T> {
     IdToken(T),
     /// Field is in the OAuth userinfo
     Userinfo(T),
-    /// Field is in the OAuth access token response 
+    /// Field is in the OAuth access token response
     AccessToken(T),
 }
-
 
 #[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
 pub struct JwtTokenMappingConfig {
