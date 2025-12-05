@@ -53,9 +53,9 @@ impl From<Row_get_user_by_id> for User {
     fn from(row: Row_get_user_by_id) -> Self {
         User {
             id: row.id,
-            user_type: UserType::parse(&row.user_type).unwrap_or(UserType::Human),
+            user_type: row.user_type,
             email: row.email,
-            role: Role::parse(&row.role).unwrap_or(Role::User),
+            role: row.role,
             description: row.description,
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -67,9 +67,9 @@ impl From<Row_get_users> for User {
     fn from(row: Row_get_users) -> Self {
         User {
             id: row.id,
-            user_type: UserType::parse(&row.user_type).unwrap_or(UserType::Human),
+            user_type: row.user_type,
             email: row.email,
-            role: Role::parse(&row.role).unwrap_or(Role::User),
+            role: row.role,
             description: row.description,
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -103,9 +103,9 @@ impl From<Row_get_api_key_by_hashed_value> for HashedApiKeyWithUser {
             },
             user: User {
                 id: row.user_id_fk,
-                user_type: UserType::parse(&row.user_type).unwrap_or(UserType::Human),
+                user_type: row.user_type,
                 email: row.user_email,
-                role: Role::parse(&row.user_role).unwrap_or(Role::User),
+                role: row.user_role,
                 description: row.user_description,
                 created_at: row.user_created_at,
                 updated_at: row.user_updated_at,
@@ -127,9 +127,9 @@ impl From<Row_get_api_key_by_id> for HashedApiKeyWithUser {
             },
             user: User {
                 id: row.user_id_fk,
-                user_type: UserType::parse(&row.user_type).unwrap_or(UserType::Human),
+                user_type: row.user_type,
                 email: row.user_email,
-                role: Role::parse(&row.user_role).unwrap_or(Role::User),
+                role: row.user_role,
                 description: row.user_description,
                 created_at: row.user_created_at,
                 updated_at: row.user_updated_at,
@@ -184,9 +184,9 @@ impl From<Row_get_group_members> for GroupMemberWithUser {
             },
             user: User {
                 id: row.user_id_fk,
-                user_type: UserType::parse(&row.user_type).unwrap_or(UserType::Human),
+                user_type: row.user_type,
                 email: row.user_email,
-                role: Role::parse(&row.user_role).unwrap_or(Role::User),
+                role: row.user_role,
                 description: row.user_description,
                 created_at: row.user_created_at,
                 updated_at: row.user_updated_at,

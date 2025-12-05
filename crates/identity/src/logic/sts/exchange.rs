@@ -253,3 +253,430 @@ async fn apply_jwt_template_config(
         role: mapping_result.role,
     })
 }
+
+#[cfg(all(test, feature = "integration_test"))]
+mod integration_test {
+    use super::*;
+    use crate::logic::sts::config::{DevModeConfig, JwtTemplateModeConfig, create_sts_config};
+    use crate::logic::token_mapping::template::{
+        JwtTokenMappingConfig, MappingSource,
+    };
+    use crate::test::dex::{
+        DEX_JWKS_ENDPOINT, DEX_MOCK_USER_EMAIL, DEX_USERINFO_ENDPOINT,
+        perform_dex_mock_oidc_login,
+    };
+    use crate::test::fixtures::TestContext;
+    use crate::test::token_validation::{
+        AccessTokenAssertions, decode_and_validate_access_token, decode_and_validate_refresh_token,
+    };
+    use tokio::sync::broadcast;
+
+    /// Create a JWT template config that maps from Dex ID token claims.
+    fn create_dex_jwt_template_config() -> JwtTemplateModeConfig {
+        use crate::test::dex::DEX_CLIENT_ID;
+
+        JwtTemplateModeConfig {
+            id: "dex-jwt-template".to_string(),
+            mapping_template: JwtTokenTemplateConfig {
+                jwks_uri: DEX_JWKS_ENDPOINT.to_string(),
+                userinfo_url: Some(DEX_USERINFO_ENDPOINT.to_string()),
+                introspect_url: None,
+                // Get tokens from Authorization header (access) and X-Id-Token header (id token)
+                access_token_location: Some(TokenLocation::Header("authorization".to_string())),
+                id_token_location: Some(TokenLocation::Header("x-id-token".to_string())),
+                mapping_template: JwtTokenMappingConfig {
+                    issuer_field: MappingSource::IdToken("iss".to_string()),
+                    audience_field: MappingSource::IdToken("aud".to_string()),
+                    scopes_field: None,
+                    sub_field: MappingSource::IdToken("sub".to_string()),
+                    email_field: Some(MappingSource::IdToken("email".to_string())),
+                    groups_field: None,
+                    group_to_role_mappings: vec![],
+                    scope_to_role_mappings: vec![],
+                    scope_to_group_mappings: vec![],
+                },
+            },
+            validation_template: JwtTokenTemplateValidationConfig {
+                issuer: None, // Don't validate issuer for test flexibility
+                // Dex tokens have the client_id as the audience
+                valid_audiences: Some(vec![DEX_CLIENT_ID.to_string()]),
+                required_scopes: None,
+                required_groups: None,
+            },
+        }
+    }
+
+    #[tokio::test]
+    async fn test_exchange_sts_token_dev_mode() {
+        let ctx = TestContext::new_with_jwk().await;
+        let (tx, _rx) = broadcast::channel(100);
+
+        // Create a dev mode STS config
+        let dev_config = StsTokenConfig::DevMode(DevModeConfig {
+            id: "dev-mode-config".to_string(),
+        });
+
+        create_sts_config(&ctx.identity_repo, &tx, dev_config, false)
+            .await
+            .expect("Failed to create dev mode STS config");
+
+        // Exchange with dev mode - no headers needed
+        let params = ExchangeStsTokenParams {
+            headers: HeaderMap::new(),
+            sts_token_config_id: "dev-mode-config".to_string(),
+        };
+
+        let result = exchange_sts_token(
+            &ctx.identity_repo,
+            &ctx.crypto_cache,
+            &ctx.external_jwks_cache,
+            params,
+        )
+        .await
+        .expect("Dev mode STS exchange should succeed");
+
+        // Validate the issued access token
+        let validated = decode_and_validate_access_token(&result.access_token, &ctx.jwks_cache)
+            .expect("Access token should be valid");
+
+        AccessTokenAssertions::new(&validated)
+            .assert_standard_claims()
+            .assert_subject("human_dev-user")
+            .assert_role(Role::Admin);
+
+        // Validate refresh token
+        let refresh_validated =
+            decode_and_validate_refresh_token(&result.refresh_token, &ctx.jwks_cache)
+                .expect("Refresh token should be valid");
+
+        assert_eq!(refresh_validated.claims.sub, "human_dev-user");
+
+        // Verify expires_in is reasonable (1 hour = 3600 seconds)
+        assert_eq!(result.expires_in, 3600);
+    }
+
+    #[tokio::test]
+    async fn test_exchange_sts_token_dev_mode_creates_user() {
+        let ctx = TestContext::new_with_jwk().await;
+        let (tx, _rx) = broadcast::channel(100);
+
+        // Create a dev mode STS config
+        let dev_config = StsTokenConfig::DevMode(DevModeConfig {
+            id: "dev-mode-user-test".to_string(),
+        });
+
+        create_sts_config(&ctx.identity_repo, &tx, dev_config, false)
+            .await
+            .expect("Failed to create dev mode STS config");
+
+        // Verify user doesn't exist yet
+        let user_before = ctx
+            .identity_repo
+            .get_user_by_id("human_dev-user")
+            .await
+            .expect("Query should succeed");
+        assert!(user_before.is_none(), "User should not exist before exchange");
+
+        // Exchange with dev mode
+        let params = ExchangeStsTokenParams {
+            headers: HeaderMap::new(),
+            sts_token_config_id: "dev-mode-user-test".to_string(),
+        };
+
+        exchange_sts_token(
+            &ctx.identity_repo,
+            &ctx.crypto_cache,
+            &ctx.external_jwks_cache,
+            params,
+        )
+        .await
+        .expect("Dev mode STS exchange should succeed");
+
+        // Verify user was created
+        let user_after = ctx
+            .identity_repo
+            .get_user_by_id("human_dev-user")
+            .await
+            .expect("Query should succeed")
+            .expect("User should exist after exchange");
+
+        assert_eq!(user_after.id, "human_dev-user");
+        assert_eq!(user_after.role, Role::Admin);
+    }
+
+    #[tokio::test]
+    async fn test_exchange_sts_token_jwt_template_with_dex_tokens() {
+        let ctx = TestContext::new_with_jwk().await;
+        let (tx, _rx) = broadcast::channel(100);
+
+        // Get real tokens from Dex
+        let dex_tokens = perform_dex_mock_oidc_login()
+            .await
+            .expect("Failed to get tokens from Dex");
+
+        assert!(!dex_tokens.access_token.is_empty(), "Should have access token");
+        assert!(!dex_tokens.id_token.is_empty(), "Should have ID token");
+
+        // Create JWT template STS config
+        let jwt_config = StsTokenConfig::JwtTemplate(create_dex_jwt_template_config());
+
+        create_sts_config(&ctx.identity_repo, &tx, jwt_config, false)
+            .await
+            .expect("Failed to create JWT template STS config");
+
+        // Build headers with Dex tokens
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "authorization",
+            format!("Bearer {}", dex_tokens.access_token).parse().unwrap(),
+        );
+        headers.insert(
+            "x-id-token",
+            dex_tokens.id_token.parse().unwrap(),
+        );
+
+        let params = ExchangeStsTokenParams {
+            headers,
+            sts_token_config_id: "dex-jwt-template".to_string(),
+        };
+
+        let result = exchange_sts_token(
+            &ctx.identity_repo,
+            &ctx.crypto_cache,
+            &ctx.external_jwks_cache,
+            params,
+        )
+        .await
+        .expect("JWT template STS exchange should succeed");
+
+        // Validate the issued access token
+        let validated = decode_and_validate_access_token(&result.access_token, &ctx.jwks_cache)
+            .expect("Access token should be valid");
+
+        AccessTokenAssertions::new(&validated)
+            .assert_standard_claims()
+            .assert_subject_starts_with("human_")
+            .assert_email(Some(DEX_MOCK_USER_EMAIL))
+            .assert_role(Role::User); // Default role when no mapping
+
+        // Validate refresh token
+        let refresh_validated =
+            decode_and_validate_refresh_token(&result.refresh_token, &ctx.jwks_cache)
+                .expect("Refresh token should be valid");
+
+        // Subject should match between access and refresh tokens
+        assert_eq!(refresh_validated.claims.sub, validated.claims.sub);
+
+        // Verify expires_in is reasonable
+        assert_eq!(result.expires_in, 3600);
+    }
+
+    #[tokio::test]
+    async fn test_exchange_sts_token_jwt_template_creates_user_from_dex() {
+        let ctx = TestContext::new_with_jwk().await;
+        let (tx, _rx) = broadcast::channel(100);
+
+        // Get real tokens from Dex
+        let dex_tokens = perform_dex_mock_oidc_login()
+            .await
+            .expect("Failed to get tokens from Dex");
+
+        // Create JWT template STS config
+        let jwt_config = StsTokenConfig::JwtTemplate(create_dex_jwt_template_config());
+
+        create_sts_config(&ctx.identity_repo, &tx, jwt_config, false)
+            .await
+            .expect("Failed to create JWT template STS config");
+
+        // Build headers with Dex tokens
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "authorization",
+            format!("Bearer {}", dex_tokens.access_token).parse().unwrap(),
+        );
+        headers.insert(
+            "x-id-token",
+            dex_tokens.id_token.parse().unwrap(),
+        );
+
+        let params = ExchangeStsTokenParams {
+            headers,
+            sts_token_config_id: "dex-jwt-template".to_string(),
+        };
+
+        let result = exchange_sts_token(
+            &ctx.identity_repo,
+            &ctx.crypto_cache,
+            &ctx.external_jwks_cache,
+            params,
+        )
+        .await
+        .expect("JWT template STS exchange should succeed");
+
+        // Extract user ID from the token
+        let validated = decode_and_validate_access_token(&result.access_token, &ctx.jwks_cache)
+            .expect("Access token should be valid");
+
+        let user_id = &validated.claims.sub;
+
+        // Verify user was created in the database
+        let user = ctx
+            .identity_repo
+            .get_user_by_id(user_id)
+            .await
+            .expect("Query should succeed")
+            .expect("User should exist after exchange");
+
+        assert_eq!(user.id, *user_id);
+        assert_eq!(user.email.as_deref(), Some(DEX_MOCK_USER_EMAIL));
+    }
+
+    #[tokio::test]
+    async fn test_exchange_sts_token_missing_config() {
+        let ctx = TestContext::new_with_jwk().await;
+
+        let params = ExchangeStsTokenParams {
+            headers: HeaderMap::new(),
+            sts_token_config_id: "nonexistent-config".to_string(),
+        };
+
+        let result = exchange_sts_token(
+            &ctx.identity_repo,
+            &ctx.crypto_cache,
+            &ctx.external_jwks_cache,
+            params,
+        )
+        .await;
+
+        assert!(result.is_err(), "Should fail with missing config");
+        let err = result.unwrap_err();
+        assert!(
+            matches!(err, CommonError::NotFound { .. }),
+            "Should be NotFound error"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_exchange_sts_token_jwt_template_missing_headers() {
+        let ctx = TestContext::new_with_jwk().await;
+        let (tx, _rx) = broadcast::channel(100);
+
+        // Create JWT template STS config that requires authorization header
+        let jwt_config = StsTokenConfig::JwtTemplate(create_dex_jwt_template_config());
+
+        create_sts_config(&ctx.identity_repo, &tx, jwt_config, false)
+            .await
+            .expect("Failed to create JWT template STS config");
+
+        // Try exchange without providing the required headers
+        let params = ExchangeStsTokenParams {
+            headers: HeaderMap::new(), // Empty headers
+            sts_token_config_id: "dex-jwt-template".to_string(),
+        };
+
+        let result = exchange_sts_token(
+            &ctx.identity_repo,
+            &ctx.crypto_cache,
+            &ctx.external_jwks_cache,
+            params,
+        )
+        .await;
+
+        assert!(result.is_err(), "Should fail with missing headers");
+        let err = result.unwrap_err();
+        assert!(
+            matches!(err, CommonError::Authentication { .. }),
+            "Should be Authentication error, got: {:?}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn test_exchange_sts_token_jwt_template_invalid_token() {
+        let ctx = TestContext::new_with_jwk().await;
+        let (tx, _rx) = broadcast::channel(100);
+
+        // Create JWT template STS config
+        let jwt_config = StsTokenConfig::JwtTemplate(create_dex_jwt_template_config());
+
+        create_sts_config(&ctx.identity_repo, &tx, jwt_config, false)
+            .await
+            .expect("Failed to create JWT template STS config");
+
+        // Provide invalid tokens
+        let mut headers = HeaderMap::new();
+        headers.insert("authorization", "Bearer invalid.jwt.token".parse().unwrap());
+        headers.insert("x-id-token", "invalid.id.token".parse().unwrap());
+
+        let params = ExchangeStsTokenParams {
+            headers,
+            sts_token_config_id: "dex-jwt-template".to_string(),
+        };
+
+        let result = exchange_sts_token(
+            &ctx.identity_repo,
+            &ctx.crypto_cache,
+            &ctx.external_jwks_cache,
+            params,
+        )
+        .await;
+
+        assert!(result.is_err(), "Should fail with invalid token");
+    }
+
+    #[tokio::test]
+    async fn test_extract_token_from_header_bearer_format() {
+        let mut headers = HeaderMap::new();
+        headers.insert("authorization", "Bearer my-token-value".parse().unwrap());
+
+        let result =
+            extract_token_from_headers(&headers, &TokenLocation::Header("authorization".to_string()))
+                .expect("Should extract token");
+
+        assert_eq!(result, "my-token-value");
+    }
+
+    #[tokio::test]
+    async fn test_extract_token_from_header_raw_format() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-custom-token", "raw-token-value".parse().unwrap());
+
+        let result = extract_token_from_headers(
+            &headers,
+            &TokenLocation::Header("x-custom-token".to_string()),
+        )
+        .expect("Should extract token");
+
+        assert_eq!(result, "raw-token-value");
+    }
+
+    #[tokio::test]
+    async fn test_extract_token_from_cookie() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "cookie",
+            "session=abc123; access_token=my-cookie-token; other=value".parse().unwrap(),
+        );
+
+        let result = extract_token_from_headers(
+            &headers,
+            &TokenLocation::Cookie("access_token".to_string()),
+        )
+        .expect("Should extract token from cookie");
+
+        assert_eq!(result, "my-cookie-token");
+    }
+
+    #[tokio::test]
+    async fn test_extract_token_missing_cookie() {
+        let mut headers = HeaderMap::new();
+        headers.insert("cookie", "session=abc123; other=value".parse().unwrap());
+
+        let result = extract_token_from_headers(
+            &headers,
+            &TokenLocation::Cookie("missing_token".to_string()),
+        );
+
+        assert!(result.is_err(), "Should fail when cookie is missing");
+    }
+}

@@ -23,6 +23,12 @@ sql:
             - db_type: datetime
               column: user.updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: user.type
+              rust_type: "crate::logic::user::UserType"
+            - db_type: text
+              column: user.role
+              rust_type: "crate::logic::user::Role"
 
             # api_key table
             - db_type: datetime

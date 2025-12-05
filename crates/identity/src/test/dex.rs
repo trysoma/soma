@@ -107,6 +107,166 @@ impl Default for OauthTestConfig {
     }
 }
 
+/// Result from performing a mock OIDC login against Dex.
+#[derive(Debug, Clone)]
+pub struct DexOidcTokens {
+    /// The access token (JWT)
+    pub access_token: String,
+    /// The ID token (JWT with OIDC claims)
+    pub id_token: String,
+    /// Optional refresh token (if offline_access scope was requested)
+    pub refresh_token: Option<String>,
+    /// Token expiry in seconds
+    pub expires_in: i64,
+}
+
+/// Perform a mock OIDC login flow against Dex and return tokens.
+///
+/// This function performs the full OAuth2/OIDC authorization code flow:
+/// 1. Initiates authorization request to Dex mock connector
+/// 2. Follows redirects to get the authorization code
+/// 3. Exchanges the code for tokens at the token endpoint
+///
+/// # Requirements
+/// - Dex must be running locally with the mockCallback connector enabled
+/// - The client "trysoma.ai" must be configured with the redirect URI
+pub async fn perform_dex_mock_oidc_login() -> Result<DexOidcTokens, anyhow::Error> {
+    perform_dex_mock_login_with_scopes(DEX_OIDC_SCOPES).await
+}
+
+/// Perform a mock OAuth2 login flow against Dex (without OIDC/ID token).
+pub async fn perform_dex_mock_oauth_login() -> Result<DexOidcTokens, anyhow::Error> {
+    perform_dex_mock_login_with_scopes(DEX_OAUTH_SCOPES).await
+}
+
+/// Perform mock login with custom scopes.
+async fn perform_dex_mock_login_with_scopes(scopes: &[&str]) -> Result<DexOidcTokens, anyhow::Error> {
+    use reqwest::redirect::Policy;
+    use url::Url;
+
+    // Build the authorization URL
+    let scope_str = scopes.join(" ");
+    let state = uuid::Uuid::new_v4().to_string();
+    let nonce = uuid::Uuid::new_v4().to_string();
+
+    let auth_url = format!(
+        "{}?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}&nonce={}",
+        DEX_AUTH_MOCK_ENDPOINT,
+        urlencoding::encode(DEX_CLIENT_ID),
+        urlencoding::encode(DEX_REDIRECT_URI),
+        urlencoding::encode(&scope_str),
+        urlencoding::encode(&state),
+        urlencoding::encode(&nonce),
+    );
+
+    // Create a client that doesn't follow redirects so we can capture the callback
+    let client = reqwest::Client::builder()
+        .redirect(Policy::none())
+        .build()?;
+
+    // Step 1: Initiate authorization - Dex mock connector redirects to internal /dex/callback first
+    let response = client.get(&auth_url).send().await?;
+
+    let internal_callback_url = if response.status().is_redirection() {
+        response
+            .headers()
+            .get("location")
+            .and_then(|l| l.to_str().ok())
+            .map(|s| s.to_string())
+            .ok_or_else(|| anyhow::anyhow!("No location header in first redirect"))?
+    } else {
+        let status = response.status();
+        let body = response.text().await?;
+        return Err(anyhow::anyhow!(
+            "Expected redirect from Dex mock, got HTTP {status} - {body}"
+        ));
+    };
+
+    // Step 2: Follow the internal callback to get the final redirect with the code
+    let internal_url = if internal_callback_url.starts_with("http") {
+        internal_callback_url
+    } else {
+        format!("{DEX_BASE_URL}{internal_callback_url}")
+    };
+
+    let response = client.get(&internal_url).send().await?;
+
+    let callback_url = if response.status().is_redirection() {
+        response
+            .headers()
+            .get("location")
+            .and_then(|l| l.to_str().ok())
+            .map(|s| s.to_string())
+            .ok_or_else(|| anyhow::anyhow!("No location header in second redirect"))?
+    } else {
+        let status = response.status();
+        let body = response.text().await?;
+        return Err(anyhow::anyhow!(
+            "Expected redirect from Dex internal callback, got HTTP {status} - {body}"
+        ));
+    };
+
+    // Step 3: Extract the authorization code from the final callback URL
+    let parsed_url = Url::parse(&callback_url)
+        .or_else(|_| {
+            // If the URL is relative, prepend the base URL
+            Url::parse(&format!("{DEX_BASE_URL}{callback_url}"))
+        })?;
+
+    let code = parsed_url
+        .query_pairs()
+        .find(|(k, _)| k == "code")
+        .map(|(_, v)| v.to_string())
+        .ok_or_else(|| anyhow::anyhow!("No code in callback URL: {callback_url}"))?;
+
+    // Step 4: Exchange the code for tokens
+    let token_response = client
+        .post(DEX_TOKEN_ENDPOINT)
+        .form(&[
+            ("grant_type", "authorization_code"),
+            ("code", &code),
+            ("redirect_uri", DEX_REDIRECT_URI),
+            ("client_id", DEX_CLIENT_ID),
+            ("client_secret", DEX_CLIENT_SECRET),
+        ])
+        .send()
+        .await?;
+
+    if !token_response.status().is_success() {
+        let status = token_response.status();
+        let body = token_response.text().await?;
+        return Err(anyhow::anyhow!(
+            "Token exchange failed: HTTP {status} - {body}"
+        ));
+    }
+
+    let token_json: serde_json::Value = token_response.json().await?;
+
+    let access_token = token_json["access_token"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("No access_token in response"))?
+        .to_string();
+
+    let id_token = token_json["id_token"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    let refresh_token = token_json["refresh_token"]
+        .as_str()
+        .map(|s| s.to_string());
+
+    let expires_in = token_json["expires_in"]
+        .as_i64()
+        .unwrap_or(3600);
+
+    Ok(DexOidcTokens {
+        access_token,
+        id_token,
+        refresh_token,
+        expires_in,
+    })
+}
 
 #[cfg(test)]
 mod tests {

@@ -279,7 +279,7 @@ pub async fn issue_tokens_for_normalized_user<R: UserRepositoryLike>(
         // Update user if email or role changed
         let update_user = UpdateUser {
             email: normalized.email.clone(),
-            role: Some(normalized.role.as_str().to_string()),
+            role: Some(normalized.role.clone()),
             description: None,
         };
         repository.update_user(&user_id, &update_user).await?;

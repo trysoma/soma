@@ -11,7 +11,7 @@ pub use sqlite::Repository;
 // Re-export types from logic modules that are used in repository trait
 pub use crate::logic::api_key::{HashedApiKey, HashedApiKeyWithUser};
 pub use crate::logic::user::{
-    Group, GroupMemberWithUser, GroupMembership, Role, User, UserGroupWithGroup,
+    Group, GroupMemberWithUser, GroupMembership, Role, User, UserType, UserGroupWithGroup,
 };
 use crate::logic::user_auth_flow::config::EncryptedUserAuthFlowConfig;
 use crate::logic::{
@@ -23,7 +23,7 @@ use crate::logic::{
 #[derive(Debug, Default)]
 pub struct UpdateUser {
     pub email: Option<String>,
-    pub role: Option<String>,
+    pub role: Option<Role>,
     pub description: Option<String>,
 }
 
@@ -59,8 +59,8 @@ pub trait UserRepositoryLike {
     async fn list_users(
         &self,
         pagination: &PaginationRequest,
-        user_type: Option<&str>,
-        role: Option<&str>,
+        user_type: Option<&UserType>,
+        role: Option<&Role>,
     ) -> Result<PaginatedResponse<User>, CommonError>;
 
     // API key methods

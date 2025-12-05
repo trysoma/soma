@@ -1,3 +1,4 @@
+use libsql::FromValue;
 use serde::{Deserialize, Serialize};
 use shared::primitives::WrappedChronoDateTime;
 use utoipa::ToSchema;
@@ -11,6 +12,21 @@ pub enum Role {
     ReadOnlyMaintainer,
     Agent,
     User,
+}
+
+impl FromValue for Role {
+    fn from_sql(val: libsql::Value) -> libsql::Result<Self> {
+        match val {
+            libsql::Value::Text(s) => Role::parse(&s).ok_or_else(|| libsql::Error::InvalidColumnType),
+            _ => Err(libsql::Error::InvalidColumnType),
+        }
+    }
+}
+
+impl From<Role> for libsql::Value {
+    fn from(val: Role) -> Self {
+        libsql::Value::Text(val.as_str().to_string())
+    }
 }
 
 impl Role {
@@ -42,6 +58,21 @@ impl Role {
 pub enum UserType {
     Machine,
     Human,
+}
+
+impl FromValue for UserType {
+    fn from_sql(val: libsql::Value) -> libsql::Result<Self> {
+        match val {
+            libsql::Value::Text(s) => UserType::parse(&s).ok_or_else(|| libsql::Error::InvalidColumnType),
+            _ => Err(libsql::Error::InvalidColumnType),
+        }
+    }
+}
+
+impl From<UserType> for libsql::Value {
+    fn from(val: UserType) -> Self {
+        libsql::Value::Text(val.as_str().to_string())
+    }
 }
 
 impl UserType {

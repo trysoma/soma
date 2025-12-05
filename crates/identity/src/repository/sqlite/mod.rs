@@ -11,6 +11,7 @@ pub use generated::*;
 
 use crate::logic::sts::config::StsTokenConfigType;
 use crate::logic::user_auth_flow::oauth::OAuthState;
+use crate::logic::user::{Role, UserType};
 use crate::repository::{
     Group, GroupMemberWithUser, GroupMembership, HashedApiKey, HashedApiKeyWithUser, JwtSigningKey,
     StsConfigurationDb, UpdateUser, User, UserAuthFlowConfigDb, UserGroupWithGroup,
@@ -51,14 +52,12 @@ impl SqlMigrationLoader for Repository {
 
 impl UserRepositoryLike for Repository {
     async fn create_user(&self, params: &User) -> Result<(), CommonError> {
-        let user_type_str = params.user_type.as_str().to_string();
-        let role_str = params.role.as_str().to_string();
         let sqlc_params = create_user_params {
             id: &params.id,
-            user_type: &user_type_str,
+            user_type: &params.user_type,
             email: &params.email,
-            role: &role_str,
-            description: &params.description,
+            role: &params.role,
+            description: &params.description.clone(),
             created_at: &params.created_at,
             updated_at: &params.updated_at,
         };
@@ -98,15 +97,12 @@ impl UserRepositoryLike for Repository {
         })?;
 
         let email = params.email.clone().or(existing.email);
-        let role = params
-            .role
-            .clone()
-            .unwrap_or_else(|| existing.role.as_str().to_string());
+
         let description = params.description.clone().or(existing.description);
 
         let sqlc_params = update_user_params {
             email: &email,
-            role: &role,
+            role: &params.role.clone().unwrap_or(existing.role),
             description: &description,
             id: &id.to_string(),
         };
@@ -139,8 +135,8 @@ impl UserRepositoryLike for Repository {
     async fn list_users(
         &self,
         pagination: &PaginationRequest,
-        user_type: Option<&str>,
-        role: Option<&str>,
+        user_type: Option<&UserType>,
+        role: Option<&Role>,
     ) -> Result<PaginatedResponse<User>, CommonError> {
         let cursor_datetime = if let Some(token) = &pagination.next_page_token {
             let decoded_parts =
@@ -163,9 +159,8 @@ impl UserRepositoryLike for Repository {
         } else {
             None
         };
-        let user_type_owned = user_type.map(|s| s.to_string());
-        let role_owned = role.map(|s| s.to_string());
-
+        let user_type_owned = user_type.map(|s| s.clone());
+        let role_owned = role.map(|r| r.clone());
         let sqlc_params = get_users_params {
             cursor: &cursor_datetime,
             user_type: &user_type_owned,
@@ -1195,7 +1190,7 @@ mod unit_test {
 
         let update = UpdateUser {
             email: Some("new@example.com".to_string()),
-            role: Some("admin".to_string()),
+            role: Some(Role::Admin),
             description: None,
         };
         repo.update_user("user-1", &update).await.unwrap();
@@ -1277,14 +1272,14 @@ mod unit_test {
 
         // Filter by user_type
         let result = repo
-            .list_users(&pagination, Some("machine"), None)
+            .list_users(&pagination, Some(&UserType::Machine), None)
             .await
             .unwrap();
         assert_eq!(result.items.len(), 3);
 
         // Filter by role
         let result = repo
-            .list_users(&pagination, None, Some("admin"))
+            .list_users(&pagination, None, Some(&Role::Admin))
             .await
             .unwrap();
         assert_eq!(result.items.len(), 2);
