@@ -50,7 +50,7 @@ For pagination, JSON serialization and deserialization and other coding opinions
 * prefer simplicity and re-usability over complex functions
 * never write tests for the sake of tests. Tests must be useful, impactful
 * always make sure the tests you've added / modified pass before finishing
-* put unit tests in the file the code is in: 
+* put unit tests in the file the code is in:
 ```rust
 #[cfg(all(test, feature = "unit_test"))]
 mod unit_test {}
@@ -61,6 +61,39 @@ See `crates/bridge/src/router.rs` as a starting point for code styles and opinio
 ```rust
 #[cfg(all(test, feature = "integration_test"))]
 mod integration_test { }
+```
+
+### Test utilities and shared fixtures
+
+For tests that require common setup (encryption, repositories, external service configurations):
+
+* **Identity crate test utilities**: `crates/identity/src/test/`
+  - `dex.rs` - Dex (OIDC/OAuth2 provider) test configuration constants
+  - `fixtures.rs` - Common test context setup (encryption, JWK, repositories)
+
+* **Bridge crate test utilities**: `crates/bridge/src/test/`
+  - `encryption_service.rs` - Test encryption setup helpers
+
+#### Using test fixtures
+
+```rust
+// For identity crate integration tests
+use crate::test::fixtures::TestContext;
+use crate::test::dex::{DEX_CLIENT_ID, DEX_TOKEN_ENDPOINT, is_dex_available};
+
+#[tokio::test]
+async fn test_something() {
+    // Skip if external service unavailable
+    if !is_dex_available().await {
+        eprintln!("Skipping test: Dex is not available");
+        return;
+    }
+
+    // Create test context with encryption and repositories
+    let ctx = TestContext::new_with_jwk().await;
+
+    // Use ctx.identity_repo, ctx.crypto_cache, ctx.jwks_cache, etc.
+}
 ```
 
 

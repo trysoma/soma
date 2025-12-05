@@ -5,12 +5,14 @@ edition.workspace = true
 
 [features]
 unit_test = []
+integration_test = ["tempfile"]
 
 [dev-dependencies]
 tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util", "macros"] }
 
 [dependencies]
+tempfile = { workspace = true, optional = true }
 anyhow.workspace = true
 async-trait.workspace = true
 axum.workspace = true

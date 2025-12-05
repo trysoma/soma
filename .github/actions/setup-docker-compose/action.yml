@@ -1,0 +1,46 @@
+name: 'Setup Docker Compose'
+description: 'Start docker-compose services and wait for them to be ready'
+
+inputs:
+  compose-file:
+    description: 'Path to docker-compose file'
+    required: false
+    default: './test/docker-compose.yml'
+  health-check-url:
+    description: 'URL to check for service readiness'
+    required: false
+    default: 'http://localhost:5556/dex/keys'
+  health-check-timeout:
+    description: 'Timeout in seconds for health check'
+    required: false
+    default: '60'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Start docker-compose services
+      uses: hoverkraft-tech/compose-action@v2.2.0
+      with:
+        compose-file: ${{ inputs.compose-file }}
+        up-flags: "-d --wait"
+
+    - name: Wait for services to be ready
+      shell: bash
+      run: |
+        echo "Waiting for services to be ready..."
+        TIMEOUT=${{ inputs.health-check-timeout }}
+        HEALTH_URL="${{ inputs.health-check-url }}"
+        INTERVAL=2
+        MAX_ATTEMPTS=$((TIMEOUT / INTERVAL))
+
+        for i in $(seq 1 $MAX_ATTEMPTS); do
+          if curl -s "$HEALTH_URL" > /dev/null 2>&1; then
+            echo "Services are ready!"
+            break
+          fi
+          echo "Waiting for services... ($i/$MAX_ATTEMPTS)"
+          sleep $INTERVAL
+        done
+
+        # Verify service is responding
+        curl -f "$HEALTH_URL" || exit 1

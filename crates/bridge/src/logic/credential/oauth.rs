@@ -1382,3 +1382,196 @@ mod unit_test {
         );
     }
 }
+
+#[cfg(all(test, feature = "integration_test"))]
+mod integration_test {
+    use super::*;
+    use identity::test::dex::{
+        DEX_AUTH_ENDPOINT, DEX_CLIENT_ID, DEX_CLIENT_SECRET, DEX_JWKS_ENDPOINT, DEX_ISSUER,
+        DEX_OAUTH_SCOPES, DEX_TOKEN_ENDPOINT, DEX_USERINFO_ENDPOINT,
+    };
+
+    /// Create OAuth static credential configuration for Dex.
+    fn create_dex_static_credentials() -> Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+        Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+            auth_uri: DEX_AUTH_ENDPOINT.to_string(),
+            token_uri: DEX_TOKEN_ENDPOINT.to_string(),
+            userinfo_uri: DEX_USERINFO_ENDPOINT.to_string(),
+            jwks_uri: DEX_JWKS_ENDPOINT.to_string(),
+            issuer: DEX_ISSUER.to_string(),
+            scopes: DEX_OAUTH_SCOPES.iter().map(|s| s.to_string()).collect(),
+            metadata: Metadata::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_dex_oauth_static_credentials_structure() {
+        let static_creds = create_dex_static_credentials();
+
+        assert_eq!(static_creds.auth_uri, DEX_AUTH_ENDPOINT);
+        assert_eq!(static_creds.token_uri, DEX_TOKEN_ENDPOINT);
+        assert_eq!(static_creds.jwks_uri, DEX_JWKS_ENDPOINT);
+        assert_eq!(static_creds.issuer, DEX_ISSUER);
+        assert!(!static_creds.scopes.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_oauth_controller_type_id() {
+        let controller = OauthAuthFlowController {
+            static_credentials: create_dex_static_credentials(),
+        };
+
+        assert_eq!(controller.type_id(), "oauth_auth_flow");
+        assert_eq!(
+            OauthAuthFlowController::static_type_id(),
+            "oauth_auth_flow"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_oauth_controller_documentation() {
+        let controller = OauthAuthFlowController {
+            static_credentials: create_dex_static_credentials(),
+        };
+
+        let doc = controller.documentation();
+        assert!(doc.contains("OAuth"));
+        assert!(doc.contains("Authorization Code Flow"));
+    }
+
+    #[tokio::test]
+    async fn test_oauth_controller_provides_broker() {
+        let controller = OauthAuthFlowController {
+            static_credentials: create_dex_static_credentials(),
+        };
+
+        // OAuth controller should provide user credential broker
+        assert!(
+            controller.as_user_credential_broker().is_some(),
+            "OAuth controller should provide user credential broker"
+        );
+
+        // OAuth controller should provide rotateable credential support
+        assert!(
+            controller.as_rotateable_controller_user_credential().is_some(),
+            "OAuth controller should provide rotateable credential support"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_dex_token_endpoint_reachable() {
+       
+
+        // Token endpoint should return an error for invalid requests (not 404)
+        let client = reqwest::Client::new();
+        let response = client
+            .post(DEX_TOKEN_ENDPOINT)
+            .form(&[("grant_type", "authorization_code")])
+            .send()
+            .await
+            .expect("Failed to reach Dex token endpoint");
+
+        // Should return 400 (bad request) not 404
+        assert_ne!(
+            response.status().as_u16(),
+            404,
+            "Token endpoint should exist"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_token_refresh_invalid_token() {
+        
+
+        // Attempt to refresh with an invalid token
+        let client = reqwest::Client::new();
+        let response = client
+            .post(DEX_TOKEN_ENDPOINT)
+            .form(&[
+                ("grant_type", "refresh_token"),
+                ("refresh_token", "invalid_refresh_token"),
+                ("client_id", DEX_CLIENT_ID),
+                ("client_secret", DEX_CLIENT_SECRET),
+            ])
+            .send()
+            .await
+            .expect("Failed to reach Dex token endpoint");
+
+        // Should return 400 (invalid grant) for invalid refresh token
+        assert!(
+            response.status().is_client_error(),
+            "Should reject invalid refresh token"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_oauth_user_credential_rotation_time_calculation() {
+        let now = WrappedChronoDateTime::now();
+        let expiry_time = WrappedChronoDateTime::new(
+            now.get_inner()
+                .checked_add_signed(chrono::Duration::hours(2))
+                .unwrap(),
+        );
+
+        let credential = Oauth2AuthorizationCodeFlowUserCredential {
+            code: EncryptedString("encrypted_code".to_string()),
+            access_token: EncryptedString("encrypted_token".to_string()),
+            refresh_token: EncryptedString("encrypted_refresh".to_string()),
+            expiry_time,
+            sub: "test-user".to_string(),
+            scopes: vec!["email".to_string(), "offline_access".to_string()],
+            metadata: Metadata::new(),
+        };
+
+        let next_rotation = credential.next_rotation_time();
+
+        // Should be 5 minutes before expiry
+        let expected = WrappedChronoDateTime::new(
+            expiry_time
+                .get_inner()
+                .checked_sub_signed(chrono::Duration::minutes(5))
+                .unwrap(),
+        );
+
+        assert_eq!(next_rotation.get_inner(), expected.get_inner());
+
+        // Verify rotation time is before expiry
+        assert!(
+            next_rotation.get_inner() < expiry_time.get_inner(),
+            "Rotation time should be before expiry"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_oauth_credential_types() {
+        let user_cred = Oauth2AuthorizationCodeFlowUserCredential {
+            code: EncryptedString("code".to_string()),
+            access_token: EncryptedString("access".to_string()),
+            refresh_token: EncryptedString("refresh".to_string()),
+            expiry_time: WrappedChronoDateTime::now(),
+            sub: "sub".to_string(),
+            scopes: vec!["scope".to_string()],
+            metadata: Metadata::new(),
+        };
+
+        assert_eq!(user_cred.type_id(), "oauth2_authorization_code_flow_user");
+
+        // Should be rotateable
+        assert!(user_cred.as_rotateable_credential().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_resource_server_credential_type() {
+        let resource_cred = Oauth2AuthorizationCodeFlowResourceServerCredential {
+            client_id: DEX_CLIENT_ID.to_string(),
+            client_secret: EncryptedString(DEX_CLIENT_SECRET.to_string()),
+            redirect_uri: "http://localhost:8080/callback".to_string(),
+            metadata: Metadata::new(),
+        };
+
+        assert_eq!(
+            resource_cred.type_id(),
+            "oauth2_authorization_code_flow_resource_server"
+        );
+    }
+}
