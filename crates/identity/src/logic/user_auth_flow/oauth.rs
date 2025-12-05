@@ -440,7 +440,7 @@ mod integration_test {
 
         // Verify URL structure
         assert!(url.starts_with(DEX_AUTH_ENDPOINT));
-        assert!(url.contains(&format!("client_id={}", DEX_CLIENT_ID)));
+        assert!(url.contains(&format!("client_id={DEX_CLIENT_ID}")));
         assert!(url.contains(&format!("redirect_uri={}", urlencoding::encode(DEX_REDIRECT_URI))));
         assert!(url.contains("response_type=code"));
         assert!(url.contains(&format!("state={}", csrf_state.secret())));
