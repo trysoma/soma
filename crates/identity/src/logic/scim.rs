@@ -3,10 +3,8 @@
 //! This module provides logic functions for syncing external IDP users and groups
 //! into our repository based on the SCIM 2.0 specification.
 
-use crate::logic::user::{Group, Role, User, UserType};
-use crate::repository::{
-    CreateGroupMembership, GroupMemberWithUser, UpdateUser, UserRepositoryLike,
-};
+use crate::logic::user::{Group, GroupMembership, Role, User, UserType};
+use crate::repository::{GroupMemberWithUser, UpdateUser, UserRepositoryLike};
 use serde::{Deserialize, Serialize};
 use shared::{
     error::CommonError,
@@ -442,7 +440,7 @@ pub async fn create_user_from_scim(
         email,
         role: Role::User,
         description: None,
-        created_at: now.clone(),
+        created_at: now,
         updated_at: now,
     };
 
@@ -589,7 +587,7 @@ pub async fn patch_user_scim(
         })?;
 
     let mut email = existing.email.clone();
-    let role: Option<String> = None; // SCIM doesn't update roles
+    let role: Option<Role> = None; // SCIM doesn't update roles
 
     for op in patch_request.operations {
         match op.op {
@@ -703,8 +701,8 @@ pub async fn create_group_from_scim(
     let group = Group {
         id: group_id.clone(),
         name: scim_group.display_name.clone(),
-        created_at: now.clone(),
-        updated_at: now.clone(),
+        created_at: now,
+        updated_at: now,
     };
 
     repo.create_group(&group).await?;
@@ -713,11 +711,11 @@ pub async fn create_group_from_scim(
     for member in &scim_group.members {
         // Verify the user exists
         if repo.get_user_by_id(&member.value).await?.is_some() {
-            let membership = CreateGroupMembership {
+            let membership = GroupMembership {
                 group_id: group_id.clone(),
                 user_id: member.value.clone(),
-                created_at: now.clone(),
-                updated_at: now.clone(),
+                created_at: now,
+                updated_at: now,
             };
             // Ignore errors for member creation (user might not exist)
             let _ = repo.create_group_membership(&membership).await;
@@ -822,11 +820,11 @@ pub async fn replace_group_scim(
 
     for member in &scim_group.members {
         if repo.get_user_by_id(&member.value).await?.is_some() {
-            let membership = CreateGroupMembership {
+            let membership = GroupMembership {
                 group_id: group_id.to_string(),
                 user_id: member.value.clone(),
-                created_at: now.clone(),
-                updated_at: now.clone(),
+                created_at: now,
+                updated_at: now,
             };
             let _ = repo.create_group_membership(&membership).await;
         }
@@ -882,11 +880,11 @@ pub async fn patch_group_scim(
                                                     .await?
                                                     .is_none()
                                                 {
-                                                    let membership = CreateGroupMembership {
+                                                    let membership = GroupMembership {
                                                         group_id: group_id.to_string(),
                                                         user_id: user_id.to_string(),
-                                                        created_at: now.clone(),
-                                                        updated_at: now.clone(),
+                                                        created_at: now,
+                                                        updated_at: now,
                                                     };
                                                     let _ = repo
                                                         .create_group_membership(&membership)
@@ -909,20 +907,19 @@ pub async fn patch_group_scim(
                         for member_val in members {
                             if let Some(user_id) = member_val.get("value").and_then(|v| v.as_str())
                             {
-                                if repo.get_user_by_id(user_id).await?.is_some() {
-                                    if repo
+                                if repo.get_user_by_id(user_id).await?.is_some()
+                                    && repo
                                         .get_group_membership(group_id, user_id)
                                         .await?
                                         .is_none()
-                                    {
-                                        let membership = CreateGroupMembership {
-                                            group_id: group_id.to_string(),
-                                            user_id: user_id.to_string(),
-                                            created_at: now.clone(),
-                                            updated_at: now.clone(),
-                                        };
-                                        let _ = repo.create_group_membership(&membership).await;
-                                    }
+                                {
+                                    let membership = GroupMembership {
+                                        group_id: group_id.to_string(),
+                                        user_id: user_id.to_string(),
+                                        created_at: now,
+                                        updated_at: now,
+                                    };
+                                    let _ = repo.create_group_membership(&membership).await;
                                 }
                             }
                         }
@@ -1127,12 +1124,12 @@ mod tests {
             let scim_user = ScimUser {
                 schemas: default_user_schemas(),
                 id: None,
-                external_id: Some(format!("list-user-{}", i)),
-                user_name: format!("user{}@example.com", i),
+                external_id: Some(format!("list-user-{i}")),
+                user_name: format!("user{i}@example.com"),
                 name: None,
                 display_name: None,
                 emails: vec![ScimEmail {
-                    value: format!("user{}@example.com", i),
+                    value: format!("user{i}@example.com"),
                     email_type: None,
                     primary: true,
                 }],
@@ -1385,8 +1382,8 @@ mod tests {
             let scim_group = ScimGroup {
                 schemas: default_group_schemas(),
                 id: None,
-                external_id: Some(format!("list-group-{}", i)),
-                display_name: format!("Group {}", i),
+                external_id: Some(format!("list-group-{i}")),
+                display_name: format!("Group {i}"),
                 members: vec![],
                 meta: None,
             };
