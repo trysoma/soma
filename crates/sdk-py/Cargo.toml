@@ -1,16 +1,16 @@
 [package]
-name = "sdk-py"
+name = "soma-sdk-core"
 version.workspace = true
 edition.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "sdk_py"
+name = "soma_sdk_core"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.24.0"
+pyo3.workspace = true
 sdk-core.workspace = true
+sdk-proto.workspace = true
 shared.workspace = true
 tokio.workspace = true
 tonic.workspace = true
@@ -19,3 +19,4 @@ serde_json.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 once_cell.workspace = true
+tera.workspace = true

@@ -157,6 +157,25 @@ jobs:
           - [@trysoma/sdk-core-linux-arm64-gnu](https://www.npmjs.com/package/@trysoma/sdk-core-linux-arm64-gnu/v/VERSION_NUMBER)
 
           > Platform-specific packages are automatically installed as optional dependencies based on your system architecture.
+
+          ## 🐍 Published PyPI Packages
+
+          ### Main Packages
+          - [soma-sdk](https://pypi.org/project/soma-sdk/VERSION_NUMBER/)
+          - [soma-sdk-core](https://pypi.org/project/soma-sdk-core/VERSION_NUMBER/)
+          - [soma-api-client](https://pypi.org/project/soma-api-client/VERSION_NUMBER/)
+
+          > `soma-sdk-core` provides native bindings and is automatically selected based on your platform (Linux, macOS, Windows).
+
+          ### Installation
+
+          ```bash
+          # Using pip
+          pip install soma-sdk
+
+          # Using uv
+          uv add soma-sdk
+          ```
           EOF
 
           # Replace VERSION_NUMBER placeholder with actual version

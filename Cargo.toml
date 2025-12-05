@@ -1,5 +1,21 @@
 [workspace]
 members = ["crates/*"]
+# sdk-py must be built with maturin, not cargo build directly
+# sdk-js is built with napi, not cargo build directly
+default-members = [
+    "crates/a2a-rs",
+    "crates/bridge",
+    "crates/encryption",
+    "crates/sdk-core",
+    "crates/sdk-proto",
+    "crates/shared",
+    "crates/shared-macros",
+    "crates/soma",
+    "crates/soma-api-client",
+    "crates/soma-api-server",
+    "crates/soma-frontend",
+    "crates/workspace-hack",
+]
 resolver = "3"
 
 metadata.crane.name = "soma"

@@ -5,25 +5,25 @@ use tracing::info;
 use crate::codegen;
 use sdk_core as core_types;
 
-/// TypeScript code generator implementation
-pub struct TypeScriptCodeGenerator {
+/// Python code generator implementation
+pub struct PythonCodeGenerator {
     project_dir: PathBuf,
 }
 
-impl TypeScriptCodeGenerator {
+impl PythonCodeGenerator {
     pub fn new(project_dir: PathBuf) -> Self {
         Self { project_dir }
     }
 }
 
 #[tonic::async_trait]
-impl core_types::SdkCodeGenerator for TypeScriptCodeGenerator {
+impl core_types::SdkCodeGenerator for PythonCodeGenerator {
     async fn generate_bridge_client(
         &self,
         request: core_types::GenerateBridgeClientRequest,
     ) -> Result<core_types::GenerateBridgeClientResponse, CommonError> {
         info!(
-            "TypeScript code generator invoked with {} function instances",
+            "Python code generator invoked with {} function instances",
             request.function_instances.len()
         );
 
@@ -69,21 +69,21 @@ impl core_types::SdkCodeGenerator for TypeScriptCodeGenerator {
             })
             .collect();
 
-        // Generate TypeScript code
-        let typescript_code = codegen::generate_typescript_code_from_api_data(&function_instances)
+        // Generate Python code
+        let python_code = codegen::generate_python_code_from_api_data(&function_instances)
             .map_err(|e| {
-                CommonError::Unknown(anyhow::anyhow!("Failed to generate TypeScript code: {e}"))
+                CommonError::Unknown(anyhow::anyhow!("Failed to generate Python code: {e}"))
             })?;
 
         // Write to file
         let soma_dir = self.project_dir.join(".soma");
-        let output_path = soma_dir.join("bridge.ts");
+        let output_path = soma_dir.join("bridge.py");
 
         std::fs::create_dir_all(&soma_dir).map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!("Failed to create .soma directory: {e}"))
         })?;
 
-        std::fs::write(&output_path, typescript_code).map_err(|e| {
+        std::fs::write(&output_path, python_code).map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!("Failed to write bridge client file: {e}"))
         })?;
 
@@ -93,7 +93,7 @@ impl core_types::SdkCodeGenerator for TypeScriptCodeGenerator {
             result: Some(sdk_proto::generate_bridge_client_response::Result::Success(
                 sdk_proto::GenerateBridgeClientSuccess {
                     message: format!(
-                        "TypeScript bridge client generated successfully at {}",
+                        "Python bridge client generated successfully at {}",
                         output_path.display()
                     ),
                 },

@@ -3,13 +3,28 @@ requires = ["maturin>=1.8,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "sdk-py"
-requires-python = ">=3.8"
+name = "soma-sdk-core"
+version = "0.0.4"
+description = "Core native bindings for the Soma Python SDK"
+requires-python = ">=3.10"
+license = "MIT"
+keywords = ["soma", "sdk", "agent", "ai"]
 classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dynamic = ["version"]
+
 [tool.maturin]
 features = ["pyo3/extension-module"]
+
+[project.urls]
+Homepage = "https://github.com/trysoma/soma"
+Repository = "https://github.com/trysoma/soma"
