@@ -323,8 +323,8 @@ pub async fn import_environment_variable<R: EnvironmentVariableRepositoryLike>(
     Ok(environment_variable)
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use crate::repository::Repository;
     use shared::primitives::SqlMigrationLoader;

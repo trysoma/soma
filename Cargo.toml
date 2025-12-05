@@ -36,6 +36,7 @@ uds_windows = "1.1.0"
 url = "2.5.4"
 uuid = { version = "1.12.0", features = ["v7", "v4", "v5"] }
 humantime = { version = "2.3.0"}
+time = "0.3"
 
 ## Async runtime
 tokio = { version = "1.43.0", default-features = false, features = [
@@ -54,6 +55,7 @@ rmcp = { git = "https://github.com/trysoma/modelcontextprotocol-rust-sdk", rev =
 rustls = "0.23.31"
 rustls-pemfile = "2.2.0"
 axum = { version = "0.8.6", features = ["macros", "multipart"] }
+axum-extra = { version = "0.10", features = ["cookie"] }
 axum-server = { version = "0.7.2", features = ["rustls", "tls-rustls"] }
 http = "1.3.1"
 hyper = { version = "=1.6.0", features = ["full"] }
@@ -105,6 +107,7 @@ tracing-subscriber = { version = "0.3.20", features = [
 clap = { version = "4.5.44", features = ["derive"] }
 clap_complete = { version = "4.5.61"}
 comfy-table = "7.1"
+inquire = "0.7"
 ## Code generation
 prettyplease = "0.2.35"
 quote = "1.0.40"
@@ -113,9 +116,10 @@ typify = "0.4.2"
 tera = "1.20.0"
 
 ## External services
-restate-admin-rest-model = { git = "https://github.com/restatedev/restate", package = "restate-admin-rest-model", features = ["schema"] }
-restate-types = { git = "https://github.com/restatedev/restate", package = "restate-types", features = ["schemars"] }
-restate-serde-util = { git = "https://github.com/restatedev/restate", package = "restate-serde-util", features = ["schema"] }
+# Pinned to commit compatible with rustc 1.88.0 (CI version)
+restate-admin-rest-model = { git = "https://github.com/restatedev/restate", rev = "51d96ca2bb121a08192d541ccff5da839c0e590b", package = "restate-admin-rest-model", features = ["schema"] }
+restate-types = { git = "https://github.com/restatedev/restate", rev = "51d96ca2bb121a08192d541ccff5da839c0e590b", package = "restate-types", features = ["schemars"] }
+restate-serde-util = { git = "https://github.com/restatedev/restate", rev = "51d96ca2bb121a08192d541ccff5da839c0e590b", package = "restate-serde-util", features = ["schema"] }
 clerk-rs = { git = "https://github.com/trysoma/clerk-rs", rev = "5b45669779e5178b870df2a7d24d780213f180bb" }
 
 ## File system / utilities
@@ -133,7 +137,14 @@ aws-sdk-kms = "1.52"
 ## Cryptography
 aes-gcm = "0.10"
 rand = "0.8"
+rsa = "0.9.9"
+pkcs1 = "0.7"
+pkcs8 = "0.10"
 zeroize = { version = "1.8", features = ["derive"] }
+
+## OAuth/OIDC
+openidconnect = { version = "4.0", default-features = false, features = ["reqwest", "rustls-tls"] }
+oauth2 = { version = "5.0", default-features = false, features = ["reqwest", "rustls-tls"] }
 
 ## Additional dependencies
 arc-swap = "1.7.1"
@@ -166,6 +177,7 @@ soma-frontend = { path = "./crates/soma-frontend" }
 soma = { path = "./crates/soma" }
 bridge = { path = "./crates/bridge" }
 encryption = { path = "./crates/encryption" }
+identity = { path = "./crates/identity" }
 sdk-core = { path = "./crates/sdk-core" }
 sdk-proto = { path = "./crates/sdk-proto" }
 

@@ -1,0 +1,214 @@
+version: "2"
+plugins:
+  - name: sqlc-gen-from-template
+    process:
+      cmd: "sqlc-gen-from-template"
+sql:
+  - engine: "sqlite"
+    schema: "./dbs/identity/schema.sql"
+    queries: "./dbs/identity/queries"
+    codegen:
+      - out: "src/repository/sqlite"
+        plugin: "sqlc-gen-from-template"
+        options:
+          template: "./../../rust_rusqlite.go.tmpl"
+          filename: "raw.generated.rs"
+          cache_statements: true
+          use_serde: true
+          overrides:
+            # user table
+            - db_type: datetime
+              column: user.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: user.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: user.type
+              rust_type: "crate::logic::user::UserType"
+            - db_type: text
+              column: user.role
+              rust_type: "crate::logic::user::Role"
+
+            # api_key table
+            - db_type: datetime
+              column: api_key.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: api_key.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_api_key_by_hashed_value joined user columns
+            - db_type: datetime
+              column: get_api_key_by_hashed_value.user_created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_api_key_by_hashed_value.user_updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_api_key_by_id joined user columns
+            - db_type: datetime
+              column: get_api_key_by_id.user_created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_api_key_by_id.user_updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # group table
+            - db_type: datetime
+              column: group.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: group.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # group_membership table
+            - db_type: datetime
+              column: group_membership.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: group_membership.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_group_members joined columns
+            - db_type: datetime
+              column: get_group_members.membership_created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_group_members.membership_updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_group_members.user_created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_group_members.user_updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_user_groups joined columns
+            - db_type: datetime
+              column: get_user_groups.membership_created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_user_groups.membership_updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_user_groups.group_created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_user_groups.group_updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # jwt_signing_key table
+            - db_type: datetime
+              column: jwt_signing_key.expires_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: jwt_signing_key.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: jwt_signing_key.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_jwt_signing_keys query columns
+            - db_type: datetime
+              column: get_jwt_signing_keys.expires_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_jwt_signing_keys.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_jwt_signing_keys.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_jwt_signing_key_by_kid query columns
+            - db_type: datetime
+              column: get_jwt_signing_key_by_kid.expires_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_jwt_signing_key_by_kid.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_jwt_signing_key_by_kid.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # sts_configuration table
+            - db_type: datetime
+              column: sts_configuration.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: sts_configuration.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: sts_configuration.value
+              rust_type: "shared::primitives::WrappedJsonValue"
+
+            # get_sts_configuration_by_id query columns
+            - db_type: datetime
+              column: get_sts_configuration_by_id.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_sts_configuration_by_id.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: get_sts_configuration_by_id.value
+              rust_type: "shared::primitives::WrappedJsonValue"
+
+            # get_sts_configurations query columns
+            - db_type: datetime
+              column: get_sts_configurations.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_sts_configurations.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: get_sts_configurations.value
+              rust_type: "shared::primitives::WrappedJsonValue"
+
+            # user_auth_flow_configuration table
+            - db_type: datetime
+              column: user_auth_flow_configuration.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: user_auth_flow_configuration.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: user_auth_flow_configuration.config
+              rust_type: "shared::primitives::WrappedJsonValue"
+
+            # get_user_auth_flow_config_by_id query columns
+            - db_type: datetime
+              column: get_user_auth_flow_config_by_id.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_user_auth_flow_config_by_id.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: get_user_auth_flow_config_by_id.config
+              rust_type: "shared::primitives::WrappedJsonValue"
+
+            # get_user_auth_flow_configs query columns
+            - db_type: datetime
+              column: get_user_auth_flow_configs.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_user_auth_flow_configs.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: get_user_auth_flow_configs.config
+              rust_type: "shared::primitives::WrappedJsonValue"
+
+            # oauth_state table
+            - db_type: datetime
+              column: oauth_state.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: oauth_state.expires_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_oauth_state_by_state query columns
+            - db_type: datetime
+              column: get_oauth_state_by_state.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_oauth_state_by_state.expires_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"

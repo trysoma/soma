@@ -14,6 +14,8 @@
 
 import type {
 	ContextInfoPaginatedResponse,
+	CreateApiKeyParams,
+	CreateApiKeyResponse,
 	CreateDataEncryptionKeyParamsRoute,
 	CreateDekAliasRequest,
 	CreateEnvironmentVariableRequest,
@@ -22,6 +24,8 @@ import type {
 	CreateProviderInstanceParamsInner,
 	CreateResourceServerCredentialParamsInner,
 	CreateSecretRequest,
+	CreateUserAuthFlowConfigParams,
+	CreateUserAuthFlowConfigResponse,
 	CreateUserCredentialParamsInner,
 	DataEncryptionKey,
 	DataEncryptionKeyAlias,
@@ -29,33 +33,46 @@ import type {
 	DeleteEnvironmentVariableResponse,
 	DeleteSecretResponse,
 	EncryptCredentialConfigurationParamsInner,
+	EncryptedApiKeyConfig,
 	EnvelopeEncryptionKey,
 	EnvelopeEncryptionKeyPaginatedResponse,
 	EnvironmentVariable,
 	FunctionInstanceConfigPaginatedResponse,
 	FunctionInstanceSerialized,
 	FunctionInstanceSerializedPaginatedResponse,
+	GetUserAuthFlowConfigResponse,
+	Identity,
 	ImportDataEncryptionKeyParamsRoute,
 	ImportEnvironmentVariableRequest,
 	ImportSecretRequest,
+	ImportUserAuthFlowConfigParams,
 	InvokeFunctionParamsInner,
 	InvokeResult,
+	JwkResponsePaginatedResponse,
+	JwksResponse,
+	ListApiKeysResponse,
 	ListDecryptedSecretsResponse,
 	ListEnvironmentVariablesResponse,
 	ListSecretsResponse,
+	ListUserAuthFlowConfigResponse,
 	MigrateAllDataEncryptionKeysParamsRoute,
 	MigrateDataEncryptionKeyParamsRoute,
+	NormalizedTokenIssuanceResult,
 	ProviderControllerSerializedPaginatedResponse,
 	ProviderInstanceListItemPaginatedResponse,
 	ProviderInstanceSerialized,
 	ProviderInstanceSerializedWithEverything,
+	RefreshTokenRequest,
 	ResourceServerCredentialSerialized,
 	Secret,
 	SomaAgentDefinition,
 	StartUserCredentialBrokeringParamsInner,
+	StsTokenConfig,
+	StsTokenConfigPaginatedResponse,
 	TaskPaginatedResponse,
 	TaskTimelineItemPaginatedResponse,
 	TaskWithDetails,
+	TokenResponse,
 	UpdateAliasParams,
 	UpdateEnvironmentVariableRequest,
 	UpdateProviderInstanceParamsInner,
@@ -66,6 +83,8 @@ import type {
 } from "../models/index";
 import {
 	ContextInfoPaginatedResponseFromJSON,
+	CreateApiKeyParamsToJSON,
+	CreateApiKeyResponseFromJSON,
 	CreateDataEncryptionKeyParamsRouteToJSON,
 	CreateDekAliasRequestToJSON,
 	CreateEnvironmentVariableRequestToJSON,
@@ -74,6 +93,8 @@ import {
 	CreateProviderInstanceParamsInnerToJSON,
 	CreateResourceServerCredentialParamsInnerToJSON,
 	CreateSecretRequestToJSON,
+	CreateUserAuthFlowConfigParamsToJSON,
+	CreateUserAuthFlowConfigResponseFromJSON,
 	CreateUserCredentialParamsInnerToJSON,
 	DataEncryptionKeyAliasFromJSON,
 	DataEncryptionKeyFromJSON,
@@ -81,6 +102,7 @@ import {
 	DeleteEnvironmentVariableResponseFromJSON,
 	DeleteSecretResponseFromJSON,
 	EncryptCredentialConfigurationParamsInnerToJSON,
+	EncryptedApiKeyConfigToJSON,
 	EnvelopeEncryptionKeyFromJSON,
 	EnvelopeEncryptionKeyPaginatedResponseFromJSON,
 	EnvelopeEncryptionKeyToJSON,
@@ -88,27 +110,40 @@ import {
 	FunctionInstanceConfigPaginatedResponseFromJSON,
 	FunctionInstanceSerializedFromJSON,
 	FunctionInstanceSerializedPaginatedResponseFromJSON,
+	GetUserAuthFlowConfigResponseFromJSON,
+	IdentityFromJSON,
 	ImportDataEncryptionKeyParamsRouteToJSON,
 	ImportEnvironmentVariableRequestToJSON,
 	ImportSecretRequestToJSON,
+	ImportUserAuthFlowConfigParamsToJSON,
 	InvokeFunctionParamsInnerToJSON,
 	InvokeResultFromJSON,
+	JwkResponsePaginatedResponseFromJSON,
+	JwksResponseFromJSON,
+	ListApiKeysResponseFromJSON,
 	ListDecryptedSecretsResponseFromJSON,
 	ListEnvironmentVariablesResponseFromJSON,
 	ListSecretsResponseFromJSON,
+	ListUserAuthFlowConfigResponseFromJSON,
 	MigrateAllDataEncryptionKeysParamsRouteToJSON,
 	MigrateDataEncryptionKeyParamsRouteToJSON,
+	NormalizedTokenIssuanceResultFromJSON,
 	ProviderControllerSerializedPaginatedResponseFromJSON,
 	ProviderInstanceListItemPaginatedResponseFromJSON,
 	ProviderInstanceSerializedFromJSON,
 	ProviderInstanceSerializedWithEverythingFromJSON,
+	RefreshTokenRequestToJSON,
 	ResourceServerCredentialSerializedFromJSON,
 	SecretFromJSON,
 	SomaAgentDefinitionFromJSON,
 	StartUserCredentialBrokeringParamsInnerToJSON,
+	StsTokenConfigFromJSON,
+	StsTokenConfigPaginatedResponseFromJSON,
+	StsTokenConfigToJSON,
 	TaskPaginatedResponseFromJSON,
 	TaskTimelineItemPaginatedResponseFromJSON,
 	TaskWithDetailsFromJSON,
+	TokenResponseFromJSON,
 	UpdateAliasParamsToJSON,
 	UpdateEnvironmentVariableRequestToJSON,
 	UpdateProviderInstanceParamsInnerToJSON,
@@ -331,6 +366,91 @@ export interface V1ApiResumeUserCredentialBrokeringRequest {
 	code?: string;
 	error?: string;
 	errorDescription?: string;
+}
+
+export interface V1ApiRouteAuthCallbackRequest {
+	code?: string | null;
+	state?: string | null;
+	error?: string | null;
+	errorDescription?: string | null;
+}
+
+export interface V1ApiRouteCreateApiKeyRequest {
+	createApiKeyParams: CreateApiKeyParams;
+}
+
+export interface V1ApiRouteCreateStsConfigRequest {
+	stsTokenConfig: StsTokenConfig;
+}
+
+export interface V1ApiRouteCreateUserAuthFlowConfigRequest {
+	createUserAuthFlowConfigParams: CreateUserAuthFlowConfigParams;
+}
+
+export interface V1ApiRouteDeleteApiKeyRequest {
+	id: string;
+}
+
+export interface V1ApiRouteDeleteStsConfigRequest {
+	id: string;
+}
+
+export interface V1ApiRouteDeleteUserAuthFlowConfigRequest {
+	id: string;
+}
+
+export interface V1ApiRouteExchangeStsTokenRequest {
+	stsConfigId: string;
+}
+
+export interface V1ApiRouteGetStsConfigRequest {
+	id: string;
+}
+
+export interface V1ApiRouteGetUserAuthFlowConfigRequest {
+	id: string;
+}
+
+export interface V1ApiRouteImportApiKeyRequest {
+	encryptedApiKeyConfig: EncryptedApiKeyConfig;
+}
+
+export interface V1ApiRouteImportUserAuthFlowConfigRequest {
+	importUserAuthFlowConfigParams: ImportUserAuthFlowConfigParams;
+}
+
+export interface V1ApiRouteInvalidateJwkRequest {
+	kid: string;
+}
+
+export interface V1ApiRouteListApiKeysRequest {
+	pageSize: number;
+	nextPageToken?: string;
+}
+
+export interface V1ApiRouteListJwksRequest {
+	pageSize: number;
+	nextPageToken?: string;
+}
+
+export interface V1ApiRouteListStsConfigsRequest {
+	pageSize: number;
+	nextPageToken?: string;
+}
+
+export interface V1ApiRouteListUserAuthFlowConfigsRequest {
+	pageSize?: number | null;
+	nextPageToken?: string | null;
+	type?: string | null;
+}
+
+export interface V1ApiRouteRefreshTokenRequest {
+	refreshTokenRequest?: RefreshTokenRequest;
+}
+
+export interface V1ApiRouteStartAuthorizationRequest {
+	configId: string;
+	redirectAfterLogin?: string | null;
 }
 
 export interface V1ApiSendMessageRequest {
@@ -3361,6 +3481,1109 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<object> {
 		const response = await this.resyncSdkRaw(initOverrides);
+		return await response.value();
+	}
+
+	/**
+	 * Handles the OAuth/OIDC callback from the external IdP, exchanges the authorization code for tokens
+	 * Authorization callback
+	 */
+	async routeAuthCallbackRaw(
+		requestParameters: V1ApiRouteAuthCallbackRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<void>> {
+		const queryParameters: any = {};
+
+		if (requestParameters.code != null) {
+			queryParameters.code = requestParameters.code;
+		}
+
+		if (requestParameters.state != null) {
+			queryParameters.state = requestParameters.state;
+		}
+
+		if (requestParameters.error != null) {
+			queryParameters.error = requestParameters.error;
+		}
+
+		if (requestParameters.errorDescription != null) {
+			queryParameters.error_description = requestParameters.errorDescription;
+		}
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/identity/v1/auth/callback`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.VoidApiResponse(response);
+	}
+
+	/**
+	 * Handles the OAuth/OIDC callback from the external IdP, exchanges the authorization code for tokens
+	 * Authorization callback
+	 */
+	async routeAuthCallback(
+		requestParameters: V1ApiRouteAuthCallbackRequest = {},
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<void> {
+		await this.routeAuthCallbackRaw(requestParameters, initOverrides);
+	}
+
+	/**
+	 */
+	async routeCreateApiKeyRaw(
+		requestParameters: V1ApiRouteCreateApiKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<CreateApiKeyResponse>> {
+		if (requestParameters.createApiKeyParams == null) {
+			throw new runtime.RequiredError(
+				"createApiKeyParams",
+				'Required parameter "createApiKeyParams" was null or undefined when calling routeCreateApiKey().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		const urlPath = `/api/identity/v1/api-key`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: CreateApiKeyParamsToJSON(requestParameters.createApiKeyParams),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			CreateApiKeyResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 */
+	async routeCreateApiKey(
+		requestParameters: V1ApiRouteCreateApiKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<CreateApiKeyResponse> {
+		const response = await this.routeCreateApiKeyRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Create a new STS configuration (e.g., JWT template or dev settings)
+	 * Create STS configuration
+	 */
+	async routeCreateStsConfigRaw(
+		requestParameters: V1ApiRouteCreateStsConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<StsTokenConfig>> {
+		if (requestParameters.stsTokenConfig == null) {
+			throw new runtime.RequiredError(
+				"stsTokenConfig",
+				'Required parameter "stsTokenConfig" was null or undefined when calling routeCreateStsConfig().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		const urlPath = `/api/identity/v1/sts-configuration`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: StsTokenConfigToJSON(requestParameters.stsTokenConfig),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			StsTokenConfigFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Create a new STS configuration (e.g., JWT template or dev settings)
+	 * Create STS configuration
+	 */
+	async routeCreateStsConfig(
+		requestParameters: V1ApiRouteCreateStsConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<StsTokenConfig> {
+		const response = await this.routeCreateStsConfigRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Create a new user auth flow configuration for OAuth/OIDC authorization flows. The configuration will be encrypted before storage.
+	 * Create user auth flow configuration
+	 */
+	async routeCreateUserAuthFlowConfigRaw(
+		requestParameters: V1ApiRouteCreateUserAuthFlowConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<CreateUserAuthFlowConfigResponse>> {
+		if (requestParameters.createUserAuthFlowConfigParams == null) {
+			throw new runtime.RequiredError(
+				"createUserAuthFlowConfigParams",
+				'Required parameter "createUserAuthFlowConfigParams" was null or undefined when calling routeCreateUserAuthFlowConfig().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		const urlPath = `/api/identity/v1/user-auth-flow-config`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: CreateUserAuthFlowConfigParamsToJSON(
+					requestParameters.createUserAuthFlowConfigParams,
+				),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			CreateUserAuthFlowConfigResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Create a new user auth flow configuration for OAuth/OIDC authorization flows. The configuration will be encrypted before storage.
+	 * Create user auth flow configuration
+	 */
+	async routeCreateUserAuthFlowConfig(
+		requestParameters: V1ApiRouteCreateUserAuthFlowConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<CreateUserAuthFlowConfigResponse> {
+		const response = await this.routeCreateUserAuthFlowConfigRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeDeleteApiKeyRaw(
+		requestParameters: V1ApiRouteDeleteApiKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<any>> {
+		if (requestParameters.id == null) {
+			throw new runtime.RequiredError(
+				"id",
+				'Required parameter "id" was null or undefined when calling routeDeleteApiKey().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/identity/v1/api-key/{id}`;
+		urlPath = urlPath.replace(
+			`{${"id"}}`,
+			encodeURIComponent(String(requestParameters.id)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "DELETE",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		if (this.isJsonMime(response.headers.get("content-type"))) {
+			return new runtime.JSONApiResponse<any>(response);
+		} else {
+			return new runtime.TextApiResponse(response) as any;
+		}
+	}
+
+	/**
+	 */
+	async routeDeleteApiKey(
+		requestParameters: V1ApiRouteDeleteApiKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<any> {
+		const response = await this.routeDeleteApiKeyRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Delete an STS configuration by ID
+	 * Delete STS configuration
+	 */
+	async routeDeleteStsConfigRaw(
+		requestParameters: V1ApiRouteDeleteStsConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<any>> {
+		if (requestParameters.id == null) {
+			throw new runtime.RequiredError(
+				"id",
+				'Required parameter "id" was null or undefined when calling routeDeleteStsConfig().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/identity/v1/sts-configuration/{id}`;
+		urlPath = urlPath.replace(
+			`{${"id"}}`,
+			encodeURIComponent(String(requestParameters.id)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "DELETE",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		if (this.isJsonMime(response.headers.get("content-type"))) {
+			return new runtime.JSONApiResponse<any>(response);
+		} else {
+			return new runtime.TextApiResponse(response) as any;
+		}
+	}
+
+	/**
+	 * Delete an STS configuration by ID
+	 * Delete STS configuration
+	 */
+	async routeDeleteStsConfig(
+		requestParameters: V1ApiRouteDeleteStsConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<any> {
+		const response = await this.routeDeleteStsConfigRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Delete a user auth flow configuration by ID
+	 * Delete user auth flow configuration
+	 */
+	async routeDeleteUserAuthFlowConfigRaw(
+		requestParameters: V1ApiRouteDeleteUserAuthFlowConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<any>> {
+		if (requestParameters.id == null) {
+			throw new runtime.RequiredError(
+				"id",
+				'Required parameter "id" was null or undefined when calling routeDeleteUserAuthFlowConfig().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/identity/v1/user-auth-flow-config/{id}`;
+		urlPath = urlPath.replace(
+			`{${"id"}}`,
+			encodeURIComponent(String(requestParameters.id)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "DELETE",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		if (this.isJsonMime(response.headers.get("content-type"))) {
+			return new runtime.JSONApiResponse<any>(response);
+		} else {
+			return new runtime.TextApiResponse(response) as any;
+		}
+	}
+
+	/**
+	 * Delete a user auth flow configuration by ID
+	 * Delete user auth flow configuration
+	 */
+	async routeDeleteUserAuthFlowConfig(
+		requestParameters: V1ApiRouteDeleteUserAuthFlowConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<any> {
+		const response = await this.routeDeleteUserAuthFlowConfigRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Exchange an external token for internal access and refresh tokens using an STS configuration
+	 * Exchange STS token
+	 */
+	async routeExchangeStsTokenRaw(
+		requestParameters: V1ApiRouteExchangeStsTokenRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<NormalizedTokenIssuanceResult>> {
+		if (requestParameters.stsConfigId == null) {
+			throw new runtime.RequiredError(
+				"stsConfigId",
+				'Required parameter "stsConfigId" was null or undefined when calling routeExchangeStsToken().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/identity/v1/sts/{sts_config_id}`;
+		urlPath = urlPath.replace(
+			`{${"sts_config_id"}}`,
+			encodeURIComponent(String(requestParameters.stsConfigId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			NormalizedTokenIssuanceResultFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Exchange an external token for internal access and refresh tokens using an STS configuration
+	 * Exchange STS token
+	 */
+	async routeExchangeStsToken(
+		requestParameters: V1ApiRouteExchangeStsTokenRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<NormalizedTokenIssuanceResult> {
+		const response = await this.routeExchangeStsTokenRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeGetJwksRaw(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<JwksResponse>> {
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/identity/v1/.well-known/jwks.json`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			JwksResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 */
+	async routeGetJwks(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<JwksResponse> {
+		const response = await this.routeGetJwksRaw(initOverrides);
+		return await response.value();
+	}
+
+	/**
+	 * Get an STS configuration by ID
+	 * Get STS configuration
+	 */
+	async routeGetStsConfigRaw(
+		requestParameters: V1ApiRouteGetStsConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<StsTokenConfig>> {
+		if (requestParameters.id == null) {
+			throw new runtime.RequiredError(
+				"id",
+				'Required parameter "id" was null or undefined when calling routeGetStsConfig().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/identity/v1/sts-configuration/{id}`;
+		urlPath = urlPath.replace(
+			`{${"id"}}`,
+			encodeURIComponent(String(requestParameters.id)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			StsTokenConfigFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Get an STS configuration by ID
+	 * Get STS configuration
+	 */
+	async routeGetStsConfig(
+		requestParameters: V1ApiRouteGetStsConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<StsTokenConfig> {
+		const response = await this.routeGetStsConfigRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Get a user auth flow configuration by ID. Returns the encrypted configuration.
+	 * Get user auth flow configuration
+	 */
+	async routeGetUserAuthFlowConfigRaw(
+		requestParameters: V1ApiRouteGetUserAuthFlowConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<GetUserAuthFlowConfigResponse>> {
+		if (requestParameters.id == null) {
+			throw new runtime.RequiredError(
+				"id",
+				'Required parameter "id" was null or undefined when calling routeGetUserAuthFlowConfig().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/identity/v1/user-auth-flow-config/{id}`;
+		urlPath = urlPath.replace(
+			`{${"id"}}`,
+			encodeURIComponent(String(requestParameters.id)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			GetUserAuthFlowConfigResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Get a user auth flow configuration by ID. Returns the encrypted configuration.
+	 * Get user auth flow configuration
+	 */
+	async routeGetUserAuthFlowConfig(
+		requestParameters: V1ApiRouteGetUserAuthFlowConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<GetUserAuthFlowConfigResponse> {
+		const response = await this.routeGetUserAuthFlowConfigRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeImportApiKeyRaw(
+		requestParameters: V1ApiRouteImportApiKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<any>> {
+		if (requestParameters.encryptedApiKeyConfig == null) {
+			throw new runtime.RequiredError(
+				"encryptedApiKeyConfig",
+				'Required parameter "encryptedApiKeyConfig" was null or undefined when calling routeImportApiKey().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		const urlPath = `/api/identity/v1/api-key/import`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: EncryptedApiKeyConfigToJSON(
+					requestParameters.encryptedApiKeyConfig,
+				),
+			},
+			initOverrides,
+		);
+
+		if (this.isJsonMime(response.headers.get("content-type"))) {
+			return new runtime.JSONApiResponse<any>(response);
+		} else {
+			return new runtime.TextApiResponse(response) as any;
+		}
+	}
+
+	/**
+	 */
+	async routeImportApiKey(
+		requestParameters: V1ApiRouteImportApiKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<any> {
+		const response = await this.routeImportApiKeyRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Import an already encrypted user auth flow configuration (idempotent, used for syncing from soma.yaml)
+	 * Import user auth flow configuration
+	 */
+	async routeImportUserAuthFlowConfigRaw(
+		requestParameters: V1ApiRouteImportUserAuthFlowConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<any>> {
+		if (requestParameters.importUserAuthFlowConfigParams == null) {
+			throw new runtime.RequiredError(
+				"importUserAuthFlowConfigParams",
+				'Required parameter "importUserAuthFlowConfigParams" was null or undefined when calling routeImportUserAuthFlowConfig().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		const urlPath = `/api/identity/v1/user-auth-flow-config/import`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: ImportUserAuthFlowConfigParamsToJSON(
+					requestParameters.importUserAuthFlowConfigParams,
+				),
+			},
+			initOverrides,
+		);
+
+		if (this.isJsonMime(response.headers.get("content-type"))) {
+			return new runtime.JSONApiResponse<any>(response);
+		} else {
+			return new runtime.TextApiResponse(response) as any;
+		}
+	}
+
+	/**
+	 * Import an already encrypted user auth flow configuration (idempotent, used for syncing from soma.yaml)
+	 * Import user auth flow configuration
+	 */
+	async routeImportUserAuthFlowConfig(
+		requestParameters: V1ApiRouteImportUserAuthFlowConfigRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<any> {
+		const response = await this.routeImportUserAuthFlowConfigRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeInvalidateJwkRaw(
+		requestParameters: V1ApiRouteInvalidateJwkRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<void>> {
+		if (requestParameters.kid == null) {
+			throw new runtime.RequiredError(
+				"kid",
+				'Required parameter "kid" was null or undefined when calling routeInvalidateJwk().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/identity/v1/jwk/{kid}/invalidate`;
+		urlPath = urlPath.replace(
+			`{${"kid"}}`,
+			encodeURIComponent(String(requestParameters.kid)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.VoidApiResponse(response);
+	}
+
+	/**
+	 */
+	async routeInvalidateJwk(
+		requestParameters: V1ApiRouteInvalidateJwkRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<void> {
+		await this.routeInvalidateJwkRaw(requestParameters, initOverrides);
+	}
+
+	/**
+	 */
+	async routeListApiKeysRaw(
+		requestParameters: V1ApiRouteListApiKeysRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<ListApiKeysResponse>> {
+		if (requestParameters.pageSize == null) {
+			throw new runtime.RequiredError(
+				"pageSize",
+				'Required parameter "pageSize" was null or undefined when calling routeListApiKeys().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		if (requestParameters.pageSize != null) {
+			queryParameters.page_size = requestParameters.pageSize;
+		}
+
+		if (requestParameters.nextPageToken != null) {
+			queryParameters.next_page_token = requestParameters.nextPageToken;
+		}
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/identity/v1/api-key`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			ListApiKeysResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 */
+	async routeListApiKeys(
+		requestParameters: V1ApiRouteListApiKeysRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<ListApiKeysResponse> {
+		const response = await this.routeListApiKeysRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 */
+	async routeListJwksRaw(
+		requestParameters: V1ApiRouteListJwksRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<JwkResponsePaginatedResponse>> {
+		if (requestParameters.pageSize == null) {
+			throw new runtime.RequiredError(
+				"pageSize",
+				'Required parameter "pageSize" was null or undefined when calling routeListJwks().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		if (requestParameters.pageSize != null) {
+			queryParameters.page_size = requestParameters.pageSize;
+		}
+
+		if (requestParameters.nextPageToken != null) {
+			queryParameters.next_page_token = requestParameters.nextPageToken;
+		}
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/identity/v1/jwk`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			JwkResponsePaginatedResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 */
+	async routeListJwks(
+		requestParameters: V1ApiRouteListJwksRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<JwkResponsePaginatedResponse> {
+		const response = await this.routeListJwksRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * List all STS configurations with optional filtering by type
+	 * List STS configurations
+	 */
+	async routeListStsConfigsRaw(
+		requestParameters: V1ApiRouteListStsConfigsRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<StsTokenConfigPaginatedResponse>> {
+		if (requestParameters.pageSize == null) {
+			throw new runtime.RequiredError(
+				"pageSize",
+				'Required parameter "pageSize" was null or undefined when calling routeListStsConfigs().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		if (requestParameters.pageSize != null) {
+			queryParameters.page_size = requestParameters.pageSize;
+		}
+
+		if (requestParameters.nextPageToken != null) {
+			queryParameters.next_page_token = requestParameters.nextPageToken;
+		}
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/identity/v1/sts-configuration`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			StsTokenConfigPaginatedResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * List all STS configurations with optional filtering by type
+	 * List STS configurations
+	 */
+	async routeListStsConfigs(
+		requestParameters: V1ApiRouteListStsConfigsRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<StsTokenConfigPaginatedResponse> {
+		const response = await this.routeListStsConfigsRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * List all user auth flow configurations with optional filtering by type
+	 * List user auth flow configurations
+	 */
+	async routeListUserAuthFlowConfigsRaw(
+		requestParameters: V1ApiRouteListUserAuthFlowConfigsRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<ListUserAuthFlowConfigResponse>> {
+		const queryParameters: any = {};
+
+		if (requestParameters.pageSize != null) {
+			queryParameters.page_size = requestParameters.pageSize;
+		}
+
+		if (requestParameters.nextPageToken != null) {
+			queryParameters.next_page_token = requestParameters.nextPageToken;
+		}
+
+		if (requestParameters.type != null) {
+			queryParameters.type = requestParameters.type;
+		}
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/identity/v1/user-auth-flow-config`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			ListUserAuthFlowConfigResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * List all user auth flow configurations with optional filtering by type
+	 * List user auth flow configurations
+	 */
+	async routeListUserAuthFlowConfigs(
+		requestParameters: V1ApiRouteListUserAuthFlowConfigsRequest = {},
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<ListUserAuthFlowConfigResponse> {
+		const response = await this.routeListUserAuthFlowConfigsRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Refreshes an access token using a refresh token from the request body or cookie
+	 * Refresh access token
+	 */
+	async routeRefreshTokenRaw(
+		requestParameters: V1ApiRouteRefreshTokenRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<TokenResponse>> {
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		const urlPath = `/api/identity/v1/auth/refresh`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: RefreshTokenRequestToJSON(requestParameters.refreshTokenRequest),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			TokenResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Refreshes an access token using a refresh token from the request body or cookie
+	 * Refresh access token
+	 */
+	async routeRefreshToken(
+		requestParameters: V1ApiRouteRefreshTokenRequest = {},
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<TokenResponse> {
+		const response = await this.routeRefreshTokenRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Initiates the OAuth/OIDC authorization flow by redirecting to the external IdP
+	 * Start authorization
+	 */
+	async routeStartAuthorizationRaw(
+		requestParameters: V1ApiRouteStartAuthorizationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<void>> {
+		if (requestParameters.configId == null) {
+			throw new runtime.RequiredError(
+				"configId",
+				'Required parameter "configId" was null or undefined when calling routeStartAuthorization().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		if (requestParameters.redirectAfterLogin != null) {
+			queryParameters.redirect_after_login =
+				requestParameters.redirectAfterLogin;
+		}
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/identity/v1/auth/authorize/{config_id}`;
+		urlPath = urlPath.replace(
+			`{${"config_id"}}`,
+			encodeURIComponent(String(requestParameters.configId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.VoidApiResponse(response);
+	}
+
+	/**
+	 * Initiates the OAuth/OIDC authorization flow by redirecting to the external IdP
+	 * Start authorization
+	 */
+	async routeStartAuthorization(
+		requestParameters: V1ApiRouteStartAuthorizationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<void> {
+		await this.routeStartAuthorizationRaw(requestParameters, initOverrides);
+	}
+
+	/**
+	 * Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)
+	 * Get current identity
+	 */
+	async routeWhoamiRaw(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<Identity>> {
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/identity/v1/auth/whoami`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			IdentityFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)
+	 * Get current identity
+	 */
+	async routeWhoami(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<Identity> {
+		const response = await this.routeWhoamiRaw(initOverrides);
 		return await response.value();
 	}
 

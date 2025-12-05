@@ -5,14 +5,14 @@ edition.workspace = true
 
 [dependencies]
 # Dependencies required by OpenAPI Generator's Rust client
-reqwest = { version = "0.12", features = ["json"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_repr = "0.1"
-serde_with = "3.0"
-url = "2.5"
-uuid = { version = "1.0", features = ["serde"] }
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_repr.workspace = true
+serde_with.workspace = true
+url.workspace = true
+uuid.workspace = true
 
 [build-dependencies]
 soma-api-server.workspace = true
-serde_json = "1.0"
+serde_json.workspace = true

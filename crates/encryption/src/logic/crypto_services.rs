@@ -16,6 +16,12 @@ use crate::repository::DataEncryptionKeyRepositoryLike;
 #[serde(transparent)]
 pub struct EncryptedString(pub String);
 
+impl std::fmt::Debug for EncryptedString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "EncryptedString(************)")
+    }
+}
+
 // encryption services
 
 #[derive(Clone, Debug)]
@@ -441,8 +447,8 @@ pub async fn get_decryption_service_cached(
     Ok(decryption_service)
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use crate::logic::dek::{CreateDekInnerParams, CreateDekParams};
     use crate::logic::envelope::{encrypt_dek, get_or_create_local_envelope_encryption_key};
@@ -450,12 +456,6 @@ mod tests {
     use shared::primitives::{SqlMigrationLoader, WrappedChronoDateTime};
     use shared::test_utils::repository::setup_in_memory_database;
     use tokio::sync::broadcast;
-
-    #[allow(dead_code)]
-    const TEST_KMS_KEY_ARN: &str =
-        "arn:aws:kms:eu-west-2:914788356809:alias/unsafe-github-action-soma-test-key";
-    #[allow(dead_code)]
-    const TEST_KMS_REGION: &str = "eu-west-2";
 
     #[tokio::test]
     async fn test_get_crypto_service() {

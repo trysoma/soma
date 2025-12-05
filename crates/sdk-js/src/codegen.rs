@@ -359,8 +359,8 @@ fn strip_provider_prefix_and_camel_case(function_name: &str, provider_name: &str
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
 
     #[test]

@@ -156,8 +156,8 @@ pub fn start_sdk_server_subsystem(
     Ok(handle)
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use std::fs;
     use tempfile::TempDir;

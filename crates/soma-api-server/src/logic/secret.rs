@@ -413,8 +413,8 @@ pub async fn import_secret<R: SecretRepositoryLike>(
     Ok(secret)
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use crate::repository::Repository;
     use crate::test::encryption_service::setup_test_encryption;

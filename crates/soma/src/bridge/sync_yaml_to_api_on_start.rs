@@ -7,7 +7,7 @@ use shared::{
 use soma_api_client::{
     apis::{
         bridge_api, configuration::Configuration, encryption_api, environment_variable_api,
-        secret_api,
+        identity_api, secret_api,
     },
     models,
 };
@@ -487,7 +487,353 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
 
     info!("Environment variables synced from soma definition");
 
+    // 5. Sync identity configuration (API keys and STS configs)
+    if let Some(identity_config) = &soma_definition.identity {
+        // 5a. Sync API keys
+        if let Some(api_keys) = &identity_config.api_keys {
+            use std::collections::HashSet;
+
+            // Get existing API keys
+            let existing_api_keys: HashSet<String> = {
+                let mut ids = HashSet::new();
+                let mut next_page_token: Option<String> = None;
+                loop {
+                    let response = identity_api::route_list_api_keys(
+                        api_config,
+                        100,
+                        next_page_token.as_deref(),
+                    )
+                    .await
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!("Failed to list API keys: {e:?}"))
+                    })?;
+
+                    for api_key in response.items {
+                        ids.insert(api_key.id);
+                    }
+                    // Handle doubly wrapped Option<Option<String>> from generated API client
+                    match response.next_page_token.flatten() {
+                        Some(token) if !token.is_empty() => {
+                            next_page_token = Some(token);
+                        }
+                        _ => break,
+                    }
+                }
+                ids
+            };
+
+            // Import API keys from yaml (uses import endpoint which decrypts the stored value)
+            for (id, api_key_config) in api_keys {
+                if !existing_api_keys.contains(id) {
+                    let role = parse_role_string(&api_key_config.role)?;
+                    let import_req = models::EncryptedApiKeyConfig {
+                        id: id.clone(),
+                        encrypted_hashed_value: api_key_config.encrypted_hashed_value.clone(),
+                        dek_alias: api_key_config.dek_alias.clone(),
+                        description: Some(api_key_config.description.clone()),
+                        role,
+                        user_id: api_key_config.user_id.clone(),
+                    };
+                    identity_api::route_import_api_key(api_config, import_req)
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to import API key '{id}': {e:?}"
+                            ))
+                        })?;
+                    info!("Imported API key '{}'", id);
+                }
+            }
+        }
+
+        // 5b. Sync STS configurations
+        if let Some(sts_configs) = &identity_config.sts_configurations {
+            use std::collections::HashSet;
+
+            // Get existing STS configs
+            let existing_sts_configs: HashSet<String> = {
+                let mut ids = HashSet::new();
+                let mut next_page_token: Option<String> = None;
+                loop {
+                    let response = identity_api::route_list_sts_configs(
+                        api_config,
+                        100,
+                        next_page_token.as_deref(),
+                    )
+                    .await
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!("Failed to list STS configs: {e:?}"))
+                    })?;
+
+                    for config in &response.items {
+                        let config_id = get_sts_config_id(config);
+                        ids.insert(config_id);
+                    }
+                    // Handle optional next_page_token
+                    match response.next_page_token {
+                        Some(token) if !token.is_empty() => {
+                            next_page_token = Some(token);
+                        }
+                        _ => break,
+                    }
+                }
+                ids
+            };
+
+            // Create STS configs from yaml (create is idempotent)
+            for (id, sts_config) in sts_configs {
+                if !existing_sts_configs.contains(id) {
+                    use shared::soma_agent_definition::StsConfigYaml;
+                    let create_req = match sts_config {
+                        StsConfigYaml::Dev {} => models::StsTokenConfig::StsTokenConfigOneOf1(
+                            models::StsTokenConfigOneOf1 {
+                                dev_mode: models::DevModeConfig { id: id.clone() },
+                            },
+                        ),
+                        StsConfigYaml::JwtTemplate(jwt_config) => {
+                            let mapping_template = convert_jwt_template_to_api(jwt_config)?;
+                            models::StsTokenConfig::StsTokenConfigOneOf(
+                                models::StsTokenConfigOneOf {
+                                    jwt_template: models::JwtTemplateModeConfig {
+                                        id: id.clone(),
+                                        mapping_template,
+                                        validation_template:
+                                            models::JwtTokenTemplateValidationConfig {
+                                                issuer: jwt_config
+                                                    .validation
+                                                    .issuer
+                                                    .clone()
+                                                    .map(Some),
+                                                valid_audiences: jwt_config
+                                                    .validation
+                                                    .valid_audiences
+                                                    .clone()
+                                                    .map(Some),
+                                                required_groups: jwt_config
+                                                    .validation
+                                                    .required_groups
+                                                    .clone()
+                                                    .map(Some),
+                                                required_scopes: jwt_config
+                                                    .validation
+                                                    .required_scopes
+                                                    .clone()
+                                                    .map(Some),
+                                            },
+                                    },
+                                },
+                            )
+                        }
+                    };
+                    identity_api::route_create_sts_config(api_config, create_req)
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to create STS config '{id}': {e:?}"
+                            ))
+                        })?;
+                    info!("Created STS config '{}'", id);
+                }
+            }
+        }
+
+        // 5c. Sync user auth flow configurations
+        if let Some(user_auth_flows) = &identity_config.user_auth_flows {
+            use std::collections::HashSet;
+
+            // Get existing user auth flow configs
+            let existing_user_auth_flows: HashSet<String> = {
+                let mut ids = HashSet::new();
+                let mut next_page_token: Option<String> = None;
+                loop {
+                    let response = identity_api::route_list_user_auth_flow_configs(
+                        api_config,
+                        Some(100),
+                        next_page_token.as_deref(),
+                        None, // config_type filter
+                    )
+                    .await
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to list user auth flow configs: {e:?}"
+                        ))
+                    })?;
+
+                    for item in response.items {
+                        // Extract ID from the config
+                        let config_id = get_user_auth_flow_config_id(&item.config);
+                        ids.insert(config_id);
+                    }
+                    // Handle doubly wrapped Option<Option<String>> from generated API client
+                    match response.next_page_token.flatten() {
+                        Some(token) if !token.is_empty() => {
+                            next_page_token = Some(token);
+                        }
+                        _ => break,
+                    }
+                }
+                ids
+            };
+
+            // Import user auth flow configs from yaml
+            for (id, config) in user_auth_flows {
+                if !existing_user_auth_flows.contains(id) {
+                    let import_config = convert_yaml_to_api_user_auth_flow(id, config)?;
+                    let import_req = models::ImportUserAuthFlowConfigParams {
+                        config: import_config,
+                    };
+                    identity_api::route_import_user_auth_flow_config(api_config, import_req)
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to import user auth flow config '{id}': {e:?}"
+                            ))
+                        })?;
+                    info!("Imported user auth flow config '{}'", id);
+                }
+            }
+        }
+
+        info!("Identity configuration synced from soma definition");
+    }
+
     Ok(())
+}
+
+/// Extract the ID from an EncryptedUserAuthFlowConfig API model
+fn get_user_auth_flow_config_id(config: &models::EncryptedUserAuthFlowConfig) -> String {
+    match config {
+        models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf(c) => {
+            c.oidc_authorization_code_flow.id.clone()
+        }
+        models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf1(c) => {
+            c.oauth_authorization_code_flow.id.clone()
+        }
+        models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf2(c) => {
+            c.oidc_authorization_code_pkce_flow.id.clone()
+        }
+        models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf3(c) => {
+            c.oauth_authorization_code_pkce_flow.id.clone()
+        }
+    }
+}
+
+/// Extract the ID from an StsTokenConfig API model
+fn get_sts_config_id(config: &models::StsTokenConfig) -> String {
+    match config {
+        models::StsTokenConfig::StsTokenConfigOneOf(c) => c.jwt_template.id.clone(),
+        models::StsTokenConfig::StsTokenConfigOneOf1(c) => c.dev_mode.id.clone(),
+    }
+}
+
+/// Parse a role string to the models::Role enum
+fn parse_role_string(role: &str) -> Result<models::Role, CommonError> {
+    match role.to_lowercase().as_str() {
+        "admin" => Ok(models::Role::Admin),
+        "maintainer" => Ok(models::Role::Maintainer),
+        "read-only-maintainer" | "readonlymaintainer" => Ok(models::Role::ReadOnlyMaintainer),
+        "agent" => Ok(models::Role::Agent),
+        "user" => Ok(models::Role::User),
+        _ => Err(CommonError::InvalidRequest {
+            msg: format!("Invalid role: {role}"),
+            source: None,
+        }),
+    }
+}
+
+/// Convert a YAML JWT template config to the API model
+fn convert_jwt_template_to_api(
+    jwt_config: &shared::soma_agent_definition::JwtTemplateConfigYaml,
+) -> Result<models::JwtTokenTemplateConfig, CommonError> {
+    // Convert the config using serde_json (the types should be compatible)
+    let json_value = serde_json::to_value(jwt_config).map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!(
+            "Failed to serialize JWT template config: {e}"
+        ))
+    })?;
+    serde_json::from_value(json_value).map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!(
+            "Failed to convert JWT template config: {e}"
+        ))
+    })
+}
+
+/// Convert YAML user auth flow config to API model for import
+fn convert_yaml_to_api_user_auth_flow(
+    id: &str,
+    config: &shared::soma_agent_definition::UserAuthFlowYamlConfig,
+) -> Result<models::EncryptedUserAuthFlowConfig, CommonError> {
+    use shared::soma_agent_definition::{
+        EncryptedOauthYamlConfig, EncryptedOidcYamlConfig, UserAuthFlowYamlConfig,
+    };
+
+    fn convert_oauth_yaml_to_api(
+        id: &str,
+        oauth: &EncryptedOauthYamlConfig,
+    ) -> Result<models::EncryptedOauthConfig, CommonError> {
+        Ok(models::EncryptedOauthConfig {
+            id: id.to_string(),
+            authorization_endpoint: oauth.authorization_endpoint.clone(),
+            token_endpoint: oauth.token_endpoint.clone(),
+            jwks_endpoint: oauth.jwks_endpoint.clone(),
+            client_id: oauth.client_id.clone(),
+            encrypted_client_secret: oauth.encrypted_client_secret.clone(),
+            dek_alias: oauth.dek_alias.clone(),
+            scopes: oauth.scopes.clone(),
+            introspect_url: oauth.introspect_url.clone().map(Some),
+            mapping: serde_json::from_value(oauth.oauth_mapping_config.clone()).map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to parse token mapping: {e}"))
+            })?,
+        })
+    }
+
+    fn convert_oidc_yaml_to_api(
+        id: &str,
+        oidc: &EncryptedOidcYamlConfig,
+    ) -> Result<models::EncryptedOidcConfig, CommonError> {
+        let base_config = convert_oauth_yaml_to_api(id, &oidc.base_config)?;
+        Ok(models::EncryptedOidcConfig {
+            id: id.to_string(),
+            base_config,
+            discovery_endpoint: oidc.discovery_endpoint.clone().map(Some),
+            userinfo_endpoint: oidc.userinfo_endpoint.clone().map(Some),
+            introspect_url: oidc.introspect_url.clone().map(Some),
+            mapping: serde_json::from_value(oidc.oidc_mapping_config.clone()).map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to parse token mapping: {e}"))
+            })?,
+        })
+    }
+
+    match config {
+        UserAuthFlowYamlConfig::OidcAuthorizationCodeFlow(oidc) => Ok(
+            models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf(
+                models::EncryptedUserAuthFlowConfigOneOf {
+                    oidc_authorization_code_flow: convert_oidc_yaml_to_api(id, oidc)?,
+                },
+            ),
+        ),
+        UserAuthFlowYamlConfig::OauthAuthorizationCodeFlow(oauth) => Ok(
+            models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf1(
+                models::EncryptedUserAuthFlowConfigOneOf1 {
+                    oauth_authorization_code_flow: convert_oauth_yaml_to_api(id, oauth)?,
+                },
+            ),
+        ),
+        UserAuthFlowYamlConfig::OidcAuthorizationCodePkceFlow(oidc) => Ok(
+            models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf2(
+                models::EncryptedUserAuthFlowConfigOneOf2 {
+                    oidc_authorization_code_pkce_flow: convert_oidc_yaml_to_api(id, oidc)?,
+                },
+            ),
+        ),
+        UserAuthFlowYamlConfig::OauthAuthorizationCodePkceFlow(oauth) => Ok(
+            models::EncryptedUserAuthFlowConfig::EncryptedUserAuthFlowConfigOneOf3(
+                models::EncryptedUserAuthFlowConfigOneOf3 {
+                    oauth_authorization_code_pkce_flow: convert_oauth_yaml_to_api(id, oauth)?,
+                },
+            ),
+        ),
+    }
 }
 
 /// Extract the key ID from an EnvelopeEncryptionKey API model

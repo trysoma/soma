@@ -110,7 +110,10 @@ jobs:
           fi
         shell: bash
   
-      - name: Run Rust tests
-        run: cargo nextest run --target ${{ matrix.target }} --locked
+      - name: Run Rust tests (all tests including integration)
+        run: |
+          # Run with unit_test and integration_test features to include all tests
+          # This requires AWS credentials to be configured (done above)
+          cargo nextest run --target ${{ matrix.target }} --locked --features unit_test,integration_test
         shell: bash
 

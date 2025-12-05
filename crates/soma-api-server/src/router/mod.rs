@@ -4,8 +4,9 @@ use utoipa::openapi::tag::TagBuilder;
 use utoipa::openapi::{Info, OpenApi};
 
 use crate::ApiService;
-use bridge::router::bridge::create_router as create_bridge_router;
+use bridge::router::create_router as create_bridge_router;
 use encryption::router::create_router as create_encryption_router;
+use identity::router::create_router as create_identity_router;
 use shared::error::CommonError;
 
 pub(crate) mod a2a;
@@ -56,6 +57,11 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
     let env_var_router = env_var_router.with_state(api_service.environment_variable_service);
     router = router.merge(env_var_router);
 
+    // identity router
+    let (identity_router, _) = create_identity_router().split_for_parts();
+    let identity_router = identity_router.with_state(api_service.identity_service);
+    router = router.merge(identity_router);
+
     Ok(router)
 }
 
@@ -67,12 +73,14 @@ pub fn generate_openapi_spec() -> OpenApi {
     let (_, encryption_spec) = create_encryption_router().split_for_parts();
     let (_, secret_spec) = secret::create_router().split_for_parts();
     let (_, env_var_spec) = environment_variable::create_router().split_for_parts();
+    let (_, identity_spec) = create_identity_router().split_for_parts();
     spec.merge(task_spec);
     spec.merge(bridge_spec);
     spec.merge(internal_spec);
     spec.merge(encryption_spec);
     spec.merge(secret_spec);
     spec.merge(env_var_spec);
+    spec.merge(identity_spec);
 
     // Update OpenAPI metadata
     let mut info = Info::new("soma", "An open source AI agent runtime");
@@ -108,6 +116,10 @@ pub fn generate_openapi_spec() -> OpenApi {
         TagBuilder::new()
             .name("a2a")
             .description(Some("Agent-to-agent communication endpoints for agent cards, definitions, and JSON-RPC requests"))
+            .build(),
+        TagBuilder::new()
+            .name("identity")
+            .description(Some("Identity management endpoints for JWKs (JSON Web Keys) and authentication"))
             .build(),
         TagBuilder::new()
             .name(API_VERSION_TAG)

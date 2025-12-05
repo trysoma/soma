@@ -300,8 +300,8 @@ pub struct WithCredentialControllerTypeId<T> {
     pub inner: T,
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use shared::primitives::PaginationRequest;
 

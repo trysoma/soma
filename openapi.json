@@ -3179,6 +3179,1160 @@
         }
       }
     },
+    "/api/identity/v1/.well-known/jwks.json": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "operationId": "route_get_jwks",
+        "responses": {
+          "200": {
+            "description": "JWKS (JSON Web Key Set)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JwksResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/api-key": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "operationId": "route_list_api_keys",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of API keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListApiKeysResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "operationId": "route_create_api_key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "API key created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/api-key/import": {
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "operationId": "route_import_api_key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedApiKeyConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "API key imported successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TupleUnit"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/api-key/{id}": {
+      "delete": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "operationId": "route_delete_api_key",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the API key to delete",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TupleUnit"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API key not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/auth/authorize/{config_id}": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Start authorization",
+        "description": "Initiates the OAuth/OIDC authorization flow by redirecting to the external IdP",
+        "operationId": "route_start_authorization",
+        "parameters": [
+          {
+            "name": "config_id",
+            "in": "path",
+            "description": "ID of the user auth flow configuration to use",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "redirect_after_login",
+            "in": "query",
+            "description": "Optional override for where to redirect after successful login",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "/"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to IdP authorization endpoint"
+          },
+          "404": {
+            "description": "Configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/auth/callback": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Authorization callback",
+        "description": "Handles the OAuth/OIDC callback from the external IdP, exchanges the authorization code for tokens",
+        "operationId": "route_auth_callback",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "description": "Authorization code from the IdP",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "abc123"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "description": "State parameter for CSRF validation",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "xyz789"
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "description": "Error from the IdP (if any)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "access_denied"
+          },
+          {
+            "name": "error_description",
+            "in": "query",
+            "description": "Error description from the IdP",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "User denied access"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to post-login URL with tokens set"
+          },
+          "400": {
+            "description": "Invalid request or OAuth error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Refresh access token",
+        "description": "Refreshes an access token using a refresh token from the request body or cookie",
+        "operationId": "route_refresh_token",
+        "requestBody": {
+          "description": "Optional refresh token in body. If not provided, will be read from cookie.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RefreshTokenRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token refresh successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/auth/whoami": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Get current identity",
+        "description": "Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)",
+        "operationId": "route_whoami",
+        "responses": {
+          "200": {
+            "description": "Current authenticated identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/jwk": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "operationId": "route_list_jwks",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of JWKs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JwkResponsePaginatedResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/jwk/{kid}/invalidate": {
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "operationId": "route_invalidate_jwk",
+        "parameters": [
+          {
+            "name": "kid",
+            "in": "path",
+            "description": "Key ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JWK invalidated successfully"
+          },
+          "404": {
+            "description": "JWK not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/sts-configuration": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "List STS configurations",
+        "description": "List all STS configurations with optional filtering by type",
+        "operationId": "route_list_sts_configs",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of STS configurations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StsTokenConfigPaginatedResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Create STS configuration",
+        "description": "Create a new STS configuration (e.g., JWT template or dev settings)",
+        "operationId": "route_create_sts_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StsTokenConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "STS configuration created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StsTokenConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/sts-configuration/{id}": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Get STS configuration",
+        "description": "Get an STS configuration by ID",
+        "operationId": "route_get_sts_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the STS configuration to retrieve",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "STS configuration found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StsTokenConfig"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "STS configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Delete STS configuration",
+        "description": "Delete an STS configuration by ID",
+        "operationId": "route_delete_sts_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the STS configuration to delete",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "STS configuration deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TupleUnit"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "STS configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/sts/{sts_config_id}": {
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Exchange STS token",
+        "description": "Exchange an external token for internal access and refresh tokens using an STS configuration",
+        "operationId": "route_exchange_sts_token",
+        "parameters": [
+          {
+            "name": "sts_config_id",
+            "in": "path",
+            "description": "STS configuration ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token exchange successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NormalizedTokenIssuanceResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "STS config not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/user-auth-flow-config": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "List user auth flow configurations",
+        "description": "List all user auth flow configurations with optional filtering by type",
+        "operationId": "route_list_user_auth_flow_configs",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            },
+            "example": "10"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": ""
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by configuration type (oidc_authorization_code_flow, oauth_authorization_code_flow, etc.)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "oidc_authorization_code_flow"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of user auth flow configurations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListUserAuthFlowConfigResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Create user auth flow configuration",
+        "description": "Create a new user auth flow configuration for OAuth/OIDC authorization flows. The configuration will be encrypted before storage.",
+        "operationId": "route_create_user_auth_flow_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserAuthFlowConfigParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "User auth flow configuration created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserAuthFlowConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/user-auth-flow-config/import": {
+      "post": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Import user auth flow configuration",
+        "description": "Import an already encrypted user auth flow configuration (idempotent, used for syncing from soma.yaml)",
+        "operationId": "route_import_user_auth_flow_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportUserAuthFlowConfigParams"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "User auth flow configuration imported successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TupleUnit"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/identity/v1/user-auth-flow-config/{id}": {
+      "get": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Get user auth flow configuration",
+        "description": "Get a user auth flow configuration by ID. Returns the encrypted configuration.",
+        "operationId": "route_get_user_auth_flow_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the user auth flow configuration to retrieve",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User auth flow configuration found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserAuthFlowConfigResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User auth flow configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "identity",
+          "v1"
+        ],
+        "summary": "Delete user auth flow configuration",
+        "description": "Delete a user auth flow configuration by ID",
+        "operationId": "route_delete_user_auth_flow_config",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the user auth flow configuration to delete",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User auth flow configuration deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TupleUnit"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User auth flow configuration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/secret/v1": {
       "get": {
         "tags": [
@@ -4503,6 +5657,41 @@
       "AgentCard": {
         "type": "object"
       },
+      "ApiKeyYamlConfig": {
+        "type": "object",
+        "description": "API key configuration stored in soma.yaml",
+        "required": [
+          "encrypted_hashed_value",
+          "dek_alias",
+          "role",
+          "user_id"
+        ],
+        "properties": {
+          "dek_alias": {
+            "type": "string",
+            "description": "The DEK alias used for encryption"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Description of the API key"
+          },
+          "encrypted_hashed_value": {
+            "type": "string",
+            "description": "The encrypted hashed value of the API key"
+          },
+          "role": {
+            "type": "string",
+            "description": "The role assigned to this API key"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The user ID associated with this API key"
+          }
+        }
+      },
       "BridgeConfig": {
         "type": "object",
         "properties": {
@@ -4638,6 +5827,49 @@
           },
           "next_page_token": {
             "type": "string"
+          }
+        }
+      },
+      "CreateApiKeyParams": {
+        "type": "object",
+        "description": "Parameters for creating an API key",
+        "required": [
+          "id",
+          "role"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Description of the API key"
+          },
+          "id": {
+            "type": "string",
+            "description": "The ID for this API key"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role",
+            "description": "Role to assign to the API key's user"
+          }
+        }
+      },
+      "CreateApiKeyResponse": {
+        "type": "object",
+        "description": "Response from creating an API key",
+        "required": [
+          "id",
+          "api_key"
+        ],
+        "properties": {
+          "api_key": {
+            "type": "string",
+            "description": "The raw API key value (only returned once, not stored)"
+          },
+          "id": {
+            "type": "string",
+            "description": "The API key ID"
           }
         }
       },
@@ -4814,6 +6046,32 @@
           },
           "raw_value": {
             "type": "string"
+          }
+        }
+      },
+      "CreateUserAuthFlowConfigParams": {
+        "type": "object",
+        "description": "Parameters for creating a user auth flow configuration",
+        "required": [
+          "config"
+        ],
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/UserAuthFlowConfig",
+            "description": "The configuration to create (unencrypted)"
+          }
+        }
+      },
+      "CreateUserAuthFlowConfigResponse": {
+        "type": "object",
+        "description": "Response from creating a user auth flow configuration",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of the created configuration"
           }
         }
       },
@@ -5023,6 +6281,17 @@
           }
         }
       },
+      "DevModeConfig": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/String"
+          }
+        }
+      },
       "EnableFunctionParamsInner": {
         "type": "object"
       },
@@ -5044,8 +6313,290 @@
           }
         }
       },
+      "EncryptedApiKeyConfig": {
+        "type": "object",
+        "description": "Parameters for importing an API key",
+        "required": [
+          "id",
+          "encrypted_hashed_value",
+          "dek_alias",
+          "role",
+          "user_id"
+        ],
+        "properties": {
+          "dek_alias": {
+            "type": "string",
+            "description": "The DEK alias used for encryption"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Description of the API key"
+          },
+          "encrypted_hashed_value": {
+            "type": "string",
+            "description": "The encrypted hashed value of the API key"
+          },
+          "id": {
+            "type": "string",
+            "description": "The ID of the API key"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role",
+            "description": "Role to assign to the API key's user"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The user ID for this API key"
+          }
+        }
+      },
       "EncryptedDataEncryptionKey": {
         "type": "string"
+      },
+      "EncryptedOauthConfig": {
+        "type": "object",
+        "description": "OAuth2 configuration for authorization code flow",
+        "required": [
+          "id",
+          "authorization_endpoint",
+          "token_endpoint",
+          "jwks_endpoint",
+          "client_id",
+          "encrypted_client_secret",
+          "dek_alias",
+          "scopes",
+          "mapping"
+        ],
+        "properties": {
+          "authorization_endpoint": {
+            "type": "string"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "dek_alias": {
+            "type": "string"
+          },
+          "encrypted_client_secret": {
+            "$ref": "#/components/schemas/EncryptedString"
+          },
+          "id": {
+            "type": "string"
+          },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token introspection endpoint URL (RFC 7662)"
+          },
+          "jwks_endpoint": {
+            "type": "string"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/TokenMapping"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token_endpoint": {
+            "type": "string"
+          }
+        }
+      },
+      "EncryptedOauthYamlConfig": {
+        "type": "object",
+        "description": "Encrypted OAuth configuration for YAML storage",
+        "required": [
+          "authorization_endpoint",
+          "token_endpoint",
+          "jwks_endpoint",
+          "client_id",
+          "encrypted_client_secret",
+          "dek_alias",
+          "scopes",
+          "oauth_mapping_config"
+        ],
+        "properties": {
+          "authorization_endpoint": {
+            "type": "string",
+            "description": "Authorization endpoint URL"
+          },
+          "client_id": {
+            "type": "string",
+            "description": "OAuth client ID"
+          },
+          "dek_alias": {
+            "type": "string",
+            "description": "DEK alias used for encryption"
+          },
+          "encrypted_client_secret": {
+            "type": "string",
+            "description": "Encrypted client secret"
+          },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque"
+          },
+          "jwks_endpoint": {
+            "type": "string",
+            "description": "JWKS endpoint URL for token verification"
+          },
+          "oauth_mapping_config": {
+            "description": "Token mapping configuration (serialized as JSON)"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "OAuth scopes"
+          },
+          "token_endpoint": {
+            "type": "string",
+            "description": "Token endpoint URL"
+          }
+        }
+      },
+      "EncryptedOidcConfig": {
+        "type": "object",
+        "description": "OIDC configuration extending OAuth2 with discovery and ID token support",
+        "required": [
+          "id",
+          "base_config",
+          "mapping"
+        ],
+        "properties": {
+          "base_config": {
+            "$ref": "#/components/schemas/EncryptedOauthConfig"
+          },
+          "discovery_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token introspection endpoint URL (RFC 7662)"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/TokenMapping"
+          },
+          "userinfo_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "EncryptedOidcYamlConfig": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EncryptedOauthYamlConfig",
+            "description": "Base OAuth configuration"
+          },
+          {
+            "type": "object",
+            "required": [
+              "oidc_mapping_config"
+            ],
+            "properties": {
+              "discovery_endpoint": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "OIDC discovery endpoint (optional)"
+              },
+              "introspect_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque"
+              },
+              "oidc_mapping_config": {
+                "description": "Token mapping configuration (serialized as JSON)"
+              },
+              "userinfo_endpoint": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Userinfo endpoint URL (optional)"
+              }
+            }
+          }
+        ],
+        "description": "Encrypted OIDC configuration for YAML storage"
+      },
+      "EncryptedString": {
+        "type": "string"
+      },
+      "EncryptedUserAuthFlowConfig": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "oidc_authorization_code_flow"
+            ],
+            "properties": {
+              "oidc_authorization_code_flow": {
+                "$ref": "#/components/schemas/EncryptedOidcConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "oauth_authorization_code_flow"
+            ],
+            "properties": {
+              "oauth_authorization_code_flow": {
+                "$ref": "#/components/schemas/EncryptedOauthConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "oidc_authorization_code_pkce_flow"
+            ],
+            "properties": {
+              "oidc_authorization_code_pkce_flow": {
+                "$ref": "#/components/schemas/EncryptedOidcConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "oauth_authorization_code_pkce_flow"
+            ],
+            "properties": {
+              "oauth_authorization_code_pkce_flow": {
+                "$ref": "#/components/schemas/EncryptedOauthConfig"
+              }
+            }
+          }
+        ]
       },
       "EncryptionConfig": {
         "type": "object",
@@ -5426,6 +6977,258 @@
           }
         }
       },
+      "GetUserAuthFlowConfigResponse": {
+        "type": "object",
+        "description": "Response from getting a user auth flow configuration",
+        "required": [
+          "config",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/EncryptedUserAuthFlowConfig",
+            "description": "The configuration (encrypted)"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime",
+            "description": "When the configuration was created"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime",
+            "description": "When the configuration was last updated"
+          }
+        }
+      },
+      "GroupToRoleMapping": {
+        "type": "object",
+        "required": [
+          "group",
+          "role"
+        ],
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        }
+      },
+      "GroupToRoleMappingYaml": {
+        "type": "object",
+        "description": "Group to role mapping",
+        "required": [
+          "group",
+          "role"
+        ],
+        "properties": {
+          "group": {
+            "type": "string",
+            "description": "The group name to match"
+          },
+          "role": {
+            "type": "string",
+            "description": "The role to assign when matched"
+          }
+        }
+      },
+      "HashedApiKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "hashed_value",
+          "user_id",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hashed_value": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        }
+      },
+      "Human": {
+        "type": "object",
+        "description": "Authenticated human identity",
+        "required": [
+          "sub",
+          "groups",
+          "role"
+        ],
+        "properties": {
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "sub": {
+            "type": "string"
+          }
+        }
+      },
+      "Identity": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Machine",
+                "description": "Machine identity (API key authentication)"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "machine"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "Machine identity (API key authentication)"
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Human",
+                "description": "Human identity (STS token authentication)"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "human"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "Human identity (STS token authentication)"
+          },
+          {
+            "type": "object",
+            "description": "Machine acting on behalf of a human",
+            "required": [
+              "machine",
+              "human",
+              "type"
+            ],
+            "properties": {
+              "human": {
+                "$ref": "#/components/schemas/Human"
+              },
+              "machine": {
+                "$ref": "#/components/schemas/Machine"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "machine_on_behalf_of_human"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Unauthenticated request",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "unauthenticated"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Authenticated identity"
+      },
+      "IdentityConfig": {
+        "type": "object",
+        "description": "Identity configuration for API keys, STS, and user auth flows",
+        "properties": {
+          "api_keys": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "API keys configuration (key is the API key ID)",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ApiKeyYamlConfig"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "sts_configurations": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "STS configurations (key is the STS config ID)",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StsConfigYaml"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "user_auth_flows": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "User auth flow configurations (key is the config ID)",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UserAuthFlowYamlConfig"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "ImportDataEncryptionKeyParamsRoute": {
         "type": "object",
         "required": [
@@ -5474,6 +7277,19 @@
           },
           "key": {
             "type": "string"
+          }
+        }
+      },
+      "ImportUserAuthFlowConfigParams": {
+        "type": "object",
+        "description": "Parameters for importing a user auth flow configuration (already encrypted)",
+        "required": [
+          "config"
+        ],
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/EncryptedUserAuthFlowConfig",
+            "description": "The encrypted configuration to import"
           }
         }
       },
@@ -5552,6 +7368,426 @@
       "JsonrpcRequest": {
         "type": "object"
       },
+      "Jwk": {
+        "type": "object",
+        "required": [
+          "kty",
+          "kid",
+          "use",
+          "alg",
+          "n",
+          "e"
+        ],
+        "properties": {
+          "alg": {
+            "type": "string"
+          },
+          "e": {
+            "type": "string"
+          },
+          "kid": {
+            "type": "string"
+          },
+          "kty": {
+            "type": "string"
+          },
+          "n": {
+            "type": "string"
+          },
+          "use": {
+            "type": "string"
+          }
+        }
+      },
+      "JwkResponse": {
+        "type": "object",
+        "required": [
+          "kid",
+          "publicKey",
+          "expiresAt",
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "expiresAt": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "kid": {
+            "type": "string"
+          },
+          "publicKey": {
+            "type": "string"
+          }
+        }
+      },
+      "JwkResponsePaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JwkResponse"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
+      "JwksResponse": {
+        "type": "object",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Jwk"
+            }
+          }
+        }
+      },
+      "JwtMappingConfigYaml": {
+        "type": "object",
+        "description": "JWT claim field mapping",
+        "properties": {
+          "audience_field": {
+            "type": "string",
+            "description": "Field name for audience (default: \"aud\")"
+          },
+          "email_field": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Field name for email (optional)"
+          },
+          "groups_field": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Field name for groups (optional)"
+          },
+          "issuer_field": {
+            "type": "string",
+            "description": "Field name for issuer (default: \"iss\")"
+          },
+          "scopes_field": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Field name for scopes (optional)"
+          },
+          "sub_field": {
+            "type": "string",
+            "description": "Field name for subject (default: \"sub\")"
+          }
+        }
+      },
+      "JwtTemplateConfigYaml": {
+        "type": "object",
+        "description": "JWT template configuration for validating external JWTs",
+        "required": [
+          "jwks_uri",
+          "token_location",
+          "validation",
+          "mapping"
+        ],
+        "properties": {
+          "group_to_role_mappings": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/GroupToRoleMappingYaml"
+            },
+            "description": "Group to role mappings"
+          },
+          "jwks_uri": {
+            "type": "string",
+            "description": "JWKS URI to fetch public keys from"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/JwtMappingConfigYaml",
+            "description": "Field mapping from JWT claims to internal fields"
+          },
+          "scope_to_group_mappings": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ScopeToGroupMappingYaml"
+            },
+            "description": "Scope to group mappings (maps scopes to internal groups)"
+          },
+          "scope_to_role_mappings": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ScopeToRoleMappingYaml"
+            },
+            "description": "Scope to role mappings"
+          },
+          "token_location": {
+            "$ref": "#/components/schemas/TokenLocationYaml",
+            "description": "Where to find the token in the request"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/JwtValidationConfigYaml",
+            "description": "Validation rules"
+          }
+        }
+      },
+      "JwtTemplateModeConfig": {
+        "type": "object",
+        "required": [
+          "id",
+          "mapping_template",
+          "validation_template"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/String"
+          },
+          "mapping_template": {
+            "$ref": "#/components/schemas/JwtTokenTemplateConfig"
+          },
+          "validation_template": {
+            "$ref": "#/components/schemas/JwtTokenTemplateValidationConfig"
+          }
+        }
+      },
+      "JwtTokenMappingConfig": {
+        "type": "object",
+        "required": [
+          "issuer_field",
+          "audience_field",
+          "sub_field",
+          "group_to_role_mappings",
+          "scope_to_role_mappings",
+          "scope_to_group_mappings"
+        ],
+        "properties": {
+          "audience_field": {
+            "$ref": "#/components/schemas/MappingSource_String"
+          },
+          "email_field": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MappingSource_String"
+              }
+            ]
+          },
+          "group_to_role_mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupToRoleMapping"
+            }
+          },
+          "groups_field": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MappingSource_String"
+              }
+            ]
+          },
+          "issuer_field": {
+            "$ref": "#/components/schemas/MappingSource_String"
+          },
+          "scope_to_group_mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeToGroupMapping"
+            }
+          },
+          "scope_to_role_mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeToRoleMapping"
+            }
+          },
+          "scopes_field": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MappingSource_String"
+              }
+            ]
+          },
+          "sub_field": {
+            "$ref": "#/components/schemas/MappingSource_String"
+          }
+        }
+      },
+      "JwtTokenTemplateConfig": {
+        "type": "object",
+        "required": [
+          "jwks_uri",
+          "mapping_template"
+        ],
+        "properties": {
+          "access_token_location": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TokenLocation"
+              }
+            ]
+          },
+          "id_token_location": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TokenLocation"
+              }
+            ]
+          },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "jwks_uri": {
+            "type": "string"
+          },
+          "mapping_template": {
+            "$ref": "#/components/schemas/JwtTokenMappingConfig"
+          },
+          "userinfo_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "JwtTokenTemplateValidationConfig": {
+        "type": "object",
+        "properties": {
+          "issuer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "required_groups": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "required_scopes": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "valid_audiences": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "JwtValidationConfigYaml": {
+        "type": "object",
+        "description": "JWT validation configuration",
+        "properties": {
+          "issuer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Expected issuer (iss claim)"
+          },
+          "required_groups": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Required groups"
+          },
+          "required_scopes": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Required scopes"
+          },
+          "valid_audiences": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Valid audiences (aud claim)"
+          }
+        }
+      },
+      "ListApiKeysResponse": {
+        "type": "object",
+        "description": "Response from listing API keys",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HashedApiKey"
+            }
+          },
+          "next_page_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "ListDecryptedSecretsResponse": {
         "type": "object",
         "required": [
@@ -5611,6 +7847,107 @@
             }
           }
         }
+      },
+      "ListUserAuthFlowConfigResponse": {
+        "type": "object",
+        "description": "Response from listing user auth flow configurations",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetUserAuthFlowConfigResponse"
+            },
+            "description": "The configurations"
+          },
+          "next_page_token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token for the next page, if any"
+          }
+        }
+      },
+      "Machine": {
+        "type": "object",
+        "description": "Authenticated machine identity",
+        "required": [
+          "sub",
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "sub": {
+            "type": "string"
+          }
+        }
+      },
+      "MappingSource_String": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Field is in the OIDC ID token",
+            "required": [
+              "field",
+              "type"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "id_token"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Field is in the OAuth userinfo",
+            "required": [
+              "field",
+              "type"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "userinfo"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Field is in the OAuth access token response",
+            "required": [
+              "field",
+              "type"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "access_token"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Indicates which token type (ID token for OIDC, access token response for OAuth)\ncontains the field"
       },
       "Message": {
         "type": "object",
@@ -5722,6 +8059,115 @@
         "properties": {
           "to_envelope_encryption_key_id": {
             "type": "string"
+          }
+        }
+      },
+      "NormalizedTokenIssuanceResult": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "expires_in": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "refresh_token": {
+            "type": "string"
+          }
+        }
+      },
+      "OauthConfig": {
+        "type": "object",
+        "description": "OAuth2 configuration for authorization code flow",
+        "required": [
+          "id",
+          "authorization_endpoint",
+          "token_endpoint",
+          "client_id",
+          "client_secret",
+          "scopes",
+          "jwks_endpoint",
+          "mapping"
+        ],
+        "properties": {
+          "authorization_endpoint": {
+            "type": "string"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "client_secret": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token introspection endpoint URL (RFC 7662)\nIf set, access tokens are treated as opaque and introspected via this endpoint"
+          },
+          "jwks_endpoint": {
+            "type": "string"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/TokenMapping"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token_endpoint": {
+            "type": "string"
+          }
+        }
+      },
+      "OidcConfig": {
+        "type": "object",
+        "description": "OIDC configuration extending OAuth2 with discovery and ID token support",
+        "required": [
+          "id",
+          "base_config",
+          "mapping"
+        ],
+        "properties": {
+          "base_config": {
+            "$ref": "#/components/schemas/OauthConfig"
+          },
+          "discovery_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "introspect_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Token introspection endpoint URL (RFC 7662)\nIf set, access tokens are treated as opaque and introspected via this endpoint"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/TokenMapping"
+          },
+          "userinfo_endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -6018,6 +8464,19 @@
           }
         ]
       },
+      "RefreshTokenRequest": {
+        "type": "object",
+        "description": "Request body for refresh token endpoint",
+        "properties": {
+          "refresh_token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The refresh token. If not provided, will be read from cookie."
+          }
+        }
+      },
       "ResourceServerCredentialSerialized": {
         "type": "object",
         "required": [
@@ -6102,8 +8561,85 @@
           }
         }
       },
+      "Role": {
+        "type": "string",
+        "description": "User role in the system",
+        "enum": [
+          "admin",
+          "maintainer",
+          "read_only_maintainer",
+          "agent",
+          "user"
+        ]
+      },
       "RuntimeConfigResponse": {
         "type": "object"
+      },
+      "ScopeToGroupMapping": {
+        "type": "object",
+        "required": [
+          "scope",
+          "group"
+        ],
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          }
+        }
+      },
+      "ScopeToGroupMappingYaml": {
+        "type": "object",
+        "description": "Scope to group mapping (maps external scopes to internal groups)",
+        "required": [
+          "scope",
+          "group"
+        ],
+        "properties": {
+          "group": {
+            "type": "string",
+            "description": "The internal group to assign when matched"
+          },
+          "scope": {
+            "type": "string",
+            "description": "The scope to match"
+          }
+        }
+      },
+      "ScopeToRoleMapping": {
+        "type": "object",
+        "required": [
+          "scope",
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "scope": {
+            "type": "string"
+          }
+        }
+      },
+      "ScopeToRoleMappingYaml": {
+        "type": "object",
+        "description": "Scope to role mapping",
+        "required": [
+          "scope",
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "The role to assign when matched"
+          },
+          "scope": {
+            "type": "string",
+            "description": "The scope to match"
+          }
+        }
       },
       "Secret": {
         "type": "object",
@@ -6189,6 +8725,16 @@
               "type": "string"
             }
           },
+          "identity": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IdentityConfig"
+              }
+            ]
+          },
           "secrets": {
             "type": [
               "object",
@@ -6210,6 +8756,95 @@
         ],
         "properties": {
           "provider_instance_id": {
+            "type": "string"
+          }
+        }
+      },
+      "String": {
+        "type": "string"
+      },
+      "StsConfigYaml": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JwtTemplateConfigYaml",
+                "description": "JWT template configuration for external IdPs"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "jwt_template"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "JWT template configuration for external IdPs"
+          },
+          {
+            "type": "object",
+            "description": "Dev mode configuration (allows any authentication in dev)",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "dev"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "STS configuration stored in soma.yaml"
+      },
+      "StsTokenConfig": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "JwtTemplate"
+            ],
+            "properties": {
+              "JwtTemplate": {
+                "$ref": "#/components/schemas/JwtTemplateModeConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "DevMode"
+            ],
+            "properties": {
+              "DevMode": {
+                "$ref": "#/components/schemas/DevModeConfig"
+              }
+            }
+          }
+        ]
+      },
+      "StsTokenConfigPaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StsTokenConfig"
+            }
+          },
+          "next_page_token": {
             "type": "string"
           }
         }
@@ -6446,6 +9081,128 @@
           }
         }
       },
+      "TokenLocation": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Header"
+            ],
+            "properties": {
+              "Header": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Cookie"
+            ],
+            "properties": {
+              "Cookie": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "TokenLocationYaml": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Token is in a header (e.g., Authorization: Bearer <token>)",
+            "required": [
+              "name",
+              "type"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "header"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Token is in a cookie",
+            "required": [
+              "name",
+              "type"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "cookie"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Where to find the token in the request"
+      },
+      "TokenMapping": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "jwt_template"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/JwtTokenMappingConfig"
+              }
+            }
+          }
+        ]
+      },
+      "TokenResponse": {
+        "type": "object",
+        "description": "Response body for token refresh endpoint",
+        "required": [
+          "access_token",
+          "expires_in",
+          "token_type"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "The access token"
+          },
+          "expires_in": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Token expiration time in seconds"
+          },
+          "refresh_token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The refresh token (only present on initial auth, not refresh)"
+          },
+          "token_type": {
+            "type": "string",
+            "description": "Token type (always \"Bearer\")"
+          }
+        }
+      },
       "TriggerCodegenResponse": {
         "type": "object"
       },
@@ -6516,6 +9273,180 @@
             "$ref": "#/components/schemas/TaskStatus"
           }
         }
+      },
+      "UserAuthFlowConfig": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "oidc_authorization_code_flow"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/OidcConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "oauth_authorization_code_flow"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/OauthConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "oidc_authorization_code_pkce_flow"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/OidcConfig"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "oauth_authorization_code_pkce_flow"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/OauthConfig"
+              }
+            }
+          }
+        ],
+        "description": "The four supported IdP configuration types"
+      },
+      "UserAuthFlowYamlConfig": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EncryptedOidcYamlConfig",
+                "description": "OIDC authorization code flow"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oidc_authorization_code_flow"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "OIDC authorization code flow"
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EncryptedOauthYamlConfig",
+                "description": "OAuth authorization code flow"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oauth_authorization_code_flow"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "OAuth authorization code flow"
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EncryptedOidcYamlConfig",
+                "description": "OIDC authorization code flow with PKCE"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oidc_authorization_code_pkce_flow"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "OIDC authorization code flow with PKCE"
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EncryptedOauthYamlConfig",
+                "description": "OAuth authorization code flow with PKCE"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "oauth_authorization_code_pkce_flow"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "OAuth authorization code flow with PKCE"
+          }
+        ],
+        "description": "User auth flow configuration stored in soma.yaml (encrypted)"
       },
       "UserCredentialBrokeringResponse": {
         "oneOf": [
@@ -6664,6 +9595,10 @@
     {
       "name": "a2a",
       "description": "Agent-to-agent communication endpoints for agent cards, definitions, and JSON-RPC requests"
+    },
+    {
+      "name": "identity",
+      "description": "Identity management endpoints for JWKs (JSON Web Keys) and authentication"
     },
     {
       "name": "v1",

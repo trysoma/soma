@@ -1,7 +1,11 @@
-.PHONY: help install clean build build-release test test-coverage \
-	lint lint-js lint-rs lint-fix lint-fix-js lint-fix-rs \
-	db-internal-generate-migration db-internal-generate-hash db-generate-rs-models \
-	db-bridge-generate-migration db-bridge-generate-hash db-soma-generate-migration db-soma-generate-hash \
+.PHONY: help install clean build build-release \
+	test test-unit test-integration test-all test-coverage \
+	lint lint-js lint-rs lint-db lint-fix lint-fix-js lint-fix-rs \
+	db-generate-rs-models \
+	db-bridge-generate-migration db-bridge-generate-hash \
+	db-encryption-generate-migration db-encryption-generate-hash \
+	db-identity-generate-migration db-identity-generate-hash \
+	db-soma-generate-migration db-soma-generate-hash \
 	_db-generate-migration _db-generate-hash _install-sqlc-gen-from-template
 
 help: ## Show this help message
@@ -107,11 +111,29 @@ clean: ## Clean build artifacts and cache files
 	find . -type d -name "coverage" -not -path "./node_modules/*" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✓ Clean completed"
 
-test: ## Run all tests (Rust + JS)
-	@echo "Running Rust tests..."
-	cargo nextest run
+test: test-unit ## Run unit tests only (Rust + JS) - alias for test-unit
+
+test-unit: ## Run unit tests only (Rust + JS) - excludes AWS integration tests
+	@echo "Running Rust unit tests..."
+	cargo nextest run --features unit_test
 	@echo "Running JS tests..."
 	pnpm -r --workspace-concurrency=1 run test
+	@echo "✓ Unit tests passed"
+
+test-integration: ## Run integration tests only (requires AWS credentials)
+	@echo "Running Rust integration tests (requires AWS credentials)..."
+	cd test && docker compose up -d && cd ../
+	cargo nextest run --features integration_test
+	cd test && docker compose down && cd ../
+	@echo "✓ Integration tests passed"
+
+test-all: ## Run all tests including integration tests (Rust + JS)
+	@echo "Running all Rust tests (unit + integration)..."
+	cd test && docker compose up -d && cd ../
+	cargo nextest run --features unit_test,integration_test
+	@echo "Running JS tests..."
+	pnpm -r --workspace-concurrency=1 run test
+	cd test && docker compose down && cd ../
 	@echo "✓ All tests passed"
 
 test-coverage: ## Run tests with coverage and generate merged report
@@ -119,7 +141,8 @@ test-coverage: ## Run tests with coverage and generate merged report
 	@rm -rf coverage .coverage-tmp
 	@mkdir -p .coverage-tmp coverage
 	@echo "Running Rust tests with coverage..."
-	cargo llvm-cov nextest --all-features --workspace  --lcov --output-path .coverage-tmp/rust.lcov
+	cd test && docker compose up -d && cd ../
+	cargo llvm-cov nextest --features unit_test,integration_test --workspace --lcov --output-path .coverage-tmp/rust.lcov
 	@echo "✓ Rust coverage generated"
 	@echo "Running JS tests with coverage..."
 	pnpm -r --workspace-concurrency=1 --filter './js/packages/*' --filter './crates/sdk-js' run test:coverage
@@ -140,6 +163,7 @@ test-coverage: ## Run tests with coverage and generate merged report
 
 	@echo "Cleaning up temporary files..."
 	@rm -rf .coverage-tmp
+	@cd test && docker compose down && cd ../
 	@echo "✓ Test coverage complete"
 
 
@@ -175,6 +199,18 @@ lint-db: ## Run database linters
 	else \
 		echo "$$bridge_output"; \
 	fi
+	@encryption_output=$$(atlas migrate lint --env encryption --git-base main 2>&1); \
+	if [ -z "$$encryption_output" ]; then \
+		echo "Encryption DB: SUCCESS: checksums match, no breaking changes"; \
+	else \
+		echo "$$encryption_output"; \
+	fi
+	@identity_output=$$(atlas migrate lint --env identity --git-base main 2>&1); \
+	if [ -z "$$identity_output" ]; then \
+		echo "Identity DB: SUCCESS: checksums match, no breaking changes"; \
+	else \
+		echo "$$identity_output"; \
+	fi
 	@echo "✓ Database linters passed"
 
 lint-fix: lint-fix-rs lint-fix-js ## Run all linters with auto-fix (Rust + JS)
@@ -182,6 +218,7 @@ lint-fix: lint-fix-rs lint-fix-js ## Run all linters with auto-fix (Rust + JS)
 lint-fix-rs: ## Run Rust linters with auto-fix
 	@echo "Running cargo clippy with --fix..."
 	cargo clippy --locked --all-targets --all-features --fix --allow-dirty --allow-staged
+	cargo clippy --locked --all-targets --all-features -- -D warnings 
 	@echo "Formatting Rust code..."
 	cargo fmt --all
 	@echo "✓ Rust linters completed"
@@ -224,14 +261,18 @@ _db-generate-hash: ## Update migration hash file (internal helper)
 	@echo "✓ Migration hash updated"
 
 db-generate-rs-models: ## Generate Rust models from SQL queries using sqlc
-	@echo "Generating Rust models..."
-	cd crates/soma && sqlc generate
-	@echo "Generating Rust models..."
+	@echo "Generating Rust models for soma..."
+	cd crates/soma-api-server && sqlc generate
+	@echo "✓ Soma models generated"
+	@echo "Generating Rust models for bridge..."
 	cd crates/bridge && sqlc generate
-	@echo "✓ Rust models generated"
-	@echo "Generating Rust models..."
+	@echo "✓ Bridge models generated"
+	@echo "Generating Rust models for encryption..."
 	cd crates/encryption && sqlc generate
-	@echo "✓ Rust models generated"
+	@echo "✓ Encryption models generated"
+	@echo "Generating Rust models for identity..."
+	cd crates/identity && sqlc generate
+	@echo "✓ Identity models generated"
 
 db-bridge-generate-migration: ## Create a new bridge database migration using Atlas (usage: make db-bridge-generate-migration NAME=migration_name)
 	$(MAKE) _db-generate-migration ENV=bridge FILE_PATH=crates/bridge/dbs/bridge/schema.sql NAME=$(NAME)
@@ -244,6 +285,12 @@ db-encryption-generate-migration: ## Create a new encryption database migration 
 
 db-encryption-generate-hash: ## Update encryption database migration hash
 	$(MAKE) _db-generate-hash ENV=encryption
+
+db-identity-generate-migration: ## Create a new identity database migration using Atlas (usage: make db-identity-generate-migration NAME=migration_name)
+	$(MAKE) _db-generate-migration ENV=identity FILE_PATH=crates/identity/dbs/identity/schema.sql NAME=$(NAME)
+
+db-identity-generate-hash: ## Update identity database migration hash
+	$(MAKE) _db-generate-hash ENV=identity
 
 db-soma-generate-migration: ## Create a new soma database migration using Atlas (usage: make db-soma-generate-migration NAME=migration_name)
 	$(MAKE) _db-generate-migration ENV=soma FILE_PATH=crates/soma/dbs/soma/schema.sql NAME=$(NAME)

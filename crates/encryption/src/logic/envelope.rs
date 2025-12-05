@@ -1075,8 +1075,8 @@ pub async fn decrypt_dek(
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use crate::logic::dek;
     use crate::repository::Repository;
@@ -1129,14 +1129,6 @@ mod tests {
         };
 
         (temp_file, contents)
-    }
-
-    /// Helper function to get AWS KMS key
-    fn get_aws_kms_key() -> EnvelopeEncryptionKeyContents {
-        EnvelopeEncryptionKeyContents::AwsKms {
-            arn: TEST_KMS_KEY_ARN.to_string(),
-            region: TEST_KMS_REGION.to_string(),
-        }
     }
 
     #[tokio::test]
@@ -1619,6 +1611,221 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_migrate_data_encryption_key_invalidates_cache() {
+        shared::setup_test!();
+
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+        let (tx, _rx) = broadcast::channel(100);
+
+        // Create temp directory for keys
+        let temp_dir_handle = tempfile::tempdir().unwrap();
+        let temp_dir = temp_dir_handle.path();
+
+        // Create two local keys in the temp directory
+        let file_name1 = "test-key-invalidation-1";
+        let local_key1_contents = create_temp_local_key_in_dir(temp_dir, file_name1);
+        let envelope_key1 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
+            file_name: file_name1.to_string(),
+        });
+
+        let file_name2 = "test-key-invalidation-2";
+        let _local_key2_contents = create_temp_local_key_in_dir(temp_dir, file_name2);
+        let envelope_key2 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
+            file_name: file_name2.to_string(),
+        });
+
+        // Create both envelope keys
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key1.clone(), false)
+            .await
+            .unwrap();
+        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key2.clone(), false)
+            .await
+            .unwrap();
+
+        // Create a DEK with the first key
+        let dek = dek::create_data_encryption_key(
+            &tx,
+            &repo,
+            crate::logic::dek::CreateDekParams {
+                envelope_encryption_key_id: envelope_key1.id(),
+                inner: crate::logic::dek::CreateDekInnerParams {
+                    id: Some("test-dek-cache-invalidation".to_string()),
+                    encrypted_dek: None,
+                },
+            },
+            temp_dir,
+            false,
+        )
+        .await
+        .unwrap();
+
+        // Create and initialize cache - use temp_dir as base path
+        let cache =
+            crate::logic::crypto_services::CryptoCache::new(repo.clone(), temp_dir.to_path_buf());
+        crate::logic::crypto_services::init_crypto_cache(&cache)
+            .await
+            .unwrap();
+
+        // Get encryption service - this should cache it
+        let encryption_service1 =
+            crate::logic::crypto_services::get_encryption_service(&cache, &dek.id)
+                .await
+                .unwrap();
+        let _encrypted1 = encryption_service1
+            .encrypt_data("test message".to_string())
+            .await
+            .unwrap();
+
+        // Verify it's cached by getting it again (should be the same instance)
+        let encryption_service2 =
+            crate::logic::crypto_services::get_encryption_service(&cache, &dek.id)
+                .await
+                .unwrap();
+        let _encrypted2 = encryption_service2
+            .encrypt_data("test message 2".to_string())
+            .await
+            .unwrap();
+
+        // Migrate to the second key
+        let result = migrate_data_encryption_key(
+            temp_dir,
+            &tx,
+            &local_key1_contents,
+            &repo,
+            &cache,
+            MigrateDataEncryptionKeyParams {
+                data_encryption_key_id: dek.id.clone(),
+                to_envelope_encryption_key_id: file_name2.to_string(),
+            },
+            false,
+        )
+        .await;
+
+        assert!(result.is_ok());
+
+        // Find the new DEK ID
+        let deks = dek::list_data_encryption_keys(
+            &repo,
+            crate::logic::dek::ListDekParams {
+                envelope_encryption_key_id: envelope_key2.id(),
+                inner: shared::primitives::PaginationRequest {
+                    page_size: 100,
+                    next_page_token: None,
+                },
+            },
+        )
+        .await
+        .unwrap();
+
+        let migrated_dek = deks
+            .items
+            .iter()
+            .find(|d| matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key2))
+            .unwrap();
+
+        // Verify old DEK cache is invalidated (should not be accessible)
+        let old_dek_result =
+            crate::logic::crypto_services::get_encryption_service(&cache, &dek.id).await;
+        assert!(
+            old_dek_result.is_err()
+                || old_dek_result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("not found")
+        );
+
+        // Verify new DEK can be accessed (cache miss, will load from DB)
+        let new_encryption_service =
+            crate::logic::crypto_services::get_encryption_service(&cache, &migrated_dek.id)
+                .await
+                .unwrap();
+        let new_encrypted = new_encryption_service
+            .encrypt_data("new test message".to_string())
+            .await
+            .unwrap();
+        assert!(!new_encrypted.0.is_empty());
+
+        // Verify decryption works with new service
+        let decryption_service =
+            crate::logic::crypto_services::get_decryption_service(&cache, &migrated_dek.id)
+                .await
+                .unwrap();
+        let decrypted = decryption_service
+            .decrypt_data(new_encrypted)
+            .await
+            .unwrap();
+        assert_eq!(decrypted, "new test message");
+    }
+}
+
+#[cfg(all(test, feature = "integration_test"))]
+mod integration_test {
+    use super::*;
+    use crate::logic::dek;
+    use crate::repository::Repository;
+    use shared::primitives::SqlMigrationLoader;
+    use shared::test_utils::repository::setup_in_memory_database;
+    use tokio::sync::broadcast;
+
+    const TEST_KMS_KEY_ARN: &str =
+        "arn:aws:kms:eu-west-2:914788356809:alias/unsafe-github-action-soma-test-key";
+    const TEST_KMS_REGION: &str = "eu-west-2";
+
+    /// Helper function to create a temporary local key file
+    /// Returns the filename (not full path) and the key contents
+    fn create_temp_local_key_in_dir(
+        base_path: &std::path::Path,
+        filename: &str,
+    ) -> EnvelopeEncryptionKeyContents {
+        let mut kek_bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut kek_bytes);
+
+        let key_path = base_path.join(filename);
+        std::fs::create_dir_all(base_path).expect("Failed to create base directory");
+        std::fs::write(&key_path, kek_bytes).expect("Failed to write KEK to file");
+
+        EnvelopeEncryptionKeyContents::Local {
+            file_name: filename.to_string(),
+            key_bytes: kek_bytes.to_vec(),
+        }
+    }
+
+    /// Helper function to create a temporary local key file (legacy, for tests that don't use a base dir)
+    fn create_temp_local_key() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
+        let mut kek_bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut kek_bytes);
+
+        let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
+        std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
+
+        // Extract only the filename, not the full path
+        let file_name = temp_file
+            .path()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("test-key")
+            .to_string();
+
+        let contents = EnvelopeEncryptionKeyContents::Local {
+            file_name,
+            key_bytes: kek_bytes.to_vec(),
+        };
+
+        (temp_file, contents)
+    }
+
+    /// Helper function to get AWS KMS key
+    fn get_aws_kms_key() -> EnvelopeEncryptionKeyContents {
+        EnvelopeEncryptionKeyContents::AwsKms {
+            arn: TEST_KMS_KEY_ARN.to_string(),
+            region: TEST_KMS_REGION.to_string(),
+        }
+    }
+
+    #[tokio::test]
     async fn test_migrate_data_encryption_key_local_to_aws() {
         shared::setup_test!();
 
@@ -1647,7 +1854,6 @@ mod tests {
         });
 
         // Create both envelope keys
-
         create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key_local.clone(), false)
             .await
             .unwrap();
@@ -1918,155 +2124,5 @@ mod tests {
             .iter()
             .find(|d| matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key_local));
         assert!(migrated_dek.is_some());
-    }
-
-    #[tokio::test]
-    async fn test_migrate_data_encryption_key_invalidates_cache() {
-        shared::setup_test!();
-
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-        let (tx, _rx) = broadcast::channel(100);
-
-        // Create temp directory for keys
-        let temp_dir_handle = tempfile::tempdir().unwrap();
-        let temp_dir = temp_dir_handle.path();
-
-        // Create two local keys in the temp directory
-        let file_name1 = "test-key-invalidation-1";
-        let local_key1_contents = create_temp_local_key_in_dir(temp_dir, file_name1);
-        let envelope_key1 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
-            file_name: file_name1.to_string(),
-        });
-
-        let file_name2 = "test-key-invalidation-2";
-        let _local_key2_contents = create_temp_local_key_in_dir(temp_dir, file_name2);
-        let envelope_key2 = EnvelopeEncryptionKey::Local(EnvelopeEncryptionKeyLocal {
-            file_name: file_name2.to_string(),
-        });
-
-        // Create both envelope keys
-        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key1.clone(), false)
-            .await
-            .unwrap();
-        create_envelope_encryption_key(temp_dir, &tx, &repo, envelope_key2.clone(), false)
-            .await
-            .unwrap();
-
-        // Create a DEK with the first key
-        let dek = dek::create_data_encryption_key(
-            &tx,
-            &repo,
-            crate::logic::dek::CreateDekParams {
-                envelope_encryption_key_id: envelope_key1.id(),
-                inner: crate::logic::dek::CreateDekInnerParams {
-                    id: Some("test-dek-cache-invalidation".to_string()),
-                    encrypted_dek: None,
-                },
-            },
-            temp_dir,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Create and initialize cache - use temp_dir as base path
-        let cache =
-            crate::logic::crypto_services::CryptoCache::new(repo.clone(), temp_dir.to_path_buf());
-        crate::logic::crypto_services::init_crypto_cache(&cache)
-            .await
-            .unwrap();
-
-        // Get encryption service - this should cache it
-        let encryption_service1 =
-            crate::logic::crypto_services::get_encryption_service(&cache, &dek.id)
-                .await
-                .unwrap();
-        let _encrypted1 = encryption_service1
-            .encrypt_data("test message".to_string())
-            .await
-            .unwrap();
-
-        // Verify it's cached by getting it again (should be the same instance)
-        let encryption_service2 =
-            crate::logic::crypto_services::get_encryption_service(&cache, &dek.id)
-                .await
-                .unwrap();
-        let _encrypted2 = encryption_service2
-            .encrypt_data("test message 2".to_string())
-            .await
-            .unwrap();
-
-        // Migrate to the second key
-        let result = migrate_data_encryption_key(
-            temp_dir,
-            &tx,
-            &local_key1_contents,
-            &repo,
-            &cache,
-            MigrateDataEncryptionKeyParams {
-                data_encryption_key_id: dek.id.clone(),
-                to_envelope_encryption_key_id: file_name2.to_string(),
-            },
-            false,
-        )
-        .await;
-
-        assert!(result.is_ok());
-
-        // Find the new DEK ID
-        let deks = dek::list_data_encryption_keys(
-            &repo,
-            crate::logic::dek::ListDekParams {
-                envelope_encryption_key_id: envelope_key2.id(),
-                inner: shared::primitives::PaginationRequest {
-                    page_size: 100,
-                    next_page_token: None,
-                },
-            },
-        )
-        .await
-        .unwrap();
-
-        let migrated_dek = deks
-            .items
-            .iter()
-            .find(|d| matches_envelope_key_id(&d.envelope_encryption_key_id, &envelope_key2))
-            .unwrap();
-
-        // Verify old DEK cache is invalidated (should not be accessible)
-        let old_dek_result =
-            crate::logic::crypto_services::get_encryption_service(&cache, &dek.id).await;
-        assert!(
-            old_dek_result.is_err()
-                || old_dek_result
-                    .unwrap_err()
-                    .to_string()
-                    .contains("not found")
-        );
-
-        // Verify new DEK can be accessed (cache miss, will load from DB)
-        let new_encryption_service =
-            crate::logic::crypto_services::get_encryption_service(&cache, &migrated_dek.id)
-                .await
-                .unwrap();
-        let new_encrypted = new_encryption_service
-            .encrypt_data("new test message".to_string())
-            .await
-            .unwrap();
-        assert!(!new_encrypted.0.is_empty());
-
-        // Verify decryption works with new service
-        let decryption_service =
-            crate::logic::crypto_services::get_decryption_service(&cache, &migrated_dek.id)
-                .await
-                .unwrap();
-        let decrypted = decryption_service
-            .decrypt_data(new_encrypted)
-            .await
-            .unwrap();
-        assert_eq!(decrypted, "new test message");
     }
 }

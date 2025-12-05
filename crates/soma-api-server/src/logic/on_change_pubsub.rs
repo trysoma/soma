@@ -1,5 +1,6 @@
 use bridge::logic::OnConfigChangeEvt as BridgeOnConfigChangeEvt;
 use encryption::logic::EncryptionKeyEvent;
+use identity::logic::OnConfigChangeEvt as IdentityOnConfigChangeEvt;
 use tokio::sync::broadcast;
 use tracing::{info, warn};
 
@@ -11,6 +12,9 @@ pub type BridgeEvt = BridgeOnConfigChangeEvt;
 
 /// Re-export encryption events as EncryptionEvt
 pub type EncryptionEvt = EncryptionKeyEvent;
+
+/// Re-export identity events as IdentityEvt
+pub type IdentityEvt = IdentityOnConfigChangeEvt;
 
 /// Secret change events
 #[derive(Clone, Debug)]
@@ -56,6 +60,7 @@ pub enum SomaChangeEvt {
     Encryption(EncryptionEvt),
     Secret(SecretChangeEvt),
     EnvironmentVariable(EnvironmentVariableChangeEvt),
+    Identity(IdentityEvt),
 }
 
 // Type aliases for the broadcast channel
@@ -67,13 +72,14 @@ pub fn create_soma_change_channel(capacity: usize) -> (SomaChangeTx, SomaChangeR
     broadcast::channel(capacity)
 }
 
-/// Starts the unified change pubsub system that forwards bridge, encryption, secret, and environment variable events to the unified channel
+/// Starts the unified change pubsub system that forwards bridge, encryption, secret, environment variable, and identity events to the unified channel
 pub async fn run_change_pubsub(
     soma_change_tx: SomaChangeTx,
     mut bridge_change_rx: bridge::logic::OnConfigChangeRx,
     mut encryption_change_rx: encryption::logic::EncryptionKeyEventReceiver,
     mut secret_change_rx: SecretChangeRx,
     mut environment_variable_change_rx: EnvironmentVariableChangeRx,
+    mut identity_change_rx: identity::logic::OnConfigChangeRx,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) {
     info!("Starting unified change pubsub system");
@@ -152,6 +158,24 @@ pub async fn run_change_pubsub(
                     }
                 }
             }
+            // Forward identity events
+            event = identity_change_rx.recv() => {
+                match event {
+                    Ok(identity_evt) => {
+                        let soma_evt = SomaChangeEvt::Identity(identity_evt);
+                        if let Err(e) = soma_change_tx.send(soma_evt) {
+                            tracing::debug!("No receivers for identity SomaChangeEvt: {:?}", e);
+                        }
+                    }
+                    Err(broadcast::error::RecvError::Closed) => {
+                        info!("Identity change channel closed, stopping change pubsub");
+                        break;
+                    }
+                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                        warn!("Identity change channel lagged, skipped {} messages", skipped);
+                    }
+                }
+            }
             // Handle shutdown
             _ = shutdown_rx.recv() => {
                 info!("Shutdown signal received, stopping change pubsub");
@@ -185,5 +209,13 @@ pub fn broadcast_environment_variable_event(
     let soma_evt = SomaChangeEvt::EnvironmentVariable(event);
     if let Err(e) = tx.send(soma_evt) {
         tracing::debug!("No receivers for environment variable event: {:?}", e);
+    }
+}
+
+/// Helper to broadcast identity events through the unified channel
+pub fn broadcast_identity_event(tx: &SomaChangeTx, event: IdentityEvt) {
+    let soma_evt = SomaChangeEvt::Identity(event);
+    if let Err(e) = tx.send(soma_evt) {
+        tracing::debug!("No receivers for identity event: {:?}", e);
     }
 }

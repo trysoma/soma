@@ -2,8 +2,108 @@ pub mod logic;
 pub mod repository;
 pub mod router;
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
+    use crate::logic::envelope::{EnvelopeEncryptionKeyContents, decrypt_dek, encrypt_dek};
+
+    // Helper function to create a temporary KEK file for local encryption tests
+    fn create_temp_kek_file() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
+        use rand::RngCore;
+        let mut kek_bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut kek_bytes);
+
+        let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
+        std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
+
+        let file_name = temp_file
+            .path()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("test-key")
+            .to_string();
+
+        let contents = EnvelopeEncryptionKeyContents::Local {
+            file_name,
+            key_bytes: kek_bytes.to_vec(),
+        };
+
+        (temp_file, contents)
+    }
+
+    #[tokio::test]
+    async fn test_encrypt_dek_with_local() {
+        shared::setup_test!();
+
+        let (_temp_file, parent_key) = create_temp_kek_file();
+        let test_data = "This is a test DEK for local envelope encryption";
+
+        // Encrypt the DEK
+        let result = encrypt_dek(&parent_key, test_data.to_string()).await;
+
+        // Verify encryption succeeded
+        assert!(result.is_ok(), "Encryption should succeed");
+        let encrypted_key = result.unwrap();
+
+        // Verify the encrypted key is not empty
+        assert!(
+            !encrypted_key.0.is_empty(),
+            "Encrypted key should not be empty"
+        );
+
+        // Verify the encrypted key is base64 encoded
+        let decode_result =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &encrypted_key.0);
+        assert!(
+            decode_result.is_ok(),
+            "Encrypted key should be valid base64"
+        );
+
+        // Verify the encrypted key is different from the original
+        assert_ne!(
+            encrypted_key.0, test_data,
+            "Encrypted key should be different from plaintext"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_local_encrypt_decrypt_roundtrip() {
+        shared::setup_test!();
+
+        let (_temp_file, parent_key) = create_temp_kek_file();
+
+        // Test multiple different data strings
+        let long_key = "A".repeat(1000);
+        let test_cases = vec![
+            "Simple test key",
+            "Key with special characters: !@#$%^&*()_+-=[]{}|;:',.<>?",
+            "Multi\nline\nkey\nwith\nnewlines",
+            "Unicode characters: 你好世界 🌍🔐",
+            long_key.as_str(),
+        ];
+
+        for test_data in test_cases {
+            // Encrypt
+            let encrypted = encrypt_dek(&parent_key, test_data.to_string())
+                .await
+                .expect("Encryption should succeed");
+
+            // Decrypt
+            let decrypted = decrypt_dek(&parent_key, &encrypted)
+                .await
+                .expect("Decryption should succeed");
+
+            // Verify
+            assert_eq!(
+                decrypted.0,
+                test_data.as_bytes(),
+                "Roundtrip should preserve data for: {test_data}"
+            );
+        }
+    }
+}
+
+#[cfg(all(test, feature = "integration_test"))]
+mod integration_test {
     use crate::logic::crypto_services::{CryptoService, DecryptionService, EncryptionService};
     use crate::logic::dek::{DataEncryptionKey, EncryptedDataEncryptionKey};
     use crate::logic::envelope::{
@@ -102,101 +202,6 @@ mod tests {
             arn: TEST_KMS_KEY_ARN.to_string(),
             region: TEST_KMS_REGION.to_string(),
         };
-
-        for test_data in test_cases {
-            // Encrypt
-            let encrypted = encrypt_dek(&parent_key, test_data.to_string())
-                .await
-                .expect("Encryption should succeed");
-
-            // Decrypt
-            let decrypted = decrypt_dek(&parent_key, &encrypted)
-                .await
-                .expect("Decryption should succeed");
-
-            // Verify
-            assert_eq!(
-                decrypted.0,
-                test_data.as_bytes(),
-                "Roundtrip should preserve data for: {test_data}"
-            );
-        }
-    }
-
-    // Helper function to create a temporary KEK file for local encryption tests
-    fn create_temp_kek_file() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
-        use rand::RngCore;
-        let mut kek_bytes = [0u8; 32];
-        rand::thread_rng().fill_bytes(&mut kek_bytes);
-
-        let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
-        std::fs::write(temp_file.path(), kek_bytes).expect("Failed to write KEK to temp file");
-
-        let file_name = temp_file
-            .path()
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("test-key")
-            .to_string();
-
-        let contents = EnvelopeEncryptionKeyContents::Local {
-            file_name,
-            key_bytes: kek_bytes.to_vec(),
-        };
-
-        (temp_file, contents)
-    }
-
-    #[tokio::test]
-    async fn test_encrypt_dek_with_local() {
-        shared::setup_test!();
-
-        let (_temp_file, parent_key) = create_temp_kek_file();
-        let test_data = "This is a test DEK for local envelope encryption";
-
-        // Encrypt the DEK
-        let result = encrypt_dek(&parent_key, test_data.to_string()).await;
-
-        // Verify encryption succeeded
-        assert!(result.is_ok(), "Encryption should succeed");
-        let encrypted_key = result.unwrap();
-
-        // Verify the encrypted key is not empty
-        assert!(
-            !encrypted_key.0.is_empty(),
-            "Encrypted key should not be empty"
-        );
-
-        // Verify the encrypted key is base64 encoded
-        let decode_result =
-            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &encrypted_key.0);
-        assert!(
-            decode_result.is_ok(),
-            "Encrypted key should be valid base64"
-        );
-
-        // Verify the encrypted key is different from the original
-        assert_ne!(
-            encrypted_key.0, test_data,
-            "Encrypted key should be different from plaintext"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_local_encrypt_decrypt_roundtrip() {
-        shared::setup_test!();
-
-        let (_temp_file, parent_key) = create_temp_kek_file();
-
-        // Test multiple different data strings
-        let long_key = "A".repeat(1000);
-        let test_cases = vec![
-            "Simple test key",
-            "Key with special characters: !@#$%^&*()_+-=[]{}|;:',.<>?",
-            "Multi\nline\nkey\nwith\nnewlines",
-            "Unicode characters: 你好世界 🌍🔐",
-            long_key.as_str(),
-        ];
 
         for test_data in test_cases {
             // Encrypt

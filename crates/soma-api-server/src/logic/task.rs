@@ -725,8 +725,8 @@ pub async fn get_task(
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use crate::repository::{CreateTask, TaskRepositoryLike};
     use shared::primitives::{

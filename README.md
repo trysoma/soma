@@ -11,7 +11,7 @@ Current work in progress:
 - [x] A2A (Agent 2 Agent spec) proxy endpoint for agents. There is a managed proxy endpoint for triggering your agents and a debug chat UI in the dev server.
 - [x] Fault-tolerance and suspension / resumability. Close integration with Restate which provides this functionality. 
 - [x] KMS encryption for MCP credentials & agent secrets
-- [ ] Configurable Authentication middleware (API key management, Oauth2, OIDC endpoint protection)
+- [x] Configurable Authentication middleware (API key management, Oauth2, OIDC endpoint protection)
 - [ ] ```soma start``` command for production Dockerfile scenario's
 - [ ] Group approval workflows (support suspending execution when approval from one or more internal users is required or customer / chat user approval)
 - [ ] Multi-instance Bridge MCP. Support for creating multiple smaller Bridge MCP servers with less tools so that you can have multiple agents or sub-flows within an agent using different MCP server tools
@@ -34,6 +34,9 @@ Before you begin, ensure you have the following installed:
 * [Atlas](https://atlasgo.io/) ([GitHub](https://github.com/ariga/atlas)) (for database migrations) (ensure you install community version: ```curl -sSf https://atlasgo.sh | sh -s -- --community -y```)
 * [OpenAPI Generator](https://openapi-generator.tech/docs/installation) (npm install is easiest: ```npm install @openapitools/openapi-generator-cli -g```)
 * [Cargo about](https://github.com/EmbarkStudios/cargo-about) (for license information generation)
+* [uv](https://docs.astral.sh/uv/)
+* Python 3
+
 ## Development
 
 ### Getting started

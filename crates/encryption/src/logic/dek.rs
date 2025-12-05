@@ -10,11 +10,13 @@ use shared::{
 use utoipa::ToSchema;
 
 use super::{EncryptionKeyEvent, EncryptionKeyEventSender};
+#[cfg(all(test, feature = "integration_test"))]
+use crate::logic::envelope::EnvelopeEncryptionKeyAwsKms;
+#[cfg(all(test, feature = "unit_test"))]
+use crate::logic::envelope::EnvelopeEncryptionKeyLocal;
 use crate::logic::envelope::{
     EnvelopeEncryptionKey, EnvelopeEncryptionKeyContents, WithEnvelopeEncryptionKeyId,
 };
-#[cfg(test)]
-use crate::logic::envelope::{EnvelopeEncryptionKeyAwsKms, EnvelopeEncryptionKeyLocal};
 use crate::repository::DataEncryptionKeyRepositoryLike;
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
@@ -463,18 +465,14 @@ where
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use crate::repository::{EncryptionKeyRepositoryLike, Repository};
     use rand::RngCore;
     use shared::primitives::{PaginationRequest, SqlMigrationLoader};
     use shared::test_utils::repository::setup_in_memory_database;
     use tokio::sync::broadcast;
-
-    const TEST_KMS_KEY_ARN: &str =
-        "arn:aws:kms:eu-west-2:914788356809:alias/unsafe-github-action-soma-test-key";
-    const TEST_KMS_REGION: &str = "eu-west-2";
 
     /// Helper function to create a temporary local key file
     fn create_temp_local_key() -> (tempfile::NamedTempFile, EnvelopeEncryptionKeyContents) {
@@ -492,14 +490,6 @@ mod tests {
         };
 
         (temp_file, contents)
-    }
-
-    /// Helper function to get AWS KMS key
-    fn get_aws_kms_key() -> EnvelopeEncryptionKeyContents {
-        EnvelopeEncryptionKeyContents::AwsKms {
-            arn: TEST_KMS_KEY_ARN.to_string(),
-            region: TEST_KMS_REGION.to_string(),
-        }
     }
 
     #[tokio::test]
@@ -613,60 +603,6 @@ mod tests {
         // Verify the DEK is deleted
         let deleted_dek = get_data_encryption_key_by_id(&repo, &dek.id).await.unwrap();
         assert!(deleted_dek.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_create_data_encryption_key_with_aws_kms() {
-        shared::setup_test!();
-
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-        let (tx, _rx) = broadcast::channel(100);
-
-        // Get AWS KMS key (verifies AWS credentials are available)
-        let _aws_key = get_aws_kms_key();
-
-        // Create envelope key first
-        let envelope_key = EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
-            arn: TEST_KMS_KEY_ARN.to_string(),
-            region: TEST_KMS_REGION.to_string(),
-        });
-        let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
-            envelope_key.clone(),
-            shared::primitives::WrappedChronoDateTime::now(),
-        ));
-        repo.create_envelope_encryption_key(&create_params)
-            .await
-            .unwrap();
-
-        // Create a data encryption key
-        let dek = create_data_encryption_key(
-            &tx,
-            &repo,
-            CreateDekParams {
-                envelope_encryption_key_id: envelope_key.id(),
-                inner: CreateDekInnerParams {
-                    id: Some("test-dek-aws".to_string()),
-                    encrypted_dek: None,
-                },
-            },
-            &std::path::PathBuf::from("/tmp/test-keys"),
-            false,
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(dek.id, "test-dek-aws");
-        assert!(matches!(
-            dek.envelope_encryption_key_id,
-            EnvelopeEncryptionKey::AwsKms(_)
-        ));
-
-        // Verify the DEK exists in the database
-        let retrieved_dek = get_data_encryption_key_by_id(&repo, &dek.id).await.unwrap();
-        assert!(retrieved_dek.is_some());
     }
 
     #[tokio::test]
@@ -803,5 +739,69 @@ mod tests {
         let ids: Vec<String> = deks.items.iter().map(|d| d.id.clone()).collect();
         assert!(ids.contains(&dek1.id));
         assert!(ids.contains(&dek2.id));
+    }
+}
+
+#[cfg(all(test, feature = "integration_test"))]
+mod integration_test {
+    use super::*;
+    use crate::repository::{EncryptionKeyRepositoryLike, Repository};
+    use shared::primitives::SqlMigrationLoader;
+    use shared::test_utils::repository::setup_in_memory_database;
+    use tokio::sync::broadcast;
+
+    const TEST_KMS_KEY_ARN: &str =
+        "arn:aws:kms:eu-west-2:914788356809:alias/unsafe-github-action-soma-test-key";
+    const TEST_KMS_REGION: &str = "eu-west-2";
+
+    #[tokio::test]
+    async fn test_create_data_encryption_key_with_aws_kms() {
+        shared::setup_test!();
+
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+        let (tx, _rx) = broadcast::channel(100);
+
+        // Create envelope key first
+        let envelope_key = EnvelopeEncryptionKey::AwsKms(EnvelopeEncryptionKeyAwsKms {
+            arn: TEST_KMS_KEY_ARN.to_string(),
+            region: TEST_KMS_REGION.to_string(),
+        });
+        let create_params = crate::repository::CreateEnvelopeEncryptionKey::from((
+            envelope_key.clone(),
+            shared::primitives::WrappedChronoDateTime::now(),
+        ));
+        repo.create_envelope_encryption_key(&create_params)
+            .await
+            .unwrap();
+
+        // Create a data encryption key
+        let dek = create_data_encryption_key(
+            &tx,
+            &repo,
+            CreateDekParams {
+                envelope_encryption_key_id: envelope_key.id(),
+                inner: CreateDekInnerParams {
+                    id: Some("test-dek-aws".to_string()),
+                    encrypted_dek: None,
+                },
+            },
+            &std::path::PathBuf::from("/tmp/test-keys"),
+            false,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(dek.id, "test-dek-aws");
+        assert!(matches!(
+            dek.envelope_encryption_key_id,
+            EnvelopeEncryptionKey::AwsKms(_)
+        ));
+
+        // Verify the DEK exists in the database
+        let retrieved_dek = get_data_encryption_key_by_id(&repo, &dek.id).await.unwrap();
+        assert!(retrieved_dek.is_some());
     }
 }

@@ -22,6 +22,7 @@ use crate::subsystems::Subsystems;
 use crate::{ApiService, InitApiServiceParams};
 
 pub struct CreateApiServiceParams {
+    pub base_url: String,
     pub project_dir: PathBuf,
     pub host: String,
     pub port: u16,
@@ -46,6 +47,7 @@ pub async fn create_api_service(
     params: CreateApiServiceParams,
 ) -> Result<ApiServiceBundle, CommonError> {
     let CreateApiServiceParams {
+        base_url,
         project_dir,
         host,
         port,
@@ -71,8 +73,11 @@ pub async fn create_api_service(
     info!("Setting up database and repositories...");
     let connection_manager = ConnectionManager::new();
     let db_url = url::Url::parse(&db_conn_string)?;
-    let (_db, _conn, repository, bridge_repo, encryption_repo) =
+    let (_db, conn, repository, bridge_repo, encryption_repo) =
         setup_repository(&db_url, &db_auth_token).await?;
+
+    // Create identity repository (uses same connection)
+    let identity_repo = identity::repository::Repository::new(conn.clone());
 
     // Create the bridge config change channel
     let (on_bridge_config_change_tx, on_bridge_config_change_rx): (OnConfigChangeTx, _) =
@@ -98,25 +103,17 @@ pub async fn create_api_service(
     // Initialize the crypto cache from the encryption repository
     info!("Initializing crypto cache...");
     let local_envelope_encryption_key_path = project_dir.join(".soma/envelope-encryption-keys");
-    let crypto_cache =
-        CryptoCache::new(encryption_repo.clone(), local_envelope_encryption_key_path);
+    let crypto_cache = CryptoCache::new(
+        encryption_repo.clone(),
+        local_envelope_encryption_key_path.clone(),
+    );
     encryption::logic::crypto_services::init_crypto_cache(&crypto_cache).await?;
 
-    // Start the unified change pubsub forwarder
-    info!("Starting unified change pubsub...");
-    let soma_change_tx_clone = soma_change_tx.clone();
-    let pubsub_shutdown_rx = system_shutdown_signal.subscribe();
-    tokio::spawn(async move {
-        run_change_pubsub(
-            soma_change_tx_clone,
-            on_bridge_config_change_rx,
-            encryption_change_rx,
-            secret_change_rx,
-            environment_variable_change_rx,
-            pubsub_shutdown_rx,
-        )
-        .await;
-    });
+    // Create JWKS cache (JWKs will be created when default DEK alias is available)
+    let internal_jwks_cache = identity::logic::jwk::cache::JwksCache::new(identity_repo.clone());
+
+    // Create JWK rotation state to track initialization
+    let jwk_rotation_state = crate::logic::identity::JwkRotationState::new();
 
     // Restate server is started by caller (soma crate)
     // We just use the passed-in handle
@@ -289,8 +286,10 @@ pub async fn create_api_service(
     info!("Initializing API service...");
     let local_envelope_encryption_key_path = project_dir.join(".soma/envelope-encryption-keys");
     let api_service = ApiService::new(InitApiServiceParams {
+        base_url: base_url.clone(),
         host: host.clone(),
         port,
+        internal_jwks_cache: internal_jwks_cache.clone(),
         soma_restate_service_port,
         connection_manager: connection_manager.clone(),
         repository: repository.clone(),
@@ -302,6 +301,7 @@ pub async fn create_api_service(
         on_bridge_config_change_tx: on_bridge_config_change_tx.clone(),
         crypto_cache: crypto_cache.clone(),
         bridge_repository: bridge_repo.clone(),
+        identity_repository: identity_repo.clone(),
         mcp_sse_ping_interval: Duration::from_secs(10),
         sdk_client: sdk_client.clone(),
         on_encryption_change_tx: encryption_change_tx.clone(),
@@ -312,6 +312,24 @@ pub async fn create_api_service(
     })
     .await?;
     info!("API service initialized");
+
+    // Start the unified change pubsub forwarder (after api_service is created so we can subscribe to identity events)
+    info!("Starting unified change pubsub...");
+    let soma_change_tx_clone = soma_change_tx.clone();
+    let pubsub_shutdown_rx = system_shutdown_signal.subscribe();
+    let identity_change_rx = api_service.identity_service.on_config_change_tx.subscribe();
+    tokio::spawn(async move {
+        run_change_pubsub(
+            soma_change_tx_clone,
+            on_bridge_config_change_rx,
+            encryption_change_rx,
+            secret_change_rx,
+            environment_variable_change_rx,
+            identity_change_rx,
+            pubsub_shutdown_rx,
+        )
+        .await;
+    });
 
     // Start MCP connection manager
     info!("Starting MCP connection manager...");
@@ -367,6 +385,18 @@ pub async fn create_api_service(
             system_shutdown_signal.subscribe(),
         )?;
 
+    // Start JWK init listener (will start JWK rotation when default DEK is available)
+    info!("Starting JWK init listener...");
+    let encryption_change_rx_for_jwk = encryption_change_tx.subscribe();
+    let jwk_init_handle = crate::logic::identity::start_jwk_init_on_dek_listener(
+        identity_repo.clone(),
+        crypto_cache.clone(),
+        internal_jwks_cache.clone(),
+        jwk_rotation_state.clone(),
+        encryption_change_rx_for_jwk,
+        system_shutdown_signal.clone(),
+    )?;
+
     // Note: Initial sync of secrets and environment variables now happens AFTER SDK server
     // healthcheck passes (see above, around line 171). This ensures the SDK server's gRPC
     // handlers are fully registered before we try to sync.
@@ -380,6 +410,7 @@ pub async fn create_api_service(
             bridge_client_generation: Some(bridge_client_gen_handle),
             secret_sync: Some(secret_sync_handle),
             environment_variable_sync: Some(env_var_sync_handle),
+            jwk_init_listener: Some(jwk_init_handle),
         },
         soma_change_tx,
     })
@@ -422,7 +453,7 @@ fn start_sdk_server_subsystem(
 }
 
 fn start_mcp_subsystem(
-    bridge_service: bridge::router::bridge::BridgeService,
+    bridge_service: bridge::router::BridgeService,
     mcp_transport_rx: tokio::sync::mpsc::UnboundedReceiver<
         rmcp::transport::sse_server::SseServerTransport,
     >,

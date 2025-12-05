@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use ::bridge::router::bridge::BridgeService;
+use ::bridge::router::BridgeService;
 use bridge::logic::OnConfigChangeTx;
 use encryption::logic::{EncryptionKeyEventSender, crypto_services::CryptoCache};
 use shared::{
@@ -22,7 +22,6 @@ use crate::{
         task::TaskService,
     },
 };
-
 pub mod factory;
 pub mod logic;
 pub mod repository;
@@ -31,7 +30,7 @@ pub mod router;
 pub mod sdk;
 pub mod subsystems;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "unit_test"))]
 pub mod test;
 
 #[derive(Clone)]
@@ -43,6 +42,7 @@ pub struct ApiService {
     pub encryption_service: encryption::router::EncryptionService,
     pub secret_service: Arc<SecretService>,
     pub environment_variable_service: Arc<EnvironmentVariableService>,
+    pub identity_service: identity::service::IdentityService,
     pub sdk_client: Arc<
         tokio::sync::Mutex<
             Option<
@@ -53,6 +53,7 @@ pub struct ApiService {
 }
 
 pub struct InitApiServiceParams {
+    pub base_url: String,
     pub host: String,
     pub port: u16,
     pub soma_restate_service_port: u16,
@@ -71,6 +72,8 @@ pub struct InitApiServiceParams {
     pub encryption_repository: encryption::repository::Repository,
     pub crypto_cache: CryptoCache,
     pub bridge_repository: ::bridge::repository::Repository,
+    pub identity_repository: identity::repository::Repository,
+    pub internal_jwks_cache: identity::logic::jwk::cache::JwksCache,
     pub mcp_sse_ping_interval: Duration,
     pub sdk_client: Arc<
         tokio::sync::Mutex<
@@ -133,6 +136,15 @@ impl ApiService {
             init_params.sdk_client.clone(),
         ));
 
+        // Construct identity service
+        let identity_service = identity::service::IdentityService::new(
+            init_params.base_url.clone(),
+            init_params.identity_repository,
+            init_params.encryption_repository.clone(),
+            init_params.local_envelope_encryption_key_path,
+            init_params.internal_jwks_cache.clone(),
+        );
+
         Ok(Self {
             agent_service,
             task_service,
@@ -141,6 +153,7 @@ impl ApiService {
             encryption_service,
             secret_service,
             environment_variable_service,
+            identity_service,
             sdk_client: init_params.sdk_client,
         })
     }

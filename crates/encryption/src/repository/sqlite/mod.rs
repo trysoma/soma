@@ -615,8 +615,8 @@ impl SqlMigrationLoader for Repository {
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use crate::logic::dek::EncryptedDataEncryptionKey;
     use crate::logic::envelope::EnvelopeEncryptionKey;

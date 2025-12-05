@@ -942,8 +942,8 @@ where
     Ok(rotated_credential)
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use crate::logic::credential::oauth::{
         Oauth2AuthorizationCodeFlowResourceServerCredential,

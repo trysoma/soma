@@ -90,8 +90,8 @@ pub async fn start_axum_server(
     Ok((server_fut, handle, addr))
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use shared::port::find_free_port_with_bind;
 
     use super::*;

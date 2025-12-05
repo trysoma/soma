@@ -262,6 +262,7 @@ pub async fn setup_repository(
         Repository::load_sql_migrations(),
         bridge::repository::Repository::load_sql_migrations(),
         <encryption::repository::Repository as SqlMigrationLoader>::load_sql_migrations(),
+        identity::repository::Repository::load_sql_migrations(),
     ]);
     let auth_conn_string = inject_auth_token_to_db_url(conn_string, auth_token)?;
     let (db, conn) = establish_db_connection(&auth_conn_string, Some(migrations)).await?;

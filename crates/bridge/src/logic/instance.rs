@@ -31,7 +31,7 @@ use crate::{
         credential::{ResourceServerCredentialSerialized, UserCredentialSerialized},
     },
     repository::ProviderRepositoryLike,
-    router::bridge::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY},
+    router::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY},
 };
 use encryption::logic::crypto_services::CryptoCache;
 
@@ -1196,8 +1196,8 @@ pub struct WithFunctionInstanceId<T> {
     pub inner: T,
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "unit_test"))]
+mod unit_test {
     use super::*;
     use shared::primitives::{PaginationRequest, SqlMigrationLoader};
 

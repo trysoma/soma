@@ -1,4 +1,4 @@
-use bridge::{logic::mcp::handle_mcp_transport, router::bridge::BridgeService};
+use bridge::{logic::mcp::handle_mcp_transport, router::BridgeService};
 use shared::error::CommonError;
 use tokio::sync::mpsc;
 use tracing::{error, info};

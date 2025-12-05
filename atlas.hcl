@@ -31,7 +31,19 @@ env "encryption" {
   migration {
     dir = "file://crates/encryption/dbs/encryption/migrations?format=goose"
   }
-  
+
+  //we don't actually use atlas to deploy to an env
+  url = "sqlite://file?mode=memory"
+  dev = "sqlite://file?mode=memory"
+}
+
+env "identity" {
+  src = "file://crates/identity/dbs/identity/schema.sql"
+
+  migration {
+    dir = "file://crates/identity/dbs/identity/migrations?format=goose"
+  }
+
   //we don't actually use atlas to deploy to an env
   url = "sqlite://file?mode=memory"
   dev = "sqlite://file?mode=memory"
