@@ -5,10 +5,6 @@ inputs:
     description: 'Rust toolchain version'
     required: false
     default: '1.88.0'
-  profile:
-    description: 'Rust toolchain profile (minimal, default, complete)'
-    required: false
-    default: 'minimal'
   components:
     description: 'Comma-separated list of components to install (e.g., rustfmt,clippy)'
     required: false
@@ -37,9 +33,15 @@ runs:
         components: ${{ inputs.components }}
         target: ${{ inputs.target }}
 
-    - name: Setup Rust cache
-      if: inputs.cache == 'true'
-      uses: Swatinem/rust-cache@v2
+    # - name: Setup Rust cache
+    #   if: inputs.cache == 'true'
+    #   uses: Swatinem/rust-cache@v2
+    #   with:
+    #     # Use shared key based on lock file hash to ensure cache invalidation
+    #     # when dependencies change
+    #     shared-key: "rust-cache"
+    #     # Cache the registry index and git checkouts to speed up builds
+    #     cache-all-crates: "true"
 
     - name: Install protoc
       if: inputs.install-protoc == 'true'
