@@ -328,8 +328,13 @@ pub async fn start_authorization_handshake<R: UserRepositoryLike>(
             .await;
         }
         UserAuthFlowConfig::OauthAuthorizationCodeFlow(_) => {
-            return self::oauth::start_authorization_handshake(repository, crypto_cache, params)
-                .await;
+            return self::oauth::start_authorization_handshake(
+                repository,
+                crypto_cache,
+                base_redirect_uri,
+                params,
+            )
+            .await;
         }
         UserAuthFlowConfig::OidcAuthorizationCodePkceFlow(_) => {
             return self::oidc::start_authorization_handshake(
@@ -341,8 +346,13 @@ pub async fn start_authorization_handshake<R: UserRepositoryLike>(
             .await;
         }
         UserAuthFlowConfig::OauthAuthorizationCodePkceFlow(_) => {
-            return self::oauth::start_authorization_handshake(repository, crypto_cache, params)
-                .await;
+            return self::oauth::start_authorization_handshake(
+                repository,
+                crypto_cache,
+                base_redirect_uri,
+                params,
+            )
+            .await;
         }
     }
 }

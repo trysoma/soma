@@ -67,6 +67,7 @@ impl Default for DecodedTokenSources {
 /// - Removes all characters except alphanumeric and dashes
 /// - Collapses multiple consecutive dashes into one
 /// - Trims leading and trailing dashes
+/// - Returns None if the result is empty (e.g., input only contains special chars)
 ///
 /// The standardized name is used as the group ID.
 pub fn standardize_group_name(name: &str) -> String {
@@ -151,26 +152,40 @@ fn extract_optional_string_field(
     })
 }
 
-/// Extract groups from the appropriate source (standardizes group names)
+/// Extract groups from the appropriate source (standardizes group names).
+/// Filters out empty group names and removes duplicates while preserving order.
 fn extract_groups(
     sources: &DecodedTokenSources,
     mapping_source: &Option<MappingSource<String>>,
 ) -> Vec<String> {
-    mapping_source
+    let groups: Vec<String> = mapping_source
         .as_ref()
         .and_then(|ms| extract_field_from_sources(sources, ms))
         .map(|v| {
             if let Some(arr) = v.as_array() {
                 arr.iter()
                     .filter_map(|g| g.as_str().map(standardize_group_name))
+                    .filter(|g| !g.is_empty()) // Filter out empty group names
                     .collect()
             } else if let Some(s) = v.as_str() {
-                vec![standardize_group_name(s)]
+                let standardized = standardize_group_name(s);
+                if standardized.is_empty() {
+                    vec![]
+                } else {
+                    vec![standardized]
+                }
             } else {
                 vec![]
             }
         })
-        .unwrap_or_default()
+        .unwrap_or_default();
+
+    // Deduplicate while preserving order
+    let mut seen = std::collections::HashSet::new();
+    groups
+        .into_iter()
+        .filter(|g| seen.insert(g.clone()))
+        .collect()
 }
 
 /// Extract scopes from the appropriate source

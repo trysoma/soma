@@ -13,14 +13,22 @@ pub async fn sync_user_groups<R: UserRepositoryLike>(
 ) -> Result<(), CommonError> {
     let now = WrappedChronoDateTime::now();
 
-    // Get current group memberships
-    let pagination = PaginationRequest {
-        page_size: 1000,
-        next_page_token: None,
-    };
-    let current_memberships = repository.list_user_groups(user_id, &pagination).await?;
-    let current_group_ids: std::collections::HashSet<String> = current_memberships
-        .items
+    // Get all current group memberships by paginating through all pages
+    let mut all_memberships = Vec::new();
+    let mut next_page_token = None;
+    loop {
+        let pagination = PaginationRequest {
+            page_size: 1000,
+            next_page_token,
+        };
+        let result = repository.list_user_groups(user_id, &pagination).await?;
+        all_memberships.extend(result.items);
+        if result.next_page_token.is_none() {
+            break;
+        }
+        next_page_token = result.next_page_token;
+    }
+    let current_group_ids: std::collections::HashSet<String> = all_memberships
         .iter()
         .map(|m| m.group.id.clone())
         .collect();

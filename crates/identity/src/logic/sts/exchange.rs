@@ -212,7 +212,7 @@ async fn apply_jwt_template_config(
     // 5. Apply the mapping template
     let mapping_result = apply_mapping_template(&sources, &jwt_config.mapping_template)?;
 
-    // 6. Validate required groups
+    // 6. Validate required groups (user must have ALL required groups)
     if let Some(required_groups) = &validation_config.required_groups {
         use crate::logic::token_mapping::template::standardize_group_name;
 
@@ -223,7 +223,7 @@ async fn apply_jwt_template_config(
 
         let has_required = standardized_required
             .iter()
-            .any(|required| mapping_result.groups.contains(required));
+            .all(|required| mapping_result.groups.contains(required));
 
         if !has_required {
             return Err(CommonError::Authentication {

@@ -111,12 +111,18 @@ pub async fn decode_jwt_to_claims_unsafe(
     }
 }
 
+/// Default timeout for HTTP requests (30 seconds)
+const HTTP_TIMEOUT_SECS: u64 = 30;
+
 /// Fetch userinfo from the userinfo endpoint using the access token
 pub async fn fetch_userinfo(
     userinfo_url: &str,
     access_token: &str,
 ) -> Result<Map<String, Value>, CommonError> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECS))
+        .build()
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create HTTP client: {e}")))?;
     let response = client
         .get(userinfo_url)
         .bearer_auth(access_token)
@@ -157,7 +163,10 @@ pub async fn introspect_token(
     client_id: &str,
     client_secret: &str,
 ) -> Result<Map<String, Value>, CommonError> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECS))
+        .build()
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create HTTP client: {e}")))?;
 
     // RFC 7662: Token introspection request
     // POST with token in form body, authenticated with client credentials

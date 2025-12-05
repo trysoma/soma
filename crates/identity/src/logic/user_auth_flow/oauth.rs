@@ -228,6 +228,7 @@ pub fn apply_token_mapping(
 pub async fn start_authorization_handshake<R: UserRepositoryLike>(
     repository: &R,
     crypto_cache: &CryptoCache,
+    base_redirect_uri: &str,
     params: StartAuthorizationParams,
 ) -> Result<StartAuthorizationResult, CommonError> {
     let config_db = repository
@@ -268,7 +269,9 @@ pub async fn start_authorization_handshake<R: UserRepositoryLike>(
     let base_params = BaseAuthorizationParams {
         authorization_endpoint: &oauth_config.authorization_endpoint,
         token_endpoint: &oauth_config.token_endpoint,
-        redirect_uri: &oauth_config.authorization_endpoint, // This should be the app's redirect URI
+        redirect_uri: &format!(
+            "{base_redirect_uri}{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}/auth/callback"
+        ),
         client_id: &oauth_config.client_id,
         scopes: &oauth_config.scopes,
         pkce_challenge: pkce_challenge.as_ref(),

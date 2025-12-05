@@ -189,7 +189,18 @@ async fn route_auth_callback(
         }
     };
 
-    let code = query.code.unwrap_or_default();
+    // Validate that code is present when there's no error from the IdP
+    let code = match (&query.error, query.code) {
+        (Some(_), _) => String::new(), // Error case - code doesn't matter
+        (None, Some(c)) => c,
+        (None, None) => {
+            return CommonError::InvalidRequest {
+                msg: "Missing authorization code parameter".to_string(),
+                source: None,
+            }
+            .into_response();
+        }
+    };
 
     let params = OAuthCallbackParams {
         code,
