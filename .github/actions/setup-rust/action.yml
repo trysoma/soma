@@ -46,6 +46,10 @@ runs:
         # Cache the registry index and git checkouts to speed up builds
         cache-all-crates: "true"
 
+    - name: Run cargo fetch
+      run: cargo fetch --locked
+      shell: bash
+
     - name: Install protoc
       if: inputs.install-protoc == 'true'
       uses: arduino/setup-protoc@v3
