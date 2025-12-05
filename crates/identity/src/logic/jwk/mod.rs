@@ -224,16 +224,22 @@ where
     R: UserRepositoryLike,
 {
     // Get all keys (we'll filter expired ones)
-    let pagination = PaginationRequest {
-        page_size: 1000, // Large page size to get all keys
-        next_page_token: None,
-    };
-
-    let result = repository.list_jwt_signing_keys(&pagination).await?;
+    let mut next_page_token: Option<String> = None;
+    let mut collected_results = Vec::new();
+    loop {
+        let pagination = PaginationRequest {
+            page_size: 1000, // Large page size to get all keys
+            next_page_token,
+        };
+        let result = repository.list_jwt_signing_keys(&pagination).await?;
+        collected_results.extend(result.items);
+        if result.next_page_token.is_none() {
+            break;
+        }
+        next_page_token = result.next_page_token;
+    }
     let now = Utc::now();
-
-    let keys: Vec<Jwk> = result
-        .items
+    let keys: Vec<Jwk> = collected_results
         .into_iter()
         .filter(|key| {
             // Filter out invalidated keys
@@ -359,7 +365,7 @@ where
     let has_valid_key = result
         .items
         .iter()
-        .any(|key| key.expires_at.get_inner() > &threshold);
+        .any(|key| !key.invalidated && key.expires_at.get_inner() > &threshold);
 
     if !has_valid_key {
         tracing::info!("No JWKs expire in more than 5 days, creating new JWK...");

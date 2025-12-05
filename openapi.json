@@ -6421,7 +6421,7 @@
           "encrypted_client_secret",
           "dek_alias",
           "scopes",
-          "mapping"
+          "oauth_mapping_config"
         ],
         "properties": {
           "authorization_endpoint": {
@@ -6451,7 +6451,7 @@
             "type": "string",
             "description": "JWKS endpoint URL for token verification"
           },
-          "mapping": {
+          "oauth_mapping_config": {
             "description": "Token mapping configuration (serialized as JSON)"
           },
           "scopes": {
@@ -6507,42 +6507,45 @@
         }
       },
       "EncryptedOidcYamlConfig": {
-        "type": "object",
-        "description": "Encrypted OIDC configuration for YAML storage",
-        "required": [
-          "base_config",
-          "mapping"
-        ],
-        "properties": {
-          "base_config": {
+        "allOf": [
+          {
             "$ref": "#/components/schemas/EncryptedOauthYamlConfig",
             "description": "Base OAuth configuration"
           },
-          "discovery_endpoint": {
-            "type": [
-              "string",
-              "null"
+          {
+            "type": "object",
+            "required": [
+              "oidc_mapping_config"
             ],
-            "description": "OIDC discovery endpoint (optional)"
-          },
-          "introspect_url": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque"
-          },
-          "mapping": {
-            "description": "Token mapping configuration (serialized as JSON)"
-          },
-          "userinfo_endpoint": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Userinfo endpoint URL (optional)"
+            "properties": {
+              "discovery_endpoint": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "OIDC discovery endpoint (optional)"
+              },
+              "introspect_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque"
+              },
+              "oidc_mapping_config": {
+                "description": "Token mapping configuration (serialized as JSON)"
+              },
+              "userinfo_endpoint": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Userinfo endpoint URL (optional)"
+              }
+            }
           }
-        }
+        ],
+        "description": "Encrypted OIDC configuration for YAML storage"
       },
       "EncryptedString": {
         "type": "string"

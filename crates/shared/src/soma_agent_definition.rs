@@ -113,13 +113,14 @@ pub struct EncryptedOauthYamlConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub introspect_url: Option<String>,
     /// Token mapping configuration (serialized as JSON)
-    pub mapping: serde_json::Value,
+    pub oauth_mapping_config: serde_json::Value,
 }
 
 /// Encrypted OIDC configuration for YAML storage
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct EncryptedOidcYamlConfig {
+    #[serde(flatten)]
     /// Base OAuth configuration
     pub base_config: EncryptedOauthYamlConfig,
     /// OIDC discovery endpoint (optional)
@@ -132,7 +133,7 @@ pub struct EncryptedOidcYamlConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub introspect_url: Option<String>,
     /// Token mapping configuration (serialized as JSON)
-    pub mapping: serde_json::Value,
+    pub oidc_mapping_config: serde_json::Value,
 }
 
 /// JWT template configuration for validating external JWTs

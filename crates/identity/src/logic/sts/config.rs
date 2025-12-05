@@ -154,13 +154,6 @@ pub async fn get_sts_config<R: UserRepositoryLike>(
         .map(|config| config.config)
 }
 
-/// Parameters for listing STS configurations
-#[derive(Debug)]
-pub struct ListStsConfigParams {
-    pub pagination: PaginationRequest,
-    pub config_type: Option<StsTokenConfigType>,
-}
-
 /// Response from listing STS configurations
 pub type ListStsConfigResponse = PaginatedResponse<StsTokenConfig>;
 

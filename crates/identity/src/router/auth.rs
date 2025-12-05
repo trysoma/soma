@@ -269,7 +269,7 @@ async fn route_refresh_token(
     let result = refresh_access_token(
         service.repository.as_ref(),
         &service.crypto_cache,
-        &service.jwks_cache,
+        &service.internal_jwks_cache,
         params,
     )
     .await;

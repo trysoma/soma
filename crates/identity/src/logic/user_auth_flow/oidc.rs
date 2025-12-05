@@ -157,7 +157,7 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
             "{base_redirect_uri}{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}/auth/callback"
         ),
         code: &params.code,
-        code_verifier: None,
+        code_verifier: oauth_state.code_verifier.as_deref(),
     };
 
     let token_response = exchange_code_for_tokens(token_exchange_params)

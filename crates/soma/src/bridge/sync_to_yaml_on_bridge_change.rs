@@ -563,7 +563,7 @@ async fn handle_identity_event(
                 );
             } else {
                 let config = ApiKeyYamlConfig {
-                    description: None, // Description is not included in the event
+                    description: api_key_info.description.clone(),
                     encrypted_hashed_value: api_key_info.encrypted_hashed_value,
                     dek_alias: api_key_info.dek_alias,
                     role: api_key_info.role.as_str().to_string(),
@@ -693,7 +693,7 @@ fn convert_user_auth_flow_to_yaml(
             dek_alias: oauth.dek_alias.clone(),
             scopes: oauth.scopes.clone(),
             introspect_url: oauth.introspect_url.clone(),
-            mapping: mapping_json,
+            oauth_mapping_config: mapping_json,
         })
     }
 
@@ -710,7 +710,7 @@ fn convert_user_auth_flow_to_yaml(
             discovery_endpoint: oidc.discovery_endpoint.clone(),
             userinfo_endpoint: oidc.userinfo_endpoint.clone(),
             introspect_url: oidc.introspect_url.clone(),
-            mapping: mapping_json,
+            oidc_mapping_config: mapping_json,
         })
     }
 

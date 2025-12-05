@@ -19,7 +19,7 @@ pub struct IdentityService {
     pub base_redirect_uri: String,
     pub repository: Arc<Repository>,
     pub crypto_cache: CryptoCache,
-    pub jwks_cache: JwksCache,
+    pub internal_jwks_cache: JwksCache,
     pub api_key_cache: ApiKeyCache,
     pub sts_config_cache: StsConfigCache,
     pub external_jwks_cache: ExternalJwksCache,
@@ -32,11 +32,11 @@ impl IdentityService {
         repository: Repository,
         encryption_repository: EncryptionRepository,
         local_envelope_encryption_key_path: PathBuf,
+        internal_jwks_cache: JwksCache,
     ) -> Self {
         let repository = Arc::new(repository);
         let crypto_cache =
             CryptoCache::new(encryption_repository, local_envelope_encryption_key_path);
-        let jwks_cache = JwksCache::new(Repository::new(repository.connection().clone()));
         let api_key_cache = ApiKeyCache::new(repository.clone());
         let sts_config_cache = StsConfigCache::new(repository.clone());
         let external_jwks_cache = ExternalJwksCache::new();
@@ -47,7 +47,7 @@ impl IdentityService {
             base_redirect_uri,
             repository,
             crypto_cache,
-            jwks_cache,
+            internal_jwks_cache,
             api_key_cache,
             sts_config_cache,
             external_jwks_cache,
@@ -57,6 +57,6 @@ impl IdentityService {
 
     /// Create an AuthClient from this service's caches
     pub fn auth_client(&self) -> AuthClient {
-        AuthClient::new(self.jwks_cache.clone(), self.api_key_cache.clone())
+        AuthClient::new(self.internal_jwks_cache.clone(), self.api_key_cache.clone())
     }
 }

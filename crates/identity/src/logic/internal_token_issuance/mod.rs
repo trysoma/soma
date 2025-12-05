@@ -390,15 +390,23 @@ pub async fn refresh_access_token<R: UserRepositoryLike>(
         })?;
 
     // 7. Get user's current groups
-    let pagination = PaginationRequest {
-        page_size: 1000,
-        next_page_token: None,
-    };
-    let user_groups = repository
-        .list_user_groups(&claims.sub, &pagination)
-        .await?;
-    let groups: Vec<String> = user_groups
-        .items
+    let mut next_page_token = None;
+    let mut all_memberships = Vec::new();
+    loop {
+        let pagination = PaginationRequest {
+            page_size: 1000,
+            next_page_token,
+        };
+        let result = repository
+            .list_user_groups(&claims.sub, &pagination)
+            .await?;
+        all_memberships.extend(result.items);
+        if result.next_page_token.is_none() {
+            break;
+        }
+        next_page_token = result.next_page_token;
+    }
+    let groups: Vec<String> = all_memberships
         .iter()
         .map(|ug| ug.group.id.clone())
         .collect();

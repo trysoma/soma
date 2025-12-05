@@ -70,6 +70,10 @@ pub async fn decode_jwt_to_claims(
 
 /// Decode a JWT token and return its claims as a serde_json Map.
 /// Validates the signature using the provided JWKS cache.
+/// This function is unsafe because it does not validate the signature.
+/// It is used to decode tokens from external identity providers that are trusted
+/// as we've just completed the handshake with the external identity provider.
+/// This is only used for OIDC and OAuth callbacks.
 pub async fn decode_jwt_to_claims_unsafe(
     token: &str,
     jwks_uri: &str,

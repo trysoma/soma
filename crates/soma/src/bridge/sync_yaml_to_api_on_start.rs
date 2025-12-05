@@ -781,7 +781,7 @@ fn convert_yaml_to_api_user_auth_flow(
             dek_alias: oauth.dek_alias.clone(),
             scopes: oauth.scopes.clone(),
             introspect_url: oauth.introspect_url.clone().map(Some),
-            mapping: serde_json::from_value(oauth.mapping.clone()).map_err(|e| {
+            mapping: serde_json::from_value(oauth.oauth_mapping_config.clone()).map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to parse token mapping: {e}"))
             })?,
         })
@@ -798,7 +798,7 @@ fn convert_yaml_to_api_user_auth_flow(
             discovery_endpoint: oidc.discovery_endpoint.clone().map(Some),
             userinfo_endpoint: oidc.userinfo_endpoint.clone().map(Some),
             introspect_url: oidc.introspect_url.clone().map(Some),
-            mapping: serde_json::from_value(oidc.mapping.clone()).map_err(|e| {
+            mapping: serde_json::from_value(oidc.oidc_mapping_config.clone()).map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to parse token mapping: {e}"))
             })?,
         })

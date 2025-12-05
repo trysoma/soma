@@ -6,17 +6,17 @@ When working with this codebase, prioritize readability over cleverness. Ask cla
 
 This project is a rust workspace with specific bindings for Python (using PYO3) and Node.JS (napi). It's made up of a few components, but most importantly:
 
-* `./crates/soma` -  CLI that gets built and what developers use. It has client side code as well as code to start the `soma-api-server`
+* `./crates/soma` -  CLI that gets built and what developers use. It has client-side code as well as code to start the `soma-api-server`  
 * `./crates/soma-api-server` -  axum server that contains routes from all other crates and sets up the server. In dev mode, it syncs key changes into a local project's `soma.yaml` file.
-* `./crates/sdk-*` - contains code that makes Soma work with language specific SDK's (typescript, python). Mainly launches a UDS GRPC server that communicates with `soma-api-server` to relay information, trigger functions, reload / regenerate code.
+* `./crates/sdk-*` - contains code that makes Soma work with language-specific SDK's (typescript, python). Mainly launches a UDS GRPC server that communicates with `soma-api-server` to relay information, trigger functions, reload / regenerate code.
 * `./crates/bridge` - our custom MCP server implementation that supports SaaS integration, credential injection, custom functions
 * `./crates/encryption` - encryption primitives to store secret data in the DB and `soma.yaml` file
 
 
 ## Standards
 
-* always add comments and documentation to function definitions, struct definitions. Not necessarily field definitions unless they are complex or ambiguos
-* always ensure code linkts (make lint-fix passes), and tests pass after major changes
+* always add comments and documentation to function definitions, struct definitions. Not necessarily field definitions unless they are complex or ambiguous
+* always ensure code lints (make lint-fix passes), and tests pass after major changes
 * prefer simplicity and re-usability over complex functions
 * never write tests for the sake of tests. Tests must be useful, impactful
 

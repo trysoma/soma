@@ -39,7 +39,12 @@ async fn route_invalidate_jwk(
     Path(kid): Path<String>,
 ) -> JsonResponse<InvalidateJwkResponse, CommonError> {
     let params = InvalidateJwkParams { kid };
-    let result = invalidate_jwk(service.repository.as_ref(), &service.jwks_cache, params).await;
+    let result = invalidate_jwk(
+        service.repository.as_ref(),
+        &service.internal_jwks_cache,
+        params,
+    )
+    .await;
     JsonResponse::from(result)
 }
 
@@ -75,6 +80,6 @@ async fn route_list_jwks(
 async fn route_get_jwks(
     State(service): State<IdentityService>,
 ) -> JsonResponse<GetJwksResponse, CommonError> {
-    let result = get_jwks(service.repository.as_ref(), &service.jwks_cache).await;
+    let result = get_jwks(service.repository.as_ref(), &service.internal_jwks_cache).await;
     JsonResponse::from(result)
 }

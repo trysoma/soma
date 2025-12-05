@@ -1546,7 +1546,7 @@ export interface components {
 			/** @description JWKS endpoint URL for token verification */
 			jwks_endpoint: string;
 			/** @description Token mapping configuration (serialized as JSON) */
-			mapping: unknown;
+			oauth_mapping_config: unknown;
 			/** @description OAuth scopes */
 			scopes: string[];
 			/** @description Token endpoint URL */
@@ -1563,15 +1563,13 @@ export interface components {
 			userinfo_endpoint?: string | null;
 		};
 		/** @description Encrypted OIDC configuration for YAML storage */
-		EncryptedOidcYamlConfig: {
-			/** @description Base OAuth configuration */
-			base_config: components["schemas"]["EncryptedOauthYamlConfig"];
+		EncryptedOidcYamlConfig: components["schemas"]["EncryptedOauthYamlConfig"] & {
 			/** @description OIDC discovery endpoint (optional) */
 			discovery_endpoint?: string | null;
 			/** @description Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque */
 			introspect_url?: string | null;
 			/** @description Token mapping configuration (serialized as JSON) */
-			mapping: unknown;
+			oidc_mapping_config: unknown;
 			/** @description Userinfo endpoint URL (optional) */
 			userinfo_endpoint?: string | null;
 		};

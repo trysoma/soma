@@ -28,10 +28,8 @@ pub async fn sync_user_groups<R: UserRepositoryLike>(
         }
         next_page_token = result.next_page_token;
     }
-    let current_group_ids: std::collections::HashSet<String> = all_memberships
-        .iter()
-        .map(|m| m.group.id.clone())
-        .collect();
+    let current_group_ids: std::collections::HashSet<String> =
+        all_memberships.iter().map(|m| m.group.id.clone()).collect();
 
     let desired_group_ids: std::collections::HashSet<String> = groups.iter().cloned().collect();
 

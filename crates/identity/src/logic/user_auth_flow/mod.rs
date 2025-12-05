@@ -308,8 +308,9 @@ pub async fn start_authorization_handshake<R: UserRepositoryLike>(
     let config = match config {
         Some(config) => config,
         None => {
-            return Err(CommonError::InvalidRequest {
-                msg: "Invalid or expired config_id".to_string(),
+            return Err(CommonError::NotFound {
+                msg: "User auth flow configuration not found".to_string(),
+                lookup_id: params.config_id.clone(),
                 source: None,
             });
         }

@@ -277,7 +277,7 @@ pub async fn delete_api_key<R: UserRepositoryLike>(
 
 /// List API keys
 ///
-/// This function lists all API keys with optional filtering by user_id.
+/// This function lists all API keys.
 /// Note: The raw API key values are never returned, only the hashed values.
 pub async fn list_api_keys<R: UserRepositoryLike>(
     repository: &R,

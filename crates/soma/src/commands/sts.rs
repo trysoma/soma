@@ -503,7 +503,6 @@ async fn cmd_sts_list(api_url: &str, timeout_secs: u64) -> Result<(), CommonErro
         println!("No STS configurations found.");
         println!();
         println!("Use 'soma sts add from-template' to add a JWT template configuration.");
-        println!("Use 'soma sts add-dev' to add a dev mode configuration (development only).");
     } else {
         println!("STS Configurations:");
         println!("===================");

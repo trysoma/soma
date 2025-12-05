@@ -73,6 +73,7 @@ pub struct InitApiServiceParams {
     pub crypto_cache: CryptoCache,
     pub bridge_repository: ::bridge::repository::Repository,
     pub identity_repository: identity::repository::Repository,
+    pub internal_jwks_cache: identity::logic::jwk::cache::JwksCache,
     pub mcp_sse_ping_interval: Duration,
     pub sdk_client: Arc<
         tokio::sync::Mutex<
@@ -141,6 +142,7 @@ impl ApiService {
             init_params.identity_repository,
             init_params.encryption_repository.clone(),
             init_params.local_envelope_encryption_key_path,
+            init_params.internal_jwks_cache.clone(),
         );
 
         Ok(Self {

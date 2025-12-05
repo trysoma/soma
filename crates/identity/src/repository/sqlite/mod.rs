@@ -96,13 +96,16 @@ impl UserRepositoryLike for Repository {
             source: None,
         })?;
 
-        let email = params.email.clone().or(existing.email);
-
-        let description = params.description.clone().or(existing.description);
+        let email = params.email.clone().or_else(|| existing.email.clone());
+        let role = params.role.clone().unwrap_or_else(|| existing.role.clone());
+        let description = params
+            .description
+            .clone()
+            .or_else(|| existing.description.clone());
 
         let sqlc_params = update_user_params {
             email: &email,
-            role: &params.role.clone().unwrap_or(existing.role),
+            role: &role,
             description: &description,
             id: &id.to_string(),
         };

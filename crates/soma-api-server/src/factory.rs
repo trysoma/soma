@@ -110,7 +110,7 @@ pub async fn create_api_service(
     encryption::logic::crypto_services::init_crypto_cache(&crypto_cache).await?;
 
     // Create JWKS cache (JWKs will be created when default DEK alias is available)
-    let jwks_cache = identity::logic::jwk::cache::JwksCache::new(identity_repo.clone());
+    let internal_jwks_cache = identity::logic::jwk::cache::JwksCache::new(identity_repo.clone());
 
     // Create JWK rotation state to track initialization
     let jwk_rotation_state = crate::logic::identity::JwkRotationState::new();
@@ -289,6 +289,7 @@ pub async fn create_api_service(
         base_url: base_url.clone(),
         host: host.clone(),
         port,
+        internal_jwks_cache: internal_jwks_cache.clone(),
         soma_restate_service_port,
         connection_manager: connection_manager.clone(),
         repository: repository.clone(),
@@ -390,7 +391,7 @@ pub async fn create_api_service(
     let jwk_init_handle = crate::logic::identity::start_jwk_init_on_dek_listener(
         identity_repo.clone(),
         crypto_cache.clone(),
-        jwks_cache.clone(),
+        internal_jwks_cache.clone(),
         jwk_rotation_state.clone(),
         encryption_change_rx_for_jwk,
         system_shutdown_signal.clone(),
