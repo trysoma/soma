@@ -31,6 +31,7 @@ runs:
         toolchain: ${{ inputs.toolchain }}
         components: ${{ inputs.components }}
         target: ${{ inputs.target }}
+        cache: false
 
     - name: Setup Rust cache
       if: inputs.cache == 'true'
