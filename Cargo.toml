@@ -137,7 +137,7 @@ aws-sdk-kms = "1.52"
 ## Cryptography
 aes-gcm = "0.10"
 rand = "0.8"
-rsa = "0.9"
+rsa = "0.9.9"
 pkcs1 = "0.7"
 pkcs8 = "0.10"
 zeroize = { version = "1.8", features = ["derive"] }
