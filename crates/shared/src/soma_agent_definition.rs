@@ -69,6 +69,7 @@ pub struct ApiKeyYamlConfig {
 /// STS configuration stored in soma.yaml
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[allow(clippy::large_enum_variant)]
 pub enum StsConfigYaml {
     /// JWT template configuration for external IdPs
     JwtTemplate(JwtTemplateConfigYaml),

@@ -24,6 +24,7 @@ pub struct JwtTemplateModeConfig {
 }
 
 #[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum StsTokenConfig {
     JwtTemplate(JwtTemplateModeConfig),
     DevMode(DevModeConfig),

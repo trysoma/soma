@@ -263,6 +263,7 @@ pub fn validate_id(id: &str, resource_type: &str) -> Result<(), CommonError> {
 
 /// Events fired when identity configuration changes
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum OnConfigChangeEvt {
     /// An API key was created
     ApiKeyCreated(EncryptedApiKeyConfig),

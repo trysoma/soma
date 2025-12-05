@@ -25,7 +25,7 @@ impl Role {
     }
 
     /// Parse a role from string
-    pub fn from_str(s: &str) -> Option<Role> {
+    pub fn parse(s: &str) -> Option<Role> {
         match s {
             "admin" => Some(Role::Admin),
             "maintainer" => Some(Role::Maintainer),
@@ -52,7 +52,7 @@ impl UserType {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<UserType> {
+    pub fn parse(s: &str) -> Option<UserType> {
         match s {
             "machine" => Some(UserType::Machine),
             "human" => Some(UserType::Human),
