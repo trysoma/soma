@@ -29,19 +29,21 @@ runs:
       uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: ${{ inputs.toolchain }}
-        profile: ${{ inputs.profile }}
         components: ${{ inputs.components }}
         target: ${{ inputs.target }}
 
-    # - name: Setup Rust cache
-    #   if: inputs.cache == 'true'
-    #   uses: Swatinem/rust-cache@v2
-    #   with:
-    #     # Use shared key based on lock file hash to ensure cache invalidation
-    #     # when dependencies change
-    #     shared-key: "rust-cache"
-    #     # Cache the registry index and git checkouts to speed up builds
-    #     cache-all-crates: "true"
+    - name: Setup Rust cache
+      if: inputs.cache == 'true'
+      uses: Swatinem/rust-cache@v2
+      with:
+        # The prefix cache key, this can be changed to start a new cache manually.
+        prefix-key: "v1-rust"
+
+        # Use shared key based on lock file hash to ensure cache invalidation
+        # when dependencies change
+        shared-key: "rust-cache"
+        # Cache the registry index and git checkouts to speed up builds
+        cache-all-crates: "true"
 
     - name: Install protoc
       if: inputs.install-protoc == 'true'
