@@ -1,0 +1,15 @@
+[project]
+name = "soma-workspace"
+requires-python = ">=3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.envs.default]
+dependencies = [
+    "soma-py-sdk-core @ {root:/../crates/sdk-py}",
+]
