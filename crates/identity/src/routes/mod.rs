@@ -7,11 +7,9 @@
 
 pub mod scim;
 
-use crate::logic::user::{Group, Role, User, UserType};
+use crate::logic::user::{Group, GroupMembership, Role, User, UserType};
 use crate::repository::Repository;
-use crate::repository::{
-    CreateGroupMembership, GroupMemberWithUser, UpdateUser, UserGroupWithGroup, UserRepositoryLike,
-};
+use crate::repository::{GroupMemberWithUser, UpdateUser, UserGroupWithGroup, UserRepositoryLike};
 use axum::extract::{Json, Path, Query, State};
 use serde::{Deserialize, Serialize};
 use shared::{
@@ -201,8 +199,8 @@ async fn route_create_user(
     let now = WrappedChronoDateTime::now();
     let user_id = req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
-    let user_type = UserType::from_str(&req.user_type).unwrap_or(UserType::Human);
-    let role = Role::from_str(&req.role).unwrap_or(Role::User);
+    let user_type = UserType::parse(&req.user_type).unwrap_or(UserType::Human);
+    let role = Role::parse(&req.role).unwrap_or(Role::User);
 
     let user = User {
         id: user_id.clone(),
@@ -210,7 +208,7 @@ async fn route_create_user(
         email: req.email,
         role,
         description: None,
-        created_at: now.clone(),
+        created_at: now,
         updated_at: now,
     };
 
@@ -297,7 +295,7 @@ async fn route_update_user(
 
         let update_user = UpdateUser {
             email: req.email,
-            role: req.role,
+            role: req.role.and_then(|r| Role::parse(&r)),
             description: None,
         };
 
@@ -386,13 +384,12 @@ async fn route_list_users(
         next_page_token: query.next_page_token,
     };
 
+    let user_type_filter = query.user_type.as_ref().and_then(|s| UserType::parse(s));
+    let role_filter = query.role.as_ref().and_then(|s| Role::parse(s));
+
     let res = ctx
         .repository()
-        .list_users(
-            &pagination,
-            query.user_type.as_deref(),
-            query.role.as_deref(),
-        )
+        .list_users(&pagination, user_type_filter.as_ref(), role_filter.as_ref())
         .await;
 
     JsonResponse::from(res)
@@ -474,7 +471,7 @@ async fn route_create_group(
     let group = Group {
         id: group_id.clone(),
         name: req.name,
-        created_at: now.clone(),
+        created_at: now,
         updated_at: now,
     };
 
@@ -713,10 +710,10 @@ async fn route_add_group_member(
             });
         }
 
-        let membership = CreateGroupMembership {
+        let membership = GroupMembership {
             group_id: group_id.clone(),
             user_id: req.user_id,
-            created_at: now.clone(),
+            created_at: now,
             updated_at: now,
         };
 
@@ -760,7 +757,7 @@ async fn route_remove_group_member(
             .await?
             .ok_or_else(|| CommonError::NotFound {
                 msg: "Group membership not found".to_string(),
-                lookup_id: format!("{}:{}", group_id, user_id),
+                lookup_id: format!("{group_id}:{user_id}"),
                 source: None,
             })?;
 

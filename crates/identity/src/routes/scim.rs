@@ -43,12 +43,8 @@ pub fn create_scim_router() -> OpenApiRouter<IdentityService> {
 
 fn get_scim_base_url() -> String {
     // In production, this should be configured via environment variable
-    std::env::var("SCIM_BASE_URL").unwrap_or_else(|_| {
-        format!(
-            "{}/{}/scim/{}",
-            PATH_PREFIX, SERVICE_ROUTE_KEY, SCIM_VERSION
-        )
-    })
+    std::env::var("SCIM_BASE_URL")
+        .unwrap_or_else(|_| format!("{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/scim/{SCIM_VERSION}"))
 }
 
 // ============================================================================
