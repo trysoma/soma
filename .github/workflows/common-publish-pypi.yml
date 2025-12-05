@@ -1,0 +1,134 @@
+name: Common - Publish PyPI
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to publish'
+        required: true
+        type: string
+    secrets:
+      PYPI_API_TOKEN:
+        required: true
+
+jobs:
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Download release changes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changes
+
+      - name: Apply release changes
+        run: tar -xzf release-changes.tar.gz
+        shell: bash
+
+      - name: Setup uv and Python
+        uses: ./.github/actions/setup-uv-python
+        with:
+          python-version: '3.12'
+          working-directory: py
+          install-dependencies: 'false'
+
+      - name: Download all Python wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: py-wheels-*
+          path: py-wheels
+          merge-multiple: false
+
+      - name: Prepare wheels for upload
+        run: |
+          mkdir -p dist
+          echo "Collecting Python wheels from artifacts..."
+
+          # Find and copy all wheel files
+          find py-wheels -name "*.whl" -type f | while read file; do
+            echo "  Copying: $file"
+            cp "$file" dist/
+          done
+
+          # Find and copy source distribution
+          find py-wheels -name "*.tar.gz" -type f | while read file; do
+            echo "  Copying: $file"
+            cp "$file" dist/
+          done
+
+          echo ""
+          echo "Wheels ready for upload:"
+          ls -la dist/
+        shell: bash
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'dist/*'
+
+      - name: Publish soma-sdk-core to PyPI
+        uses: PyO3/maturin-action@v1
+        env:
+          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        with:
+          command: upload
+          args: --non-interactive --skip-existing dist/*
+
+      - name: Build and publish pure Python packages
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION_NUMBER="${VERSION#v}"
+
+          echo "Building and publishing pure Python packages..."
+
+          # Build soma-sdk package
+          echo "Building soma-sdk..."
+          cd py/packages/sdk
+          uv build
+
+          # Build soma-api-client package
+          echo "Building soma-api-client..."
+          cd ../api-client
+          uv build
+
+          cd ../../..
+
+          # Publish using twine (installed via uv)
+          echo "Publishing packages to PyPI..."
+          uv pip install twine
+
+          # Publish soma-sdk
+          uv run twine upload --skip-existing \
+            --username __token__ \
+            --password "${{ secrets.PYPI_API_TOKEN }}" \
+            py/packages/sdk/dist/*
+
+          # Publish soma-api-client
+          uv run twine upload --skip-existing \
+            --username __token__ \
+            --password "${{ secrets.PYPI_API_TOKEN }}" \
+            py/packages/api-client/dist/*
+
+          echo "✓ All Python packages published to PyPI"
+        shell: bash
+
+      - name: Verify published packages
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION_NUMBER="${VERSION#v}"
+
+          echo "Verifying packages on PyPI..."
+          sleep 10  # Wait for PyPI to index
+
+          # Check package availability
+          pip index versions soma-sdk-core 2>/dev/null | head -5 || echo "soma-sdk-core check skipped"
+          pip index versions soma-sdk 2>/dev/null | head -5 || echo "soma-sdk check skipped"
+          pip index versions soma-api-client 2>/dev/null | head -5 || echo "soma-api-client check skipped"
+        shell: bash
