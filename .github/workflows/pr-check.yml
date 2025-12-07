@@ -283,15 +283,15 @@ jobs:
       - name: Run mypy type checking
         working-directory: py
         run: |
-          echo "Running mypy..."
-          uv run mypy packages/sdk packages/api-client --ignore-missing-imports || echo "⚠ mypy warnings (non-blocking)"
+          echo "Running mypy (sdk only, api_client is auto-generated)..."
+          uv run mypy packages/sdk --ignore-missing-imports --exclude 'packages/api_client/.*'
           echo "✓ Type checking complete"
 
       - name: Run Python tests
         working-directory: py
         run: |
           echo "Running pytest..."
-          uv run pytest --tb=short -q || echo "⚠ No tests found or tests skipped"
+          uv run pytest packages/sdk/tests -v --tb=short
           echo "✓ Python tests complete"
 
   ts-quality:

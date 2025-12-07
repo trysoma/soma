@@ -22,12 +22,9 @@ from trysoma_api_client import MessageRole, TaskStatus
 from trysoma_api_client.models.create_message_request import CreateMessageRequest
 from trysoma_api_client.models.message_part import MessagePart
 
-
-
 # Normal imports - project root and soma are added to sys.path by standalone.py
 from utils import convert_to_openai_messages
 from soma.bridge import Bridge, get_bridge
-
 
 # System prompt for the insurance claims agent
 SYSTEM_PROMPT = """You are an insurance claims assistant. Your job is to help users file insurance claims by gathering the required information.
@@ -85,9 +82,7 @@ async def discover_claim_handler(
     openai_messages = convert_to_openai_messages(params.history)
 
     # Build LangChain messages with system prompt
-    langchain_messages: list[BaseMessage] = [
-        SystemMessage(content=SYSTEM_PROMPT)
-    ]
+    langchain_messages: list[BaseMessage] = [SystemMessage(content=SYSTEM_PROMPT)]
 
     for msg in openai_messages:
         role = msg.get("role", "user")
@@ -119,31 +114,31 @@ async def discover_claim_handler(
                         "properties": {
                             "date": {
                                 "type": "string",
-                                "description": "The date of the incident"
+                                "description": "The date of the incident",
                             },
                             "category": {
                                 "type": "string",
-                                "description": "Category of the claim (e.g., auto, home, health, travel)"
+                                "description": "Category of the claim (e.g., auto, home, health, travel)",
                             },
                             "reason": {
                                 "type": "string",
-                                "description": "Description of what happened"
+                                "description": "Description of what happened",
                             },
                             "amount": {
                                 "type": "number",
-                                "description": "The amount being claimed"
+                                "description": "The amount being claimed",
                             },
                             "email": {
                                 "type": "string",
-                                "description": "Email address for correspondence"
-                            }
+                                "description": "Email address for correspondence",
+                            },
                         },
-                        "required": ["date", "category", "reason", "amount", "email"]
+                        "required": ["date", "category", "reason", "amount", "email"],
                     }
                 },
-                "required": ["claim"]
-            }
-        }
+                "required": ["claim"],
+            },
+        },
     }
 
     # Bind tools to the model

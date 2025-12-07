@@ -1488,7 +1488,7 @@ requires-dist = [
 [[package]]
 name = "trysoma-insurance-claim-bot-example"
 version = "0.0.0"
-source = { editable = "examples/insurance-claim-bot" }
+source = { editable = "examples/insurance_claim_bot" }
 dependencies = [
     { name = "httpx" },
     { name = "langchain" },

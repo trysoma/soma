@@ -5,7 +5,7 @@ This is an example agent built with the Soma Python SDK that processes insurance
 ## Project Structure
 
 ```
-insurance-claim-bot/
+insurance_claim_bot/
 ├── agents/
 │   └── index.py          # Main agent definition
 ├── functions/

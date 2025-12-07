@@ -49,8 +49,22 @@ python_version = "3.10"
 strict = true
 mypy_path = "../api_client"
 
+[[tool.mypy.overrides]]
+module = "trysoma_api_client.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "trysoma_sdk_core.*"
+ignore_errors = true
+ignore_missing_imports = true
+
 [tool.pyright]
 extraPaths = ["../api_client"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.uv.sources]
 trysoma_sdk_core = { path = "../../../crates/sdk-py" }

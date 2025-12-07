@@ -1,6 +1,12 @@
 /// <reference types="node" />
 import { type ChildProcess, spawn } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
 import { join, parse, relative, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { NormalizedOutputOptions, OutputBundle } from "rollup";
@@ -161,7 +167,9 @@ function generateStandaloneServer(
 	for (const [name, path] of Object.entries(functionFiles)) {
 		const varName = `func${funcIndex++}`;
 		// Remove .ts extension for TypeScript imports
-		const importPath = isDev ? path.replace(/\.ts$/, '') : `./functions/${name}.js`;
+		const importPath = isDev
+			? path.replace(/\.ts$/, "")
+			: `./functions/${name}.js`;
 		functionImports.push(`import ${varName} from '${importPath}';`);
 		functionRegistrations.push(`
   // Register function: ${name}
@@ -215,7 +223,9 @@ function generateStandaloneServer(
 	for (const [name, path] of Object.entries(agentFiles)) {
 		const varName = `agent${agentIndex++}`;
 		// Remove .ts extension for TypeScript imports
-		const importPath = isDev ? path.replace(/\.ts$/, '') : `./agents/${name}.js`;
+		const importPath = isDev
+			? path.replace(/\.ts$/, "")
+			: `./agents/${name}.js`;
 		agentImports.push(`import ${varName} from '${importPath}';`);
 		agentRegistrations.push(`
   // Register agent: ${name}
@@ -612,7 +622,7 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 			mkdirSync(somaDir, { recursive: true });
 		}
 		writeFileSync(standaloneFilePath, content);
-		
+
 		// Ensure bridge.ts exists (even if empty) so imports don't fail
 		const bridgeFilePath = resolve(baseDir, "soma/bridge.ts");
 		if (!existsSync(bridgeFilePath)) {
@@ -696,7 +706,7 @@ export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
 `;
 			writeFileSync(bridgeFilePath, emptyBridgeContent);
 		}
-		
+
 		console.log("Generated standalone.ts");
 	}
 

@@ -5,6 +5,7 @@ use encryption::logic::crypto_services::CryptoCache;
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
+use shared::uds::{DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client};
 use tokio::sync::Mutex;
 use tonic::{Request, transport::Channel};
 use tracing::{error, info, warn};
@@ -92,6 +93,20 @@ pub async fn resync_sdk(
     sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
 ) -> Result<ResyncSdkResponse, CommonError> {
     let mut sdk_client_guard = sdk_client.lock().await;
+
+    // Try to reconnect to SDK server (it may have restarted)
+    info!("Resync: Reconnecting to SDK server...");
+    match create_soma_unix_socket_client(DEFAULT_SOMA_SERVER_SOCK).await {
+        Ok(new_client) => {
+            info!("Resync: Successfully reconnected to SDK server");
+            *sdk_client_guard = Some(new_client);
+        }
+        Err(e) => {
+            warn!("Resync: Failed to reconnect to SDK server: {:?}", e);
+            // Continue with existing client if reconnect fails
+        }
+    }
+
     let client = match sdk_client_guard.as_mut() {
         Some(client) => client,
         None => {

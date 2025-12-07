@@ -41,5 +41,5 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        uv sync
+        uv sync --all-packages
         echo "✓ Python dependencies installed"

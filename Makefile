@@ -62,7 +62,7 @@ install: _install-sqlc-gen-from-template py-build-sdk-core ## Install all depend
 	@echo "Installing JS monorepo dependencies..."
 	pnpm install
 	@echo "Installing Python monorepo dependencies..."
-	cd py && uv sync
+	cd py && uv sync --all-packages
 	@echo "✓ All dependencies installed"
 
 build: ## Build all projects (Rust + JS + Python)
@@ -80,12 +80,21 @@ rs-build: ## Build all Rust projects
 	cargo build
 	@echo "✓ Rust projects built"
 
-py-build: py-build-sdk-core ## Build all Python projects
+py-clean-cache: ## Clean Python bytecode cache files
+	@echo "Cleaning Python cache files..."
+	@find py -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	@find py -type f -name "*.pyc" -delete 2>/dev/null || true
+	@find py -type f -name "*.pyo" -delete 2>/dev/null || true
+	@echo "✓ Python cache cleaned"
+
+py-build: py-clean-cache py-build-sdk-core ## Build all Python projects
 	@echo "Building Python packages..."
+	cd py && uv sync --all-packages
 	cd py/packages/sdk && uv build
 	cd py/packages/api_client && VERSION=$$(cat ./../../../VERSION) && npx --yes @openapitools/openapi-generator-cli@latest generate -i ./../../../openapi.json -g python -o ./ --additional-properties="packageName=trysoma_api_client,packageVersion=$$VERSION,projectName=trysoma_api_client" && uvx ruff format && uv build
 	@echo "Installing built packages..."
-	cd py && uv sync
+	cd py && uv sync --all-packages
+	cd py/examples/insurance_claim_bot uv build
 	@echo "✓ Python projects built and installed"
 
 py-build-sdk-core: ## Build the Python SDK core native module (PyO3/maturin)
@@ -105,7 +114,7 @@ py-build-sdk-core-wheel: ## Build the Python SDK core wheel for distribution
 
 py-install: ## Install Python SDK in development mode
 	@echo "Installing Python SDK in development mode..."
-	cd py && uv sync
+	cd py && uv sync --all-packages
 	cd py && uv run maturin develop -m ../crates/sdk-py/Cargo.toml
 	@echo "✓ Python SDK installed in development mode"
 
@@ -240,13 +249,13 @@ lint-js: ## Run JS/TS linters
 	pnpm -r --workspace-concurrency=1 run lint
 	@echo "✓ JS linters passed"
 
-lint-py: ## Run Python linters (ruff check + format)
+lint-py: ## Run Python linters (ruff check + format + mypy)
 	@echo "Running ruff check..."
 	cd py && uv run ruff check .
 	@echo "Running ruff format check..."
 	cd py && uv run ruff format --check .
-	@echo "Running mypy type checking..."
-	cd py && uv run mypy packages/sdk packages/api-client --ignore-missing-imports || echo "⚠ mypy warnings (non-blocking)"
+	@echo "Running mypy type checking (sdk only, api_client is auto-generated)..."
+	cd py && uv run mypy packages/sdk --ignore-missing-imports --exclude 'packages/api_client/.*'
 	@echo "✓ Python linters passed"
 
 lint-db: ## Run database linters
@@ -297,6 +306,10 @@ lint-fix-py: ## Run Python linters with auto-fix
 	cd py && uv run ruff check --fix .
 	@echo "Formatting Python code with ruff..."
 	cd py && uv run ruff format .
+	@echo "Running mypy type checking (sdk only, api_client is auto-generated)..."
+	cd py && uv run mypy packages/sdk
+	cd py && uv run mypy packages/api_client --ignore-missing-imports --disable-error-code=return
+	cd py && uv run mypy examples/insurance_claim_bot
 	@echo "✓ Python linters completed"
 
 # ============================================================================
@@ -398,12 +411,12 @@ dev-insurance-claim-bot-py: ## Start the Python insurance claim bot example
 		exit 1; \
 	fi
 	@echo "Starting Python insurance bot..."
-	cd py/examples/insurance-claim-bot && uv run python -m soma_sdk.standalone --watch .
+	cd py/examples/insurance_claim_bot && uv run python -m soma_sdk.standalone --watch .
 	@echo "✓ Python Insurance bot started"
 
 py-generate-standalone: ## Generate standalone.py for a Python example project
 	@if [ -z "$(DIR)" ]; then \
-		echo "Error: DIR is required. Usage: make py-generate-standalone DIR=py/examples/insurance-claim-bot"; \
+		echo "Error: DIR is required. Usage: make py-generate-standalone DIR=py/examples/insurance_claim_bot"; \
 		exit 1; \
 	fi
 	@echo "Generating standalone.py for $(DIR)..."

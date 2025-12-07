@@ -131,7 +131,11 @@ fn convert_provider_controller(
 /// Start the gRPC server on a Unix socket with Python code generation
 #[pyfunction]
 #[pyo3(signature = (socket_path, project_dir, /) -> "typing.Awaitable[None]")]
-pub fn start_grpc_server(py: Python, socket_path: String, project_dir: String) -> PyResult<Bound<PyAny>> {
+pub fn start_grpc_server(
+    py: Python,
+    socket_path: String,
+    project_dir: String,
+) -> PyResult<Bound<PyAny>> {
     pyo3_async_runtimes::tokio::future_into_py(py, async {
         let socket_path = PathBuf::from(socket_path);
         let project_dir = PathBuf::from(project_dir);

@@ -88,14 +88,14 @@ jobs:
 
           echo "Building and publishing pure Python packages..."
 
-          # Build soma-sdk package
-          echo "Building soma-sdk..."
+          # Build trysoma-sdk package
+          echo "Building trysoma-sdk..."
           cd py/packages/sdk
           uv build
 
-          # Build soma-api-client package
-          echo "Building soma-api-client..."
-          cd ../api-client
+          # Build trysoma-api-client package
+          echo "Building trysoma-api-client..."
+          cd ../api_client
           uv build
 
           cd ../../..
@@ -104,17 +104,17 @@ jobs:
           echo "Publishing packages to PyPI..."
           uv pip install twine
 
-          # Publish soma-sdk
+          # Publish trysoma-sdk
           uv run twine upload --skip-existing \
             --username __token__ \
             --password "${{ secrets.PYPI_API_TOKEN }}" \
             py/packages/sdk/dist/*
 
-          # Publish soma-api-client
+          # Publish trysoma-api-client
           uv run twine upload --skip-existing \
             --username __token__ \
             --password "${{ secrets.PYPI_API_TOKEN }}" \
-            py/packages/api-client/dist/*
+            py/packages/api_client/dist/*
 
           echo "✓ All Python packages published to PyPI"
         shell: bash
@@ -128,7 +128,7 @@ jobs:
           sleep 10  # Wait for PyPI to index
 
           # Check package availability
-          pip index versions soma-sdk-core 2>/dev/null | head -5 || echo "soma-sdk-core check skipped"
-          pip index versions soma-sdk 2>/dev/null | head -5 || echo "soma-sdk check skipped"
-          pip index versions soma-api-client 2>/dev/null | head -5 || echo "soma-api-client check skipped"
+          pip index versions trysoma-sdk-core 2>/dev/null | head -5 || echo "trysoma-sdk-core check skipped"
+          pip index versions trysoma-sdk 2>/dev/null | head -5 || echo "trysoma-sdk check skipped"
+          pip index versions trysoma-api-client 2>/dev/null | head -5 || echo "trysoma-api-client check skipped"
         shell: bash

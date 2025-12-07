@@ -47,7 +47,10 @@ dmypy.json
 .ruff_cache/
 
 # Generated files
-*.soma/bridge.py
+soma/
+**/soma/standalone.py
+**/soma/bridge.py
+**/soma/__init__.py
 
 # Environment
 .env

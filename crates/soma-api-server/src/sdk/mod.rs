@@ -1,6 +1,6 @@
 mod interface;
-pub mod sdk_provider_sync;
 mod python;
+pub mod sdk_provider_sync;
 mod typescript;
 
 use std::path::{Path, PathBuf};
@@ -28,8 +28,14 @@ pub enum SdkRuntime {
 /// Determines which SDK runtime to use from a directory path
 pub fn determine_sdk_runtime(project_dir: &Path) -> Result<Option<SdkRuntime>, CommonError> {
     let possible_runtimes: Vec<(SdkRuntime, fn(PathBuf) -> Result<bool, CommonError>)> = vec![
-        (SdkRuntime::PnpmV1, validate_sdk_runtime_pnpm_v1 as fn(PathBuf) -> Result<bool, CommonError>),
-        (SdkRuntime::Python, validate_sdk_runtime_python as fn(PathBuf) -> Result<bool, CommonError>),
+        (
+            SdkRuntime::PnpmV1,
+            validate_sdk_runtime_pnpm_v1 as fn(PathBuf) -> Result<bool, CommonError>,
+        ),
+        (
+            SdkRuntime::Python,
+            validate_sdk_runtime_python as fn(PathBuf) -> Result<bool, CommonError>,
+        ),
     ];
 
     let mut matched_runtimes = vec![];
@@ -248,7 +254,11 @@ mod unit_test {
         let temp_dir = TempDir::new().unwrap();
 
         // Create pyproject.toml
-        fs::write(temp_dir.path().join("pyproject.toml"), r#"[project]\nname = "test""#).unwrap();
+        fs::write(
+            temp_dir.path().join("pyproject.toml"),
+            r#"[project]\nname = "test""#,
+        )
+        .unwrap();
 
         let result = validate_sdk_runtime_python(temp_dir.path().to_path_buf()).unwrap();
         assert!(result, "Should validate as Python SDK runtime");
@@ -267,7 +277,11 @@ mod unit_test {
     fn test_determine_sdk_runtime_python() {
         let temp_dir = TempDir::new().unwrap();
 
-        fs::write(temp_dir.path().join("pyproject.toml"), r#"[project]\nname = "test""#).unwrap();
+        fs::write(
+            temp_dir.path().join("pyproject.toml"),
+            r#"[project]\nname = "test""#,
+        )
+        .unwrap();
 
         let runtime = determine_sdk_runtime(temp_dir.path()).unwrap();
         assert_eq!(runtime, Some(SdkRuntime::Python));

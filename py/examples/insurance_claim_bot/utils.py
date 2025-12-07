@@ -33,7 +33,7 @@ def convert_to_openai_messages(history: list[TaskTimelineItem]) -> list[dict[str
         if not hasattr(payload, "message"):
             continue
 
-        message = payload.message
+        message = payload.message  # type: ignore[union-attr]
 
         # Get role and convert to OpenAI format
         role = message.role if hasattr(message, "role") else "user"
@@ -50,9 +50,11 @@ def convert_to_openai_messages(history: list[TaskTimelineItem]) -> list[dict[str
                     content_parts.append(part.text)
 
         if content_parts:
-            messages.append({
-                "role": openai_role,
-                "content": "\n".join(content_parts),
-            })
+            messages.append(
+                {
+                    "role": openai_role,
+                    "content": "\n".join(content_parts),
+                }
+            )
 
     return messages

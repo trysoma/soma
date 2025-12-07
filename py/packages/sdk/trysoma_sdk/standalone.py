@@ -80,7 +80,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
             module_path = f"functions.{name.replace('/', '.')}"
             function_imports.append(f"from {module_path} import default as {var_name}")
 
-        function_registrations.append(f'''
+        function_registrations.append(f"""
     # Register function: {name}
     fn = {var_name}
     if hasattr(fn, 'provider_controller') and fn.provider_controller:
@@ -123,7 +123,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
             fn.function_metadata,
             make_invoke_callback(fn.handler, fn.input_schema)
         )
-''')
+""")
 
     # Generate agent imports and registrations
     for idx, (name, path) in enumerate(agent_files.items()):
@@ -141,7 +141,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
             module_path = f"agents.{name.replace('/', '.')}"
             agent_imports.append(f"from {module_path} import default as {var_name}")
 
-        agent_registrations.append(f'''
+        agent_registrations.append(f"""
     # Register agent: {name}
     agent = {var_name}
     if (hasattr(agent, 'agent_id') and hasattr(agent, 'project_id')
@@ -152,7 +152,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
             agent.name,
             agent.description,
         ))
-''')
+""")
 
     has_agents = len(agent_files) > 0
 
@@ -163,7 +163,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
         for idx in range(len(agent_files)):
             var_name = f"agent_{idx}"
             restate_services.append(
-                f'''        # Create Virtual Object for agent
+                f"""        # Create Virtual Object for agent
         agent_{idx}_object = restate.VirtualObject(
             f"{{agent_{idx}.project_id}}.{{agent_{idx}.agent_id}}"
         )
@@ -175,7 +175,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
         ) -> None:
             await wrap_handler(
                 agent_{idx}.entrypoint, agent_{idx}
-            )(ctx, input_data)'''
+            )(ctx, input_data)"""
             )
 
         restate_code = f'''
@@ -261,7 +261,28 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
         try:
             await wait_for_port_free(restate_port)
         except RuntimeError as e:
-            print(f"Warning: {{e}}")
+            print(f"Error: {{e}}")
+            print(f"Attempting to kill process on port {{restate_port}}...")
+            import subprocess
+            try:
+                # Find and kill the process using the port
+                result = subprocess.run(
+                    ["lsof", "-ti", f":{{restate_port}}"],
+                    capture_output=True,
+                    text=True
+                )
+                if result.stdout.strip():
+                    pids = result.stdout.strip().split("\\n")
+                    for pid in pids:
+                        if pid:
+                            subprocess.run(["kill", "-9", pid], check=False)
+                            print(f"Killed process {{pid}}")
+                    # Wait a bit for the port to be released
+                    await asyncio.sleep(1.0)
+            except Exception as kill_error:
+                print(f"Failed to kill process: {{kill_error}}")
+                print(f"Please manually kill the process using port {{restate_port}} and restart")
+                raise SystemExit(1)
 
         # Start Restate server in background task
         server_task = None
@@ -564,20 +585,38 @@ async def main() -> None:
     print("SDK server ready!")
 
 {restate_code}
-{(
-    chr(10) + chr(10) +
-    "    # Keep the process alive (only if no agents/Restate server)" +
-    chr(10) + "    stop_event = asyncio.Event()" + chr(10) + chr(10) +
-    "    def handle_signal(" + chr(10) +
-    "        signum: int, frame: types.FrameType | None" + chr(10) +
-    "    ) -> None:" + chr(10) +
-    '        print("' + chr(10) + 'Shutting down...")' + chr(10) +
-    "        stop_event.set()" + chr(10) + chr(10) +
-    "    signal.signal(signal.SIGINT, handle_signal)" + chr(10) +
-    "    signal.signal(signal.SIGTERM, handle_signal)" + chr(10) + chr(10) +
-    "    await stop_event.wait()"
-    if not has_agents else ""
-)}
+{
+        (
+            chr(10)
+            + chr(10)
+            + "    # Keep the process alive (only if no agents/Restate server)"
+            + chr(10)
+            + "    stop_event = asyncio.Event()"
+            + chr(10)
+            + chr(10)
+            + "    def handle_signal("
+            + chr(10)
+            + "        signum: int, frame: types.FrameType | None"
+            + chr(10)
+            + "    ) -> None:"
+            + chr(10)
+            + '        print("'
+            + chr(10)
+            + 'Shutting down...")'
+            + chr(10)
+            + "        stop_event.set()"
+            + chr(10)
+            + chr(10)
+            + "    signal.signal(signal.SIGINT, handle_signal)"
+            + chr(10)
+            + "    signal.signal(signal.SIGTERM, handle_signal)"
+            + chr(10)
+            + chr(10)
+            + "    await stop_event.wait()"
+            if not has_agents
+            else ""
+        )
+    }
 
 
 if __name__ == "__main__":
@@ -670,6 +709,35 @@ def get_bridge(ctx: "ObjectContext") -> Bridge:
     print(f"Generated {standalone_path}")
 
 
+def clear_pycache(base_dir: Path) -> None:
+    """Clear all __pycache__ directories and .pyc files.
+
+    Args:
+        base_dir: The base directory to clean.
+    """
+    import shutil
+
+    # Find and remove all __pycache__ directories
+    for pycache_dir in base_dir.rglob("__pycache__"):
+        try:
+            shutil.rmtree(pycache_dir)
+        except OSError:
+            pass
+
+    # Find and remove all .pyc and .pyo files
+    for pyc_file in base_dir.rglob("*.pyc"):
+        try:
+            pyc_file.unlink()
+        except OSError:
+            pass
+
+    for pyo_file in base_dir.rglob("*.pyo"):
+        try:
+            pyo_file.unlink()
+        except OSError:
+            pass
+
+
 def watch_and_regenerate(base_dir: str | Path) -> None:
     """Watch for changes and regenerate standalone.py, then run the server.
 
@@ -691,15 +759,35 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
     agents_dir = base_dir / "agents"
     standalone_path = base_dir / "soma" / "standalone.py"
 
+    # Clear Python cache before generating
+    print("Clearing Python cache...")
+    clear_pycache(base_dir)
+
+    # Also clear cache in the SDK package directory to ensure fresh imports
+    sdk_package_dir = Path(__file__).parent
+    clear_pycache(sdk_package_dir)
+
     # Generate initial standalone.py
     generate_standalone(base_dir, is_dev=True)
 
     # Start the server in a subprocess
     import subprocess
     import signal
-    
+
     server_process: subprocess.Popen[bytes] | None = None
-    
+    socket_path = os.environ.get("SOMA_SERVER_SOCK", "/tmp/soma-sdk.sock")
+
+    def wait_for_socket_released(timeout: float = 10.0) -> bool:
+        """Wait for the Unix socket file to be released/removed."""
+        import time
+
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if not Path(socket_path).exists():
+                return True
+            time.sleep(0.1)
+        return False
+
     def start_server() -> subprocess.Popen[bytes]:
         """Start the standalone server."""
         return subprocess.Popen(
@@ -707,7 +795,7 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
             cwd=str(base_dir),
             env=os.environ.copy(),
         )
-    
+
     def restart_server() -> None:
         """Restart the standalone server."""
         nonlocal server_process
@@ -719,12 +807,32 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
             except subprocess.TimeoutExpired:
                 server_process.kill()
                 server_process.wait()
+
+            # Wait for the socket to be released before starting new server
+            print("Waiting for socket to be released...")
+            if wait_for_socket_released(timeout=5.0):
+                print("Socket released, starting new server...")
+            else:
+                # Force remove the socket file if it still exists
+                socket_file = Path(socket_path)
+                if socket_file.exists():
+                    print("Force removing stale socket file...")
+                    try:
+                        socket_file.unlink()
+                    except OSError as e:
+                        print(f"Warning: Could not remove socket file: {e}")
+
+            # Small delay to ensure everything is cleaned up
+            import time
+
+            time.sleep(0.5)
+
         server_process = start_server()
-    
+
     # Start the server initially
     print("Starting SDK server...")
     server_process = start_server()
-    
+
     def handle_signal(signum: int, frame: types.FrameType | None) -> None:
         """Handle shutdown signal."""
         print("\nShutting down...")
@@ -736,7 +844,7 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
                 server_process.kill()
                 server_process.wait()
         sys.exit(0)
-    
+
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
 
@@ -751,8 +859,7 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
 
     if not paths_to_watch:
         print(
-            "No functions/ or agents/ directories found. "
-            "Creating empty directories..."
+            "No functions/ or agents/ directories found. Creating empty directories..."
         )
         functions_dir.mkdir(exist_ok=True)
         agents_dir.mkdir(exist_ok=True)
@@ -768,11 +875,23 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
                         Change.deleted: "Deleted",
                     }.get(change_type, "Changed")
                     print(f"{change_name}: {path}")
+                    # Clear cache before regenerating
+                    clear_pycache(base_dir)
+                    clear_pycache(Path(__file__).parent)
                     generate_standalone(base_dir, is_dev=True)
                     restart_server()
                     break  # Only regenerate once per batch of changes
     except KeyboardInterrupt:
         handle_signal(signal.SIGINT, None)
+
+
+def dev_entrypoint() -> None:
+    """Console script entrypoint for 'dev' command.
+
+    This is the function called by the console script defined in pyproject.toml.
+    It defaults to the current working directory.
+    """
+    watch_and_regenerate(".")
 
 
 if __name__ == "__main__":

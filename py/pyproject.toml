@@ -29,12 +29,28 @@ trysoma_api_client = { workspace = true }
 [tool.ruff]
 line-length = 88
 target-version = "py310"
+extend-exclude = [
+    "soma",                               # Generated files at root
+    "examples/insurance_claim_bot/soma",  # Generated files in example
+    "packages/api_client",                # Auto-generated OpenAPI client
+]
 
 [tool.mypy]
 python_version = "3.10"
 warn_return_any = true
 warn_unused_ignores = true
 mypy_path = "packages/sdk:packages/api_client"
+
+[[tool.mypy.overrides]]
+module = "trysoma_api_client.*"
+ignore_errors = true
+disable_error_code = ["return", "no-any-return"]
+
+[[tool.mypy.overrides]]
+module = "trysoma_sdk_core.*"
+ignore_errors = true
+ignore_missing_imports = true
+follow_imports = "skip"
 
 [tool.pyright]
 extraPaths = ["packages/api_client"]

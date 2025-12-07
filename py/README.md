@@ -12,7 +12,7 @@ This workspace contains the following packages:
 
 ## Examples
 
-- **insurance-claim-bot** (`py/examples/insurance-claim-bot`): Example insurance claims processing agent
+- **insurance_claim_bot** (`py/examples/insurance_claim_bot`): Example insurance claims processing agent
 
 ## Development
 

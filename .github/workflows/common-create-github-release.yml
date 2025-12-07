@@ -161,20 +161,20 @@ jobs:
           ## 🐍 Published PyPI Packages
 
           ### Main Packages
-          - [soma-sdk](https://pypi.org/project/soma-sdk/VERSION_NUMBER/)
-          - [soma-sdk-core](https://pypi.org/project/soma-sdk-core/VERSION_NUMBER/)
-          - [soma-api-client](https://pypi.org/project/soma-api-client/VERSION_NUMBER/)
+          - [trysoma-sdk](https://pypi.org/project/trysoma-sdk/VERSION_NUMBER/)
+          - [trysoma-sdk-core](https://pypi.org/project/trysoma-sdk-core/VERSION_NUMBER/)
+          - [trysoma-api-client](https://pypi.org/project/trysoma-api-client/VERSION_NUMBER/)
 
-          > `soma-sdk-core` provides native bindings and is automatically selected based on your platform (Linux, macOS, Windows).
+          > `trysoma-sdk-core` provides native bindings and is automatically selected based on your platform (Linux, macOS, Windows).
 
           ### Installation
 
           ```bash
           # Using pip
-          pip install soma-sdk
+          pip install trysoma-sdk
 
           # Using uv
-          uv add soma-sdk
+          uv add trysoma-sdk
           ```
           EOF
 

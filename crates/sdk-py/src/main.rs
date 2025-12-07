@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use std::env;
+use std::path::PathBuf;
 
 fn main() {
     // Find the cdylib in common locations
@@ -25,8 +25,12 @@ fn main() {
 
     if stub_content.is_empty() {
         eprintln!("Warning: pyo3-introspection generated empty stub file.");
-        eprintln!("This may be because the module uses re-exports (pub use) which aren't introspectable.");
-        eprintln!("Consider maintaining the stub file manually or adding #[pyo3(module = \"trysoma_sdk_core\")] to items.");
+        eprintln!(
+            "This may be because the module uses re-exports (pub use) which aren't introspectable."
+        );
+        eprintln!(
+            "Consider maintaining the stub file manually or adding #[pyo3(module = \"trysoma_sdk_core\")] to items."
+        );
         std::process::exit(1);
     }
 
@@ -36,38 +40,41 @@ fn main() {
     // 2. If building for wheel: write to src/trysoma_sdk_core/ (maturin will include it)
     // 3. Installed package location (for development)
     // 4. Same directory as .so file
-    let output_path = env::args()
-        .nth(1)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            // Check if we're building for wheel (check for BUILD_WHEEL env var or wheel output)
-            let manifest_dir = env::var("CARGO_MANIFEST_DIR")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| PathBuf::from("."));
-            
-            // If BUILD_WHEEL is set, write to trysoma_sdk_core/ at crate root for maturin to include
-            if env::var("BUILD_WHEEL").is_ok() {
-                let wheel_output = manifest_dir.join("trysoma_sdk_core/__init__.pyi");
-                // Ensure directory exists
-                if let Some(parent) = wheel_output.parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                }
-                return wheel_output;
-            }
-            
-            // Try to find the installed package location in venv site-packages
-            find_installed_package_location()
-                .map(|pkg_dir| pkg_dir.join("__init__.pyi"))
-                .unwrap_or_else(|| {
-                    // Fallback: write to the same directory as the .so file we introspected
-                    lib_path.parent()
-                        .map(|p| p.join("__init__.pyi"))
-                        .unwrap_or_else(|| PathBuf::from("trysoma_sdk_core.pyi"))
-                })
-        });
+    let output_path = env::args().nth(1).map(PathBuf::from).unwrap_or_else(|| {
+        // Check if we're building for wheel (check for BUILD_WHEEL env var or wheel output)
+        let manifest_dir = env::var("CARGO_MANIFEST_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from("."));
 
-    std::fs::write(&output_path, &stub_content)
-        .unwrap_or_else(|e| panic!("Failed to write stub file to {}: {}", output_path.display(), e));
+        // If BUILD_WHEEL is set, write to trysoma_sdk_core/ at crate root for maturin to include
+        if env::var("BUILD_WHEEL").is_ok() {
+            let wheel_output = manifest_dir.join("trysoma_sdk_core/__init__.pyi");
+            // Ensure directory exists
+            if let Some(parent) = wheel_output.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            return wheel_output;
+        }
+
+        // Try to find the installed package location in venv site-packages
+        find_installed_package_location()
+            .map(|pkg_dir| pkg_dir.join("__init__.pyi"))
+            .unwrap_or_else(|| {
+                // Fallback: write to the same directory as the .so file we introspected
+                lib_path
+                    .parent()
+                    .map(|p| p.join("__init__.pyi"))
+                    .unwrap_or_else(|| PathBuf::from("trysoma_sdk_core.pyi"))
+            })
+    });
+
+    std::fs::write(&output_path, &stub_content).unwrap_or_else(|e| {
+        panic!(
+            "Failed to write stub file to {}: {}",
+            output_path.display(),
+            e
+        )
+    });
 
     println!("Generated stub file at: {}", output_path.display());
 
@@ -160,7 +167,10 @@ fn get_search_paths() -> Vec<PathBuf> {
         let venv = PathBuf::from(virtual_env);
         // Try common Python versions
         for py_version in &["3.10", "3.11", "3.12", "3.13"] {
-            paths.push(venv.join(format!("lib/python{}/site-packages/trysoma_sdk_core", py_version)));
+            paths.push(venv.join(format!(
+                "lib/python{}/site-packages/trysoma_sdk_core",
+                py_version
+            )));
         }
         // Windows style
         paths.push(venv.join("Lib/site-packages/trysoma_sdk_core"));
@@ -169,12 +179,18 @@ fn get_search_paths() -> Vec<PathBuf> {
     // py/.venv site-packages
     let py_venv = project_root.join("py/.venv");
     for py_version in &["3.10", "3.11", "3.12", "3.13"] {
-        paths.push(py_venv.join(format!("lib/python{}/site-packages/trysoma_sdk_core", py_version)));
+        paths.push(py_venv.join(format!(
+            "lib/python{}/site-packages/trysoma_sdk_core",
+            py_version
+        )));
     }
 
     // Current working directory's py/.venv
     for py_version in &["3.10", "3.11", "3.12", "3.13"] {
-        paths.push(PathBuf::from(format!("py/.venv/lib/python{}/site-packages/trysoma_sdk_core", py_version)));
+        paths.push(PathBuf::from(format!(
+            "py/.venv/lib/python{}/site-packages/trysoma_sdk_core",
+            py_version
+        )));
     }
 
     // Cargo target directories (cargo build creates dylib here, but might not have PyInit)
@@ -182,7 +198,7 @@ fn get_search_paths() -> Vec<PathBuf> {
     paths.push(project_root.join("target/release"));
     paths.push(PathBuf::from("target/debug"));
     paths.push(PathBuf::from("target/release"));
-    
+
     // Maturin build output (wheels directory)
     paths.push(project_root.join("target/wheels"));
     paths.push(manifest_dir.join("target/wheels"));
@@ -208,7 +224,10 @@ fn find_installed_package_location() -> Option<PathBuf> {
         let venv = PathBuf::from(virtual_env);
         // Try common Python versions
         for py_version in &["3.10", "3.11", "3.12", "3.13"] {
-            let pkg_dir = venv.join(format!("lib/python{}/site-packages/trysoma_sdk_core", py_version));
+            let pkg_dir = venv.join(format!(
+                "lib/python{}/site-packages/trysoma_sdk_core",
+                py_version
+            ));
             if pkg_dir.exists() {
                 return Some(pkg_dir);
             }
@@ -223,7 +242,10 @@ fn find_installed_package_location() -> Option<PathBuf> {
     // Check py/.venv site-packages
     let py_venv = project_root.join("py/.venv");
     for py_version in &["3.10", "3.11", "3.12", "3.13"] {
-        let pkg_dir = py_venv.join(format!("lib/python{}/site-packages/trysoma_sdk_core", py_version));
+        let pkg_dir = py_venv.join(format!(
+            "lib/python{}/site-packages/trysoma_sdk_core",
+            py_version
+        ));
         if pkg_dir.exists() {
             return Some(pkg_dir);
         }
@@ -231,7 +253,10 @@ fn find_installed_package_location() -> Option<PathBuf> {
 
     // Check current working directory's py/.venv
     for py_version in &["3.10", "3.11", "3.12", "3.13"] {
-        let pkg_dir = PathBuf::from(format!("py/.venv/lib/python{}/site-packages/trysoma_sdk_core", py_version));
+        let pkg_dir = PathBuf::from(format!(
+            "py/.venv/lib/python{}/site-packages/trysoma_sdk_core",
+            py_version
+        ));
         if pkg_dir.exists() {
             return Some(pkg_dir);
         }

@@ -136,9 +136,7 @@ def chat(
         while not achieved:
             # Fetch message history
             async def fetch_history() -> TaskTimelineItemPaginatedResponse:
-                return soma.task_history(
-                    page_size=1000, task_id=UUID(params.task_id)
-                )
+                return soma.task_history(page_size=1000, task_id=UUID(params.task_id))
 
             messages: TaskTimelineItemPaginatedResponse = await ctx.run_typed(
                 "fetch_history",
@@ -146,7 +144,7 @@ def chat(
             )
 
             async def send_message(
-                message: CreateMessageRequest
+                message: CreateMessageRequest,
             ) -> CreateMessageResponse:
                 async def send() -> CreateMessageResponse:
                     return soma.send_message(
@@ -156,16 +154,16 @@ def chat(
 
                 return await ctx.run_typed("send_message", send)
 
-            handler_params: ChatHandlerParams[
-                BridgeT, InputT, OutputT
-            ] = ChatHandlerParams(
-                ctx=ctx,
-                soma=soma,
-                history=messages.items,
-                bridge=params.bridge,
-                input=params.input,
-                on_goal_achieved=on_goal_achieved,
-                send_message=send_message,
+            handler_params: ChatHandlerParams[BridgeT, InputT, OutputT] = (
+                ChatHandlerParams(
+                    ctx=ctx,
+                    soma=soma,
+                    history=messages.items,
+                    bridge=params.bridge,
+                    input=params.input,
+                    on_goal_achieved=on_goal_achieved,
+                    send_message=send_message,
+                )
             )
 
             await handler(handler_params)
@@ -245,9 +243,7 @@ def workflow(
 
             # Fetch message history
             async def fetch_history() -> TaskTimelineItemPaginatedResponse:
-                return soma.task_history(
-                    page_size=1000, task_id=UUID(params.task_id)
-                )
+                return soma.task_history(page_size=1000, task_id=UUID(params.task_id))
 
             messages: TaskTimelineItemPaginatedResponse = await ctx.run_typed(
                 "fetch_history",
@@ -255,7 +251,7 @@ def workflow(
             )
 
             async def send_message(
-                message: CreateMessageRequest
+                message: CreateMessageRequest,
             ) -> CreateMessageResponse:
                 async def send() -> CreateMessageResponse:
                     return soma.send_message(
@@ -265,16 +261,16 @@ def workflow(
 
                 return await ctx.run_typed("send_message", send)
 
-            handler_params: WorkflowHandlerParams[
-                BridgeT, InputT, OutputT
-            ] = WorkflowHandlerParams(
-                ctx=ctx,
-                soma=soma,
-                history=messages.items,
-                bridge=params.bridge,
-                input=params.input,
-                send_message=send_message,
-                interruptable=params.interruptable,
+            handler_params: WorkflowHandlerParams[BridgeT, InputT, OutputT] = (
+                WorkflowHandlerParams(
+                    ctx=ctx,
+                    soma=soma,
+                    history=messages.items,
+                    bridge=params.bridge,
+                    input=params.input,
+                    send_message=send_message,
+                    interruptable=params.interruptable,
+                )
             )
 
             if params.interruptable:
