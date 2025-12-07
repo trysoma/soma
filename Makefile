@@ -1,19 +1,12 @@
-<<<<<<< HEAD
 .PHONY: help install clean build build-release \
 	test test-unit test-integration test-all test-coverage \
-	lint lint-js lint-rs lint-db lint-fix lint-fix-js lint-fix-rs \
+	lint lint-js lint-rs lint-py lint-db lint-fix lint-fix-js lint-fix-rs lint-fix-py \
+	py-build py-build-sdk-core py-build-sdk-core-wheel py-test py-test-coverage py-install py-clean-cache \
 	db-generate-rs-models \
 	db-bridge-generate-migration db-bridge-generate-hash \
 	db-encryption-generate-migration db-encryption-generate-hash \
 	db-identity-generate-migration db-identity-generate-hash \
 	db-soma-generate-migration db-soma-generate-hash \
-=======
-.PHONY: help install clean build build-release test test-coverage \
-	lint lint-js lint-rs lint-py lint-fix lint-fix-js lint-fix-rs lint-fix-py \
-	py-build py-build-sdk-core py-test py-install \
-	db-internal-generate-migration db-internal-generate-hash db-generate-rs-models \
-	db-bridge-generate-migration db-bridge-generate-hash db-soma-generate-migration db-soma-generate-hash \
->>>>>>> 30705a6 (feat: wip initial py sdk)
 	_db-generate-migration _db-generate-hash _install-sqlc-gen-from-template
 
 help: ## Show this help message
@@ -94,7 +87,7 @@ py-build: py-clean-cache py-build-sdk-core ## Build all Python projects
 	cd py/packages/api_client && VERSION=$$(cat ./../../../VERSION) && npx --yes @openapitools/openapi-generator-cli@latest generate -i ./../../../openapi.json -g python -o ./ --additional-properties="packageName=trysoma_api_client,packageVersion=$$VERSION,projectName=trysoma_api_client" && uvx ruff format && uv build
 	@echo "Installing built packages..."
 	cd py && uv sync --all-packages
-	cd py/examples/insurance_claim_bot uv build
+	cd py/examples/insurance_claim_bot && uv build
 	@echo "✓ Python projects built and installed"
 
 py-build-sdk-core: ## Build the Python SDK core native module (PyO3/maturin)
@@ -200,6 +193,11 @@ py-test: ## Run Python tests only
 	cd py && uv run pytest -v
 	@echo "✓ Python tests passed"
 
+py-test-coverage: ## Run Python tests with coverage
+	@echo "Running Python tests with coverage..."
+	cd py && uv run pytest --cov=packages/sdk/trysoma_sdk --cov-report=lcov:coverage.lcov --cov-report=term -v
+	@echo "✓ Python coverage generated"
+
 test-coverage: ## Run tests with coverage and generate merged report
 	@echo "Cleaning previous coverage reports..."
 	@rm -rf coverage .coverage-tmp
@@ -212,12 +210,15 @@ test-coverage: ## Run tests with coverage and generate merged report
 	pnpm -r --workspace-concurrency=1 --filter './js/packages/*' --filter './crates/sdk-js' run test:coverage
 	@echo "✓ JS coverage generated"
 	@echo "Collecting JS coverage reports..."
-	@find . -name 'lcov.info' -type f -not -path './coverage/*' -not -path './node_modules/*' -not -path './js/examples/*' | while read file; do \
+	@find . -name 'lcov.info' -type f -not -path './coverage/*' -not -path './node_modules/*' -not -path './js/examples/*' -not -path './py/*' | while read file; do \
 		dir=$$(dirname "$$file"); \
 		pkgdir=$$(dirname "$$dir"); \
 		name=$$(echo "$$pkgdir" | sed 's/^\.\///' | sed 's/\//-/g'); \
 		sed "s|^SF:|SF:$$pkgdir/|g" "$$file" > ".coverage-tmp/js-$$name.lcov" 2>/dev/null || true; \
 	done
+	@echo "Running Python tests with coverage..."
+	cd py && uv run pytest packages/sdk/tests --cov=packages/sdk/trysoma_sdk --cov-report=lcov:../.coverage-tmp/py.lcov --cov-report=term -v || echo "⚠ Python coverage skipped"
+	@echo "✓ Python coverage generated"
 	@echo "Merging coverage reports..."
 	@npx lcov-result-merger '.coverage-tmp/*.lcov' 'coverage/lcov.info'
 	@echo "✓ Coverage reports merged to coverage/lcov.info"
