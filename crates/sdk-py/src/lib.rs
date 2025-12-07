@@ -8,6 +8,7 @@ pub mod types;
 
 use codegen_impl::PythonCodeGenerator;
 use pyo3::prelude::*;
+use pyo3::types::PyAny;
 use sdk_core as core_types;
 use shared::error::CommonError;
 use std::path::PathBuf;
@@ -141,7 +142,8 @@ fn convert_provider_controller(
 
 /// Start the gRPC server on a Unix socket with Python code generation
 #[pyfunction]
-fn start_grpc_server(socket_path: String, project_dir: String) -> PyResult<()> {
+#[pyo3(signature = (socket_path, project_dir, /) -> "None")]
+pub fn start_grpc_server(socket_path: String, project_dir: String) -> PyResult<()> {
     let socket_path = PathBuf::from(socket_path);
     let project_dir = PathBuf::from(project_dir);
 
@@ -162,7 +164,8 @@ fn start_grpc_server(socket_path: String, project_dir: String) -> PyResult<()> {
 
 /// Add a provider controller to the running server
 #[pyfunction]
-fn add_provider(provider: py_types::ProviderController) -> PyResult<()> {
+#[pyo3(signature = (provider, /) -> "None")]
+pub fn add_provider(provider: py_types::ProviderController) -> PyResult<()> {
     let core_provider = convert_provider_controller(&provider);
     get_grpc_service()?.add_provider(core_provider);
     Ok(())
@@ -170,13 +173,15 @@ fn add_provider(provider: py_types::ProviderController) -> PyResult<()> {
 
 /// Remove a provider controller by type_id
 #[pyfunction]
-fn remove_provider(type_id: String) -> PyResult<bool> {
+#[pyo3(signature = (type_id, /) -> "bool")]
+pub fn remove_provider(type_id: String) -> PyResult<bool> {
     Ok(get_grpc_service()?.remove_provider(&type_id))
 }
 
 /// Update a provider controller (removes old and inserts new)
 #[pyfunction]
-fn update_provider(provider: py_types::ProviderController) -> PyResult<bool> {
+#[pyo3(signature = (provider, /) -> "bool")]
+pub fn update_provider(provider: py_types::ProviderController) -> PyResult<bool> {
     let current_provider = get_grpc_service()?.get_provider(&provider.type_id);
     let current_provider = if let Some(current_provider) = current_provider {
         current_provider
@@ -211,10 +216,11 @@ fn update_provider(provider: py_types::ProviderController) -> PyResult<bool> {
 /// * `function_metadata` - Object containing name, description, parameters, and output
 /// * `invoke_callback` - Python callable that will be called when the function is invoked
 #[pyfunction]
-fn add_function(
+#[pyo3(signature = (provider_type_id, function_metadata, invoke_callback: "Callable[[InvokeFunctionRequest], InvokeFunctionResponse]", /) -> "bool")]
+pub fn add_function(
     provider_type_id: String,
     function_metadata: py_types::FunctionMetadata,
-    invoke_callback: PyObject,
+    invoke_callback: Py<PyAny>,
 ) -> PyResult<bool> {
     let callback = Arc::new(invoke_callback);
 
@@ -227,7 +233,7 @@ fn add_function(
             let callback = Arc::clone(&callback);
             Box::pin(async move {
                 // Call Python callback from async context
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     let py_req = py_types::InvokeFunctionRequest {
                         provider_controller_type_id: req.provider_controller_type_id.clone(),
                         function_controller_type_id: req.function_controller_type_id.clone(),
@@ -288,16 +294,18 @@ fn add_function(
 
 /// Remove a function controller from a specific provider
 #[pyfunction]
-fn remove_function(provider_type_id: String, function_name: String) -> PyResult<bool> {
+#[pyo3(signature = (provider_type_id, function_name, /) -> "bool")]
+pub fn remove_function(provider_type_id: String, function_name: String) -> PyResult<bool> {
     Ok(get_grpc_service()?.remove_function(&provider_type_id, &function_name))
 }
 
 /// Update a function controller (removes old and inserts new)
 #[pyfunction]
-fn update_function(
+#[pyo3(signature = (provider_type_id, function_metadata, invoke_callback: "typing.Callable[[InvokeFunctionRequest], InvokeFunctionResponse]", /) -> "bool")]
+pub fn update_function(
     provider_type_id: String,
     function_metadata: py_types::FunctionMetadata,
-    invoke_callback: PyObject,
+    invoke_callback: Py<PyAny>,
 ) -> PyResult<bool> {
     info!("update_function: {:?}", function_metadata.name);
     let callback = Arc::new(invoke_callback);
@@ -310,7 +318,7 @@ fn update_function(
         invoke: Arc::new(move |req: core_types::InvokeFunctionRequest| {
             let callback = Arc::clone(&callback);
             Box::pin(async move {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     let py_req = py_types::InvokeFunctionRequest {
                         provider_controller_type_id: req.provider_controller_type_id.clone(),
                         function_controller_type_id: req.function_controller_type_id.clone(),
@@ -369,7 +377,8 @@ fn update_function(
 
 /// Add an agent to the running server
 #[pyfunction]
-fn add_agent(agent: py_types::Agent) -> PyResult<bool> {
+#[pyo3(signature = (agent, /) -> "bool")]
+pub fn add_agent(agent: py_types::Agent) -> PyResult<bool> {
     let core_agent = core_types::Agent {
         id: agent.id,
         project_id: agent.project_id,
@@ -381,13 +390,15 @@ fn add_agent(agent: py_types::Agent) -> PyResult<bool> {
 
 /// Remove an agent by id
 #[pyfunction]
-fn remove_agent(id: String) -> PyResult<bool> {
+#[pyo3(signature = (id, /) -> "bool")]
+pub fn remove_agent(id: String) -> PyResult<bool> {
     Ok(get_grpc_service()?.remove_agent(&id))
 }
 
 /// Update an agent (removes old and inserts new)
 #[pyfunction]
-fn update_agent(agent: py_types::Agent) -> PyResult<bool> {
+#[pyo3(signature = (agent, /) -> "bool")]
+pub fn update_agent(agent: py_types::Agent) -> PyResult<bool> {
     let core_agent = core_types::Agent {
         id: agent.id,
         project_id: agent.project_id,
@@ -400,11 +411,12 @@ fn update_agent(agent: py_types::Agent) -> PyResult<bool> {
 /// Set the secret handler callback that will be called when secrets are synced from Soma
 /// The callback receives a list of secrets and should inject them into os.environ
 #[pyfunction]
-fn set_secret_handler(callback: PyObject) -> PyResult<()> {
+#[pyo3(signature = (callback: "Callable[[list[Secret]], SetSecretsResponse]", /) -> "None")]
+pub fn set_secret_handler(callback: Py<PyAny>) -> PyResult<()> {
     let callback = Arc::new(callback);
 
     let handler: core_types::SecretHandler = Arc::new(move |secrets: Vec<core_types::Secret>| {
-        let callback: Arc<PyObject> = Arc::clone(&callback);
+        let callback: Arc<Py<PyAny>> = Arc::clone(&callback);
         let secret_keys: Vec<String> = secrets.iter().map(|s| s.key.clone()).collect();
         info!(
             "Secret handler invoked with {} secrets: {:?}",
@@ -426,7 +438,7 @@ fn set_secret_handler(callback: PyObject) -> PyResult<()> {
                 py_secrets.len()
             );
 
-            let result = Python::with_gil(|py| {
+            let result = Python::attach(|py| {
                 let result = callback.call1(py, (py_secrets,));
 
                 match result {
@@ -468,12 +480,13 @@ fn set_secret_handler(callback: PyObject) -> PyResult<()> {
 
 /// Set the environment variable handler callback
 #[pyfunction]
-fn set_environment_variable_handler(callback: PyObject) -> PyResult<()> {
+#[pyo3(signature = (callback: "Callable[[list[EnvironmentVariable]], SetEnvironmentVariablesResponse]", /) -> "None")]
+pub fn set_environment_variable_handler(callback: Py<PyAny>) -> PyResult<()> {
     let callback = Arc::new(callback);
 
     let handler: core_types::EnvironmentVariableHandler =
         Arc::new(move |env_vars: Vec<core_types::EnvironmentVariable>| {
-            let callback: Arc<PyObject> = Arc::clone(&callback);
+            let callback: Arc<Py<PyAny>> = Arc::clone(&callback);
             let env_var_keys: Vec<String> = env_vars.iter().map(|e| e.key.clone()).collect();
             info!(
                 "Environment variable handler invoked with {} env vars: {:?}",
@@ -495,7 +508,7 @@ fn set_environment_variable_handler(callback: PyObject) -> PyResult<()> {
                     py_env_vars.len()
                 );
 
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     let result = callback.call1(py, (py_env_vars,));
 
                     match result {
@@ -542,11 +555,12 @@ fn set_environment_variable_handler(callback: PyObject) -> PyResult<()> {
 
 /// Set the unset secret handler callback
 #[pyfunction]
-fn set_unset_secret_handler(callback: PyObject) -> PyResult<()> {
+#[pyo3(signature = (callback: "Callable[[str], UnsetSecretResponse]", /) -> "None")]
+pub fn set_unset_secret_handler(callback: Py<PyAny>) -> PyResult<()> {
     let callback = Arc::new(callback);
 
     let handler: core_types::UnsetSecretHandler = Arc::new(move |key: String| {
-        let callback: Arc<PyObject> = Arc::clone(&callback);
+        let callback: Arc<Py<PyAny>> = Arc::clone(&callback);
         info!("Unset secret handler invoked with key: {}", key);
 
         Box::pin(async move {
@@ -555,7 +569,7 @@ fn set_unset_secret_handler(callback: PyObject) -> PyResult<()> {
                 key
             );
 
-            let result = Python::with_gil(|py| {
+            let result = Python::attach(|py| {
                 let result = callback.call1(py, (key.clone(),));
 
                 match result {
@@ -597,11 +611,12 @@ fn set_unset_secret_handler(callback: PyObject) -> PyResult<()> {
 
 /// Set the unset environment variable handler callback
 #[pyfunction]
-fn set_unset_environment_variable_handler(callback: PyObject) -> PyResult<()> {
+#[pyo3(signature = (callback: "Callable[[str], UnsetEnvironmentVariableResponse]", /) -> "None")]
+pub fn set_unset_environment_variable_handler(callback: Py<PyAny>) -> PyResult<()> {
     let callback = Arc::new(callback);
 
     let handler: core_types::UnsetEnvironmentVariableHandler = Arc::new(move |key: String| {
-        let callback: Arc<PyObject> = Arc::clone(&callback);
+        let callback: Arc<Py<PyAny>> = Arc::clone(&callback);
         info!(
             "Unset environment variable handler invoked with key: {}",
             key
@@ -613,7 +628,7 @@ fn set_unset_environment_variable_handler(callback: PyObject) -> PyResult<()> {
                 key
             );
 
-            let result = Python::with_gil(|py| {
+            let result = Python::attach(|py| {
                 let result = callback.call1(py, (key.clone(),));
 
                 match result {
@@ -663,8 +678,8 @@ fn set_unset_environment_variable_handler(callback: PyObject) -> PyResult<()> {
 /// - Sync secrets to the SDK
 /// - Sync environment variables to the SDK
 #[pyfunction]
-#[pyo3(signature = (base_url=None))]
-fn resync_sdk(base_url: Option<String>) -> PyResult<()> {
+#[pyo3(signature = (base_url=None) -> "None")]
+pub fn resync_sdk(base_url: Option<String>) -> PyResult<()> {
     get_runtime()
         .block_on(async { core_types::resync_sdk(base_url).await })
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
@@ -674,48 +689,83 @@ fn resync_sdk(base_url: Option<String>) -> PyResult<()> {
 
 /// A Python module implemented in Rust for the Soma SDK.
 #[pymodule]
-fn sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
+pub mod trysoma_sdk_core {
     // Functions
-    m.add_function(wrap_pyfunction!(start_grpc_server, m)?)?;
-    m.add_function(wrap_pyfunction!(add_provider, m)?)?;
-    m.add_function(wrap_pyfunction!(remove_provider, m)?)?;
-    m.add_function(wrap_pyfunction!(update_provider, m)?)?;
-    m.add_function(wrap_pyfunction!(add_function, m)?)?;
-    m.add_function(wrap_pyfunction!(remove_function, m)?)?;
-    m.add_function(wrap_pyfunction!(update_function, m)?)?;
-    m.add_function(wrap_pyfunction!(add_agent, m)?)?;
-    m.add_function(wrap_pyfunction!(remove_agent, m)?)?;
-    m.add_function(wrap_pyfunction!(update_agent, m)?)?;
-    m.add_function(wrap_pyfunction!(set_secret_handler, m)?)?;
-    m.add_function(wrap_pyfunction!(set_environment_variable_handler, m)?)?;
-    m.add_function(wrap_pyfunction!(set_unset_secret_handler, m)?)?;
-    m.add_function(wrap_pyfunction!(set_unset_environment_variable_handler, m)?)?;
-    m.add_function(wrap_pyfunction!(resync_sdk, m)?)?;
-
+    #[pymodule_export]
+    pub use super::start_grpc_server;
+    #[pymodule_export]
+    pub use super::add_provider;
+    #[pymodule_export]
+    pub use super::remove_provider;
+    #[pymodule_export]
+    pub use super::update_provider;
+    pub use super::add_function;
+    #[pymodule_export]
+    pub use super::remove_function;
+    #[pymodule_export]
+    pub use super::update_function;
+    pub use super::add_agent;
+    #[pymodule_export]
+    pub use super::remove_agent;
+    #[pymodule_export]
+    pub use super::update_agent;
+    #[pymodule_export]
+    pub use super::set_secret_handler;
+    #[pymodule_export]
+    pub use super::set_environment_variable_handler;
+    #[pymodule_export]
+    pub use super::set_unset_secret_handler;
+    #[pymodule_export]
+    pub use super::set_unset_environment_variable_handler;
+    #[pymodule_export]
+    pub use super::resync_sdk;
+        
     // Types
-    m.add_class::<py_types::Agent>()?;
-    m.add_class::<py_types::ProviderController>()?;
-    m.add_class::<py_types::FunctionController>()?;
-    m.add_class::<py_types::ProviderCredentialController>()?;
-    m.add_class::<py_types::Oauth2AuthorizationCodeFlowConfiguration>()?;
-    m.add_class::<py_types::Oauth2JwtBearerAssertionFlowConfiguration>()?;
-    m.add_class::<py_types::Oauth2AuthorizationCodeFlowStaticCredentialConfiguration>()?;
-    m.add_class::<py_types::Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration>()?;
-    m.add_class::<py_types::Metadata>()?;
-    m.add_class::<py_types::InvokeFunctionRequest>()?;
-    m.add_class::<py_types::InvokeFunctionResponse>()?;
-    m.add_class::<py_types::CallbackError>()?;
-    m.add_class::<py_types::Secret>()?;
-    m.add_class::<py_types::SetSecretsResponse>()?;
-    m.add_class::<py_types::SetSecretsSuccess>()?;
-    m.add_class::<py_types::EnvironmentVariable>()?;
-    m.add_class::<py_types::SetEnvironmentVariablesResponse>()?;
-    m.add_class::<py_types::SetEnvironmentVariablesSuccess>()?;
-    m.add_class::<py_types::UnsetSecretResponse>()?;
-    m.add_class::<py_types::UnsetSecretSuccess>()?;
-    m.add_class::<py_types::UnsetEnvironmentVariableResponse>()?;
-    m.add_class::<py_types::UnsetEnvironmentVariableSuccess>()?;
-    m.add_class::<py_types::FunctionMetadata>()?;
+    #[pymodule_export]
+    pub use super::py_types::Agent;
+    #[pymodule_export]
+    pub use super::py_types::ProviderController;
+    #[pymodule_export]
+    pub use super::py_types::FunctionController;
+    #[pymodule_export]
+    pub use super::py_types::ProviderCredentialController;
+    #[pymodule_export]
+    pub use super::py_types::Oauth2AuthorizationCodeFlowConfiguration;
+    #[pymodule_export]
+    pub use super::py_types::Oauth2JwtBearerAssertionFlowConfiguration;
+    #[pymodule_export]
+    pub use super::py_types::Oauth2AuthorizationCodeFlowStaticCredentialConfiguration;
+    #[pymodule_export]
+    pub use super::py_types::Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration;
+    #[pymodule_export]
+    pub use super::py_types::Metadata;
+    #[pymodule_export]
+    pub use super::py_types::InvokeFunctionRequest;
+    #[pymodule_export]
+    pub use super::py_types::InvokeFunctionResponse;
+    #[pymodule_export]
+    pub use super::py_types::CallbackError;
+    #[pymodule_export]
+    pub use super::py_types::Secret;
+    #[pymodule_export]
+    pub use super::py_types::SetSecretsResponse;
+    #[pymodule_export]
+    pub use super::py_types::SetSecretsSuccess;
+    #[pymodule_export]
+    pub use super::py_types::EnvironmentVariable;
+    #[pymodule_export]
+    pub use super::py_types::SetEnvironmentVariablesResponse;
+    #[pymodule_export]
+    pub use super::py_types::SetEnvironmentVariablesSuccess;
+    #[pymodule_export]
+    pub use super::py_types::UnsetSecretResponse;
+    #[pymodule_export]
+    pub use super::py_types::UnsetSecretSuccess;
+    #[pymodule_export]
+    pub use super::py_types::UnsetEnvironmentVariableResponse;
+    #[pymodule_export]
+    pub use super::py_types::UnsetEnvironmentVariableSuccess;
+    #[pymodule_export]
+    pub use super::py_types::FunctionMetadata;
 
-    Ok(())
 }

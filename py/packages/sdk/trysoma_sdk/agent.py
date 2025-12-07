@@ -1,13 +1,10 @@
 """Agent creation and management for Soma SDK."""
 
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Protocol, TypeVar
+from typing import Awaitable, Callable, Protocol
 
-# Try to import the restate SDK - this is optional and only needed if using restate
-try:
-    from restate import ObjectContext
-except ImportError:
-    ObjectContext = Any  # type: ignore
+from restate_sdk import ObjectContext
+from trysoma_api_client import V1Api as SomaV1Api
 
 
 @dataclass
@@ -16,8 +13,8 @@ class HandlerParams:
 
     task_id: str
     context_id: str
-    ctx: Any  # ObjectContext from restate
-    soma: Any  # SomaV1Api from api-client
+    ctx: ObjectContext
+    soma: SomaV1Api
 
 
 class SomaAgent(Protocol):

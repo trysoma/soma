@@ -1,0 +1,1 @@
+Update sdk-py functions based on the changes in @crates/sdk-core. Make sure to update the method signature macros to match. Once complete, run make py-build to ensure the build passes and then review the generated .pyi file. Ensure there are no any types in the pyi typing file.

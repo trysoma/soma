@@ -1,42 +1,17 @@
 """Bridge client and function creation utilities."""
 
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Generic, TypeVar
+from typing import Awaitable, Callable, Generic, TypeVar
 
-try:
-    from pydantic import BaseModel
-except ImportError:
-    BaseModel = object  # type: ignore
+from pydantic import BaseModel
+
+from trysoma_sdk_core import (
+    FunctionMetadata,
+    ProviderController,
+)
 
 InputT = TypeVar("InputT", bound=BaseModel)
 OutputT = TypeVar("OutputT", bound=BaseModel)
-
-
-@dataclass
-class ProviderController:
-    """Provider controller configuration."""
-
-    type_id: str
-    name: str
-    documentation: str = ""
-    categories: list[str] | None = None
-    credential_controllers: list[dict[str, Any]] | None = None
-
-    def __post_init__(self) -> None:
-        if self.categories is None:
-            self.categories = []
-        if self.credential_controllers is None:
-            self.credential_controllers = []
-
-
-@dataclass
-class FunctionController:
-    """Function controller configuration."""
-
-    name: str
-    description: str
-    parameters: dict[str, Any] | None = None
-    output: dict[str, Any] | None = None
 
 
 @dataclass
@@ -46,7 +21,7 @@ class SomaFunction(Generic[InputT, OutputT]):
     input_schema: type[InputT]
     output_schema: type[OutputT]
     provider_controller: ProviderController
-    function_controller: FunctionController
+    function_metadata: FunctionMetadata
     handler: Callable[[InputT], Awaitable[OutputT]]
 
 
@@ -55,7 +30,8 @@ def create_soma_function(
     input_schema: type[InputT],
     output_schema: type[OutputT],
     provider_controller: ProviderController,
-    function_controller: FunctionController,
+    function_name: str,
+    function_description: str,
     handler: Callable[[InputT], Awaitable[OutputT]],
 ) -> SomaFunction[InputT, OutputT]:
     """Create a new Soma function.
@@ -63,8 +39,9 @@ def create_soma_function(
     Args:
         input_schema: Pydantic model class for input validation.
         output_schema: Pydantic model class for output validation.
-        provider_controller: Provider controller configuration.
-        function_controller: Function controller configuration (name, description).
+        provider_controller: Provider controller from trysoma_sdk_core.
+        function_name: Name of the function.
+        function_description: Description of what the function does.
         handler: Async function that processes the input and returns the output.
 
     Returns:
@@ -73,6 +50,11 @@ def create_soma_function(
     Example:
         ```python
         from pydantic import BaseModel
+        from trysoma_sdk import (
+            create_soma_function,
+            ProviderController,
+            ProviderCredentialController,
+        )
 
         class ClaimInput(BaseModel):
             date: str
@@ -88,43 +70,41 @@ def create_soma_function(
             type_id="approve-claim",
             name="Approve Claim",
             documentation="Approve a claim",
+            categories=["insurance"],
+            credential_controllers=[ProviderCredentialController.no_auth()],
         )
 
-        function = FunctionController(
-            name="approve-claim",
-            description="Approve a claim",
-        )
+        async def handle_claim(claim: ClaimInput) -> ClaimOutput:
+            return ClaimOutput(approved=True)
 
         approve_claim = create_soma_function(
             input_schema=ClaimInput,
             output_schema=ClaimOutput,
             provider_controller=provider,
-            function_controller=function,
-            handler=lambda claim: ClaimOutput(approved=True),
+            function_name="approve-claim",
+            function_description="Approve a claim",
+            handler=handle_claim,
         )
         ```
     """
+    import json
+
     # Get JSON schema from pydantic models
-    input_json_schema = None
-    output_json_schema = None
+    input_json_schema = input_schema.model_json_schema()
+    output_json_schema = output_schema.model_json_schema()
 
-    if hasattr(input_schema, "model_json_schema"):
-        input_json_schema = input_schema.model_json_schema()
-    if hasattr(output_schema, "model_json_schema"):
-        output_json_schema = output_schema.model_json_schema()
-
-    # Create the function controller with schemas
-    full_function_controller = FunctionController(
-        name=function_controller.name,
-        description=function_controller.description,
-        parameters=input_json_schema,
-        output=output_json_schema,
+    # Create the function metadata with schemas as JSON strings
+    function_metadata = FunctionMetadata(
+        function_name,
+        function_description,
+        json.dumps(input_json_schema),
+        json.dumps(output_json_schema),
     )
 
     return SomaFunction(
         input_schema=input_schema,
         output_schema=output_schema,
         provider_controller=provider_controller,
-        function_controller=full_function_controller,
+        function_metadata=function_metadata,
         handler=handler,
     )

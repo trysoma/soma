@@ -3,23 +3,22 @@
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Generic, TypeVar
 
-# Try to import the restate SDK - this is optional
-try:
-    from restate import ObjectContext
-except ImportError:
-    ObjectContext = Any  # type: ignore
+from restate_sdk import ObjectContext
+from trysoma_api_client import V1Api as SomaV1Api
 
 BridgeT = TypeVar("BridgeT")
 InputT = TypeVar("InputT")
 OutputT = TypeVar("OutputT")
+
+FirstTurn = str  # Literal["user", "agent"]
 
 
 @dataclass
 class ChatHandlerParams(Generic[BridgeT, InputT, OutputT]):
     """Parameters passed to chat pattern handlers."""
 
-    ctx: Any  # ObjectContext
-    soma: Any  # SomaV1Api
+    ctx: ObjectContext
+    soma: SomaV1Api
     bridge: BridgeT
     history: list[Any]  # TaskTimelineItem
     input: InputT
@@ -31,20 +30,20 @@ class ChatHandlerParams(Generic[BridgeT, InputT, OutputT]):
 class WrappedChatHandlerParams(Generic[BridgeT, InputT, OutputT]):
     """Parameters for wrapped chat handler."""
 
-    ctx: Any  # ObjectContext
-    soma: Any  # SomaV1Api
+    ctx: ObjectContext
+    soma: SomaV1Api
     bridge: BridgeT
     input: InputT
     task_id: str
-    first_turn: str = "user"  # "user" | "agent"
+    first_turn: FirstTurn = "user"
 
 
 @dataclass
 class WorkflowHandlerParams(Generic[BridgeT, InputT, OutputT]):
     """Parameters passed to workflow pattern handlers."""
 
-    ctx: Any  # ObjectContext
-    soma: Any  # SomaV1Api
+    ctx: ObjectContext
+    soma: SomaV1Api
     bridge: BridgeT
     history: list[Any]  # TaskTimelineItem
     input: InputT
@@ -56,8 +55,8 @@ class WorkflowHandlerParams(Generic[BridgeT, InputT, OutputT]):
 class WrappedWorkflowHandlerParams(Generic[BridgeT, InputT, OutputT]):
     """Parameters for wrapped workflow handler."""
 
-    ctx: Any  # ObjectContext
-    soma: Any  # SomaV1Api
+    ctx: ObjectContext
+    soma: SomaV1Api
     bridge: BridgeT
     input: InputT
     task_id: str
@@ -109,7 +108,7 @@ def chat(
         soma = params.soma
 
         # Create awakeable for waiting for new input
-        awakeable_id, new_input_promise = await ctx.awakeable()
+        awakeable_id, new_input_promise = ctx.awakeable()
         await ctx.set(NEW_INPUT_PROMISE, awakeable_id)
 
         goal_output: OutputT | None = None
@@ -126,17 +125,19 @@ def chat(
         while not achieved:
             # Fetch message history
             messages = await ctx.run(
+                "fetch_history",
                 lambda: soma.task_history(page_size=1000, task_id=params.task_id)
             )
 
             async def send_message(message: Any) -> Any:
                 return await ctx.run(
+                    "send_message",
                     lambda: soma.send_message(
                         task_id=params.task_id, create_message_request=message
                     )
                 )
 
-            handler_params = ChatHandlerParams(
+            handler_params: ChatHandlerParams[BridgeT, InputT, OutputT] = ChatHandlerParams(
                 ctx=ctx,
                 soma=soma,
                 history=messages.items,
@@ -150,10 +151,9 @@ def chat(
 
             if not achieved:
                 # Re-arm the awakeable, waiting for another message
-                new_id, next_promise = await ctx.awakeable()
+                new_id, next_promise = ctx.awakeable()
                 await ctx.set(NEW_INPUT_PROMISE, new_id)
-                new_input_promise = next_promise
-                await new_input_promise
+                await next_promise
 
         if goal_output is None:
             raise RuntimeError("Goal not achieved")
@@ -203,28 +203,32 @@ def workflow(
     async def wrapped(
         params: WrappedWorkflowHandlerParams[BridgeT, InputT, OutputT],
     ) -> OutputT:
+        import asyncio
+
         NEW_INPUT_PROMISE = "new_input_promise"
         ctx = params.ctx
         soma = params.soma
 
         while True:
             # Create awakeable for waiting for new input
-            awakeable_id, new_input_promise = await ctx.awakeable()
+            awakeable_id, new_input_promise = ctx.awakeable()
             await ctx.set(NEW_INPUT_PROMISE, awakeable_id)
 
             # Fetch message history
             messages = await ctx.run(
+                "fetch_history",
                 lambda: soma.task_history(page_size=1000, task_id=params.task_id)
             )
 
             async def send_message(message: Any) -> Any:
                 return await ctx.run(
+                    "send_message",
                     lambda: soma.send_message(
                         task_id=params.task_id, create_message_request=message
                     )
                 )
 
-            handler_params = WorkflowHandlerParams(
+            handler_params: WorkflowHandlerParams[BridgeT, InputT, OutputT] = WorkflowHandlerParams(
                 ctx=ctx,
                 soma=soma,
                 history=messages.items,
@@ -236,11 +240,7 @@ def workflow(
 
             if params.interruptable:
                 # Race between new input and handler completion
-                import asyncio
-
-                handler_task = asyncio.create_task(
-                    ctx.run(lambda: handler(handler_params))
-                )
+                handler_task = asyncio.create_task(handler(handler_params))
                 input_task = asyncio.create_task(new_input_promise)
 
                 done, pending = await asyncio.wait(
@@ -257,6 +257,9 @@ def workflow(
             else:
                 # Not interruptable, just wait for handler to complete
                 return await handler(handler_params)
+
+        # This should never be reached, but makes type checker happy
+        raise RuntimeError("Workflow loop exited unexpectedly")
 
     return wrapped
 

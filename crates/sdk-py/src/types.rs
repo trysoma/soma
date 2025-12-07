@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 /// Agent metadata
 #[pyclass]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Agent {
     #[pyo3(get, set)]
     pub id: String,
@@ -17,6 +17,7 @@ pub struct Agent {
 #[pymethods]
 impl Agent {
     #[new]
+    #[pyo3(signature = (id, project_id, name, description, /)-> "Agent")]
     fn new(id: String, project_id: String, name: String, description: String) -> Self {
         Self {
             id,
@@ -46,6 +47,7 @@ pub struct ProviderController {
 #[pymethods]
 impl ProviderController {
     #[new]
+    #[pyo3(signature = (type_id, name, documentation, categories: "list[str]", credential_controllers: "list[ProviderCredentialController]", /) -> "ProviderController")]
     fn new(
         type_id: String,
         name: String,
@@ -80,6 +82,7 @@ pub struct FunctionController {
 #[pymethods]
 impl FunctionController {
     #[new]
+    #[pyo3(signature = (name, description, parameters, output, /) -> "FunctionController")]
     fn new(name: String, description: String, parameters: String, output: String) -> Self {
         Self {
             name,
@@ -110,6 +113,7 @@ pub enum ProviderCredentialControllerInner {
 #[pymethods]
 impl ProviderCredentialController {
     #[staticmethod]
+    #[pyo3(signature = () -> "ProviderCredentialController")]
     fn no_auth() -> Self {
         Self {
             credential_type: "NoAuth".to_string(),
@@ -118,6 +122,7 @@ impl ProviderCredentialController {
     }
 
     #[staticmethod]
+    #[pyo3(signature = () -> "ProviderCredentialController")]
     fn api_key() -> Self {
         Self {
             credential_type: "ApiKey".to_string(),
@@ -126,6 +131,7 @@ impl ProviderCredentialController {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (config, /) -> "ProviderCredentialController")]
     fn oauth2_authorization_code_flow(config: Oauth2AuthorizationCodeFlowConfiguration) -> Self {
         Self {
             credential_type: "Oauth2AuthorizationCodeFlow".to_string(),
@@ -134,6 +140,7 @@ impl ProviderCredentialController {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (config, /) -> "ProviderCredentialController")]
     fn oauth2_jwt_bearer_flow(config: Oauth2JwtBearerAssertionFlowConfiguration) -> Self {
         Self {
             credential_type: "Oauth2JwtBearerAssertionFlow".to_string(),
@@ -141,6 +148,7 @@ impl ProviderCredentialController {
         }
     }
 
+    #[pyo3(signature = () -> "Oauth2AuthorizationCodeFlowConfiguration | None")]
     fn get_oauth2_authorization_code_config(
         &self,
     ) -> Option<Oauth2AuthorizationCodeFlowConfiguration> {
@@ -150,6 +158,7 @@ impl ProviderCredentialController {
         }
     }
 
+    #[pyo3(signature = () -> "Oauth2JwtBearerAssertionFlowConfiguration | None")]
     fn get_oauth2_jwt_bearer_config(&self) -> Option<Oauth2JwtBearerAssertionFlowConfiguration> {
         match &self.inner {
             ProviderCredentialControllerInner::Oauth2JwtBearerAssertionFlow(c) => Some(c.clone()),
@@ -169,6 +178,7 @@ pub struct Oauth2AuthorizationCodeFlowConfiguration {
 #[pymethods]
 impl Oauth2AuthorizationCodeFlowConfiguration {
     #[new]
+    #[pyo3(signature = (static_credential_configuration, /) -> "Oauth2AuthorizationCodeFlowConfiguration")]
     fn new(
         static_credential_configuration: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
     ) -> Self {
@@ -189,6 +199,7 @@ pub struct Oauth2JwtBearerAssertionFlowConfiguration {
 #[pymethods]
 impl Oauth2JwtBearerAssertionFlowConfiguration {
     #[new]
+    #[pyo3(signature = (static_credential_configuration, /) -> "Oauth2JwtBearerAssertionFlowConfiguration")]
     fn new(
         static_credential_configuration: Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration,
     ) -> Self {
@@ -221,7 +232,7 @@ pub struct Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
 #[pymethods]
 impl Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
     #[new]
-    #[pyo3(signature = (auth_uri, token_uri, userinfo_uri, jwks_uri, issuer, scopes, metadata=None))]
+    #[pyo3(signature = (auth_uri, token_uri, userinfo_uri, jwks_uri, issuer, scopes: "list[str]", /, metadata: "list[Metadata] | None" = None) -> "Oauth2AuthorizationCodeFlowStaticCredentialConfiguration")]
     fn new(
         auth_uri: String,
         token_uri: String,
@@ -266,7 +277,7 @@ pub struct Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration {
 #[pymethods]
 impl Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration {
     #[new]
-    #[pyo3(signature = (auth_uri, token_uri, userinfo_uri, jwks_uri, issuer, scopes, metadata=None))]
+    #[pyo3(signature = (auth_uri, token_uri, userinfo_uri, jwks_uri, issuer, scopes: "list[str]", /, metadata: "list[Metadata] | None" = None) -> "Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration")]
     fn new(
         auth_uri: String,
         token_uri: String,
@@ -301,6 +312,7 @@ pub struct Metadata {
 #[pymethods]
 impl Metadata {
     #[new]
+    #[pyo3(signature = (key, value, /) -> "Metadata")]
     fn new(key: String, value: String) -> Self {
         Self { key, value }
     }
@@ -325,6 +337,7 @@ pub struct InvokeFunctionRequest {
 #[pymethods]
 impl InvokeFunctionRequest {
     #[new]
+    #[pyo3(signature = (provider_controller_type_id, function_controller_type_id, credential_controller_type_id, credentials, parameters, /) -> "InvokeFunctionRequest")]
     fn new(
         provider_controller_type_id: String,
         function_controller_type_id: String,
@@ -353,6 +366,7 @@ pub struct CallbackError {
 #[pymethods]
 impl CallbackError {
     #[new]
+    #[pyo3(signature = (message, /) -> "CallbackError")]
     fn new(message: String) -> Self {
         Self { message }
     }
@@ -371,12 +385,13 @@ pub struct InvokeFunctionResponse {
 #[pymethods]
 impl InvokeFunctionResponse {
     #[new]
-    #[pyo3(signature = (data=None, error=None))]
+    #[pyo3(signature = (data=None, error=None) -> "InvokeFunctionResponse")]
     fn new(data: Option<String>, error: Option<CallbackError>) -> Self {
         Self { data, error }
     }
 
     #[staticmethod]
+    #[pyo3(signature = (data, /) -> "InvokeFunctionResponse")]
     fn success(data: String) -> Self {
         Self {
             data: Some(data),
@@ -385,6 +400,7 @@ impl InvokeFunctionResponse {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (message, /) -> "InvokeFunctionResponse")]
     fn failure(message: String) -> Self {
         Self {
             data: None,
@@ -406,6 +422,7 @@ pub struct Secret {
 #[pymethods]
 impl Secret {
     #[new]
+    #[pyo3(signature = (key, value, /) -> "Secret")]
     fn new(key: String, value: String) -> Self {
         Self { key, value }
     }
@@ -422,6 +439,7 @@ pub struct SetSecretsSuccess {
 #[pymethods]
 impl SetSecretsSuccess {
     #[new]
+    #[pyo3(signature = (message, /) -> "SetSecretsSuccess")]
     fn new(message: String) -> Self {
         Self { message }
     }
@@ -440,12 +458,13 @@ pub struct SetSecretsResponse {
 #[pymethods]
 impl SetSecretsResponse {
     #[new]
-    #[pyo3(signature = (data=None, error=None))]
+    #[pyo3(signature = (data=None, error=None) -> "SetSecretsResponse")]
     fn new(data: Option<SetSecretsSuccess>, error: Option<CallbackError>) -> Self {
         Self { data, error }
     }
 
     #[staticmethod]
+    #[pyo3(signature = (message, /) -> "SetSecretsResponse")]
     fn success(message: String) -> Self {
         Self {
             data: Some(SetSecretsSuccess { message }),
@@ -454,6 +473,7 @@ impl SetSecretsResponse {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (message, /) -> "SetSecretsResponse")]
     fn failure(message: String) -> Self {
         Self {
             data: None,
@@ -475,6 +495,7 @@ pub struct EnvironmentVariable {
 #[pymethods]
 impl EnvironmentVariable {
     #[new]
+    #[pyo3(signature = (key, value, /) -> "EnvironmentVariable")]
     fn new(key: String, value: String) -> Self {
         Self { key, value }
     }
@@ -491,6 +512,7 @@ pub struct SetEnvironmentVariablesSuccess {
 #[pymethods]
 impl SetEnvironmentVariablesSuccess {
     #[new]
+    #[pyo3(signature = (message, /) -> "SetEnvironmentVariablesSuccess")]
     fn new(message: String) -> Self {
         Self { message }
     }
@@ -509,12 +531,13 @@ pub struct SetEnvironmentVariablesResponse {
 #[pymethods]
 impl SetEnvironmentVariablesResponse {
     #[new]
-    #[pyo3(signature = (data=None, error=None))]
+    #[pyo3(signature = (data=None, error=None) -> "SetEnvironmentVariablesResponse")]
     fn new(data: Option<SetEnvironmentVariablesSuccess>, error: Option<CallbackError>) -> Self {
         Self { data, error }
     }
 
     #[staticmethod]
+    #[pyo3(signature = (message, /) -> "SetEnvironmentVariablesResponse")]
     fn success(message: String) -> Self {
         Self {
             data: Some(SetEnvironmentVariablesSuccess { message }),
@@ -523,6 +546,7 @@ impl SetEnvironmentVariablesResponse {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (message, /) -> "SetEnvironmentVariablesResponse")]
     fn failure(message: String) -> Self {
         Self {
             data: None,
@@ -542,6 +566,7 @@ pub struct UnsetSecretSuccess {
 #[pymethods]
 impl UnsetSecretSuccess {
     #[new]
+    #[pyo3(signature = (message, /) -> "UnsetSecretSuccess")]
     fn new(message: String) -> Self {
         Self { message }
     }
@@ -560,12 +585,13 @@ pub struct UnsetSecretResponse {
 #[pymethods]
 impl UnsetSecretResponse {
     #[new]
-    #[pyo3(signature = (data=None, error=None))]
+    #[pyo3(signature = (data=None, error=None) -> "UnsetSecretResponse")]
     fn new(data: Option<UnsetSecretSuccess>, error: Option<CallbackError>) -> Self {
         Self { data, error }
     }
 
     #[staticmethod]
+    #[pyo3(signature = (message, /) -> "UnsetSecretResponse")]
     fn success(message: String) -> Self {
         Self {
             data: Some(UnsetSecretSuccess { message }),
@@ -574,6 +600,7 @@ impl UnsetSecretResponse {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (message, /) -> "UnsetSecretResponse")]
     fn failure(message: String) -> Self {
         Self {
             data: None,
@@ -593,6 +620,7 @@ pub struct UnsetEnvironmentVariableSuccess {
 #[pymethods]
 impl UnsetEnvironmentVariableSuccess {
     #[new]
+    #[pyo3(signature = (message, /) -> "UnsetEnvironmentVariableSuccess")]
     fn new(message: String) -> Self {
         Self { message }
     }
@@ -611,12 +639,13 @@ pub struct UnsetEnvironmentVariableResponse {
 #[pymethods]
 impl UnsetEnvironmentVariableResponse {
     #[new]
-    #[pyo3(signature = (data=None, error=None))]
+    #[pyo3(signature = (data=None, error=None) -> "UnsetEnvironmentVariableResponse")]
     fn new(data: Option<UnsetEnvironmentVariableSuccess>, error: Option<CallbackError>) -> Self {
         Self { data, error }
     }
 
     #[staticmethod]
+    #[pyo3(signature = (message, /) -> "UnsetEnvironmentVariableResponse")]
     fn success(message: String) -> Self {
         Self {
             data: Some(UnsetEnvironmentVariableSuccess { message }),
@@ -625,6 +654,7 @@ impl UnsetEnvironmentVariableResponse {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (message, /) -> "UnsetEnvironmentVariableResponse")]
     fn failure(message: String) -> Self {
         Self {
             data: None,
@@ -650,6 +680,7 @@ pub struct FunctionMetadata {
 #[pymethods]
 impl FunctionMetadata {
     #[new]
+    #[pyo3(signature = (name, description, parameters, output, /) -> "FunctionMetadata")]
     fn new(name: String, description: String, parameters: String, output: String) -> Self {
         Self {
             name,

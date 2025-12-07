@@ -4,11 +4,16 @@ version.workspace = true
 edition.workspace = true
 
 [lib]
-name = "sdk_py"
+name = "trysoma_sdk_core"
 crate-type = ["cdylib"]
+
+[[bin]]
+name = "sdk-py-generate-pyi"
+path = "src/main.rs"
 
 [dependencies]
 pyo3.workspace = true
+pyo3-introspection.workspace = true
 sdk-core.workspace = true
 sdk-proto.workspace = true
 shared.workspace = true

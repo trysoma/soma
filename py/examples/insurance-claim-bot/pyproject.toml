@@ -30,7 +30,7 @@ build-backend = "hatchling.build"
 packages = ["agents", "functions"]
 
 [project.scripts]
-dev = "soma_sdk.standalone:watch_and_regenerate"
+dev = "trysoma_sdk.standalone:watch_and_regenerate"
 
 [tool.ruff]
 line-length = 88

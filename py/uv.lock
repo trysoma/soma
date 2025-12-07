@@ -4,10 +4,10 @@ requires-python = ">=3.10"
 
 [manifest]
 members = [
-    "soma-insurance-claim-bot-example",
     "soma-py-workspace",
-    "soma-sdk",
-    "trysoma-api-client",
+    "trysoma_api_client",
+    "trysoma_insurance_claim_bot_example",
+    "trysoma_sdk",
 ]
 
 [[package]]
@@ -578,6 +578,55 @@ wheels = [
 ]
 
 [[package]]
+name = "restate-sdk"
+version = "0.12.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/63/51e0102bbe2cbfa2ab208c457941ffdee958f937110e14386baf562f64b0/restate_sdk-0.12.0.tar.gz", hash = "sha256:e49ea08a1ba2be87f72e90e6998b055f5ea1ddbbf3571b6fc2ffd0cb30e23cda", size = 109319 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/56/f8/2da3d7f44b8305d99a7034832b7849a365a527f0de3461f31b7d212e0423/restate_sdk-0.12.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f9a7322c0443ce0247ceaf9538f276a409cabefda22ee8ba4680450471b25541", size = 1994989 },
+    { url = "https://files.pythonhosted.org/packages/6e/bd/43505ba1d047fb402672c8ddd5a9559da773e6aadd5a8fd7cd767b461a8c/restate_sdk-0.12.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:b38c8029ef52faeec7f63e81c14264b14ead0d16eee57d492a99c4161b114382", size = 2036744 },
+    { url = "https://files.pythonhosted.org/packages/94/af/a4cbb8debf156afd4440485a0851740733cc96b52b317d7f68685af0ebdd/restate_sdk-0.12.0-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:746631d9998c30faca4e41158211947f089e81475f75416f051b5818cacb177f", size = 2228914 },
+    { url = "https://files.pythonhosted.org/packages/d1/ad/8ccccd49fa67795e06e3bd513a6bd386194a6d73a00c23c1db19a49fcfee/restate_sdk-0.12.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:f9e11f5ac6eb1d41ad51229ed768ac2fe8fde62a712094b427c05f1ca0208c0d", size = 2237573 },
+    { url = "https://files.pythonhosted.org/packages/48/15/1ed7ace1266dd989a39154995f8ac85979d1246191b1419da57607d567ba/restate_sdk-0.12.0-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:deb6a516234870442137afae31ee8852643e9a119aad76636645c9a3020a0c54", size = 1856594 },
+    { url = "https://files.pythonhosted.org/packages/dd/b0/aa60aa0b8653f06367a57983df2a69b129260706de5bd15427e16f31f53e/restate_sdk-0.12.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:5ea4c010880f6cf4ec2eda0f7cf29a107120c1fe4f2eff2224e84c4783242422", size = 1800162 },
+    { url = "https://files.pythonhosted.org/packages/a3/6f/7d2acb4dccb1b245848f5cdbcfc8faa4e5c3ef5b61633e846c40eb8088ba/restate_sdk-0.12.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e879c7ef34ce8e041213126034400652cbbebfff43f7d1dc121f91b37137ac2f", size = 1994969 },
+    { url = "https://files.pythonhosted.org/packages/fd/36/1be09387b9add3102b4238a07ecf7fb0903bf51c08eeb83089bba59e499e/restate_sdk-0.12.0-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:960416dcfc6a2e314ad9e5df032555db97f869fc57a65c426d152b48deaaa81b", size = 2036684 },
+    { url = "https://files.pythonhosted.org/packages/29/f0/f12e35384ed20959eac23f8cabbafb25079423a10e207b266204ec22f7fe/restate_sdk-0.12.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:20f953221ea2b0e7cce45744b5b0325af23c6ca1a6db6866d8b9a0200f4fd5bb", size = 2228839 },
+    { url = "https://files.pythonhosted.org/packages/02/3d/9e5e42af31adf164fccea480968b0b2d59b5c350e3129a8b83431ecd5c69/restate_sdk-0.12.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:b3cacb29057a002c1c75b11a09e86cde03e3a52f82b6c9e8d22dce6b5005c838", size = 2237372 },
+    { url = "https://files.pythonhosted.org/packages/1d/23/37a65147077cd62c9aa62084d4d566e4c0ab20974a94a84c483a840065c1/restate_sdk-0.12.0-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:213e2c98a6f4c7ad0471b44073a4043980477bb15b469b15558aedf5797b5100", size = 1850519 },
+    { url = "https://files.pythonhosted.org/packages/80/f4/1c941351e8cc4fec8fe642b3ca5d76fba0b8410cac15cb3aa788ce6deef1/restate_sdk-0.12.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:8f699042ec29d6a9008ea452c6f71de31434e7768fe97fcfd21bd11bfbdb1280", size = 1794400 },
+    { url = "https://files.pythonhosted.org/packages/5a/5d/fa6c5bbdbddb5ac085c8bf862f066ca7338a77c25cdb25cf247f01728d12/restate_sdk-0.12.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1fe4184187d768f4cf2e1f1e34f30325020ea56406c86a713faeac8501889942", size = 1994035 },
+    { url = "https://files.pythonhosted.org/packages/ac/14/4519b9ae82acd0bc7271a1a695916a15fcfa9b465823fdf009f420a67ea0/restate_sdk-0.12.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:0bbbb32e0e8f985bbed2e6b45af7d0b27ee2a5f019e499626bb11b4c3dc98f61", size = 2036577 },
+    { url = "https://files.pythonhosted.org/packages/e6/63/bd1acd26b4b2999790c8e031cb70280bc2d83e5d6ea3c7c580f9d62a06e6/restate_sdk-0.12.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:01687358ca206deb33cd80a8f98bece0bd084e97628c06a9d4677ba61ed17016", size = 2229415 },
+    { url = "https://files.pythonhosted.org/packages/d0/a4/928910b31b7ca06a9d3dc360837641c6f813d6d5e2d6fc81ca61dfe2f3d1/restate_sdk-0.12.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:e69549e8f6a2583829a9a95998c3a62b9f46fbe3f2a14c11529e5482886bdf75", size = 2237175 },
+    { url = "https://files.pythonhosted.org/packages/77/8a/38a2d61f70c75ea1828a44fcb06fea3858277d3777ceee6253950a1784bc/restate_sdk-0.12.0-cp313-cp313-macosx_10_12_x86_64.whl", hash = "sha256:b4bd49107af9f0b0177db47e55757ec266f790932afaaeab22f0509e02a8c3e6", size = 1850753 },
+    { url = "https://files.pythonhosted.org/packages/2a/0c/115c122d1af7ffd197a1a360611cb1d54e3b2b59fa4ce54f96a2aa98da91/restate_sdk-0.12.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:e9921de2b17b4c97e3e7f4256c87f7d1eb4676c25ccec4d22b0829cb712e7de2", size = 1794113 },
+    { url = "https://files.pythonhosted.org/packages/e5/b3/e1e64057b4cab82a4d429fa8fc9911a9f1790dc9b820f3cad07035926770/restate_sdk-0.12.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:caa849825268b35d697cb1d025d18c09d066591353546f9ab7ce1a790f049731", size = 1994096 },
+    { url = "https://files.pythonhosted.org/packages/40/a9/014cad5fea76e8cc87735488703ccc7a007c48e648869c5f98cb90b4fa7a/restate_sdk-0.12.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:1fb86f51eeeb8e702a5f4d685b75a02bc5b61ed5eff3b7bf70862e9c97333820", size = 2036731 },
+    { url = "https://files.pythonhosted.org/packages/8d/48/73a29ff142c59524672f1db85039a9338be64673a60a9d2e6668936c724c/restate_sdk-0.12.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:658c6612a0f3f78691b319316550153fc5ab1ba6385aed24d3a966ca36cb6c03", size = 2229021 },
+    { url = "https://files.pythonhosted.org/packages/2f/94/89743761c03b502cb85a8a61df7859e2cc9c8ed7354a53dbf7c846d9bc83/restate_sdk-0.12.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:3f96ff5657c563516b580c14996bc2a0c3bc3caf1b272c34c081dfe7093d288b", size = 2237654 },
+    { url = "https://files.pythonhosted.org/packages/3e/38/9ee124569d664f8482c4b2d6d41b6814785f07be077daec618a5ec053220/restate_sdk-0.12.0-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:e2fa85fe31019a8475e7ed02c258099e3955de710ca0ad05b25cab4364f4a434", size = 2035850 },
+    { url = "https://files.pythonhosted.org/packages/81/42/4d61fe74a6f2df0fdb2e7569ff77e008740a19c66fbeb31f8418b4b5885e/restate_sdk-0.12.0-cp313-cp313t-musllinux_1_2_aarch64.whl", hash = "sha256:b65207c5e552bd3c813193913adf675a0b71d64f0fc35cc11b2c2676bf5e430c", size = 2228631 },
+    { url = "https://files.pythonhosted.org/packages/69/37/5de85aa74f7a1dc5888f3b52cb637ba7ab7bc791e6ab028e2c57e69620be/restate_sdk-0.12.0-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:cf4198063ced06513ce5e1202568c949442d455e3bed99b381af94a39222e17c", size = 2236514 },
+    { url = "https://files.pythonhosted.org/packages/9f/cd/7065e815357aa7d51b0792845a43f6b6f97897f0d38485d8f8badf08f835/restate_sdk-0.12.0-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:85a026ae844ad909a960dcf3ac56f67ac98f39a6c5a85adb1c5d22700086f793", size = 1852680 },
+    { url = "https://files.pythonhosted.org/packages/01/17/8eb6ac04bfee779788ec2e3dfbb30c8d2cbfe37543d5f2670aab521cd060/restate_sdk-0.12.0-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:68c95a9f2ad1bd5e2cb146001c4391fdadd85e9a68bee86a6b1e2c10f61be4b6", size = 1795377 },
+    { url = "https://files.pythonhosted.org/packages/b8/81/6902f63407644168d95ba06535fc34f5fb445ace873c714801a77235e648/restate_sdk-0.12.0-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:dd636978224cb7da11933c0e815733faadee2486feec094d0d852db41e979e5e", size = 1995473 },
+    { url = "https://files.pythonhosted.org/packages/0a/d2/0267cd4e16bf1a0523ccecc4a58842f066eae5876fbbdc5b8ef05c66f775/restate_sdk-0.12.0-cp314-cp314-manylinux_2_28_aarch64.whl", hash = "sha256:4f0f6177b42a6ab22a91eb70b9fed4d2f7bfe64bdde0654fc7e86bd8ea930f18", size = 2038030 },
+    { url = "https://files.pythonhosted.org/packages/d2/56/caf1da8996093e84c24473ec87bad9a6283f70196e4a4ea5eeca49406934/restate_sdk-0.12.0-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:529511254b1d9334401245a0bc367cc7d702a44b936392deaa716e1dd0d4c9e9", size = 2231249 },
+    { url = "https://files.pythonhosted.org/packages/0f/23/d268f7713543bfb10f22991f884fee07683e20af2041b75b18a36bbc5484/restate_sdk-0.12.0-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:e83edaa86e5c0c279bd59a857c224c18a1e17e9ed974b798451748befc7040fb", size = 2239037 },
+    { url = "https://files.pythonhosted.org/packages/03/2b/0e19bc2944b962180c6df22d0ebd54983d0ed685c0c16b04abfb69bbd94a/restate_sdk-0.12.0-cp314-cp314t-manylinux_2_28_aarch64.whl", hash = "sha256:44ad9d564597f56e0506df46ca9f02a06c8392f8087b89dc4187a62efd2fc602", size = 2034253 },
+    { url = "https://files.pythonhosted.org/packages/62/a5/82f5dae08a53be0cbb91a3defb4cbd5a278eb8b8c6651ece9b78e407643b/restate_sdk-0.12.0-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:a63a3491659653f86ae3398cd42ab72e153348ddfc0a6b9721b8f469d6193ec4", size = 2228349 },
+    { url = "https://files.pythonhosted.org/packages/a0/79/0151c12ca1fa03e1da12371b8a61adfbacd5c0188c5bc3078f61878ce84b/restate_sdk-0.12.0-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:680e8f705cd71fbe59ae8bdd0e5c6ea30b96950ee9b7f843843c1cb4cb898b4e", size = 2236068 },
+    { url = "https://files.pythonhosted.org/packages/c4/b0/009b80c6645beee6aa31059b869ddeba0bb45cb1c64b428fdffee4c66c31/restate_sdk-0.12.0-pp310-pypy310_pp73-manylinux_2_28_aarch64.whl", hash = "sha256:e1398e4dde43810c440d92093826248531cb2bd0ca38ec521fa24f7991649a2d", size = 2038191 },
+    { url = "https://files.pythonhosted.org/packages/81/1f/d4e4abcb1b1cec9bff407474af8bcbd78e4a3b96f9672bd16c89ef948faf/restate_sdk-0.12.0-pp310-pypy310_pp73-musllinux_1_2_aarch64.whl", hash = "sha256:a1825614448ae22ad854ab9eb12e3810c5bee19ca1c4595f595276981b105549", size = 2230318 },
+    { url = "https://files.pythonhosted.org/packages/f5/77/7a66f0ea79888e09b34b2f3d2fd2d11e06e03e44398354372094f50e9081/restate_sdk-0.12.0-pp310-pypy310_pp73-musllinux_1_2_x86_64.whl", hash = "sha256:e2d414010f64755ec35eac9f21e81fd4696e37f4a3dfab73e0281c2a871b68d0", size = 2238242 },
+    { url = "https://files.pythonhosted.org/packages/67/fa/7bfbf6c0e776290489ff0490f93eb5da9ffdaa4cbfa1556b5b2e081ee823/restate_sdk-0.12.0-pp311-pypy311_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a511f73bb91fe5cb7a556bdbf6c9dd4a948889b1fd900519991d5a9ff7e337b4", size = 1994499 },
+    { url = "https://files.pythonhosted.org/packages/1e/51/c5ebfa9350e8796083eb04710463ff437596bff2a27b3270a379e55f3719/restate_sdk-0.12.0-pp311-pypy311_pp73-manylinux_2_28_aarch64.whl", hash = "sha256:5645b862ad2540e3fb6162358e758e32fa29894c1eb38f69de5a0cc78ac0de4a", size = 2037615 },
+    { url = "https://files.pythonhosted.org/packages/aa/e5/324a286c2be28d28b89ac7bb20aad087f595013eb46e6e214d59d7206b68/restate_sdk-0.12.0-pp311-pypy311_pp73-musllinux_1_2_aarch64.whl", hash = "sha256:679bbca65db36fc3c3826254c31c081ecf6a8024c23c7a75c10d558a91a39f0c", size = 2230512 },
+    { url = "https://files.pythonhosted.org/packages/64/da/161801bf75ba94b362bdd4a2a60ae14c47a9953768ebd74a0b2c5dafd145/restate_sdk-0.12.0-pp311-pypy311_pp73-musllinux_1_2_x86_64.whl", hash = "sha256:ada623691e7c28a3c5695c152f8e92415119d57cb3c67eeb5b9cefe63aad6f9c", size = 2237889 },
+]
+
+[[package]]
 name = "ruff"
 version = "0.14.8"
 source = { registry = "https://pypi.org/simple" }
@@ -622,40 +671,6 @@ wheels = [
 ]
 
 [[package]]
-name = "soma-insurance-claim-bot-example"
-version = "0.1.0"
-source = { editable = "examples/insurance-claim-bot" }
-dependencies = [
-    { name = "httpx" },
-    { name = "openai" },
-    { name = "pydantic" },
-    { name = "soma-sdk" },
-    { name = "trysoma-api-client" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", specifier = ">=0.27.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
-    { name = "openai", specifier = ">=1.0" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.3.0" },
-    { name = "soma-sdk", editable = "packages/sdk" },
-    { name = "trysoma-api-client", editable = "packages/api_client" },
-]
-provides-extras = ["dev"]
-
-[[package]]
 name = "soma-py-workspace"
 version = "0.0.4"
 source = { virtual = "." }
@@ -679,40 +694,6 @@ dev = [
     { name = "ruff", specifier = ">=0.8.0" },
     { name = "types-setuptools", specifier = ">=75.0.0" },
 ]
-
-[[package]]
-name = "soma-sdk"
-version = "0.0.4"
-source = { editable = "packages/sdk" }
-dependencies = [
-    { name = "httpx" },
-    { name = "pydantic" },
-    { name = "trysoma-api-client" },
-    { name = "trysoma-sdk-core" },
-    { name = "watchfiles" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", specifier = ">=0.27.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.3.0" },
-    { name = "trysoma-api-client", editable = "packages/api_client" },
-    { name = "trysoma-sdk-core", directory = "../crates/sdk-py" },
-    { name = "watchfiles", specifier = ">=0.21.0" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "tomli"
@@ -776,7 +757,7 @@ wheels = [
 ]
 
 [[package]]
-name = "trysoma-api-client"
+name = "trysoma_api_client"
 version = "0.0.4"
 source = { editable = "packages/api_client" }
 dependencies = [
@@ -795,7 +776,77 @@ requires-dist = [
 ]
 
 [[package]]
-name = "trysoma-sdk-core"
+name = "trysoma_insurance_claim_bot_example"
+version = "0.0.0"
+source = { editable = "examples/insurance-claim-bot" }
+dependencies = [
+    { name = "httpx" },
+    { name = "openai" },
+    { name = "pydantic" },
+    { name = "trysoma_api_client" },
+    { name = "trysoma_sdk" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
+    { name = "openai", specifier = ">=1.0" },
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.3.0" },
+    { name = "trysoma_api_client", editable = "packages/api_client" },
+    { name = "trysoma_sdk", editable = "packages/sdk" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "trysoma_sdk"
+version = "0.0.4"
+source = { editable = "packages/sdk" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "restate-sdk" },
+    { name = "trysoma_api_client" },
+    { name = "trysoma_sdk_core" },
+    { name = "watchfiles" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
+    { name = "restate-sdk", specifier = ">=0.12.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.3.0" },
+    { name = "trysoma_api_client", editable = "packages/api_client" },
+    { name = "trysoma_sdk_core", directory = "../crates/sdk-py" },
+    { name = "watchfiles", specifier = ">=0.21.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "trysoma_sdk_core"
 version = "0.0.4"
 source = { directory = "../crates/sdk-py" }
 

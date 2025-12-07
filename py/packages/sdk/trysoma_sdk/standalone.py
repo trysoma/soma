@@ -84,29 +84,31 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
     fn = {var_name}
     if hasattr(fn, 'provider_controller') and fn.provider_controller:
         add_provider(fn.provider_controller)
-    if hasattr(fn, 'function_controller') and hasattr(fn, 'provider_controller') and hasattr(fn, 'handler'):
+    if hasattr(fn, 'function_metadata') and hasattr(fn, 'provider_controller') and hasattr(fn, 'handler'):
         provider_type_id = fn.provider_controller.type_id
-        function_metadata = {{
-            "name": fn.function_controller.name,
-            "description": fn.function_controller.description,
-            "parameters": fn.function_controller.parameters,
-            "output": fn.function_controller.output,
-        }}
 
-        async def make_invoke_callback(fn_handler):
-            async def invoke_callback(err, req):
-                if err:
-                    return {{"error": err.message}}
+        def make_invoke_callback(fn_handler, input_schema):
+            def invoke_callback(req: InvokeFunctionRequest) -> InvokeFunctionResponse:
                 try:
                     import json
                     params = json.loads(req.parameters)
-                    result = await fn_handler(params)
-                    return {{"data": json.dumps(result)}}
+                    # Parse input using pydantic model if available
+                    if hasattr(input_schema, 'model_validate'):
+                        parsed_input = input_schema.model_validate(params)
+                    else:
+                        parsed_input = params
+                    import asyncio
+                    result = asyncio.get_event_loop().run_until_complete(fn_handler(parsed_input))
+                    # Serialize output using pydantic model if available
+                    if hasattr(result, 'model_dump_json'):
+                        return InvokeFunctionResponse.success(result.model_dump_json())
+                    else:
+                        return InvokeFunctionResponse.success(json.dumps(result))
                 except Exception as e:
-                    return {{"error": str(e)}}
+                    return InvokeFunctionResponse.failure(str(e))
             return invoke_callback
 
-        add_function(provider_type_id, function_metadata, await make_invoke_callback(fn.handler))
+        update_function(provider_type_id, fn.function_metadata, make_invoke_callback(fn.handler, fn.input_schema))
 ''')
 
     # Generate agent imports and registrations
@@ -128,12 +130,12 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
     # Register agent: {name}
     agent = {var_name}
     if hasattr(agent, 'agent_id') and hasattr(agent, 'project_id') and hasattr(agent, 'name') and hasattr(agent, 'description'):
-        add_agent({{
-            "id": agent.agent_id,
-            "project_id": agent.project_id,
-            "name": agent.name,
-            "description": agent.description,
-        }})
+        update_agent(Agent(
+            agent.agent_id,
+            agent.project_id,
+            agent.name,
+            agent.description,
+        ))
 ''')
 
     has_agents = len(agent_files) > 0
@@ -144,7 +146,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
         restate_services = []
         for idx in range(len(agent_files)):
             var_name = f"agent_{idx}"
-            restate_services.append(f'''        restate.object(
+            restate_services.append(f'''        restate_sdk.object(
             name=f"{{agent_{idx}.project_id}}.{{agent_{idx}.agent_id}}",
             handlers={{
                 "entrypoint": wrap_handler(agent_{idx}.entrypoint, agent_{idx}),
@@ -153,11 +155,11 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
 
         restate_code = f'''
     # Restate agent services
-    from soma_sdk.agent import HandlerParams
+    from trysoma_sdk.agent import HandlerParams
 
     async def wrap_handler(handler, agent):
         async def wrapped(ctx, input_data):
-            from soma_api_client import V1Api, Configuration
+            from trysoma_api_client import V1Api, Configuration
             soma = V1Api(Configuration(
                 host=os.environ.get("SOMA_SERVER_BASE_URL", "http://localhost:3000")
             ))
@@ -170,7 +172,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
         return wrapped
 
     try:
-        import restate
+        import restate_sdk
 
         restate_service_port = os.environ.get("RESTATE_SERVICE_PORT")
         if not restate_service_port:
@@ -179,7 +181,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
         restate_port = int(restate_service_port)
         print(f"Starting Restate server on port {{restate_port}}...")
 
-        endpoint = restate.Endpoint()
+        endpoint = restate_sdk.Endpoint()
         for service in [
 {chr(10).join(restate_services)}
         ]:
@@ -204,16 +206,20 @@ import signal
 # Add project root to path for imports
 sys.path.insert(0, {repr(str(base_dir))})
 
-from soma_sdk import (
-    add_function,
+from trysoma_sdk import (
     add_provider,
-    add_agent,
+    update_function,
+    update_agent,
     start_grpc_server,
     set_secret_handler,
     set_environment_variable_handler,
     set_unset_secret_handler,
     set_unset_environment_variable_handler,
     resync_sdk,
+    FunctionMetadata,
+    InvokeFunctionRequest,
+    InvokeFunctionResponse,
+    Agent,
 )
 
 {chr(10).join(function_imports)}
