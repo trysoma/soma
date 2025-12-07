@@ -34,3 +34,7 @@ target-version = "py310"
 python_version = "3.10"
 warn_return_any = true
 warn_unused_ignores = true
+mypy_path = "packages/sdk:packages/api_client"
+
+[tool.pyright]
+extraPaths = ["packages/api_client"]

@@ -70,3 +70,6 @@ docs/_build/
 
 # Pyenv
 .python-version
+
+# Keep trysoma_sdk_core/ tracked - it contains __init__.py and __init__.pyi
+# which are required for the package to work correctly

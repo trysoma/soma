@@ -1,10 +1,19 @@
 """Agent interaction patterns for Soma SDK."""
 
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Generic, TypeVar
+from typing import Awaitable, Callable, Generic, TypeVar
+from uuid import UUID
 
-from restate_sdk import ObjectContext
+from restate import ObjectContext
+from restate.context import RestateDurableFuture
 from trysoma_api_client import V1Api as SomaV1Api
+from trysoma_api_client.models.create_message_request import CreateMessageRequest
+from trysoma_api_client.models.create_message_response import CreateMessageResponse
+from trysoma_api_client.models.task_timeline_item import TaskTimelineItem
+from trysoma_api_client.models.task_timeline_item_paginated_response import (
+    TaskTimelineItemPaginatedResponse,
+)
+
 
 BridgeT = TypeVar("BridgeT")
 InputT = TypeVar("InputT")
@@ -20,10 +29,10 @@ class ChatHandlerParams(Generic[BridgeT, InputT, OutputT]):
     ctx: ObjectContext
     soma: SomaV1Api
     bridge: BridgeT
-    history: list[Any]  # TaskTimelineItem
+    history: list[TaskTimelineItem]
     input: InputT
     on_goal_achieved: Callable[[OutputT], None]
-    send_message: Callable[[Any], Awaitable[Any]]  # CreateMessageRequest -> CreateMessageResponse
+    send_message: Callable[[CreateMessageRequest], Awaitable[CreateMessageResponse]]
 
 
 @dataclass
@@ -45,9 +54,9 @@ class WorkflowHandlerParams(Generic[BridgeT, InputT, OutputT]):
     ctx: ObjectContext
     soma: SomaV1Api
     bridge: BridgeT
-    history: list[Any]  # TaskTimelineItem
+    history: list[TaskTimelineItem]
     input: InputT
-    send_message: Callable[[Any], Awaitable[Any]]
+    send_message: Callable[[CreateMessageRequest], Awaitable[CreateMessageResponse]]
     interruptable: bool
 
 
@@ -108,8 +117,10 @@ def chat(
         soma = params.soma
 
         # Create awakeable for waiting for new input
+        awakeable_id: str
+        new_input_promise: RestateDurableFuture[dict[str, str]]
         awakeable_id, new_input_promise = ctx.awakeable()
-        await ctx.set(NEW_INPUT_PROMISE, awakeable_id)
+        ctx.set(NEW_INPUT_PROMISE, awakeable_id)
 
         goal_output: OutputT | None = None
         achieved = False
@@ -124,20 +135,30 @@ def chat(
 
         while not achieved:
             # Fetch message history
-            messages = await ctx.run(
-                "fetch_history",
-                lambda: soma.task_history(page_size=1000, task_id=params.task_id)
-            )
-
-            async def send_message(message: Any) -> Any:
-                return await ctx.run(
-                    "send_message",
-                    lambda: soma.send_message(
-                        task_id=params.task_id, create_message_request=message
-                    )
+            async def fetch_history() -> TaskTimelineItemPaginatedResponse:
+                return soma.task_history(
+                    page_size=1000, task_id=UUID(params.task_id)
                 )
 
-            handler_params: ChatHandlerParams[BridgeT, InputT, OutputT] = ChatHandlerParams(
+            messages: TaskTimelineItemPaginatedResponse = await ctx.run_typed(
+                "fetch_history",
+                fetch_history,
+            )
+
+            async def send_message(
+                message: CreateMessageRequest
+            ) -> CreateMessageResponse:
+                async def send() -> CreateMessageResponse:
+                    return soma.send_message(
+                        task_id=UUID(params.task_id),
+                        create_message_request=message,
+                    )
+
+                return await ctx.run_typed("send_message", send)
+
+            handler_params: ChatHandlerParams[
+                BridgeT, InputT, OutputT
+            ] = ChatHandlerParams(
                 ctx=ctx,
                 soma=soma,
                 history=messages.items,
@@ -151,8 +172,10 @@ def chat(
 
             if not achieved:
                 # Re-arm the awakeable, waiting for another message
+                new_id: str
+                next_promise: RestateDurableFuture[dict[str, str]]
                 new_id, next_promise = ctx.awakeable()
-                await ctx.set(NEW_INPUT_PROMISE, new_id)
+                ctx.set(NEW_INPUT_PROMISE, new_id)
                 await next_promise
 
         if goal_output is None:
@@ -164,8 +187,12 @@ def chat(
 
 
 def workflow(
-    handler: Callable[[WorkflowHandlerParams[BridgeT, InputT, OutputT]], Awaitable[OutputT]],
-) -> Callable[[WrappedWorkflowHandlerParams[BridgeT, InputT, OutputT]], Awaitable[OutputT]]:
+    handler: Callable[
+        [WorkflowHandlerParams[BridgeT, InputT, OutputT]], Awaitable[OutputT]
+    ],
+) -> Callable[
+    [WrappedWorkflowHandlerParams[BridgeT, InputT, OutputT]], Awaitable[OutputT]
+]:
     """Create a workflow pattern handler.
 
     The workflow pattern is used for agents that need to:
@@ -211,24 +238,36 @@ def workflow(
 
         while True:
             # Create awakeable for waiting for new input
+            awakeable_id: str
+            new_input_promise: RestateDurableFuture[dict[str, str]]
             awakeable_id, new_input_promise = ctx.awakeable()
-            await ctx.set(NEW_INPUT_PROMISE, awakeable_id)
+            ctx.set(NEW_INPUT_PROMISE, awakeable_id)
 
             # Fetch message history
-            messages = await ctx.run(
-                "fetch_history",
-                lambda: soma.task_history(page_size=1000, task_id=params.task_id)
-            )
-
-            async def send_message(message: Any) -> Any:
-                return await ctx.run(
-                    "send_message",
-                    lambda: soma.send_message(
-                        task_id=params.task_id, create_message_request=message
-                    )
+            async def fetch_history() -> TaskTimelineItemPaginatedResponse:
+                return soma.task_history(
+                    page_size=1000, task_id=UUID(params.task_id)
                 )
 
-            handler_params: WorkflowHandlerParams[BridgeT, InputT, OutputT] = WorkflowHandlerParams(
+            messages: TaskTimelineItemPaginatedResponse = await ctx.run_typed(
+                "fetch_history",
+                fetch_history,
+            )
+
+            async def send_message(
+                message: CreateMessageRequest
+            ) -> CreateMessageResponse:
+                async def send() -> CreateMessageResponse:
+                    return soma.send_message(
+                        task_id=UUID(params.task_id),
+                        create_message_request=message,
+                    )
+
+                return await ctx.run_typed("send_message", send)
+
+            handler_params: WorkflowHandlerParams[
+                BridgeT, InputT, OutputT
+            ] = WorkflowHandlerParams(
                 ctx=ctx,
                 soma=soma,
                 history=messages.items,
@@ -240,8 +279,18 @@ def workflow(
 
             if params.interruptable:
                 # Race between new input and handler completion
-                handler_task = asyncio.create_task(handler(handler_params))
-                input_task = asyncio.create_task(new_input_promise)
+                async def await_handler() -> OutputT:
+                    return await handler(handler_params)
+
+                async def await_input() -> dict[str, str]:
+                    return await new_input_promise
+
+                handler_task: asyncio.Task[OutputT] = asyncio.create_task(
+                    await_handler()
+                )
+                input_task: asyncio.Task[dict[str, str]] = asyncio.create_task(
+                    await_input()
+                )
 
                 done, pending = await asyncio.wait(
                     [handler_task, input_task],
@@ -252,7 +301,8 @@ def workflow(
                     task.cancel()
 
                 if handler_task in done:
-                    return handler_task.result()
+                    result: OutputT = handler_task.result()
+                    return result
                 # Otherwise loop to handle new input
             else:
                 # Not interruptable, just wait for handler to complete

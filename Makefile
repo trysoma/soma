@@ -57,7 +57,7 @@ _install-sqlc-gen-from-template: ## Install sqlc-gen-from-template if not alread
 		echo "  Make sure $$INSTALL_DIR is in your PATH"; \
 	fi
 
-install: _install-sqlc-gen-from-template ## Install all dependencies (Rust, Node.js, and Python)
+install: _install-sqlc-gen-from-template py-build-sdk-core ## Install all dependencies (Rust, Node.js, and Python)
 	git submodule update --init --recursive
 	@echo "Installing JS monorepo dependencies..."
 	pnpm install
@@ -84,12 +84,24 @@ py-build: py-build-sdk-core ## Build all Python projects
 	@echo "Building Python packages..."
 	cd py/packages/sdk && uv build
 	cd py/packages/api_client && VERSION=$$(cat ./../../../VERSION) && npx --yes @openapitools/openapi-generator-cli@latest generate -i ./../../../openapi.json -g python -o ./ --additional-properties="packageName=trysoma_api_client,packageVersion=$$VERSION,projectName=trysoma_api_client" && uvx ruff format && uv build
-	@echo "✓ Python projects built"
+	@echo "Installing built packages..."
+	cd py && uv sync
+	@echo "✓ Python projects built and installed"
 
 py-build-sdk-core: ## Build the Python SDK core native module (PyO3/maturin)
 	@echo "Building Python SDK core (maturin)..."
+	cd py && uv run maturin develop --release -m ../crates/sdk-py/Cargo.toml
+	@echo "✓ Python SDK core built and installed"
+
+py-build-sdk-core-wheel: ## Build the Python SDK core wheel for distribution
+	@echo "Building Python SDK core wheel..."
+	@echo "Step 1: Building the library..."
+	cd py && uv run maturin develop --release -m ../crates/sdk-py/Cargo.toml
+	@echo "Step 2: Regenerating Python type stubs..."
+	cargo run --release --bin sdk-py-generate-pyi --manifest-path crates/sdk-py/Cargo.toml -- crates/sdk-py/trysoma_sdk_core/__init__.pyi
+	@echo "Step 3: Building wheel..."
 	maturin build --release -m crates/sdk-py/Cargo.toml
-	@echo "✓ Python SDK core built"
+	@echo "✓ Python SDK core wheel built to target/wheels/"
 
 py-install: ## Install Python SDK in development mode
 	@echo "Installing Python SDK in development mode..."

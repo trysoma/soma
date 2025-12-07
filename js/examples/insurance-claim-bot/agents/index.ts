@@ -8,7 +8,7 @@ import {
 import { createSomaAgent, patterns } from "@trysoma/sdk";
 import { type LanguageModel, streamText, tool, wrapLanguageModel } from "ai";
 import { z } from "zod";
-import { type BridgeDefinition, getBridge } from "../.soma/bridge";
+import { type BridgeDefinition, getBridge } from "../soma/bridge";
 import { convertToAiSdkMessages } from "../utils";
 
 const InsuranceClaimSchema = z.object({

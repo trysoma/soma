@@ -2,9 +2,9 @@
 
 from pydantic import BaseModel
 
-from soma_sdk.bridge import (
+from trysoma_sdk import (
     ProviderController,
-    FunctionController,
+    ProviderCredentialController,
     create_soma_function,
 )
 
@@ -32,18 +32,11 @@ class ApprovalResult(BaseModel):
 
 
 provider_controller = ProviderController(
-    type_id="approve-claim",
-    name="Approve Claim",
-    documentation="Approve a claim",
-    categories=[],
-    credential_controllers=[
-        {"type": "NoAuth"},
-    ],
-)
-
-function_controller = FunctionController(
-    name="approve-claim",
-    description="Approve a claim",
+    "approve-claim",
+    "Approve Claim",
+    "Approve a claim",
+    [],
+    [ProviderCredentialController.no_auth()],
 )
 
 
@@ -73,6 +66,7 @@ default = create_soma_function(
     input_schema=Assessment,
     output_schema=ApprovalResult,
     provider_controller=provider_controller,
-    function_controller=function_controller,
+    function_name="approve-claim",
+    function_description="Approve a claim",
     handler=approve_claim_handler,
 )

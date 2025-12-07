@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Awaitable, Callable, Protocol
 
-from restate_sdk import ObjectContext
+from restate import ObjectContext
 from trysoma_api_client import V1Api as SomaV1Api
 
 

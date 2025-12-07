@@ -19,18 +19,6 @@ use types as py_types;
 use once_cell::sync::OnceCell;
 use tokio::runtime::Runtime;
 
-// Global runtime for async operations
-static RUNTIME: OnceCell<Runtime> = OnceCell::new();
-
-fn get_runtime() -> &'static Runtime {
-    RUNTIME.get_or_init(|| {
-        tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .expect("Failed to create Tokio runtime")
-    })
-}
-
 // Global gRPC service instance
 static GRPC_SERVICE: OnceCell<Arc<core_types::GrpcService<PythonCodeGenerator>>> = OnceCell::new();
 
@@ -142,24 +130,24 @@ fn convert_provider_controller(
 
 /// Start the gRPC server on a Unix socket with Python code generation
 #[pyfunction]
-#[pyo3(signature = (socket_path, project_dir, /) -> "None")]
-pub fn start_grpc_server(socket_path: String, project_dir: String) -> PyResult<()> {
-    let socket_path = PathBuf::from(socket_path);
-    let project_dir = PathBuf::from(project_dir);
+#[pyo3(signature = (socket_path, project_dir, /) -> "typing.Awaitable[None]")]
+pub fn start_grpc_server(py: Python, socket_path: String, project_dir: String) -> PyResult<Bound<PyAny>> {
+    pyo3_async_runtimes::tokio::future_into_py(py, async {
+        let socket_path = PathBuf::from(socket_path);
+        let project_dir = PathBuf::from(project_dir);
 
-    let code_generator = PythonCodeGenerator::new(project_dir);
+        let code_generator = PythonCodeGenerator::new(project_dir);
 
-    let service = get_runtime()
-        .block_on(async {
-            core_types::start_grpc_server(vec![], socket_path, code_generator).await
-        })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let service = core_types::start_grpc_server(vec![], socket_path, code_generator)
+            .await
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
-    GRPC_SERVICE.set(service).map_err(|_| {
-        pyo3::exceptions::PyRuntimeError::new_err("gRPC service already initialized")
-    })?;
+        GRPC_SERVICE.set(service).map_err(|_| {
+            pyo3::exceptions::PyRuntimeError::new_err("gRPC service already initialized")
+        })?;
 
-    Ok(())
+        Ok(())
+    })
 }
 
 /// Add a provider controller to the running server
@@ -678,13 +666,14 @@ pub fn set_unset_environment_variable_handler(callback: Py<PyAny>) -> PyResult<(
 /// - Sync secrets to the SDK
 /// - Sync environment variables to the SDK
 #[pyfunction]
-#[pyo3(signature = (base_url=None) -> "None")]
-pub fn resync_sdk(base_url: Option<String>) -> PyResult<()> {
-    get_runtime()
-        .block_on(async { core_types::resync_sdk(base_url).await })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
-
-    Ok(())
+#[pyo3(signature = (base_url=None) -> "typing.Awaitable[None]")]
+pub fn resync_sdk(py: Python, base_url: Option<String>) -> PyResult<Bound<PyAny>> {
+    pyo3_async_runtimes::tokio::future_into_py(py, async {
+        core_types::resync_sdk(base_url)
+            .await
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        Ok(())
+    })
 }
 
 /// A Python module implemented in Rust for the Soma SDK.
@@ -692,80 +681,80 @@ pub fn resync_sdk(base_url: Option<String>) -> PyResult<()> {
 pub mod trysoma_sdk_core {
     // Functions
     #[pymodule_export]
-    pub use super::start_grpc_server;
+    pub use super::add_agent;
+    pub use super::add_function;
     #[pymodule_export]
     pub use super::add_provider;
     #[pymodule_export]
-    pub use super::remove_provider;
-    #[pymodule_export]
-    pub use super::update_provider;
-    pub use super::add_function;
+    pub use super::remove_agent;
     #[pymodule_export]
     pub use super::remove_function;
     #[pymodule_export]
-    pub use super::update_function;
-    pub use super::add_agent;
+    pub use super::remove_provider;
     #[pymodule_export]
-    pub use super::remove_agent;
-    #[pymodule_export]
-    pub use super::update_agent;
-    #[pymodule_export]
-    pub use super::set_secret_handler;
+    pub use super::resync_sdk;
     #[pymodule_export]
     pub use super::set_environment_variable_handler;
     #[pymodule_export]
-    pub use super::set_unset_secret_handler;
+    pub use super::set_secret_handler;
     #[pymodule_export]
     pub use super::set_unset_environment_variable_handler;
     #[pymodule_export]
-    pub use super::resync_sdk;
-        
+    pub use super::set_unset_secret_handler;
+    #[pymodule_export]
+    pub use super::start_grpc_server;
+    #[pymodule_export]
+    pub use super::update_agent;
+    #[pymodule_export]
+    pub use super::update_function;
+    #[pymodule_export]
+    pub use super::update_provider;
+
     // Types
     #[pymodule_export]
     pub use super::py_types::Agent;
     #[pymodule_export]
-    pub use super::py_types::ProviderController;
+    pub use super::py_types::CallbackError;
+    #[pymodule_export]
+    pub use super::py_types::EnvironmentVariable;
     #[pymodule_export]
     pub use super::py_types::FunctionController;
     #[pymodule_export]
-    pub use super::py_types::ProviderCredentialController;
-    #[pymodule_export]
-    pub use super::py_types::Oauth2AuthorizationCodeFlowConfiguration;
-    #[pymodule_export]
-    pub use super::py_types::Oauth2JwtBearerAssertionFlowConfiguration;
-    #[pymodule_export]
-    pub use super::py_types::Oauth2AuthorizationCodeFlowStaticCredentialConfiguration;
-    #[pymodule_export]
-    pub use super::py_types::Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration;
-    #[pymodule_export]
-    pub use super::py_types::Metadata;
+    pub use super::py_types::FunctionMetadata;
     #[pymodule_export]
     pub use super::py_types::InvokeFunctionRequest;
     #[pymodule_export]
     pub use super::py_types::InvokeFunctionResponse;
     #[pymodule_export]
-    pub use super::py_types::CallbackError;
+    pub use super::py_types::Metadata;
+    #[pymodule_export]
+    pub use super::py_types::Oauth2AuthorizationCodeFlowConfiguration;
+    #[pymodule_export]
+    pub use super::py_types::Oauth2AuthorizationCodeFlowStaticCredentialConfiguration;
+    #[pymodule_export]
+    pub use super::py_types::Oauth2JwtBearerAssertionFlowConfiguration;
+    #[pymodule_export]
+    pub use super::py_types::Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration;
+    #[pymodule_export]
+    pub use super::py_types::ProviderController;
+    #[pymodule_export]
+    pub use super::py_types::ProviderCredentialController;
     #[pymodule_export]
     pub use super::py_types::Secret;
-    #[pymodule_export]
-    pub use super::py_types::SetSecretsResponse;
-    #[pymodule_export]
-    pub use super::py_types::SetSecretsSuccess;
-    #[pymodule_export]
-    pub use super::py_types::EnvironmentVariable;
     #[pymodule_export]
     pub use super::py_types::SetEnvironmentVariablesResponse;
     #[pymodule_export]
     pub use super::py_types::SetEnvironmentVariablesSuccess;
     #[pymodule_export]
-    pub use super::py_types::UnsetSecretResponse;
+    pub use super::py_types::SetSecretsResponse;
     #[pymodule_export]
-    pub use super::py_types::UnsetSecretSuccess;
+    pub use super::py_types::SetSecretsSuccess;
     #[pymodule_export]
     pub use super::py_types::UnsetEnvironmentVariableResponse;
     #[pymodule_export]
     pub use super::py_types::UnsetEnvironmentVariableSuccess;
     #[pymodule_export]
-    pub use super::py_types::FunctionMetadata;
-
+    pub use super::py_types::UnsetSecretResponse;
+    #[pymodule_export]
+    pub use super::py_types::UnsetSecretSuccess;
 }

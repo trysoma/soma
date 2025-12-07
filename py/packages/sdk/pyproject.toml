@@ -21,6 +21,7 @@ dependencies = [
     "watchfiles>=0.21.0",
     "httpx>=0.27.0",
     "restate-sdk>=0.12.0",
+    "hypercorn>=0.16.0",
 ]
 
 [project.optional-dependencies]
@@ -46,6 +47,10 @@ Repository = "https://github.com/trysoma/soma"
 [tool.mypy]
 python_version = "3.10"
 strict = true
+mypy_path = "../api_client"
+
+[tool.pyright]
+extraPaths = ["../api_client"]
 
 [tool.uv.sources]
 trysoma_sdk_core = { path = "../../../crates/sdk-py" }

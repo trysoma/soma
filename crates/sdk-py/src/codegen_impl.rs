@@ -76,12 +76,23 @@ impl core_types::SdkCodeGenerator for PythonCodeGenerator {
             })?;
 
         // Write to file
-        let soma_dir = self.project_dir.join(".soma");
+        let soma_dir = self.project_dir.join("soma");
         let output_path = soma_dir.join("bridge.py");
 
         std::fs::create_dir_all(&soma_dir).map_err(|e| {
-            CommonError::Unknown(anyhow::anyhow!("Failed to create .soma directory: {e}"))
+            CommonError::Unknown(anyhow::anyhow!("Failed to create soma directory: {e}"))
         })?;
+
+        // Create __init__.py if it doesn't exist
+        let init_path = soma_dir.join("__init__.py");
+        if !init_path.exists() {
+            std::fs::write(&init_path, "\"\"\"Soma generated package.\"\"\"\n")
+                .map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!(
+                        "Failed to create __init__.py: {e}"
+                    ))
+                })?;
+        }
 
         std::fs::write(&output_path, python_code).map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!("Failed to write bridge client file: {e}"))

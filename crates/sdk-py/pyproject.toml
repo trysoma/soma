@@ -24,6 +24,8 @@ classifiers = [
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+python-source = "."
+include = ["trysoma_sdk_core/__init__.py", "trysoma_sdk_core/__init__.pyi", "trysoma_sdk_core/py.typed"]
 
 [project.urls]
 Homepage = "https://github.com/trysoma/soma"

@@ -3,14 +3,17 @@
 
 from __future__ import annotations
 import os
-import json
 import httpx
-from typing import Any, Optional, Union, Literal, TypedDict, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
     from restate import ObjectContext
 
 SOMA_SERVER_BASE_URL = os.environ.get("SOMA_SERVER_BASE_URL", "http://localhost:3000")
+
+# Type variables for generic bridge function invocation
+TParams = TypeVar("TParams", bound=dict[str, Any])
+TResult = TypeVar("TResult")
 
 {% for provider in providers %}
 {% for account in provider.accounts %}
@@ -25,16 +28,16 @@ SOMA_SERVER_BASE_URL = os.environ.get("SOMA_SERVER_BASE_URL", "http://localhost:
 {% endfor %}
 {% endfor %}
 
-def _invoke_bridge_function(
+async def _invoke_bridge_function(
     ctx: "ObjectContext",
     provider_instance_id: str,
     function_controller_type_id: str,
-    params: dict[str, Any],
-) -> Any:
+    params: TParams,
+) -> TResult:
     """Internal helper to invoke a bridge function via the Soma API."""
     url = f"{SOMA_SERVER_BASE_URL}/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke"
 
-    async def _make_request() -> Any:
+    async def _make_request() -> TResult:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 url,
@@ -44,8 +47,8 @@ def _invoke_bridge_function(
             response.raise_for_status()
             return response.json()
 
-    # Use restate's run() to make the call durable
-    return ctx.run("invoke_bridge_function", _make_request)
+    # Use restate's run_typed() to make the call durable with proper typing
+    return await ctx.run_typed("invoke_bridge_function", _make_request)
 
 
 {% for provider in providers %}
@@ -58,9 +61,9 @@ class {{ provider.class_name }}Account:
 
 {% for account in provider.accounts %}
 {% for func in account.functions %}
-    def {{ func.name }}(self, params: {{ func.params_type_name }}) -> {{ func.return_type_name }}:
+    async def {{ func.name }}(self, params: {{ func.params_type_name }}) -> {{ func.return_type_name }}:
         """Call the {{ func.function_controller_type_id }} function."""
-        return _invoke_bridge_function(
+        return await _invoke_bridge_function(
             self._ctx,
             self._provider_instance_id,
             "{{ func.function_controller_type_id }}",

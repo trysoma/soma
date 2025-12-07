@@ -76,11 +76,11 @@ impl core_types::SdkCodeGenerator for TypeScriptCodeGenerator {
             })?;
 
         // Write to file
-        let soma_dir = self.project_dir.join(".soma");
+        let soma_dir = self.project_dir.join("soma");
         let output_path = soma_dir.join("bridge.ts");
 
         std::fs::create_dir_all(&soma_dir).map_err(|e| {
-            CommonError::Unknown(anyhow::anyhow!("Failed to create .soma directory: {e}"))
+            CommonError::Unknown(anyhow::anyhow!("Failed to create soma directory: {e}"))
         })?;
 
         std::fs::write(&output_path, typescript_code).map_err(|e| {

@@ -46,7 +46,7 @@ cd py/examples/insurance-claim-bot
 uv run python -m soma_sdk.standalone --watch .
 
 # Or run directly
-uv run python .soma/standalone.py
+uv run python soma/standalone.py
 ```
 
 ## Project Structure

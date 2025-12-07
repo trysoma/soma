@@ -33,7 +33,7 @@ uv sync
 uv run python -m soma_sdk.standalone --watch .
 
 # Or run the standalone server directly
-uv run python .soma/standalone.py
+uv run python soma/standalone.py
 ```
 
 ## How It Works
