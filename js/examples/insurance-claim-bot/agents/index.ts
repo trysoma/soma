@@ -46,7 +46,7 @@ const handlers = {
 			input: { model },
 			onGoalAchieved,
 			sendMessage,
-			bridge,
+			bridge: _bridge,
 		}) => {
 			const messages = convertToAiSdkMessages(history);
 

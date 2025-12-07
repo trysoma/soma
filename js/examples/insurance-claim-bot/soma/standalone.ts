@@ -27,8 +27,8 @@ import {
 	setUnsetSecretHandler,
 	startGrpcServer,
 } from "@trysoma/sdk";
-import agent0 from "/Users/danielblignaut/Development/soma/soma/js/examples/insurance-claim-bot/agents/index";
-import func0 from "/Users/danielblignaut/Development/soma/soma/js/examples/insurance-claim-bot/functions/approveClaim";
+import agent0 from "../agents/index";
+import func0 from "../functions/approveClaim";
 
 console.log("SDK server starting...");
 
@@ -382,8 +382,8 @@ process.on("SIGHUP", async () => {
 });
 
 // Handle server errors (must be set before listen)
-httpServer.on("error", (err: Error) => {
-	if ((err as any).code === "EADDRINUSE") {
+httpServer.on("error", (err: NodeJS.ErrnoException) => {
+	if (err.code === "EADDRINUSE") {
 		console.error(
 			`Port ${restatePort} is already in use. Please stop the existing server or use a different port.`,
 		);

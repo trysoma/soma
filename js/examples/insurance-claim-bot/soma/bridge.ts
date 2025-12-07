@@ -63,7 +63,7 @@ async function _invokeBridgeFunction<TParams, TResult>(
 
 // Type definitions for all functions
 
-export type Bridge = {};
+export type Bridge = Record<string, never>;
 
 export type BridgeDefinition = Bridge;
 
