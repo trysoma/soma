@@ -1,13 +1,12 @@
 /// <reference types="node" />
 // Auto-generated standalone server
 
+import * as http2 from "node:http2";
 import * as restate from "@restatedev/restate-sdk";
 import type {
 	CallbackError,
-	EnvironmentVariable,
 	InvokeFunctionRequest,
 	InvokeFunctionResponse,
-	Secret,
 	SetEnvironmentVariablesResponse,
 	SetEnvironmentVariablesSuccess,
 	SetSecretsResponse,
@@ -28,7 +27,6 @@ import {
 	setUnsetSecretHandler,
 	startGrpcServer,
 } from "@trysoma/sdk";
-import * as http2 from "http2";
 import agent0 from "/Users/danielblignaut/Development/soma/soma/js/examples/insurance-claim-bot/agents/index";
 import func0 from "/Users/danielblignaut/Development/soma/soma/js/examples/insurance-claim-bot/functions/approveClaim";
 
@@ -243,12 +241,12 @@ console.log(
 
 console.log("SDK server ready!");
 
+import * as net from "node:net";
 import {
 	Configuration as SomaConfiguration,
 	V1Api as SomaV1Api,
 } from "@trysoma/api-client";
 import type { HandlerParams, SomaAgent } from "@trysoma/sdk/agent";
-import * as net from "net";
 
 interface RestateInput {
 	taskId: string;
@@ -259,10 +257,10 @@ type RestateHandler = (
 	ctx: restate.ObjectContext,
 	input: RestateInput,
 ) => Promise<void>;
-type SomaHandler<T> = (params: HandlerParams) => Promise<void>;
+type SomaHandler<_T> = (params: HandlerParams) => Promise<void>;
 const wrapHandler = <T>(
 	handler: SomaHandler<T>,
-	agent: SomaAgent,
+	_agent: SomaAgent,
 ): RestateHandler => {
 	return async (ctx, input) => {
 		const soma = new SomaV1Api(
@@ -283,7 +281,7 @@ const restateServicePort = process.env.RESTATE_SERVICE_PORT;
 if (!restateServicePort) {
 	throw new Error("RESTATE_SERVICE_PORT environment variable is not set");
 }
-const restatePort = parseInt(restateServicePort);
+const restatePort = parseInt(restateServicePort, 10);
 console.log(`Starting Restate server on port ${restatePort}...`);
 
 // Wait for port to become available (in case previous instance is shutting down from HMR)

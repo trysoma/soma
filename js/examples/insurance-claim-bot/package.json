@@ -17,7 +17,7 @@
 		"build": "tsc",
 		"lint": "biome check . && tsc --noEmit",
 		"lint:ci": "biome ci . && tsc --noEmit",
-		"lint:fix": "biome check --write . && tsc --noEmit",
+		"lint:fix": "biome check --write --unsafe . && tsc --noEmit",
 		"test": "vitest run",
 		"test:coverage": "vitest run --coverage"
 	},

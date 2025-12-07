@@ -383,13 +383,16 @@ db-soma-generate-migration: ## Create a new soma database migration using Atlas 
 db-soma-generate-hash: ## Update soma database migration hash
 	$(MAKE) _db-generate-hash ENV=soma
 
-generate-licenses:
+generate-licenses: ## Generate third-party license files for Rust, JS, and Python dependencies
 	@echo "Generating Rust licenses..."
 	cargo about generate about.hbs > THIRD_PARTY_LICENSES/rust-licenses.md
-	@echo "✓ Licenses generated"
+	@echo "✓ Rust licenses generated"
 	@echo "Generating JS licenses..."
-	pnpm licenses list  > THIRD_PARTY_LICENSES/js-licenses.md 
-	@echo "✓ Licenses generated"
+	pnpm licenses list > THIRD_PARTY_LICENSES/js-licenses.md
+	@echo "✓ JS licenses generated"
+	@echo "Generating Python licenses..."
+	cd py && uv run pip-licenses --format=markdown --with-urls --ignore-packages trysoma-sdk trysoma-sdk-core trysoma-api-client soma-py-workspace > ../THIRD_PARTY_LICENSES/python-licenses.md
+	@echo "✓ Python licenses generated"
 
 # ============================================================================
 # Development Commands

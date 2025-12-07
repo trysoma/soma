@@ -16,7 +16,7 @@ interface InvokeResult<T> {
 /**
  * Internal helper to invoke a bridge function
  */
-async function invokeBridgeFunction<TParams, TResult>(
+async function _invokeBridgeFunction<TParams, TResult>(
 	ctx: ObjectContext,
 	providerName: string,
 	accountName: string,
@@ -67,8 +67,8 @@ export type Bridge = {};
 
 export type BridgeDefinition = Bridge;
 
-export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
-	const baseUrl =
+export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
+	const _baseUrl =
 		config?.SOMA_BASE_URL ||
 		process.env.SOMA_SERVER_BASE_URL ||
 		"http://localhost:3000";

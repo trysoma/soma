@@ -25,17 +25,14 @@ pub enum SdkRuntime {
     Python,
 }
 
+/// Type alias for SDK runtime validator function
+type RuntimeValidator = fn(PathBuf) -> Result<bool, CommonError>;
+
 /// Determines which SDK runtime to use from a directory path
 pub fn determine_sdk_runtime(project_dir: &Path) -> Result<Option<SdkRuntime>, CommonError> {
-    let possible_runtimes: Vec<(SdkRuntime, fn(PathBuf) -> Result<bool, CommonError>)> = vec![
-        (
-            SdkRuntime::PnpmV1,
-            validate_sdk_runtime_pnpm_v1 as fn(PathBuf) -> Result<bool, CommonError>,
-        ),
-        (
-            SdkRuntime::Python,
-            validate_sdk_runtime_python as fn(PathBuf) -> Result<bool, CommonError>,
-        ),
+    let possible_runtimes: Vec<(SdkRuntime, RuntimeValidator)> = vec![
+        (SdkRuntime::PnpmV1, validate_sdk_runtime_pnpm_v1),
+        (SdkRuntime::Python, validate_sdk_runtime_python),
     ];
 
     let mut matched_runtimes = vec![];

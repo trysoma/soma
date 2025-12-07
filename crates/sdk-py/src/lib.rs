@@ -17,7 +17,6 @@ use tracing::info;
 use types as py_types;
 
 use once_cell::sync::OnceCell;
-use tokio::runtime::Runtime;
 
 // Global gRPC service instance
 static GRPC_SERVICE: OnceCell<Arc<core_types::GrpcService<PythonCodeGenerator>>> = OnceCell::new();
