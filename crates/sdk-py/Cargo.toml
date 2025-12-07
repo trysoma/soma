@@ -1,10 +1,10 @@
 [package]
-name = "soma-sdk-core"
+name = "sdk-py"
 version.workspace = true
 edition.workspace = true
 
 [lib]
-name = "soma_sdk_core"
+name = "sdk_py"
 crate-type = ["cdylib"]
 
 [dependencies]

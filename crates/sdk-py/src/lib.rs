@@ -674,7 +674,7 @@ fn resync_sdk(base_url: Option<String>) -> PyResult<()> {
 
 /// A Python module implemented in Rust for the Soma SDK.
 #[pymodule]
-fn soma_sdk_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn sdk_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Functions
     m.add_function(wrap_pyfunction!(start_grpc_server, m)?)?;
     m.add_function(wrap_pyfunction!(add_provider, m)?)?;

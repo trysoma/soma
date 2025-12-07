@@ -5662,17 +5662,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "sec1"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3e97a565f76233a6003f9f5c54be1d9c5bdfa3eccfb189469f11ec4901c47dc"
+name = "sdk-py"
+version = "0.0.4"
 dependencies = [
- "base16ct",
- "der",
- "generic-array 0.14.7",
- "pkcs8",
- "subtle",
- "zeroize",
+ "anyhow",
+ "once_cell",
+ "pyo3",
+ "sdk-core",
+ "sdk-proto",
+ "serde",
+ "serde_json",
+ "shared",
+ "tera",
+ "tokio",
+ "tonic 0.13.1",
+ "tracing",
 ]
 
 [[package]]
@@ -6274,24 +6278,6 @@ dependencies = [
  "utoipa-axum",
  "vite-rs",
  "vite-rs-axum-0-8",
-]
-
-[[package]]
-name = "soma-sdk-core"
-version = "0.0.4"
-dependencies = [
- "anyhow",
- "once_cell",
- "pyo3",
- "sdk-core",
- "sdk-proto",
- "serde",
- "serde_json",
- "shared",
- "tera",
- "tokio",
- "tonic 0.13.1",
- "tracing",
 ]
 
 [[package]]

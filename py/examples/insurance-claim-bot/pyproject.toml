@@ -1,12 +1,12 @@
 [project]
-name = "soma-insurance-claim-bot-example"
-version = "0.1.0"
+name = "trysoma_insurance_claim_bot_example"
+version = "0.0.0"
 description = "Example insurance claim bot agent using Soma Python SDK"
 requires-python = ">=3.10"
 readme = "README.md"
 dependencies = [
-    "soma-sdk",
-    "soma-api-client",
+    "trysoma_sdk",
+    "trysoma_api_client",
     "pydantic>=2.0",
     "openai>=1.0",
     "httpx>=0.27.0",
@@ -36,13 +36,11 @@ dev = "soma_sdk.standalone:watch_and_regenerate"
 line-length = 88
 target-version = "py310"
 
-[tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP"]
 
 [tool.mypy]
 python_version = "3.10"
 strict = true
 
 [tool.uv.sources]
-soma-sdk = { workspace = true }
-soma-api-client = { workspace = true }
+trysoma_sdk = { workspace = true }
+trysoma_api_client = { workspace = true }

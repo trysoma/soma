@@ -3,7 +3,7 @@ requires = ["maturin>=1.8,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "soma-sdk-core"
+name = "trysoma_sdk_core"
 version = "0.0.4"
 description = "Core native bindings for the Soma Python SDK"
 requires-python = ">=3.10"

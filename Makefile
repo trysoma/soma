@@ -83,7 +83,7 @@ rs-build: ## Build all Rust projects
 py-build: py-build-sdk-core ## Build all Python projects
 	@echo "Building Python packages..."
 	cd py/packages/sdk && uv build
-	cd py/packages/api-client && uv build
+	cd py/packages/api_client && VERSION=$$(cat ./../../../VERSION) && npx --yes @openapitools/openapi-generator-cli@latest generate -i ./../../../openapi.json -g python -o ./ --additional-properties="packageName=trysoma_api_client,packageVersion=$$VERSION,projectName=trysoma_api_client" && uvx ruff format && uv build
 	@echo "✓ Python projects built"
 
 py-build-sdk-core: ## Build the Python SDK core native module (PyO3/maturin)
