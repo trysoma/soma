@@ -3,7 +3,6 @@ use std::{fmt, str::FromStr};
 use anyhow;
 use base64::Engine;
 use libsql::FromValue;
-use napi::bindgen_prelude::{FromNapiValue, ToNapiValue};
 use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -102,25 +101,6 @@ pub trait SqlMigrationLoader {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[serde(transparent)]
 pub struct WrappedJsonValue(serde_json::Value);
-
-impl ToNapiValue for WrappedJsonValue {
-    unsafe fn to_napi_value(
-        env: napi::sys::napi_env,
-        val: Self,
-    ) -> napi::Result<napi::sys::napi_value> {
-        unsafe { ToNapiValue::to_napi_value(env, &val.0) }
-    }
-}
-
-impl FromNapiValue for WrappedJsonValue {
-    unsafe fn from_napi_value(
-        env: napi::sys::napi_env,
-        napi_val: napi::sys::napi_value,
-    ) -> napi::Result<Self> {
-        let value = unsafe { serde_json::Value::from_napi_value(env, napi_val) }?;
-        Ok(WrappedJsonValue::new(value))
-    }
-}
 
 impl WrappedJsonValue {
     pub fn get_inner(&self) -> &serde_json::Value {

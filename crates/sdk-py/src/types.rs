@@ -1,257 +1,661 @@
 use pyo3::prelude::*;
 
-pub type InvokeFunction = ThreadsafeFunction<InvokeFunctionRequest, InvokeFunctionResponse>;
-
+/// Agent metadata
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct Agent {
+    #[pyo3(get, set)]
     pub id: String,
+    #[pyo3(get, set)]
     pub project_id: String,
+    #[pyo3(get, set)]
     pub name: String,
+    #[pyo3(get, set)]
     pub description: String,
 }
 
+#[pymethods]
+impl Agent {
+    #[new]
+    fn new(id: String, project_id: String, name: String, description: String) -> Self {
+        Self {
+            id,
+            project_id,
+            name,
+            description,
+        }
+    }
+}
+
+/// Provider controller definition
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct ProviderController {
+    #[pyo3(get, set)]
     pub type_id: String,
+    #[pyo3(get, set)]
     pub name: String,
+    #[pyo3(get, set)]
     pub documentation: String,
+    #[pyo3(get, set)]
     pub categories: Vec<String>,
+    #[pyo3(get, set)]
     pub credential_controllers: Vec<ProviderCredentialController>,
 }
 
+#[pymethods]
+impl ProviderController {
+    #[new]
+    fn new(
+        type_id: String,
+        name: String,
+        documentation: String,
+        categories: Vec<String>,
+        credential_controllers: Vec<ProviderCredentialController>,
+    ) -> Self {
+        Self {
+            type_id,
+            name,
+            documentation,
+            categories,
+            credential_controllers,
+        }
+    }
+}
+
+/// Function controller definition
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct FunctionController {
+    #[pyo3(get, set)]
     pub name: String,
+    #[pyo3(get, set)]
     pub description: String,
+    #[pyo3(get, set)]
     pub parameters: String,
+    #[pyo3(get, set)]
     pub output: String,
 }
 
-#[pyclass]
-pub enum ProviderCredentialControllerType {
-    NoAuth,
-    ApiKey,
-    Oauth2AuthorizationCodeFlow,
-    Oauth2JwtBearerAssertionFlow
-    // Oauth2AuthorizationCodeFlow(Oauth2AuthorizationCodeFlowConfiguration),
-    // Oauth2JwtBearerAssertionFlow(Oauth2JwtBearerAssertionFlowConfiguration),
+#[pymethods]
+impl FunctionController {
+    #[new]
+    fn new(name: String, description: String, parameters: String, output: String) -> Self {
+        Self {
+            name,
+            description,
+            parameters,
+            output,
+        }
+    }
 }
 
-enum ProviderCredentialControllerInner {
+/// Credential controller types
+#[pyclass]
+#[derive(Clone, Debug)]
+pub struct ProviderCredentialController {
+    #[pyo3(get)]
+    pub credential_type: String,
+    pub inner: ProviderCredentialControllerInner,
+}
+
+#[derive(Clone, Debug)]
+pub enum ProviderCredentialControllerInner {
     NoAuth,
     ApiKey,
     Oauth2AuthorizationCodeFlow(Oauth2AuthorizationCodeFlowConfiguration),
     Oauth2JwtBearerAssertionFlow(Oauth2JwtBearerAssertionFlowConfiguration),
 }
 
-#[pyclass]
-pub struct ProviderCredentialController {
-    pub r#type: ProviderCredentialControllerType,
-    pub inner: ProviderCredentialControllerInner,
-}
-
 #[pymethods]
 impl ProviderCredentialController {
     #[staticmethod]
     fn no_auth() -> Self {
-        Self { r#type: ProviderCredentialControllerType::NoAuth, inner: ProviderCredentialControllerInner::NoAuth }
+        Self {
+            credential_type: "NoAuth".to_string(),
+            inner: ProviderCredentialControllerInner::NoAuth,
+        }
     }
 
     #[staticmethod]
     fn api_key() -> Self {
-        Self { r#type: ProviderCredentialControllerType::ApiKey, inner: ProviderCredentialControllerInner::ApiKey }
-    }
-
-    #[staticmethod]
-    fn oauth2_authorization_code_flow(cfg: Oauth2AuthorizationCodeFlowConfiguration) -> Self {
         Self {
-            r#type: ProviderCredentialControllerType::Oauth2AuthorizationCodeFlow,
-            inner: ProviderCredentialControllerInner::Oauth2AuthorizationCodeFlow(cfg)
+            credential_type: "ApiKey".to_string(),
+            inner: ProviderCredentialControllerInner::ApiKey,
         }
     }
 
     #[staticmethod]
-    fn oauth2_jwt_bearer_flow(cfg: Oauth2JwtBearerAssertionFlowConfiguration) -> Self {
+    fn oauth2_authorization_code_flow(config: Oauth2AuthorizationCodeFlowConfiguration) -> Self {
         Self {
-            r#type: ProviderCredentialControllerType::Oauth2JwtBearerAssertionFlow,
-            inner: ProviderCredentialControllerInner::Oauth2JwtBearerAssertionFlow(cfg)
+            credential_type: "Oauth2AuthorizationCodeFlow".to_string(),
+            inner: ProviderCredentialControllerInner::Oauth2AuthorizationCodeFlow(config),
+        }
+    }
+
+    #[staticmethod]
+    fn oauth2_jwt_bearer_flow(config: Oauth2JwtBearerAssertionFlowConfiguration) -> Self {
+        Self {
+            credential_type: "Oauth2JwtBearerAssertionFlow".to_string(),
+            inner: ProviderCredentialControllerInner::Oauth2JwtBearerAssertionFlow(config),
+        }
+    }
+
+    fn get_oauth2_authorization_code_config(
+        &self,
+    ) -> Option<Oauth2AuthorizationCodeFlowConfiguration> {
+        match &self.inner {
+            ProviderCredentialControllerInner::Oauth2AuthorizationCodeFlow(c) => Some(c.clone()),
+            _ => None,
+        }
+    }
+
+    fn get_oauth2_jwt_bearer_config(&self) -> Option<Oauth2JwtBearerAssertionFlowConfiguration> {
+        match &self.inner {
+            ProviderCredentialControllerInner::Oauth2JwtBearerAssertionFlow(c) => Some(c.clone()),
+            _ => None,
         }
     }
 }
 
+/// OAuth2 Authorization Code Flow configuration
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Oauth2AuthorizationCodeFlowConfiguration {
+    #[pyo3(get, set)]
     pub static_credential_configuration: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
 }
 
+#[pymethods]
+impl Oauth2AuthorizationCodeFlowConfiguration {
+    #[new]
+    fn new(
+        static_credential_configuration: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
+    ) -> Self {
+        Self {
+            static_credential_configuration,
+        }
+    }
+}
+
+/// OAuth2 JWT Bearer Assertion Flow configuration
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Oauth2JwtBearerAssertionFlowConfiguration {
+    #[pyo3(get, set)]
     pub static_credential_configuration: Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration,
 }
 
-#[pyclass]
-#[derive(Clone)]
-pub struct Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration {
-    pub auth_uri: String,
-    pub token_uri: String,
-    pub userinfo_uri: String,
-    pub jwks_uri: String,
-    pub issuer: String,
-    pub scopes: Vec<String>,
-    pub metadata: Option<Vec<Metadata>>,
+#[pymethods]
+impl Oauth2JwtBearerAssertionFlowConfiguration {
+    #[new]
+    fn new(
+        static_credential_configuration: Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration,
+    ) -> Self {
+        Self {
+            static_credential_configuration,
+        }
+    }
 }
 
+/// Static credential configuration for OAuth2 Authorization Code Flow
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+    #[pyo3(get, set)]
     pub auth_uri: String,
+    #[pyo3(get, set)]
     pub token_uri: String,
+    #[pyo3(get, set)]
     pub userinfo_uri: String,
+    #[pyo3(get, set)]
     pub jwks_uri: String,
+    #[pyo3(get, set)]
     pub issuer: String,
+    #[pyo3(get, set)]
     pub scopes: Vec<String>,
+    #[pyo3(get, set)]
     pub metadata: Option<Vec<Metadata>>,
 }
 
+#[pymethods]
+impl Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+    #[new]
+    #[pyo3(signature = (auth_uri, token_uri, userinfo_uri, jwks_uri, issuer, scopes, metadata=None))]
+    fn new(
+        auth_uri: String,
+        token_uri: String,
+        userinfo_uri: String,
+        jwks_uri: String,
+        issuer: String,
+        scopes: Vec<String>,
+        metadata: Option<Vec<Metadata>>,
+    ) -> Self {
+        Self {
+            auth_uri,
+            token_uri,
+            userinfo_uri,
+            jwks_uri,
+            issuer,
+            scopes,
+            metadata,
+        }
+    }
+}
+
+/// Static credential configuration for OAuth2 JWT Bearer Assertion Flow
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
+pub struct Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration {
+    #[pyo3(get, set)]
+    pub auth_uri: String,
+    #[pyo3(get, set)]
+    pub token_uri: String,
+    #[pyo3(get, set)]
+    pub userinfo_uri: String,
+    #[pyo3(get, set)]
+    pub jwks_uri: String,
+    #[pyo3(get, set)]
+    pub issuer: String,
+    #[pyo3(get, set)]
+    pub scopes: Vec<String>,
+    #[pyo3(get, set)]
+    pub metadata: Option<Vec<Metadata>>,
+}
+
+#[pymethods]
+impl Oauth2JwtBearerAssertionFlowStaticCredentialConfiguration {
+    #[new]
+    #[pyo3(signature = (auth_uri, token_uri, userinfo_uri, jwks_uri, issuer, scopes, metadata=None))]
+    fn new(
+        auth_uri: String,
+        token_uri: String,
+        userinfo_uri: String,
+        jwks_uri: String,
+        issuer: String,
+        scopes: Vec<String>,
+        metadata: Option<Vec<Metadata>>,
+    ) -> Self {
+        Self {
+            auth_uri,
+            token_uri,
+            userinfo_uri,
+            jwks_uri,
+            issuer,
+            scopes,
+            metadata,
+        }
+    }
+}
+
+/// Metadata key-value pair
+#[pyclass]
+#[derive(Clone, Debug)]
 pub struct Metadata {
+    #[pyo3(get, set)]
     pub key: String,
+    #[pyo3(get, set)]
     pub value: String,
 }
 
-#[derive(Debug, Clone)]
+#[pymethods]
+impl Metadata {
+    #[new]
+    fn new(key: String, value: String) -> Self {
+        Self { key, value }
+    }
+}
+
+/// Function invocation request
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct InvokeFunctionRequest {
+    #[pyo3(get, set)]
     pub provider_controller_type_id: String,
+    #[pyo3(get, set)]
     pub function_controller_type_id: String,
+    #[pyo3(get, set)]
     pub credential_controller_type_id: String,
+    #[pyo3(get, set)]
     pub credentials: String,
+    #[pyo3(get, set)]
     pub parameters: String,
 }
 
-#[derive(Debug, Clone)]
+#[pymethods]
+impl InvokeFunctionRequest {
+    #[new]
+    fn new(
+        provider_controller_type_id: String,
+        function_controller_type_id: String,
+        credential_controller_type_id: String,
+        credentials: String,
+        parameters: String,
+    ) -> Self {
+        Self {
+            provider_controller_type_id,
+            function_controller_type_id,
+            credential_controller_type_id,
+            credentials,
+            parameters,
+        }
+    }
+}
+
+/// Callback error
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct CallbackError {
+    #[pyo3(get, set)]
     pub message: String,
 }
 
-#[derive(Debug, Clone)]
+#[pymethods]
+impl CallbackError {
+    #[new]
+    fn new(message: String) -> Self {
+        Self { message }
+    }
+}
+
+/// Function invocation response
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct InvokeFunctionResponse {
+    #[pyo3(get, set)]
     pub data: Option<String>,
+    #[pyo3(get, set)]
     pub error: Option<CallbackError>,
 }
 
-#[pyclass]
-pub struct GenerateBridgeClientRequest {
-    pub function_instances: Vec<FunctionInstanceData>,
+#[pymethods]
+impl InvokeFunctionResponse {
+    #[new]
+    #[pyo3(signature = (data=None, error=None))]
+    fn new(data: Option<String>, error: Option<CallbackError>) -> Self {
+        Self { data, error }
+    }
+
+    #[staticmethod]
+    fn success(data: String) -> Self {
+        Self {
+            data: Some(data),
+            error: None,
+        }
+    }
+
+    #[staticmethod]
+    fn failure(message: String) -> Self {
+        Self {
+            data: None,
+            error: Some(CallbackError { message }),
+        }
+    }
 }
 
+/// Secret key-value pair
 #[pyclass]
-pub struct FunctionInstanceData {
-    pub provider_instance_id: String,
-    pub provider_instance_display_name: String,
-    pub provider_controller: Option<ProviderControllerData>,
-    pub function_controller: Option<FunctionControllerData>,
-}
-
-#[pyclass]
-pub struct ProviderControllerData {
-    pub type_id: String,
-    pub display_name: String,
-}
-
-#[pyclass]
-pub struct FunctionControllerData {
-    pub type_id: String,
-    pub display_name: String,
-    pub params_json_schema: String,
-    pub return_value_json_schema: String,
-}
-
-#[pyclass]
-pub struct GenerateBridgeClientResponse {
-    pub success: Option<GenerateBridgeClientSuccess>,
-    pub error: Option<GenerateBridgeClientError>,
-}
-
-#[pyclass]
-pub struct GenerateBridgeClientSuccess {
-    pub message: String,
-}
-
-#[pyclass]
-pub struct GenerateBridgeClientError {
-    pub message: String,
-}
-
-#[pyclass]
+#[derive(Clone, Debug)]
 pub struct Secret {
+    #[pyo3(get, set)]
     pub key: String,
+    #[pyo3(get, set)]
     pub value: String,
 }
 
-#[derive(Debug, Clone)]
+#[pymethods]
+impl Secret {
+    #[new]
+    fn new(key: String, value: String) -> Self {
+        Self { key, value }
+    }
+}
+
+/// Success response for setting secrets
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct SetSecretsSuccess {
+    #[pyo3(get, set)]
     pub message: String,
+}
+
+#[pymethods]
+impl SetSecretsSuccess {
+    #[new]
+    fn new(message: String) -> Self {
+        Self { message }
+    }
 }
 
 /// Response from setting secrets
-#[derive(Debug, Clone)]
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct SetSecretsResponse {
+    #[pyo3(get, set)]
     pub data: Option<SetSecretsSuccess>,
+    #[pyo3(get, set)]
     pub error: Option<CallbackError>,
 }
 
+#[pymethods]
+impl SetSecretsResponse {
+    #[new]
+    #[pyo3(signature = (data=None, error=None))]
+    fn new(data: Option<SetSecretsSuccess>, error: Option<CallbackError>) -> Self {
+        Self { data, error }
+    }
+
+    #[staticmethod]
+    fn success(message: String) -> Self {
+        Self {
+            data: Some(SetSecretsSuccess { message }),
+            error: None,
+        }
+    }
+
+    #[staticmethod]
+    fn failure(message: String) -> Self {
+        Self {
+            data: None,
+            error: Some(CallbackError { message }),
+        }
+    }
+}
+
+/// Environment variable key-value pair
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct EnvironmentVariable {
+    #[pyo3(get, set)]
     pub key: String,
+    #[pyo3(get, set)]
     pub value: String,
 }
 
-#[derive(Debug, Clone)]
+#[pymethods]
+impl EnvironmentVariable {
+    #[new]
+    fn new(key: String, value: String) -> Self {
+        Self { key, value }
+    }
+}
+
+/// Success response for setting environment variables
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct SetEnvironmentVariablesSuccess {
+    #[pyo3(get, set)]
     pub message: String,
+}
+
+#[pymethods]
+impl SetEnvironmentVariablesSuccess {
+    #[new]
+    fn new(message: String) -> Self {
+        Self { message }
+    }
 }
 
 /// Response from setting environment variables
-#[derive(Debug, Clone)]
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct SetEnvironmentVariablesResponse {
+    #[pyo3(get, set)]
     pub data: Option<SetEnvironmentVariablesSuccess>,
+    #[pyo3(get, set)]
     pub error: Option<CallbackError>,
 }
 
-// Unset secret types
-#[derive(Debug, Clone)]
+#[pymethods]
+impl SetEnvironmentVariablesResponse {
+    #[new]
+    #[pyo3(signature = (data=None, error=None))]
+    fn new(data: Option<SetEnvironmentVariablesSuccess>, error: Option<CallbackError>) -> Self {
+        Self { data, error }
+    }
+
+    #[staticmethod]
+    fn success(message: String) -> Self {
+        Self {
+            data: Some(SetEnvironmentVariablesSuccess { message }),
+            error: None,
+        }
+    }
+
+    #[staticmethod]
+    fn failure(message: String) -> Self {
+        Self {
+            data: None,
+            error: Some(CallbackError { message }),
+        }
+    }
+}
+
+/// Success response for unsetting a secret
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct UnsetSecretSuccess {
+    #[pyo3(get, set)]
     pub message: String,
 }
 
-#[derive(Debug, Clone)]
+#[pymethods]
+impl UnsetSecretSuccess {
+    #[new]
+    fn new(message: String) -> Self {
+        Self { message }
+    }
+}
+
+/// Response from unsetting a secret
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct UnsetSecretResponse {
+    #[pyo3(get, set)]
     pub data: Option<UnsetSecretSuccess>,
+    #[pyo3(get, set)]
     pub error: Option<CallbackError>,
 }
 
-// Unset environment variable types
-#[derive(Debug, Clone)]
+#[pymethods]
+impl UnsetSecretResponse {
+    #[new]
+    #[pyo3(signature = (data=None, error=None))]
+    fn new(data: Option<UnsetSecretSuccess>, error: Option<CallbackError>) -> Self {
+        Self { data, error }
+    }
+
+    #[staticmethod]
+    fn success(message: String) -> Self {
+        Self {
+            data: Some(UnsetSecretSuccess { message }),
+            error: None,
+        }
+    }
+
+    #[staticmethod]
+    fn failure(message: String) -> Self {
+        Self {
+            data: None,
+            error: Some(CallbackError { message }),
+        }
+    }
+}
+
+/// Success response for unsetting an environment variable
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct UnsetEnvironmentVariableSuccess {
+    #[pyo3(get, set)]
     pub message: String,
 }
 
-#[derive(Debug, Clone)]
+#[pymethods]
+impl UnsetEnvironmentVariableSuccess {
+    #[new]
+    fn new(message: String) -> Self {
+        Self { message }
+    }
+}
+
+/// Response from unsetting an environment variable
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct UnsetEnvironmentVariableResponse {
+    #[pyo3(get, set)]
     pub data: Option<UnsetEnvironmentVariableSuccess>,
+    #[pyo3(get, set)]
     pub error: Option<CallbackError>,
+}
+
+#[pymethods]
+impl UnsetEnvironmentVariableResponse {
+    #[new]
+    #[pyo3(signature = (data=None, error=None))]
+    fn new(data: Option<UnsetEnvironmentVariableSuccess>, error: Option<CallbackError>) -> Self {
+        Self { data, error }
+    }
+
+    #[staticmethod]
+    fn success(message: String) -> Self {
+        Self {
+            data: Some(UnsetEnvironmentVariableSuccess { message }),
+            error: None,
+        }
+    }
+
+    #[staticmethod]
+    fn failure(message: String) -> Self {
+        Self {
+            data: None,
+            error: Some(CallbackError { message }),
+        }
+    }
+}
+
+/// Function metadata for registration
+#[pyclass]
+#[derive(Clone, Debug)]
+pub struct FunctionMetadata {
+    #[pyo3(get, set)]
+    pub name: String,
+    #[pyo3(get, set)]
+    pub description: String,
+    #[pyo3(get, set)]
+    pub parameters: String,
+    #[pyo3(get, set)]
+    pub output: String,
+}
+
+#[pymethods]
+impl FunctionMetadata {
+    #[new]
+    fn new(name: String, description: String, parameters: String, output: String) -> Self {
+        Self {
+            name,
+            description,
+            parameters,
+            output,
+        }
+    }
 }

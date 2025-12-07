@@ -1,15 +1,46 @@
 [project]
-name = "soma-workspace"
-requires-python = ">=3.8"
+name = "soma-py-workspace"
+version = "0.0.4"
+description = "Python SDK workspace for Soma"
+requires-python = ">=3.10"
+dependencies = []
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.metadata]
-allow-direct-references = true
+[tool.hatch.build.targets.wheel]
+packages = []
 
-[tool.hatch.envs.default]
-dependencies = [
-    "soma-py-sdk-core @ {root:/../crates/sdk-py}",
+[tool.uv]
+managed = true
+dev-dependencies = [
+    "ruff>=0.8.0",
+    "mypy>=1.8",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23.0",
 ]
+
+[tool.uv.workspace]
+members = [
+    "packages/*",
+    "examples/*",
+]
+
+[tool.uv.sources]
+soma-sdk-core = { path = "../crates/sdk-py" }
+soma-sdk = { workspace = true }
+soma-api-client = { workspace = true }
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]  # Line too long - handled by formatter
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_ignores = true

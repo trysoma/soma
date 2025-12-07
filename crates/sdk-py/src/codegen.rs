@@ -3,8 +3,8 @@ use shared::error::CommonError;
 use std::collections::HashMap;
 use tera::{Context, Tera};
 
-/// TypeScript template loaded at compile time
-const TYPESCRIPT_TEMPLATE: &str = include_str!("typescript.ts.tera");
+/// Python template loaded at compile time
+const PYTHON_TEMPLATE: &str = include_str!("python.py.tera");
 
 /// Simplified data structures for code generation from API data
 #[derive(Debug, Clone)]
@@ -33,9 +33,9 @@ pub struct FunctionControllerData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ProviderData {
     name: String,
-    interface_name: String,
+    class_name: String,
     sanitized_name: String,
-    camel_case_name: String,
+    snake_case_name: String,
     accounts: Vec<AccountData>,
 }
 
@@ -58,8 +58,8 @@ struct FunctionData {
     return_type_name: String,
 }
 
-/// Generates TypeScript code from API data
-pub fn generate_typescript_code_from_api_data(
+/// Generates Python code from API data
+pub fn generate_python_code_from_api_data(
     function_instances: &[FunctionInstanceData],
 ) -> Result<String, CommonError> {
     // Group function instances by provider and account
@@ -92,17 +92,17 @@ pub fn generate_typescript_code_from_api_data(
                 // Get parameter schema
                 let params_type =
                     if let Some(schema) = &func_data.function_controller.params_json_schema {
-                        json_schema_to_typescript(schema, 0)?
+                        json_schema_to_python(schema, 0)?
                     } else {
-                        "void".to_string()
+                        "None".to_string()
                     };
 
                 // Get return schema
                 let return_type =
                     if let Some(schema) = &func_data.function_controller.return_value_json_schema {
-                        json_schema_to_typescript(schema, 0)?
+                        json_schema_to_python(schema, 0)?
                     } else {
-                        "void".to_string()
+                        "None".to_string()
                     };
 
                 // Store provider instance ID from the first function
@@ -110,7 +110,7 @@ pub fn generate_typescript_code_from_api_data(
                     provider_instance_id = func_data.provider_instance_id.clone();
                 }
 
-                // Generate interface names
+                // Generate class names
                 let function_name_pascal =
                     to_pascal_case(&sanitize_identifier(&func_data.function_controller.type_id));
                 let provider_name_pascal = to_pascal_case(&sanitize_identifier(&provider_type_id));
@@ -119,14 +119,14 @@ pub fn generate_typescript_code_from_api_data(
                 let return_type_name =
                     format!("{provider_name_pascal}{function_name_pascal}Result");
 
-                // Generate camelCase function name (stripped of provider prefix)
-                let function_name_camel = strip_provider_prefix_and_camel_case(
+                // Generate snake_case function name (stripped of provider prefix)
+                let function_name_snake = strip_provider_prefix_and_snake_case(
                     &func_data.function_controller.type_id,
                     &provider_type_id,
                 );
 
                 function_data_list.push(FunctionData {
-                    name: function_name_camel,
+                    name: function_name_snake,
                     function_controller_type_id: func_data.function_controller.type_id.clone(),
                     params_type,
                     params_type_name,
@@ -144,39 +144,36 @@ pub fn generate_typescript_code_from_api_data(
 
         let provider_name_pascal = to_pascal_case(&sanitize_identifier(&provider_type_id));
         let sanitized_name = sanitize_identifier(&provider_type_id);
-        let camel_case_name = to_camel_case(&provider_type_id);
+        let snake_case_name = to_snake_case(&provider_type_id);
         providers.push(ProviderData {
             name: provider_type_id.clone(),
-            interface_name: provider_name_pascal,
+            class_name: provider_name_pascal,
             sanitized_name,
-            camel_case_name,
+            snake_case_name,
             accounts,
         });
     }
 
     // Create Tera instance and render template
     let mut tera = Tera::default();
-    tera.add_raw_template("typescript", TYPESCRIPT_TEMPLATE)
+    tera.add_raw_template("python", PYTHON_TEMPLATE)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to add template: {e}")))?;
 
     let mut context = Context::new();
     context.insert("providers", &providers);
 
     let rendered = tera
-        .render("typescript", &context)
+        .render("python", &context)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to render template: {e}")))?;
 
     Ok(rendered)
 }
 
-/// Recursively convert JSON Schema to TypeScript type string
-fn json_schema_to_typescript(
-    value: &serde_json::Value,
-    depth: usize,
-) -> Result<String, CommonError> {
+/// Recursively convert JSON Schema to Python type string
+fn json_schema_to_python(value: &serde_json::Value, depth: usize) -> Result<String, CommonError> {
     // Prevent infinite recursion
     if depth > 10 {
-        return Ok("any".to_string());
+        return Ok("Any".to_string());
     }
 
     match value {
@@ -193,20 +190,21 @@ fn json_schema_to_typescript(
                                     .filter_map(|v| v.as_str())
                                     .map(|s| format!("\"{s}\""))
                                     .collect();
-                                return Ok(variants.join(" | "));
+                                return Ok(format!("Literal[{}]", variants.join(", ")));
                             }
                         }
-                        Ok("string".to_string())
+                        Ok("str".to_string())
                     }
-                    Some("number") | Some("integer") => Ok("number".to_string()),
-                    Some("boolean") => Ok("boolean".to_string()),
-                    Some("null") => Ok("null".to_string()),
+                    Some("number") => Ok("float".to_string()),
+                    Some("integer") => Ok("int".to_string()),
+                    Some("boolean") => Ok("bool".to_string()),
+                    Some("null") => Ok("None".to_string()),
                     Some("array") => {
                         if let Some(items) = map.get("items") {
-                            let item_type = json_schema_to_typescript(items, depth + 1)?;
-                            Ok(format!("Array<{item_type}>"))
+                            let item_type = json_schema_to_python(items, depth + 1)?;
+                            Ok(format!("list[{item_type}]"))
                         } else {
-                            Ok("Array<any>".to_string())
+                            Ok("list[Any]".to_string())
                         }
                     }
                     Some("object") => {
@@ -222,67 +220,64 @@ fn json_schema_to_typescript(
 
                                 let mut fields = Vec::new();
                                 for (key, prop_schema) in props_map {
-                                    let prop_type =
-                                        json_schema_to_typescript(prop_schema, depth + 1)?;
-                                    let optional = if required.contains(&key.as_str()) {
-                                        ""
+                                    let prop_type = json_schema_to_python(prop_schema, depth + 1)?;
+                                    let field_type = if required.contains(&key.as_str()) {
+                                        prop_type
                                     } else {
-                                        "?"
+                                        format!("Optional[{prop_type}]")
                                     };
                                     fields.push(format!(
-                                        "{}{}: {}",
+                                        "\"{}\": {}",
                                         sanitize_identifier(key),
-                                        optional,
-                                        prop_type
+                                        field_type
                                     ));
                                 }
-                                return Ok(format!("{{ {} }}", fields.join("; ")));
+                                return Ok(format!(
+                                    "TypedDict(\"_\", {{ {} }})",
+                                    fields.join(", ")
+                                ));
                             }
                         }
-                        Ok("Record<string, any>".to_string())
+                        Ok("dict[str, Any]".to_string())
                     }
-                    _ => Ok("any".to_string()),
+                    _ => Ok("Any".to_string()),
                 }
             } else if let Some(one_of) = map.get("oneOf") {
                 // Handle oneOf (union types)
                 if let Some(arr) = one_of.as_array() {
                     let types: Result<Vec<String>, CommonError> = arr
                         .iter()
-                        .map(|v| json_schema_to_typescript(v, depth + 1))
+                        .map(|v| json_schema_to_python(v, depth + 1))
                         .collect();
-                    return Ok(types?.join(" | "));
+                    return Ok(format!("Union[{}]", types?.join(", ")));
                 }
-                Ok("any".to_string())
+                Ok("Any".to_string())
             } else if let Some(any_of) = map.get("anyOf") {
                 // Handle anyOf (union types)
                 if let Some(arr) = any_of.as_array() {
                     let types: Result<Vec<String>, CommonError> = arr
                         .iter()
-                        .map(|v| json_schema_to_typescript(v, depth + 1))
+                        .map(|v| json_schema_to_python(v, depth + 1))
                         .collect();
-                    return Ok(types?.join(" | "));
+                    return Ok(format!("Union[{}]", types?.join(", ")));
                 }
-                Ok("any".to_string())
+                Ok("Any".to_string())
             } else if let Some(all_of) = map.get("allOf") {
-                // Handle allOf (intersection types)
-                if let Some(arr) = all_of.as_array() {
-                    let types: Result<Vec<String>, CommonError> = arr
-                        .iter()
-                        .map(|v| json_schema_to_typescript(v, depth + 1))
-                        .collect();
-                    return Ok(types?.join(" & "));
+                // Handle allOf - in Python we'd need to merge TypedDicts, simplified to dict
+                if let Some(_arr) = all_of.as_array() {
+                    return Ok("dict[str, Any]".to_string());
                 }
-                Ok("any".to_string())
+                Ok("Any".to_string())
             } else {
                 // No type specified, might be a reference or empty schema
-                Ok("any".to_string())
+                Ok("Any".to_string())
             }
         }
-        _ => Ok("any".to_string()),
+        _ => Ok("Any".to_string()),
     }
 }
 
-/// Sanitize identifier to be valid in TypeScript
+/// Sanitize identifier to be valid in Python
 fn sanitize_identifier(name: &str) -> String {
     name.chars()
         .map(|c| {
@@ -309,37 +304,40 @@ fn to_pascal_case(s: &str) -> String {
         .collect()
 }
 
-/// Convert snake_case or kebab-case to camelCase
-fn to_camel_case(s: &str) -> String {
-    let parts: Vec<&str> = s.split(['_', '-']).filter(|s| !s.is_empty()).collect();
+/// Convert PascalCase or kebab-case to snake_case
+fn to_snake_case(s: &str) -> String {
+    let mut result = String::new();
+    let mut prev_lower = false;
 
-    if parts.is_empty() {
-        return String::new();
-    }
-
-    let mut result = parts[0].to_lowercase();
-
-    for part in &parts[1..] {
-        let mut chars = part.chars();
-        if let Some(first) = chars.next() {
-            result.push_str(&first.to_uppercase().collect::<String>());
-            result.push_str(chars.as_str());
+    for c in s.chars() {
+        if c == '-' || c == '_' {
+            result.push('_');
+            prev_lower = false;
+        } else if c.is_uppercase() {
+            if prev_lower {
+                result.push('_');
+            }
+            result.push(c.to_ascii_lowercase());
+            prev_lower = false;
+        } else {
+            result.push(c);
+            prev_lower = true;
         }
     }
 
     result
 }
 
-/// Strip provider prefix from function name and convert to camelCase
-/// e.g., "google_mail_send_email" with provider "google_mail" -> "sendEmail"
-/// If function name is the same as provider, just convert to camelCase
-fn strip_provider_prefix_and_camel_case(function_name: &str, provider_name: &str) -> String {
+/// Strip provider prefix from function name and convert to snake_case
+/// e.g., "google_mail_send_email" with provider "google_mail" -> "send_email"
+/// If function name is the same as provider, just convert to snake_case
+fn strip_provider_prefix_and_snake_case(function_name: &str, provider_name: &str) -> String {
     let function_lower = function_name.to_lowercase();
     let provider_lower = provider_name.to_lowercase();
 
-    // If function name equals provider name, just convert to camelCase
+    // If function name equals provider name, just convert to snake_case
     if function_lower == provider_lower {
-        return to_camel_case(function_name);
+        return to_snake_case(function_name);
     }
 
     // Try to strip the provider prefix with underscore
@@ -353,9 +351,9 @@ fn strip_provider_prefix_and_camel_case(function_name: &str, provider_name: &str
 
     // If stripping results in empty string, use original function name
     if stripped.is_empty() {
-        to_camel_case(function_name)
+        to_snake_case(function_name)
     } else {
-        to_camel_case(stripped)
+        to_snake_case(stripped)
     }
 }
 
@@ -383,28 +381,27 @@ mod tests {
     }
 
     #[test]
-    fn test_to_camel_case() {
-        assert_eq!(to_camel_case("my_function"), "myFunction");
-        assert_eq!(to_camel_case("my-function"), "myFunction");
-        assert_eq!(to_camel_case("myFunction"), "myfunction");
-        assert_eq!(to_camel_case("my_long_function_name"), "myLongFunctionName");
-        assert_eq!(to_camel_case("google_mail"), "googleMail");
-        assert_eq!(to_camel_case("approve_claim"), "approveClaim");
+    fn test_to_snake_case() {
+        assert_eq!(to_snake_case("MyFunction"), "my_function");
+        assert_eq!(to_snake_case("my-function"), "my_function");
+        assert_eq!(to_snake_case("myFunction"), "my_function");
+        assert_eq!(to_snake_case("google_mail"), "google_mail");
+        assert_eq!(to_snake_case("approve_claim"), "approve_claim");
     }
 
     #[test]
-    fn test_strip_provider_prefix_and_camel_case() {
+    fn test_strip_provider_prefix_and_snake_case() {
         assert_eq!(
-            strip_provider_prefix_and_camel_case("google_mail_send_email", "google_mail"),
-            "sendEmail"
+            strip_provider_prefix_and_snake_case("google_mail_send_email", "google_mail"),
+            "send_email"
         );
         assert_eq!(
-            strip_provider_prefix_and_camel_case("approve_claim", "approve_claim"),
-            "approveClaim"
+            strip_provider_prefix_and_snake_case("approve_claim", "approve_claim"),
+            "approve_claim"
         );
         assert_eq!(
-            strip_provider_prefix_and_camel_case("some_other_function", "some"),
-            "otherFunction"
+            strip_provider_prefix_and_snake_case("some_other_function", "some"),
+            "other_function"
         );
     }
 }

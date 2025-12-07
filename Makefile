@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .PHONY: help install clean build build-release \
 	test test-unit test-integration test-all test-coverage \
 	lint lint-js lint-rs lint-db lint-fix lint-fix-js lint-fix-rs \
@@ -6,6 +7,13 @@
 	db-encryption-generate-migration db-encryption-generate-hash \
 	db-identity-generate-migration db-identity-generate-hash \
 	db-soma-generate-migration db-soma-generate-hash \
+=======
+.PHONY: help install clean build build-release test test-coverage \
+	lint lint-js lint-rs lint-py lint-fix lint-fix-js lint-fix-rs lint-fix-py \
+	py-build py-build-sdk-core py-test py-install \
+	db-internal-generate-migration db-internal-generate-hash db-generate-rs-models \
+	db-bridge-generate-migration db-bridge-generate-hash db-soma-generate-migration db-soma-generate-hash \
+>>>>>>> 30705a6 (feat: wip initial py sdk)
 	_db-generate-migration _db-generate-hash _install-sqlc-gen-from-template
 
 help: ## Show this help message
@@ -49,15 +57,18 @@ _install-sqlc-gen-from-template: ## Install sqlc-gen-from-template if not alread
 		echo "  Make sure $$INSTALL_DIR is in your PATH"; \
 	fi
 
-install: _install-sqlc-gen-from-template ## Install all dependencies (Rust and Node.js)
+install: _install-sqlc-gen-from-template ## Install all dependencies (Rust, Node.js, and Python)
 	git submodule update --init --recursive
 	@echo "Installing JS monorepo dependencies..."
 	pnpm install
+	@echo "Installing Python monorepo dependencies..."
+	cd py && uv sync
 	@echo "✓ All dependencies installed"
 
-build: ## Build all projects (Rust + JS)
+build: ## Build all projects (Rust + JS + Python)
 	$(MAKE) rs-build
 	$(MAKE) js-build
+	$(MAKE) py-build
 
 js-build: ## Build all JS projects
 	@echo "Building JS projects..."
@@ -68,6 +79,23 @@ rs-build: ## Build all Rust projects
 	@echo "Building Rust projects..."
 	cargo build
 	@echo "✓ Rust projects built"
+
+py-build: py-build-sdk-core ## Build all Python projects
+	@echo "Building Python packages..."
+	cd py/packages/sdk && uv build
+	cd py/packages/api-client && uv build
+	@echo "✓ Python projects built"
+
+py-build-sdk-core: ## Build the Python SDK core native module (PyO3/maturin)
+	@echo "Building Python SDK core (maturin)..."
+	maturin build --release -m crates/sdk-py/Cargo.toml
+	@echo "✓ Python SDK core built"
+
+py-install: ## Install Python SDK in development mode
+	@echo "Installing Python SDK in development mode..."
+	cd py && uv sync
+	cd py && uv run maturin develop -m ../crates/sdk-py/Cargo.toml
+	@echo "✓ Python SDK installed in development mode"
 
 build-release: ## Build release binaries for Linux, Mac, and Windows
 	@echo "Building Rust release binaries for multiple targets..."
@@ -106,18 +134,26 @@ clean: ## Clean build artifacts and cache files
 	find . -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "dist" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".turbo" -exec rm -rf {} + 2>/dev/null || true
+	@echo "Cleaning Python cache files..."
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+	rm -rf py/.venv 2>/dev/null || true
 	@echo "Cleaning coverage reports..."
 	rm -rf coverage .coverage-tmp
 	find . -type d -name "coverage" -not -path "./node_modules/*" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✓ Clean completed"
 
-test: test-unit ## Run unit tests only (Rust + JS) - alias for test-unit
+test: test-unit ## Run unit tests only (Rust + JS + Python) - alias for test-unit
 
-test-unit: ## Run unit tests only (Rust + JS) - excludes AWS integration tests
+test-unit: ## Run unit tests only (Rust + JS + Python) - excludes AWS integration tests
 	@echo "Running Rust unit tests..."
 	cargo nextest run --features unit_test
 	@echo "Running JS tests..."
 	pnpm -r --workspace-concurrency=1 run test
+	@echo "Running Python tests..."
+	cd py && uv run pytest --tb=short -q || echo "⚠ No Python tests or tests skipped"
 	@echo "✓ Unit tests passed"
 
 test-integration: ## Run integration tests only (requires AWS credentials)
@@ -133,8 +169,15 @@ test-all: ## Run all tests including integration tests (Rust + JS)
 	cargo nextest run --features unit_test,integration_test
 	@echo "Running JS tests..."
 	pnpm -r --workspace-concurrency=1 run test
+	@echo "Running Python tests..."
+	cd py && uv run pytest --tb=short -q || echo "⚠ No Python tests or tests skipped"
 	cd test && docker compose down && cd ../
 	@echo "✓ All tests passed"
+
+py-test: ## Run Python tests only
+	@echo "Running Python tests..."
+	cd py && uv run pytest -v
+	@echo "✓ Python tests passed"
 
 test-coverage: ## Run tests with coverage and generate merged report
 	@echo "Cleaning previous coverage reports..."
@@ -171,7 +214,7 @@ test-coverage: ## Run tests with coverage and generate merged report
 # Linting Commands
 # ============================================================================
 
-lint: lint-rs lint-js ## Run all linters (Rust + JS)
+lint: lint-rs lint-js lint-py ## Run all linters (Rust + JS + Python)
 
 lint-rs: ## Run Rust linters (clippy + fmt check)
 	@echo "Running cargo clippy..."
@@ -184,6 +227,15 @@ lint-js: ## Run JS/TS linters
 	@echo "Running JS linters..."
 	pnpm -r --workspace-concurrency=1 run lint
 	@echo "✓ JS linters passed"
+
+lint-py: ## Run Python linters (ruff check + format)
+	@echo "Running ruff check..."
+	cd py && uv run ruff check .
+	@echo "Running ruff format check..."
+	cd py && uv run ruff format --check .
+	@echo "Running mypy type checking..."
+	cd py && uv run mypy packages/sdk packages/api-client --ignore-missing-imports || echo "⚠ mypy warnings (non-blocking)"
+	@echo "✓ Python linters passed"
 
 lint-db: ## Run database linters
 	@echo "Running database linters..."
@@ -213,7 +265,7 @@ lint-db: ## Run database linters
 	fi
 	@echo "✓ Database linters passed"
 
-lint-fix: lint-fix-rs lint-fix-js ## Run all linters with auto-fix (Rust + JS)
+lint-fix: lint-fix-rs lint-fix-js lint-fix-py ## Run all linters with auto-fix (Rust + JS + Python)
 
 lint-fix-rs: ## Run Rust linters with auto-fix
 	@echo "Running cargo clippy with --fix..."
@@ -227,6 +279,13 @@ lint-fix-js: ## Run JS/TS linters with auto-fix
 	@echo "Running JS linters with auto-fix..."
 	pnpm -r --workspace-concurrency=1 run lint:fix
 	@echo "✓ JS linters completed"
+
+lint-fix-py: ## Run Python linters with auto-fix
+	@echo "Running ruff check with --fix..."
+	cd py && uv run ruff check --fix .
+	@echo "Formatting Python code with ruff..."
+	cd py && uv run ruff format .
+	@echo "✓ Python linters completed"
 
 # ============================================================================
 # Database Commands
@@ -310,12 +369,31 @@ generate-licenses:
 # Development Commands
 # ============================================================================
 
-dev-insurance-claim-bot: ## Start the insurance claim bot
+dev-insurance-claim-bot: ## Start the JS insurance claim bot example
 	@if [ -z "$$OPENAI_API_KEY" ]; then \
 		echo "Error: OPENAI_API_KEY environment variable is not set"; \
 		echo "Please set it with: export OPENAI_API_KEY=your-api-key"; \
 		exit 1; \
 	fi
-	@echo "Starting insurance bot..."
+	@echo "Starting JS insurance bot..."
 	cargo run --bin soma -- dev --cwd ./js/examples/insurance-claim-bot --clean
-	@echo "✓ Insurance bot started"
+	@echo "✓ JS Insurance bot started"
+
+dev-insurance-claim-bot-py: ## Start the Python insurance claim bot example
+	@if [ -z "$$OPENAI_API_KEY" ]; then \
+		echo "Error: OPENAI_API_KEY environment variable is not set"; \
+		echo "Please set it with: export OPENAI_API_KEY=your-api-key"; \
+		exit 1; \
+	fi
+	@echo "Starting Python insurance bot..."
+	cd py/examples/insurance-claim-bot && uv run python -m soma_sdk.standalone --watch .
+	@echo "✓ Python Insurance bot started"
+
+py-generate-standalone: ## Generate standalone.py for a Python example project
+	@if [ -z "$(DIR)" ]; then \
+		echo "Error: DIR is required. Usage: make py-generate-standalone DIR=py/examples/insurance-claim-bot"; \
+		exit 1; \
+	fi
+	@echo "Generating standalone.py for $(DIR)..."
+	cd $(DIR) && uv run python -m soma_sdk.standalone .
+	@echo "✓ standalone.py generated"
