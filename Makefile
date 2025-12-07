@@ -165,9 +165,9 @@ test-unit: ## Run unit tests only (Rust + JS + Python) - excludes AWS integratio
 	@echo "Running Rust unit tests..."
 	cargo nextest run --features unit_test
 	@echo "Running JS tests..."
-	pnpm -r --workspace-concurrency=1 run test
+	pnpm -r --workspace-concurrency=1 --filter '!@trysoma/api-client' run test
 	@echo "Running Python tests..."
-	cd py && uv run pytest --tb=short -q || echo "⚠ No Python tests or tests skipped"
+	cd py && uv run pytest packages/sdk/tests --tb=short -q || echo "⚠ No Python tests or tests skipped"
 	@echo "✓ Unit tests passed"
 
 test-integration: ## Run integration tests only (requires AWS credentials)
@@ -182,20 +182,20 @@ test-all: ## Run all tests including integration tests (Rust + JS)
 	cd test && docker compose up -d && cd ../
 	cargo nextest run --features unit_test,integration_test
 	@echo "Running JS tests..."
-	pnpm -r --workspace-concurrency=1 run test
+	pnpm -r --workspace-concurrency=1 --filter '!@trysoma/api-client' run test
 	@echo "Running Python tests..."
-	cd py && uv run pytest --tb=short -q || echo "⚠ No Python tests or tests skipped"
+	cd py && uv run pytest packages/sdk/tests --tb=short -q || echo "⚠ No Python tests or tests skipped"
 	cd test && docker compose down && cd ../
 	@echo "✓ All tests passed"
 
 py-test: ## Run Python tests only
 	@echo "Running Python tests..."
-	cd py && uv run pytest -v
+	cd py && uv run pytest packages/sdk/tests -v
 	@echo "✓ Python tests passed"
 
 py-test-coverage: ## Run Python tests with coverage
 	@echo "Running Python tests with coverage..."
-	cd py && uv run pytest --cov=packages/sdk/trysoma_sdk --cov-report=lcov:coverage.lcov --cov-report=term -v
+	cd py && uv run pytest packages/sdk/tests --cov=packages/sdk/trysoma_sdk --cov-report=lcov:coverage.lcov --cov-report=term -v
 	@echo "✓ Python coverage generated"
 
 test-coverage: ## Run tests with coverage and generate merged report

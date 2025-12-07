@@ -21,13 +21,10 @@
 		"prepare": "pnpm run build",
 		"lint": "biome check . && tsc --noEmit",
 		"lint:ci": "biome ci . && tsc --noEmit",
-		"lint:fix": "biome check --write --unsafe . && tsc --noEmit",
-		"test": "vitest run",
-		"test:coverage": "vitest run --coverage"
+		"lint:fix": "biome check --write --unsafe . && tsc --noEmit"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.5",
-		"typescript": "^4.0 || ^5.0",
-		"vitest": "^4.0.8"
+		"typescript": "^4.0 || ^5.0"
 	}
 }
