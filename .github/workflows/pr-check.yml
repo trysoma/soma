@@ -288,12 +288,21 @@ jobs:
           uv run mypy packages/sdk --ignore-missing-imports --exclude 'packages/api_client/.*'
           echo "✓ Type checking complete"
 
-      - name: Run Python tests
+      - name: Run Python tests with coverage
         working-directory: py
         run: |
-          echo "Running pytest..."
-          uv run pytest packages/sdk/tests -v --tb=short
+          echo "Running pytest with coverage..."
+          mkdir -p ../.coverage-tmp
+          uv run pytest packages/sdk/tests -v --tb=short --cov=packages/sdk/trysoma_sdk --cov-report=lcov:../.coverage-tmp/py.lcov --cov-report=term
           echo "✓ Python tests complete"
+
+      - name: Upload Python coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: py-coverage-lcov
+          path: .coverage-tmp/py.lcov
+          retention-days: 7
+          if-no-files-found: error
 
   ts-quality:
     name: TypeScript quality
@@ -342,14 +351,15 @@ jobs:
   coverage-report:
     name: Coverage Report
     runs-on: ubuntu-latest
-    needs: [rust-quality, ts-quality]
+    needs: [rust-quality, ts-quality, py-quality]
     permissions:
       contents: read
       pull-requests: write
-    # Only run if both test jobs pass
+    # Only run if all test jobs pass
     if: |
       needs.rust-quality.result == 'success' &&
-      needs.ts-quality.result == 'success'
+      needs.ts-quality.result == 'success' &&
+      needs.py-quality.result == 'success'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -371,6 +381,12 @@ jobs:
         with:
           name: js-coverage-lcov
           path: ./coverage/js/
+
+      - name: Download Python coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: py-coverage-lcov
+          path: ./coverage/py/
 
       - name: Merge coverage reports
         id: merge-coverage

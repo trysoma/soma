@@ -17,6 +17,14 @@ inputs:
     description: 'Pattern for JS coverage files'
     required: false
     default: 'js-*.lcov'
+  py-coverage-dir:
+    description: 'Directory containing Python coverage files relative to coverage-dir'
+    required: false
+    default: 'py'
+  py-coverage-pattern:
+    description: 'Pattern for Python coverage files'
+    required: false
+    default: '*.lcov'
   output-dir:
     description: 'Directory for merged coverage output relative to coverage-dir'
     required: false
@@ -100,6 +108,20 @@ runs:
           fi
         else
           echo "✗ JS coverage directory not found at $JS_DIR"
+        fi
+
+        # Add all Python coverage files
+        PY_DIR="$COVERAGE_DIR/${{ inputs.py-coverage-dir }}"
+        if [ -d "$PY_DIR" ]; then
+          echo "✓ Python coverage directory exists"
+          for file in "$PY_DIR"/${{ inputs.py-coverage-pattern }}; do
+            if [ -f "$file" ]; then
+              echo "✓ Found Python coverage: $file"
+              lcov_files="$lcov_files $file"
+            fi
+          done
+        else
+          echo "✗ Python coverage directory not found at $PY_DIR"
         fi
 
         # Merge LCOV files or set defaults
