@@ -223,9 +223,7 @@ function generateStandaloneServer(
 	for (const [name, _path] of Object.entries(agentFiles)) {
 		const varName = `agent${agentIndex++}`;
 		// Use relative paths for both dev and prod to avoid absolute path issues in CI
-		const importPath = isDev
-			? `../agents/${name}`
-			: `./agents/${name}.js`;
+		const importPath = isDev ? `../agents/${name}` : `./agents/${name}.js`;
 		agentImports.push(`import ${varName} from '${importPath}';`);
 		agentRegistrations.push(`
   // Register agent: ${name}
