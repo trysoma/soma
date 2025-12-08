@@ -89,6 +89,12 @@ jobs:
         shell: bash
         working-directory: crates/sdk-py
         run: |
+          echo "=== Wheel contents ==="
+          unzip -l dist/*.whl
+          echo ""
+          echo "=== pyproject.toml module-name setting ==="
+          grep -A5 "tool.maturin" pyproject.toml || echo "No maturin config found"
+          echo ""
           pip install dist/*.whl --force-reinstall
           python -c "import trysoma_sdk_core; print('Successfully imported trysoma_sdk_core')"
 
@@ -174,6 +180,12 @@ jobs:
         shell: bash
         working-directory: crates/sdk-py
         run: |
+          echo "=== Wheel contents ==="
+          unzip -l dist/*.whl
+          echo ""
+          echo "=== pyproject.toml module-name setting ==="
+          grep -A5 "tool.maturin" pyproject.toml || echo "No maturin config found"
+          echo ""
           pip install dist/*.whl --force-reinstall
           python -c "import trysoma_sdk_core; print('Successfully imported trysoma_sdk_core')"
 
