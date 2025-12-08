@@ -13,7 +13,15 @@ permissions:
   id-token: write
 
 jobs:
+  approve-release:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Release approved
+        run: echo "Release workflow approved"
+
   prepare-release:
+    needs: approve-release
     uses: ./.github/workflows/common-prepare-release.yml
     with:
       release-type: regular

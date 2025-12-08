@@ -31,3 +31,4 @@ test-requirements.txt
 tox.ini
 pyproject.toml
 test/*
+README.md

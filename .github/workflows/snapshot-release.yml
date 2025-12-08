@@ -26,7 +26,15 @@ permissions:
   attestations: write
 
 jobs:
+  approve-release:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Snapshot release approved
+        run: echo "Snapshot release workflow approved"
+
   prepare-release:
+    needs: approve-release
     uses: ./.github/workflows/common-prepare-release.yml
     with:
       release-type: snapshot
