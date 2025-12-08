@@ -97,6 +97,8 @@ py-build: py-clean-cache ## Build all Python projects
 py-build-sdk-core: ## Build the Python SDK core native module (PyO3/maturin)
 	@echo "Building Python SDK core (maturin)..."
 	uv run maturin develop --release -m crates/sdk-py/Cargo.toml
+	@echo "Regenerating Python type stubs..."
+	cargo run --release --bin sdk-py-generate-pyi --manifest-path crates/sdk-py/Cargo.toml -- crates/sdk-py/trysoma_sdk_core/__init__.pyi
 	@echo "✓ Python SDK core built and installed"
 
 py-build-sdk-core-wheel: ## Build the Python SDK core wheel for distribution
