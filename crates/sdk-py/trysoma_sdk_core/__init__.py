@@ -1,5 +1,6 @@
 from .trysoma_sdk_core import *
+from . import trysoma_sdk_core as _impl
 
-__doc__ = trysoma_sdk_core.__doc__
-if hasattr(trysoma_sdk_core, "__all__"):
-    __all__ = trysoma_sdk_core.__all__
+__doc__ = _impl.__doc__
+if hasattr(_impl, "__all__"):
+    __all__ = _impl.__all__

@@ -170,7 +170,7 @@ jobs:
           retention-days: 7
 
       - name: Install wheel and test
-        if: matrix.platform.skip-tests == false
+        if: ${{ !matrix.platform.skip-tests }}
         shell: bash
         working-directory: crates/sdk-py
         run: |

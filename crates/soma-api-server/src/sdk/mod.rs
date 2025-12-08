@@ -32,7 +32,7 @@ type RuntimeValidator = fn(PathBuf) -> Result<bool, CommonError>;
 pub fn determine_sdk_runtime(project_dir: &Path) -> Result<Option<SdkRuntime>, CommonError> {
     let possible_runtimes: Vec<(SdkRuntime, RuntimeValidator)> = vec![
         (SdkRuntime::PnpmV1, validate_sdk_runtime_pnpm_v1),
-        (SdkRuntime::Python, validate_sdk_runtime_python),
+        (SdkRuntime::Python, validate_sdk_runtime_python_v1),
     ];
 
     let mut matched_runtimes = vec![];
@@ -64,7 +64,7 @@ fn validate_sdk_runtime_pnpm_v1(project_dir: PathBuf) -> Result<bool, CommonErro
     Ok(true)
 }
 
-fn validate_sdk_runtime_python(project_dir: PathBuf) -> Result<bool, CommonError> {
+fn validate_sdk_runtime_python_v1(project_dir: PathBuf) -> Result<bool, CommonError> {
     // Check for pyproject.toml
     let pyproject_toml = project_dir.join("pyproject.toml");
     if !pyproject_toml.exists() {

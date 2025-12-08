@@ -207,7 +207,7 @@ pub fn update_provider(provider: py_types::ProviderController) -> PyResult<bool>
 /// * `function_metadata` - Object containing name, description, parameters, and output
 /// * `invoke_callback` - Python callable that will be called when the function is invoked
 #[pyfunction]
-#[pyo3(signature = (provider_type_id, function_metadata, invoke_callback: "Callable[[InvokeFunctionRequest], InvokeFunctionResponse]", /) -> "bool")]
+#[pyo3(signature = (provider_type_id, function_metadata, invoke_callback: "typing.Callable[[InvokeFunctionRequest], InvokeFunctionResponse]", /) -> "bool")]
 pub fn add_function(
     provider_type_id: String,
     function_metadata: py_types::FunctionMetadata,
@@ -402,7 +402,7 @@ pub fn update_agent(agent: py_types::Agent) -> PyResult<bool> {
 /// Set the secret handler callback that will be called when secrets are synced from Soma
 /// The callback receives a list of secrets and should inject them into os.environ
 #[pyfunction]
-#[pyo3(signature = (callback: "Callable[[list[Secret]], SetSecretsResponse]", /) -> "None")]
+#[pyo3(signature = (callback: "typing.Callable[[list[Secret]], SetSecretsResponse]", /) -> "None")]
 pub fn set_secret_handler(callback: Py<PyAny>) -> PyResult<()> {
     let callback = Arc::new(callback);
 
@@ -471,7 +471,7 @@ pub fn set_secret_handler(callback: Py<PyAny>) -> PyResult<()> {
 
 /// Set the environment variable handler callback
 #[pyfunction]
-#[pyo3(signature = (callback: "Callable[[list[EnvironmentVariable]], SetEnvironmentVariablesResponse]", /) -> "None")]
+#[pyo3(signature = (callback: "typing.Callable[[list[EnvironmentVariable]], SetEnvironmentVariablesResponse]", /) -> "None")]
 pub fn set_environment_variable_handler(callback: Py<PyAny>) -> PyResult<()> {
     let callback = Arc::new(callback);
 
@@ -546,7 +546,7 @@ pub fn set_environment_variable_handler(callback: Py<PyAny>) -> PyResult<()> {
 
 /// Set the unset secret handler callback
 #[pyfunction]
-#[pyo3(signature = (callback: "Callable[[str], UnsetSecretResponse]", /) -> "None")]
+#[pyo3(signature = (callback: "typing.Callable[[str], UnsetSecretResponse]", /) -> "None")]
 pub fn set_unset_secret_handler(callback: Py<PyAny>) -> PyResult<()> {
     let callback = Arc::new(callback);
 
@@ -602,7 +602,7 @@ pub fn set_unset_secret_handler(callback: Py<PyAny>) -> PyResult<()> {
 
 /// Set the unset environment variable handler callback
 #[pyfunction]
-#[pyo3(signature = (callback: "Callable[[str], UnsetEnvironmentVariableResponse]", /) -> "None")]
+#[pyo3(signature = (callback: "typing.Callable[[str], UnsetEnvironmentVariableResponse]", /) -> "None")]
 pub fn set_unset_environment_variable_handler(callback: Py<PyAny>) -> PyResult<()> {
     let callback = Arc::new(callback);
 
@@ -685,6 +685,7 @@ pub mod trysoma_sdk_core {
     // Functions
     #[pymodule_export]
     pub use super::add_agent;
+    #[pymodule_export]
     pub use super::add_function;
     #[pymodule_export]
     pub use super::add_provider;

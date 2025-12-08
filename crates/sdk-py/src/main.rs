@@ -16,13 +16,6 @@ fn main() {
         .get(&PathBuf::from("__init__.pyi"))
         .expect("No __init__.pyi generated");
 
-    // Add typing import if Callable is used in the stub
-    let stub_content = if stub_content.contains("Callable") {
-        format!("from typing import Callable\n\n{}", stub_content)
-    } else {
-        stub_content.clone()
-    };
-
     if stub_content.is_empty() {
         eprintln!("Warning: pyo3-introspection generated empty stub file.");
         eprintln!(
