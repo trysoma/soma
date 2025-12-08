@@ -12,12 +12,6 @@
  * Do not edit the class manually.
  */
 
-import type { EncryptedOauthYamlConfig } from "./EncryptedOauthYamlConfig";
-import {
-	EncryptedOauthYamlConfigFromJSON,
-	EncryptedOauthYamlConfigToJSON,
-} from "./EncryptedOauthYamlConfig";
-
 /**
  * OIDC authorization code flow
  * @export
@@ -25,17 +19,29 @@ import {
  */
 export interface UserAuthFlowYamlConfigOneOf {
 	/**
-	 * Base OAuth configuration
-	 * @type {EncryptedOauthYamlConfig}
-	 * @memberof UserAuthFlowYamlConfigOneOf
-	 */
-	baseConfig: EncryptedOauthYamlConfig;
-	/**
-	 * OIDC discovery endpoint (optional)
+	 * Authorization endpoint URL
 	 * @type {string}
 	 * @memberof UserAuthFlowYamlConfigOneOf
 	 */
-	discoveryEndpoint?: string;
+	authorizationEndpoint: string;
+	/**
+	 * OAuth client ID
+	 * @type {string}
+	 * @memberof UserAuthFlowYamlConfigOneOf
+	 */
+	clientId: string;
+	/**
+	 * DEK alias used for encryption
+	 * @type {string}
+	 * @memberof UserAuthFlowYamlConfigOneOf
+	 */
+	dekAlias: string;
+	/**
+	 * Encrypted client secret
+	 * @type {string}
+	 * @memberof UserAuthFlowYamlConfigOneOf
+	 */
+	encryptedClientSecret: string;
 	/**
 	 * Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque
 	 * @type {string}
@@ -43,11 +49,41 @@ export interface UserAuthFlowYamlConfigOneOf {
 	 */
 	introspectUrl?: string;
 	/**
+	 * JWKS endpoint URL for token verification
+	 * @type {string}
+	 * @memberof UserAuthFlowYamlConfigOneOf
+	 */
+	jwksEndpoint: string;
+	/**
 	 *
 	 * @type {any}
 	 * @memberof UserAuthFlowYamlConfigOneOf
 	 */
-	mapping: any | null;
+	oauthMappingConfig: any | null;
+	/**
+	 * OAuth scopes
+	 * @type {Array<string>}
+	 * @memberof UserAuthFlowYamlConfigOneOf
+	 */
+	scopes: Array<string>;
+	/**
+	 * Token endpoint URL
+	 * @type {string}
+	 * @memberof UserAuthFlowYamlConfigOneOf
+	 */
+	tokenEndpoint: string;
+	/**
+	 * OIDC discovery endpoint (optional)
+	 * @type {string}
+	 * @memberof UserAuthFlowYamlConfigOneOf
+	 */
+	discoveryEndpoint?: string;
+	/**
+	 *
+	 * @type {any}
+	 * @memberof UserAuthFlowYamlConfigOneOf
+	 */
+	oidcMappingConfig: any | null;
 	/**
 	 * Userinfo endpoint URL (optional)
 	 * @type {string}
@@ -77,8 +113,30 @@ export type UserAuthFlowYamlConfigOneOfTypeEnum =
 export function instanceOfUserAuthFlowYamlConfigOneOf(
 	value: object,
 ): value is UserAuthFlowYamlConfigOneOf {
-	if (!("baseConfig" in value) || value.baseConfig === undefined) return false;
-	if (!("mapping" in value) || value.mapping === undefined) return false;
+	if (
+		!("authorizationEndpoint" in value) ||
+		value.authorizationEndpoint === undefined
+	)
+		return false;
+	if (!("clientId" in value) || value.clientId === undefined) return false;
+	if (!("dekAlias" in value) || value.dekAlias === undefined) return false;
+	if (
+		!("encryptedClientSecret" in value) ||
+		value.encryptedClientSecret === undefined
+	)
+		return false;
+	if (!("jwksEndpoint" in value) || value.jwksEndpoint === undefined)
+		return false;
+	if (
+		!("oauthMappingConfig" in value) ||
+		value.oauthMappingConfig === undefined
+	)
+		return false;
+	if (!("scopes" in value) || value.scopes === undefined) return false;
+	if (!("tokenEndpoint" in value) || value.tokenEndpoint === undefined)
+		return false;
+	if (!("oidcMappingConfig" in value) || value.oidcMappingConfig === undefined)
+		return false;
 	if (!("type" in value) || value.type === undefined) return false;
 	return true;
 }
@@ -97,12 +155,19 @@ export function UserAuthFlowYamlConfigOneOfFromJSONTyped(
 		return json;
 	}
 	return {
-		baseConfig: EncryptedOauthYamlConfigFromJSON(json.base_config),
-		discoveryEndpoint:
-			json.discovery_endpoint == null ? undefined : json.discovery_endpoint,
+		authorizationEndpoint: json.authorization_endpoint,
+		clientId: json.client_id,
+		dekAlias: json.dek_alias,
+		encryptedClientSecret: json.encrypted_client_secret,
 		introspectUrl:
 			json.introspect_url == null ? undefined : json.introspect_url,
-		mapping: json.mapping,
+		jwksEndpoint: json.jwks_endpoint,
+		oauthMappingConfig: json.oauth_mapping_config,
+		scopes: json.scopes,
+		tokenEndpoint: json.token_endpoint,
+		discoveryEndpoint:
+			json.discovery_endpoint == null ? undefined : json.discovery_endpoint,
+		oidcMappingConfig: json.oidc_mapping_config,
 		userinfoEndpoint:
 			json.userinfo_endpoint == null ? undefined : json.userinfo_endpoint,
 		type: json.type,
@@ -124,10 +189,17 @@ export function UserAuthFlowYamlConfigOneOfToJSONTyped(
 	}
 
 	return {
-		base_config: EncryptedOauthYamlConfigToJSON(value.baseConfig),
-		discovery_endpoint: value.discoveryEndpoint,
+		authorization_endpoint: value.authorizationEndpoint,
+		client_id: value.clientId,
+		dek_alias: value.dekAlias,
+		encrypted_client_secret: value.encryptedClientSecret,
 		introspect_url: value.introspectUrl,
-		mapping: value.mapping,
+		jwks_endpoint: value.jwksEndpoint,
+		oauth_mapping_config: value.oauthMappingConfig,
+		scopes: value.scopes,
+		token_endpoint: value.tokenEndpoint,
+		discovery_endpoint: value.discoveryEndpoint,
+		oidc_mapping_config: value.oidcMappingConfig,
 		userinfo_endpoint: value.userinfoEndpoint,
 		type: value.type,
 	};

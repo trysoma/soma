@@ -13,7 +13,15 @@ permissions:
   id-token: write
 
 jobs:
+  approve-release:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Release approved
+        run: echo "Release workflow approved"
+
   prepare-release:
+    needs: approve-release
     uses: ./.github/workflows/common-prepare-release.yml
     with:
       release-type: regular
@@ -111,6 +119,12 @@ jobs:
     with:
       revision: ${{ github.ref }}
 
+  build-core-py-sdk:
+    needs: [prepare-release, create-artifacts]
+    uses: ./.github/workflows/common-build-core-py-sdk.yml
+    with:
+      revision: ${{ github.ref }}
+
   test-sdk-js-macOS-windows-binding:
     needs: build-core-js-sdk
     uses: ./.github/workflows/common-test-sdk-js-macOS-windows-binding.yml
@@ -147,6 +161,7 @@ jobs:
     needs:
       - prepare-release
       - build-core-js-sdk
+      - build-core-py-sdk
       - build-soma
       - test-sdk-js-macOS-windows-binding
       - test-linux-js-sdk-binding
@@ -159,8 +174,24 @@ jobs:
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+  publish-pypi:
+    needs:
+      - prepare-release
+      - build-core-js-sdk
+      - build-core-py-sdk
+      - build-soma
+      - test-sdk-js-macOS-windows-binding
+      - test-linux-js-sdk-binding
+      - test-soma-macOS-windows
+      - test-soma-linux
+    uses: ./.github/workflows/common-publish-pypi.yml
+    with:
+      version: ${{ needs.prepare-release.outputs.version }}
+    secrets:
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+
   create-github-release:
-    needs: [prepare-release, build-soma, build-core-js-sdk, publish-npm]
+    needs: [prepare-release, build-soma, build-core-js-sdk, build-core-py-sdk, publish-npm, publish-pypi]
     permissions:
       contents: write
     uses: ./.github/workflows/common-create-github-release.yml
@@ -176,12 +207,14 @@ jobs:
       - prepare-release
       - create-artifacts
       - build-core-js-sdk
+      - build-core-py-sdk
       - test-sdk-js-macOS-windows-binding
       - test-linux-js-sdk-binding
       - build-soma
       - test-soma-macOS-windows
       - test-soma-linux
       - publish-npm
+      - publish-pypi
       - create-github-release
     if: failure()
     permissions:
@@ -190,4 +223,4 @@ jobs:
     with:
       version: ${{ needs.prepare-release.outputs.version }}
       workflow-type: release
-      failed-jobs: ${{ needs.prepare-release.result == 'failure' && 'prepare-release' || '' }}${{ needs.create-artifacts.result == 'failure' && format(',create-artifacts') || '' }}${{ needs.build-core-js-sdk.result == 'failure' && format(',build-core-js-sdk') || '' }}${{ needs.test-sdk-js-macOS-windows-binding.result == 'failure' && format(',test-sdk-js-macOS-windows-binding') || '' }}${{ needs.test-linux-js-sdk-binding.result == 'failure' && format(',test-linux-js-sdk-binding') || '' }}${{ needs.build-soma.result == 'failure' && format(',build-soma') || '' }}${{ needs.test-soma-macOS-windows.result == 'failure' && format(',test-soma-macOS-windows') || '' }}${{ needs.test-soma-linux.result == 'failure' && format(',test-soma-linux') || '' }}${{ needs.publish-npm.result == 'failure' && format(',publish-npm') || '' }}${{ needs.create-github-release.result == 'failure' && format(',create-github-release') || '' }}
+      failed-jobs: ${{ needs.prepare-release.result == 'failure' && 'prepare-release' || '' }}${{ needs.create-artifacts.result == 'failure' && format(',create-artifacts') || '' }}${{ needs.build-core-js-sdk.result == 'failure' && format(',build-core-js-sdk') || '' }}${{ needs.build-core-py-sdk.result == 'failure' && format(',build-core-py-sdk') || '' }}${{ needs.test-sdk-js-macOS-windows-binding.result == 'failure' && format(',test-sdk-js-macOS-windows-binding') || '' }}${{ needs.test-linux-js-sdk-binding.result == 'failure' && format(',test-linux-js-sdk-binding') || '' }}${{ needs.build-soma.result == 'failure' && format(',build-soma') || '' }}${{ needs.test-soma-macOS-windows.result == 'failure' && format(',test-soma-macOS-windows') || '' }}${{ needs.test-soma-linux.result == 'failure' && format(',test-soma-linux') || '' }}${{ needs.publish-npm.result == 'failure' && format(',publish-npm') || '' }}${{ needs.publish-pypi.result == 'failure' && format(',publish-pypi') || '' }}${{ needs.create-github-release.result == 'failure' && format(',create-github-release') || '' }}

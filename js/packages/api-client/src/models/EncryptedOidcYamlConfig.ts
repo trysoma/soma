@@ -12,12 +12,6 @@
  * Do not edit the class manually.
  */
 
-import type { EncryptedOauthYamlConfig } from "./EncryptedOauthYamlConfig";
-import {
-	EncryptedOauthYamlConfigFromJSON,
-	EncryptedOauthYamlConfigToJSON,
-} from "./EncryptedOauthYamlConfig";
-
 /**
  * Encrypted OIDC configuration for YAML storage
  * @export
@@ -25,17 +19,29 @@ import {
  */
 export interface EncryptedOidcYamlConfig {
 	/**
-	 * Base OAuth configuration
-	 * @type {EncryptedOauthYamlConfig}
-	 * @memberof EncryptedOidcYamlConfig
-	 */
-	baseConfig: EncryptedOauthYamlConfig;
-	/**
-	 * OIDC discovery endpoint (optional)
+	 * Authorization endpoint URL
 	 * @type {string}
 	 * @memberof EncryptedOidcYamlConfig
 	 */
-	discoveryEndpoint?: string | null;
+	authorizationEndpoint: string;
+	/**
+	 * OAuth client ID
+	 * @type {string}
+	 * @memberof EncryptedOidcYamlConfig
+	 */
+	clientId: string;
+	/**
+	 * DEK alias used for encryption
+	 * @type {string}
+	 * @memberof EncryptedOidcYamlConfig
+	 */
+	dekAlias: string;
+	/**
+	 * Encrypted client secret
+	 * @type {string}
+	 * @memberof EncryptedOidcYamlConfig
+	 */
+	encryptedClientSecret: string;
 	/**
 	 * Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque
 	 * @type {string}
@@ -43,11 +49,41 @@ export interface EncryptedOidcYamlConfig {
 	 */
 	introspectUrl?: string | null;
 	/**
+	 * JWKS endpoint URL for token verification
+	 * @type {string}
+	 * @memberof EncryptedOidcYamlConfig
+	 */
+	jwksEndpoint: string;
+	/**
 	 *
 	 * @type {any}
 	 * @memberof EncryptedOidcYamlConfig
 	 */
-	mapping: any | null;
+	oauthMappingConfig: any | null;
+	/**
+	 * OAuth scopes
+	 * @type {Array<string>}
+	 * @memberof EncryptedOidcYamlConfig
+	 */
+	scopes: Array<string>;
+	/**
+	 * Token endpoint URL
+	 * @type {string}
+	 * @memberof EncryptedOidcYamlConfig
+	 */
+	tokenEndpoint: string;
+	/**
+	 * OIDC discovery endpoint (optional)
+	 * @type {string}
+	 * @memberof EncryptedOidcYamlConfig
+	 */
+	discoveryEndpoint?: string | null;
+	/**
+	 *
+	 * @type {any}
+	 * @memberof EncryptedOidcYamlConfig
+	 */
+	oidcMappingConfig: any | null;
 	/**
 	 * Userinfo endpoint URL (optional)
 	 * @type {string}
@@ -62,8 +98,30 @@ export interface EncryptedOidcYamlConfig {
 export function instanceOfEncryptedOidcYamlConfig(
 	value: object,
 ): value is EncryptedOidcYamlConfig {
-	if (!("baseConfig" in value) || value.baseConfig === undefined) return false;
-	if (!("mapping" in value) || value.mapping === undefined) return false;
+	if (
+		!("authorizationEndpoint" in value) ||
+		value.authorizationEndpoint === undefined
+	)
+		return false;
+	if (!("clientId" in value) || value.clientId === undefined) return false;
+	if (!("dekAlias" in value) || value.dekAlias === undefined) return false;
+	if (
+		!("encryptedClientSecret" in value) ||
+		value.encryptedClientSecret === undefined
+	)
+		return false;
+	if (!("jwksEndpoint" in value) || value.jwksEndpoint === undefined)
+		return false;
+	if (
+		!("oauthMappingConfig" in value) ||
+		value.oauthMappingConfig === undefined
+	)
+		return false;
+	if (!("scopes" in value) || value.scopes === undefined) return false;
+	if (!("tokenEndpoint" in value) || value.tokenEndpoint === undefined)
+		return false;
+	if (!("oidcMappingConfig" in value) || value.oidcMappingConfig === undefined)
+		return false;
 	return true;
 }
 
@@ -81,12 +139,19 @@ export function EncryptedOidcYamlConfigFromJSONTyped(
 		return json;
 	}
 	return {
-		baseConfig: EncryptedOauthYamlConfigFromJSON(json.base_config),
-		discoveryEndpoint:
-			json.discovery_endpoint == null ? undefined : json.discovery_endpoint,
+		authorizationEndpoint: json.authorization_endpoint,
+		clientId: json.client_id,
+		dekAlias: json.dek_alias,
+		encryptedClientSecret: json.encrypted_client_secret,
 		introspectUrl:
 			json.introspect_url == null ? undefined : json.introspect_url,
-		mapping: json.mapping,
+		jwksEndpoint: json.jwks_endpoint,
+		oauthMappingConfig: json.oauth_mapping_config,
+		scopes: json.scopes,
+		tokenEndpoint: json.token_endpoint,
+		discoveryEndpoint:
+			json.discovery_endpoint == null ? undefined : json.discovery_endpoint,
+		oidcMappingConfig: json.oidc_mapping_config,
 		userinfoEndpoint:
 			json.userinfo_endpoint == null ? undefined : json.userinfo_endpoint,
 	};
@@ -107,10 +172,17 @@ export function EncryptedOidcYamlConfigToJSONTyped(
 	}
 
 	return {
-		base_config: EncryptedOauthYamlConfigToJSON(value.baseConfig),
-		discovery_endpoint: value.discoveryEndpoint,
+		authorization_endpoint: value.authorizationEndpoint,
+		client_id: value.clientId,
+		dek_alias: value.dekAlias,
+		encrypted_client_secret: value.encryptedClientSecret,
 		introspect_url: value.introspectUrl,
-		mapping: value.mapping,
+		jwks_endpoint: value.jwksEndpoint,
+		oauth_mapping_config: value.oauthMappingConfig,
+		scopes: value.scopes,
+		token_endpoint: value.tokenEndpoint,
+		discovery_endpoint: value.discoveryEndpoint,
+		oidc_mapping_config: value.oidcMappingConfig,
 		userinfo_endpoint: value.userinfoEndpoint,
 	};
 }

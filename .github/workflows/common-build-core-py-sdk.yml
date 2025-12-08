@@ -1,0 +1,211 @@
+name: Common - Build Core Python SDK
+
+on:
+  workflow_call:
+    inputs:
+      revision:
+        description: 'Branch or tag to build from'
+        required: false
+        type: string
+        default: 'main'
+
+jobs:
+  # Build Linux wheels - uses native GitHub runners (matches NAPI SDK platforms)
+  build-linux:
+    name: Build Linux (${{ matrix.platform.target }})
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+          submodules: recursive
+
+      - name: Download release changes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changes
+
+      - name: Apply release changes
+        run: tar -xzf release-changes.tar.gz
+        shell: bash
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.88.0'
+          targets: ${{ matrix.platform.target }}
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ github.token }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ matrix.platform.target }}-cargo-pyo3-${{ runner.os }}
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: crates/sdk-py
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist --find-interpreter
+          sccache: true
+
+      - name: Upload wheels artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: py-wheels-${{ matrix.platform.target }}
+          path: crates/sdk-py/dist
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Install wheel and test
+        shell: bash
+        run: |
+          pip install crates/sdk-py/dist/*.whl --force-reinstall
+          # Run import test from a different directory to avoid importing local source
+          cd /tmp && python -c "import trysoma_sdk_core; print('Successfully imported trysoma_sdk_core')"
+
+  # Build macOS wheels - matches NAPI SDK platforms
+  build-macos:
+    name: Build macOS (${{ matrix.platform.target }})
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+          submodules: recursive
+
+      - name: Download release changes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changes
+
+      - name: Apply release changes
+        run: tar -xzf release-changes.tar.gz
+        shell: bash
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.88.0'
+          targets: ${{ matrix.platform.target }}
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ github.token }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ matrix.platform.target }}-cargo-pyo3-${{ runner.os }}
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: crates/sdk-py
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist --find-interpreter
+          sccache: true
+
+      - name: Upload wheels artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: py-wheels-${{ matrix.platform.target }}
+          path: crates/sdk-py/dist
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Install wheel and test
+        shell: bash
+        run: |
+          pip install crates/sdk-py/dist/*.whl --force-reinstall
+          # Run import test from a different directory to avoid importing local source
+          cd /tmp && python -c "import trysoma_sdk_core; print('Successfully imported trysoma_sdk_core')"
+
+  # Build source distribution
+  build-sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+          submodules: recursive
+
+      - name: Download release changes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changes
+
+      - name: Apply release changes
+        run: tar -xzf release-changes.tar.gz
+        shell: bash
+
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: crates/sdk-py
+          command: sdist
+          args: --out dist
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: py-wheels-sdist
+          path: crates/sdk-py/dist

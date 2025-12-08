@@ -1,46 +1,58 @@
-## @trysoma/api-client@
+# @trysoma/api-client
 
-This generator creates TypeScript/JavaScript client that utilizes [Fetch API](https://fetch.spec.whatwg.org/). The generated Node module can be used in the following environments:
+TypeScript/JavaScript client for the [Soma](https://github.com/trysoma/soma) REST API.
 
-Environment
-* Node.js
-* Webpack
-* Browserify
+## Overview
 
-Language level
-* ES5 - you must have a Promises/A+ library installed
-* ES6
+This package provides a typed API client for interacting with the Soma server. It is auto-generated from the OpenAPI specification and provides full TypeScript support.
 
-Module system
-* CommonJS
-* ES6 module system
+**Note:** Most users should use `@trysoma/sdk` instead, which provides a higher-level API for building agents. This package is useful for direct API access or building custom integrations.
 
-It can be used in both TypeScript and JavaScript. In TypeScript, the definition will be automatically resolved via `package.json`. ([Reference](https://www.typescriptlang.org/docs/handbook/declaration-files/consumption.html))
+## Installation
 
-### Building
-
-To build and compile the typescript sources to javascript use:
-```
-npm install
-npm run build
+```bash
+npm install @trysoma/api-client
+# or
+pnpm add @trysoma/api-client
+# or
+yarn add @trysoma/api-client
 ```
 
-### Publishing
+## Quick Start
 
-First build the package then run `npm publish`
+```typescript
+import { Configuration, TaskApi } from "@trysoma/api-client";
 
-### Consuming
+// Create a configuration
+const config = new Configuration({
+  basePath: "http://localhost:8080",
+});
 
-navigate to the folder of your consuming project and run one of the following commands.
+// Create an API instance
+const taskApi = new TaskApi(config);
 
-_published:_
+// List tasks
+const tasks = await taskApi.listTasks();
+console.log(tasks);
 
+// Get a specific task
+const task = await taskApi.getTaskById({ taskId: "task-123" });
+console.log(task);
 ```
-npm install @trysoma/api-client@ --save
-```
 
-_unPublished (not recommended):_
+## Available APIs
 
-```
-npm install PATH_TO_GENERATED_PACKAGE --save
-```
+- `TaskApi` - Manage tasks and send messages
+- `BridgeApi` - Manage provider instances and invoke functions
+- `EncryptionApi` - Manage encryption keys
+- `SecretApi` - Manage secrets
+- `EnvironmentVariableApi` - Manage environment variables
+- `A2aApi` - Agent-to-agent protocol endpoints
+
+## Documentation
+
+For comprehensive documentation and guides, visit [https://docs.trysoma.ai/](https://docs.trysoma.ai/)
+
+## Repository
+
+[https://github.com/trysoma/soma](https://github.com/trysoma/soma)

@@ -1,6 +1,12 @@
 /// <reference types="node" />
 import { type ChildProcess, spawn } from "node:child_process";
-import { existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
 import { join, parse, relative, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { NormalizedOutputOptions, OutputBundle } from "rollup";
@@ -158,9 +164,12 @@ function generateStandaloneServer(
 
 	// Generate imports and registrations for functions
 	let funcIndex = 0;
-	for (const [name, path] of Object.entries(functionFiles)) {
+	for (const [name, _path] of Object.entries(functionFiles)) {
 		const varName = `func${funcIndex++}`;
-		const importPath = isDev ? path : `./functions/${name}.js`;
+		// Use relative paths for both dev and prod to avoid absolute path issues in CI
+		const importPath = isDev
+			? `../functions/${name}`
+			: `./functions/${name}.js`;
 		functionImports.push(`import ${varName} from '${importPath}';`);
 		functionRegistrations.push(`
   // Register function: ${name}
@@ -179,9 +188,12 @@ function generateStandaloneServer(
       };
 
       // Create invoke callback that calls the handler
-      const invokeCallback = async (err, req) => {
+      const invokeCallback = async (err: Error | null, req: InvokeFunctionRequest): Promise<InvokeFunctionResponse> => {
         if (err) {
-          return { error: err.message };
+          const callbackError: CallbackError = {
+            message: err.message,
+          };
+          return { error: callbackError };
         }
 
         try {
@@ -191,9 +203,13 @@ function generateStandaloneServer(
           const result = await fn.handler(params);
           console.log(result);
           return { data: JSON.stringify(result) };
-        } catch (error) {
+        } catch (error: unknown) {
           console.error(error);
-          return { error: error.message || String(error) };
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const callbackError: CallbackError = {
+            message: errorMessage,
+          };
+          return { error: callbackError };
         }
       };
 
@@ -204,9 +220,10 @@ function generateStandaloneServer(
 
 	// Generate imports and registrations for agents
 	let agentIndex = 0;
-	for (const [name, path] of Object.entries(agentFiles)) {
+	for (const [name, _path] of Object.entries(agentFiles)) {
 		const varName = `agent${agentIndex++}`;
-		const importPath = isDev ? path : `./agents/${name}.js`;
+		// Use relative paths for both dev and prod to avoid absolute path issues in CI
+		const importPath = isDev ? `../agents/${name}` : `./agents/${name}.js`;
 		agentImports.push(`import ${varName} from '${importPath}';`);
 		agentRegistrations.push(`
   // Register agent: ${name}
@@ -240,8 +257,8 @@ function generateStandaloneServer(
 
 	return `/// <reference types="node" />
 // Auto-generated standalone server
-import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler, setEnvironmentVariableHandler, setUnsetSecretHandler, setUnsetEnvironmentVariableHandler, resyncSdk } from '@trysoma/sdk';
-import type { Secret, SetSecretsResponse, SetSecretsSuccess, CallbackError, EnvironmentVariable, SetEnvironmentVariablesResponse, SetEnvironmentVariablesSuccess, UnsetSecretResponse, UnsetSecretSuccess, UnsetEnvironmentVariableResponse, UnsetEnvironmentVariableSuccess } from '@trysoma/sdk';
+import { addFunction, addProvider, addAgent, startGrpcServer, killGrpcService, setSecretHandler, setEnvironmentVariableHandler, setUnsetSecretHandler, setUnsetEnvironmentVariableHandler, resyncSdk } from '@trysoma/sdk';
+import type { Secret, SetSecretsResponse, SetSecretsSuccess, CallbackError, EnvironmentVariable, SetEnvironmentVariablesResponse, SetEnvironmentVariablesSuccess, UnsetSecretResponse, UnsetSecretSuccess, UnsetEnvironmentVariableResponse, UnsetEnvironmentVariableSuccess, InvokeFunctionRequest, InvokeFunctionResponse } from '@trysoma/sdk';
 import * as restate from '@restatedev/restate-sdk';
 import * as http2 from 'http2';
 
@@ -461,8 +478,9 @@ const waitForPortAvailable = async (port: number, maxWaitSeconds: number = 30): 
 // Wait for port to be available before starting (handles HMR shutdown gracefully)
 try {
   await waitForPortAvailable(restatePort);
-} catch (error) {
-  console.error(error.message);
+} catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(errorMessage);
   process.exit(1);
 }
 
@@ -480,6 +498,15 @@ const shutdown = async () => {
   if (isShuttingDown) return;
   isShuttingDown = true;
   console.log('\\nShutting down Restate server...');
+
+  // Kill the gRPC service to clean up state
+  try {
+    killGrpcService();
+    console.log('gRPC service killed');
+  } catch (err) {
+    console.error('Error killing gRPC service:', err);
+  }
+
   return new Promise<void>((resolve) => {
     httpServer.close(() => {
       console.log('Restate server closed');
@@ -507,8 +534,8 @@ process.on('SIGHUP', async () => {
 });
 
 // Handle server errors (must be set before listen)
-httpServer.on('error', (err: Error) => {
-  if ((err as any).code === 'EADDRINUSE') {
+httpServer.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
     console.error(\`Port \${restatePort} is already in use. Please stop the existing server or use a different port.\`);
   } else {
     console.error('Restate server error:', err);
@@ -572,14 +599,18 @@ for (let attempt = 1; attempt <= maxRetries && !resyncSuccess; attempt++) {
   }
 }
 // Handle graceful shutdown for gRPC server only
-process.on('SIGINT', () => {
+const shutdownNoAgents = () => {
   console.log('\\nShutting down...');
+  try {
+    killGrpcService();
+    console.log('gRPC service killed');
+  } catch (err) {
+    console.error('Error killing gRPC service:', err);
+  }
   process.exit(0);
-});
-process.on('SIGTERM', () => {
-  console.log('\\nShutting down...');
-  process.exit(0);
-});
+};
+process.on('SIGINT', shutdownNoAgents);
+process.on('SIGTERM', shutdownNoAgents);
 `
 }
 // Keep the process alive
@@ -593,11 +624,94 @@ await new Promise(() => {});
  */
 function standaloneServerPlugin(baseDir: string): Plugin {
 	let serverProcess: ChildProcess | null = null;
-	const standaloneFilePath = resolve(baseDir, ".soma/standalone.ts");
+	const standaloneFilePath = resolve(baseDir, "soma/standalone.ts");
 
 	function regenerateStandalone() {
 		const content = generateStandaloneServer(baseDir, true);
+		const somaDir = resolve(baseDir, "soma");
+		if (!existsSync(somaDir)) {
+			mkdirSync(somaDir, { recursive: true });
+		}
 		writeFileSync(standaloneFilePath, content);
+
+		// Ensure bridge.ts exists (even if empty) so imports don't fail
+		const bridgeFilePath = resolve(baseDir, "soma/bridge.ts");
+		if (!existsSync(bridgeFilePath)) {
+			const emptyBridgeContent = `// Auto-generated Bridge Client
+// Do not edit this file manually
+
+import type { ObjectContext } from '@restatedev/restate-sdk';
+
+export interface BridgeConfig {
+  SOMA_BASE_URL?: string;
+}
+
+interface InvokeResult<T> {
+  type: 'success' | 'error';
+  data?: T;
+  error?: { message: string };
+}
+
+/**
+ * Internal helper to invoke a bridge function
+ */
+async function _invokeBridgeFunction<TParams, TResult>(
+  ctx: ObjectContext,
+  providerName: string,
+  accountName: string,
+  functionName: string,
+  providerInstanceId: string,
+  functionControllerTypeId: string,
+  params: TParams,
+  baseUrl: string
+): Promise<TResult> {
+  ctx.console.log(\`Invoking \${providerName}.\${accountName}.\${functionName}\`);
+
+  const result = await ctx.run(\`fetch-\${providerName}-\${functionName}\`, async () => {
+    const response = await fetch(
+      \`\${baseUrl}/api/bridge/v1/provider/\${providerInstanceId}/function/\${functionControllerTypeId}/invoke\`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ params }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(\`HTTP \${response.status}: \${errorText}\`);
+    }
+
+    const result: InvokeResult<TResult> = await response.json();
+
+    if (result.type === 'error') {
+      throw new Error(result.error?.message || 'Unknown error');
+    }
+
+    return result.data as TResult;
+  });
+
+  ctx.console.log(\`Completed \${providerName}.\${accountName}.\${functionName}\`);
+  return result;
+}
+
+// Type definitions for all functions
+
+export type Bridge = Record<string, never>;
+
+export type BridgeDefinition = Bridge;
+
+export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
+  const _baseUrl = config?.SOMA_BASE_URL || process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000';
+
+  return {};
+}
+`;
+			writeFileSync(bridgeFilePath, emptyBridgeContent);
+		}
+
 		console.log("Generated standalone.ts");
 	}
 
@@ -606,6 +720,12 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 			console.log("Restarting SDK server...");
 			serverProcess.kill();
 			serverProcess = null;
+		}
+
+		// Ensure standalone.ts exists before starting server
+		if (!existsSync(standaloneFilePath)) {
+			console.log("standalone.ts not found, regenerating...");
+			regenerateStandalone();
 		}
 
 		// Start the server in a separate Node process

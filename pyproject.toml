@@ -1,0 +1,58 @@
+[project]
+name = "soma-py-workspace"
+version = "0.0.4"
+description = "Python SDK workspace for Soma"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.uv]
+managed = true
+dev-dependencies = [
+    "ruff>=0.8.0",
+    "mypy>=1.8",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.0",
+    "pip-licenses>=4.0",
+    "types-setuptools>=75.0.0",
+]
+
+[tool.uv.workspace]
+members = [
+    "py/packages/*",
+    "py/examples/*",
+]
+
+[tool.uv.sources]
+trysoma_sdk_core = { path = "crates/sdk-py" }
+trysoma_sdk = { workspace = true }
+trysoma_api_client = { workspace = true }
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+extend-exclude = [
+    "py/soma",                               # Generated files at root
+    "py/examples/insurance_claim_bot/soma",  # Generated files in example
+    "py/packages/api_client",                # Auto-generated OpenAPI client
+]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_ignores = true
+mypy_path = "py/packages/sdk:py/packages/api_client"
+
+[[tool.mypy.overrides]]
+module = "trysoma_api_client.*"
+ignore_errors = true
+disable_error_code = ["return", "no-any-return"]
+
+[[tool.mypy.overrides]]
+module = "trysoma_sdk_core.*"
+ignore_errors = true
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[tool.pyright]
+extraPaths = ["py/packages/api_client"]

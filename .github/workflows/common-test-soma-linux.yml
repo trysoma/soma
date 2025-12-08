@@ -53,7 +53,13 @@ jobs:
           audience: sts.amazonaws.com
           aws-region: eu-west-2
           role-to-assume: ${{ secrets.AWS_INTEGRATION_TESTS_ROLE_ARN }}
-  
+
+      - name: Start Dex (OIDC/OAuth2 provider) for integration tests
+        uses: ./.github/actions/setup-docker-compose
+        with:
+          compose-file: ./test/docker-compose.yml
+          health-check-url: http://localhost:5556/dex/keys
+
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
         with:

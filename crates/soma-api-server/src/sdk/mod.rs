@@ -1,4 +1,5 @@
 mod interface;
+mod python;
 pub mod sdk_provider_sync;
 mod typescript;
 
@@ -15,16 +16,24 @@ use crate::logic::environment_variable_sync::fetch_all_environment_variables;
 use crate::logic::secret_sync::fetch_and_decrypt_all_secrets;
 use encryption::logic::crypto_services::CryptoCache;
 use interface::{ClientCtx, SdkClient};
+use python::Python;
 use typescript::Typescript;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SdkRuntime {
     PnpmV1,
+    Python,
 }
+
+/// Type alias for SDK runtime validator function
+type RuntimeValidator = fn(PathBuf) -> Result<bool, CommonError>;
 
 /// Determines which SDK runtime to use from a directory path
 pub fn determine_sdk_runtime(project_dir: &Path) -> Result<Option<SdkRuntime>, CommonError> {
-    let possible_runtimes = vec![(SdkRuntime::PnpmV1, validate_sdk_runtime_pnpm_v1)];
+    let possible_runtimes: Vec<(SdkRuntime, RuntimeValidator)> = vec![
+        (SdkRuntime::PnpmV1, validate_sdk_runtime_pnpm_v1),
+        (SdkRuntime::Python, validate_sdk_runtime_python_v1),
+    ];
 
     let mut matched_runtimes = vec![];
 
@@ -55,6 +64,17 @@ fn validate_sdk_runtime_pnpm_v1(project_dir: PathBuf) -> Result<bool, CommonErro
     Ok(true)
 }
 
+fn validate_sdk_runtime_python_v1(project_dir: PathBuf) -> Result<bool, CommonError> {
+    // Check for pyproject.toml
+    let pyproject_toml = project_dir.join("pyproject.toml");
+    if !pyproject_toml.exists() {
+        return Ok(false);
+    }
+    // Optionally check for functions/ or agents/ directories
+    // (not required, but helps distinguish Python projects)
+    Ok(true)
+}
+
 /// Check if the project uses Vite by looking for vite.config.ts
 fn is_vite_project(src_dir: &Path) -> bool {
     src_dir.join("vite.config.ts").exists()
@@ -71,13 +91,14 @@ pub struct StartDevSdkParams {
 
 /// Starts the development SDK server with hot reloading on file changes
 pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError> {
+    let sdk_runtime = params.sdk_runtime.clone();
     let StartDevSdkParams {
         project_dir,
-        sdk_runtime: _sdk_runtime,
         restate_service_port,
         kill_signal_rx,
         repository,
         crypto_cache,
+        ..
     } = params;
 
     // Fetch all secrets from the database
@@ -99,7 +120,6 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
         initial_environment_variables.len()
     );
 
-    let typescript_client = Typescript::new();
     let ctx = ClientCtx {
         project_dir: project_dir.clone(),
         socket_path: DEFAULT_SOMA_SERVER_SOCK.to_string(),
@@ -109,14 +129,24 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
         initial_environment_variables,
     };
 
-    if !is_vite_project(&project_dir) {
-        return Err(CommonError::Unknown(anyhow::anyhow!(
-            "Invalid runtime. Must use Vite"
-        )));
-    }
+    match sdk_runtime {
+        SdkRuntime::PnpmV1 => {
+            if !is_vite_project(&project_dir) {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Invalid runtime. Must use Vite"
+                )));
+            }
 
-    info!("Detected Vite project, starting dev server...");
-    typescript_client.start_dev_server(ctx).await?;
+            info!("Detected Vite project, starting dev server...");
+            let typescript_client = Typescript::new();
+            typescript_client.start_dev_server(ctx).await?;
+        }
+        SdkRuntime::Python => {
+            info!("Detected Python project, starting dev server...");
+            let python_client = Python::new();
+            python_client.start_dev_server(ctx).await?;
+        }
+    }
 
     Ok(())
 }
@@ -214,5 +244,43 @@ mod unit_test {
         // Empty directory
         let runtime = determine_sdk_runtime(temp_dir.path()).unwrap();
         assert_eq!(runtime, None);
+    }
+
+    #[test]
+    fn test_validate_sdk_runtime_python_with_valid_project() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create pyproject.toml
+        fs::write(
+            temp_dir.path().join("pyproject.toml"),
+            r#"[project]\nname = "test""#,
+        )
+        .unwrap();
+
+        let result = validate_sdk_runtime_python_v1(temp_dir.path().to_path_buf()).unwrap();
+        assert!(result, "Should validate as Python SDK runtime");
+    }
+
+    #[test]
+    fn test_validate_sdk_runtime_python_missing_pyproject_toml() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Empty directory
+        let result = validate_sdk_runtime_python_v1(temp_dir.path().to_path_buf()).unwrap();
+        assert!(!result, "Should not validate without pyproject.toml");
+    }
+
+    #[test]
+    fn test_determine_sdk_runtime_python_v1() {
+        let temp_dir = TempDir::new().unwrap();
+
+        fs::write(
+            temp_dir.path().join("pyproject.toml"),
+            r#"[project]\nname = "test""#,
+        )
+        .unwrap();
+
+        let runtime = determine_sdk_runtime(temp_dir.path()).unwrap();
+        assert_eq!(runtime, Some(SdkRuntime::Python));
     }
 }

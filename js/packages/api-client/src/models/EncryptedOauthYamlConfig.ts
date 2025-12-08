@@ -59,7 +59,7 @@ export interface EncryptedOauthYamlConfig {
 	 * @type {any}
 	 * @memberof EncryptedOauthYamlConfig
 	 */
-	mapping: any | null;
+	oauthMappingConfig: any | null;
 	/**
 	 * OAuth scopes
 	 * @type {Array<string>}
@@ -94,7 +94,11 @@ export function instanceOfEncryptedOauthYamlConfig(
 		return false;
 	if (!("jwksEndpoint" in value) || value.jwksEndpoint === undefined)
 		return false;
-	if (!("mapping" in value) || value.mapping === undefined) return false;
+	if (
+		!("oauthMappingConfig" in value) ||
+		value.oauthMappingConfig === undefined
+	)
+		return false;
 	if (!("scopes" in value) || value.scopes === undefined) return false;
 	if (!("tokenEndpoint" in value) || value.tokenEndpoint === undefined)
 		return false;
@@ -122,7 +126,7 @@ export function EncryptedOauthYamlConfigFromJSONTyped(
 		introspectUrl:
 			json.introspect_url == null ? undefined : json.introspect_url,
 		jwksEndpoint: json.jwks_endpoint,
-		mapping: json.mapping,
+		oauthMappingConfig: json.oauth_mapping_config,
 		scopes: json.scopes,
 		tokenEndpoint: json.token_endpoint,
 	};
@@ -149,7 +153,7 @@ export function EncryptedOauthYamlConfigToJSONTyped(
 		encrypted_client_secret: value.encryptedClientSecret,
 		introspect_url: value.introspectUrl,
 		jwks_endpoint: value.jwksEndpoint,
-		mapping: value.mapping,
+		oauth_mapping_config: value.oauthMappingConfig,
 		scopes: value.scopes,
 		token_endpoint: value.tokenEndpoint,
 	};

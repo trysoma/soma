@@ -20,7 +20,6 @@ http.workspace = true
 hyper-util.workspace = true
 libsql.workspace = true
 libsql_migration.workspace = true
-napi.workspace = true
 nix.workspace = true
 notify.workspace = true
 paste.workspace = true

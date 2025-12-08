@@ -24,7 +24,7 @@ export default createSomaFunction({
 		name: "approve-claim",
 		description: "Approve a claim",
 	},
-	handler: async ({ claim }) => {
+	handler: async ({ claim: _claim }) => {
 		// perform an async action here to approve the claim
 		return { approved: true };
 	},

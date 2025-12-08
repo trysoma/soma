@@ -7,7 +7,15 @@ on:
   workflow_dispatch:
 
 jobs:
+  approve-release:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Create release PR approved
+        run: echo "Create release PR workflow approved"
+
   prepare-release:
+    needs: approve-release
     uses: ./.github/workflows/common-prepare-release.yml
     with:
       release-type: pr

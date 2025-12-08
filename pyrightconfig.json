@@ -1,0 +1,18 @@
+{
+  "include": [
+    "py/**"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*"
+  ],
+  "venvPath": "./",
+  "venv": ".venv",
+  "extraPaths": [
+    "py/packages/api_client"
+  ],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic"
+}
+

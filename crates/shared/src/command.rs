@@ -70,6 +70,11 @@ pub async fn run_child_process_with_env_options(
             "LD_LIBRARY_PATH",
         ];
 
+        // Set UV_NO_SYNC to prevent uv from re-syncing packages on every run
+        // This preserves editable installs (e.g., maturin develop) that would
+        // otherwise be overwritten by uv's automatic sync behavior
+        process = process.env("UV_NO_SYNC", "1");
+
         for var in essential_vars {
             if let Ok(value) = std::env::var(var) {
                 process = process.env(var, value);

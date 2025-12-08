@@ -407,7 +407,7 @@ impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
         removed
     }
 
-    /// Update a function controller (removes old and inserts new)
+    /// Update a function controller (removes old and inserts new), or add if it doesn't exist
     pub fn update_function(&self, provider_type_id: &str, function: FunctionController) -> bool {
         let mut updated = false;
         self.providers.rcu(|current| {
@@ -421,7 +421,12 @@ impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
                     .iter()
                     .position(|f| f.name == function.name)
                 {
+                    // Function exists, replace it
                     provider.functions.remove(pos);
+                    provider.functions.push(function.clone());
+                    updated = true;
+                } else {
+                    // Function doesn't exist, add it (upsert behavior)
                     provider.functions.push(function.clone());
                     updated = true;
                 }
@@ -480,6 +485,18 @@ impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
             .iter()
             .find(|p| p.type_id == type_id)
             .cloned()
+    }
+
+    /// Clears all providers, agents, and handlers from the service.
+    /// This effectively resets the service state without shutting down the gRPC server.
+    pub fn clear(&self) {
+        self.providers.store(Arc::new(vec![]));
+        self.agents.store(Arc::new(vec![]));
+        self.secret_handler.store(Arc::new(None));
+        self.environment_variable_handler.store(Arc::new(None));
+        self.unset_secret_handler.store(Arc::new(None));
+        self.unset_environment_variable_handler
+            .store(Arc::new(None));
     }
 }
 
