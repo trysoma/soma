@@ -203,18 +203,6 @@ jobs:
             fi
           done
 
-          # Also update crates/sdk-py/Cargo.toml to use explicit PEP 440 version
-          # instead of workspace inheritance (maturin validates Cargo.toml version)
-          SDK_PY_CARGO="crates/sdk-py/Cargo.toml"
-          if [ -f "$SDK_PY_CARGO" ]; then
-            echo "Updating $SDK_PY_CARGO with explicit PEP 440 version..."
-            # Replace version.workspace = true with explicit version
-            sed -i.bak -E "s/^version\.workspace = true$/version = \"${PEP440_VERSION}\"/" "$SDK_PY_CARGO"
-            rm -f "${SDK_PY_CARGO}.bak"
-            echo "  Updated version in $SDK_PY_CARGO:"
-            grep '^version' "$SDK_PY_CARGO" | head -1
-          fi
-
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
         with:
@@ -225,6 +213,27 @@ jobs:
         run: |
           echo "Updating Cargo.lock for version ${{ needs.prepare-release.outputs.version }}"
           cargo update --workspace
+
+      - name: Update sdk-py Cargo.toml for maturin compatibility
+        run: |
+          # Maturin validates Cargo.toml version even when pyproject.toml has explicit version.
+          # Set sdk-py Cargo.toml to base semver (without prerelease suffix) so Cargo is happy,
+          # while pyproject.toml has the PEP 440 .devN version that maturin will use for the package.
+
+          LABEL="${{ inputs.prerelease-label }}"
+          INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
+          BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
+          BASE_VERSION_NO_V="${BASE_VERSION#v}"
+
+          SDK_PY_CARGO="crates/sdk-py/Cargo.toml"
+          if [ -f "$SDK_PY_CARGO" ]; then
+            echo "Updating $SDK_PY_CARGO with base semver version: $BASE_VERSION_NO_V"
+            # Replace version.workspace = true with explicit base version (no prerelease suffix)
+            sed -i.bak -E "s/^version\.workspace = true$/version = \"${BASE_VERSION_NO_V}\"/" "$SDK_PY_CARGO"
+            rm -f "${SDK_PY_CARGO}.bak"
+            echo "  Updated version in $SDK_PY_CARGO:"
+            grep '^version' "$SDK_PY_CARGO" | head -1
+          fi
 
       - name: Create release artifact
         run: |
