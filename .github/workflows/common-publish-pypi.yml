@@ -100,20 +100,15 @@ jobs:
 
           cd ../../..
 
-          # Publish using twine (installed via uv)
+          # Publish using uv publish (built-in to uv, no twine needed)
           echo "Publishing packages to PyPI..."
-          uv pip install twine
 
           # Publish trysoma-sdk
-          uv run twine upload --skip-existing \
-            --username __token__ \
-            --password "${{ secrets.PYPI_API_TOKEN }}" \
+          uv publish --token "${{ secrets.PYPI_API_TOKEN }}" \
             py/packages/sdk/dist/*
 
           # Publish trysoma-api-client
-          uv run twine upload --skip-existing \
-            --username __token__ \
-            --password "${{ secrets.PYPI_API_TOKEN }}" \
+          uv publish --token "${{ secrets.PYPI_API_TOKEN }}" \
             py/packages/api_client/dist/*
 
           echo "✓ All Python packages published to PyPI"

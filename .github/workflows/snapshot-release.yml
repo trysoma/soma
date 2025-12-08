@@ -318,6 +318,7 @@ jobs:
     needs:
       - prepare-release
       - build-core-js-sdk
+      - build-core-py-sdk
       - build-soma
       - test-sdk-js-macOS-windows-binding
       - test-linux-js-sdk-binding
@@ -333,8 +334,11 @@ jobs:
   publish-pypi:
     needs:
       - prepare-release
+      - build-core-js-sdk
       - build-core-py-sdk
       - build-soma
+      - test-sdk-js-macOS-windows-binding
+      - test-linux-js-sdk-binding
       - test-soma-macOS-windows
       - test-soma-linux
     uses: ./.github/workflows/common-publish-pypi.yml

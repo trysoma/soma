@@ -102,10 +102,8 @@ jobs:
         platform:
           - runner: macos-latest
             target: x86_64-apple-darwin
-            skip-tests: true  # Cross-compiling x86_64 on arm64 runner
           - runner: macos-latest
             target: aarch64-apple-darwin
-            skip-tests: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -170,7 +168,6 @@ jobs:
           retention-days: 7
 
       - name: Install wheel and test
-        if: ${{ !matrix.platform.skip-tests }}
         shell: bash
         run: |
           pip install crates/sdk-py/dist/*.whl --force-reinstall
