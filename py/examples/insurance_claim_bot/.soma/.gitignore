@@ -3,3 +3,4 @@ standalone.ts
 *.bin
 envelope_encryption_keys
 envelope-encryption-keys
+*.db

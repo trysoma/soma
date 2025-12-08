@@ -1,6 +1,5 @@
 .gitignore
 .npmignore
-README.md
 src/apis/A2aApi.ts
 src/apis/BridgeApi.ts
 src/apis/EncryptionApi.ts

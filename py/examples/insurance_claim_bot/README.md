@@ -2,6 +2,8 @@
 
 This is an example agent built with the Soma Python SDK that processes insurance claims.
 
+Read our [documentation](https://docs.trysoma.ai) to dive deeper into Soma
+
 ## Project Structure
 
 ```
@@ -29,12 +31,20 @@ uv sync
 2. Start the development server:
 
 ```bash
-# Generate and watch for changes
-uv run python -m soma_sdk.standalone --watch .
-
-# Or run the standalone server directly
-uv run python soma/standalone.py
+soma dev --clean
 ```
+
+
+3. In a seperate terminal, configure OPENAI_API_KEY
+
+```bash
+soma enc-key add local --file-name local.bin
+soma secret set OPENAI_API_KEY xxxx
+```
+
+4. Enable the approveClaim function: navigate to `http://localhost:3000` > Bridge > Enable functions
+5. start a chat: navigate to `http://localhost:3000` > A2A > Chat
+
 
 ## How It Works
 
@@ -50,16 +60,3 @@ The agent in `agents/index.py` handles insurance claim processing:
 The function in `functions/approve_claim.py` is a simple function that approves claims.
 In a real application, this would integrate with your claims processing system.
 
-## Development
-
-To regenerate the standalone.py file after modifying agents or functions:
-
-```bash
-uv run python -m soma_sdk.standalone .
-```
-
-To watch for changes and auto-regenerate:
-
-```bash
-uv run python -m soma_sdk.standalone --watch .
-```
