@@ -161,20 +161,11 @@ jobs:
           ## 🐍 Published PyPI Packages
 
           ### Main Packages
-          - [trysoma-sdk](https://pypi.org/project/trysoma-sdk/VERSION_NUMBER/)
+          - [trysoma_sdk](https://pypi.org/project/trysoma-sdk/VERSION_NUMBER/)
           - [trysoma-sdk-core](https://pypi.org/project/trysoma-sdk-core/VERSION_NUMBER/)
           - [trysoma-api-client](https://pypi.org/project/trysoma-api-client/VERSION_NUMBER/)
 
           > `trysoma-sdk-core` provides native bindings and is automatically selected based on your platform (Linux, macOS, Windows).
-
-          ### Installation
-
-          ```bash
-          # Using pip
-          pip install trysoma-sdk
-
-          # Using uv
-          uv add trysoma-sdk
           ```
           EOF
 

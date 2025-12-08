@@ -25,6 +25,7 @@ classifiers = [
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "."
+module-name = "trysoma_sdk_core.trysoma_sdk_core"
 include = ["trysoma_sdk_core/__init__.py", "trysoma_sdk_core/__init__.pyi", "trysoma_sdk_core/py.typed"]
 
 [project.urls]

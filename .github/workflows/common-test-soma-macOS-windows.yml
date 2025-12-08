@@ -113,10 +113,10 @@ jobs:
           fi
         shell: bash
   
-      - name: Run Rust tests (all tests including integration)
+      - name: Run Rust tests (unit tests only - no Docker on macOS/Windows)
         run: |
-          # Run with unit_test and integration_test features to include all tests
-          # This requires AWS credentials to be configured (done above)
-          cargo nextest run --target ${{ matrix.settings.target }} --locked --features unit_test,integration_test
+          # Run with unit_test feature only - integration tests require Docker which isn't available on macOS/Windows
+          # Integration tests are run on Linux where Docker is available
+          cargo nextest run --target ${{ matrix.settings.target }} --locked --features unit_test
         shell: bash
 
