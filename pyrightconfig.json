@@ -7,7 +7,7 @@
     "**/__pycache__",
     "**/.*"
   ],
-  "venvPath": "py",
+  "venvPath": "./",
   "venv": ".venv",
   "extraPaths": [
     "py/packages/api_client"

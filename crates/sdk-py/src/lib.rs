@@ -7,6 +7,7 @@ pub mod codegen_impl;
 pub mod types;
 
 use codegen_impl::PythonCodeGenerator;
+use parking_lot::Mutex;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
 use sdk_core as core_types;
@@ -16,13 +17,12 @@ use std::sync::Arc;
 use tracing::info;
 use types as py_types;
 
-use once_cell::sync::OnceCell;
+// Global gRPC service instance - uses Mutex<Option<...>> to allow resetting
+static GRPC_SERVICE: Mutex<Option<Arc<core_types::GrpcService<PythonCodeGenerator>>>> =
+    Mutex::new(None);
 
-// Global gRPC service instance
-static GRPC_SERVICE: OnceCell<Arc<core_types::GrpcService<PythonCodeGenerator>>> = OnceCell::new();
-
-fn get_grpc_service() -> PyResult<&'static Arc<core_types::GrpcService<PythonCodeGenerator>>> {
-    GRPC_SERVICE.get().ok_or_else(|| {
+fn get_grpc_service() -> PyResult<Arc<core_types::GrpcService<PythonCodeGenerator>>> {
+    GRPC_SERVICE.lock().clone().ok_or_else(|| {
         pyo3::exceptions::PyRuntimeError::new_err(
             "gRPC service not initialized - call start_grpc_server first",
         )
@@ -145,12 +145,29 @@ pub fn start_grpc_server(
             .await
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
-        GRPC_SERVICE.set(service).map_err(|_| {
-            pyo3::exceptions::PyRuntimeError::new_err("gRPC service already initialized")
-        })?;
+        // Store the service, replacing any existing one
+        let mut guard = GRPC_SERVICE.lock();
+        *guard = Some(service);
 
         Ok(())
     })
+}
+
+/// Kill/clear the gRPC service, removing all providers, agents, and handlers.
+/// This allows the service to be restarted fresh.
+#[pyfunction]
+#[pyo3(signature = () -> "None")]
+pub fn kill_grpc_service() -> PyResult<()> {
+    info!("Killing gRPC service - clearing all state");
+    let mut guard = GRPC_SERVICE.lock();
+    if let Some(service) = guard.as_ref() {
+        // Clear the service state
+        service.clear();
+    }
+    // Remove the service from the global
+    *guard = None;
+    info!("gRPC service killed successfully");
+    Ok(())
 }
 
 /// Add a provider controller to the running server
@@ -689,6 +706,8 @@ pub mod trysoma_sdk_core {
     pub use super::add_function;
     #[pymodule_export]
     pub use super::add_provider;
+    #[pymodule_export]
+    pub use super::kill_grpc_service;
     #[pymodule_export]
     pub use super::remove_agent;
     #[pymodule_export]

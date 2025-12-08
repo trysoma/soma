@@ -4,7 +4,7 @@
 from __future__ import annotations
 import os
 import httpx
-from typing import Any, TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, TypedDict, TypeVar, cast
 
 if TYPE_CHECKING:
     from restate import ObjectContext
@@ -12,8 +12,49 @@ if TYPE_CHECKING:
 SOMA_SERVER_BASE_URL = os.environ.get("SOMA_SERVER_BASE_URL", "http://localhost:3000")
 
 # Type variables for generic bridge function invocation
-TParams = TypeVar("TParams", bound=dict[str, Any])
+TParams = TypeVar("TParams")
 TResult = TypeVar("TResult")
+
+
+
+
+# Type definitions for ApproveClaim.approve_claim params
+
+class _ApproveClaimApproveClaimParamsClaim(TypedDict):
+
+
+    amount: float
+
+    category: str
+
+    date: str
+
+    email: str
+
+    reason: str
+
+
+
+
+class ApproveClaimApproveClaimParams(TypedDict):
+
+
+    claim: _ApproveClaimApproveClaimParamsClaim
+
+
+
+
+# Type definitions for ApproveClaim.approve_claim result
+
+class ApproveClaimApproveClaimResult(TypedDict):
+
+
+    approved: bool
+
+
+
+
+
 
 
 
@@ -41,12 +82,45 @@ async def _invoke_bridge_function(
 
 
 
+class ApproveClaimAccount:
+    """Account wrapper for approve-claim provider."""
+
+    def __init__(self, ctx: "ObjectContext", provider_instance_id: str):
+        self._ctx = ctx
+        self._provider_instance_id = provider_instance_id
+
+
+
+    async def approve_claim(self, params: ApproveClaimApproveClaimParams) -> ApproveClaimApproveClaimResult:
+        """Call the approve-claim function."""
+        return await _invoke_bridge_function(
+            self._ctx,
+            self._provider_instance_id,
+            "approve-claim",
+            params,
+        )
+
+
+
+
+class ApproveClaim:
+    """Provider wrapper for approve-claim."""
+
+    def __init__(self, ctx: "ObjectContext"):
+        self._ctx = ctx
+
+        self.internal = ApproveClaimAccount(ctx, "43206d5b-9943-4699-8eca-c35154cbbc97")
+
+
+
 
 class Bridge:
     """Main bridge class providing access to all providers."""
 
     def __init__(self, ctx: "ObjectContext"):
         self._ctx = ctx
+
+        self.approve_claim = ApproveClaim(ctx)
 
 
 

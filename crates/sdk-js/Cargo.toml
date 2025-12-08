@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 [dependencies]
 napi = { workspace = true, features = ["async"] }
 napi-derive.workspace = true
-once_cell.workspace = true
+parking_lot.workspace = true
 sdk-core.workspace = true
 sdk-proto.workspace = true
 tokio.workspace = true

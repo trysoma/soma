@@ -36,7 +36,6 @@ jobs:
         uses: ./.github/actions/setup-uv-python
         with:
           python-version: '3.12'
-          working-directory: py
           install-dependencies: 'false'
 
       - name: Download all Python wheel artifacts
@@ -97,21 +96,17 @@ jobs:
 
           echo "Building and publishing pure Python packages..."
 
-          # Build trysoma-sdk package (use --out-dir to ensure output goes to local dist)
+          # Build trysoma-sdk package
           echo "Building trysoma-sdk..."
-          cd py/packages/sdk
-          uv build --out-dir dist
+          uv build --package trysoma-sdk --out-dir py/packages/sdk/dist
           echo "SDK dist contents:"
-          ls -la dist/
+          ls -la py/packages/sdk/dist/
 
           # Build trysoma-api-client package
           echo "Building trysoma-api-client..."
-          cd ../api_client
-          uv build --out-dir dist
+          uv build --package trysoma-api-client --out-dir py/packages/api_client/dist
           echo "API client dist contents:"
-          ls -la dist/
-
-          cd ../../..
+          ls -la py/packages/api_client/dist/
 
           # Publish using uv publish (built-in to uv, no twine needed)
           echo "Publishing packages to PyPI..."

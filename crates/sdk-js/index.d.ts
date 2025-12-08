@@ -96,6 +96,12 @@ export interface InvokeFunctionResponse {
 	error?: CallbackError;
 }
 
+/**
+ * Kill/clear the gRPC service, removing all providers, agents, and handlers.
+ * This allows the service to be restarted fresh.
+ */
+export declare function killGrpcService(): void;
+
 export interface Metadata {
 	key: string;
 	value: string;

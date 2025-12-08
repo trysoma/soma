@@ -5,6 +5,7 @@ pub mod types;
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::ThreadsafeFunction;
 use napi_derive::napi;
+use parking_lot::Mutex;
 use shared::error::CommonError;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -14,10 +15,9 @@ use codegen_impl::TypeScriptCodeGenerator;
 use sdk_core as core_types;
 use types as js_types;
 
-use once_cell::sync::OnceCell;
-
-static GRPC_SERVICE: OnceCell<Arc<core_types::GrpcService<TypeScriptCodeGenerator>>> =
-    OnceCell::new();
+// Global gRPC service instance - uses Mutex<Option<...>> to allow resetting
+static GRPC_SERVICE: Mutex<Option<Arc<core_types::GrpcService<TypeScriptCodeGenerator>>>> =
+    Mutex::new(None);
 
 /// Start the gRPC server on a Unix socket with TypeScript code generation
 #[napi]
@@ -31,15 +31,31 @@ pub async fn start_grpc_server(socket_path: String, project_dir: String) -> Resu
         .await
         .map_err(|e| napi::Error::from_reason(e.to_string()))?;
 
-    GRPC_SERVICE
-        .set(service)
-        .map_err(|_| napi::Error::from_reason("gRPC service already initialized"))?;
+    // Store the service, replacing any existing one
+    let mut guard = GRPC_SERVICE.lock();
+    *guard = Some(service);
 
     Ok(())
 }
 
-fn get_grpc_service() -> Result<&'static Arc<core_types::GrpcService<TypeScriptCodeGenerator>>> {
-    GRPC_SERVICE.get().ok_or_else(|| {
+/// Kill/clear the gRPC service, removing all providers, agents, and handlers.
+/// This allows the service to be restarted fresh.
+#[napi]
+pub fn kill_grpc_service() -> Result<()> {
+    info!("Killing gRPC service - clearing all state");
+    let mut guard = GRPC_SERVICE.lock();
+    if let Some(service) = guard.as_ref() {
+        // Clear the service state
+        service.clear();
+    }
+    // Remove the service from the global
+    *guard = None;
+    info!("gRPC service killed successfully");
+    Ok(())
+}
+
+fn get_grpc_service() -> Result<Arc<core_types::GrpcService<TypeScriptCodeGenerator>>> {
+    GRPC_SERVICE.lock().clone().ok_or_else(|| {
         napi::Error::from_reason("gRPC service not initialized - call start_grpc_server first")
     })
 }

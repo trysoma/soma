@@ -781,6 +781,7 @@ module.exports.InvokeFunctionRequest = nativeBinding.InvokeFunctionRequest;
 module.exports.addAgent = nativeBinding.addAgent;
 module.exports.addFunction = nativeBinding.addFunction;
 module.exports.addProvider = nativeBinding.addProvider;
+module.exports.killGrpcService = nativeBinding.killGrpcService;
 module.exports.removeAgent = nativeBinding.removeAgent;
 module.exports.removeFunction = nativeBinding.removeFunction;
 module.exports.removeProvider = nativeBinding.removeProvider;

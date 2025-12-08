@@ -9,10 +9,6 @@ inputs:
     description: 'uv version to install'
     required: false
     default: 'latest'
-  working-directory:
-    description: 'Working directory for uv commands'
-    required: false
-    default: 'py'
   install-dependencies:
     description: 'Whether to run uv sync'
     required: false
@@ -31,8 +27,8 @@ runs:
         version: ${{ inputs.uv-version }}
         enable-cache: ${{ inputs.enable-cache }}
         cache-dependency-glob: |
-          ${{ inputs.working-directory }}/uv.lock
-          ${{ inputs.working-directory }}/**/pyproject.toml
+          uv.lock
+          **/pyproject.toml
 
     - name: Setup Python
       shell: bash
@@ -43,7 +39,6 @@ runs:
     - name: Install dependencies
       if: inputs.install-dependencies == 'true'
       shell: bash
-      working-directory: ${{ inputs.working-directory }}
       run: |
         uv sync --all-packages
         echo "✓ Python dependencies installed"

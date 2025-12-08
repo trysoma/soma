@@ -22,6 +22,7 @@ __all__ = [
     "BridgeApi",
     "EncryptionApi",
     "EnvironmentVariableApi",
+    "IdentityApi",
     "SecretApi",
     "TaskApi",
     "V1Api",
@@ -34,6 +35,7 @@ __all__ = [
     "ApiKeyError",
     "ApiAttributeError",
     "ApiException",
+    "ApiKeyYamlConfig",
     "BridgeConfig",
     "BrokerAction",
     "BrokerActionOneOf",
@@ -42,6 +44,8 @@ __all__ = [
     "ConfigurationSchema",
     "ContextInfo",
     "ContextInfoPaginatedResponse",
+    "CreateApiKeyParams",
+    "CreateApiKeyResponse",
     "CreateDataEncryptionKeyParamsRoute",
     "CreateDekAliasRequest",
     "CreateEnvironmentVariableRequest",
@@ -50,6 +54,8 @@ __all__ = [
     "CreateProviderInstanceParamsInner",
     "CreateResourceServerCredentialParamsInner",
     "CreateSecretRequest",
+    "CreateUserAuthFlowConfigParams",
+    "CreateUserAuthFlowConfigResponse",
     "CreateUserCredentialParamsInner",
     "CredentialConfig",
     "DataEncryptionKey",
@@ -60,7 +66,18 @@ __all__ = [
     "DekConfig",
     "DeleteEnvironmentVariableResponse",
     "DeleteSecretResponse",
+    "DevModeConfig",
     "EncryptCredentialConfigurationParamsInner",
+    "EncryptedApiKeyConfig",
+    "EncryptedOauthConfig",
+    "EncryptedOauthYamlConfig",
+    "EncryptedOidcConfig",
+    "EncryptedOidcYamlConfig",
+    "EncryptedUserAuthFlowConfig",
+    "EncryptedUserAuthFlowConfigOneOf",
+    "EncryptedUserAuthFlowConfigOneOf1",
+    "EncryptedUserAuthFlowConfigOneOf2",
+    "EncryptedUserAuthFlowConfigOneOf3",
     "EncryptionConfig",
     "EnvelopeEncryptionKey",
     "EnvelopeEncryptionKeyAwsKms",
@@ -81,23 +98,56 @@ __all__ = [
     "FunctionInstanceListItem",
     "FunctionInstanceSerialized",
     "FunctionInstanceSerializedPaginatedResponse",
+    "GetUserAuthFlowConfigResponse",
+    "GroupToRoleMapping",
+    "GroupToRoleMappingYaml",
+    "HashedApiKey",
+    "Human",
+    "Identity",
+    "IdentityConfig",
+    "IdentityOneOf",
+    "IdentityOneOf1",
+    "IdentityOneOf2",
+    "IdentityOneOf3",
     "ImportDataEncryptionKeyParamsRoute",
     "ImportEnvironmentVariableRequest",
     "ImportSecretRequest",
+    "ImportUserAuthFlowConfigParams",
     "InvokeError",
     "InvokeFunctionParamsInner",
     "InvokeResult",
     "InvokeResultOneOf",
     "InvokeResultOneOf1",
+    "Jwk",
+    "JwkResponse",
+    "JwkResponsePaginatedResponse",
+    "JwksResponse",
+    "JwtMappingConfigYaml",
+    "JwtTemplateConfigYaml",
+    "JwtTemplateModeConfig",
+    "JwtTokenMappingConfig",
+    "JwtTokenTemplateConfig",
+    "JwtTokenTemplateValidationConfig",
+    "JwtValidationConfigYaml",
+    "ListApiKeysResponse",
     "ListDecryptedSecretsResponse",
     "ListEnvironmentVariablesResponse",
     "ListSecretsResponse",
+    "ListUserAuthFlowConfigResponse",
+    "Machine",
+    "MappingSourceString",
+    "MappingSourceStringOneOf",
+    "MappingSourceStringOneOf1",
+    "MappingSourceStringOneOf2",
     "Message",
     "MessagePart",
     "MessageRole",
     "MessageTaskTimelineItem",
     "MigrateAllDataEncryptionKeysParamsRoute",
     "MigrateDataEncryptionKeyParamsRoute",
+    "NormalizedTokenIssuanceResult",
+    "OauthConfig",
+    "OidcConfig",
     "ProviderConfig",
     "ProviderControllerSerialized",
     "ProviderControllerSerializedPaginatedResponse",
@@ -107,13 +157,26 @@ __all__ = [
     "ProviderInstanceSerialized",
     "ProviderInstanceSerializedWithCredentials",
     "ProviderInstanceSerializedWithEverything",
+    "RefreshTokenRequest",
     "ResourceServerCredentialSerialized",
     "ReturnAddress",
     "ReturnAddressUrl",
+    "Role",
+    "ScopeToGroupMapping",
+    "ScopeToGroupMappingYaml",
+    "ScopeToRoleMapping",
+    "ScopeToRoleMappingYaml",
     "Secret",
     "SecretConfig",
     "SomaAgentDefinition",
     "StartUserCredentialBrokeringParamsInner",
+    "StsConfigYaml",
+    "StsConfigYamlOneOf",
+    "StsConfigYamlOneOf1",
+    "StsTokenConfig",
+    "StsTokenConfigOneOf",
+    "StsTokenConfigOneOf1",
+    "StsTokenConfigPaginatedResponse",
     "Task",
     "TaskPaginatedResponse",
     "TaskStatus",
@@ -125,11 +188,29 @@ __all__ = [
     "TaskTimelineItemPayloadOneOf1",
     "TaskWithDetails",
     "TextPart",
+    "TokenLocation",
+    "TokenLocationOneOf",
+    "TokenLocationOneOf1",
+    "TokenLocationYaml",
+    "TokenLocationYamlOneOf",
+    "TokenLocationYamlOneOf1",
+    "TokenMapping",
+    "TokenResponse",
     "UpdateAliasParams",
     "UpdateEnvironmentVariableRequest",
     "UpdateProviderInstanceParamsInner",
     "UpdateSecretRequest",
     "UpdateTaskStatusRequest",
+    "UserAuthFlowConfig",
+    "UserAuthFlowConfigOneOf",
+    "UserAuthFlowConfigOneOf1",
+    "UserAuthFlowConfigOneOf2",
+    "UserAuthFlowConfigOneOf3",
+    "UserAuthFlowYamlConfig",
+    "UserAuthFlowYamlConfigOneOf",
+    "UserAuthFlowYamlConfigOneOf1",
+    "UserAuthFlowYamlConfigOneOf2",
+    "UserAuthFlowYamlConfigOneOf3",
     "UserCredentialBrokeringResponse",
     "UserCredentialBrokeringResponseOneOf",
     "UserCredentialBrokeringResponseOneOf1",
@@ -145,6 +226,7 @@ from trysoma_api_client.api.encryption_api import EncryptionApi as EncryptionApi
 from trysoma_api_client.api.environment_variable_api import (
     EnvironmentVariableApi as EnvironmentVariableApi,
 )
+from trysoma_api_client.api.identity_api import IdentityApi as IdentityApi
 from trysoma_api_client.api.secret_api import SecretApi as SecretApi
 from trysoma_api_client.api.task_api import TaskApi as TaskApi
 from trysoma_api_client.api.v1_api import V1Api as V1Api
@@ -161,6 +243,9 @@ from trysoma_api_client.exceptions import ApiAttributeError as ApiAttributeError
 from trysoma_api_client.exceptions import ApiException as ApiException
 
 # import models into sdk package
+from trysoma_api_client.models.api_key_yaml_config import (
+    ApiKeyYamlConfig as ApiKeyYamlConfig,
+)
 from trysoma_api_client.models.bridge_config import BridgeConfig as BridgeConfig
 from trysoma_api_client.models.broker_action import BrokerAction as BrokerAction
 from trysoma_api_client.models.broker_action_one_of import (
@@ -176,6 +261,12 @@ from trysoma_api_client.models.configuration_schema import (
 from trysoma_api_client.models.context_info import ContextInfo as ContextInfo
 from trysoma_api_client.models.context_info_paginated_response import (
     ContextInfoPaginatedResponse as ContextInfoPaginatedResponse,
+)
+from trysoma_api_client.models.create_api_key_params import (
+    CreateApiKeyParams as CreateApiKeyParams,
+)
+from trysoma_api_client.models.create_api_key_response import (
+    CreateApiKeyResponse as CreateApiKeyResponse,
 )
 from trysoma_api_client.models.create_data_encryption_key_params_route import (
     CreateDataEncryptionKeyParamsRoute as CreateDataEncryptionKeyParamsRoute,
@@ -200,6 +291,12 @@ from trysoma_api_client.models.create_resource_server_credential_params_inner im
 )
 from trysoma_api_client.models.create_secret_request import (
     CreateSecretRequest as CreateSecretRequest,
+)
+from trysoma_api_client.models.create_user_auth_flow_config_params import (
+    CreateUserAuthFlowConfigParams as CreateUserAuthFlowConfigParams,
+)
+from trysoma_api_client.models.create_user_auth_flow_config_response import (
+    CreateUserAuthFlowConfigResponse as CreateUserAuthFlowConfigResponse,
 )
 from trysoma_api_client.models.create_user_credential_params_inner import (
     CreateUserCredentialParamsInner as CreateUserCredentialParamsInner,
@@ -229,8 +326,39 @@ from trysoma_api_client.models.delete_environment_variable_response import (
 from trysoma_api_client.models.delete_secret_response import (
     DeleteSecretResponse as DeleteSecretResponse,
 )
+from trysoma_api_client.models.dev_mode_config import DevModeConfig as DevModeConfig
 from trysoma_api_client.models.encrypt_credential_configuration_params_inner import (
     EncryptCredentialConfigurationParamsInner as EncryptCredentialConfigurationParamsInner,
+)
+from trysoma_api_client.models.encrypted_api_key_config import (
+    EncryptedApiKeyConfig as EncryptedApiKeyConfig,
+)
+from trysoma_api_client.models.encrypted_oauth_config import (
+    EncryptedOauthConfig as EncryptedOauthConfig,
+)
+from trysoma_api_client.models.encrypted_oauth_yaml_config import (
+    EncryptedOauthYamlConfig as EncryptedOauthYamlConfig,
+)
+from trysoma_api_client.models.encrypted_oidc_config import (
+    EncryptedOidcConfig as EncryptedOidcConfig,
+)
+from trysoma_api_client.models.encrypted_oidc_yaml_config import (
+    EncryptedOidcYamlConfig as EncryptedOidcYamlConfig,
+)
+from trysoma_api_client.models.encrypted_user_auth_flow_config import (
+    EncryptedUserAuthFlowConfig as EncryptedUserAuthFlowConfig,
+)
+from trysoma_api_client.models.encrypted_user_auth_flow_config_one_of import (
+    EncryptedUserAuthFlowConfigOneOf as EncryptedUserAuthFlowConfigOneOf,
+)
+from trysoma_api_client.models.encrypted_user_auth_flow_config_one_of1 import (
+    EncryptedUserAuthFlowConfigOneOf1 as EncryptedUserAuthFlowConfigOneOf1,
+)
+from trysoma_api_client.models.encrypted_user_auth_flow_config_one_of2 import (
+    EncryptedUserAuthFlowConfigOneOf2 as EncryptedUserAuthFlowConfigOneOf2,
+)
+from trysoma_api_client.models.encrypted_user_auth_flow_config_one_of3 import (
+    EncryptedUserAuthFlowConfigOneOf3 as EncryptedUserAuthFlowConfigOneOf3,
 )
 from trysoma_api_client.models.encryption_config import (
     EncryptionConfig as EncryptionConfig,
@@ -290,6 +418,23 @@ from trysoma_api_client.models.function_instance_serialized import (
 from trysoma_api_client.models.function_instance_serialized_paginated_response import (
     FunctionInstanceSerializedPaginatedResponse as FunctionInstanceSerializedPaginatedResponse,
 )
+from trysoma_api_client.models.get_user_auth_flow_config_response import (
+    GetUserAuthFlowConfigResponse as GetUserAuthFlowConfigResponse,
+)
+from trysoma_api_client.models.group_to_role_mapping import (
+    GroupToRoleMapping as GroupToRoleMapping,
+)
+from trysoma_api_client.models.group_to_role_mapping_yaml import (
+    GroupToRoleMappingYaml as GroupToRoleMappingYaml,
+)
+from trysoma_api_client.models.hashed_api_key import HashedApiKey as HashedApiKey
+from trysoma_api_client.models.human import Human as Human
+from trysoma_api_client.models.identity import Identity as Identity
+from trysoma_api_client.models.identity_config import IdentityConfig as IdentityConfig
+from trysoma_api_client.models.identity_one_of import IdentityOneOf as IdentityOneOf
+from trysoma_api_client.models.identity_one_of1 import IdentityOneOf1 as IdentityOneOf1
+from trysoma_api_client.models.identity_one_of2 import IdentityOneOf2 as IdentityOneOf2
+from trysoma_api_client.models.identity_one_of3 import IdentityOneOf3 as IdentityOneOf3
 from trysoma_api_client.models.import_data_encryption_key_params_route import (
     ImportDataEncryptionKeyParamsRoute as ImportDataEncryptionKeyParamsRoute,
 )
@@ -298,6 +443,9 @@ from trysoma_api_client.models.import_environment_variable_request import (
 )
 from trysoma_api_client.models.import_secret_request import (
     ImportSecretRequest as ImportSecretRequest,
+)
+from trysoma_api_client.models.import_user_auth_flow_config_params import (
+    ImportUserAuthFlowConfigParams as ImportUserAuthFlowConfigParams,
 )
 from trysoma_api_client.models.invoke_error import InvokeError as InvokeError
 from trysoma_api_client.models.invoke_function_params_inner import (
@@ -310,6 +458,36 @@ from trysoma_api_client.models.invoke_result_one_of import (
 from trysoma_api_client.models.invoke_result_one_of1 import (
     InvokeResultOneOf1 as InvokeResultOneOf1,
 )
+from trysoma_api_client.models.jwk import Jwk as Jwk
+from trysoma_api_client.models.jwk_response import JwkResponse as JwkResponse
+from trysoma_api_client.models.jwk_response_paginated_response import (
+    JwkResponsePaginatedResponse as JwkResponsePaginatedResponse,
+)
+from trysoma_api_client.models.jwks_response import JwksResponse as JwksResponse
+from trysoma_api_client.models.jwt_mapping_config_yaml import (
+    JwtMappingConfigYaml as JwtMappingConfigYaml,
+)
+from trysoma_api_client.models.jwt_template_config_yaml import (
+    JwtTemplateConfigYaml as JwtTemplateConfigYaml,
+)
+from trysoma_api_client.models.jwt_template_mode_config import (
+    JwtTemplateModeConfig as JwtTemplateModeConfig,
+)
+from trysoma_api_client.models.jwt_token_mapping_config import (
+    JwtTokenMappingConfig as JwtTokenMappingConfig,
+)
+from trysoma_api_client.models.jwt_token_template_config import (
+    JwtTokenTemplateConfig as JwtTokenTemplateConfig,
+)
+from trysoma_api_client.models.jwt_token_template_validation_config import (
+    JwtTokenTemplateValidationConfig as JwtTokenTemplateValidationConfig,
+)
+from trysoma_api_client.models.jwt_validation_config_yaml import (
+    JwtValidationConfigYaml as JwtValidationConfigYaml,
+)
+from trysoma_api_client.models.list_api_keys_response import (
+    ListApiKeysResponse as ListApiKeysResponse,
+)
 from trysoma_api_client.models.list_decrypted_secrets_response import (
     ListDecryptedSecretsResponse as ListDecryptedSecretsResponse,
 )
@@ -318,6 +496,22 @@ from trysoma_api_client.models.list_environment_variables_response import (
 )
 from trysoma_api_client.models.list_secrets_response import (
     ListSecretsResponse as ListSecretsResponse,
+)
+from trysoma_api_client.models.list_user_auth_flow_config_response import (
+    ListUserAuthFlowConfigResponse as ListUserAuthFlowConfigResponse,
+)
+from trysoma_api_client.models.machine import Machine as Machine
+from trysoma_api_client.models.mapping_source_string import (
+    MappingSourceString as MappingSourceString,
+)
+from trysoma_api_client.models.mapping_source_string_one_of import (
+    MappingSourceStringOneOf as MappingSourceStringOneOf,
+)
+from trysoma_api_client.models.mapping_source_string_one_of1 import (
+    MappingSourceStringOneOf1 as MappingSourceStringOneOf1,
+)
+from trysoma_api_client.models.mapping_source_string_one_of2 import (
+    MappingSourceStringOneOf2 as MappingSourceStringOneOf2,
 )
 from trysoma_api_client.models.message import Message as Message
 from trysoma_api_client.models.message_part import MessagePart as MessagePart
@@ -331,6 +525,11 @@ from trysoma_api_client.models.migrate_all_data_encryption_keys_params_route imp
 from trysoma_api_client.models.migrate_data_encryption_key_params_route import (
     MigrateDataEncryptionKeyParamsRoute as MigrateDataEncryptionKeyParamsRoute,
 )
+from trysoma_api_client.models.normalized_token_issuance_result import (
+    NormalizedTokenIssuanceResult as NormalizedTokenIssuanceResult,
+)
+from trysoma_api_client.models.oauth_config import OauthConfig as OauthConfig
+from trysoma_api_client.models.oidc_config import OidcConfig as OidcConfig
 from trysoma_api_client.models.provider_config import ProviderConfig as ProviderConfig
 from trysoma_api_client.models.provider_controller_serialized import (
     ProviderControllerSerialized as ProviderControllerSerialized,
@@ -356,12 +555,28 @@ from trysoma_api_client.models.provider_instance_serialized_with_credentials imp
 from trysoma_api_client.models.provider_instance_serialized_with_everything import (
     ProviderInstanceSerializedWithEverything as ProviderInstanceSerializedWithEverything,
 )
+from trysoma_api_client.models.refresh_token_request import (
+    RefreshTokenRequest as RefreshTokenRequest,
+)
 from trysoma_api_client.models.resource_server_credential_serialized import (
     ResourceServerCredentialSerialized as ResourceServerCredentialSerialized,
 )
 from trysoma_api_client.models.return_address import ReturnAddress as ReturnAddress
 from trysoma_api_client.models.return_address_url import (
     ReturnAddressUrl as ReturnAddressUrl,
+)
+from trysoma_api_client.models.role import Role as Role
+from trysoma_api_client.models.scope_to_group_mapping import (
+    ScopeToGroupMapping as ScopeToGroupMapping,
+)
+from trysoma_api_client.models.scope_to_group_mapping_yaml import (
+    ScopeToGroupMappingYaml as ScopeToGroupMappingYaml,
+)
+from trysoma_api_client.models.scope_to_role_mapping import (
+    ScopeToRoleMapping as ScopeToRoleMapping,
+)
+from trysoma_api_client.models.scope_to_role_mapping_yaml import (
+    ScopeToRoleMappingYaml as ScopeToRoleMappingYaml,
 )
 from trysoma_api_client.models.secret import Secret as Secret
 from trysoma_api_client.models.secret_config import SecretConfig as SecretConfig
@@ -370,6 +585,23 @@ from trysoma_api_client.models.soma_agent_definition import (
 )
 from trysoma_api_client.models.start_user_credential_brokering_params_inner import (
     StartUserCredentialBrokeringParamsInner as StartUserCredentialBrokeringParamsInner,
+)
+from trysoma_api_client.models.sts_config_yaml import StsConfigYaml as StsConfigYaml
+from trysoma_api_client.models.sts_config_yaml_one_of import (
+    StsConfigYamlOneOf as StsConfigYamlOneOf,
+)
+from trysoma_api_client.models.sts_config_yaml_one_of1 import (
+    StsConfigYamlOneOf1 as StsConfigYamlOneOf1,
+)
+from trysoma_api_client.models.sts_token_config import StsTokenConfig as StsTokenConfig
+from trysoma_api_client.models.sts_token_config_one_of import (
+    StsTokenConfigOneOf as StsTokenConfigOneOf,
+)
+from trysoma_api_client.models.sts_token_config_one_of1 import (
+    StsTokenConfigOneOf1 as StsTokenConfigOneOf1,
+)
+from trysoma_api_client.models.sts_token_config_paginated_response import (
+    StsTokenConfigPaginatedResponse as StsTokenConfigPaginatedResponse,
 )
 from trysoma_api_client.models.task import Task as Task
 from trysoma_api_client.models.task_paginated_response import (
@@ -398,6 +630,24 @@ from trysoma_api_client.models.task_with_details import (
     TaskWithDetails as TaskWithDetails,
 )
 from trysoma_api_client.models.text_part import TextPart as TextPart
+from trysoma_api_client.models.token_location import TokenLocation as TokenLocation
+from trysoma_api_client.models.token_location_one_of import (
+    TokenLocationOneOf as TokenLocationOneOf,
+)
+from trysoma_api_client.models.token_location_one_of1 import (
+    TokenLocationOneOf1 as TokenLocationOneOf1,
+)
+from trysoma_api_client.models.token_location_yaml import (
+    TokenLocationYaml as TokenLocationYaml,
+)
+from trysoma_api_client.models.token_location_yaml_one_of import (
+    TokenLocationYamlOneOf as TokenLocationYamlOneOf,
+)
+from trysoma_api_client.models.token_location_yaml_one_of1 import (
+    TokenLocationYamlOneOf1 as TokenLocationYamlOneOf1,
+)
+from trysoma_api_client.models.token_mapping import TokenMapping as TokenMapping
+from trysoma_api_client.models.token_response import TokenResponse as TokenResponse
 from trysoma_api_client.models.update_alias_params import (
     UpdateAliasParams as UpdateAliasParams,
 )
@@ -412,6 +662,36 @@ from trysoma_api_client.models.update_secret_request import (
 )
 from trysoma_api_client.models.update_task_status_request import (
     UpdateTaskStatusRequest as UpdateTaskStatusRequest,
+)
+from trysoma_api_client.models.user_auth_flow_config import (
+    UserAuthFlowConfig as UserAuthFlowConfig,
+)
+from trysoma_api_client.models.user_auth_flow_config_one_of import (
+    UserAuthFlowConfigOneOf as UserAuthFlowConfigOneOf,
+)
+from trysoma_api_client.models.user_auth_flow_config_one_of1 import (
+    UserAuthFlowConfigOneOf1 as UserAuthFlowConfigOneOf1,
+)
+from trysoma_api_client.models.user_auth_flow_config_one_of2 import (
+    UserAuthFlowConfigOneOf2 as UserAuthFlowConfigOneOf2,
+)
+from trysoma_api_client.models.user_auth_flow_config_one_of3 import (
+    UserAuthFlowConfigOneOf3 as UserAuthFlowConfigOneOf3,
+)
+from trysoma_api_client.models.user_auth_flow_yaml_config import (
+    UserAuthFlowYamlConfig as UserAuthFlowYamlConfig,
+)
+from trysoma_api_client.models.user_auth_flow_yaml_config_one_of import (
+    UserAuthFlowYamlConfigOneOf as UserAuthFlowYamlConfigOneOf,
+)
+from trysoma_api_client.models.user_auth_flow_yaml_config_one_of1 import (
+    UserAuthFlowYamlConfigOneOf1 as UserAuthFlowYamlConfigOneOf1,
+)
+from trysoma_api_client.models.user_auth_flow_yaml_config_one_of2 import (
+    UserAuthFlowYamlConfigOneOf2 as UserAuthFlowYamlConfigOneOf2,
+)
+from trysoma_api_client.models.user_auth_flow_yaml_config_one_of3 import (
+    UserAuthFlowYamlConfigOneOf3 as UserAuthFlowYamlConfigOneOf3,
 )
 from trysoma_api_client.models.user_credential_brokering_response import (
     UserCredentialBrokeringResponse as UserCredentialBrokeringResponse,

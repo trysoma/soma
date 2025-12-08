@@ -284,8 +284,23 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
                 print(f"Please manually kill the process using port {{restate_port}} and restart")
                 raise SystemExit(1)
 
-        # Start Restate server in background task
-        server_task = None
+        # Create shutdown event for graceful Hypercorn shutdown
+        # This event is used as the shutdown_trigger parameter for Hypercorn
+        shutdown_event = asyncio.Event()
+
+        def trigger_shutdown() -> None:
+            \"\"\"Signal handler to trigger graceful shutdown.\"\"\"
+            print("\\n[Shutdown] Received shutdown signal, initiating graceful shutdown...")
+            shutdown_event.set()
+
+        # Register signal handlers to trigger graceful shutdown
+        loop = asyncio.get_event_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(sig, trigger_shutdown)
+            except NotImplementedError:
+                # Windows doesn't support add_signal_handler
+                signal.signal(sig, lambda s, f: trigger_shutdown())
 
         # Start server on main thread
         conf = Config()
@@ -295,42 +310,60 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
         conf.h2_max_concurrent_streams = 2147483647
         conf.keep_alive_max_requests = 2147483647
         conf.keep_alive_timeout = 2147483647
-        
+        # Set graceful timeout for shutdown
+        conf.graceful_timeout = 5.0
+
         print(f"[Restate] Starting Restate server on port {{restate_port}}...")
-        
-        # Start server in background task
-        async def start_server():
-            print(f"[Restate] Hypercorn server task starting...")
+
+        # Start server in background task with shutdown_trigger
+        server_task = None
+
+        async def start_server() -> None:
+            print("[Restate] Hypercorn server task starting...")
             try:
-                await hypercorn.asyncio.serve(app, conf)
+                # Pass shutdown_trigger to Hypercorn for graceful shutdown
+                await hypercorn.asyncio.serve(
+                    app,
+                    conf,
+                    shutdown_trigger=shutdown_event.wait
+                )
+                print("[Restate] Hypercorn server stopped gracefully")
             except Exception as e:
                 print(f"[Restate] Error in Hypercorn server: {{e}}")
                 raise
-        
+            finally:
+                # Clean up gRPC service on shutdown
+                print("[Shutdown] Cleaning up gRPC service...")
+                try:
+                    kill_grpc_service()
+                    print("[Shutdown] gRPC service killed successfully")
+                except Exception as cleanup_error:
+                    print(f"[Shutdown] Error cleaning up gRPC service: {{cleanup_error}}")
+
         server_task = asyncio.create_task(start_server())
         print(f"[Restate] Server task created, waiting for port {{restate_port}} to be listening...")
-        
+
         # Wait for server to be listening
         await wait_for_port_listening(restate_port)
         print(f"[Restate] ✓ Server is listening on port {{restate_port}}")
-        
+
         # Give the server a moment to fully initialize HTTP/2 endpoints
         print("[Restate] Waiting 1 second for HTTP/2 endpoints to initialize...")
         await asyncio.sleep(1.0)
         print("[Restate] HTTP/2 initialization complete")
-        
+
         # Trigger resync in a separate thread to avoid blocking the asyncio event loop
         # Use threading.Thread instead of asyncio task to ensure it doesn't interfere
         import threading
         import time
-        
+
         def trigger_resync_thread() -> None:
             """Trigger resync with API server in a separate thread."""
             try:
                 # Additional delay to ensure server is fully ready before resync
                 time.sleep(0.5)
                 print("[Resync] Starting resync in background thread...")
-                
+
                 # Create a new event loop for this thread since resync_sdk is async
                 async def run_resync() -> None:
                     max_retries = 10
@@ -360,7 +393,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
                                 print(f"[Resync] ✗ Initial resync failed after {{max_retries}} attempts: {{error}}")
                                 print("[Resync] This is OK - the server is running and resync will succeed on retry (e.g., on file changes)")
                                 # Don't exit - server is running, resync will work later
-                
+
                 # Run the async function in a new event loop for this thread
                 asyncio.run(run_resync())
             except Exception as e:
@@ -368,7 +401,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
                 print(f"[Resync] Unexpected error in resync thread: {{e}}")
                 import traceback
                 traceback.print_exc()
-        
+
         # Start resync in a daemon thread - completely separate from asyncio event loop
         print("[Resync] Starting resync thread...")
         try:
@@ -380,13 +413,14 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
             import traceback
             traceback.print_exc()
             # Don't fail server startup if resync thread can't be created
-        
-        # Keep server running
+
+        # Keep server running until shutdown is triggered
         print("[Restate] Server is running, awaiting server task...")
         await server_task
+        print("[Shutdown] Server shutdown complete")
     except ImportError:
         print("Restate SDK not available, skipping agent server startup")
-        
+
         # Trigger resync with API server (no agents case)
         max_retries = 10
         base_delay_ms = 500
@@ -411,7 +445,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
                     await asyncio.sleep(delay_ms / 1000)
                 else:
                     print(f"Failed to resync with API server after all retries: {{error}}")
-        
+
         # Keep the process alive if Restate is not available
         stop_event = asyncio.Event()
 
@@ -419,6 +453,12 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
             signum: int, frame: types.FrameType | None
         ) -> None:
             print("\\nShutting down...")
+            # Clean up gRPC service on shutdown
+            try:
+                kill_grpc_service()
+                print("gRPC service killed successfully")
+            except Exception as cleanup_error:
+                print(f"Error cleaning up gRPC service: {{cleanup_error}}")
             stop_event.set()
 
         signal.signal(signal.SIGINT, handle_signal)
@@ -452,6 +492,7 @@ from trysoma_sdk import (  # noqa: E402
     add_agent,
     update_agent,
     start_grpc_server,
+    kill_grpc_service,
     set_secret_handler,
     set_environment_variable_handler,
     set_unset_secret_handler,
@@ -788,30 +829,91 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
             time.sleep(0.1)
         return False
 
+    def wait_for_port_free(port: int, timeout: float = 10.0) -> bool:
+        """Wait for a TCP port to be free."""
+        import time
+        import socket as sock_module
+
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            s = sock_module.socket(sock_module.AF_INET, sock_module.SOCK_STREAM)
+            s.settimeout(0.1)
+            result = s.connect_ex(("127.0.0.1", port))
+            s.close()
+            if result != 0:  # Port is free (connection refused)
+                return True
+            time.sleep(0.1)
+        return False
+
     def start_server() -> subprocess.Popen[bytes]:
-        """Start the standalone server."""
+        """Start the standalone server in its own process group."""
+        # Start in a new process group so we can kill all children together
         return subprocess.Popen(
             [sys.executable, str(standalone_path)],
             cwd=str(base_dir),
             env=os.environ.copy(),
+            start_new_session=True,  # Creates new process group
         )
+
+    def kill_server_process_group(
+        proc: subprocess.Popen[bytes], timeout: float = 5.0
+    ) -> None:
+        """Kill a server process and all its children using process group."""
+        import time
+
+        if proc.poll() is not None:
+            # Process already dead
+            return
+
+        pgid = None
+        try:
+            pgid = os.getpgid(proc.pid)
+        except (ProcessLookupError, OSError):
+            # Process already gone
+            return
+
+        # First try SIGTERM to the entire process group
+        try:
+            os.killpg(pgid, signal.SIGTERM)
+        except (ProcessLookupError, OSError):
+            pass
+
+        # Wait for graceful shutdown
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if proc.poll() is not None:
+                return
+            time.sleep(0.1)
+
+        # If still alive, force kill the entire process group
+        print("Process did not terminate gracefully, sending SIGKILL...")
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+        except (ProcessLookupError, OSError):
+            pass
+
+        # Final wait
+        try:
+            proc.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            pass
 
     def restart_server() -> None:
         """Restart the standalone server."""
         nonlocal server_process
+
+        # Get the Restate port from environment
+        restate_port_str = os.environ.get("RESTATE_SERVICE_PORT")
+        restate_port = int(restate_port_str) if restate_port_str else None
+
         if server_process:
             print("Restarting SDK server...")
-            server_process.terminate()
-            try:
-                server_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                server_process.kill()
-                server_process.wait()
+            kill_server_process_group(server_process)
 
             # Wait for the socket to be released before starting new server
             print("Waiting for socket to be released...")
             if wait_for_socket_released(timeout=5.0):
-                print("Socket released, starting new server...")
+                print("Socket released.")
             else:
                 # Force remove the socket file if it still exists
                 socket_file = Path(socket_path)
@@ -822,10 +924,20 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
                     except OSError as e:
                         print(f"Warning: Could not remove socket file: {e}")
 
+            # Also wait for the Restate port to be free
+            if restate_port:
+                print(f"Waiting for port {restate_port} to be free...")
+                if wait_for_port_free(restate_port, timeout=5.0):
+                    print(f"Port {restate_port} is free.")
+                else:
+                    print(
+                        f"Warning: Port {restate_port} still in use, new server may fail to bind."
+                    )
+
             # Small delay to ensure everything is cleaned up
             import time
 
-            time.sleep(0.5)
+            time.sleep(0.3)
 
         server_process = start_server()
 
@@ -837,12 +949,7 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
         """Handle shutdown signal."""
         print("\nShutting down...")
         if server_process:
-            server_process.terminate()
-            try:
-                server_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                server_process.kill()
-                server_process.wait()
+            kill_server_process_group(server_process)
         sys.exit(0)
 
     signal.signal(signal.SIGINT, handle_signal)

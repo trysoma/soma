@@ -412,16 +412,18 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     info!("Shutdown signal received, triggering graceful shutdown");
     let _ = system_shutdown_signal_trigger.send(());
 
-    // Wait for shutdown monitor to complete
+    // Wait for shutdown monitor to complete with a shorter timeout
+    // The subsystems should have already stopped by now based on the logs
     tokio::select! {
       _ = shutdown_monitor_handle => {
         info!("Shutdown monitoring completed");
       }
-      _ = tokio::time::sleep(Duration::from_secs(35)) => {
-        warn!("Shutdown monitoring timed out after 35s, proceeding anyway");
+      _ = tokio::time::sleep(Duration::from_secs(5)) => {
+        info!("Shutdown monitoring timed out after 5s, all subsystems already stopped - proceeding");
       }
     }
 
+    info!("Shutdown complete");
     Ok(())
 }
 

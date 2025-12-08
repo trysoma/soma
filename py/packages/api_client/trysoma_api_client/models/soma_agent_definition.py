@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from trysoma_api_client.models.bridge_config import BridgeConfig
 from trysoma_api_client.models.encryption_config import EncryptionConfig
+from trysoma_api_client.models.identity_config import IdentityConfig
 from trysoma_api_client.models.secret_config import SecretConfig
 from typing import Optional, Set
 from typing_extensions import Self
@@ -33,11 +34,13 @@ class SomaAgentDefinition(BaseModel):
     bridge: Optional[BridgeConfig] = None
     encryption: Optional[EncryptionConfig] = None
     environment_variables: Optional[Dict[str, StrictStr]] = None
+    identity: Optional[IdentityConfig] = None
     secrets: Optional[Dict[str, SecretConfig]] = None
     __properties: ClassVar[List[str]] = [
         "bridge",
         "encryption",
         "environment_variables",
+        "identity",
         "secrets",
     ]
 
@@ -84,6 +87,9 @@ class SomaAgentDefinition(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of encryption
         if self.encryption:
             _dict["encryption"] = self.encryption.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of identity
+        if self.identity:
+            _dict["identity"] = self.identity.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each value in secrets (dict)
         _field_dict = {}
         if self.secrets:
@@ -100,6 +106,11 @@ class SomaAgentDefinition(BaseModel):
         # and model_fields_set contains the field
         if self.encryption is None and "encryption" in self.model_fields_set:
             _dict["encryption"] = None
+
+        # set to None if identity (nullable) is None
+        # and model_fields_set contains the field
+        if self.identity is None and "identity" in self.model_fields_set:
+            _dict["identity"] = None
 
         return _dict
 
@@ -121,6 +132,9 @@ class SomaAgentDefinition(BaseModel):
                 if obj.get("encryption") is not None
                 else None,
                 "environment_variables": obj.get("environment_variables"),
+                "identity": IdentityConfig.from_dict(obj["identity"])
+                if obj.get("identity") is not None
+                else None,
                 "secrets": dict(
                     (_k, SecretConfig.from_dict(_v))
                     for _k, _v in obj["secrets"].items()

@@ -4,7 +4,7 @@
 from __future__ import annotations
 import os
 import httpx
-from typing import Any, TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, TypedDict, TypeVar, cast
 
 if TYPE_CHECKING:
     from restate import ObjectContext
@@ -12,18 +12,36 @@ if TYPE_CHECKING:
 SOMA_SERVER_BASE_URL = os.environ.get("SOMA_SERVER_BASE_URL", "http://localhost:3000")
 
 # Type variables for generic bridge function invocation
-TParams = TypeVar("TParams", bound=dict[str, Any])
+TParams = TypeVar("TParams")
 TResult = TypeVar("TResult")
 
 {% for provider in providers %}
 {% for account in provider.accounts %}
 {% for func in account.functions %}
-# Type alias for {{ provider.class_name }}.{{ func.name }} params
-{{ func.params_type_name }} = {{ func.params_type }}
+# Type definitions for {{ provider.class_name }}.{{ func.name }} params
+{% for class in func.params_type_classes %}
+class {{ class.name }}(TypedDict):
+{% if class.fields | length == 0 %}
+    pass
+{% else %}
+{% for field in class.fields %}
+    {{ field.name }}: {{ field.type_annotation }}
+{% endfor %}
+{% endif %}
 
-# Type alias for {{ provider.class_name }}.{{ func.name }} result
-{{ func.return_type_name }} = {{ func.return_type }}
+{% endfor %}
+# Type definitions for {{ provider.class_name }}.{{ func.name }} result
+{% for class in func.return_type_classes %}
+class {{ class.name }}(TypedDict):
+{% if class.fields | length == 0 %}
+    pass
+{% else %}
+{% for field in class.fields %}
+    {{ field.name }}: {{ field.type_annotation }}
+{% endfor %}
+{% endif %}
 
+{% endfor %}
 {% endfor %}
 {% endfor %}
 {% endfor %}

@@ -96,11 +96,22 @@ const handlers = {
 			ctx,
 			soma: _soma,
 			history: _history,
-			bridge: _bridge,
+			bridge,
 			input: { assessment },
 			sendMessage,
 		}) => {
 			ctx.console.log("Assessment", assessment);
+
+			// once you enable the bridge mcp function, with account name ("internal"), you can uncomment this.
+			// await bridge.approveClaim.internal.approveClaim({
+			// 	claim: {
+			// 		amount: assessment.claim.amount,
+			// 		category: assessment.claim.category,
+			// 		date: assessment.claim.date,
+			// 		email: assessment.claim.email,
+			// 		reason: assessment.claim.reason,
+			// 	},
+			// });
 
 			await sendMessage({
 				metadata: {},

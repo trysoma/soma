@@ -218,6 +218,12 @@ async def process_claim_handler(
     """Handler for processing the claim."""
     print(f"Processing claim: {params.input.assessment}")
 
+    # once you enable the bridge mcp function, with account name ("internal"), you can uncomment this.
+    # await params.bridge.approve_claim.internal.approve_claim(ClaimApprovalRequest(
+    #     claim_id="123",
+    #     approval=True,
+    # ))
+
     await params.send_message(
         CreateMessageRequest(
             metadata={},

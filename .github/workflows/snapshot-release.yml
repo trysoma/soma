@@ -193,7 +193,7 @@ jobs:
             "crates/sdk-py/pyproject.toml"
             "py/packages/sdk/pyproject.toml"
             "py/packages/api_client/pyproject.toml"
-            "py/pyproject.toml"
+            "pyproject.toml"
           )
 
           for file in "${PYPROJECT_FILES[@]}"; do

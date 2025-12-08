@@ -5705,7 +5705,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
- "once_cell",
+ "parking_lot",
  "sdk-core",
  "sdk-proto",
  "serde",
@@ -5739,7 +5739,7 @@ name = "sdk-py"
 version = "0.0.4"
 dependencies = [
  "anyhow",
- "once_cell",
+ "parking_lot",
  "pyo3",
  "pyo3-async-runtimes",
  "pyo3-introspection",

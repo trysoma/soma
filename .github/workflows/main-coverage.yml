@@ -106,15 +106,13 @@ jobs:
         uses: ./.github/actions/setup-uv-python
         with:
           python-version: '3.12'
-          working-directory: py
           install-dependencies: 'true'
 
       - name: Run Python tests with coverage
-        working-directory: py
         run: |
           echo "Running pytest with coverage..."
-          mkdir -p ../.coverage-tmp
-          uv run pytest packages/sdk/tests -v --tb=short --cov=packages/sdk/trysoma_sdk --cov-report=lcov:../.coverage-tmp/py.lcov --cov-report=term
+          mkdir -p .coverage-tmp
+          uv run pytest py/packages/sdk/tests -v --tb=short --cov=py/packages/sdk/trysoma_sdk --cov-report=lcov:.coverage-tmp/py.lcov --cov-report=term
           echo "✓ Python tests complete"
 
       - name: Upload Python coverage artifacts

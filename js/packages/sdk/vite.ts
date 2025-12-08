@@ -257,7 +257,7 @@ function generateStandaloneServer(
 
 	return `/// <reference types="node" />
 // Auto-generated standalone server
-import { addFunction, addProvider, addAgent, startGrpcServer, setSecretHandler, setEnvironmentVariableHandler, setUnsetSecretHandler, setUnsetEnvironmentVariableHandler, resyncSdk } from '@trysoma/sdk';
+import { addFunction, addProvider, addAgent, startGrpcServer, killGrpcService, setSecretHandler, setEnvironmentVariableHandler, setUnsetSecretHandler, setUnsetEnvironmentVariableHandler, resyncSdk } from '@trysoma/sdk';
 import type { Secret, SetSecretsResponse, SetSecretsSuccess, CallbackError, EnvironmentVariable, SetEnvironmentVariablesResponse, SetEnvironmentVariablesSuccess, UnsetSecretResponse, UnsetSecretSuccess, UnsetEnvironmentVariableResponse, UnsetEnvironmentVariableSuccess, InvokeFunctionRequest, InvokeFunctionResponse } from '@trysoma/sdk';
 import * as restate from '@restatedev/restate-sdk';
 import * as http2 from 'http2';
@@ -498,6 +498,15 @@ const shutdown = async () => {
   if (isShuttingDown) return;
   isShuttingDown = true;
   console.log('\\nShutting down Restate server...');
+
+  // Kill the gRPC service to clean up state
+  try {
+    killGrpcService();
+    console.log('gRPC service killed');
+  } catch (err) {
+    console.error('Error killing gRPC service:', err);
+  }
+
   return new Promise<void>((resolve) => {
     httpServer.close(() => {
       console.log('Restate server closed');
@@ -590,14 +599,18 @@ for (let attempt = 1; attempt <= maxRetries && !resyncSuccess; attempt++) {
   }
 }
 // Handle graceful shutdown for gRPC server only
-process.on('SIGINT', () => {
+const shutdownNoAgents = () => {
   console.log('\\nShutting down...');
+  try {
+    killGrpcService();
+    console.log('gRPC service killed');
+  } catch (err) {
+    console.error('Error killing gRPC service:', err);
+  }
   process.exit(0);
-});
-process.on('SIGTERM', () => {
-  console.log('\\nShutting down...');
-  process.exit(0);
-});
+};
+process.on('SIGINT', shutdownNoAgents);
+process.on('SIGTERM', shutdownNoAgents);
 `
 }
 // Keep the process alive

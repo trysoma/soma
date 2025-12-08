@@ -19,12 +19,12 @@ dev-dependencies = [
 
 [tool.uv.workspace]
 members = [
-    "packages/*",
-    "examples/*",
+    "py/packages/*",
+    "py/examples/*",
 ]
 
 [tool.uv.sources]
-trysoma_sdk_core = { path = "../crates/sdk-py" }
+trysoma_sdk_core = { path = "crates/sdk-py" }
 trysoma_sdk = { workspace = true }
 trysoma_api_client = { workspace = true }
 
@@ -32,16 +32,16 @@ trysoma_api_client = { workspace = true }
 line-length = 88
 target-version = "py310"
 extend-exclude = [
-    "soma",                               # Generated files at root
-    "examples/insurance_claim_bot/soma",  # Generated files in example
-    "packages/api_client",                # Auto-generated OpenAPI client
+    "py/soma",                               # Generated files at root
+    "py/examples/insurance_claim_bot/soma",  # Generated files in example
+    "py/packages/api_client",                # Auto-generated OpenAPI client
 ]
 
 [tool.mypy]
 python_version = "3.10"
 warn_return_any = true
 warn_unused_ignores = true
-mypy_path = "packages/sdk:packages/api_client"
+mypy_path = "py/packages/sdk:py/packages/api_client"
 
 [[tool.mypy.overrides]]
 module = "trysoma_api_client.*"
@@ -55,4 +55,4 @@ ignore_missing_imports = true
 follow_imports = "skip"
 
 [tool.pyright]
-extraPaths = ["packages/api_client"]
+extraPaths = ["py/packages/api_client"]

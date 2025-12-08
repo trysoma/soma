@@ -33,6 +33,7 @@ from trysoma_sdk_core import (
     UnsetEnvironmentVariableSuccess,
     # Functions
     start_grpc_server,
+    kill_grpc_service,
     add_provider,
     remove_provider,
     update_provider,
@@ -86,6 +87,7 @@ __all__ = [
     "UnsetEnvironmentVariableSuccess",
     # Core functions (re-exported from trysoma_sdk_core)
     "start_grpc_server",
+    "kill_grpc_service",
     "add_provider",
     "remove_provider",
     "update_provider",
