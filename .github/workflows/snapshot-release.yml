@@ -163,6 +163,9 @@ jobs:
 
           LABEL="${{ inputs.prerelease-label }}"
           INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
+          BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
+          # Remove 'v' prefix if present
+          BASE_VERSION_NO_V="${BASE_VERSION#v}"
 
           # Determine PEP 440 suffix based on prerelease label
           if [ "$LABEL" = "snapshot" ]; then
@@ -174,7 +177,8 @@ jobs:
             exit 1
           fi
 
-          echo "Converting Python versions to PEP 440 format with suffix: $PEP440_SUFFIX"
+          PEP440_VERSION="${BASE_VERSION_NO_V}${PEP440_SUFFIX}"
+          echo "Converting Python versions to PEP 440 format: $PEP440_VERSION"
 
           # List of Python pyproject.toml files to update
           PYPROJECT_FILES=(
@@ -198,6 +202,18 @@ jobs:
               echo "Warning: $file not found, skipping"
             fi
           done
+
+          # Also update crates/sdk-py/Cargo.toml to use explicit PEP 440 version
+          # instead of workspace inheritance (maturin validates Cargo.toml version)
+          SDK_PY_CARGO="crates/sdk-py/Cargo.toml"
+          if [ -f "$SDK_PY_CARGO" ]; then
+            echo "Updating $SDK_PY_CARGO with explicit PEP 440 version..."
+            # Replace version.workspace = true with explicit version
+            sed -i.bak -E "s/^version\.workspace = true$/version = \"${PEP440_VERSION}\"/" "$SDK_PY_CARGO"
+            rm -f "${SDK_PY_CARGO}.bak"
+            echo "  Updated version in $SDK_PY_CARGO:"
+            grep '^version' "$SDK_PY_CARGO" | head -1
+          fi
 
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
