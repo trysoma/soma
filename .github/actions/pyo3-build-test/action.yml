@@ -1,0 +1,91 @@
+name: 'Build and Test PyO3 Module'
+description: 'Builds PyO3/maturin Python wheels and tests them across platforms'
+inputs:
+  target:
+    description: 'Rust target triple (e.g., x86_64-unknown-linux-gnu)'
+    required: true
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.12'
+  node-version:
+    description: 'Node.js version to use (required for soma-api-client build)'
+    required: false
+    default: '20'
+  working-directory:
+    description: 'Working directory for the PyO3 project'
+    required: false
+    default: 'crates/sdk-py'
+  artifact-name-prefix:
+    description: 'Prefix for artifact names'
+    required: false
+    default: 'py-wheels'
+  build-args:
+    description: 'Additional arguments for maturin build command'
+    required: false
+    default: '--release --out dist --find-interpreter'
+  skip-tests:
+    description: 'Skip running tests (useful for cross-compilation)'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: '1.88.0'
+        targets: ${{ inputs.target }}
+
+    - name: Install protoc
+      uses: arduino/setup-protoc@v3
+      with:
+        repo-token: ${{ github.token }}
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ inputs.target }}-cargo-pyo3-${{ runner.os }}
+
+    - name: Build wheels
+      uses: PyO3/maturin-action@v1
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        target: ${{ inputs.target }}
+        args: ${{ inputs.build-args }}
+        sccache: true
+
+    - name: Upload wheels artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name-prefix }}-${{ inputs.target }}
+        path: ${{ inputs.working-directory }}/dist
+        if-no-files-found: error
+        retention-days: 7
+
+    - name: Install wheel and test
+      if: inputs.skip-tests == 'false'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        # Install the built wheel
+        pip install dist/*.whl --force-reinstall
+
+        # Basic import test
+        python -c "import trysoma_sdk_core; print('Successfully imported trysoma_sdk_core')"

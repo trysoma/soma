@@ -10,7 +10,7 @@ on:
         default: 'main'
 
 jobs:
-  # Build Linux wheels (glibc) - matches NAPI SDK platforms
+  # Build Linux wheels - uses native GitHub runners (matches NAPI SDK platforms)
   build-linux:
     name: Build Linux (${{ matrix.platform.target }})
     runs-on: ${{ matrix.platform.runner }}
@@ -20,10 +20,8 @@ jobs:
         platform:
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            maturin-target: x86_64
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
-            maturin-target: aarch64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -40,50 +38,10 @@ jobs:
         run: tar -xzf release-changes.tar.gz
         shell: bash
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Build and test PyO3 module
+        uses: ./.github/actions/pyo3-build-test
         with:
-          python-version: '3.12'
-
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          working-directory: crates/sdk-py
-          target: ${{ matrix.platform.maturin-target }}
-          args: --release --out dist --find-interpreter
-          sccache: true
-          manylinux: auto
-          before-script-linux: |
-            # Install protoc for prost-build (restate-types dependency)
-            PB_VERSION="29.3"
-            ARCH=$(uname -m)
-            if [ "$ARCH" = "x86_64" ]; then
-              PB_ARCH="x86_64"
-              NODE_ARCH="x64"
-            elif [ "$ARCH" = "aarch64" ]; then
-              PB_ARCH="aarch_64"
-              NODE_ARCH="arm64"
-            else
-              echo "Unsupported architecture: $ARCH"
-              exit 1
-            fi
-            curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${PB_VERSION}/protoc-${PB_VERSION}-linux-${PB_ARCH}.zip"
-            unzip -o "protoc-${PB_VERSION}-linux-${PB_ARCH}.zip" -d /usr/local
-            protoc --version
-
-            # Install Node.js for soma-api-client build script (requires npx)
-            NODE_VERSION="20.18.1"
-            curl -LO "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
-            tar -xf "node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
-            cp -r "node-v${NODE_VERSION}-linux-${NODE_ARCH}"/* /usr/local/
-            node --version
-            npm --version
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: py-wheels-linux-${{ matrix.platform.maturin-target }}
-          path: crates/sdk-py/dist
+          target: ${{ matrix.platform.target }}
 
   # Build macOS wheels - matches NAPI SDK platforms
   build-macos:
@@ -95,10 +53,8 @@ jobs:
         platform:
           - runner: macos-latest
             target: x86_64-apple-darwin
-            maturin-target: x86_64
           - runner: macos-latest
             target: aarch64-apple-darwin
-            maturin-target: aarch64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -115,27 +71,12 @@ jobs:
         run: tar -xzf release-changes.tar.gz
         shell: bash
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Build and test PyO3 module
+        uses: ./.github/actions/pyo3-build-test
         with:
-          python-version: '3.12'
-
-      - name: Install protoc
-        run: brew install protobuf
-
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          working-directory: crates/sdk-py
-          target: ${{ matrix.platform.maturin-target }}
-          args: --release --out dist --find-interpreter
-          sccache: true
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: py-wheels-macos-${{ matrix.platform.maturin-target }}
-          path: crates/sdk-py/dist
+          target: ${{ matrix.platform.target }}
+          # Skip tests for cross-compilation (x86_64 on arm64 runner)
+          skip-tests: ${{ matrix.platform.target == 'x86_64-apple-darwin' && 'true' || 'false' }}
 
   # Build source distribution
   build-sdist:
