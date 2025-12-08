@@ -59,8 +59,10 @@ jobs:
             ARCH=$(uname -m)
             if [ "$ARCH" = "x86_64" ]; then
               PB_ARCH="x86_64"
+              NODE_ARCH="x64"
             elif [ "$ARCH" = "aarch64" ]; then
               PB_ARCH="aarch_64"
+              NODE_ARCH="arm64"
             else
               echo "Unsupported architecture: $ARCH"
               exit 1
@@ -68,6 +70,14 @@ jobs:
             curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${PB_VERSION}/protoc-${PB_VERSION}-linux-${PB_ARCH}.zip"
             unzip -o "protoc-${PB_VERSION}-linux-${PB_ARCH}.zip" -d /usr/local
             protoc --version
+
+            # Install Node.js for soma-api-client build script (requires npx)
+            NODE_VERSION="20.18.1"
+            curl -LO "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
+            tar -xf "node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
+            cp -r "node-v${NODE_VERSION}-linux-${NODE_ARCH}"/* /usr/local/
+            node --version
+            npm --version
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
