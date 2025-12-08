@@ -233,6 +233,10 @@ jobs:
             rm -f "${SDK_PY_CARGO}.bak"
             echo "  Updated version in $SDK_PY_CARGO:"
             grep '^version' "$SDK_PY_CARGO" | head -1
+
+            # Regenerate Cargo.lock after modifying Cargo.toml
+            echo "Regenerating Cargo.lock..."
+            cargo update -p sdk-py
           fi
 
       - name: Create release artifact
