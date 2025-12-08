@@ -1,24 +1,28 @@
-name: Common - Publish PyPI
+name: Test PyPI Publish
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to publish'
+      run_id:
+        description: 'Workflow run ID to download artifacts from'
         required: true
         type: string
-    secrets:
-      PYPI_API_TOKEN:
+        default: '20032215670'
+      version:
+        description: 'Version to publish (e.g., v0.0.5-snapshot-0)'
         required: true
+        type: string
+        default: 'v0.0.5-snapshot-1'
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
 
 jobs:
-  publish-pypi:
-    name: Publish to PyPI
+  test-publish:
+    name: Test PyPI Publish
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-      attestations: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -27,6 +31,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-changes
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Apply release changes
         run: tar -xzf release-changes.tar.gz
@@ -45,13 +51,25 @@ jobs:
           pattern: py-wheels-*
           path: py-wheels
           merge-multiple: true
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Debug - Show downloaded artifacts
+        run: |
+          echo "=== Contents of py-wheels directory ==="
+          ls -laR py-wheels/ || echo "py-wheels directory does not exist"
+          echo ""
+          echo "=== All .whl files ==="
+          find . -name "*.whl" -type f 2>/dev/null || echo "No wheel files found"
+          echo ""
+          echo "=== All .tar.gz files ==="
+          find . -name "*.tar.gz" -type f 2>/dev/null || echo "No tar.gz files found"
+        shell: bash
 
       - name: Prepare wheels for upload
         run: |
           mkdir -p dist
           echo "Collecting Python wheels from artifacts..."
-          echo "Contents of py-wheels directory:"
-          ls -laR py-wheels/ || echo "py-wheels directory is empty or does not exist"
 
           # Find and copy all wheel files
           find py-wheels -name "*.whl" -type f | while read file; do
@@ -72,15 +90,9 @@ jobs:
           # Fail early if no wheels were found
           if [ -z "$(ls -A dist/*.whl 2>/dev/null)" ]; then
             echo "ERROR: No wheel files found in dist directory!"
-            echo "This likely means the py-wheels-* artifacts were not uploaded by build-core-py-sdk"
             exit 1
           fi
         shell: bash
-
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: 'dist/*'
 
       - name: Publish soma-sdk-core to PyPI
         uses: PyO3/maturin-action@v1
@@ -90,41 +102,45 @@ jobs:
           command: upload
           args: --non-interactive --skip-existing dist/*
 
-      - name: Build and publish pure Python packages
+      - name: Build pure Python packages
         run: |
           VERSION="${{ inputs.version }}"
           VERSION_NUMBER="${VERSION#v}"
 
-          echo "Building and publishing pure Python packages..."
+          echo "Building pure Python packages..."
 
-          # Build trysoma-sdk package (use --out-dir to ensure output goes to local dist)
+          # Build trysoma-sdk package
           echo "Building trysoma-sdk..."
           cd py/packages/sdk
           uv build --out-dir dist
-          echo "SDK dist contents:"
+          echo "=== SDK dist contents ==="
           ls -la dist/
+          cd ../../..
 
           # Build trysoma-api-client package
           echo "Building trysoma-api-client..."
-          cd ../api_client
+          cd py/packages/api_client
           uv build --out-dir dist
-          echo "API client dist contents:"
+          echo "=== API client dist contents ==="
           ls -la dist/
-
           cd ../../..
+        shell: bash
 
-          # Publish using uv publish (built-in to uv, no twine needed)
+      - name: Publish pure Python packages to PyPI
+        run: |
           echo "Publishing packages to PyPI..."
 
           # Publish trysoma-sdk
+          echo "Publishing trysoma-sdk..."
           uv publish --token "${{ secrets.PYPI_API_TOKEN }}" \
             py/packages/sdk/dist/*
 
           # Publish trysoma-api-client
+          echo "Publishing trysoma-api-client..."
           uv publish --token "${{ secrets.PYPI_API_TOKEN }}" \
             py/packages/api_client/dist/*
 
-          echo "✓ All Python packages published to PyPI"
+          echo "All Python packages published to PyPI"
         shell: bash
 
       - name: Verify published packages
