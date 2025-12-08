@@ -10,7 +10,7 @@ on:
         default: 'main'
 
 jobs:
-  # Build Linux wheels (glibc)
+  # Build Linux wheels (glibc) - matches NAPI SDK platforms
   build-linux:
     name: Build Linux (${{ matrix.platform.target }})
     runs-on: ${{ matrix.platform.runner }}
@@ -18,16 +18,27 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - runner: ubuntu-22.04
-            target: x86_64
-          - runner: ubuntu-22.04
-            target: aarch64
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            maturin-target: x86_64
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            maturin-target: aarch64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           ref: ${{ inputs.revision }}
           submodules: recursive
+
+      - name: Download release changes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changes
+
+      - name: Apply release changes
+        run: tar -xzf release-changes.tar.gz
+        shell: bash
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -38,7 +49,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           working-directory: crates/sdk-py
-          target: ${{ matrix.platform.target }}
+          target: ${{ matrix.platform.maturin-target }}
           args: --release --out dist --find-interpreter
           sccache: true
           manylinux: auto
@@ -46,86 +57,10 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: py-wheels-linux-${{ matrix.platform.target }}
+          name: py-wheels-linux-${{ matrix.platform.maturin-target }}
           path: crates/sdk-py/dist
 
-  # Build Linux wheels (musl)
-  build-musllinux:
-    name: Build musllinux (${{ matrix.platform.target }})
-    runs-on: ${{ matrix.platform.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - runner: ubuntu-22.04
-            target: x86_64
-          - runner: ubuntu-22.04
-            target: aarch64
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.revision }}
-          submodules: recursive
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          working-directory: crates/sdk-py
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
-          sccache: true
-          manylinux: musllinux_1_2
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: py-wheels-musllinux-${{ matrix.platform.target }}
-          path: crates/sdk-py/dist
-
-  # Build Windows wheels
-  build-windows:
-    name: Build Windows (${{ matrix.platform.target }})
-    runs-on: ${{ matrix.platform.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - runner: windows-latest
-            target: x64
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.revision }}
-          submodules: recursive
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          architecture: ${{ matrix.platform.target }}
-
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          working-directory: crates/sdk-py
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
-          sccache: true
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: py-wheels-windows-${{ matrix.platform.target }}
-          path: crates/sdk-py/dist
-
-  # Build macOS wheels
+  # Build macOS wheels - matches NAPI SDK platforms
   build-macos:
     name: Build macOS (${{ matrix.platform.target }})
     runs-on: ${{ matrix.platform.runner }}
@@ -133,16 +68,27 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - runner: macos-13
-            target: x86_64
-          - runner: macos-14
-            target: aarch64
+          - runner: macos-latest
+            target: x86_64-apple-darwin
+            maturin-target: x86_64
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+            maturin-target: aarch64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           ref: ${{ inputs.revision }}
           submodules: recursive
+
+      - name: Download release changes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changes
+
+      - name: Apply release changes
+        run: tar -xzf release-changes.tar.gz
+        shell: bash
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -153,14 +99,14 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           working-directory: crates/sdk-py
-          target: ${{ matrix.platform.target }}
+          target: ${{ matrix.platform.maturin-target }}
           args: --release --out dist --find-interpreter
           sccache: true
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: py-wheels-macos-${{ matrix.platform.target }}
+          name: py-wheels-macos-${{ matrix.platform.maturin-target }}
           path: crates/sdk-py/dist
 
   # Build source distribution
@@ -173,6 +119,15 @@ jobs:
         with:
           ref: ${{ inputs.revision }}
           submodules: recursive
+
+      - name: Download release changes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changes
+
+      - name: Apply release changes
+        run: tar -xzf release-changes.tar.gz
+        shell: bash
 
       - name: Build sdist
         uses: PyO3/maturin-action@v1
