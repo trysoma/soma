@@ -154,6 +154,51 @@ jobs:
           echo "Created schema change files:"
           ls -la "$OPENAPI_FILE" "$DB_FILE" 2>/dev/null || echo "Some files may not exist if there were no changes"
 
+      - name: Convert Python versions to PEP 440 format
+        run: |
+          # PEP 440 doesn't support semver-style prereleases like "0.0.5-snapshot-0"
+          # Convert to PEP 440 compliant format:
+          #   - snapshot-N -> .devN (development release)
+          #   - rc-N -> rcN (release candidate)
+
+          LABEL="${{ inputs.prerelease-label }}"
+          INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
+
+          # Determine PEP 440 suffix based on prerelease label
+          if [ "$LABEL" = "snapshot" ]; then
+            PEP440_SUFFIX=".dev${INCREMENT}"
+          elif [ "$LABEL" = "rc" ]; then
+            PEP440_SUFFIX="rc${INCREMENT}"
+          else
+            echo "Unknown prerelease label: $LABEL"
+            exit 1
+          fi
+
+          echo "Converting Python versions to PEP 440 format with suffix: $PEP440_SUFFIX"
+
+          # List of Python pyproject.toml files to update
+          PYPROJECT_FILES=(
+            "crates/sdk-py/pyproject.toml"
+            "py/packages/sdk/pyproject.toml"
+            "py/packages/api_client/pyproject.toml"
+            "py/pyproject.toml"
+          )
+
+          for file in "${PYPROJECT_FILES[@]}"; do
+            if [ -f "$file" ]; then
+              echo "Updating $file..."
+              # Replace semver prerelease format with PEP 440 format
+              # e.g., version = "0.0.5-snapshot-0" -> version = "0.0.5.dev0"
+              # e.g., version = "0.0.5-rc-0" -> version = "0.0.5rc0"
+              sed -i.bak -E "s/^(version = \"[0-9]+\.[0-9]+\.[0-9]+)-${LABEL}-[0-9]+\"/\1${PEP440_SUFFIX}\"/" "$file"
+              rm -f "${file}.bak"
+              echo "  Updated version in $file:"
+              grep '^version = ' "$file" || true
+            else
+              echo "Warning: $file not found, skipping"
+            fi
+          done
+
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
         with:
