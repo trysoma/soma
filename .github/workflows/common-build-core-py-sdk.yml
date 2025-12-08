@@ -38,10 +38,59 @@ jobs:
         run: tar -xzf release-changes.tar.gz
         shell: bash
 
-      - name: Build and test PyO3 module
-        uses: ./.github/actions/pyo3-build-test
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: '1.88.0'
+          targets: ${{ matrix.platform.target }}
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ github.token }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ matrix.platform.target }}-cargo-pyo3-${{ runner.os }}
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: crates/sdk-py
           target: ${{ matrix.platform.target }}
+          args: --release --out dist --find-interpreter
+          sccache: true
+
+      - name: Upload wheels artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: py-wheels-${{ matrix.platform.target }}
+          path: crates/sdk-py/dist
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Install wheel and test
+        shell: bash
+        working-directory: crates/sdk-py
+        run: |
+          pip install dist/*.whl --force-reinstall
+          python -c "import trysoma_sdk_core; print('Successfully imported trysoma_sdk_core')"
 
   # Build macOS wheels - matches NAPI SDK platforms
   build-macos:
@@ -53,8 +102,10 @@ jobs:
         platform:
           - runner: macos-latest
             target: x86_64-apple-darwin
+            skip-tests: true  # Cross-compiling x86_64 on arm64 runner
           - runner: macos-latest
             target: aarch64-apple-darwin
+            skip-tests: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -71,12 +122,60 @@ jobs:
         run: tar -xzf release-changes.tar.gz
         shell: bash
 
-      - name: Build and test PyO3 module
-        uses: ./.github/actions/pyo3-build-test
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: '1.88.0'
+          targets: ${{ matrix.platform.target }}
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ github.token }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ matrix.platform.target }}-cargo-pyo3-${{ runner.os }}
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: crates/sdk-py
           target: ${{ matrix.platform.target }}
-          # Skip tests for cross-compilation (x86_64 on arm64 runner)
-          skip-tests: ${{ matrix.platform.target == 'x86_64-apple-darwin' && 'true' || 'false' }}
+          args: --release --out dist --find-interpreter
+          sccache: true
+
+      - name: Upload wheels artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: py-wheels-${{ matrix.platform.target }}
+          path: crates/sdk-py/dist
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Install wheel and test
+        if: matrix.platform.skip-tests == false
+        shell: bash
+        working-directory: crates/sdk-py
+        run: |
+          pip install dist/*.whl --force-reinstall
+          python -c "import trysoma_sdk_core; print('Successfully imported trysoma_sdk_core')"
 
   # Build source distribution
   build-sdist:

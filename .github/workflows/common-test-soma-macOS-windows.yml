@@ -25,10 +25,11 @@ jobs:
           # - os: windows-latest
           #   target: x86_64-pc-windows-msvc
           #   artifact_name: soma.exe
-          - os: macos-latest
+          # Use macos-15 for ARM64 nested virtualization support (required for Docker via Colima)
+          - os: macos-15
             target: aarch64-apple-darwin
             artifact_name: soma
-          - os: macos-latest
+          - os: macos-13
             target: x86_64-apple-darwin
             artifact_name: soma
     runs-on: ${{ matrix.settings.os }}
@@ -40,23 +41,32 @@ jobs:
         with:
           ref: ${{ inputs.revision }}
           submodules: recursive
-  
+
       - name: Download release changes
         uses: actions/download-artifact@v4
         with:
           name: release-changes
-  
+
       - name: Apply release changes
         run: tar -xzf release-changes.tar.gz
         shell: bash
-  
+
       - name: Configure AWS Credentials for integration tests
         uses: aws-actions/configure-aws-credentials@v5.1.0
         with:
           audience: sts.amazonaws.com
           aws-region: eu-west-2
           role-to-assume: ${{ secrets.AWS_INTEGRATION_TESTS_ROLE_ARN }}
-  
+
+      - name: Setup Docker on macOS (via Colima)
+        uses: douglascamata/setup-docker-macos-action@v1-alpha
+
+      - name: Start Dex (OIDC/OAuth2 provider) for integration tests
+        uses: ./.github/actions/setup-docker-compose
+        with:
+          compose-file: ./test/docker-compose.yml
+          health-check-url: http://localhost:5556/dex/keys
+
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
         with:
@@ -113,10 +123,10 @@ jobs:
           fi
         shell: bash
   
-      - name: Run Rust tests (unit tests only - no Docker on macOS/Windows)
+      - name: Run Rust tests (all tests including integration)
         run: |
-          # Run with unit_test feature only - integration tests require Docker which isn't available on macOS/Windows
-          # Integration tests are run on Linux where Docker is available
-          cargo nextest run --target ${{ matrix.settings.target }} --locked --features unit_test
+          # Run with unit_test and integration_test features to include all tests
+          # Docker is available via Colima, Dex is started above for OAuth/OIDC integration tests
+          cargo nextest run --target ${{ matrix.settings.target }} --locked --features unit_test,integration_test
         shell: bash
 
