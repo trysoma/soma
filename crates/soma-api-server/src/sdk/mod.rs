@@ -257,7 +257,7 @@ mod unit_test {
         )
         .unwrap();
 
-        let result = validate_sdk_runtime_python(temp_dir.path().to_path_buf()).unwrap();
+        let result = validate_sdk_runtime_python_v1(temp_dir.path().to_path_buf()).unwrap();
         assert!(result, "Should validate as Python SDK runtime");
     }
 
@@ -266,12 +266,12 @@ mod unit_test {
         let temp_dir = TempDir::new().unwrap();
 
         // Empty directory
-        let result = validate_sdk_runtime_python(temp_dir.path().to_path_buf()).unwrap();
+        let result = validate_sdk_runtime_python_v1(temp_dir.path().to_path_buf()).unwrap();
         assert!(!result, "Should not validate without pyproject.toml");
     }
 
     #[test]
-    fn test_determine_sdk_runtime_python() {
+    fn test_determine_sdk_runtime_python_v1() {
         let temp_dir = TempDir::new().unwrap();
 
         fs::write(
