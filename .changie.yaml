@@ -62,6 +62,6 @@ replacements:
   - path: crates/sdk-py/pyproject.toml
     find: '^version = ".*"'
     replace: 'version = "{{.VersionNoPrefix}}"'
-  - path: py/pyproject.toml
+  - path: pyproject.toml
     find: '^version = ".*"'
     replace: 'version = "{{.VersionNoPrefix}}"'
