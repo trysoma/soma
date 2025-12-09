@@ -1,6 +1,6 @@
 [project]
 name = "soma-py-workspace"
-version = "0.0.4"
+version = "0.0.5"
 description = "Python SDK workspace for Soma"
 requires-python = ">=3.10"
 dependencies = []

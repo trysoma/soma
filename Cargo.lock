@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "a2a-rs"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -947,7 +947,7 @@ checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
 
 [[package]]
 name = "bridge"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -1941,7 +1941,7 @@ dependencies = [
 
 [[package]]
 name = "encryption"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -2934,7 +2934,7 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "identity"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -5675,7 +5675,7 @@ dependencies = [
 
 [[package]]
 name = "sdk-core"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -5699,7 +5699,7 @@ dependencies = [
 
 [[package]]
 name = "sdk-js"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "anyhow",
  "napi",
@@ -5719,7 +5719,7 @@ dependencies = [
 
 [[package]]
 name = "sdk-proto"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "chrono",
  "prost 0.13.5",
@@ -5736,7 +5736,7 @@ dependencies = [
 
 [[package]]
 name = "sdk-py"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "anyhow",
  "parking_lot",
@@ -6025,7 +6025,7 @@ dependencies = [
 
 [[package]]
 name = "shared"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "a2a-rs",
  "anyhow",
@@ -6079,7 +6079,7 @@ dependencies = [
 
 [[package]]
 name = "shared-macros"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "quote",
  "syn 2.0.111",
@@ -6215,7 +6215,7 @@ dependencies = [
 
 [[package]]
 name = "soma"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "a2a-rs",
  "anyhow",
@@ -6276,7 +6276,7 @@ dependencies = [
 
 [[package]]
 name = "soma-api-client"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "reqwest",
  "serde",
@@ -6290,7 +6290,7 @@ dependencies = [
 
 [[package]]
 name = "soma-api-server"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "a2a-rs",
  "anyhow",
@@ -6352,7 +6352,7 @@ dependencies = [
 
 [[package]]
 name = "soma-frontend"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "anyhow",
  "axum 0.8.7",
