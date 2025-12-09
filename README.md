@@ -1,5 +1,11 @@
 # Soma
 
+
+
+[<img src="https://cdn.loom.com/sessions/thumbnails/bc30719ec5e54405b71027742f772da2-3b73cbdcfb386197-full-play.gif#t=0.1"  />](https://www.loom.com/share/bc30719ec5e54405b71027742f772da2)
+
+_Click the thumbnail above for a demo of Soma_
+
 **Note:** For documentation, tutorials and getting started with Soma, please visit our [documentation](https://docs.trysoma.ai). Any documentation here is for contributing and setting up this repo.
 
 > [!IMPORTANT]  
@@ -16,7 +22,7 @@ Current work in progress:
 - [ ] Group approval workflows (support suspending execution when approval from one or more internal users is required or customer / chat user approval)
 - [ ] Multi-instance Bridge MCP. Support for creating multiple smaller Bridge MCP servers with less tools so that you can have multiple agents or sub-flows within an agent using different MCP server tools
 - [ ] Moniker AI Gateway. Outbound API gateway for all LLM requests to proxy existing providers. This will provide improved observability and automatically integrate all LLM providers with Restate at the network level as opposed to framework level.
-- [ ] Python SDK support.
+- [x] Python SDK support.
 - [ ] Windows Support.
 - [ ] Production deployment best pracices
 
