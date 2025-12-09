@@ -1,6 +1,6 @@
 {
 	"name": "@trysoma/sdk",
-	"version": "0.0.4",
+	"version": "0.0.5",
 	"main": "./dist/index.js",
 	"type": "module",
 	"module": "./dist/index.js",
