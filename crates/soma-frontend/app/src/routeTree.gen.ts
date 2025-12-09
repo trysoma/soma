@@ -9,12 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root";
-import { Route as A2aRouteImport } from "./routes/a2a";
-import { Route as A2aAgentProjectIdAgentIdRouteImport } from "./routes/a2a/agent/$projectId/$agentId";
-import { Route as A2aAgentProjectIdAgentIdChatIndexRouteImport } from "./routes/a2a/agent/$projectId/$agentId/chat/index";
-import { Route as A2aAgentProjectIdAgentIdIndexRouteImport } from "./routes/a2a/agent/$projectId/$agentId/index";
-import { Route as A2aChatIndexRouteImport } from "./routes/a2a/chat/index";
-import { Route as A2aIndexRouteImport } from "./routes/a2a/index";
+import { Route as AgentRouteImport } from "./routes/agent";
+import { Route as AgentProjectIdAgentIdRouteImport } from "./routes/agent/$projectId/$agentId";
+import { Route as AgentProjectIdAgentIdA2aChatDebuggerRouteImport } from "./routes/agent/$projectId/$agentId/a2a/chat-debugger";
+import { Route as AgentProjectIdAgentIdA2aOverviewRouteImport } from "./routes/agent/$projectId/$agentId/a2a/overview";
+import { Route as AgentIndexRouteImport } from "./routes/agent/index";
 import { Route as BridgeRouteImport } from "./routes/bridge";
 import { Route as BridgeEnableFunctionsRouteImport } from "./routes/bridge/enable-functions";
 import { Route as BridgeEnableFunctionsAvailableFunctionControllerIdRouteImport } from "./routes/bridge/enable-functions/available/$functionControllerId";
@@ -41,9 +40,9 @@ const BridgeRoute = BridgeRouteImport.update({
 	path: "/bridge",
 	getParentRoute: () => rootRouteImport,
 } as any);
-const A2aRoute = A2aRouteImport.update({
-	id: "/a2a",
-	path: "/a2a",
+const AgentRoute = AgentRouteImport.update({
+	id: "/agent",
+	path: "/agent",
 	getParentRoute: () => rootRouteImport,
 } as any);
 const IndexRoute = IndexRouteImport.update({
@@ -61,10 +60,10 @@ const BridgeIndexRoute = BridgeIndexRouteImport.update({
 	path: "/",
 	getParentRoute: () => BridgeRoute,
 } as any);
-const A2aIndexRoute = A2aIndexRouteImport.update({
+const AgentIndexRoute = AgentIndexRouteImport.update({
 	id: "/",
 	path: "/",
-	getParentRoute: () => A2aRoute,
+	getParentRoute: () => AgentRoute,
 } as any);
 const BridgeMcpInspectorRoute = BridgeMcpInspectorRouteImport.update({
 	id: "/mcp-inspector",
@@ -81,17 +80,17 @@ const BridgeEnableFunctionsRoute = BridgeEnableFunctionsRouteImport.update({
 	path: "/enable-functions",
 	getParentRoute: () => BridgeRoute,
 } as any);
-const A2aChatIndexRoute = A2aChatIndexRouteImport.update({
-	id: "/chat/",
-	path: "/chat/",
-	getParentRoute: () => A2aRoute,
-} as any);
 const BridgeManageCredentialsProviderInstanceIdRoute =
 	BridgeManageCredentialsProviderInstanceIdRouteImport.update({
 		id: "/$providerInstanceId",
 		path: "/$providerInstanceId",
 		getParentRoute: () => BridgeManageCredentialsRoute,
 	} as any);
+const AgentProjectIdAgentIdRoute = AgentProjectIdAgentIdRouteImport.update({
+	id: "/$projectId/$agentId",
+	path: "/$projectId/$agentId",
+	getParentRoute: () => AgentRoute,
+} as any);
 const BridgeManageCredentialsProviderInstanceIdFunctionsRoute =
 	BridgeManageCredentialsProviderInstanceIdFunctionsRouteImport.update({
 		id: "/functions",
@@ -121,18 +120,6 @@ const BridgeEnableFunctionsAvailableFunctionControllerIdRoute =
 		id: "/available/$functionControllerId",
 		path: "/available/$functionControllerId",
 		getParentRoute: () => BridgeEnableFunctionsRoute,
-	} as any);
-const A2aAgentProjectIdAgentIdRoute =
-	A2aAgentProjectIdAgentIdRouteImport.update({
-		id: "/agent/$projectId/$agentId",
-		path: "/agent/$projectId/$agentId",
-		getParentRoute: () => A2aRoute,
-	} as any);
-const A2aAgentProjectIdAgentIdIndexRoute =
-	A2aAgentProjectIdAgentIdIndexRouteImport.update({
-		id: "/",
-		path: "/",
-		getParentRoute: () => A2aAgentProjectIdAgentIdRoute,
 	} as any);
 const BridgeEnableFunctionsAvailableFunctionControllerIdTestRoute =
 	BridgeEnableFunctionsAvailableFunctionControllerIdTestRouteImport.update({
@@ -168,6 +155,18 @@ const BridgeEnableFunctionsAvailableFunctionControllerIdConfigureRoute =
 				BridgeEnableFunctionsAvailableFunctionControllerIdRoute,
 		} as any,
 	);
+const AgentProjectIdAgentIdA2aOverviewRoute =
+	AgentProjectIdAgentIdA2aOverviewRouteImport.update({
+		id: "/a2a/overview",
+		path: "/a2a/overview",
+		getParentRoute: () => AgentProjectIdAgentIdRoute,
+	} as any);
+const AgentProjectIdAgentIdA2aChatDebuggerRoute =
+	AgentProjectIdAgentIdA2aChatDebuggerRouteImport.update({
+		id: "/a2a/chat-debugger",
+		path: "/a2a/chat-debugger",
+		getParentRoute: () => AgentProjectIdAgentIdRoute,
+	} as any);
 const BridgeEnableFunctionsAvailableFunctionControllerIdConfigureIndexRoute =
 	BridgeEnableFunctionsAvailableFunctionControllerIdConfigureIndexRouteImport.update(
 		{
@@ -177,12 +176,6 @@ const BridgeEnableFunctionsAvailableFunctionControllerIdConfigureIndexRoute =
 				BridgeEnableFunctionsAvailableFunctionControllerIdConfigureRoute,
 		} as any,
 	);
-const A2aAgentProjectIdAgentIdChatIndexRoute =
-	A2aAgentProjectIdAgentIdChatIndexRouteImport.update({
-		id: "/chat/",
-		path: "/chat/",
-		getParentRoute: () => A2aAgentProjectIdAgentIdRoute,
-	} as any);
 const BridgeEnableFunctionsAvailableFunctionControllerIdConfigureNewRoute =
 	BridgeEnableFunctionsAvailableFunctionControllerIdConfigureNewRouteImport.update(
 		{
@@ -204,30 +197,29 @@ const BridgeEnableFunctionsAvailableFunctionControllerIdConfigureExistingRoute =
 
 export interface FileRoutesByFullPath {
 	"/": typeof IndexRoute;
-	"/a2a": typeof A2aRouteWithChildren;
+	"/agent": typeof AgentRouteWithChildren;
 	"/bridge": typeof BridgeRouteWithChildren;
 	"/bridge/enable-functions": typeof BridgeEnableFunctionsRouteWithChildren;
 	"/bridge/manage-credentials": typeof BridgeManageCredentialsRouteWithChildren;
 	"/bridge/mcp-inspector": typeof BridgeMcpInspectorRoute;
-	"/a2a/": typeof A2aIndexRoute;
+	"/agent/": typeof AgentIndexRoute;
 	"/bridge/": typeof BridgeIndexRoute;
 	"/chat": typeof ChatIndexRoute;
+	"/agent/$projectId/$agentId": typeof AgentProjectIdAgentIdRouteWithChildren;
 	"/bridge/manage-credentials/$providerInstanceId": typeof BridgeManageCredentialsProviderInstanceIdRouteWithChildren;
-	"/a2a/chat": typeof A2aChatIndexRoute;
-	"/a2a/agent/$projectId/$agentId": typeof A2aAgentProjectIdAgentIdRouteWithChildren;
 	"/bridge/enable-functions/available/$functionControllerId": typeof BridgeEnableFunctionsAvailableFunctionControllerIdRouteWithChildren;
 	"/bridge/manage-credentials/$providerInstanceId/configuration": typeof BridgeManageCredentialsProviderInstanceIdConfigurationRoute;
 	"/bridge/manage-credentials/$providerInstanceId/delete": typeof BridgeManageCredentialsProviderInstanceIdDeleteRoute;
 	"/bridge/manage-credentials/$providerInstanceId/documentation": typeof BridgeManageCredentialsProviderInstanceIdDocumentationRoute;
 	"/bridge/manage-credentials/$providerInstanceId/functions": typeof BridgeManageCredentialsProviderInstanceIdFunctionsRoute;
+	"/agent/$projectId/$agentId/a2a/chat-debugger": typeof AgentProjectIdAgentIdA2aChatDebuggerRoute;
+	"/agent/$projectId/$agentId/a2a/overview": typeof AgentProjectIdAgentIdA2aOverviewRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureRouteWithChildren;
 	"/bridge/enable-functions/available/$functionControllerId/function_documentation": typeof BridgeEnableFunctionsAvailableFunctionControllerIdFunction_documentationRoute;
 	"/bridge/enable-functions/available/$functionControllerId/provider_documentation": typeof BridgeEnableFunctionsAvailableFunctionControllerIdProvider_documentationRoute;
 	"/bridge/enable-functions/available/$functionControllerId/test": typeof BridgeEnableFunctionsAvailableFunctionControllerIdTestRoute;
-	"/a2a/agent/$projectId/$agentId/": typeof A2aAgentProjectIdAgentIdIndexRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure/existing": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureExistingRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure/new": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureNewRoute;
-	"/a2a/agent/$projectId/$agentId/chat": typeof A2aAgentProjectIdAgentIdChatIndexRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure/": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureIndexRoute;
 }
 export interface FileRoutesByTo {
@@ -235,82 +227,80 @@ export interface FileRoutesByTo {
 	"/bridge/enable-functions": typeof BridgeEnableFunctionsRouteWithChildren;
 	"/bridge/manage-credentials": typeof BridgeManageCredentialsRouteWithChildren;
 	"/bridge/mcp-inspector": typeof BridgeMcpInspectorRoute;
-	"/a2a": typeof A2aIndexRoute;
+	"/agent": typeof AgentIndexRoute;
 	"/bridge": typeof BridgeIndexRoute;
 	"/chat": typeof ChatIndexRoute;
+	"/agent/$projectId/$agentId": typeof AgentProjectIdAgentIdRouteWithChildren;
 	"/bridge/manage-credentials/$providerInstanceId": typeof BridgeManageCredentialsProviderInstanceIdRouteWithChildren;
-	"/a2a/chat": typeof A2aChatIndexRoute;
 	"/bridge/enable-functions/available/$functionControllerId": typeof BridgeEnableFunctionsAvailableFunctionControllerIdRouteWithChildren;
 	"/bridge/manage-credentials/$providerInstanceId/configuration": typeof BridgeManageCredentialsProviderInstanceIdConfigurationRoute;
 	"/bridge/manage-credentials/$providerInstanceId/delete": typeof BridgeManageCredentialsProviderInstanceIdDeleteRoute;
 	"/bridge/manage-credentials/$providerInstanceId/documentation": typeof BridgeManageCredentialsProviderInstanceIdDocumentationRoute;
 	"/bridge/manage-credentials/$providerInstanceId/functions": typeof BridgeManageCredentialsProviderInstanceIdFunctionsRoute;
+	"/agent/$projectId/$agentId/a2a/chat-debugger": typeof AgentProjectIdAgentIdA2aChatDebuggerRoute;
+	"/agent/$projectId/$agentId/a2a/overview": typeof AgentProjectIdAgentIdA2aOverviewRoute;
 	"/bridge/enable-functions/available/$functionControllerId/function_documentation": typeof BridgeEnableFunctionsAvailableFunctionControllerIdFunction_documentationRoute;
 	"/bridge/enable-functions/available/$functionControllerId/provider_documentation": typeof BridgeEnableFunctionsAvailableFunctionControllerIdProvider_documentationRoute;
 	"/bridge/enable-functions/available/$functionControllerId/test": typeof BridgeEnableFunctionsAvailableFunctionControllerIdTestRoute;
-	"/a2a/agent/$projectId/$agentId": typeof A2aAgentProjectIdAgentIdIndexRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure/existing": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureExistingRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure/new": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureNewRoute;
-	"/a2a/agent/$projectId/$agentId/chat": typeof A2aAgentProjectIdAgentIdChatIndexRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureIndexRoute;
 }
 export interface FileRoutesById {
 	__root__: typeof rootRouteImport;
 	"/": typeof IndexRoute;
-	"/a2a": typeof A2aRouteWithChildren;
+	"/agent": typeof AgentRouteWithChildren;
 	"/bridge": typeof BridgeRouteWithChildren;
 	"/bridge/enable-functions": typeof BridgeEnableFunctionsRouteWithChildren;
 	"/bridge/manage-credentials": typeof BridgeManageCredentialsRouteWithChildren;
 	"/bridge/mcp-inspector": typeof BridgeMcpInspectorRoute;
-	"/a2a/": typeof A2aIndexRoute;
+	"/agent/": typeof AgentIndexRoute;
 	"/bridge/": typeof BridgeIndexRoute;
 	"/chat/": typeof ChatIndexRoute;
+	"/agent/$projectId/$agentId": typeof AgentProjectIdAgentIdRouteWithChildren;
 	"/bridge/manage-credentials/$providerInstanceId": typeof BridgeManageCredentialsProviderInstanceIdRouteWithChildren;
-	"/a2a/chat/": typeof A2aChatIndexRoute;
-	"/a2a/agent/$projectId/$agentId": typeof A2aAgentProjectIdAgentIdRouteWithChildren;
 	"/bridge/enable-functions/available/$functionControllerId": typeof BridgeEnableFunctionsAvailableFunctionControllerIdRouteWithChildren;
 	"/bridge/manage-credentials/$providerInstanceId/configuration": typeof BridgeManageCredentialsProviderInstanceIdConfigurationRoute;
 	"/bridge/manage-credentials/$providerInstanceId/delete": typeof BridgeManageCredentialsProviderInstanceIdDeleteRoute;
 	"/bridge/manage-credentials/$providerInstanceId/documentation": typeof BridgeManageCredentialsProviderInstanceIdDocumentationRoute;
 	"/bridge/manage-credentials/$providerInstanceId/functions": typeof BridgeManageCredentialsProviderInstanceIdFunctionsRoute;
+	"/agent/$projectId/$agentId/a2a/chat-debugger": typeof AgentProjectIdAgentIdA2aChatDebuggerRoute;
+	"/agent/$projectId/$agentId/a2a/overview": typeof AgentProjectIdAgentIdA2aOverviewRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureRouteWithChildren;
 	"/bridge/enable-functions/available/$functionControllerId/function_documentation": typeof BridgeEnableFunctionsAvailableFunctionControllerIdFunction_documentationRoute;
 	"/bridge/enable-functions/available/$functionControllerId/provider_documentation": typeof BridgeEnableFunctionsAvailableFunctionControllerIdProvider_documentationRoute;
 	"/bridge/enable-functions/available/$functionControllerId/test": typeof BridgeEnableFunctionsAvailableFunctionControllerIdTestRoute;
-	"/a2a/agent/$projectId/$agentId/": typeof A2aAgentProjectIdAgentIdIndexRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure/existing": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureExistingRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure/new": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureNewRoute;
-	"/a2a/agent/$projectId/$agentId/chat/": typeof A2aAgentProjectIdAgentIdChatIndexRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure/": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureIndexRoute;
 }
 export interface FileRouteTypes {
 	fileRoutesByFullPath: FileRoutesByFullPath;
 	fullPaths:
 		| "/"
-		| "/a2a"
+		| "/agent"
 		| "/bridge"
 		| "/bridge/enable-functions"
 		| "/bridge/manage-credentials"
 		| "/bridge/mcp-inspector"
-		| "/a2a/"
+		| "/agent/"
 		| "/bridge/"
 		| "/chat"
+		| "/agent/$projectId/$agentId"
 		| "/bridge/manage-credentials/$providerInstanceId"
-		| "/a2a/chat"
-		| "/a2a/agent/$projectId/$agentId"
 		| "/bridge/enable-functions/available/$functionControllerId"
 		| "/bridge/manage-credentials/$providerInstanceId/configuration"
 		| "/bridge/manage-credentials/$providerInstanceId/delete"
 		| "/bridge/manage-credentials/$providerInstanceId/documentation"
 		| "/bridge/manage-credentials/$providerInstanceId/functions"
+		| "/agent/$projectId/$agentId/a2a/chat-debugger"
+		| "/agent/$projectId/$agentId/a2a/overview"
 		| "/bridge/enable-functions/available/$functionControllerId/configure"
 		| "/bridge/enable-functions/available/$functionControllerId/function_documentation"
 		| "/bridge/enable-functions/available/$functionControllerId/provider_documentation"
 		| "/bridge/enable-functions/available/$functionControllerId/test"
-		| "/a2a/agent/$projectId/$agentId/"
 		| "/bridge/enable-functions/available/$functionControllerId/configure/existing"
 		| "/bridge/enable-functions/available/$functionControllerId/configure/new"
-		| "/a2a/agent/$projectId/$agentId/chat"
 		| "/bridge/enable-functions/available/$functionControllerId/configure/";
 	fileRoutesByTo: FileRoutesByTo;
 	to:
@@ -318,57 +308,56 @@ export interface FileRouteTypes {
 		| "/bridge/enable-functions"
 		| "/bridge/manage-credentials"
 		| "/bridge/mcp-inspector"
-		| "/a2a"
+		| "/agent"
 		| "/bridge"
 		| "/chat"
+		| "/agent/$projectId/$agentId"
 		| "/bridge/manage-credentials/$providerInstanceId"
-		| "/a2a/chat"
 		| "/bridge/enable-functions/available/$functionControllerId"
 		| "/bridge/manage-credentials/$providerInstanceId/configuration"
 		| "/bridge/manage-credentials/$providerInstanceId/delete"
 		| "/bridge/manage-credentials/$providerInstanceId/documentation"
 		| "/bridge/manage-credentials/$providerInstanceId/functions"
+		| "/agent/$projectId/$agentId/a2a/chat-debugger"
+		| "/agent/$projectId/$agentId/a2a/overview"
 		| "/bridge/enable-functions/available/$functionControllerId/function_documentation"
 		| "/bridge/enable-functions/available/$functionControllerId/provider_documentation"
 		| "/bridge/enable-functions/available/$functionControllerId/test"
-		| "/a2a/agent/$projectId/$agentId"
 		| "/bridge/enable-functions/available/$functionControllerId/configure/existing"
 		| "/bridge/enable-functions/available/$functionControllerId/configure/new"
-		| "/a2a/agent/$projectId/$agentId/chat"
 		| "/bridge/enable-functions/available/$functionControllerId/configure";
 	id:
 		| "__root__"
 		| "/"
-		| "/a2a"
+		| "/agent"
 		| "/bridge"
 		| "/bridge/enable-functions"
 		| "/bridge/manage-credentials"
 		| "/bridge/mcp-inspector"
-		| "/a2a/"
+		| "/agent/"
 		| "/bridge/"
 		| "/chat/"
+		| "/agent/$projectId/$agentId"
 		| "/bridge/manage-credentials/$providerInstanceId"
-		| "/a2a/chat/"
-		| "/a2a/agent/$projectId/$agentId"
 		| "/bridge/enable-functions/available/$functionControllerId"
 		| "/bridge/manage-credentials/$providerInstanceId/configuration"
 		| "/bridge/manage-credentials/$providerInstanceId/delete"
 		| "/bridge/manage-credentials/$providerInstanceId/documentation"
 		| "/bridge/manage-credentials/$providerInstanceId/functions"
+		| "/agent/$projectId/$agentId/a2a/chat-debugger"
+		| "/agent/$projectId/$agentId/a2a/overview"
 		| "/bridge/enable-functions/available/$functionControllerId/configure"
 		| "/bridge/enable-functions/available/$functionControllerId/function_documentation"
 		| "/bridge/enable-functions/available/$functionControllerId/provider_documentation"
 		| "/bridge/enable-functions/available/$functionControllerId/test"
-		| "/a2a/agent/$projectId/$agentId/"
 		| "/bridge/enable-functions/available/$functionControllerId/configure/existing"
 		| "/bridge/enable-functions/available/$functionControllerId/configure/new"
-		| "/a2a/agent/$projectId/$agentId/chat/"
 		| "/bridge/enable-functions/available/$functionControllerId/configure/";
 	fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
 	IndexRoute: typeof IndexRoute;
-	A2aRoute: typeof A2aRouteWithChildren;
+	AgentRoute: typeof AgentRouteWithChildren;
 	BridgeRoute: typeof BridgeRouteWithChildren;
 	ChatIndexRoute: typeof ChatIndexRoute;
 }
@@ -382,11 +371,11 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof BridgeRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		"/a2a": {
-			id: "/a2a";
-			path: "/a2a";
-			fullPath: "/a2a";
-			preLoaderRoute: typeof A2aRouteImport;
+		"/agent": {
+			id: "/agent";
+			path: "/agent";
+			fullPath: "/agent";
+			preLoaderRoute: typeof AgentRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
 		"/": {
@@ -410,12 +399,12 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof BridgeIndexRouteImport;
 			parentRoute: typeof BridgeRoute;
 		};
-		"/a2a/": {
-			id: "/a2a/";
+		"/agent/": {
+			id: "/agent/";
 			path: "/";
-			fullPath: "/a2a/";
-			preLoaderRoute: typeof A2aIndexRouteImport;
-			parentRoute: typeof A2aRoute;
+			fullPath: "/agent/";
+			preLoaderRoute: typeof AgentIndexRouteImport;
+			parentRoute: typeof AgentRoute;
 		};
 		"/bridge/mcp-inspector": {
 			id: "/bridge/mcp-inspector";
@@ -438,19 +427,19 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof BridgeEnableFunctionsRouteImport;
 			parentRoute: typeof BridgeRoute;
 		};
-		"/a2a/chat/": {
-			id: "/a2a/chat/";
-			path: "/chat";
-			fullPath: "/a2a/chat";
-			preLoaderRoute: typeof A2aChatIndexRouteImport;
-			parentRoute: typeof A2aRoute;
-		};
 		"/bridge/manage-credentials/$providerInstanceId": {
 			id: "/bridge/manage-credentials/$providerInstanceId";
 			path: "/$providerInstanceId";
 			fullPath: "/bridge/manage-credentials/$providerInstanceId";
 			preLoaderRoute: typeof BridgeManageCredentialsProviderInstanceIdRouteImport;
 			parentRoute: typeof BridgeManageCredentialsRoute;
+		};
+		"/agent/$projectId/$agentId": {
+			id: "/agent/$projectId/$agentId";
+			path: "/$projectId/$agentId";
+			fullPath: "/agent/$projectId/$agentId";
+			preLoaderRoute: typeof AgentProjectIdAgentIdRouteImport;
+			parentRoute: typeof AgentRoute;
 		};
 		"/bridge/manage-credentials/$providerInstanceId/functions": {
 			id: "/bridge/manage-credentials/$providerInstanceId/functions";
@@ -487,20 +476,6 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof BridgeEnableFunctionsAvailableFunctionControllerIdRouteImport;
 			parentRoute: typeof BridgeEnableFunctionsRoute;
 		};
-		"/a2a/agent/$projectId/$agentId": {
-			id: "/a2a/agent/$projectId/$agentId";
-			path: "/agent/$projectId/$agentId";
-			fullPath: "/a2a/agent/$projectId/$agentId";
-			preLoaderRoute: typeof A2aAgentProjectIdAgentIdRouteImport;
-			parentRoute: typeof A2aRoute;
-		};
-		"/a2a/agent/$projectId/$agentId/": {
-			id: "/a2a/agent/$projectId/$agentId/";
-			path: "/";
-			fullPath: "/a2a/agent/$projectId/$agentId/";
-			preLoaderRoute: typeof A2aAgentProjectIdAgentIdIndexRouteImport;
-			parentRoute: typeof A2aAgentProjectIdAgentIdRoute;
-		};
 		"/bridge/enable-functions/available/$functionControllerId/test": {
 			id: "/bridge/enable-functions/available/$functionControllerId/test";
 			path: "/test";
@@ -529,19 +504,26 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureRouteImport;
 			parentRoute: typeof BridgeEnableFunctionsAvailableFunctionControllerIdRoute;
 		};
+		"/agent/$projectId/$agentId/a2a/overview": {
+			id: "/agent/$projectId/$agentId/a2a/overview";
+			path: "/a2a/overview";
+			fullPath: "/agent/$projectId/$agentId/a2a/overview";
+			preLoaderRoute: typeof AgentProjectIdAgentIdA2aOverviewRouteImport;
+			parentRoute: typeof AgentProjectIdAgentIdRoute;
+		};
+		"/agent/$projectId/$agentId/a2a/chat-debugger": {
+			id: "/agent/$projectId/$agentId/a2a/chat-debugger";
+			path: "/a2a/chat-debugger";
+			fullPath: "/agent/$projectId/$agentId/a2a/chat-debugger";
+			preLoaderRoute: typeof AgentProjectIdAgentIdA2aChatDebuggerRouteImport;
+			parentRoute: typeof AgentProjectIdAgentIdRoute;
+		};
 		"/bridge/enable-functions/available/$functionControllerId/configure/": {
 			id: "/bridge/enable-functions/available/$functionControllerId/configure/";
 			path: "/";
 			fullPath: "/bridge/enable-functions/available/$functionControllerId/configure/";
 			preLoaderRoute: typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureIndexRouteImport;
 			parentRoute: typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureRoute;
-		};
-		"/a2a/agent/$projectId/$agentId/chat/": {
-			id: "/a2a/agent/$projectId/$agentId/chat/";
-			path: "/chat";
-			fullPath: "/a2a/agent/$projectId/$agentId/chat";
-			preLoaderRoute: typeof A2aAgentProjectIdAgentIdChatIndexRouteImport;
-			parentRoute: typeof A2aAgentProjectIdAgentIdRoute;
 		};
 		"/bridge/enable-functions/available/$functionControllerId/configure/new": {
 			id: "/bridge/enable-functions/available/$functionControllerId/configure/new";
@@ -560,36 +542,33 @@ declare module "@tanstack/react-router" {
 	}
 }
 
-interface A2aAgentProjectIdAgentIdRouteChildren {
-	A2aAgentProjectIdAgentIdIndexRoute: typeof A2aAgentProjectIdAgentIdIndexRoute;
-	A2aAgentProjectIdAgentIdChatIndexRoute: typeof A2aAgentProjectIdAgentIdChatIndexRoute;
+interface AgentProjectIdAgentIdRouteChildren {
+	AgentProjectIdAgentIdA2aChatDebuggerRoute: typeof AgentProjectIdAgentIdA2aChatDebuggerRoute;
+	AgentProjectIdAgentIdA2aOverviewRoute: typeof AgentProjectIdAgentIdA2aOverviewRoute;
 }
 
-const A2aAgentProjectIdAgentIdRouteChildren: A2aAgentProjectIdAgentIdRouteChildren =
-	{
-		A2aAgentProjectIdAgentIdIndexRoute: A2aAgentProjectIdAgentIdIndexRoute,
-		A2aAgentProjectIdAgentIdChatIndexRoute:
-			A2aAgentProjectIdAgentIdChatIndexRoute,
-	};
-
-const A2aAgentProjectIdAgentIdRouteWithChildren =
-	A2aAgentProjectIdAgentIdRoute._addFileChildren(
-		A2aAgentProjectIdAgentIdRouteChildren,
-	);
-
-interface A2aRouteChildren {
-	A2aIndexRoute: typeof A2aIndexRoute;
-	A2aChatIndexRoute: typeof A2aChatIndexRoute;
-	A2aAgentProjectIdAgentIdRoute: typeof A2aAgentProjectIdAgentIdRouteWithChildren;
-}
-
-const A2aRouteChildren: A2aRouteChildren = {
-	A2aIndexRoute: A2aIndexRoute,
-	A2aChatIndexRoute: A2aChatIndexRoute,
-	A2aAgentProjectIdAgentIdRoute: A2aAgentProjectIdAgentIdRouteWithChildren,
+const AgentProjectIdAgentIdRouteChildren: AgentProjectIdAgentIdRouteChildren = {
+	AgentProjectIdAgentIdA2aChatDebuggerRoute:
+		AgentProjectIdAgentIdA2aChatDebuggerRoute,
+	AgentProjectIdAgentIdA2aOverviewRoute: AgentProjectIdAgentIdA2aOverviewRoute,
 };
 
-const A2aRouteWithChildren = A2aRoute._addFileChildren(A2aRouteChildren);
+const AgentProjectIdAgentIdRouteWithChildren =
+	AgentProjectIdAgentIdRoute._addFileChildren(
+		AgentProjectIdAgentIdRouteChildren,
+	);
+
+interface AgentRouteChildren {
+	AgentIndexRoute: typeof AgentIndexRoute;
+	AgentProjectIdAgentIdRoute: typeof AgentProjectIdAgentIdRouteWithChildren;
+}
+
+const AgentRouteChildren: AgentRouteChildren = {
+	AgentIndexRoute: AgentIndexRoute,
+	AgentProjectIdAgentIdRoute: AgentProjectIdAgentIdRouteWithChildren,
+};
+
+const AgentRouteWithChildren = AgentRoute._addFileChildren(AgentRouteChildren);
 
 interface BridgeEnableFunctionsAvailableFunctionControllerIdConfigureRouteChildren {
 	BridgeEnableFunctionsAvailableFunctionControllerIdConfigureExistingRoute: typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureExistingRoute;
@@ -708,7 +687,7 @@ const BridgeRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
 	IndexRoute: IndexRoute,
-	A2aRoute: A2aRouteWithChildren,
+	AgentRoute: AgentRouteWithChildren,
 	BridgeRoute: BridgeRouteWithChildren,
 	ChatIndexRoute: ChatIndexRoute,
 };

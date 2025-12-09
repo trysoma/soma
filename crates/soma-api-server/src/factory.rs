@@ -17,7 +17,7 @@ use crate::logic::on_change_pubsub::{SomaChangeTx, create_soma_change_channel, r
 use crate::logic::task::ConnectionManager;
 use crate::repository::setup_repository;
 use crate::restate::RestateServerParams;
-use crate::sdk::{SdkRuntime, determine_sdk_runtime, sdk_provider_sync};
+use crate::sdk::{SdkRuntime, determine_sdk_runtime, sdk_agent_sync, sdk_provider_sync};
 use crate::subsystems::Subsystems;
 use crate::{ApiService, InitApiServiceParams};
 
@@ -108,6 +108,9 @@ pub async fn create_api_service(
         local_envelope_encryption_key_path.clone(),
     );
     encryption::logic::crypto_services::init_crypto_cache(&crypto_cache).await?;
+
+    // Create the agent cache early (shared between services, needed for codegen)
+    let agent_cache = sdk_agent_sync::create_agent_cache();
 
     // Create JWKS cache (JWKs will be created when default DEK alias is available)
     let internal_jwks_cache = identity::logic::jwk::cache::JwksCache::new(identity_repo.clone());
@@ -245,6 +248,7 @@ pub async fn create_api_service(
             match crate::logic::bridge::codegen::trigger_bridge_client_generation(
                 &mut client,
                 &bridge_repo,
+                &agent_cache,
             )
             .await
             {
@@ -309,6 +313,7 @@ pub async fn create_api_service(
         on_environment_variable_change_tx: environment_variable_change_tx.clone(),
         encryption_repository: encryption_repo.clone(),
         local_envelope_encryption_key_path,
+        agent_cache: agent_cache.clone(),
     })
     .await?;
     info!("API service initialized");
@@ -357,6 +362,7 @@ pub async fn create_api_service(
     let bridge_client_gen_handle = crate::logic::bridge::start_bridge_client_generation_subsystem(
         bridge_repo.clone(),
         sdk_client.clone(),
+        agent_cache.clone(),
         bridge_client_gen_rx,
         system_shutdown_signal.subscribe(),
     )?;

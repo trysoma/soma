@@ -13,6 +13,8 @@
  */
 
 import type {
+	AddMcpServerInstanceFunctionRequest,
+	CreateMcpServerInstanceRequest,
 	CreateProviderInstanceParamsInner,
 	CreateResourceServerCredentialParamsInner,
 	CreateUserCredentialParamsInner,
@@ -22,17 +24,23 @@ import type {
 	FunctionInstanceSerializedPaginatedResponse,
 	InvokeFunctionParamsInner,
 	InvokeResult,
+	McpServerInstanceSerializedWithFunctions,
+	McpServerInstanceSerializedWithFunctionsPaginatedResponse,
 	ProviderControllerSerializedPaginatedResponse,
 	ProviderInstanceListItemPaginatedResponse,
 	ProviderInstanceSerialized,
 	ProviderInstanceSerializedWithEverything,
 	ResourceServerCredentialSerialized,
 	StartUserCredentialBrokeringParamsInner,
+	UpdateMcpServerInstanceFunctionRequest,
+	UpdateMcpServerInstanceRequest,
 	UpdateProviderInstanceParamsInner,
 	UserCredentialBrokeringResponse,
 	UserCredentialSerialized,
 } from "../models/index";
 import {
+	AddMcpServerInstanceFunctionRequestToJSON,
+	CreateMcpServerInstanceRequestToJSON,
 	CreateProviderInstanceParamsInnerToJSON,
 	CreateResourceServerCredentialParamsInnerToJSON,
 	CreateUserCredentialParamsInnerToJSON,
@@ -42,17 +50,30 @@ import {
 	FunctionInstanceSerializedPaginatedResponseFromJSON,
 	InvokeFunctionParamsInnerToJSON,
 	InvokeResultFromJSON,
+	McpServerInstanceSerializedWithFunctionsFromJSON,
+	McpServerInstanceSerializedWithFunctionsPaginatedResponseFromJSON,
 	ProviderControllerSerializedPaginatedResponseFromJSON,
 	ProviderInstanceListItemPaginatedResponseFromJSON,
 	ProviderInstanceSerializedFromJSON,
 	ProviderInstanceSerializedWithEverythingFromJSON,
 	ResourceServerCredentialSerializedFromJSON,
 	StartUserCredentialBrokeringParamsInnerToJSON,
+	UpdateMcpServerInstanceFunctionRequestToJSON,
+	UpdateMcpServerInstanceRequestToJSON,
 	UpdateProviderInstanceParamsInnerToJSON,
 	UserCredentialBrokeringResponseFromJSON,
 	UserCredentialSerializedFromJSON,
 } from "../models/index";
 import * as runtime from "../runtime";
+
+export interface BridgeApiAddMcpServerInstanceFunctionOperationRequest {
+	mcpServerInstanceId: string;
+	addMcpServerInstanceFunctionRequest: AddMcpServerInstanceFunctionRequest;
+}
+
+export interface BridgeApiCreateMcpServerInstanceOperationRequest {
+	createMcpServerInstanceRequest: CreateMcpServerInstanceRequest;
+}
 
 export interface BridgeApiCreateProviderInstanceRequest {
 	providerControllerTypeId: string;
@@ -70,6 +91,10 @@ export interface BridgeApiCreateUserCredentialRequest {
 	providerControllerTypeId: string;
 	credentialControllerTypeId: string;
 	createUserCredentialParamsInner: CreateUserCredentialParamsInner;
+}
+
+export interface BridgeApiDeleteMcpServerInstanceRequest {
+	mcpServerInstanceId: string;
 }
 
 export interface BridgeApiDeleteProviderInstanceRequest {
@@ -99,6 +124,10 @@ export interface BridgeApiEncryptUserCredentialConfigurationRequest {
 	encryptCredentialConfigurationParamsInner: EncryptCredentialConfigurationParamsInner;
 }
 
+export interface BridgeApiGetMcpServerInstanceRequest {
+	mcpServerInstanceId: string;
+}
+
 export interface BridgeApiGetProviderInstanceRequest {
 	providerInstanceId: string;
 }
@@ -120,6 +149,11 @@ export interface BridgeApiListFunctionInstancesRequest {
 	providerInstanceId?: string;
 }
 
+export interface BridgeApiListMcpServerInstancesRequest {
+	pageSize: number;
+	nextPageToken?: string;
+}
+
 export interface BridgeApiListProviderInstancesRequest {
 	pageSize: number;
 	nextPageToken?: string;
@@ -132,6 +166,17 @@ export interface BridgeApiListProviderInstancesGroupedByFunctionRequest {
 	nextPageToken?: string | null;
 	providerControllerTypeId?: string | null;
 	functionCategory?: string | null;
+}
+
+export interface BridgeApiListenToMcpSseRequest {
+	mcpServerInstanceId: string;
+}
+
+export interface BridgeApiRemoveMcpServerInstanceFunctionRequest {
+	mcpServerInstanceId: string;
+	functionControllerTypeId: string;
+	providerControllerTypeId: string;
+	providerInstanceId: string;
 }
 
 export interface BridgeApiResumeUserCredentialBrokeringRequest {
@@ -148,7 +193,21 @@ export interface BridgeApiStartUserCredentialBrokeringRequest {
 }
 
 export interface BridgeApiTriggerMcpMessageRequest {
+	mcpServerInstanceId: string;
 	body: object;
+}
+
+export interface BridgeApiUpdateMcpServerInstanceOperationRequest {
+	mcpServerInstanceId: string;
+	updateMcpServerInstanceRequest: UpdateMcpServerInstanceRequest;
+}
+
+export interface BridgeApiUpdateMcpServerInstanceFunctionOperationRequest {
+	mcpServerInstanceId: string;
+	functionControllerTypeId: string;
+	providerControllerTypeId: string;
+	providerInstanceId: string;
+	updateMcpServerInstanceFunctionRequest: UpdateMcpServerInstanceFunctionRequest;
 }
 
 export interface BridgeApiUpdateProviderInstanceRequest {
@@ -160,6 +219,129 @@ export interface BridgeApiUpdateProviderInstanceRequest {
  *
  */
 export class BridgeApi extends runtime.BaseAPI {
+	/**
+	 * Add a function mapping to an MCP server instance with a custom name
+	 * Add function to MCP server instance
+	 */
+	async addMcpServerInstanceFunctionRaw(
+		requestParameters: BridgeApiAddMcpServerInstanceFunctionOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<McpServerInstanceSerializedWithFunctions>> {
+		if (requestParameters.mcpServerInstanceId == null) {
+			throw new runtime.RequiredError(
+				"mcpServerInstanceId",
+				'Required parameter "mcpServerInstanceId" was null or undefined when calling addMcpServerInstanceFunction().',
+			);
+		}
+
+		if (requestParameters.addMcpServerInstanceFunctionRequest == null) {
+			throw new runtime.RequiredError(
+				"addMcpServerInstanceFunctionRequest",
+				'Required parameter "addMcpServerInstanceFunctionRequest" was null or undefined when calling addMcpServerInstanceFunction().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		let urlPath = `/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function`;
+		urlPath = urlPath.replace(
+			`{${"mcp_server_instance_id"}}`,
+			encodeURIComponent(String(requestParameters.mcpServerInstanceId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: AddMcpServerInstanceFunctionRequestToJSON(
+					requestParameters.addMcpServerInstanceFunctionRequest,
+				),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			McpServerInstanceSerializedWithFunctionsFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Add a function mapping to an MCP server instance with a custom name
+	 * Add function to MCP server instance
+	 */
+	async addMcpServerInstanceFunction(
+		requestParameters: BridgeApiAddMcpServerInstanceFunctionOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<McpServerInstanceSerializedWithFunctions> {
+		const response = await this.addMcpServerInstanceFunctionRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Create a new MCP server instance with a user-provided ID
+	 * Create MCP server instance
+	 */
+	async createMcpServerInstanceRaw(
+		requestParameters: BridgeApiCreateMcpServerInstanceOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<McpServerInstanceSerializedWithFunctions>> {
+		if (requestParameters.createMcpServerInstanceRequest == null) {
+			throw new runtime.RequiredError(
+				"createMcpServerInstanceRequest",
+				'Required parameter "createMcpServerInstanceRequest" was null or undefined when calling createMcpServerInstance().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		const urlPath = `/api/bridge/v1/mcp-instance`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: CreateMcpServerInstanceRequestToJSON(
+					requestParameters.createMcpServerInstanceRequest,
+				),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			McpServerInstanceSerializedWithFunctionsFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Create a new MCP server instance with a user-provided ID
+	 * Create MCP server instance
+	 */
+	async createMcpServerInstance(
+		requestParameters: BridgeApiCreateMcpServerInstanceOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<McpServerInstanceSerializedWithFunctions> {
+		const response = await this.createMcpServerInstanceRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
 	/**
 	 * Create a new provider instance with the specified configuration
 	 * Create provider
@@ -392,6 +574,55 @@ export class BridgeApi extends runtime.BaseAPI {
 			initOverrides,
 		);
 		return await response.value();
+	}
+
+	/**
+	 * Delete an MCP server instance and all its function mappings
+	 * Delete MCP server instance
+	 */
+	async deleteMcpServerInstanceRaw(
+		requestParameters: BridgeApiDeleteMcpServerInstanceRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<void>> {
+		if (requestParameters.mcpServerInstanceId == null) {
+			throw new runtime.RequiredError(
+				"mcpServerInstanceId",
+				'Required parameter "mcpServerInstanceId" was null or undefined when calling deleteMcpServerInstance().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/bridge/v1/mcp-instance/{mcp_server_instance_id}`;
+		urlPath = urlPath.replace(
+			`{${"mcp_server_instance_id"}}`,
+			encodeURIComponent(String(requestParameters.mcpServerInstanceId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "DELETE",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.VoidApiResponse(response);
+	}
+
+	/**
+	 * Delete an MCP server instance and all its function mappings
+	 * Delete MCP server instance
+	 */
+	async deleteMcpServerInstance(
+		requestParameters: BridgeApiDeleteMcpServerInstanceRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<void> {
+		await this.deleteMcpServerInstanceRaw(requestParameters, initOverrides);
 	}
 
 	/**
@@ -798,6 +1029,61 @@ export class BridgeApi extends runtime.BaseAPI {
 	}
 
 	/**
+	 * Retrieve an MCP server instance by its ID
+	 * Get MCP server instance
+	 */
+	async getMcpServerInstanceRaw(
+		requestParameters: BridgeApiGetMcpServerInstanceRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<McpServerInstanceSerializedWithFunctions>> {
+		if (requestParameters.mcpServerInstanceId == null) {
+			throw new runtime.RequiredError(
+				"mcpServerInstanceId",
+				'Required parameter "mcpServerInstanceId" was null or undefined when calling getMcpServerInstance().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/bridge/v1/mcp-instance/{mcp_server_instance_id}`;
+		urlPath = urlPath.replace(
+			`{${"mcp_server_instance_id"}}`,
+			encodeURIComponent(String(requestParameters.mcpServerInstanceId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			McpServerInstanceSerializedWithFunctionsFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Retrieve an MCP server instance by its ID
+	 * Get MCP server instance
+	 */
+	async getMcpServerInstance(
+		requestParameters: BridgeApiGetMcpServerInstanceRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<McpServerInstanceSerializedWithFunctions> {
+		const response = await this.getMcpServerInstanceRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
 	 * Retrieve a provider instance by its unique identifier
 	 * Get provider
 	 */
@@ -1056,6 +1342,69 @@ export class BridgeApi extends runtime.BaseAPI {
 	}
 
 	/**
+	 * List all MCP server instances with pagination
+	 * List MCP server instances
+	 */
+	async listMcpServerInstancesRaw(
+		requestParameters: BridgeApiListMcpServerInstancesRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<
+		runtime.ApiResponse<McpServerInstanceSerializedWithFunctionsPaginatedResponse>
+	> {
+		if (requestParameters.pageSize == null) {
+			throw new runtime.RequiredError(
+				"pageSize",
+				'Required parameter "pageSize" was null or undefined when calling listMcpServerInstances().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		if (requestParameters.pageSize != null) {
+			queryParameters.page_size = requestParameters.pageSize;
+		}
+
+		if (requestParameters.nextPageToken != null) {
+			queryParameters.next_page_token = requestParameters.nextPageToken;
+		}
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/bridge/v1/mcp-instance`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			McpServerInstanceSerializedWithFunctionsPaginatedResponseFromJSON(
+				jsonValue,
+			),
+		);
+	}
+
+	/**
+	 * List all MCP server instances with pagination
+	 * List MCP server instances
+	 */
+	async listMcpServerInstances(
+		requestParameters: BridgeApiListMcpServerInstancesRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<McpServerInstanceSerializedWithFunctionsPaginatedResponse> {
+		const response = await this.listMcpServerInstancesRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
 	 * List all provider instances with optional filtering by status and provider type
 	 * List provider instances
 	 */
@@ -1196,13 +1545,25 @@ export class BridgeApi extends runtime.BaseAPI {
 	 * MCP SSE connection
 	 */
 	async listenToMcpSseRaw(
+		requestParameters: BridgeApiListenToMcpSseRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<void>> {
+		if (requestParameters.mcpServerInstanceId == null) {
+			throw new runtime.RequiredError(
+				"mcpServerInstanceId",
+				'Required parameter "mcpServerInstanceId" was null or undefined when calling listenToMcpSse().',
+			);
+		}
+
 		const queryParameters: any = {};
 
 		const headerParameters: runtime.HTTPHeaders = {};
 
-		const urlPath = `/api/bridge/v1/mcp`;
+		let urlPath = `/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp`;
+		urlPath = urlPath.replace(
+			`{${"mcp_server_instance_id"}}`,
+			encodeURIComponent(String(requestParameters.mcpServerInstanceId)),
+		);
 
 		const response = await this.request(
 			{
@@ -1222,9 +1583,98 @@ export class BridgeApi extends runtime.BaseAPI {
 	 * MCP SSE connection
 	 */
 	async listenToMcpSse(
+		requestParameters: BridgeApiListenToMcpSseRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
-		await this.listenToMcpSseRaw(initOverrides);
+		await this.listenToMcpSseRaw(requestParameters, initOverrides);
+	}
+
+	/**
+	 * Remove a function mapping from an MCP server instance
+	 * Remove function from MCP server instance
+	 */
+	async removeMcpServerInstanceFunctionRaw(
+		requestParameters: BridgeApiRemoveMcpServerInstanceFunctionRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<McpServerInstanceSerializedWithFunctions>> {
+		if (requestParameters.mcpServerInstanceId == null) {
+			throw new runtime.RequiredError(
+				"mcpServerInstanceId",
+				'Required parameter "mcpServerInstanceId" was null or undefined when calling removeMcpServerInstanceFunction().',
+			);
+		}
+
+		if (requestParameters.functionControllerTypeId == null) {
+			throw new runtime.RequiredError(
+				"functionControllerTypeId",
+				'Required parameter "functionControllerTypeId" was null or undefined when calling removeMcpServerInstanceFunction().',
+			);
+		}
+
+		if (requestParameters.providerControllerTypeId == null) {
+			throw new runtime.RequiredError(
+				"providerControllerTypeId",
+				'Required parameter "providerControllerTypeId" was null or undefined when calling removeMcpServerInstanceFunction().',
+			);
+		}
+
+		if (requestParameters.providerInstanceId == null) {
+			throw new runtime.RequiredError(
+				"providerInstanceId",
+				'Required parameter "providerInstanceId" was null or undefined when calling removeMcpServerInstanceFunction().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		let urlPath = `/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}`;
+		urlPath = urlPath.replace(
+			`{${"mcp_server_instance_id"}}`,
+			encodeURIComponent(String(requestParameters.mcpServerInstanceId)),
+		);
+		urlPath = urlPath.replace(
+			`{${"function_controller_type_id"}}`,
+			encodeURIComponent(String(requestParameters.functionControllerTypeId)),
+		);
+		urlPath = urlPath.replace(
+			`{${"provider_controller_type_id"}}`,
+			encodeURIComponent(String(requestParameters.providerControllerTypeId)),
+		);
+		urlPath = urlPath.replace(
+			`{${"provider_instance_id"}}`,
+			encodeURIComponent(String(requestParameters.providerInstanceId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "DELETE",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			McpServerInstanceSerializedWithFunctionsFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Remove a function mapping from an MCP server instance
+	 * Remove function from MCP server instance
+	 */
+	async removeMcpServerInstanceFunction(
+		requestParameters: BridgeApiRemoveMcpServerInstanceFunctionRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<McpServerInstanceSerializedWithFunctions> {
+		const response = await this.removeMcpServerInstanceFunctionRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
 	}
 
 	/**
@@ -1373,6 +1823,13 @@ export class BridgeApi extends runtime.BaseAPI {
 		requestParameters: BridgeApiTriggerMcpMessageRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<void>> {
+		if (requestParameters.mcpServerInstanceId == null) {
+			throw new runtime.RequiredError(
+				"mcpServerInstanceId",
+				'Required parameter "mcpServerInstanceId" was null or undefined when calling triggerMcpMessage().',
+			);
+		}
+
 		if (requestParameters.body == null) {
 			throw new runtime.RequiredError(
 				"body",
@@ -1386,7 +1843,11 @@ export class BridgeApi extends runtime.BaseAPI {
 
 		headerParameters["Content-Type"] = "application/json";
 
-		const urlPath = `/api/bridge/v1/mcp`;
+		let urlPath = `/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp`;
+		urlPath = urlPath.replace(
+			`{${"mcp_server_instance_id"}}`,
+			encodeURIComponent(String(requestParameters.mcpServerInstanceId)),
+		);
 
 		const response = await this.request(
 			{
@@ -1411,6 +1872,173 @@ export class BridgeApi extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.triggerMcpMessageRaw(requestParameters, initOverrides);
+	}
+
+	/**
+	 * Update an MCP server instance name
+	 * Update MCP server instance
+	 */
+	async updateMcpServerInstanceRaw(
+		requestParameters: BridgeApiUpdateMcpServerInstanceOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<McpServerInstanceSerializedWithFunctions>> {
+		if (requestParameters.mcpServerInstanceId == null) {
+			throw new runtime.RequiredError(
+				"mcpServerInstanceId",
+				'Required parameter "mcpServerInstanceId" was null or undefined when calling updateMcpServerInstance().',
+			);
+		}
+
+		if (requestParameters.updateMcpServerInstanceRequest == null) {
+			throw new runtime.RequiredError(
+				"updateMcpServerInstanceRequest",
+				'Required parameter "updateMcpServerInstanceRequest" was null or undefined when calling updateMcpServerInstance().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		let urlPath = `/api/bridge/v1/mcp-instance/{mcp_server_instance_id}`;
+		urlPath = urlPath.replace(
+			`{${"mcp_server_instance_id"}}`,
+			encodeURIComponent(String(requestParameters.mcpServerInstanceId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "PATCH",
+				headers: headerParameters,
+				query: queryParameters,
+				body: UpdateMcpServerInstanceRequestToJSON(
+					requestParameters.updateMcpServerInstanceRequest,
+				),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			McpServerInstanceSerializedWithFunctionsFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Update an MCP server instance name
+	 * Update MCP server instance
+	 */
+	async updateMcpServerInstance(
+		requestParameters: BridgeApiUpdateMcpServerInstanceOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<McpServerInstanceSerializedWithFunctions> {
+		const response = await this.updateMcpServerInstanceRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Update the function name and description for a function mapping
+	 * Update function in MCP server instance
+	 */
+	async updateMcpServerInstanceFunctionRaw(
+		requestParameters: BridgeApiUpdateMcpServerInstanceFunctionOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<McpServerInstanceSerializedWithFunctions>> {
+		if (requestParameters.mcpServerInstanceId == null) {
+			throw new runtime.RequiredError(
+				"mcpServerInstanceId",
+				'Required parameter "mcpServerInstanceId" was null or undefined when calling updateMcpServerInstanceFunction().',
+			);
+		}
+
+		if (requestParameters.functionControllerTypeId == null) {
+			throw new runtime.RequiredError(
+				"functionControllerTypeId",
+				'Required parameter "functionControllerTypeId" was null or undefined when calling updateMcpServerInstanceFunction().',
+			);
+		}
+
+		if (requestParameters.providerControllerTypeId == null) {
+			throw new runtime.RequiredError(
+				"providerControllerTypeId",
+				'Required parameter "providerControllerTypeId" was null or undefined when calling updateMcpServerInstanceFunction().',
+			);
+		}
+
+		if (requestParameters.providerInstanceId == null) {
+			throw new runtime.RequiredError(
+				"providerInstanceId",
+				'Required parameter "providerInstanceId" was null or undefined when calling updateMcpServerInstanceFunction().',
+			);
+		}
+
+		if (requestParameters.updateMcpServerInstanceFunctionRequest == null) {
+			throw new runtime.RequiredError(
+				"updateMcpServerInstanceFunctionRequest",
+				'Required parameter "updateMcpServerInstanceFunctionRequest" was null or undefined when calling updateMcpServerInstanceFunction().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		let urlPath = `/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}`;
+		urlPath = urlPath.replace(
+			`{${"mcp_server_instance_id"}}`,
+			encodeURIComponent(String(requestParameters.mcpServerInstanceId)),
+		);
+		urlPath = urlPath.replace(
+			`{${"function_controller_type_id"}}`,
+			encodeURIComponent(String(requestParameters.functionControllerTypeId)),
+		);
+		urlPath = urlPath.replace(
+			`{${"provider_controller_type_id"}}`,
+			encodeURIComponent(String(requestParameters.providerControllerTypeId)),
+		);
+		urlPath = urlPath.replace(
+			`{${"provider_instance_id"}}`,
+			encodeURIComponent(String(requestParameters.providerInstanceId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "PATCH",
+				headers: headerParameters,
+				query: queryParameters,
+				body: UpdateMcpServerInstanceFunctionRequestToJSON(
+					requestParameters.updateMcpServerInstanceFunctionRequest,
+				),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			McpServerInstanceSerializedWithFunctionsFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Update the function name and description for a function mapping
+	 * Update function in MCP server instance
+	 */
+	async updateMcpServerInstanceFunction(
+		requestParameters: BridgeApiUpdateMcpServerInstanceFunctionOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<McpServerInstanceSerializedWithFunctions> {
+		const response = await this.updateMcpServerInstanceFunctionRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
 	}
 
 	/**

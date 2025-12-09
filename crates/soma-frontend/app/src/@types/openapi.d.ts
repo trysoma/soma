@@ -84,7 +84,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/a2a/v1/agents": {
+	"/api/agent": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -93,7 +93,7 @@ export interface paths {
 		};
 		/**
 		 * List available agents
-		 * @description List all available agents by querying Restate services
+		 * @description List all available agents from the agent cache
 		 */
 		get: operations["list-agents"];
 		put?: never;
@@ -104,27 +104,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/a2a/v1/definition": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get agent definition
-		 * @description Get the agent definition (capabilities and metadata)
-		 */
-		get: operations["get-agent-definition"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/a2a/v1/{project_id}/{agent_id}": {
+	"/api/agent/{project_id}/{agent_id}/a2a": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -134,17 +114,17 @@ export interface paths {
 		get?: never;
 		put?: never;
 		/**
-		 * Handle JSON-RPC for specific agent
+		 * Handle A2A JSON-RPC for specific agent
 		 * @description Handle JSON-RPC requests for agent-to-agent communication for a specific agent
 		 */
-		post: operations["handle-jsonrpc-request"];
+		post: operations["handle-a2a-jsonrpc-request"];
 		delete?: never;
 		options?: never;
 		head?: never;
 		patch?: never;
 		trace?: never;
 	};
-	"/api/a2a/v1/{project_id}/{agent_id}/.well-known/agent.json": {
+	"/api/agent/{project_id}/{agent_id}/a2a/.well-known/agent.json": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -364,7 +344,103 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/bridge/v1/mcp": {
+	"/api/bridge/v1/mcp-instance": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List MCP server instances
+		 * @description List all MCP server instances with pagination
+		 */
+		get: operations["list-mcp-server-instances"];
+		put?: never;
+		/**
+		 * Create MCP server instance
+		 * @description Create a new MCP server instance with a user-provided ID
+		 */
+		post: operations["create-mcp-server-instance"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get MCP server instance
+		 * @description Retrieve an MCP server instance by its ID
+		 */
+		get: operations["get-mcp-server-instance"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete MCP server instance
+		 * @description Delete an MCP server instance and all its function mappings
+		 */
+		delete: operations["delete-mcp-server-instance"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update MCP server instance
+		 * @description Update an MCP server instance name
+		 */
+		patch: operations["update-mcp-server-instance"];
+		trace?: never;
+	};
+	"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Add function to MCP server instance
+		 * @description Add a function mapping to an MCP server instance with a custom name
+		 */
+		post: operations["add-mcp-server-instance-function"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/**
+		 * Remove function from MCP server instance
+		 * @description Remove a function mapping from an MCP server instance
+		 */
+		delete: operations["remove-mcp-server-instance-function"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update function in MCP server instance
+		 * @description Update the function name and description for a function mapping
+		 */
+		patch: operations["update-mcp-server-instance-function"];
+		trace?: never;
+	};
+	"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -1316,6 +1392,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
+		AddMcpServerInstanceFunctionRequest: {
+			function_controller_type_id: string;
+			function_description?: string | null;
+			function_name: string;
+			provider_controller_type_id: string;
+			provider_instance_id: string;
+		};
 		AgentCard: Record<string, never>;
 		/** @description Agent list item for list response */
 		AgentListItem: {
@@ -1323,24 +1406,6 @@ export interface components {
 			agent_id: string;
 			/** @description The project ID */
 			project_id: string;
-		};
-		/** @description API key configuration stored in soma.yaml */
-		ApiKeyYamlConfig: {
-			/** @description The DEK alias used for encryption */
-			dek_alias: string;
-			/** @description Description of the API key */
-			description?: string | null;
-			/** @description The encrypted hashed value of the API key */
-			encrypted_hashed_value: string;
-			/** @description The role assigned to this API key */
-			role: string;
-			/** @description The user ID associated with this API key */
-			user_id: string;
-		};
-		BridgeConfig: {
-			providers?: {
-				[key: string]: components["schemas"]["ProviderConfig"];
-			} | null;
 		};
 		BrokerAction:
 			| {
@@ -1401,6 +1466,10 @@ export interface components {
 			key: string;
 			value: string;
 		};
+		CreateMcpServerInstanceRequest: {
+			id: string;
+			name: string;
+		};
 		CreateMessageRequest: {
 			metadata: components["schemas"]["Metadata"];
 			parts: components["schemas"]["MessagePart"][];
@@ -1445,14 +1514,6 @@ export interface components {
 			metadata?: null | components["schemas"]["Metadata"];
 			user_credential_configuration: components["schemas"]["WrappedJsonValue"];
 		};
-		CredentialConfig: {
-			dek_alias: string;
-			id: string;
-			metadata: unknown;
-			next_rotation_time?: string | null;
-			type_id: string;
-			value: unknown;
-		};
 		DataEncryptionKey: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			encrypted_data_encryption_key: components["schemas"]["EncryptedDataEncryptionKey"];
@@ -1483,10 +1544,6 @@ export interface components {
 			id: components["schemas"]["WrappedUuidV4"];
 			key: string;
 			updated_at: components["schemas"]["WrappedChronoDateTime"];
-		};
-		/** @description Data encryption key configuration */
-		DekConfig: {
-			encrypted_key: string;
 		};
 		DeleteEnvironmentVariableResponse: {
 			success: boolean;
@@ -1538,27 +1595,6 @@ export interface components {
 			scopes: string[];
 			token_endpoint: string;
 		};
-		/** @description Encrypted OAuth configuration for YAML storage */
-		EncryptedOauthYamlConfig: {
-			/** @description Authorization endpoint URL */
-			authorization_endpoint: string;
-			/** @description OAuth client ID */
-			client_id: string;
-			/** @description DEK alias used for encryption */
-			dek_alias: string;
-			/** @description Encrypted client secret */
-			encrypted_client_secret: string;
-			/** @description Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque */
-			introspect_url?: string | null;
-			/** @description JWKS endpoint URL for token verification */
-			jwks_endpoint: string;
-			/** @description Token mapping configuration (serialized as JSON) */
-			oauth_mapping_config: unknown;
-			/** @description OAuth scopes */
-			scopes: string[];
-			/** @description Token endpoint URL */
-			token_endpoint: string;
-		};
 		/** @description OIDC configuration extending OAuth2 with discovery and ID token support */
 		EncryptedOidcConfig: {
 			base_config: components["schemas"]["EncryptedOauthConfig"];
@@ -1567,17 +1603,6 @@ export interface components {
 			/** @description Token introspection endpoint URL (RFC 7662) */
 			introspect_url?: string | null;
 			mapping: components["schemas"]["TokenMapping"];
-			userinfo_endpoint?: string | null;
-		};
-		/** @description Encrypted OIDC configuration for YAML storage */
-		EncryptedOidcYamlConfig: components["schemas"]["EncryptedOauthYamlConfig"] & {
-			/** @description OIDC discovery endpoint (optional) */
-			discovery_endpoint?: string | null;
-			/** @description Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque */
-			introspect_url?: string | null;
-			/** @description Token mapping configuration (serialized as JSON) */
-			oidc_mapping_config: unknown;
-			/** @description Userinfo endpoint URL (optional) */
 			userinfo_endpoint?: string | null;
 		};
 		EncryptedString: string;
@@ -1594,16 +1619,6 @@ export interface components {
 			| {
 					oauth_authorization_code_pkce_flow: components["schemas"]["EncryptedOauthConfig"];
 			  };
-		/** @description Top-level encryption configuration */
-		EncryptionConfig: {
-			/**
-			 * @description Map of envelope key id (ARN or file_name) -> envelope key configuration with nested DEKs
-			 *     DEKs are stored by their alias name (e.g., "default") rather than UUID
-			 */
-			envelope_keys?: {
-				[key: string]: components["schemas"]["EnvelopeKeyConfig"];
-			} | null;
-		};
 		EnvelopeEncryptionKey:
 			| (components["schemas"]["EnvelopeEncryptionKeyAwsKms"] & {
 					/** @enum {string} */
@@ -1623,29 +1638,6 @@ export interface components {
 		EnvelopeEncryptionKeyPaginatedResponse: {
 			items: components["schemas"]["EnvelopeEncryptionKey"][];
 			next_page_token?: string;
-		};
-		EnvelopeKeyConfig:
-			| (components["schemas"]["EnvelopeKeyConfigAwsKms"] & {
-					/** @enum {string} */
-					type: "aws_kms";
-			  })
-			| (components["schemas"]["EnvelopeKeyConfigLocal"] & {
-					/** @enum {string} */
-					type: "local";
-			  });
-		/** @description Envelope encryption key configuration with nested DEKs */
-		EnvelopeKeyConfigAwsKms: {
-			arn: string;
-			deks?: {
-				[key: string]: components["schemas"]["DekConfig"];
-			} | null;
-			region: string;
-		};
-		EnvelopeKeyConfigLocal: {
-			deks?: {
-				[key: string]: components["schemas"]["DekConfig"];
-			} | null;
-			file_name: string;
 		};
 		EnvironmentVariable: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
@@ -1702,13 +1694,6 @@ export interface components {
 			group: string;
 			role: components["schemas"]["Role"];
 		};
-		/** @description Group to role mapping */
-		GroupToRoleMappingYaml: {
-			/** @description The group name to match */
-			group: string;
-			/** @description The role to assign when matched */
-			role: string;
-		};
 		HashedApiKey: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			description?: string | null;
@@ -1744,21 +1729,6 @@ export interface components {
 					/** @enum {string} */
 					type: "unauthenticated";
 			  };
-		/** @description Identity configuration for API keys, STS, and user auth flows */
-		IdentityConfig: {
-			/** @description API keys configuration (key is the API key ID) */
-			api_keys?: {
-				[key: string]: components["schemas"]["ApiKeyYamlConfig"];
-			} | null;
-			/** @description STS configurations (key is the STS config ID) */
-			sts_configurations?: {
-				[key: string]: components["schemas"]["StsConfigYaml"];
-			} | null;
-			/** @description User auth flow configurations (key is the config ID) */
-			user_auth_flows?: {
-				[key: string]: components["schemas"]["UserAuthFlowYamlConfig"];
-			} | null;
-		};
 		ImportDataEncryptionKeyParamsRoute: {
 			encrypted_data_encryption_key: string;
 			id?: string | null;
@@ -1817,44 +1787,6 @@ export interface components {
 		JwksResponse: {
 			keys: components["schemas"]["Jwk"][];
 		};
-		/** @description JWT claim field mapping */
-		JwtMappingConfigYaml: {
-			/** @description Field name for audience (default: "aud") */
-			audience_field?: string;
-			/** @description Field name for email (optional) */
-			email_field?: string | null;
-			/** @description Field name for groups (optional) */
-			groups_field?: string | null;
-			/** @description Field name for issuer (default: "iss") */
-			issuer_field?: string;
-			/** @description Field name for scopes (optional) */
-			scopes_field?: string | null;
-			/** @description Field name for subject (default: "sub") */
-			sub_field?: string;
-		};
-		/** @description JWT template configuration for validating external JWTs */
-		JwtTemplateConfigYaml: {
-			/** @description Group to role mappings */
-			group_to_role_mappings?:
-				| components["schemas"]["GroupToRoleMappingYaml"][]
-				| null;
-			/** @description JWKS URI to fetch public keys from */
-			jwks_uri: string;
-			/** @description Field mapping from JWT claims to internal fields */
-			mapping: components["schemas"]["JwtMappingConfigYaml"];
-			/** @description Scope to group mappings (maps scopes to internal groups) */
-			scope_to_group_mappings?:
-				| components["schemas"]["ScopeToGroupMappingYaml"][]
-				| null;
-			/** @description Scope to role mappings */
-			scope_to_role_mappings?:
-				| components["schemas"]["ScopeToRoleMappingYaml"][]
-				| null;
-			/** @description Where to find the token in the request */
-			token_location: components["schemas"]["TokenLocationYaml"];
-			/** @description Validation rules */
-			validation: components["schemas"]["JwtValidationConfigYaml"];
-		};
 		JwtTemplateModeConfig: {
 			id: components["schemas"]["String"];
 			mapping_template: components["schemas"]["JwtTokenTemplateConfig"];
@@ -1883,17 +1815,6 @@ export interface components {
 			issuer?: string | null;
 			required_groups?: string[] | null;
 			required_scopes?: string[] | null;
-			valid_audiences?: string[] | null;
-		};
-		/** @description JWT validation configuration */
-		JwtValidationConfigYaml: {
-			/** @description Expected issuer (iss claim) */
-			issuer?: string | null;
-			/** @description Required groups */
-			required_groups?: string[] | null;
-			/** @description Required scopes */
-			required_scopes?: string[] | null;
-			/** @description Valid audiences (aud claim) */
 			valid_audiences?: string[] | null;
 		};
 		/** @description Response for listing agents */
@@ -1950,6 +1871,29 @@ export interface components {
 					/** @enum {string} */
 					type: "access_token";
 			  };
+		/** @description Represents a function mapping within an MCP server instance */
+		McpServerInstanceFunctionSerialized: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			function_controller_type_id: string;
+			function_description?: string | null;
+			function_name: string;
+			mcp_server_instance_id: string;
+			provider_controller_type_id: string;
+			provider_instance_id: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+		};
+		/** @description Represents an MCP server instance with its associated functions */
+		McpServerInstanceSerializedWithFunctions: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			functions: components["schemas"]["McpServerInstanceFunctionSerialized"][];
+			id: string;
+			name: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+		};
+		McpServerInstanceSerializedWithFunctionsPaginatedResponse: {
+			items: components["schemas"]["McpServerInstanceSerializedWithFunctions"][];
+			next_page_token?: string;
+		};
 		Message: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			id: components["schemas"]["WrappedUuidV4"];
@@ -2011,14 +1955,6 @@ export interface components {
 			introspect_url?: string | null;
 			mapping: components["schemas"]["TokenMapping"];
 			userinfo_endpoint?: string | null;
-		};
-		ProviderConfig: {
-			credential_controller_type_id: string;
-			display_name: string;
-			functions?: string[] | null;
-			provider_controller_type_id: string;
-			resource_server_credential: components["schemas"]["CredentialConfig"];
-			user_credential?: null | components["schemas"]["CredentialConfig"];
 		};
 		ProviderControllerSerialized: {
 			categories: string[];
@@ -2111,22 +2047,8 @@ export interface components {
 			group: string;
 			scope: string;
 		};
-		/** @description Scope to group mapping (maps external scopes to internal groups) */
-		ScopeToGroupMappingYaml: {
-			/** @description The internal group to assign when matched */
-			group: string;
-			/** @description The scope to match */
-			scope: string;
-		};
 		ScopeToRoleMapping: {
 			role: components["schemas"]["Role"];
-			scope: string;
-		};
-		/** @description Scope to role mapping */
-		ScopeToRoleMappingYaml: {
-			/** @description The role to assign when matched */
-			role: string;
-			/** @description The scope to match */
 			scope: string;
 		};
 		Secret: {
@@ -2137,38 +2059,10 @@ export interface components {
 			key: string;
 			updated_at: components["schemas"]["WrappedChronoDateTime"];
 		};
-		/** @description Configuration for a secret stored in soma.yaml */
-		SecretConfig: {
-			/** @description The DEK alias used to encrypt this secret */
-			dek_alias: string;
-			/** @description The encrypted value of the secret */
-			value: string;
-		};
-		SomaAgentDefinition: {
-			bridge?: null | components["schemas"]["BridgeConfig"];
-			encryption?: null | components["schemas"]["EncryptionConfig"];
-			environment_variables?: {
-				[key: string]: string;
-			} | null;
-			identity?: null | components["schemas"]["IdentityConfig"];
-			secrets?: {
-				[key: string]: components["schemas"]["SecretConfig"];
-			} | null;
-		};
 		StartUserCredentialBrokeringParamsInner: {
 			provider_instance_id: string;
 		};
 		String: string;
-		/** @description STS configuration stored in soma.yaml */
-		StsConfigYaml:
-			| (components["schemas"]["JwtTemplateConfigYaml"] & {
-					/** @enum {string} */
-					type: "jwt_template";
-			  })
-			| {
-					/** @enum {string} */
-					type: "dev";
-			  };
 		StsTokenConfig:
 			| {
 					JwtTemplate: components["schemas"]["JwtTemplateModeConfig"];
@@ -2245,18 +2139,6 @@ export interface components {
 			| {
 					Cookie: string;
 			  };
-		/** @description Where to find the token in the request */
-		TokenLocationYaml:
-			| {
-					name: string;
-					/** @enum {string} */
-					type: "header";
-			  }
-			| {
-					name: string;
-					/** @enum {string} */
-					type: "cookie";
-			  };
 		TokenMapping: {
 			/** @enum {string} */
 			type: "jwt_template";
@@ -2284,6 +2166,13 @@ export interface components {
 		};
 		UpdateEnvironmentVariableRequest: {
 			value: string;
+		};
+		UpdateMcpServerInstanceFunctionRequest: {
+			function_description?: string | null;
+			function_name: string;
+		};
+		UpdateMcpServerInstanceRequest: {
+			name: string;
 		};
 		UpdateProviderInstanceParamsInner: {
 			display_name: string;
@@ -2317,24 +2206,6 @@ export interface components {
 					type: "oauth_authorization_code_pkce_flow";
 					value: components["schemas"]["OauthConfig"];
 			  };
-		/** @description User auth flow configuration stored in soma.yaml (encrypted) */
-		UserAuthFlowYamlConfig:
-			| (components["schemas"]["EncryptedOidcYamlConfig"] & {
-					/** @enum {string} */
-					type: "oidc_authorization_code_flow";
-			  })
-			| (components["schemas"]["EncryptedOauthYamlConfig"] & {
-					/** @enum {string} */
-					type: "oauth_authorization_code_flow";
-			  })
-			| (components["schemas"]["EncryptedOidcYamlConfig"] & {
-					/** @enum {string} */
-					type: "oidc_authorization_code_pkce_flow";
-			  })
-			| (components["schemas"]["EncryptedOauthYamlConfig"] & {
-					/** @enum {string} */
-					type: "oauth_authorization_code_pkce_flow";
-			  });
 		UserCredentialBrokeringResponse:
 			| (components["schemas"]["BrokerState"] & {
 					/** @enum {string} */
@@ -2518,27 +2389,7 @@ export interface operations {
 			};
 		};
 	};
-	"get-agent-definition": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Agent definition */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["SomaAgentDefinition"];
-				};
-			};
-		};
-	};
-	"handle-jsonrpc-request": {
+	"handle-a2a-jsonrpc-request": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -3036,11 +2887,383 @@ export interface operations {
 			};
 		};
 	};
-	"listen-to-mcp-sse": {
+	"list-mcp-server-instances": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List MCP server instances */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctionsPaginatedResponse"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-mcp-server-instance": {
 		parameters: {
 			query?: never;
 			header?: never;
 			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateMcpServerInstanceRequest"];
+			};
+		};
+		responses: {
+			/** @description Create MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-mcp-server-instance": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"delete-mcp-server-instance": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Delete MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-mcp-server-instance": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateMcpServerInstanceRequest"];
+			};
+		};
+		responses: {
+			/** @description Update MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"add-mcp-server-instance-function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["AddMcpServerInstanceFunctionRequest"];
+			};
+		};
+		responses: {
+			/** @description Add function to MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Conflict (function name already exists) */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"remove-mcp-server-instance-function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+				/** @description Function controller type ID */
+				function_controller_type_id: string;
+				/** @description Provider controller type ID */
+				provider_controller_type_id: string;
+				/** @description Provider instance ID */
+				provider_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Remove function from MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-mcp-server-instance-function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+				/** @description Function controller type ID */
+				function_controller_type_id: string;
+				/** @description Provider controller type ID */
+				provider_controller_type_id: string;
+				/** @description Provider instance ID */
+				provider_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateMcpServerInstanceFunctionRequest"];
+			};
+		};
+		responses: {
+			/** @description Update function in MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Conflict (function name already exists) */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"listen-to-mcp-sse": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+			};
 			cookie?: never;
 		};
 		requestBody?: never;
@@ -3058,7 +3281,10 @@ export interface operations {
 		parameters: {
 			query?: never;
 			header?: never;
-			path?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+			};
 			cookie?: never;
 		};
 		requestBody: {

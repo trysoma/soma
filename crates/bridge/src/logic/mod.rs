@@ -3,6 +3,7 @@ pub mod credential;
 pub mod credential_encryption;
 pub mod instance;
 pub mod mcp;
+pub mod mcp_server_instance;
 
 use std::sync::Arc;
 
@@ -84,6 +85,7 @@ pub use controller::*;
 pub use credential::*;
 pub use credential_encryption::*;
 pub use instance::*;
+pub use mcp_server_instance::*;
 
 // on change events
 

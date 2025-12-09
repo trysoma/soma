@@ -9,19 +9,19 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { PageLayout } from "@/components/ui/page-layout";
 
-export const Route = createFileRoute("/a2a/")({
+export const Route = createFileRoute("/agent/")({
 	component: RouteComponent,
 });
 
 function RouteComponent() {
 	// This page is shown when there are no agents registered or during loading
-	// The a2a.tsx layout will redirect to the first agent when available
+	// The agent.tsx layout will redirect to the first agent when available
 	return (
 		<PageLayout className="py-6">
 			<div className="space-y-6">
 				<PageHeader
-					title="Agent 2 Agent"
-					description="Manage and interact with your registered agents via the Agent 2 Agent protocol."
+					title="Agents"
+					description="Manage and interact with your registered agents via the A2A (Agent-to-Agent) protocol."
 				/>
 				<Card>
 					<CardHeader>

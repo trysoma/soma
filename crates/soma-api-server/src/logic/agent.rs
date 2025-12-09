@@ -8,6 +8,8 @@
 use crate::{
     logic::task as task_logic,
     repository::{CreateTask, Repository, TaskRepositoryLike},
+    router::agent::AgentListItem,
+    sdk::sdk_agent_sync::{AgentCache, get_all_agents},
 };
 use a2a_rs::types::Task;
 use a2a_rs::{
@@ -20,6 +22,17 @@ use shared::{
     primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4},
 };
 use tracing::info;
+
+/// List all agents from the agent cache
+pub fn list_agents(cache: &AgentCache) -> Vec<AgentListItem> {
+    get_all_agents(cache)
+        .into_iter()
+        .map(|agent| AgentListItem {
+            project_id: agent.project_id,
+            agent_id: agent.id,
+        })
+        .collect()
+}
 
 pub struct RepositoryTaskStore {
     repository: Repository,

@@ -19,6 +19,12 @@ from typing_extensions import Annotated
 from pydantic import Field, StrictInt, StrictStr
 from typing import Any, Dict, Optional
 from typing_extensions import Annotated
+from trysoma_api_client.models.add_mcp_server_instance_function_request import (
+    AddMcpServerInstanceFunctionRequest,
+)
+from trysoma_api_client.models.create_mcp_server_instance_request import (
+    CreateMcpServerInstanceRequest,
+)
 from trysoma_api_client.models.create_provider_instance_params_inner import (
     CreateProviderInstanceParamsInner,
 )
@@ -44,6 +50,12 @@ from trysoma_api_client.models.invoke_function_params_inner import (
     InvokeFunctionParamsInner,
 )
 from trysoma_api_client.models.invoke_result import InvokeResult
+from trysoma_api_client.models.mcp_server_instance_serialized_with_functions import (
+    McpServerInstanceSerializedWithFunctions,
+)
+from trysoma_api_client.models.mcp_server_instance_serialized_with_functions_paginated_response import (
+    McpServerInstanceSerializedWithFunctionsPaginatedResponse,
+)
 from trysoma_api_client.models.provider_controller_serialized_paginated_response import (
     ProviderControllerSerializedPaginatedResponse,
 )
@@ -61,6 +73,12 @@ from trysoma_api_client.models.resource_server_credential_serialized import (
 )
 from trysoma_api_client.models.start_user_credential_brokering_params_inner import (
     StartUserCredentialBrokeringParamsInner,
+)
+from trysoma_api_client.models.update_mcp_server_instance_function_request import (
+    UpdateMcpServerInstanceFunctionRequest,
+)
+from trysoma_api_client.models.update_mcp_server_instance_request import (
+    UpdateMcpServerInstanceRequest,
 )
 from trysoma_api_client.models.update_provider_instance_params_inner import (
     UpdateProviderInstanceParamsInner,
@@ -88,6 +106,547 @@ class BridgeApi:
         if api_client is None:
             api_client = ApiClient.get_default()
         self.api_client = api_client
+
+    @validate_call
+    def add_mcp_server_instance_function(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        add_mcp_server_instance_function_request: AddMcpServerInstanceFunctionRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> McpServerInstanceSerializedWithFunctions:
+        """Add function to MCP server instance
+
+        Add a function mapping to an MCP server instance with a custom name
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param add_mcp_server_instance_function_request: (required)
+        :type add_mcp_server_instance_function_request: AddMcpServerInstanceFunctionRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._add_mcp_server_instance_function_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            add_mcp_server_instance_function_request=add_mcp_server_instance_function_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "400": "Error",
+            "404": "Error",
+            "409": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+    @validate_call
+    def add_mcp_server_instance_function_with_http_info(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        add_mcp_server_instance_function_request: AddMcpServerInstanceFunctionRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[McpServerInstanceSerializedWithFunctions]:
+        """Add function to MCP server instance
+
+        Add a function mapping to an MCP server instance with a custom name
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param add_mcp_server_instance_function_request: (required)
+        :type add_mcp_server_instance_function_request: AddMcpServerInstanceFunctionRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._add_mcp_server_instance_function_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            add_mcp_server_instance_function_request=add_mcp_server_instance_function_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "400": "Error",
+            "404": "Error",
+            "409": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+    @validate_call
+    def add_mcp_server_instance_function_without_preload_content(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        add_mcp_server_instance_function_request: AddMcpServerInstanceFunctionRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Add function to MCP server instance
+
+        Add a function mapping to an MCP server instance with a custom name
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param add_mcp_server_instance_function_request: (required)
+        :type add_mcp_server_instance_function_request: AddMcpServerInstanceFunctionRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._add_mcp_server_instance_function_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            add_mcp_server_instance_function_request=add_mcp_server_instance_function_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "400": "Error",
+            "404": "Error",
+            "409": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+    def _add_mcp_server_instance_function_serialize(
+        self,
+        mcp_server_instance_id,
+        add_mcp_server_instance_function_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+        _host = None
+
+        _collection_formats: Dict[str, str] = {}
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if mcp_server_instance_id is not None:
+            _path_params["mcp_server_instance_id"] = mcp_server_instance_id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if add_mcp_server_instance_function_request is not None:
+            _body_params = add_mcp_server_instance_function_request
+
+        # set the HTTP header `Accept`
+        if "Accept" not in _header_params:
+            _header_params["Accept"] = self.api_client.select_header_accept(
+                ["application/json"]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params["Content-Type"] = _content_type
+        else:
+            _default_content_type = self.api_client.select_header_content_type(
+                ["application/json"]
+            )
+            if _default_content_type is not None:
+                _header_params["Content-Type"] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = []
+
+        return self.api_client.param_serialize(
+            method="POST",
+            resource_path="/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function",
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth,
+        )
+
+    @validate_call
+    def create_mcp_server_instance(
+        self,
+        create_mcp_server_instance_request: CreateMcpServerInstanceRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> McpServerInstanceSerializedWithFunctions:
+        """Create MCP server instance
+
+        Create a new MCP server instance with a user-provided ID
+
+        :param create_mcp_server_instance_request: (required)
+        :type create_mcp_server_instance_request: CreateMcpServerInstanceRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._create_mcp_server_instance_serialize(
+            create_mcp_server_instance_request=create_mcp_server_instance_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "400": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+    @validate_call
+    def create_mcp_server_instance_with_http_info(
+        self,
+        create_mcp_server_instance_request: CreateMcpServerInstanceRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[McpServerInstanceSerializedWithFunctions]:
+        """Create MCP server instance
+
+        Create a new MCP server instance with a user-provided ID
+
+        :param create_mcp_server_instance_request: (required)
+        :type create_mcp_server_instance_request: CreateMcpServerInstanceRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._create_mcp_server_instance_serialize(
+            create_mcp_server_instance_request=create_mcp_server_instance_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "400": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+    @validate_call
+    def create_mcp_server_instance_without_preload_content(
+        self,
+        create_mcp_server_instance_request: CreateMcpServerInstanceRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Create MCP server instance
+
+        Create a new MCP server instance with a user-provided ID
+
+        :param create_mcp_server_instance_request: (required)
+        :type create_mcp_server_instance_request: CreateMcpServerInstanceRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._create_mcp_server_instance_serialize(
+            create_mcp_server_instance_request=create_mcp_server_instance_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "400": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+    def _create_mcp_server_instance_serialize(
+        self,
+        create_mcp_server_instance_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+        _host = None
+
+        _collection_formats: Dict[str, str] = {}
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if create_mcp_server_instance_request is not None:
+            _body_params = create_mcp_server_instance_request
+
+        # set the HTTP header `Accept`
+        if "Accept" not in _header_params:
+            _header_params["Accept"] = self.api_client.select_header_accept(
+                ["application/json"]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params["Content-Type"] = _content_type
+        else:
+            _default_content_type = self.api_client.select_header_content_type(
+                ["application/json"]
+            )
+            if _default_content_type is not None:
+                _header_params["Content-Type"] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = []
+
+        return self.api_client.param_serialize(
+            method="POST",
+            resource_path="/api/bridge/v1/mcp-instance",
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth,
+        )
 
     @validate_call
     def create_provider_instance(
@@ -968,6 +1527,259 @@ class BridgeApi:
         return self.api_client.param_serialize(
             method="POST",
             resource_path="/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential",
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth,
+        )
+
+    @validate_call
+    def delete_mcp_server_instance(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> None:
+        """Delete MCP server instance
+
+        Delete an MCP server instance and all its function mappings
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._delete_mcp_server_instance_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": None,
+            "404": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+    @validate_call
+    def delete_mcp_server_instance_with_http_info(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[None]:
+        """Delete MCP server instance
+
+        Delete an MCP server instance and all its function mappings
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._delete_mcp_server_instance_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": None,
+            "404": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+    @validate_call
+    def delete_mcp_server_instance_without_preload_content(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Delete MCP server instance
+
+        Delete an MCP server instance and all its function mappings
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._delete_mcp_server_instance_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": None,
+            "404": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+    def _delete_mcp_server_instance_serialize(
+        self,
+        mcp_server_instance_id,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+        _host = None
+
+        _collection_formats: Dict[str, str] = {}
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if mcp_server_instance_id is not None:
+            _path_params["mcp_server_instance_id"] = mcp_server_instance_id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+        # set the HTTP header `Accept`
+        if "Accept" not in _header_params:
+            _header_params["Accept"] = self.api_client.select_header_accept(
+                ["application/json"]
+            )
+
+        # authentication setting
+        _auth_settings: List[str] = []
+
+        return self.api_client.param_serialize(
+            method="DELETE",
+            resource_path="/api/bridge/v1/mcp-instance/{mcp_server_instance_id}",
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -2638,6 +3450,259 @@ class BridgeApi:
         )
 
     @validate_call
+    def get_mcp_server_instance(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> McpServerInstanceSerializedWithFunctions:
+        """Get MCP server instance
+
+        Retrieve an MCP server instance by its ID
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._get_mcp_server_instance_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "404": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+    @validate_call
+    def get_mcp_server_instance_with_http_info(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[McpServerInstanceSerializedWithFunctions]:
+        """Get MCP server instance
+
+        Retrieve an MCP server instance by its ID
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._get_mcp_server_instance_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "404": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+    @validate_call
+    def get_mcp_server_instance_without_preload_content(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Get MCP server instance
+
+        Retrieve an MCP server instance by its ID
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._get_mcp_server_instance_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "404": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+    def _get_mcp_server_instance_serialize(
+        self,
+        mcp_server_instance_id,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+        _host = None
+
+        _collection_formats: Dict[str, str] = {}
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if mcp_server_instance_id is not None:
+            _path_params["mcp_server_instance_id"] = mcp_server_instance_id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+        # set the HTTP header `Accept`
+        if "Accept" not in _header_params:
+            _header_params["Accept"] = self.api_client.select_header_accept(
+                ["application/json"]
+            )
+
+        # authentication setting
+        _auth_settings: List[str] = []
+
+        return self.api_client.param_serialize(
+            method="GET",
+            resource_path="/api/bridge/v1/mcp-instance/{mcp_server_instance_id}",
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth,
+        )
+
+    @validate_call
     def get_provider_instance(
         self,
         provider_instance_id: Annotated[
@@ -3734,6 +4799,267 @@ class BridgeApi:
         )
 
     @validate_call
+    def list_mcp_server_instances(
+        self,
+        page_size: StrictInt,
+        next_page_token: Optional[StrictStr] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> McpServerInstanceSerializedWithFunctionsPaginatedResponse:
+        """List MCP server instances
+
+        List all MCP server instances with pagination
+
+        :param page_size: (required)
+        :type page_size: int
+        :param next_page_token:
+        :type next_page_token: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._list_mcp_server_instances_serialize(
+            page_size=page_size,
+            next_page_token=next_page_token,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctionsPaginatedResponse",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+    @validate_call
+    def list_mcp_server_instances_with_http_info(
+        self,
+        page_size: StrictInt,
+        next_page_token: Optional[StrictStr] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[McpServerInstanceSerializedWithFunctionsPaginatedResponse]:
+        """List MCP server instances
+
+        List all MCP server instances with pagination
+
+        :param page_size: (required)
+        :type page_size: int
+        :param next_page_token:
+        :type next_page_token: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._list_mcp_server_instances_serialize(
+            page_size=page_size,
+            next_page_token=next_page_token,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctionsPaginatedResponse",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+    @validate_call
+    def list_mcp_server_instances_without_preload_content(
+        self,
+        page_size: StrictInt,
+        next_page_token: Optional[StrictStr] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """List MCP server instances
+
+        List all MCP server instances with pagination
+
+        :param page_size: (required)
+        :type page_size: int
+        :param next_page_token:
+        :type next_page_token: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._list_mcp_server_instances_serialize(
+            page_size=page_size,
+            next_page_token=next_page_token,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctionsPaginatedResponse",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+    def _list_mcp_server_instances_serialize(
+        self,
+        page_size,
+        next_page_token,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+        _host = None
+
+        _collection_formats: Dict[str, str] = {}
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        # process the query parameters
+        if page_size is not None:
+            _query_params.append(("page_size", page_size))
+
+        if next_page_token is not None:
+            _query_params.append(("next_page_token", next_page_token))
+
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+        # set the HTTP header `Accept`
+        if "Accept" not in _header_params:
+            _header_params["Accept"] = self.api_client.select_header_accept(
+                ["application/json"]
+            )
+
+        # authentication setting
+        _auth_settings: List[str] = []
+
+        return self.api_client.param_serialize(
+            method="GET",
+            resource_path="/api/bridge/v1/mcp-instance",
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth,
+        )
+
+    @validate_call
     def list_provider_instances(
         self,
         page_size: StrictInt,
@@ -4332,6 +5658,9 @@ class BridgeApi:
     @validate_call
     def listen_to_mcp_sse(
         self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -4348,6 +5677,8 @@ class BridgeApi:
 
         Establish Server-Sent Events (SSE) connection for MCP protocol communication
 
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -4371,6 +5702,7 @@ class BridgeApi:
         """  # noqa: E501
 
         _param = self._listen_to_mcp_sse_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -4392,6 +5724,9 @@ class BridgeApi:
     @validate_call
     def listen_to_mcp_sse_with_http_info(
         self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -4408,6 +5743,8 @@ class BridgeApi:
 
         Establish Server-Sent Events (SSE) connection for MCP protocol communication
 
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -4431,6 +5768,7 @@ class BridgeApi:
         """  # noqa: E501
 
         _param = self._listen_to_mcp_sse_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -4452,6 +5790,9 @@ class BridgeApi:
     @validate_call
     def listen_to_mcp_sse_without_preload_content(
         self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -4468,6 +5809,8 @@ class BridgeApi:
 
         Establish Server-Sent Events (SSE) connection for MCP protocol communication
 
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -4491,6 +5834,7 @@ class BridgeApi:
         """  # noqa: E501
 
         _param = self._listen_to_mcp_sse_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -4507,6 +5851,7 @@ class BridgeApi:
 
     def _listen_to_mcp_sse_serialize(
         self,
+        mcp_server_instance_id,
         _request_auth,
         _content_type,
         _headers,
@@ -4526,6 +5871,8 @@ class BridgeApi:
         _body_params: Optional[bytes] = None
 
         # process the path parameters
+        if mcp_server_instance_id is not None:
+            _path_params["mcp_server_instance_id"] = mcp_server_instance_id
         # process the query parameters
         # process the header parameters
         # process the form parameters
@@ -4536,7 +5883,323 @@ class BridgeApi:
 
         return self.api_client.param_serialize(
             method="GET",
-            resource_path="/api/bridge/v1/mcp",
+            resource_path="/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp",
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth,
+        )
+
+    @validate_call
+    def remove_mcp_server_instance_function(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        function_controller_type_id: Annotated[
+            StrictStr, Field(description="Function controller type ID")
+        ],
+        provider_controller_type_id: Annotated[
+            StrictStr, Field(description="Provider controller type ID")
+        ],
+        provider_instance_id: Annotated[
+            StrictStr, Field(description="Provider instance ID")
+        ],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> McpServerInstanceSerializedWithFunctions:
+        """Remove function from MCP server instance
+
+        Remove a function mapping from an MCP server instance
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param function_controller_type_id: Function controller type ID (required)
+        :type function_controller_type_id: str
+        :param provider_controller_type_id: Provider controller type ID (required)
+        :type provider_controller_type_id: str
+        :param provider_instance_id: Provider instance ID (required)
+        :type provider_instance_id: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._remove_mcp_server_instance_function_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            function_controller_type_id=function_controller_type_id,
+            provider_controller_type_id=provider_controller_type_id,
+            provider_instance_id=provider_instance_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "404": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+    @validate_call
+    def remove_mcp_server_instance_function_with_http_info(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        function_controller_type_id: Annotated[
+            StrictStr, Field(description="Function controller type ID")
+        ],
+        provider_controller_type_id: Annotated[
+            StrictStr, Field(description="Provider controller type ID")
+        ],
+        provider_instance_id: Annotated[
+            StrictStr, Field(description="Provider instance ID")
+        ],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[McpServerInstanceSerializedWithFunctions]:
+        """Remove function from MCP server instance
+
+        Remove a function mapping from an MCP server instance
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param function_controller_type_id: Function controller type ID (required)
+        :type function_controller_type_id: str
+        :param provider_controller_type_id: Provider controller type ID (required)
+        :type provider_controller_type_id: str
+        :param provider_instance_id: Provider instance ID (required)
+        :type provider_instance_id: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._remove_mcp_server_instance_function_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            function_controller_type_id=function_controller_type_id,
+            provider_controller_type_id=provider_controller_type_id,
+            provider_instance_id=provider_instance_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "404": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+    @validate_call
+    def remove_mcp_server_instance_function_without_preload_content(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        function_controller_type_id: Annotated[
+            StrictStr, Field(description="Function controller type ID")
+        ],
+        provider_controller_type_id: Annotated[
+            StrictStr, Field(description="Provider controller type ID")
+        ],
+        provider_instance_id: Annotated[
+            StrictStr, Field(description="Provider instance ID")
+        ],
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Remove function from MCP server instance
+
+        Remove a function mapping from an MCP server instance
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param function_controller_type_id: Function controller type ID (required)
+        :type function_controller_type_id: str
+        :param provider_controller_type_id: Provider controller type ID (required)
+        :type provider_controller_type_id: str
+        :param provider_instance_id: Provider instance ID (required)
+        :type provider_instance_id: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._remove_mcp_server_instance_function_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            function_controller_type_id=function_controller_type_id,
+            provider_controller_type_id=provider_controller_type_id,
+            provider_instance_id=provider_instance_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "404": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+    def _remove_mcp_server_instance_function_serialize(
+        self,
+        mcp_server_instance_id,
+        function_controller_type_id,
+        provider_controller_type_id,
+        provider_instance_id,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+        _host = None
+
+        _collection_formats: Dict[str, str] = {}
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if mcp_server_instance_id is not None:
+            _path_params["mcp_server_instance_id"] = mcp_server_instance_id
+        if function_controller_type_id is not None:
+            _path_params["function_controller_type_id"] = function_controller_type_id
+        if provider_controller_type_id is not None:
+            _path_params["provider_controller_type_id"] = provider_controller_type_id
+        if provider_instance_id is not None:
+            _path_params["provider_instance_id"] = provider_instance_id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+        # set the HTTP header `Accept`
+        if "Accept" not in _header_params:
+            _header_params["Accept"] = self.api_client.select_header_accept(
+                ["application/json"]
+            )
+
+        # authentication setting
+        _auth_settings: List[str] = []
+
+        return self.api_client.param_serialize(
+            method="DELETE",
+            resource_path="/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}",
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -5173,6 +6836,9 @@ class BridgeApi:
     @validate_call
     def trigger_mcp_message(
         self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
         body: Dict[str, Any],
         _request_timeout: Union[
             None,
@@ -5190,6 +6856,8 @@ class BridgeApi:
 
         Send a JSON-RPC message to the MCP server
 
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
         :param body: (required)
         :type body: object
         :param _request_timeout: timeout setting for this request. If one
@@ -5215,6 +6883,7 @@ class BridgeApi:
         """  # noqa: E501
 
         _param = self._trigger_mcp_message_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
             body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -5237,6 +6906,9 @@ class BridgeApi:
     @validate_call
     def trigger_mcp_message_with_http_info(
         self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
         body: Dict[str, Any],
         _request_timeout: Union[
             None,
@@ -5254,6 +6926,8 @@ class BridgeApi:
 
         Send a JSON-RPC message to the MCP server
 
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
         :param body: (required)
         :type body: object
         :param _request_timeout: timeout setting for this request. If one
@@ -5279,6 +6953,7 @@ class BridgeApi:
         """  # noqa: E501
 
         _param = self._trigger_mcp_message_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
             body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -5301,6 +6976,9 @@ class BridgeApi:
     @validate_call
     def trigger_mcp_message_without_preload_content(
         self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
         body: Dict[str, Any],
         _request_timeout: Union[
             None,
@@ -5318,6 +6996,8 @@ class BridgeApi:
 
         Send a JSON-RPC message to the MCP server
 
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
         :param body: (required)
         :type body: object
         :param _request_timeout: timeout setting for this request. If one
@@ -5343,6 +7023,7 @@ class BridgeApi:
         """  # noqa: E501
 
         _param = self._trigger_mcp_message_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
             body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -5360,6 +7041,7 @@ class BridgeApi:
 
     def _trigger_mcp_message_serialize(
         self,
+        mcp_server_instance_id,
         body,
         _request_auth,
         _content_type,
@@ -5380,6 +7062,8 @@ class BridgeApi:
         _body_params: Optional[bytes] = None
 
         # process the path parameters
+        if mcp_server_instance_id is not None:
+            _path_params["mcp_server_instance_id"] = mcp_server_instance_id
         # process the query parameters
         # process the header parameters
         # process the form parameters
@@ -5402,7 +7086,629 @@ class BridgeApi:
 
         return self.api_client.param_serialize(
             method="POST",
-            resource_path="/api/bridge/v1/mcp",
+            resource_path="/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp",
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth,
+        )
+
+    @validate_call
+    def update_mcp_server_instance(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        update_mcp_server_instance_request: UpdateMcpServerInstanceRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> McpServerInstanceSerializedWithFunctions:
+        """Update MCP server instance
+
+        Update an MCP server instance name
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param update_mcp_server_instance_request: (required)
+        :type update_mcp_server_instance_request: UpdateMcpServerInstanceRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._update_mcp_server_instance_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            update_mcp_server_instance_request=update_mcp_server_instance_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "404": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+    @validate_call
+    def update_mcp_server_instance_with_http_info(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        update_mcp_server_instance_request: UpdateMcpServerInstanceRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[McpServerInstanceSerializedWithFunctions]:
+        """Update MCP server instance
+
+        Update an MCP server instance name
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param update_mcp_server_instance_request: (required)
+        :type update_mcp_server_instance_request: UpdateMcpServerInstanceRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._update_mcp_server_instance_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            update_mcp_server_instance_request=update_mcp_server_instance_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "404": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+    @validate_call
+    def update_mcp_server_instance_without_preload_content(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        update_mcp_server_instance_request: UpdateMcpServerInstanceRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Update MCP server instance
+
+        Update an MCP server instance name
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param update_mcp_server_instance_request: (required)
+        :type update_mcp_server_instance_request: UpdateMcpServerInstanceRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._update_mcp_server_instance_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            update_mcp_server_instance_request=update_mcp_server_instance_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "404": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+    def _update_mcp_server_instance_serialize(
+        self,
+        mcp_server_instance_id,
+        update_mcp_server_instance_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+        _host = None
+
+        _collection_formats: Dict[str, str] = {}
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if mcp_server_instance_id is not None:
+            _path_params["mcp_server_instance_id"] = mcp_server_instance_id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if update_mcp_server_instance_request is not None:
+            _body_params = update_mcp_server_instance_request
+
+        # set the HTTP header `Accept`
+        if "Accept" not in _header_params:
+            _header_params["Accept"] = self.api_client.select_header_accept(
+                ["application/json"]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params["Content-Type"] = _content_type
+        else:
+            _default_content_type = self.api_client.select_header_content_type(
+                ["application/json"]
+            )
+            if _default_content_type is not None:
+                _header_params["Content-Type"] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = []
+
+        return self.api_client.param_serialize(
+            method="PATCH",
+            resource_path="/api/bridge/v1/mcp-instance/{mcp_server_instance_id}",
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth,
+        )
+
+    @validate_call
+    def update_mcp_server_instance_function(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        function_controller_type_id: Annotated[
+            StrictStr, Field(description="Function controller type ID")
+        ],
+        provider_controller_type_id: Annotated[
+            StrictStr, Field(description="Provider controller type ID")
+        ],
+        provider_instance_id: Annotated[
+            StrictStr, Field(description="Provider instance ID")
+        ],
+        update_mcp_server_instance_function_request: UpdateMcpServerInstanceFunctionRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> McpServerInstanceSerializedWithFunctions:
+        """Update function in MCP server instance
+
+        Update the function name and description for a function mapping
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param function_controller_type_id: Function controller type ID (required)
+        :type function_controller_type_id: str
+        :param provider_controller_type_id: Provider controller type ID (required)
+        :type provider_controller_type_id: str
+        :param provider_instance_id: Provider instance ID (required)
+        :type provider_instance_id: str
+        :param update_mcp_server_instance_function_request: (required)
+        :type update_mcp_server_instance_function_request: UpdateMcpServerInstanceFunctionRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._update_mcp_server_instance_function_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            function_controller_type_id=function_controller_type_id,
+            provider_controller_type_id=provider_controller_type_id,
+            provider_instance_id=provider_instance_id,
+            update_mcp_server_instance_function_request=update_mcp_server_instance_function_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "404": "Error",
+            "409": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+    @validate_call
+    def update_mcp_server_instance_function_with_http_info(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        function_controller_type_id: Annotated[
+            StrictStr, Field(description="Function controller type ID")
+        ],
+        provider_controller_type_id: Annotated[
+            StrictStr, Field(description="Provider controller type ID")
+        ],
+        provider_instance_id: Annotated[
+            StrictStr, Field(description="Provider instance ID")
+        ],
+        update_mcp_server_instance_function_request: UpdateMcpServerInstanceFunctionRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[McpServerInstanceSerializedWithFunctions]:
+        """Update function in MCP server instance
+
+        Update the function name and description for a function mapping
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param function_controller_type_id: Function controller type ID (required)
+        :type function_controller_type_id: str
+        :param provider_controller_type_id: Provider controller type ID (required)
+        :type provider_controller_type_id: str
+        :param provider_instance_id: Provider instance ID (required)
+        :type provider_instance_id: str
+        :param update_mcp_server_instance_function_request: (required)
+        :type update_mcp_server_instance_function_request: UpdateMcpServerInstanceFunctionRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._update_mcp_server_instance_function_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            function_controller_type_id=function_controller_type_id,
+            provider_controller_type_id=provider_controller_type_id,
+            provider_instance_id=provider_instance_id,
+            update_mcp_server_instance_function_request=update_mcp_server_instance_function_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "404": "Error",
+            "409": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+    @validate_call
+    def update_mcp_server_instance_function_without_preload_content(
+        self,
+        mcp_server_instance_id: Annotated[
+            StrictStr, Field(description="MCP server instance ID")
+        ],
+        function_controller_type_id: Annotated[
+            StrictStr, Field(description="Function controller type ID")
+        ],
+        provider_controller_type_id: Annotated[
+            StrictStr, Field(description="Provider controller type ID")
+        ],
+        provider_instance_id: Annotated[
+            StrictStr, Field(description="Provider instance ID")
+        ],
+        update_mcp_server_instance_function_request: UpdateMcpServerInstanceFunctionRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]
+            ],
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Update function in MCP server instance
+
+        Update the function name and description for a function mapping
+
+        :param mcp_server_instance_id: MCP server instance ID (required)
+        :type mcp_server_instance_id: str
+        :param function_controller_type_id: Function controller type ID (required)
+        :type function_controller_type_id: str
+        :param provider_controller_type_id: Provider controller type ID (required)
+        :type provider_controller_type_id: str
+        :param provider_instance_id: Provider instance ID (required)
+        :type provider_instance_id: str
+        :param update_mcp_server_instance_function_request: (required)
+        :type update_mcp_server_instance_function_request: UpdateMcpServerInstanceFunctionRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """  # noqa: E501
+
+        _param = self._update_mcp_server_instance_function_serialize(
+            mcp_server_instance_id=mcp_server_instance_id,
+            function_controller_type_id=function_controller_type_id,
+            provider_controller_type_id=provider_controller_type_id,
+            provider_instance_id=provider_instance_id,
+            update_mcp_server_instance_function_request=update_mcp_server_instance_function_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            "200": "McpServerInstanceSerializedWithFunctions",
+            "404": "Error",
+            "409": "Error",
+            "500": "Error",
+        }
+        response_data = self.api_client.call_api(
+            *_param, _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+    def _update_mcp_server_instance_function_serialize(
+        self,
+        mcp_server_instance_id,
+        function_controller_type_id,
+        provider_controller_type_id,
+        provider_instance_id,
+        update_mcp_server_instance_function_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+        _host = None
+
+        _collection_formats: Dict[str, str] = {}
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if mcp_server_instance_id is not None:
+            _path_params["mcp_server_instance_id"] = mcp_server_instance_id
+        if function_controller_type_id is not None:
+            _path_params["function_controller_type_id"] = function_controller_type_id
+        if provider_controller_type_id is not None:
+            _path_params["provider_controller_type_id"] = provider_controller_type_id
+        if provider_instance_id is not None:
+            _path_params["provider_instance_id"] = provider_instance_id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if update_mcp_server_instance_function_request is not None:
+            _body_params = update_mcp_server_instance_function_request
+
+        # set the HTTP header `Accept`
+        if "Accept" not in _header_params:
+            _header_params["Accept"] = self.api_client.select_header_accept(
+                ["application/json"]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params["Content-Type"] = _content_type
+        else:
+            _default_content_type = self.api_client.select_header_content_type(
+                ["application/json"]
+            )
+            if _default_content_type is not None:
+                _header_params["Content-Type"] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = []
+
+        return self.api_client.param_serialize(
+            method="PATCH",
+            resource_path="/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}",
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

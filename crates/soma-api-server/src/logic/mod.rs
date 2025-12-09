@@ -1,4 +1,4 @@
-pub mod a2a;
+pub mod agent;
 pub mod bridge;
 pub mod environment_variable;
 pub mod environment_variable_sync;

@@ -16,9 +16,13 @@ use crate::logic::instance::{
     FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
     ProviderInstanceSerializedWithCredentials, ProviderInstanceSerializedWithFunctions,
 };
+use crate::logic::mcp_server_instance::{
+    McpServerInstanceFunctionSerialized, McpServerInstanceSerializedWithFunctions,
+};
 use crate::repository::{
-    CreateBrokerState, CreateFunctionInstance, CreateProviderInstance,
-    CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
+    CreateBrokerState, CreateFunctionInstance, CreateMcpServerInstance,
+    CreateMcpServerInstanceFunction, CreateProviderInstance, CreateResourceServerCredential,
+    CreateUserCredential, ProviderRepositoryLike, UpdateMcpServerInstanceFunction,
 };
 use anyhow::Context;
 use shared::primitives::{WrappedChronoDateTime, WrappedJsonValue};
@@ -784,6 +788,326 @@ impl ProviderRepositoryLike for Repository {
             items
                 .last()
                 .map(|item| item.provider_instance.created_at.to_string())
+        } else {
+            None
+        };
+
+        Ok(PaginatedResponse {
+            items,
+            next_page_token,
+        })
+    }
+
+    // MCP Server Instance methods
+    async fn create_mcp_server_instance(
+        &self,
+        params: &CreateMcpServerInstance,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = create_mcp_server_instance_params {
+            id: &params.id,
+            name: &params.name,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+        };
+
+        create_mcp_server_instance(&self.conn, sqlc_params)
+            .await
+            .context("Failed to create MCP server instance")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn get_mcp_server_instance_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<McpServerInstanceSerializedWithFunctions>, CommonError> {
+        let id_string = id.to_string();
+        let sqlc_params = get_mcp_server_instance_by_id_params { id: &id_string };
+
+        let result = get_mcp_server_instance_by_id(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get MCP server instance by id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        result.map(|row| row.try_into()).transpose()
+    }
+
+    async fn update_mcp_server_instance(&self, id: &str, name: &str) -> Result<(), CommonError> {
+        let id_string = id.to_string();
+        let name_string = name.to_string();
+        let sqlc_params = update_mcp_server_instance_params {
+            name: &name_string,
+            id: &id_string,
+        };
+
+        update_mcp_server_instance(&self.conn, sqlc_params)
+            .await
+            .context("Failed to update MCP server instance")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn delete_mcp_server_instance(&self, id: &str) -> Result<(), CommonError> {
+        let id_string = id.to_string();
+        let sqlc_params = delete_mcp_server_instance_params { id: &id_string };
+
+        delete_mcp_server_instance(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete MCP server instance")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn list_mcp_server_instances(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<McpServerInstanceSerializedWithFunctions>, CommonError> {
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(|e| {
+                        CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        }
+                    })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let sqlc_params = list_mcp_server_instances_params {
+            cursor: &cursor_datetime,
+            page_size: &pagination.page_size,
+        };
+
+        let rows = list_mcp_server_instances(&self.conn, sqlc_params)
+            .await
+            .context("Failed to list MCP server instances")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Vec<McpServerInstanceSerializedWithFunctions> = rows
+            .into_iter()
+            .map(|row| row.try_into())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let has_more = items.len() > pagination.page_size as usize;
+        let items = if has_more {
+            items[..pagination.page_size as usize].to_vec()
+        } else {
+            items
+        };
+
+        let next_page_token = if has_more {
+            items.last().map(|item| item.created_at.to_string())
+        } else {
+            None
+        };
+
+        Ok(PaginatedResponse {
+            items,
+            next_page_token,
+        })
+    }
+
+    async fn create_mcp_server_instance_function(
+        &self,
+        params: &CreateMcpServerInstanceFunction,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = create_mcp_server_instance_function_params {
+            mcp_server_instance_id: &params.mcp_server_instance_id,
+            function_controller_type_id: &params.function_controller_type_id,
+            provider_controller_type_id: &params.provider_controller_type_id,
+            provider_instance_id: &params.provider_instance_id,
+            function_name: &params.function_name,
+            function_description: &params.function_description,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+        };
+
+        create_mcp_server_instance_function(&self.conn, sqlc_params)
+            .await
+            .context("Failed to create MCP server instance function")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn delete_mcp_server_instance_function(
+        &self,
+        mcp_server_instance_id: &str,
+        function_controller_type_id: &str,
+        provider_controller_type_id: &str,
+        provider_instance_id: &str,
+    ) -> Result<(), CommonError> {
+        let mcp_server_instance_id_string = mcp_server_instance_id.to_string();
+        let function_controller_type_id_string = function_controller_type_id.to_string();
+        let provider_controller_type_id_string = provider_controller_type_id.to_string();
+        let provider_instance_id_string = provider_instance_id.to_string();
+
+        let sqlc_params = delete_mcp_server_instance_function_params {
+            mcp_server_instance_id: &mcp_server_instance_id_string,
+            function_controller_type_id: &function_controller_type_id_string,
+            provider_controller_type_id: &provider_controller_type_id_string,
+            provider_instance_id: &provider_instance_id_string,
+        };
+
+        delete_mcp_server_instance_function(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete MCP server instance function")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn delete_all_mcp_server_instance_functions(
+        &self,
+        mcp_server_instance_id: &str,
+    ) -> Result<(), CommonError> {
+        let mcp_server_instance_id_string = mcp_server_instance_id.to_string();
+        let sqlc_params = delete_all_mcp_server_instance_functions_params {
+            mcp_server_instance_id: &mcp_server_instance_id_string,
+        };
+
+        delete_all_mcp_server_instance_functions(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete all MCP server instance functions")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn update_mcp_server_instance_function(
+        &self,
+        params: &UpdateMcpServerInstanceFunction,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = update_mcp_server_instance_function_params {
+            function_name: &params.function_name,
+            function_description: &params.function_description,
+            mcp_server_instance_id: &params.mcp_server_instance_id,
+            function_controller_type_id: &params.function_controller_type_id,
+            provider_controller_type_id: &params.provider_controller_type_id,
+            provider_instance_id: &params.provider_instance_id,
+        };
+
+        update_mcp_server_instance_function(&self.conn, sqlc_params)
+            .await
+            .context("Failed to update MCP server instance function")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn get_mcp_server_instance_function_by_name(
+        &self,
+        mcp_server_instance_id: &str,
+        function_name: &str,
+    ) -> Result<Option<McpServerInstanceFunctionSerialized>, CommonError> {
+        let mcp_server_instance_id_string = mcp_server_instance_id.to_string();
+        let function_name_string = function_name.to_string();
+        let sqlc_params = get_mcp_server_instance_function_by_name_params {
+            mcp_server_instance_id: &mcp_server_instance_id_string,
+            function_name: &function_name_string,
+        };
+
+        let result = get_mcp_server_instance_function_by_name(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get MCP server instance function by name")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        result.map(|row| row.try_into()).transpose()
+    }
+
+    async fn list_mcp_server_instance_functions(
+        &self,
+        mcp_server_instance_id: &str,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<McpServerInstanceFunctionSerialized>, CommonError> {
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(|e| {
+                        CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        }
+                    })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let mcp_server_instance_id_string = mcp_server_instance_id.to_string();
+        let sqlc_params = list_mcp_server_instance_functions_params {
+            mcp_server_instance_id: &mcp_server_instance_id_string,
+            cursor: &cursor_datetime,
+            page_size: &pagination.page_size,
+        };
+
+        let rows = list_mcp_server_instance_functions(&self.conn, sqlc_params)
+            .await
+            .context("Failed to list MCP server instance functions")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Vec<McpServerInstanceFunctionSerialized> = rows
+            .into_iter()
+            .map(|row| row.try_into())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let has_more = items.len() > pagination.page_size as usize;
+        let items = if has_more {
+            items[..pagination.page_size as usize].to_vec()
+        } else {
+            items
+        };
+
+        let next_page_token = if has_more {
+            items.last().map(|item| item.created_at.to_string())
         } else {
             None
         };

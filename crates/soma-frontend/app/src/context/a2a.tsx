@@ -15,14 +15,11 @@ import {
 import { v4 } from "uuid";
 import type { components } from "@/@types/openapi";
 import $api from "@/lib/api-client";
-export const DEFAULT_AGENT_CARD_PATH = "/api/a2a/v1/.well-known/agent.json";
-export const DEFAULT_AGENT_SSE_PATH = "/api/a2a/v1";
-
 // Helper to construct agent-specific paths
 export const getAgentCardPath = (projectId: string, agentId: string) =>
-	`/api/a2a/v1/${projectId}/${agentId}/.well-known/agent.json`;
-export const getAgentSsePath = (projectId: string, agentId: string) =>
-	`/api/a2a/v1/${projectId}/${agentId}`;
+	`/api/agent/${projectId}/${agentId}/a2a/.well-known/agent.json`;
+export const getAgentA2APath = (projectId: string, agentId: string) =>
+	`/api/agent/${projectId}/${agentId}/a2a`;
 // type User = Awaited<WhoAmI>;
 
 // type UserContextValue = {
@@ -288,16 +285,13 @@ const mapA2aTaskStatusUpdateToWrappedTask = (
 };
 interface A2aProviderProps {
 	children: ReactNode;
-	projectId?: string;
-	agentId?: string;
+	projectId: string;
+	agentId: string;
 }
 
 function A2aProviderInner({ children, projectId, agentId }: A2aProviderProps) {
-	// Construct agent-specific paths if projectId and agentId are provided
-	const agentCardPath =
-		projectId && agentId
-			? getAgentCardPath(projectId, agentId)
-			: DEFAULT_AGENT_CARD_PATH;
+	// Construct agent-specific paths
+	const agentCardPath = getAgentCardPath(projectId, agentId);
 	const [ready, setReady] = useState(false);
 	const [agentCard, setAgentCard] = useState<AgentCard | null>(null);
 	const [contexts, setContexts] = useState<Context[]>([]);
@@ -314,7 +308,7 @@ function A2aProviderInner({ children, projectId, agentId }: A2aProviderProps) {
 	const [_curContextPageToken, setCurContextPageToken] = useState<
 		string | undefined
 	>(undefined);
-	const fetchPageOfContexts = async (pageToken: string | null) => {
+	const fetchPageOfContexts = useCallback(async (pageToken: string | null) => {
 		const res = await $api.GET("/api/task/v1/context", {
 			params: {
 				query: {
@@ -352,7 +346,7 @@ function A2aProviderInner({ children, projectId, agentId }: A2aProviderProps) {
 
 			return prevCopy;
 		});
-	};
+	}, []);
 
 	const fetchPageOfTasks = async (
 		contextId: string,
@@ -403,14 +397,14 @@ function A2aProviderInner({ children, projectId, agentId }: A2aProviderProps) {
 	}, [fetchPageOfContexts]);
 
 	// manage the task stream
-	const unsubscribeTaskStream = async () => {
+	const unsubscribeTaskStream = useCallback(async () => {
 		if (a2aTaskStream.current) {
 			// TODO: a2ajs does not support aborting the SSE stream
 			// await a2aTaskStream.current.generator.return();
 			a2aTaskStream.current.abort.abort();
 			a2aTaskStream.current = null;
 		}
-	};
+	}, []);
 
 	const processTaskStream = async (
 		generator: ReturnType<A2AClient["resubscribeTask"]>,
@@ -442,7 +436,10 @@ function A2aProviderInner({ children, projectId, agentId }: A2aProviderProps) {
 				// instead of submitted
 				case "task": {
 					// taskId can be null if it's the first message
-					if (a2aTaskStream.current?.taskId !== event.id) {
+					if (
+						a2aTaskStream.current &&
+						a2aTaskStream.current.taskId !== event.id
+					) {
 						a2aTaskStream.current.taskId = event.id;
 						console.log("taskId for stream changed to", event.id);
 					}

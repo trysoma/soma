@@ -13,8 +13,10 @@ Do not edit the class manually.
 """  # noqa: E501
 
 # import models into model package
-from trysoma_api_client.models.api_key_yaml_config import ApiKeyYamlConfig
-from trysoma_api_client.models.bridge_config import BridgeConfig
+from trysoma_api_client.models.add_mcp_server_instance_function_request import (
+    AddMcpServerInstanceFunctionRequest,
+)
+from trysoma_api_client.models.agent_list_item import AgentListItem
 from trysoma_api_client.models.broker_action import BrokerAction
 from trysoma_api_client.models.broker_action_one_of import BrokerActionOneOf
 from trysoma_api_client.models.broker_action_redirect import BrokerActionRedirect
@@ -32,6 +34,9 @@ from trysoma_api_client.models.create_data_encryption_key_params_route import (
 from trysoma_api_client.models.create_dek_alias_request import CreateDekAliasRequest
 from trysoma_api_client.models.create_environment_variable_request import (
     CreateEnvironmentVariableRequest,
+)
+from trysoma_api_client.models.create_mcp_server_instance_request import (
+    CreateMcpServerInstanceRequest,
 )
 from trysoma_api_client.models.create_message_request import CreateMessageRequest
 from trysoma_api_client.models.create_message_response import CreateMessageResponse
@@ -51,7 +56,6 @@ from trysoma_api_client.models.create_user_auth_flow_config_response import (
 from trysoma_api_client.models.create_user_credential_params_inner import (
     CreateUserCredentialParamsInner,
 )
-from trysoma_api_client.models.credential_config import CredentialConfig
 from trysoma_api_client.models.data_encryption_key import DataEncryptionKey
 from trysoma_api_client.models.data_encryption_key_alias import DataEncryptionKeyAlias
 from trysoma_api_client.models.data_encryption_key_list_item import (
@@ -61,7 +65,6 @@ from trysoma_api_client.models.data_encryption_key_list_item_paginated_response 
     DataEncryptionKeyListItemPaginatedResponse,
 )
 from trysoma_api_client.models.decrypted_secret import DecryptedSecret
-from trysoma_api_client.models.dek_config import DekConfig
 from trysoma_api_client.models.delete_environment_variable_response import (
     DeleteEnvironmentVariableResponse,
 )
@@ -72,11 +75,7 @@ from trysoma_api_client.models.encrypt_credential_configuration_params_inner imp
 )
 from trysoma_api_client.models.encrypted_api_key_config import EncryptedApiKeyConfig
 from trysoma_api_client.models.encrypted_oauth_config import EncryptedOauthConfig
-from trysoma_api_client.models.encrypted_oauth_yaml_config import (
-    EncryptedOauthYamlConfig,
-)
 from trysoma_api_client.models.encrypted_oidc_config import EncryptedOidcConfig
-from trysoma_api_client.models.encrypted_oidc_yaml_config import EncryptedOidcYamlConfig
 from trysoma_api_client.models.encrypted_user_auth_flow_config import (
     EncryptedUserAuthFlowConfig,
 )
@@ -92,7 +91,6 @@ from trysoma_api_client.models.encrypted_user_auth_flow_config_one_of2 import (
 from trysoma_api_client.models.encrypted_user_auth_flow_config_one_of3 import (
     EncryptedUserAuthFlowConfigOneOf3,
 )
-from trysoma_api_client.models.encryption_config import EncryptionConfig
 from trysoma_api_client.models.envelope_encryption_key import EnvelopeEncryptionKey
 from trysoma_api_client.models.envelope_encryption_key_aws_kms import (
     EnvelopeEncryptionKeyAwsKms,
@@ -108,15 +106,6 @@ from trysoma_api_client.models.envelope_encryption_key_one_of1 import (
 )
 from trysoma_api_client.models.envelope_encryption_key_paginated_response import (
     EnvelopeEncryptionKeyPaginatedResponse,
-)
-from trysoma_api_client.models.envelope_key_config import EnvelopeKeyConfig
-from trysoma_api_client.models.envelope_key_config_aws_kms import (
-    EnvelopeKeyConfigAwsKms,
-)
-from trysoma_api_client.models.envelope_key_config_local import EnvelopeKeyConfigLocal
-from trysoma_api_client.models.envelope_key_config_one_of import EnvelopeKeyConfigOneOf
-from trysoma_api_client.models.envelope_key_config_one_of1 import (
-    EnvelopeKeyConfigOneOf1,
 )
 from trysoma_api_client.models.environment_variable import EnvironmentVariable
 from trysoma_api_client.models.error import Error
@@ -140,11 +129,9 @@ from trysoma_api_client.models.get_user_auth_flow_config_response import (
     GetUserAuthFlowConfigResponse,
 )
 from trysoma_api_client.models.group_to_role_mapping import GroupToRoleMapping
-from trysoma_api_client.models.group_to_role_mapping_yaml import GroupToRoleMappingYaml
 from trysoma_api_client.models.hashed_api_key import HashedApiKey
 from trysoma_api_client.models.human import Human
 from trysoma_api_client.models.identity import Identity
-from trysoma_api_client.models.identity_config import IdentityConfig
 from trysoma_api_client.models.identity_one_of import IdentityOneOf
 from trysoma_api_client.models.identity_one_of1 import IdentityOneOf1
 from trysoma_api_client.models.identity_one_of2 import IdentityOneOf2
@@ -172,15 +159,13 @@ from trysoma_api_client.models.jwk_response_paginated_response import (
     JwkResponsePaginatedResponse,
 )
 from trysoma_api_client.models.jwks_response import JwksResponse
-from trysoma_api_client.models.jwt_mapping_config_yaml import JwtMappingConfigYaml
-from trysoma_api_client.models.jwt_template_config_yaml import JwtTemplateConfigYaml
 from trysoma_api_client.models.jwt_template_mode_config import JwtTemplateModeConfig
 from trysoma_api_client.models.jwt_token_mapping_config import JwtTokenMappingConfig
 from trysoma_api_client.models.jwt_token_template_config import JwtTokenTemplateConfig
 from trysoma_api_client.models.jwt_token_template_validation_config import (
     JwtTokenTemplateValidationConfig,
 )
-from trysoma_api_client.models.jwt_validation_config_yaml import JwtValidationConfigYaml
+from trysoma_api_client.models.list_agents_response import ListAgentsResponse
 from trysoma_api_client.models.list_api_keys_response import ListApiKeysResponse
 from trysoma_api_client.models.list_decrypted_secrets_response import (
     ListDecryptedSecretsResponse,
@@ -203,6 +188,15 @@ from trysoma_api_client.models.mapping_source_string_one_of1 import (
 from trysoma_api_client.models.mapping_source_string_one_of2 import (
     MappingSourceStringOneOf2,
 )
+from trysoma_api_client.models.mcp_server_instance_function_serialized import (
+    McpServerInstanceFunctionSerialized,
+)
+from trysoma_api_client.models.mcp_server_instance_serialized_with_functions import (
+    McpServerInstanceSerializedWithFunctions,
+)
+from trysoma_api_client.models.mcp_server_instance_serialized_with_functions_paginated_response import (
+    McpServerInstanceSerializedWithFunctionsPaginatedResponse,
+)
 from trysoma_api_client.models.message import Message
 from trysoma_api_client.models.message_part import MessagePart
 from trysoma_api_client.models.message_role import MessageRole
@@ -218,7 +212,6 @@ from trysoma_api_client.models.normalized_token_issuance_result import (
 )
 from trysoma_api_client.models.oauth_config import OauthConfig
 from trysoma_api_client.models.oidc_config import OidcConfig
-from trysoma_api_client.models.provider_config import ProviderConfig
 from trysoma_api_client.models.provider_controller_serialized import (
     ProviderControllerSerialized,
 )
@@ -251,20 +244,11 @@ from trysoma_api_client.models.return_address import ReturnAddress
 from trysoma_api_client.models.return_address_url import ReturnAddressUrl
 from trysoma_api_client.models.role import Role
 from trysoma_api_client.models.scope_to_group_mapping import ScopeToGroupMapping
-from trysoma_api_client.models.scope_to_group_mapping_yaml import (
-    ScopeToGroupMappingYaml,
-)
 from trysoma_api_client.models.scope_to_role_mapping import ScopeToRoleMapping
-from trysoma_api_client.models.scope_to_role_mapping_yaml import ScopeToRoleMappingYaml
 from trysoma_api_client.models.secret import Secret
-from trysoma_api_client.models.secret_config import SecretConfig
-from trysoma_api_client.models.soma_agent_definition import SomaAgentDefinition
 from trysoma_api_client.models.start_user_credential_brokering_params_inner import (
     StartUserCredentialBrokeringParamsInner,
 )
-from trysoma_api_client.models.sts_config_yaml import StsConfigYaml
-from trysoma_api_client.models.sts_config_yaml_one_of import StsConfigYamlOneOf
-from trysoma_api_client.models.sts_config_yaml_one_of1 import StsConfigYamlOneOf1
 from trysoma_api_client.models.sts_token_config import StsTokenConfig
 from trysoma_api_client.models.sts_token_config_one_of import StsTokenConfigOneOf
 from trysoma_api_client.models.sts_token_config_one_of1 import StsTokenConfigOneOf1
@@ -293,16 +277,17 @@ from trysoma_api_client.models.text_part import TextPart
 from trysoma_api_client.models.token_location import TokenLocation
 from trysoma_api_client.models.token_location_one_of import TokenLocationOneOf
 from trysoma_api_client.models.token_location_one_of1 import TokenLocationOneOf1
-from trysoma_api_client.models.token_location_yaml import TokenLocationYaml
-from trysoma_api_client.models.token_location_yaml_one_of import TokenLocationYamlOneOf
-from trysoma_api_client.models.token_location_yaml_one_of1 import (
-    TokenLocationYamlOneOf1,
-)
 from trysoma_api_client.models.token_mapping import TokenMapping
 from trysoma_api_client.models.token_response import TokenResponse
 from trysoma_api_client.models.update_alias_params import UpdateAliasParams
 from trysoma_api_client.models.update_environment_variable_request import (
     UpdateEnvironmentVariableRequest,
+)
+from trysoma_api_client.models.update_mcp_server_instance_function_request import (
+    UpdateMcpServerInstanceFunctionRequest,
+)
+from trysoma_api_client.models.update_mcp_server_instance_request import (
+    UpdateMcpServerInstanceRequest,
 )
 from trysoma_api_client.models.update_provider_instance_params_inner import (
     UpdateProviderInstanceParamsInner,
@@ -321,19 +306,6 @@ from trysoma_api_client.models.user_auth_flow_config_one_of2 import (
 )
 from trysoma_api_client.models.user_auth_flow_config_one_of3 import (
     UserAuthFlowConfigOneOf3,
-)
-from trysoma_api_client.models.user_auth_flow_yaml_config import UserAuthFlowYamlConfig
-from trysoma_api_client.models.user_auth_flow_yaml_config_one_of import (
-    UserAuthFlowYamlConfigOneOf,
-)
-from trysoma_api_client.models.user_auth_flow_yaml_config_one_of1 import (
-    UserAuthFlowYamlConfigOneOf1,
-)
-from trysoma_api_client.models.user_auth_flow_yaml_config_one_of2 import (
-    UserAuthFlowYamlConfigOneOf2,
-)
-from trysoma_api_client.models.user_auth_flow_yaml_config_one_of3 import (
-    UserAuthFlowYamlConfigOneOf3,
 )
 from trysoma_api_client.models.user_credential_brokering_response import (
     UserCredentialBrokeringResponse,

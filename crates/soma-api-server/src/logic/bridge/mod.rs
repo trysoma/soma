@@ -72,6 +72,7 @@ pub fn start_mcp_subsystem(
 pub fn start_bridge_client_generation_subsystem(
     bridge_repo: bridge::repository::Repository,
     sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+    agent_cache: crate::sdk::sdk_agent_sync::AgentCache,
     mut on_bridge_config_change_rx: OnConfigChangeRx,
     mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
 ) -> Result<SubsystemHandle, CommonError> {
@@ -108,7 +109,7 @@ pub fn start_bridge_client_generation_subsystem(
                                     };
 
                                     if health_ready {
-                                        match crate::logic::bridge::codegen::trigger_bridge_client_generation(client, &bridge_repo).await {
+                                        match crate::logic::bridge::codegen::trigger_bridge_client_generation(client, &bridge_repo, &agent_cache).await {
                                             Ok(()) => {
                                                 info!("Bridge client generation completed successfully");
                                             }

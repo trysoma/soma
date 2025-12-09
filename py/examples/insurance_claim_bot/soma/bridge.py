@@ -17,47 +17,6 @@ TResult = TypeVar("TResult")
 
 
 
-
-# Type definitions for ApproveClaim.approve_claim params
-
-class _ApproveClaimApproveClaimParamsClaim(TypedDict):
-
-
-    amount: float
-
-    category: str
-
-    date: str
-
-    email: str
-
-    reason: str
-
-
-
-
-class ApproveClaimApproveClaimParams(TypedDict):
-
-
-    claim: _ApproveClaimApproveClaimParamsClaim
-
-
-
-
-# Type definitions for ApproveClaim.approve_claim result
-
-class ApproveClaimApproveClaimResult(TypedDict):
-
-
-    approved: bool
-
-
-
-
-
-
-
-
 async def _invoke_bridge_function(
     ctx: "ObjectContext",
     provider_instance_id: str,
@@ -82,45 +41,12 @@ async def _invoke_bridge_function(
 
 
 
-class ApproveClaimAccount:
-    """Account wrapper for approve-claim provider."""
-
-    def __init__(self, ctx: "ObjectContext", provider_instance_id: str):
-        self._ctx = ctx
-        self._provider_instance_id = provider_instance_id
-
-
-
-    async def approve_claim(self, params: ApproveClaimApproveClaimParams) -> ApproveClaimApproveClaimResult:
-        """Call the approve-claim function."""
-        return await _invoke_bridge_function(
-            self._ctx,
-            self._provider_instance_id,
-            "approve-claim",
-            params,
-        )
-
-
-
-
-class ApproveClaim:
-    """Provider wrapper for approve-claim."""
-
-    def __init__(self, ctx: "ObjectContext"):
-        self._ctx = ctx
-
-        self.internal = ApproveClaimAccount(ctx, "43206d5b-9943-4699-8eca-c35154cbbc97")
-
-
-
 
 class Bridge:
     """Main bridge class providing access to all providers."""
 
     def __init__(self, ctx: "ObjectContext"):
         self._ctx = ctx
-
-        self.approve_claim = ApproveClaim(ctx)
 
 
 

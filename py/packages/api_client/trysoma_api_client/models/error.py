@@ -17,7 +17,7 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,9 +27,9 @@ class Error(BaseModel):
     Error
     """  # noqa: E501
 
-    data: Optional[Any] = None
     message: StrictStr
-    __properties: ClassVar[List[str]] = ["data", "message"]
+    name: StrictStr
+    __properties: ClassVar[List[str]] = ["message", "name"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -68,11 +68,6 @@ class Error(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # set to None if data (nullable) is None
-        # and model_fields_set contains the field
-        if self.data is None and "data" in self.model_fields_set:
-            _dict["data"] = None
-
         return _dict
 
     @classmethod
@@ -85,6 +80,6 @@ class Error(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate(
-            {"data": obj.get("data"), "message": obj.get("message")}
+            {"message": obj.get("message"), "name": obj.get("name")}
         )
         return _obj

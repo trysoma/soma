@@ -3,8 +3,11 @@ use shared::error::CommonError;
 use std::collections::HashMap;
 use tera::{Context, Tera};
 
-/// Python template loaded at compile time
-const PYTHON_TEMPLATE: &str = include_str!("python.py.tera");
+/// Python bridge template loaded at compile time
+const BRIDGE_TEMPLATE: &str = include_str!("bridge.py.tera");
+
+/// Python agents template loaded at compile time
+const AGENTS_TEMPLATE: &str = include_str!("agents.py.tera");
 
 /// Simplified data structures for code generation from API data
 #[derive(Debug, Clone)]
@@ -70,6 +73,35 @@ struct TypedDictClass {
 struct TypedDictField {
     name: String,
     type_annotation: String,
+}
+
+/// Agent data structure for code generation
+#[derive(Debug, Clone)]
+pub struct AgentData {
+    pub id: String,
+    pub project_id: String,
+    pub name: String,
+    pub description: String,
+}
+
+/// Serializable agent data for template
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AgentTemplateData {
+    id: String,
+    project_id: String,
+    name: String,
+    description: String,
+    snake_case_id: String,
+    var_name: String,
+}
+
+/// Serializable project data for template (groups agents by project)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ProjectTemplateData {
+    id: String,
+    class_name: String,
+    snake_case_id: String,
+    agents: Vec<AgentTemplateData>,
 }
 
 /// Generates Python code from API data
@@ -176,15 +208,89 @@ pub fn generate_python_code_from_api_data(
 
     // Create Tera instance and render template
     let mut tera = Tera::default();
-    tera.add_raw_template("python", PYTHON_TEMPLATE)
+    tera.add_raw_template("bridge", BRIDGE_TEMPLATE)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to add template: {e}")))?;
 
     let mut context = Context::new();
     context.insert("providers", &providers);
 
     let rendered = tera
-        .render("python", &context)
+        .render("bridge", &context)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to render template: {e}")))?;
+
+    Ok(rendered)
+}
+
+/// Generates Python agents code from agent data
+pub fn generate_python_agents_code(agents: &[AgentData]) -> Result<String, CommonError> {
+    // Group agents by project
+    let mut projects_map: HashMap<String, Vec<&AgentData>> = HashMap::new();
+
+    for agent in agents {
+        projects_map
+            .entry(agent.project_id.clone())
+            .or_default()
+            .push(agent);
+    }
+
+    // Build flat list of agents for template
+    let agents_template: Vec<AgentTemplateData> = agents
+        .iter()
+        .map(|agent| AgentTemplateData {
+            id: agent.id.clone(),
+            project_id: agent.project_id.clone(),
+            name: agent.name.clone(),
+            description: agent.description.clone(),
+            snake_case_id: to_snake_case(&agent.id),
+            var_name: format!(
+                "{}_{}",
+                to_snake_case(&agent.project_id),
+                to_snake_case(&agent.id)
+            ),
+        })
+        .collect();
+
+    // Build project data for template
+    let projects: Vec<ProjectTemplateData> = projects_map
+        .into_iter()
+        .map(|(project_id, project_agents)| {
+            let agents: Vec<AgentTemplateData> = project_agents
+                .iter()
+                .map(|agent| AgentTemplateData {
+                    id: agent.id.clone(),
+                    project_id: agent.project_id.clone(),
+                    name: agent.name.clone(),
+                    description: agent.description.clone(),
+                    snake_case_id: to_snake_case(&agent.id),
+                    var_name: format!(
+                        "{}_{}",
+                        to_snake_case(&agent.project_id),
+                        to_snake_case(&agent.id)
+                    ),
+                })
+                .collect();
+
+            ProjectTemplateData {
+                id: project_id.clone(),
+                class_name: to_pascal_case(&project_id),
+                snake_case_id: to_snake_case(&project_id),
+                agents,
+            }
+        })
+        .collect();
+
+    // Create Tera instance and render template
+    let mut tera = Tera::default();
+    tera.add_raw_template("agents", AGENTS_TEMPLATE)
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to add agents template: {e}")))?;
+
+    let mut context = Context::new();
+    context.insert("agents", &agents_template);
+    context.insert("projects", &projects);
+
+    let rendered = tera.render("agents", &context).map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!("Failed to render agents template: {e}"))
+    })?;
 
     Ok(rendered)
 }
@@ -642,6 +748,8 @@ mod tests {
         assert_eq!(to_snake_case("myFunction"), "my_function");
         assert_eq!(to_snake_case("google_mail"), "google_mail");
         assert_eq!(to_snake_case("approve_claim"), "approve_claim");
+        assert_eq!(to_snake_case("claimResearchAgent"), "claim_research_agent");
+        assert_eq!(to_snake_case("ClaimResearchAgent"), "claim_research_agent");
     }
 
     #[test]

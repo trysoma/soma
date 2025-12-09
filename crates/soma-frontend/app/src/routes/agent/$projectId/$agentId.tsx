@@ -3,7 +3,7 @@ import { SubNavigation } from "@/components/layout/sub-navigation";
 import { A2aProvider } from "@/context/a2a";
 import { LINKS } from "@/lib/links";
 
-export const Route = createFileRoute("/a2a/agent/$projectId/$agentId")({
+export const Route = createFileRoute("/agent/$projectId/$agentId")({
 	component: AgentLayoutComponent,
 });
 
@@ -15,15 +15,15 @@ function AgentLayoutComponent() {
 			<SubNavigation
 				items={[
 					{
-						label: "Overview",
-						href: LINKS.A2A_AGENT(projectId, agentId),
+						label: "A2A Overview",
+						href: LINKS.AGENT_A2A_OVERVIEW(projectId, agentId),
 					},
 					{
-						label: "Chat",
-						href: LINKS.A2A_AGENT_CHAT(projectId, agentId),
+						label: "A2A Chat Debugger",
+						href: LINKS.AGENT_A2A_CHAT_DEBUGGER(projectId, agentId),
 					},
 				]}
-				nestLevel="second"
+				nestLevel="third"
 			/>
 			<Outlet />
 		</A2aProvider>

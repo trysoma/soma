@@ -2,7 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { A2aChatLayout } from "@/components/a2a-chat";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
-export const Route = createFileRoute("/a2a/chat/")({
+export const Route = createFileRoute(
+	"/agent/$projectId/$agentId/a2a/chat-debugger",
+)({
 	component: RouteComponent,
 });
 

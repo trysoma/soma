@@ -12,16 +12,16 @@
  * Do not edit the class manually.
  */
 
-import type { SomaAgentDefinition } from "../models/index";
-import { SomaAgentDefinitionFromJSON } from "../models/index";
+import type { ListAgentsResponse } from "../models/index";
+import { ListAgentsResponseFromJSON } from "../models/index";
 import * as runtime from "../runtime";
 
-export interface A2aApiGetAgentCardRequest {
+export interface AgentApiGetAgentCardRequest {
 	projectId: string;
 	agentId: string;
 }
 
-export interface A2aApiHandleJsonrpcRequestRequest {
+export interface AgentApiHandleA2aJsonrpcRequestRequest {
 	projectId: string;
 	agentId: string;
 	body: object;
@@ -30,13 +30,13 @@ export interface A2aApiHandleJsonrpcRequestRequest {
 /**
  *
  */
-export class A2aApi extends runtime.BaseAPI {
+export class AgentApi extends runtime.BaseAPI {
 	/**
 	 * Get the agent card describing agent capabilities and metadata for a specific agent
 	 * Get agent card for specific agent
 	 */
 	async getAgentCardRaw(
-		requestParameters: A2aApiGetAgentCardRequest,
+		requestParameters: AgentApiGetAgentCardRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<object>> {
 		if (requestParameters.projectId == null) {
@@ -57,7 +57,7 @@ export class A2aApi extends runtime.BaseAPI {
 
 		const headerParameters: runtime.HTTPHeaders = {};
 
-		let urlPath = `/api/a2a/v1/{project_id}/{agent_id}/.well-known/agent.json`;
+		let urlPath = `/api/agent/{project_id}/{agent_id}/a2a/.well-known/agent.json`;
 		urlPath = urlPath.replace(
 			`{${"project_id"}}`,
 			encodeURIComponent(String(requestParameters.projectId)),
@@ -85,7 +85,7 @@ export class A2aApi extends runtime.BaseAPI {
 	 * Get agent card for specific agent
 	 */
 	async getAgentCard(
-		requestParameters: A2aApiGetAgentCardRequest,
+		requestParameters: AgentApiGetAgentCardRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<object> {
 		const response = await this.getAgentCardRaw(
@@ -96,70 +96,31 @@ export class A2aApi extends runtime.BaseAPI {
 	}
 
 	/**
-	 * Get the agent definition (capabilities and metadata)
-	 * Get agent definition
-	 */
-	async getAgentDefinitionRaw(
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<SomaAgentDefinition>> {
-		const queryParameters: any = {};
-
-		const headerParameters: runtime.HTTPHeaders = {};
-
-		const urlPath = `/api/a2a/v1/definition`;
-
-		const response = await this.request(
-			{
-				path: urlPath,
-				method: "GET",
-				headers: headerParameters,
-				query: queryParameters,
-			},
-			initOverrides,
-		);
-
-		return new runtime.JSONApiResponse(response, (jsonValue) =>
-			SomaAgentDefinitionFromJSON(jsonValue),
-		);
-	}
-
-	/**
-	 * Get the agent definition (capabilities and metadata)
-	 * Get agent definition
-	 */
-	async getAgentDefinition(
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<SomaAgentDefinition> {
-		const response = await this.getAgentDefinitionRaw(initOverrides);
-		return await response.value();
-	}
-
-	/**
 	 * Handle JSON-RPC requests for agent-to-agent communication for a specific agent
-	 * Handle JSON-RPC for specific agent
+	 * Handle A2A JSON-RPC for specific agent
 	 */
-	async handleJsonrpcRequestRaw(
-		requestParameters: A2aApiHandleJsonrpcRequestRequest,
+	async handleA2aJsonrpcRequestRaw(
+		requestParameters: AgentApiHandleA2aJsonrpcRequestRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<runtime.ApiResponse<void>> {
 		if (requestParameters.projectId == null) {
 			throw new runtime.RequiredError(
 				"projectId",
-				'Required parameter "projectId" was null or undefined when calling handleJsonrpcRequest().',
+				'Required parameter "projectId" was null or undefined when calling handleA2aJsonrpcRequest().',
 			);
 		}
 
 		if (requestParameters.agentId == null) {
 			throw new runtime.RequiredError(
 				"agentId",
-				'Required parameter "agentId" was null or undefined when calling handleJsonrpcRequest().',
+				'Required parameter "agentId" was null or undefined when calling handleA2aJsonrpcRequest().',
 			);
 		}
 
 		if (requestParameters.body == null) {
 			throw new runtime.RequiredError(
 				"body",
-				'Required parameter "body" was null or undefined when calling handleJsonrpcRequest().',
+				'Required parameter "body" was null or undefined when calling handleA2aJsonrpcRequest().',
 			);
 		}
 
@@ -169,7 +130,7 @@ export class A2aApi extends runtime.BaseAPI {
 
 		headerParameters["Content-Type"] = "application/json";
 
-		let urlPath = `/api/a2a/v1/{project_id}/{agent_id}`;
+		let urlPath = `/api/agent/{project_id}/{agent_id}/a2a`;
 		urlPath = urlPath.replace(
 			`{${"project_id"}}`,
 			encodeURIComponent(String(requestParameters.projectId)),
@@ -195,12 +156,51 @@ export class A2aApi extends runtime.BaseAPI {
 
 	/**
 	 * Handle JSON-RPC requests for agent-to-agent communication for a specific agent
-	 * Handle JSON-RPC for specific agent
+	 * Handle A2A JSON-RPC for specific agent
 	 */
-	async handleJsonrpcRequest(
-		requestParameters: A2aApiHandleJsonrpcRequestRequest,
+	async handleA2aJsonrpcRequest(
+		requestParameters: AgentApiHandleA2aJsonrpcRequestRequest,
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
-		await this.handleJsonrpcRequestRaw(requestParameters, initOverrides);
+		await this.handleA2aJsonrpcRequestRaw(requestParameters, initOverrides);
+	}
+
+	/**
+	 * List all available agents from the agent cache
+	 * List available agents
+	 */
+	async listAgentsRaw(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<ListAgentsResponse>> {
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		const urlPath = `/api/agent`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			ListAgentsResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * List all available agents from the agent cache
+	 * List available agents
+	 */
+	async listAgents(
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<ListAgentsResponse> {
+		const response = await this.listAgentsRaw(initOverrides);
+		return await response.value();
 	}
 }

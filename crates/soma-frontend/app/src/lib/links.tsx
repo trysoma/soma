@@ -1,11 +1,11 @@
 export const LINKS = {
-	A2A: () => `/a2a`,
-	A2A_CHAT: () => `/a2a/chat`,
-	// Agent-specific A2A routes
-	A2A_AGENT: (projectId: string, agentId: string) =>
-		`/a2a/agent/${projectId}/${agentId}`,
-	A2A_AGENT_CHAT: (projectId: string, agentId: string) =>
-		`/a2a/agent/${projectId}/${agentId}/chat`,
+	// Agents list page
+	AGENTS: () => `/agent`,
+	// Agent-specific A2A routes: /agent/{projectId}/{agentId}/a2a/...
+	AGENT_A2A_OVERVIEW: (projectId: string, agentId: string) =>
+		`/agent/${projectId}/${agentId}/a2a/overview`,
+	AGENT_A2A_CHAT_DEBUGGER: (projectId: string, agentId: string) =>
+		`/agent/${projectId}/${agentId}/a2a/chat-debugger`,
 	BRIDGE: () => `/bridge`,
 	BRIDGE_ENABLE_FUNCTIONS: () => `/bridge/enable-functions`,
 	BRIDGE_MANAGE_CREDENTIALS: () => `/bridge/manage-credentials`,

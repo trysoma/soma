@@ -1,0 +1,12 @@
+encryption:
+  envelope_keys:
+    local.bin:
+      type: local
+      file_name: local.bin
+      deks:
+        default:
+          encrypted_key: FI0PVbrw/x3+zhrwWY77RI8FFwYttLkVdhL3Ck2jIEhbsBjeZs7/6fm37C6Zahw5IpaGAILI/A2ecaC0
+secrets:
+  OPENAI_API_KEY:
+    value: ViY4JLxjdk8TmSDEXx1Msrb153aSQB9RVeFmKFsSAayoENC0szCNcWEy3E8LgR4arWNVqsChpLDWaraye2BF4n0VsK82QgHyjcY/GL4qcA9fmQwmfu1EKD2B3LMUSp0FogGSG8v6gwwxuE2+Ur4PKJkPytcX6bYf7kzNqRAUfjqeE2wqIOHg5dEFii3DBmsUWM0yMpPIEXTZPpUCjhY626AU/CAg8rcFYoFj69TN+uWmG9nKCMpf5/bAfOG+Yo5F
+    dek_alias: default

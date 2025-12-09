@@ -33,8 +33,8 @@ use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use crate::logic::a2a::ConstructAgentCardParams;
-use crate::logic::a2a::{RepositoryTaskStore, construct_agent_card};
+use crate::logic::agent::ConstructAgentCardParams;
+use crate::logic::agent::{RepositoryTaskStore, construct_agent_card};
 use crate::logic::task::{
     self as task_logic, ConnectionManager, CreateMessageRequest, UpdateTaskStatusRequest,
     WithTaskId, update_task_status,
@@ -42,11 +42,10 @@ use crate::logic::task::{
 use crate::repository::{CreateTask, Repository, TaskRepositoryLike};
 use shared::restate::admin_client::AdminClient;
 use shared::restate::invoke::{RestateIngressClient, construct_initial_object_id};
-use shared::soma_agent_definition::{SomaAgentDefinition, SomaAgentDefinitionLike};
+use shared::soma_agent_definition::SomaAgentDefinitionLike;
 
 pub const PATH_PREFIX: &str = "/api";
-pub const SERVICE_ROUTE_KEY: &str = "a2a";
-pub const API_VERSION_1: &str = "v1";
+pub const SERVICE_ROUTE_KEY: &str = "agent";
 
 /// Path parameters for multi-agent routes
 #[derive(Debug, Clone, Deserialize)]
@@ -71,90 +70,36 @@ pub struct ListAgentsResponse {
     pub agents: Vec<AgentListItem>,
 }
 
-pub fn create_router() -> OpenApiRouter<Arc<Agent2AgentService>> {
+pub fn create_router() -> OpenApiRouter<Arc<AgentService>> {
     OpenApiRouter::new()
-        .routes(routes!(route_definition))
         .routes(routes!(route_list_agents))
         .routes(routes!(route_agent_card))
-        .routes(routes!(route_jsonrpc))
+        .routes(routes!(route_a2a_jsonrpc))
 }
 
+/// GET /api/agent - List all available agents
 #[utoipa::path(
     get,
-    path = format!("{}/{}/{}/definition", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
-    responses(
-        (status = 200, description = "Agent definition", body = SomaAgentDefinition),
-    ),
-    summary = "Get agent definition",
-    description = "Get the agent definition (capabilities and metadata)",
-    operation_id = "get-agent-definition",
-)]
-async fn route_definition(
-    State(ctx): State<Arc<Agent2AgentService>>,
-) -> JsonResponse<SomaAgentDefinition, CommonError> {
-    let soma_definition = ctx.soma_definition.get_definition().await;
-    JsonResponse::from(soma_definition)
-}
-
-#[utoipa::path(
-    get,
-    path = format!("{}/{}/{}/agents", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}", PATH_PREFIX, SERVICE_ROUTE_KEY),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     responses(
         (status = 200, description = "List of agents", body = ListAgentsResponse),
     ),
     summary = "List available agents",
-    description = "List all available agents by querying Restate services",
+    description = "List all available agents from the agent cache",
     operation_id = "list-agents",
 )]
 async fn route_list_agents(
-    State(ctx): State<Arc<Agent2AgentService>>,
+    State(ctx): State<Arc<AgentService>>,
 ) -> JsonResponse<ListAgentsResponse, CommonError> {
-    use shared::restate::admin_interface::AdminClientInterface;
-
-    let services_result = ctx.restate_admin_client.get_services().await;
-
-    match services_result {
-        Ok(envelope) => {
-            let body = match envelope.into_body().await {
-                Ok(body) => body,
-                Err(e) => {
-                    return JsonResponse::from(Err(CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to parse services response: {e}"
-                    ))));
-                }
-            };
-
-            let agents: Vec<AgentListItem> = body
-                .services
-                .into_iter()
-                .filter_map(|service| {
-                    // Service names follow the pattern: {project_id}.{agent_id}
-                    let name = service.name;
-                    let parts: Vec<&str> = name.splitn(2, '.').collect();
-                    if parts.len() == 2 {
-                        Some(AgentListItem {
-                            project_id: parts[0].to_string(),
-                            agent_id: parts[1].to_string(),
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-
-            JsonResponse::from(Ok(ListAgentsResponse { agents }))
-        }
-        Err(e) => JsonResponse::from(Err(CommonError::Unknown(anyhow::anyhow!(
-            "Failed to list agents: {e}"
-        )))),
-    }
+    let agents = crate::logic::agent::list_agents(&ctx.agent_cache);
+    JsonResponse::from(Ok(ListAgentsResponse { agents }))
 }
 
+/// GET /api/agent/{project_id}/{agent_id}/a2a/.well-known/agent.json - Get A2A agent card
 #[utoipa::path(
     get,
-    path = format!("{}/{}/{}/{{project_id}}/{{agent_id}}/.well-known/agent.json", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{{project_id}}/{{agent_id}}/a2a/.well-known/agent.json", PATH_PREFIX, SERVICE_ROUTE_KEY),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("project_id" = String, Path, description = "Project ID"),
@@ -168,7 +113,7 @@ async fn route_list_agents(
     operation_id = "get-agent-card",
 )]
 async fn route_agent_card(
-    State(ctx): State<Arc<Agent2AgentService>>,
+    State(ctx): State<Arc<AgentService>>,
     Path(path_params): Path<AgentPathParams>,
 ) -> impl IntoResponse {
     info!(
@@ -182,9 +127,10 @@ async fn route_agent_card(
     }
 }
 
+/// POST /api/agent/{project_id}/{agent_id}/a2a - Handle A2A JSON-RPC requests (SSE chat endpoint)
 #[utoipa::path(
     post,
-    path = format!("{}/{}/{}/{{project_id}}/{{agent_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{{project_id}}/{{agent_id}}/a2a", PATH_PREFIX, SERVICE_ROUTE_KEY),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("project_id" = String, Path, description = "Project ID"),
@@ -194,12 +140,12 @@ async fn route_agent_card(
         (status = 200, description = "Successful response"),
         (status = 500, description = "Internal Server Error"),
     ),
-    summary = "Handle JSON-RPC for specific agent",
+    summary = "Handle A2A JSON-RPC for specific agent",
     description = "Handle JSON-RPC requests for agent-to-agent communication for a specific agent",
-    operation_id = "handle-jsonrpc-request",
+    operation_id = "handle-a2a-jsonrpc-request",
 )]
-async fn route_jsonrpc(
-    State(ctx): State<Arc<Agent2AgentService>>,
+async fn route_a2a_jsonrpc(
+    State(ctx): State<Arc<AgentService>>,
     Path(path_params): Path<AgentPathParams>,
     Json(body): Json<a2a_rs::types::JsonrpcRequest>,
 ) -> impl IntoResponse {
@@ -371,7 +317,7 @@ async fn route_jsonrpc(
     (http::StatusCode::OK, Json(response)).into_response()
 }
 
-pub struct Agent2AgentService {
+pub struct AgentService {
     soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     host: Url,
     // Store components needed to create request handlers per request
@@ -384,26 +330,29 @@ pub struct Agent2AgentService {
     >,
     restate_ingress_client: RestateIngressClient,
     restate_admin_client: AdminClient,
+    agent_cache: crate::sdk::sdk_agent_sync::AgentCache,
 }
 
-pub struct Agent2AgentServiceParams {
+pub struct AgentServiceParams {
     pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub host: Url,
     pub connection_manager: ConnectionManager,
     pub repository: Repository,
     pub restate_ingress_client: RestateIngressClient,
     pub restate_admin_client: AdminClient,
+    pub agent_cache: crate::sdk::sdk_agent_sync::AgentCache,
 }
 
-impl Agent2AgentService {
-    pub fn new(params: Agent2AgentServiceParams) -> Self {
-        let Agent2AgentServiceParams {
+impl AgentService {
+    pub fn new(params: AgentServiceParams) -> Self {
+        let AgentServiceParams {
             soma_definition,
             host,
             connection_manager,
             repository,
             restate_ingress_client,
             restate_admin_client,
+            agent_cache,
         } = params;
 
         // Create a task store
@@ -426,6 +375,7 @@ impl Agent2AgentService {
             config_store,
             restate_ingress_client,
             restate_admin_client,
+            agent_cache,
         }
     }
 
@@ -437,8 +387,9 @@ impl Agent2AgentService {
         let soma_definition = self.soma_definition.get_definition().await?;
 
         let mut full_url = self.host.clone();
+        // URL for the A2A endpoint: /api/agent/{project_id}/{agent_id}/a2a
         full_url.set_path(&format!(
-            "{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{API_VERSION_1}/{}/{}",
+            "{PATH_PREFIX}/{SERVICE_ROUTE_KEY}/{}/{}/a2a",
             path_params.project_id, path_params.agent_id
         ));
 

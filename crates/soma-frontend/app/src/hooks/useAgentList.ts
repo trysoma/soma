@@ -20,7 +20,7 @@ export function useAgentList(): UseAgentListResult {
 		setIsLoading(true);
 		setError(null);
 		try {
-			const res = await $api.GET("/api/a2a/v1/agents");
+			const res = await $api.GET("/api/agent", {});
 			if ("error" in res && res.error) {
 				setError("Failed to fetch agents");
 				setAgents([]);

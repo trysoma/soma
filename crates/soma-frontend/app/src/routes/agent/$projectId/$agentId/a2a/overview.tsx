@@ -10,17 +10,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageLayout } from "@/components/ui/page-layout";
+import { getAgentA2APath, getAgentCardPath } from "@/context/a2a";
 
-export const Route = createFileRoute("/a2a/agent/$projectId/$agentId/")({
-	component: RouteComponent,
-});
+export const Route = createFileRoute("/agent/$projectId/$agentId/a2a/overview")(
+	{
+		component: RouteComponent,
+	},
+);
 
 function RouteComponent() {
 	const { projectId, agentId } = Route.useParams();
 	const baseUrl = window.location.origin;
 
-	const agentCardPath = `/api/a2a/v1/${projectId}/${agentId}/.well-known/agent.json`;
-	const agentSsePath = `/api/a2a/v1/${projectId}/${agentId}`;
+	const agentCardPath = getAgentCardPath(projectId, agentId);
+	const agentA2APath = getAgentA2APath(projectId, agentId);
 
 	return (
 		<PageLayout className="py-6">
@@ -47,11 +50,11 @@ function RouteComponent() {
 								/>
 							</div>
 							<div className="flex flex-col gap-2 max-w-lg">
-								<Label>Agent SSE endpoint:</Label>
+								<Label>Agent A2A endpoint:</Label>
 								<Input
 									disabled
 									type="text"
-									value={`${baseUrl}${agentSsePath}`}
+									value={`${baseUrl}${agentA2APath}`}
 								/>
 							</div>
 						</div>

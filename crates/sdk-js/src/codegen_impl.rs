@@ -23,8 +23,9 @@ impl core_types::SdkCodeGenerator for TypeScriptCodeGenerator {
         request: core_types::GenerateBridgeClientRequest,
     ) -> Result<core_types::GenerateBridgeClientResponse, CommonError> {
         info!(
-            "TypeScript code generator invoked with {} function instances",
-            request.function_instances.len()
+            "TypeScript code generator invoked with {} function instances and {} agents",
+            request.function_instances.len(),
+            request.agents.len()
         );
 
         // Convert proto function instances to codegen types
@@ -69,32 +70,55 @@ impl core_types::SdkCodeGenerator for TypeScriptCodeGenerator {
             })
             .collect();
 
-        // Generate TypeScript code
+        // Convert proto agents to codegen types
+        let agents: Vec<codegen::AgentData> = request
+            .agents
+            .iter()
+            .map(|agent| codegen::AgentData {
+                id: agent.id.clone(),
+                project_id: agent.project_id.clone(),
+                name: agent.name.clone(),
+                description: agent.description.clone(),
+            })
+            .collect();
+
+        // Ensure soma directory exists
+        let soma_dir = self.project_dir.join("soma");
+        std::fs::create_dir_all(&soma_dir).map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to create soma directory: {e}"))
+        })?;
+
+        // Generate and write bridge.ts
         let typescript_code = codegen::generate_typescript_code_from_api_data(&function_instances)
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to generate TypeScript code: {e}"))
             })?;
 
-        // Write to file
-        let soma_dir = self.project_dir.join("soma");
-        let output_path = soma_dir.join("bridge.ts");
-
-        std::fs::create_dir_all(&soma_dir).map_err(|e| {
-            CommonError::Unknown(anyhow::anyhow!("Failed to create soma directory: {e}"))
-        })?;
-
-        std::fs::write(&output_path, typescript_code).map_err(|e| {
+        let bridge_path = soma_dir.join("bridge.ts");
+        std::fs::write(&bridge_path, typescript_code).map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!("Failed to write bridge client file: {e}"))
         })?;
+        info!("Bridge client written to: {}", bridge_path.display());
 
-        info!("Bridge client written to: {}", output_path.display());
+        // Generate and write agents.ts (only if there are agents)
+        if !agents.is_empty() {
+            let agents_code = codegen::generate_typescript_agents_code(&agents).map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to generate agents code: {e}"))
+            })?;
+
+            let agents_path = soma_dir.join("agents.ts");
+            std::fs::write(&agents_path, agents_code).map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to write agents file: {e}"))
+            })?;
+            info!("Agents client written to: {}", agents_path.display());
+        }
 
         Ok(core_types::GenerateBridgeClientResponse {
             result: Some(sdk_proto::generate_bridge_client_response::Result::Success(
                 sdk_proto::GenerateBridgeClientSuccess {
                     message: format!(
-                        "TypeScript bridge client generated successfully at {}",
-                        output_path.display()
+                        "TypeScript bridge and agents generated successfully at {}",
+                        soma_dir.display()
                     ),
                 },
             )),

@@ -140,14 +140,14 @@
         }
       }
     },
-    "/api/a2a/v1/agents": {
+    "/api/agent": {
       "get": {
         "tags": [
-          "a2a",
+          "agent",
           "v1"
         ],
         "summary": "List available agents",
-        "description": "List all available agents by querying Restate services",
+        "description": "List all available agents from the agent cache",
         "operationId": "list-agents",
         "responses": {
           "200": {
@@ -163,38 +163,15 @@
         }
       }
     },
-    "/api/a2a/v1/definition": {
-      "get": {
-        "tags": [
-          "a2a",
-          "v1"
-        ],
-        "summary": "Get agent definition",
-        "description": "Get the agent definition (capabilities and metadata)",
-        "operationId": "get-agent-definition",
-        "responses": {
-          "200": {
-            "description": "Agent definition",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SomaAgentDefinition"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/a2a/v1/{project_id}/{agent_id}": {
+    "/api/agent/{project_id}/{agent_id}/a2a": {
       "post": {
         "tags": [
-          "a2a",
+          "agent",
           "v1"
         ],
-        "summary": "Handle JSON-RPC for specific agent",
+        "summary": "Handle A2A JSON-RPC for specific agent",
         "description": "Handle JSON-RPC requests for agent-to-agent communication for a specific agent",
-        "operationId": "handle-jsonrpc-request",
+        "operationId": "handle-a2a-jsonrpc-request",
         "parameters": [
           {
             "name": "project_id",
@@ -235,10 +212,10 @@
         }
       }
     },
-    "/api/a2a/v1/{project_id}/{agent_id}/.well-known/agent.json": {
+    "/api/agent/{project_id}/{agent_id}/a2a/.well-known/agent.json": {
       "get": {
         "tags": [
-          "a2a",
+          "agent",
           "v1"
         ],
         "summary": "Get agent card for specific agent",
@@ -965,7 +942,537 @@
         }
       }
     },
-    "/api/bridge/v1/mcp": {
+    "/api/bridge/v1/mcp-instance": {
+      "get": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "List MCP server instances",
+        "description": "List all MCP server instances with pagination",
+        "operationId": "list-mcp-server-instances",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List MCP server instances",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerInstanceSerializedWithFunctionsPaginatedResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Create MCP server instance",
+        "description": "Create a new MCP server instance with a user-provided ID",
+        "operationId": "create-mcp-server-instance",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMcpServerInstanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Create MCP server instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerInstanceSerializedWithFunctions"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/mcp-instance/{mcp_server_instance_id}": {
+      "get": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Get MCP server instance",
+        "description": "Retrieve an MCP server instance by its ID",
+        "operationId": "get-mcp-server-instance",
+        "parameters": [
+          {
+            "name": "mcp_server_instance_id",
+            "in": "path",
+            "description": "MCP server instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get MCP server instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerInstanceSerializedWithFunctions"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Delete MCP server instance",
+        "description": "Delete an MCP server instance and all its function mappings",
+        "operationId": "delete-mcp-server-instance",
+        "parameters": [
+          {
+            "name": "mcp_server_instance_id",
+            "in": "path",
+            "description": "MCP server instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delete MCP server instance"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Update MCP server instance",
+        "description": "Update an MCP server instance name",
+        "operationId": "update-mcp-server-instance",
+        "parameters": [
+          {
+            "name": "mcp_server_instance_id",
+            "in": "path",
+            "description": "MCP server instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMcpServerInstanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Update MCP server instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerInstanceSerializedWithFunctions"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function": {
+      "post": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Add function to MCP server instance",
+        "description": "Add a function mapping to an MCP server instance with a custom name",
+        "operationId": "add-mcp-server-instance-function",
+        "parameters": [
+          {
+            "name": "mcp_server_instance_id",
+            "in": "path",
+            "description": "MCP server instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddMcpServerInstanceFunctionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Add function to MCP server instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerInstanceSerializedWithFunctions"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict (function name already exists)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}": {
+      "delete": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Remove function from MCP server instance",
+        "description": "Remove a function mapping from an MCP server instance",
+        "operationId": "remove-mcp-server-instance-function",
+        "parameters": [
+          {
+            "name": "mcp_server_instance_id",
+            "in": "path",
+            "description": "MCP server instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "function_controller_type_id",
+            "in": "path",
+            "description": "Function controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider_controller_type_id",
+            "in": "path",
+            "description": "Provider controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider_instance_id",
+            "in": "path",
+            "description": "Provider instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Remove function from MCP server instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerInstanceSerializedWithFunctions"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "bridge",
+          "v1"
+        ],
+        "summary": "Update function in MCP server instance",
+        "description": "Update the function name and description for a function mapping",
+        "operationId": "update-mcp-server-instance-function",
+        "parameters": [
+          {
+            "name": "mcp_server_instance_id",
+            "in": "path",
+            "description": "MCP server instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "function_controller_type_id",
+            "in": "path",
+            "description": "Function controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider_controller_type_id",
+            "in": "path",
+            "description": "Provider controller type ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider_instance_id",
+            "in": "path",
+            "description": "Provider instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMcpServerInstanceFunctionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Update function in MCP server instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerInstanceSerializedWithFunctions"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict (function name already exists)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp": {
       "get": {
         "tags": [
           "bridge",
@@ -974,6 +1481,17 @@
         "summary": "MCP SSE connection",
         "description": "Establish Server-Sent Events (SSE) connection for MCP protocol communication",
         "operationId": "listen-to-mcp-sse",
+        "parameters": [
+          {
+            "name": "mcp_server_instance_id",
+            "in": "path",
+            "description": "MCP server instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "MCP server running"
@@ -988,6 +1506,17 @@
         "summary": "Send MCP message",
         "description": "Send a JSON-RPC message to the MCP server",
         "operationId": "trigger-mcp-message",
+        "parameters": [
+          {
+            "name": "mcp_server_instance_id",
+            "in": "path",
+            "description": "MCP server instance ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5667,6 +6196,35 @@
   },
   "components": {
     "schemas": {
+      "AddMcpServerInstanceFunctionRequest": {
+        "type": "object",
+        "required": [
+          "function_controller_type_id",
+          "provider_controller_type_id",
+          "provider_instance_id",
+          "function_name"
+        ],
+        "properties": {
+          "function_controller_type_id": {
+            "type": "string"
+          },
+          "function_description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "function_name": {
+            "type": "string"
+          },
+          "provider_controller_type_id": {
+            "type": "string"
+          },
+          "provider_instance_id": {
+            "type": "string"
+          }
+        }
+      },
       "AgentCard": {
         "type": "object"
       },
@@ -5685,58 +6243,6 @@
           "project_id": {
             "type": "string",
             "description": "The project ID"
-          }
-        }
-      },
-      "ApiKeyYamlConfig": {
-        "type": "object",
-        "description": "API key configuration stored in soma.yaml",
-        "required": [
-          "encrypted_hashed_value",
-          "dek_alias",
-          "role",
-          "user_id"
-        ],
-        "properties": {
-          "dek_alias": {
-            "type": "string",
-            "description": "The DEK alias used for encryption"
-          },
-          "description": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Description of the API key"
-          },
-          "encrypted_hashed_value": {
-            "type": "string",
-            "description": "The encrypted hashed value of the API key"
-          },
-          "role": {
-            "type": "string",
-            "description": "The role assigned to this API key"
-          },
-          "user_id": {
-            "type": "string",
-            "description": "The user ID associated with this API key"
-          }
-        }
-      },
-      "BridgeConfig": {
-        "type": "object",
-        "properties": {
-          "providers": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ProviderConfig"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
           }
         }
       },
@@ -5951,6 +6457,21 @@
           }
         }
       },
+      "CreateMcpServerInstanceRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "CreateMessageRequest": {
         "type": "object",
         "required": [
@@ -6131,35 +6652,6 @@
           }
         }
       },
-      "CredentialConfig": {
-        "type": "object",
-        "required": [
-          "id",
-          "type_id",
-          "metadata",
-          "value",
-          "dek_alias"
-        ],
-        "properties": {
-          "dek_alias": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          },
-          "metadata": {},
-          "next_rotation_time": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "type_id": {
-            "type": "string"
-          },
-          "value": {}
-        }
-      },
       "DataEncryptionKey": {
         "type": "object",
         "required": [
@@ -6275,18 +6767,6 @@
           },
           "updated_at": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
-          }
-        }
-      },
-      "DekConfig": {
-        "type": "object",
-        "description": "Data encryption key configuration",
-        "required": [
-          "encrypted_key"
-        ],
-        "properties": {
-          "encrypted_key": {
-            "type": "string"
           }
         }
       },
@@ -6441,63 +6921,6 @@
           }
         }
       },
-      "EncryptedOauthYamlConfig": {
-        "type": "object",
-        "description": "Encrypted OAuth configuration for YAML storage",
-        "required": [
-          "authorization_endpoint",
-          "token_endpoint",
-          "jwks_endpoint",
-          "client_id",
-          "encrypted_client_secret",
-          "dek_alias",
-          "scopes",
-          "oauth_mapping_config"
-        ],
-        "properties": {
-          "authorization_endpoint": {
-            "type": "string",
-            "description": "Authorization endpoint URL"
-          },
-          "client_id": {
-            "type": "string",
-            "description": "OAuth client ID"
-          },
-          "dek_alias": {
-            "type": "string",
-            "description": "DEK alias used for encryption"
-          },
-          "encrypted_client_secret": {
-            "type": "string",
-            "description": "Encrypted client secret"
-          },
-          "introspect_url": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque"
-          },
-          "jwks_endpoint": {
-            "type": "string",
-            "description": "JWKS endpoint URL for token verification"
-          },
-          "oauth_mapping_config": {
-            "description": "Token mapping configuration (serialized as JSON)"
-          },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "OAuth scopes"
-          },
-          "token_endpoint": {
-            "type": "string",
-            "description": "Token endpoint URL"
-          }
-        }
-      },
       "EncryptedOidcConfig": {
         "type": "object",
         "description": "OIDC configuration extending OAuth2 with discovery and ID token support",
@@ -6536,47 +6959,6 @@
             ]
           }
         }
-      },
-      "EncryptedOidcYamlConfig": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/EncryptedOauthYamlConfig",
-            "description": "Base OAuth configuration"
-          },
-          {
-            "type": "object",
-            "required": [
-              "oidc_mapping_config"
-            ],
-            "properties": {
-              "discovery_endpoint": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "OIDC discovery endpoint (optional)"
-              },
-              "introspect_url": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "Token introspection endpoint URL (RFC 7662) - if set, access tokens are treated as opaque"
-              },
-              "oidc_mapping_config": {
-                "description": "Token mapping configuration (serialized as JSON)"
-              },
-              "userinfo_endpoint": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "Userinfo endpoint URL (optional)"
-              }
-            }
-          }
-        ],
-        "description": "Encrypted OIDC configuration for YAML storage"
       },
       "EncryptedString": {
         "type": "string"
@@ -6628,25 +7010,6 @@
             }
           }
         ]
-      },
-      "EncryptionConfig": {
-        "type": "object",
-        "description": "Top-level encryption configuration",
-        "properties": {
-          "envelope_keys": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "description": "Map of envelope key id (ARN or file_name) -> envelope key configuration with nested DEKs\nDEKs are stored by their alias name (e.g., \"default\") rather than UUID",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/EnvelopeKeyConfig"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          }
-        }
       },
       "EnvelopeEncryptionKey": {
         "oneOf": [
@@ -6733,103 +7096,6 @@
             }
           },
           "next_page_token": {
-            "type": "string"
-          }
-        }
-      },
-      "EnvelopeKeyConfig": {
-        "oneOf": [
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EnvelopeKeyConfigAwsKms"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "aws_kms"
-                    ]
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EnvelopeKeyConfigLocal"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "local"
-                    ]
-                  }
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "EnvelopeKeyConfigAwsKms": {
-        "type": "object",
-        "description": "Envelope encryption key configuration with nested DEKs",
-        "required": [
-          "arn",
-          "region"
-        ],
-        "properties": {
-          "arn": {
-            "type": "string"
-          },
-          "deks": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {
-              "$ref": "#/components/schemas/DekConfig"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          },
-          "region": {
-            "type": "string"
-          }
-        }
-      },
-      "EnvelopeKeyConfigLocal": {
-        "type": "object",
-        "required": [
-          "file_name"
-        ],
-        "properties": {
-          "deks": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {
-              "$ref": "#/components/schemas/DekConfig"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          },
-          "file_name": {
             "type": "string"
           }
         }
@@ -7049,24 +7315,6 @@
           }
         }
       },
-      "GroupToRoleMappingYaml": {
-        "type": "object",
-        "description": "Group to role mapping",
-        "required": [
-          "group",
-          "role"
-        ],
-        "properties": {
-          "group": {
-            "type": "string",
-            "description": "The group name to match"
-          },
-          "role": {
-            "type": "string",
-            "description": "The role to assign when matched"
-          }
-        }
-      },
       "HashedApiKey": {
         "type": "object",
         "required": [
@@ -7217,51 +7465,6 @@
           }
         ],
         "description": "Authenticated identity"
-      },
-      "IdentityConfig": {
-        "type": "object",
-        "description": "Identity configuration for API keys, STS, and user auth flows",
-        "properties": {
-          "api_keys": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "description": "API keys configuration (key is the API key ID)",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ApiKeyYamlConfig"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          },
-          "sts_configurations": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "description": "STS configurations (key is the STS config ID)",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/StsConfigYaml"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          },
-          "user_auth_flows": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "description": "User auth flow configurations (key is the config ID)",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/UserAuthFlowYamlConfig"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          }
-        }
       },
       "ImportDataEncryptionKeyParamsRoute": {
         "type": "object",
@@ -7487,103 +7690,6 @@
           }
         }
       },
-      "JwtMappingConfigYaml": {
-        "type": "object",
-        "description": "JWT claim field mapping",
-        "properties": {
-          "audience_field": {
-            "type": "string",
-            "description": "Field name for audience (default: \"aud\")"
-          },
-          "email_field": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Field name for email (optional)"
-          },
-          "groups_field": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Field name for groups (optional)"
-          },
-          "issuer_field": {
-            "type": "string",
-            "description": "Field name for issuer (default: \"iss\")"
-          },
-          "scopes_field": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Field name for scopes (optional)"
-          },
-          "sub_field": {
-            "type": "string",
-            "description": "Field name for subject (default: \"sub\")"
-          }
-        }
-      },
-      "JwtTemplateConfigYaml": {
-        "type": "object",
-        "description": "JWT template configuration for validating external JWTs",
-        "required": [
-          "jwks_uri",
-          "token_location",
-          "validation",
-          "mapping"
-        ],
-        "properties": {
-          "group_to_role_mappings": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/GroupToRoleMappingYaml"
-            },
-            "description": "Group to role mappings"
-          },
-          "jwks_uri": {
-            "type": "string",
-            "description": "JWKS URI to fetch public keys from"
-          },
-          "mapping": {
-            "$ref": "#/components/schemas/JwtMappingConfigYaml",
-            "description": "Field mapping from JWT claims to internal fields"
-          },
-          "scope_to_group_mappings": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/ScopeToGroupMappingYaml"
-            },
-            "description": "Scope to group mappings (maps scopes to internal groups)"
-          },
-          "scope_to_role_mappings": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/ScopeToRoleMappingYaml"
-            },
-            "description": "Scope to role mappings"
-          },
-          "token_location": {
-            "$ref": "#/components/schemas/TokenLocationYaml",
-            "description": "Where to find the token in the request"
-          },
-          "validation": {
-            "$ref": "#/components/schemas/JwtValidationConfigYaml",
-            "description": "Validation rules"
-          }
-        }
-      },
       "JwtTemplateModeConfig": {
         "type": "object",
         "required": [
@@ -7755,49 +7861,6 @@
             "items": {
               "type": "string"
             }
-          }
-        }
-      },
-      "JwtValidationConfigYaml": {
-        "type": "object",
-        "description": "JWT validation configuration",
-        "properties": {
-          "issuer": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Expected issuer (iss claim)"
-          },
-          "required_groups": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "description": "Required groups"
-          },
-          "required_scopes": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "description": "Required scopes"
-          },
-          "valid_audiences": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "description": "Valid audiences (aud claim)"
           }
         }
       },
@@ -7998,6 +8061,96 @@
           }
         ],
         "description": "Indicates which token type (ID token for OIDC, access token response for OAuth)\ncontains the field"
+      },
+      "McpServerInstanceFunctionSerialized": {
+        "type": "object",
+        "description": "Represents a function mapping within an MCP server instance",
+        "required": [
+          "mcp_server_instance_id",
+          "function_controller_type_id",
+          "provider_controller_type_id",
+          "provider_instance_id",
+          "function_name",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "function_controller_type_id": {
+            "type": "string"
+          },
+          "function_description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "function_name": {
+            "type": "string"
+          },
+          "mcp_server_instance_id": {
+            "type": "string"
+          },
+          "provider_controller_type_id": {
+            "type": "string"
+          },
+          "provider_instance_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
+      "McpServerInstanceSerializedWithFunctions": {
+        "type": "object",
+        "description": "Represents an MCP server instance with its associated functions",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "updated_at",
+          "functions"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "functions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/McpServerInstanceFunctionSerialized"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
+      "McpServerInstanceSerializedWithFunctionsPaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/McpServerInstanceSerializedWithFunctions"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
+          }
+        }
       },
       "Message": {
         "type": "object",
@@ -8217,48 +8370,6 @@
             "type": [
               "string",
               "null"
-            ]
-          }
-        }
-      },
-      "ProviderConfig": {
-        "type": "object",
-        "required": [
-          "provider_controller_type_id",
-          "credential_controller_type_id",
-          "display_name",
-          "resource_server_credential"
-        ],
-        "properties": {
-          "credential_controller_type_id": {
-            "type": "string"
-          },
-          "display_name": {
-            "type": "string"
-          },
-          "functions": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string"
-            }
-          },
-          "provider_controller_type_id": {
-            "type": "string"
-          },
-          "resource_server_credential": {
-            "$ref": "#/components/schemas/CredentialConfig"
-          },
-          "user_credential": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/CredentialConfig"
-              }
             ]
           }
         }
@@ -8640,24 +8751,6 @@
           }
         }
       },
-      "ScopeToGroupMappingYaml": {
-        "type": "object",
-        "description": "Scope to group mapping (maps external scopes to internal groups)",
-        "required": [
-          "scope",
-          "group"
-        ],
-        "properties": {
-          "group": {
-            "type": "string",
-            "description": "The internal group to assign when matched"
-          },
-          "scope": {
-            "type": "string",
-            "description": "The scope to match"
-          }
-        }
-      },
       "ScopeToRoleMapping": {
         "type": "object",
         "required": [
@@ -8670,24 +8763,6 @@
           },
           "scope": {
             "type": "string"
-          }
-        }
-      },
-      "ScopeToRoleMappingYaml": {
-        "type": "object",
-        "description": "Scope to role mapping",
-        "required": [
-          "scope",
-          "role"
-        ],
-        "properties": {
-          "role": {
-            "type": "string",
-            "description": "The role to assign when matched"
-          },
-          "scope": {
-            "type": "string",
-            "description": "The scope to match"
           }
         }
       },
@@ -8722,83 +8797,6 @@
           }
         }
       },
-      "SecretConfig": {
-        "type": "object",
-        "description": "Configuration for a secret stored in soma.yaml",
-        "required": [
-          "value",
-          "dek_alias"
-        ],
-        "properties": {
-          "dek_alias": {
-            "type": "string",
-            "description": "The DEK alias used to encrypt this secret"
-          },
-          "value": {
-            "type": "string",
-            "description": "The encrypted value of the secret"
-          }
-        }
-      },
-      "SomaAgentDefinition": {
-        "type": "object",
-        "properties": {
-          "bridge": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/BridgeConfig"
-              }
-            ]
-          },
-          "encryption": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/EncryptionConfig"
-              }
-            ]
-          },
-          "environment_variables": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          },
-          "identity": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/IdentityConfig"
-              }
-            ]
-          },
-          "secrets": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {
-              "$ref": "#/components/schemas/SecretConfig"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          }
-        }
-      },
       "StartUserCredentialBrokeringParamsInner": {
         "type": "object",
         "required": [
@@ -8812,49 +8810,6 @@
       },
       "String": {
         "type": "string"
-      },
-      "StsConfigYaml": {
-        "oneOf": [
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/JwtTemplateConfigYaml",
-                "description": "JWT template configuration for external IdPs"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "jwt_template"
-                    ]
-                  }
-                }
-              }
-            ],
-            "description": "JWT template configuration for external IdPs"
-          },
-          {
-            "type": "object",
-            "description": "Dev mode configuration (allows any authentication in dev)",
-            "required": [
-              "type"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "dev"
-                ]
-              }
-            }
-          }
-        ],
-        "description": "STS configuration stored in soma.yaml"
       },
       "StsTokenConfig": {
         "oneOf": [
@@ -9157,49 +9112,6 @@
           }
         ]
       },
-      "TokenLocationYaml": {
-        "oneOf": [
-          {
-            "type": "object",
-            "description": "Token is in a header (e.g., Authorization: Bearer <token>)",
-            "required": [
-              "name",
-              "type"
-            ],
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "header"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "description": "Token is in a cookie",
-            "required": [
-              "name",
-              "type"
-            ],
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "cookie"
-                ]
-              }
-            }
-          }
-        ],
-        "description": "Where to find the token in the request"
-      },
       "TokenMapping": {
         "oneOf": [
           {
@@ -9277,6 +9189,34 @@
         ],
         "properties": {
           "value": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateMcpServerInstanceFunctionRequest": {
+        "type": "object",
+        "required": [
+          "function_name"
+        ],
+        "properties": {
+          "function_description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "function_name": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateMcpServerInstanceRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
             "type": "string"
           }
         }
@@ -9400,103 +9340,6 @@
           }
         ],
         "description": "The four supported IdP configuration types"
-      },
-      "UserAuthFlowYamlConfig": {
-        "oneOf": [
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EncryptedOidcYamlConfig",
-                "description": "OIDC authorization code flow"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "oidc_authorization_code_flow"
-                    ]
-                  }
-                }
-              }
-            ],
-            "description": "OIDC authorization code flow"
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EncryptedOauthYamlConfig",
-                "description": "OAuth authorization code flow"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "oauth_authorization_code_flow"
-                    ]
-                  }
-                }
-              }
-            ],
-            "description": "OAuth authorization code flow"
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EncryptedOidcYamlConfig",
-                "description": "OIDC authorization code flow with PKCE"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "oidc_authorization_code_pkce_flow"
-                    ]
-                  }
-                }
-              }
-            ],
-            "description": "OIDC authorization code flow with PKCE"
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EncryptedOauthYamlConfig",
-                "description": "OAuth authorization code flow with PKCE"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "oauth_authorization_code_pkce_flow"
-                    ]
-                  }
-                }
-              }
-            ],
-            "description": "OAuth authorization code flow with PKCE"
-          }
-        ],
-        "description": "User auth flow configuration stored in soma.yaml (encrypted)"
       },
       "UserCredentialBrokeringResponse": {
         "oneOf": [
@@ -9643,8 +9486,8 @@
       "description": "Internal endpoints for health checks, runtime configuration, and SDK code generation"
     },
     {
-      "name": "a2a",
-      "description": "Agent-to-agent communication endpoints for agent cards, definitions, and JSON-RPC requests"
+      "name": "agent",
+      "description": "Agent management and A2A (agent-to-agent) communication endpoints"
     },
     {
       "name": "identity",

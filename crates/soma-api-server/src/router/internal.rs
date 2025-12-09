@@ -14,6 +14,7 @@ use shared::{
 use crate::logic::internal::{
     CheckSdkHealthResponse, ResyncSdkResponse, RuntimeConfigResponse, TriggerCodegenResponse,
 };
+use crate::sdk::sdk_agent_sync::AgentCache;
 
 pub const PATH_PREFIX: &str = "/_internal";
 pub const API_VERSION_1: &str = "v1";
@@ -81,9 +82,12 @@ async fn route_runtime_config(
 async fn route_trigger_codegen(
     State(ctx): State<Arc<InternalService>>,
 ) -> JsonResponse<TriggerCodegenResponse, CommonError> {
-    let response =
-        crate::logic::internal::trigger_codegen(&ctx.sdk_client, ctx.bridge_service.repository())
-            .await;
+    let response = crate::logic::internal::trigger_codegen(
+        &ctx.sdk_client,
+        ctx.bridge_service.repository(),
+        &ctx.agent_cache,
+    )
+    .await;
 
     JsonResponse::from(response)
 }
@@ -109,6 +113,8 @@ async fn route_resync_sdk(
         &ctx.crypto_cache,
         &ctx.restate_params,
         &ctx.sdk_client,
+        &ctx.agent_cache,
+        ctx.bridge_service.repository(),
     )
     .await;
     JsonResponse::from(response)
@@ -120,6 +126,7 @@ pub struct InternalService {
     repository: std::sync::Arc<crate::repository::Repository>,
     crypto_cache: CryptoCache,
     restate_params: crate::restate::RestateServerParams,
+    agent_cache: AgentCache,
 }
 
 impl InternalService {
@@ -129,6 +136,7 @@ impl InternalService {
         repository: std::sync::Arc<crate::repository::Repository>,
         crypto_cache: CryptoCache,
         restate_params: crate::restate::RestateServerParams,
+        agent_cache: AgentCache,
     ) -> Self {
         Self {
             bridge_service,
@@ -136,6 +144,7 @@ impl InternalService {
             repository,
             crypto_cache,
             restate_params,
+            agent_cache,
         }
     }
 }
