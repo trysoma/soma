@@ -1,6 +1,6 @@
 [project]
 name = "trysoma_api_client"
-version = "0.0.5"
+version = "0.0.6"
 description = "soma"
 authors = [
 ]

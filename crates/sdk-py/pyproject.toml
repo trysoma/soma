@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "trysoma_sdk_core"
-version = "0.0.5"
+version = "0.0.6"
 description = "Core native bindings for the Soma Python SDK"
 requires-python = ">=3.10"
 license = "MIT"
