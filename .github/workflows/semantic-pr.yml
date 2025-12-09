@@ -12,6 +12,7 @@ jobs:
   main:
     name: Validate PR title
     runs-on: ubuntu-latest
+    if: github.actor != 'try-soma-bot'
     permissions:
       pull-requests: read
     steps:
