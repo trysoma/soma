@@ -1,75 +1,82 @@
 use std::sync::Arc;
 
+use axum::extract::OriginalUri;
+use encryption::logic::CryptoCache;
+use http::request::Parts;
 use rmcp::{
     ServerHandler,
-    model::{Annotated, Annotations, RawContent, RawTextContent, Tool},
-    service::serve_directly_with_ct,
+    model::{Annotated, Annotations, Extensions, RawContent, RawTextContent, Tool},
 };
 use shared::{
     error::CommonError,
     primitives::{PaginationRequest, WrappedJsonValue},
 };
-use tokio_util::sync::CancellationToken;
 
 use crate::{
     logic::{
         FunctionControllerLike, InvokeFunctionParams, InvokeFunctionParamsInner, InvokeResult,
-        McpServiceInstanceExt, PROVIDER_REGISTRY, ProviderControllerLike, WithFunctionInstanceId,
-        invoke_function,
+        PROVIDER_REGISTRY, ProviderControllerLike, WithFunctionInstanceId, invoke_function,
     },
-    repository::ProviderRepositoryLike,
-    router::BridgeService,
+    repository::{ProviderRepositoryLike, Repository},
 };
 
-pub async fn handle_mcp_transport<R, T, E, A>(
-    maybe_transport: Option<T>,
-    mcp_server_instance: &BridgeService,
-    mcp_ct: &CancellationToken,
-) -> Result<bool, CommonError>
-where
-    R: rmcp::service::ServiceRole,
-    BridgeService: rmcp::Service<R>,
-    T: rmcp::transport::IntoTransport<R, E, A>,
-    E: std::error::Error + Send + Sync + 'static,
-{
-    match maybe_transport {
-        Some(transport) => {
-            let service = mcp_server_instance.clone();
-            let ct = mcp_ct.child_token();
-
-            tokio::spawn(async move {
-                let server = serve_directly_with_ct(service, transport, None, ct);
-                if let Err(e) = server.waiting().await {
-                    tracing::error!("MCP transport handler exited with error: {:?}", e);
-                }
-            });
-
-            Ok(false) // continue loop
-        }
-        None => {
-            tracing::info!("MCP transport channel closed — no more transports to serve.");
-            Ok(true) // break loop
+/// Extracts the mcp_server_instance_id from the HTTP request path.
+/// Expected path format: /api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp
+fn extract_mcp_server_instance_id_from_path(path: &str) -> Option<String> {
+    // Path format: /api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp
+    let segments: Vec<&str> = path.split('/').collect();
+    // Find "mcp-instance" and get the next segment
+    for (i, part) in segments.iter().enumerate() {
+        if *part == "mcp-instance" && i + 1 < segments.len() {
+            let instance_id = segments[i + 1];
+            // Make sure it's not "mcp" (the endpoint suffix)
+            if !instance_id.is_empty() && instance_id != "mcp" {
+                return Some(instance_id.to_string());
+            }
         }
     }
+    None
 }
 
-impl ServerHandler for BridgeService {
+/// Extracts the mcp_server_instance_id from the request context.
+/// The rmcp library stores http::request::Parts in the rmcp Extensions.
+/// First tries to use OriginalUri from Parts.extensions (preserves full path before nest_service strips it),
+/// then falls back to Parts.uri.
+fn extract_mcp_server_instance_id(extensions: &Extensions) -> Result<String, rmcp::ErrorData> {
+    // Get Parts from rmcp extensions (injected by rmcp StreamableHttpService)
+    if let Some(parts) = extensions.get::<Parts>() {
+        // First try OriginalUri from the http request extensions (stored by our middleware)
+        if let Some(original_uri) = parts.extensions.get::<OriginalUri>() {
+            if let Some(id) = extract_mcp_server_instance_id_from_path(original_uri.path()) {
+                return Ok(id);
+            }
+        }
+
+        // Fall back to Parts.uri (will be stripped by nest_service, but try anyway)
+        if let Some(id) = extract_mcp_server_instance_id_from_path(parts.uri.path()) {
+            return Ok(id);
+        }
+    }
+
+    Err(rmcp::ErrorData::internal_error(
+        "Could not extract MCP server instance ID from request path",
+        None,
+    ))
+}
+
+pub struct BridgeMcpService {
+    pub repository: Repository,
+    pub encryption_service: CryptoCache,
+}
+
+impl ServerHandler for BridgeMcpService {
     async fn list_tools(
         &self,
         _request: Option<rmcp::model::PaginatedRequestParam>,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<rmcp::model::ListToolsResult, rmcp::ErrorData> {
-        // Extract the MCP server instance ID from extensions
-        let ext_data = context
-            .extensions
-            .get::<McpServiceInstanceExt>()
-            .ok_or_else(|| {
-                rmcp::ErrorData::internal_error(
-                    "MCP server instance ID not found in request context",
-                    None,
-                )
-            })?;
-        let mcp_server_instance_id = ext_data.mcp_server_instance_id.clone();
+        // Extract mcp_server_instance_id from the request context
+        let mcp_server_instance_id = extract_mcp_server_instance_id(&context.extensions)?;
 
         // Fetch all functions for this MCP server instance with pagination
         let mut all_functions = Vec::new();
@@ -82,7 +89,7 @@ impl ServerHandler for BridgeService {
             };
 
             let result = self
-                .repository()
+                .repository
                 .list_mcp_server_instance_functions(&mcp_server_instance_id, &pagination)
                 .await?;
 
@@ -132,6 +139,7 @@ impl ServerHandler for BridgeService {
                     .unwrap_or_else(|| function_controller.documentation().to_string());
 
                 Ok(Tool {
+                    meta: None,
                     name: mcp_fn.function_name.clone().into(),
                     title: Some(function_controller.name().to_string()),
                     description: Some(description.into()),
@@ -166,6 +174,7 @@ impl ServerHandler for BridgeService {
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(rmcp::model::ListToolsResult {
+            meta: None,
             next_cursor: None,
             tools: mcp_tools,
         })
@@ -176,24 +185,15 @@ impl ServerHandler for BridgeService {
         request: rmcp::model::CallToolRequestParam,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::ErrorData> {
-        // Extract the MCP server instance ID from extensions
-        let ext_data = context
-            .extensions
-            .get::<McpServiceInstanceExt>()
-            .ok_or_else(|| {
-                rmcp::ErrorData::internal_error(
-                    "MCP server instance ID not found in request context",
-                    None,
-                )
-            })?;
-        let mcp_server_instance_id = ext_data.mcp_server_instance_id.clone();
+        // Extract mcp_server_instance_id from the request context
+        let mcp_server_instance_id = extract_mcp_server_instance_id(&context.extensions)?;
 
         // The tool name is now the function_name from mcp_server_instance_function
         let function_name = request.name.to_string();
 
         // Look up the function by mcp_server_instance_id and function_name
         let mcp_function = self
-            .repository()
+            .repository
             .get_mcp_server_instance_function_by_name(&mcp_server_instance_id, &function_name)
             .await?
             .ok_or_else(|| {
@@ -207,8 +207,8 @@ impl ServerHandler for BridgeService {
 
         // Now we have the function_controller_type_id and provider_instance_id to invoke the function
         let function_instance = invoke_function(
-            self.repository(),
-            self.encryption_service(),
+            &self.repository,
+            &self.encryption_service,
             InvokeFunctionParams {
                 provider_instance_id: mcp_function.provider_instance_id.clone(),
                 inner: WithFunctionInstanceId {

@@ -11,8 +11,8 @@ use tracing::{info, warn};
 use shared::error::CommonError;
 use shared::soma_agent_definition::{
     ApiKeyYamlConfig, EncryptedOauthYamlConfig, EncryptedOidcYamlConfig, EnvelopeKeyConfig,
-    EnvelopeKeyConfigAwsKms, EnvelopeKeyConfigLocal, SecretConfig, SomaAgentDefinitionLike,
-    StsConfigYaml, UserAuthFlowYamlConfig,
+    EnvelopeKeyConfigAwsKms, EnvelopeKeyConfigLocal, McpServerConfig, McpServerFunctionConfig,
+    SecretConfig, SomaAgentDefinitionLike, StsConfigYaml, UserAuthFlowYamlConfig,
 };
 use soma_api_server::logic::on_change_pubsub::{
     EnvironmentVariableChangeEvt, SecretChangeEvt, SomaChangeEvt, SomaChangeRx,
@@ -225,6 +225,118 @@ async fn handle_bridge_event(
                 .remove_function_instance(
                     provider_controller_type_id,
                     function_controller_type_id,
+                    provider_instance_id,
+                )
+                .await?;
+        }
+        OnConfigChangeEvt::McpServerInstanceAdded(mcp_server) => {
+            info!("MCP server instance added: {:?}", mcp_server.id);
+
+            let functions = mcp_server
+                .functions
+                .iter()
+                .map(|f| McpServerFunctionConfig {
+                    function_controller_type_id: f.function_controller_type_id.clone(),
+                    provider_controller_type_id: f.provider_controller_type_id.clone(),
+                    provider_instance_id: f.provider_instance_id.clone(),
+                    function_name: f.function_name.clone(),
+                    function_description: f.function_description.clone(),
+                })
+                .collect();
+
+            soma_definition
+                .add_mcp_server(
+                    mcp_server.id.clone(),
+                    McpServerConfig {
+                        name: mcp_server.name.clone(),
+                        functions: Some(functions),
+                    },
+                )
+                .await?;
+        }
+        OnConfigChangeEvt::McpServerInstanceUpdated(mcp_server) => {
+            info!("MCP server instance updated: {:?}", mcp_server.id);
+
+            let functions = mcp_server
+                .functions
+                .iter()
+                .map(|f| McpServerFunctionConfig {
+                    function_controller_type_id: f.function_controller_type_id.clone(),
+                    provider_controller_type_id: f.provider_controller_type_id.clone(),
+                    provider_instance_id: f.provider_instance_id.clone(),
+                    function_name: f.function_name.clone(),
+                    function_description: f.function_description.clone(),
+                })
+                .collect();
+
+            soma_definition
+                .update_mcp_server(
+                    mcp_server.id.clone(),
+                    McpServerConfig {
+                        name: mcp_server.name.clone(),
+                        functions: Some(functions),
+                    },
+                )
+                .await?;
+        }
+        OnConfigChangeEvt::McpServerInstanceRemoved(mcp_server_id) => {
+            info!("MCP server instance removed: {:?}", mcp_server_id);
+            soma_definition.remove_mcp_server(mcp_server_id).await?;
+        }
+        OnConfigChangeEvt::McpServerInstanceFunctionAdded(function) => {
+            info!(
+                "MCP server function added: {:?} to {:?}",
+                function.function_name, function.mcp_server_instance_id
+            );
+            soma_definition
+                .add_mcp_server_function(
+                    function.mcp_server_instance_id.clone(),
+                    McpServerFunctionConfig {
+                        function_controller_type_id: function.function_controller_type_id.clone(),
+                        provider_controller_type_id: function.provider_controller_type_id.clone(),
+                        provider_instance_id: function.provider_instance_id.clone(),
+                        function_name: function.function_name.clone(),
+                        function_description: function.function_description.clone(),
+                    },
+                )
+                .await?;
+        }
+        OnConfigChangeEvt::McpServerInstanceFunctionUpdated(function) => {
+            info!(
+                "MCP server function updated: {:?} in {:?}",
+                function.function_name, function.mcp_server_instance_id
+            );
+            soma_definition
+                .update_mcp_server_function(
+                    function.mcp_server_instance_id.clone(),
+                    McpServerFunctionConfig {
+                        function_controller_type_id: function.function_controller_type_id.clone(),
+                        provider_controller_type_id: function.provider_controller_type_id.clone(),
+                        provider_instance_id: function.provider_instance_id.clone(),
+                        function_name: function.function_name.clone(),
+                        function_description: function.function_description.clone(),
+                    },
+                )
+                .await?;
+        }
+        OnConfigChangeEvt::McpServerInstanceFunctionRemoved(
+            mcp_server_instance_id,
+            function_controller_type_id,
+            provider_controller_type_id,
+            provider_instance_id,
+        ) => {
+            info!(
+                "MCP server function removed from {:?}: {}/{}/{}",
+                mcp_server_instance_id,
+                function_controller_type_id,
+                provider_controller_type_id,
+                provider_instance_id
+            );
+            soma_definition
+                .remove_mcp_server_function(
+                    mcp_server_instance_id,
+                    function_controller_type_id,
+                    provider_controller_type_id,
                     provider_instance_id,
                 )
                 .await?;

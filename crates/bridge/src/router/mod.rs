@@ -7,13 +7,13 @@
 mod mcp_server_instance;
 mod provider;
 
+use crate::logic::mcp::BridgeMcpService;
 use crate::logic::{OnConfigChangeTx, process_credential_rotations_with_window};
 use crate::repository::Repository;
 use encryption::logic::crypto_services::CryptoCache;
-use rmcp::transport::sse_server::SseServerTransport;
+use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
+use rmcp::transport::streamable_http_server::StreamableHttpService;
 use shared::error::CommonError;
-use std::sync::Arc;
-use std::time::Duration;
 use tracing::info;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
@@ -73,95 +73,57 @@ pub fn create_router() -> OpenApiRouter<BridgeService> {
         .routes(routes!(
             mcp_server_instance::route_remove_mcp_server_instance_function
         ))
-        // MCP protocol endpoints
-        .routes(routes!(mcp_server_instance::mcp_sse))
-        .routes(routes!(mcp_server_instance::mcp_message))
+        
 }
 
 /// Inner state for the bridge service containing all shared dependencies
-pub struct BridgeServiceInner {
+#[derive(Clone)]
+pub struct BridgeService {
     pub repository: Repository,
     pub on_config_change_tx: OnConfigChangeTx,
     pub encryption_service: CryptoCache,
-    pub mcp_sessions: rmcp::transport::sse_server::TxStore,
-    pub mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<SseServerTransport>,
-    pub mcp_sse_ping_interval: Duration,
+    pub mcp_service: StreamableHttpService<BridgeMcpService, LocalSessionManager>,
 }
-
-impl BridgeServiceInner {
-    pub fn new(
-        repository: Repository,
-        on_config_change_tx: OnConfigChangeTx,
-        encryption_service: CryptoCache,
-        mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<SseServerTransport>,
-        mcp_sse_ping_interval: Duration,
-    ) -> Self {
-        Self {
-            repository,
-            on_config_change_tx,
-            encryption_service,
-            mcp_sessions: Default::default(),
-            mcp_transport_tx,
-            mcp_sse_ping_interval,
-        }
-    }
-}
-
-/// Bridge service state shared across all routes
-#[derive(Clone)]
-pub struct BridgeService(pub Arc<BridgeServiceInner>);
 
 impl BridgeService {
     pub async fn new(
         repository: Repository,
         on_config_change_tx: OnConfigChangeTx,
         encryption_service: CryptoCache,
-        mcp_transport_tx: tokio::sync::mpsc::UnboundedSender<SseServerTransport>,
-        mcp_sse_ping_interval: Duration,
+        mcp_service: StreamableHttpService<BridgeMcpService, LocalSessionManager>,
     ) -> Result<Self, CommonError> {
-        let inner = BridgeServiceInner::new(
-            repository,
-            on_config_change_tx,
-            encryption_service,
-            mcp_transport_tx,
-            mcp_sse_ping_interval,
-        );
-
         // Run initial credential rotation check for expired and soon-to-expire credentials (30 min window)
         info!("Running initial credential rotation check...");
         process_credential_rotations_with_window(
-            &inner.repository,
-            &inner.on_config_change_tx,
-            &inner.encryption_service,
+            &repository,
+            &on_config_change_tx,
+            &encryption_service,
             30,
         )
         .await?;
         info!("Initial credential rotation check complete");
 
-        Ok(Self(Arc::new(inner)))
+        Ok(Self {
+            repository,
+            on_config_change_tx,
+            encryption_service,
+            mcp_service,
+        })
     }
 
     pub fn repository(&self) -> &Repository {
-        &self.0.repository
+        &self.repository
     }
 
     pub fn on_config_change_tx(&self) -> &OnConfigChangeTx {
-        &self.0.on_config_change_tx
+        &self.on_config_change_tx
     }
 
     pub fn encryption_service(&self) -> &CryptoCache {
-        &self.0.encryption_service
+        &self.encryption_service
     }
 
-    pub fn mcp_transport_tx(&self) -> &tokio::sync::mpsc::UnboundedSender<SseServerTransport> {
-        &self.0.mcp_transport_tx
-    }
-
-    pub fn mcp_sse_ping_interval(&self) -> &Duration {
-        &self.0.mcp_sse_ping_interval
-    }
-
-    pub fn mcp_sessions(&self) -> &rmcp::transport::sse_server::TxStore {
-        &self.0.mcp_sessions
+    pub fn mcp_service(&self) -> &StreamableHttpService<BridgeMcpService, LocalSessionManager> {
+        &self.mcp_service
     }
 }

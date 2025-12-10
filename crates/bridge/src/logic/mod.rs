@@ -96,6 +96,13 @@ pub enum OnConfigChangeEvt {
     ProviderInstanceUpdated(ProviderInstanceSerializedWithCredentials),
     FunctionInstanceAdded(FunctionInstanceSerialized),
     FunctionInstanceRemoved(String, String, String), // (function_controller_type_id, provider_controller_type_id, provider_instance_id)
+    // MCP server instance events
+    McpServerInstanceAdded(McpServerInstanceSerializedWithFunctions),
+    McpServerInstanceUpdated(McpServerInstanceSerializedWithFunctions),
+    McpServerInstanceRemoved(String), // mcp_server_instance_id
+    McpServerInstanceFunctionAdded(McpServerInstanceFunctionSerialized),
+    McpServerInstanceFunctionUpdated(McpServerInstanceFunctionSerialized),
+    McpServerInstanceFunctionRemoved(String, String, String, String), // (mcp_server_instance_id, function_controller_type_id, provider_controller_type_id, provider_instance_id)
 }
 
 pub type OnConfigChangeTx = tokio::sync::broadcast::Sender<OnConfigChangeEvt>;

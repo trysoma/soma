@@ -7,13 +7,17 @@ import { cn } from "@/lib/utils";
 // Wrapper component for table with border and background
 function TableWrapper({
 	className,
+	noBorder = false,
 	children,
 }: {
 	className?: string;
+	noBorder?: boolean;
 	children: React.ReactNode;
 }) {
 	return (
-		<div className={cn("border rounded-lg bg-white", className)}>
+		<div
+			className={cn("bg-white", !noBorder && "border rounded-lg", className)}
+		>
 			{children}
 		</div>
 	);

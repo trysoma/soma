@@ -391,10 +391,6 @@ export interface V1ApiListTasksByContextIdRequest {
 	nextPageToken?: string;
 }
 
-export interface V1ApiListenToMcpSseRequest {
-	mcpServerInstanceId: string;
-}
-
 export interface V1ApiMigrateAllDataEncryptionKeysRequest {
 	envelopeId: string;
 	migrateAllDataEncryptionKeysParamsRoute: MigrateAllDataEncryptionKeysParamsRoute;
@@ -520,11 +516,6 @@ export interface V1ApiTaskHistoryRequest {
 	pageSize: number;
 	taskId: string;
 	nextPageToken?: string;
-}
-
-export interface V1ApiTriggerMcpMessageRequest {
-	mcpServerInstanceId: string;
-	body: object;
 }
 
 export interface V1ApiUpdateDekAliasRequest {
@@ -3584,55 +3575,6 @@ export class V1Api extends runtime.BaseAPI {
 	}
 
 	/**
-	 * Establish Server-Sent Events (SSE) connection for MCP protocol communication
-	 * MCP SSE connection
-	 */
-	async listenToMcpSseRaw(
-		requestParameters: V1ApiListenToMcpSseRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<void>> {
-		if (requestParameters.mcpServerInstanceId == null) {
-			throw new runtime.RequiredError(
-				"mcpServerInstanceId",
-				'Required parameter "mcpServerInstanceId" was null or undefined when calling listenToMcpSse().',
-			);
-		}
-
-		const queryParameters: any = {};
-
-		const headerParameters: runtime.HTTPHeaders = {};
-
-		let urlPath = `/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp`;
-		urlPath = urlPath.replace(
-			`{${"mcp_server_instance_id"}}`,
-			encodeURIComponent(String(requestParameters.mcpServerInstanceId)),
-		);
-
-		const response = await this.request(
-			{
-				path: urlPath,
-				method: "GET",
-				headers: headerParameters,
-				query: queryParameters,
-			},
-			initOverrides,
-		);
-
-		return new runtime.VoidApiResponse(response);
-	}
-
-	/**
-	 * Establish Server-Sent Events (SSE) connection for MCP protocol communication
-	 * MCP SSE connection
-	 */
-	async listenToMcpSse(
-		requestParameters: V1ApiListenToMcpSseRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<void> {
-		await this.listenToMcpSseRaw(requestParameters, initOverrides);
-	}
-
-	/**
 	 * Migrate all data encryption keys encrypted with the specified envelope key to a new envelope key
 	 * Migrate all data keys
 	 */
@@ -5306,65 +5248,6 @@ export class V1Api extends runtime.BaseAPI {
 	): Promise<object> {
 		const response = await this.triggerCodegenRaw(initOverrides);
 		return await response.value();
-	}
-
-	/**
-	 * Send a JSON-RPC message to the MCP server
-	 * Send MCP message
-	 */
-	async triggerMcpMessageRaw(
-		requestParameters: V1ApiTriggerMcpMessageRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<void>> {
-		if (requestParameters.mcpServerInstanceId == null) {
-			throw new runtime.RequiredError(
-				"mcpServerInstanceId",
-				'Required parameter "mcpServerInstanceId" was null or undefined when calling triggerMcpMessage().',
-			);
-		}
-
-		if (requestParameters.body == null) {
-			throw new runtime.RequiredError(
-				"body",
-				'Required parameter "body" was null or undefined when calling triggerMcpMessage().',
-			);
-		}
-
-		const queryParameters: any = {};
-
-		const headerParameters: runtime.HTTPHeaders = {};
-
-		headerParameters["Content-Type"] = "application/json";
-
-		let urlPath = `/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp`;
-		urlPath = urlPath.replace(
-			`{${"mcp_server_instance_id"}}`,
-			encodeURIComponent(String(requestParameters.mcpServerInstanceId)),
-		);
-
-		const response = await this.request(
-			{
-				path: urlPath,
-				method: "POST",
-				headers: headerParameters,
-				query: queryParameters,
-				body: requestParameters.body as any,
-			},
-			initOverrides,
-		);
-
-		return new runtime.VoidApiResponse(response);
-	}
-
-	/**
-	 * Send a JSON-RPC message to the MCP server
-	 * Send MCP message
-	 */
-	async triggerMcpMessage(
-		requestParameters: V1ApiTriggerMcpMessageRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<void> {
-		await this.triggerMcpMessageRaw(requestParameters, initOverrides);
 	}
 
 	/**

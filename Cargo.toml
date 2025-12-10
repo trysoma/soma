@@ -67,7 +67,9 @@ tokio = { version = "1.43.0", default-features = false, features = [
 
 ## HTTP/Web frameworks
 #soma branch
-rmcp = { git = "https://github.com/trysoma/modelcontextprotocol-rust-sdk", rev = "6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c",features = ["transport-sse-server"] }
+# rmcp = { git = "https://github.com/trysoma/modelcontextprotocol-rust-sdk", rev = "6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c",features = ["transport-sse-server"] }
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", rev="bce055506861e30a650889bf48df7667bc2403eb", features = ["transport-streamable-http-server"] }
+
 rustls = "0.23.31"
 rustls-pemfile = "2.2.0"
 axum = { version = "0.8.6", features = ["macros", "multipart"] }

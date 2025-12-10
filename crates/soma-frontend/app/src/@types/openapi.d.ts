@@ -440,30 +440,6 @@ export interface paths {
 		patch: operations["update-mcp-server-instance-function"];
 		trace?: never;
 	};
-	"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * MCP SSE connection
-		 * @description Establish Server-Sent Events (SSE) connection for MCP protocol communication
-		 */
-		get: operations["listen-to-mcp-sse"];
-		put?: never;
-		/**
-		 * Send MCP message
-		 * @description Send a JSON-RPC message to the MCP server
-		 */
-		post: operations["trigger-mcp-message"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
 	"/api/bridge/v1/provider": {
 		parameters: {
 			query?: never;
@@ -2233,7 +2209,6 @@ export interface components {
 		};
 		/** Format: date-time */
 		WrappedChronoDateTime: string;
-		WrappedClientJsonRpcMessage: Record<string, never>;
 		WrappedJsonValue: unknown;
 		/** Format: uuid */
 		WrappedUuidV4: string;
@@ -3253,52 +3228,6 @@ export interface operations {
 				content: {
 					"application/json": components["schemas"]["Error"];
 				};
-			};
-		};
-	};
-	"listen-to-mcp-sse": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description MCP server instance ID */
-				mcp_server_instance_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description MCP server running */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-		};
-	};
-	"trigger-mcp-message": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description MCP server instance ID */
-				mcp_server_instance_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["WrappedClientJsonRpcMessage"];
-			};
-		};
-		responses: {
-			/** @description MCP server running */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
 			};
 		};
 	};

@@ -9,7 +9,9 @@ export const LINKS = {
 	BRIDGE: () => `/bridge`,
 	BRIDGE_ENABLE_FUNCTIONS: () => `/bridge/enable-functions`,
 	BRIDGE_MANAGE_CREDENTIALS: () => `/bridge/manage-credentials`,
-	BRIDGE_MCP_INSPECTOR: () => `/bridge/mcp-inspector`,
+	BRIDGE_MCP_SERVERS: () => `/bridge/mcp-servers`,
+	// Legacy - kept for backwards compatibility, redirects to MCP Servers tab
+	BRIDGE_MCP_INSPECTOR: () => `/bridge/mcp-servers`,
 
 	// Enable Functions - Dynamic links with functionControllerId parameter
 	BRIDGE_ENABLE_FUNCTIONS_FUNCTION: (functionControllerId: string) =>
@@ -34,4 +36,10 @@ export const LINKS = {
 		`/bridge/manage-credentials/${providerInstanceId}/functions`,
 	BRIDGE_MANAGE_CREDENTIALS_DELETE: (providerInstanceId: string) =>
 		`/bridge/manage-credentials/${providerInstanceId}/delete`,
+
+	// MCP Servers - Dynamic links with mcpServerInstanceId parameter
+	BRIDGE_MCP_SERVER_CONFIGURE: (mcpServerInstanceId: string) =>
+		`/bridge/mcp-servers/${mcpServerInstanceId}/configure`,
+	BRIDGE_MCP_SERVER_INSPECTOR: (mcpServerInstanceId: string) =>
+		`/bridge/mcp-servers/${mcpServerInstanceId}/inspector`,
 };

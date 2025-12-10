@@ -2,8 +2,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bridge::logic::mcp::BridgeMcpService;
 use bridge::logic::{OnConfigChangeTx, register_all_bridge_providers};
 use encryption::logic::crypto_services::CryptoCache;
+use rmcp::transport::streamable_http_server::{
+    StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
+};
 use shared::error::CommonError;
 use shared::soma_agent_definition::SomaAgentDefinitionLike;
 use shared::subsystem::SubsystemHandle;
@@ -11,6 +15,7 @@ use shared::uds::{
     DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client, establish_connection_with_retry,
 };
 use tokio::sync::broadcast;
+use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use crate::logic::on_change_pubsub::{SomaChangeTx, create_soma_change_channel, run_change_pubsub};
@@ -278,8 +283,40 @@ pub async fn create_api_service(
     // Broadcast channels support multiple subscribers natively - no wrapper needed!
     let bridge_client_gen_rx = on_bridge_config_change_tx.subscribe();
 
-    // Create MCP transport channel
-    let (mcp_transport_tx, mcp_transport_rx) = tokio::sync::mpsc::unbounded_channel();
+    // Create MCP cancellation token for graceful shutdown
+    let mcp_ct = CancellationToken::new();
+    let mcp_ct_clone = mcp_ct.clone();
+
+    // Subscribe to system shutdown to cancel MCP service
+    let mut mcp_shutdown_rx = system_shutdown_signal.subscribe();
+    tokio::spawn(async move {
+        let _ = mcp_shutdown_rx.recv().await;
+        mcp_ct_clone.cancel();
+    });
+
+    // Create the StreamableHttpService for MCP
+    // Note: BridgeMcpService is created fresh for each request by the service factory
+    // Clone values for use in the service factory closure
+    let bridge_repo_for_mcp = bridge_repo.clone();
+    let crypto_cache_for_mcp = crypto_cache.clone();
+    let mcp_service = StreamableHttpService::new(
+        move || {
+            Ok(BridgeMcpService {
+                repository: bridge_repo_for_mcp.clone(),
+                encryption_service: crypto_cache_for_mcp.clone(),
+            })
+        },
+        LocalSessionManager::default().into(),
+        StreamableHttpServerConfig {
+            cancellation_token: mcp_ct.child_token(),
+            // Disable stateful mode to prevent 500 errors on GET resume attempts.
+            // When stateful_mode is false, the server returns 405 for GET requests,
+            // telling clients to use POST-only mode. The MCP protocol still works
+            // correctly - responses are returned via SSE in the POST response body.
+            // stateful_mode: false,
+            ..Default::default()
+        },
+    );
 
     // Register built-in bridge providers (google_mail, stripe, etc.) BEFORE creating API service
     info!("Registering built-in bridge providers...");
@@ -297,7 +334,7 @@ pub async fn create_api_service(
         soma_restate_service_port,
         connection_manager: connection_manager.clone(),
         repository: repository.clone(),
-        mcp_transport_tx: mcp_transport_tx.clone(),
+        mcp_service,
         soma_definition: soma_definition.clone(),
         restate_ingress_client: restate_params.get_ingress_client()?,
         restate_admin_client: restate_admin_client.clone(),
@@ -306,7 +343,6 @@ pub async fn create_api_service(
         crypto_cache: crypto_cache.clone(),
         bridge_repository: bridge_repo.clone(),
         identity_repository: identity_repo.clone(),
-        mcp_sse_ping_interval: Duration::from_secs(10),
         sdk_client: sdk_client.clone(),
         on_encryption_change_tx: encryption_change_tx.clone(),
         on_secret_change_tx: secret_change_tx.clone(),
@@ -336,13 +372,8 @@ pub async fn create_api_service(
         .await;
     });
 
-    // Start MCP connection manager
-    info!("Starting MCP connection manager...");
-    let mcp_handle = start_mcp_subsystem(
-        api_service.bridge_service.clone(),
-        mcp_transport_rx,
-        system_shutdown_signal.subscribe(),
-    )?;
+    // Note: MCP service is now nested directly in the router as a Tower service.
+    // No separate subsystem is needed.
 
     // Note: SDK sync is now SDK-initiated. When the SDK server starts (or restarts due to HMR),
     // it calls the /_internal/v1/resync_sdk endpoint to trigger sync of providers, agents,
@@ -411,7 +442,6 @@ pub async fn create_api_service(
         api_service,
         subsystems: Subsystems {
             sdk_server: Some(sdk_server_handle),
-            mcp: Some(mcp_handle),
             credential_rotation: Some(credential_rotation_handle),
             bridge_client_generation: Some(bridge_client_gen_handle),
             secret_sync: Some(secret_sync_handle),
@@ -450,40 +480,6 @@ fn start_sdk_server_subsystem(
             }
             Err(e) => {
                 error!("SDK server stopped with error: {:?}", e);
-                signal.signal();
-            }
-        }
-    });
-
-    Ok(handle)
-}
-
-fn start_mcp_subsystem(
-    bridge_service: bridge::router::BridgeService,
-    mcp_transport_rx: tokio::sync::mpsc::UnboundedReceiver<
-        rmcp::transport::sse_server::SseServerTransport,
-    >,
-    shutdown_rx: broadcast::Receiver<()>,
-) -> Result<SubsystemHandle, CommonError> {
-    use crate::logic::bridge::connection_manager::{
-        StartMcpConnectionManagerParams, start_mcp_connection_manager,
-    };
-
-    let (handle, signal) = SubsystemHandle::new("MCP");
-
-    tokio::spawn(async move {
-        match start_mcp_connection_manager(StartMcpConnectionManagerParams {
-            bridge_service,
-            mcp_transport_rx,
-            system_shutdown_signal_rx: shutdown_rx,
-        })
-        .await
-        {
-            Ok(()) => {
-                signal.signal_with_message("stopped gracefully");
-            }
-            Err(e) => {
-                error!("MCP connection manager stopped with error: {:?}", e);
                 signal.signal();
             }
         }

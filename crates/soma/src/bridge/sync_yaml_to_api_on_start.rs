@@ -487,7 +487,254 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
 
     info!("Environment variables synced from soma definition");
 
-    // 5. Sync identity configuration (API keys and STS configs)
+    // 5. Sync MCP server instances
+    if let Some(bridge_config) = &soma_definition.bridge {
+        if let Some(mcp_servers) = &bridge_config.mcp_servers {
+            use std::collections::HashSet;
+
+            // Get existing MCP server instances
+            let existing_mcp_servers: HashMap<String, models::McpServerInstanceSerializedWithFunctions> = {
+                let mut servers = HashMap::new();
+                let mut next_page_token: Option<String> = None;
+                loop {
+                    let response = bridge_api::list_mcp_server_instances(
+                        api_config,
+                        100,
+                        next_page_token.as_deref(),
+                    )
+                    .await
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!(
+                            "Failed to list MCP server instances: {e:?}"
+                        ))
+                    })?;
+
+                    for item in response.items {
+                        servers.insert(item.id.clone(), item);
+                    }
+                    if response.next_page_token.is_none() {
+                        break;
+                    }
+                    next_page_token = response.next_page_token;
+                }
+                servers
+            };
+
+            let yaml_mcp_server_ids: HashSet<String> = mcp_servers.keys().cloned().collect();
+
+            // Create or update MCP servers from yaml
+            for (mcp_server_id, mcp_server_config) in mcp_servers {
+                let needs_create = !existing_mcp_servers.contains_key(mcp_server_id);
+                let needs_update = existing_mcp_servers
+                    .get(mcp_server_id)
+                    .map(|existing| existing.name != mcp_server_config.name)
+                    .unwrap_or(false);
+
+                if needs_create {
+                    // Create MCP server instance
+                    let create_req = models::CreateMcpServerInstanceRequest {
+                        id: mcp_server_id.clone(),
+                        name: mcp_server_config.name.clone(),
+                    };
+                    bridge_api::create_mcp_server_instance(api_config, create_req)
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to create MCP server instance '{mcp_server_id}': {e:?}"
+                            ))
+                        })?;
+                    info!("Created MCP server instance '{}'", mcp_server_id);
+                } else if needs_update {
+                    // Update MCP server instance name
+                    let update_req = models::UpdateMcpServerInstanceRequest {
+                        name: mcp_server_config.name.clone(),
+                    };
+                    bridge_api::update_mcp_server_instance(api_config, mcp_server_id, update_req)
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to update MCP server instance '{mcp_server_id}': {e:?}"
+                            ))
+                        })?;
+                    info!("Updated MCP server instance '{}'", mcp_server_id);
+                }
+
+                // Sync functions for this MCP server
+                let existing_functions: HashSet<(String, String, String)> = existing_mcp_servers
+                    .get(mcp_server_id)
+                    .map(|s| {
+                        s.functions
+                            .iter()
+                            .map(|f| {
+                                (
+                                    f.function_controller_type_id.clone(),
+                                    f.provider_controller_type_id.clone(),
+                                    f.provider_instance_id.clone(),
+                                )
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                let yaml_functions: HashSet<(String, String, String)> = mcp_server_config
+                    .functions
+                    .as_ref()
+                    .map(|funcs| {
+                        funcs
+                            .iter()
+                            .map(|f| {
+                                (
+                                    f.function_controller_type_id.clone(),
+                                    f.provider_controller_type_id.clone(),
+                                    f.provider_instance_id.clone(),
+                                )
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                // Remove functions not in yaml
+                for (func_ctrl_id, prov_ctrl_id, prov_inst_id) in existing_functions.iter() {
+                    if !yaml_functions.contains(&(
+                        func_ctrl_id.clone(),
+                        prov_ctrl_id.clone(),
+                        prov_inst_id.clone(),
+                    )) {
+                        bridge_api::remove_mcp_server_instance_function(
+                            api_config,
+                            mcp_server_id,
+                            func_ctrl_id,
+                            prov_ctrl_id,
+                            prov_inst_id,
+                        )
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to remove function from MCP server '{mcp_server_id}': {e:?}"
+                            ))
+                        })?;
+                        info!(
+                            "Removed function '{}/{}/{}' from MCP server '{}'",
+                            func_ctrl_id, prov_ctrl_id, prov_inst_id, mcp_server_id
+                        );
+                    }
+                }
+
+                // Add or update functions from yaml
+                if let Some(yaml_funcs) = &mcp_server_config.functions {
+                    for func_config in yaml_funcs {
+                        let func_key = (
+                            func_config.function_controller_type_id.clone(),
+                            func_config.provider_controller_type_id.clone(),
+                            func_config.provider_instance_id.clone(),
+                        );
+
+                        if !existing_functions.contains(&func_key) {
+                            // Add new function
+                            let add_req = models::AddMcpServerInstanceFunctionRequest {
+                                function_controller_type_id: func_config
+                                    .function_controller_type_id
+                                    .clone(),
+                                provider_controller_type_id: func_config
+                                    .provider_controller_type_id
+                                    .clone(),
+                                provider_instance_id: func_config.provider_instance_id.clone(),
+                                function_name: func_config.function_name.clone(),
+                                function_description: func_config
+                                    .function_description
+                                    .clone()
+                                    .map(Some),
+                            };
+                            bridge_api::add_mcp_server_instance_function(
+                                api_config,
+                                mcp_server_id,
+                                add_req,
+                            )
+                            .await
+                            .map_err(|e| {
+                                CommonError::Unknown(anyhow::anyhow!(
+                                    "Failed to add function '{}' to MCP server '{mcp_server_id}': {e:?}",
+                                    func_config.function_name
+                                ))
+                            })?;
+                            info!(
+                                "Added function '{}' to MCP server '{}'",
+                                func_config.function_name, mcp_server_id
+                            );
+                        } else {
+                            // Check if function needs update (name or description changed)
+                            let existing_func = existing_mcp_servers
+                                .get(mcp_server_id)
+                                .and_then(|s| {
+                                    s.functions.iter().find(|f| {
+                                        f.function_controller_type_id
+                                            == func_config.function_controller_type_id
+                                            && f.provider_controller_type_id
+                                                == func_config.provider_controller_type_id
+                                            && f.provider_instance_id
+                                                == func_config.provider_instance_id
+                                    })
+                                });
+
+                            if let Some(existing) = existing_func {
+                                // Flatten the doubly-wrapped Option for comparison
+                                let existing_desc = existing.function_description.clone().flatten();
+                                if existing.function_name != func_config.function_name
+                                    || existing_desc != func_config.function_description
+                                {
+                                    let update_req =
+                                        models::UpdateMcpServerInstanceFunctionRequest {
+                                            function_name: func_config.function_name.clone(),
+                                            function_description: func_config
+                                                .function_description
+                                                .clone()
+                                                .map(Some),
+                                        };
+                                    bridge_api::update_mcp_server_instance_function(
+                                        api_config,
+                                        mcp_server_id,
+                                        &func_config.function_controller_type_id,
+                                        &func_config.provider_controller_type_id,
+                                        &func_config.provider_instance_id,
+                                        update_req,
+                                    )
+                                    .await
+                                    .map_err(|e| {
+                                        CommonError::Unknown(anyhow::anyhow!(
+                                            "Failed to update function '{}' in MCP server '{mcp_server_id}': {e:?}",
+                                            func_config.function_name
+                                        ))
+                                    })?;
+                                    info!(
+                                        "Updated function '{}' in MCP server '{}'",
+                                        func_config.function_name, mcp_server_id
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Delete MCP servers not in yaml
+            for mcp_server_id in existing_mcp_servers.keys() {
+                if !yaml_mcp_server_ids.contains(mcp_server_id) {
+                    bridge_api::delete_mcp_server_instance(api_config, mcp_server_id)
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to delete MCP server instance '{mcp_server_id}': {e:?}"
+                            ))
+                        })?;
+                    info!("Deleted MCP server instance '{}' not in yaml", mcp_server_id);
+                }
+            }
+        }
+    }
+
+    info!("MCP server instances synced from soma definition");
+
+    // 6. Sync identity configuration (API keys and STS configs)
     if let Some(identity_config) = &soma_definition.identity {
         // 5a. Sync API keys
         if let Some(api_keys) = &identity_config.api_keys {

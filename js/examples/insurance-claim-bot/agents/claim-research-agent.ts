@@ -18,7 +18,7 @@ import { z } from "zod";
 import { type AgentsDefinition, getAgents } from "../soma/agents";
 import { type BridgeDefinition, getBridge } from "../soma/bridge";
 import { convertToAiSdkMessages } from "../utils";
-
+import { createSomaMcpClient, createSomaMcpTransport } from "@trysoma/sdk/mcp";
 interface ClaimResearchInput {
 	model: LanguageModel;
 }
@@ -55,21 +55,22 @@ const handlers = {
 
 			ctx.console.log("Messages", messages);
 
-			// NOTE: MCP client and tools cannot be wrapped in ctx.run() because they contain
-			// non-serializable objects (schemas, functions). See https://github.com/trysoma/soma/issues/80
+			let {
+				transport,
+				sessionId,
+			} = createSomaMcpTransport(ctx, "test");
 			const mcpClient = await createMCPClient({
-				transport: {
-					type: "sse",
-					url: `${process.env.SOMA_SERVER_BASE_URL || "http://localhost:3000"}/api/bridge/v1/mcp`,
-				},
-			});
+				transport,
+			})
+			sessionId = transport.sessionId;
 			const tools = await mcpClient.tools();
+			ctx.console.log("Tools", tools.tools);
 
 			const stream = streamText({
 				model,
 				messages,
 				tools: {
-					...(tools as ToolSet),
+					...tools,
 					outputResearch: tool({
 						description: "Summarize your findings into a final output ",
 						inputSchema: outputResearchSchema,

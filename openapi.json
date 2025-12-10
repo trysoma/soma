@@ -1472,68 +1472,6 @@
         }
       }
     },
-    "/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp": {
-      "get": {
-        "tags": [
-          "bridge",
-          "v1"
-        ],
-        "summary": "MCP SSE connection",
-        "description": "Establish Server-Sent Events (SSE) connection for MCP protocol communication",
-        "operationId": "listen-to-mcp-sse",
-        "parameters": [
-          {
-            "name": "mcp_server_instance_id",
-            "in": "path",
-            "description": "MCP server instance ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "MCP server running"
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "bridge",
-          "v1"
-        ],
-        "summary": "Send MCP message",
-        "description": "Send a JSON-RPC message to the MCP server",
-        "operationId": "trigger-mcp-message",
-        "parameters": [
-          {
-            "name": "mcp_server_instance_id",
-            "in": "path",
-            "description": "MCP server instance ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WrappedClientJsonRpcMessage"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "MCP server running"
-          }
-        }
-      }
-    },
     "/api/bridge/v1/provider": {
       "get": {
         "tags": [
@@ -9449,9 +9387,6 @@
       "WrappedChronoDateTime": {
         "type": "string",
         "format": "date-time"
-      },
-      "WrappedClientJsonRpcMessage": {
-        "type": "object"
       },
       "WrappedJsonValue": {},
       "WrappedUuidV4": {

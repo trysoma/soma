@@ -1,8 +1,12 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc};
 
+use ::bridge::logic::mcp::BridgeMcpService;
 use ::bridge::router::BridgeService;
 use bridge::logic::OnConfigChangeTx;
 use encryption::logic::{EncryptionKeyEventSender, crypto_services::CryptoCache};
+use rmcp::transport::streamable_http_server::{
+    StreamableHttpService, session::local::LocalSessionManager,
+};
 use shared::{
     error::CommonError,
     restate::{admin_client::AdminClient, invoke::RestateIngressClient},
@@ -62,8 +66,7 @@ pub struct InitApiServiceParams {
     pub soma_restate_service_port: u16,
     pub connection_manager: ConnectionManager,
     pub repository: Repository,
-    pub mcp_transport_tx:
-        tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
+    pub mcp_service: StreamableHttpService<BridgeMcpService, LocalSessionManager>,
     pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub restate_ingress_client: RestateIngressClient,
     pub restate_admin_client: AdminClient,
@@ -77,7 +80,6 @@ pub struct InitApiServiceParams {
     pub bridge_repository: ::bridge::repository::Repository,
     pub identity_repository: identity::repository::Repository,
     pub internal_jwks_cache: identity::logic::jwk::cache::JwksCache,
-    pub mcp_sse_ping_interval: Duration,
     pub sdk_client: Arc<
         tokio::sync::Mutex<
             Option<
@@ -116,8 +118,7 @@ impl ApiService {
             init_params.bridge_repository.clone(),
             init_params.on_bridge_config_change_tx.clone(),
             init_params.crypto_cache.clone(),
-            init_params.mcp_transport_tx,
-            init_params.mcp_sse_ping_interval,
+            init_params.mcp_service,
         )
         .await?;
 

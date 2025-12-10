@@ -1,10 +1,11 @@
 use std::future::Future;
 use std::net::SocketAddr;
 
+use http::header::HeaderName;
 use shared::error::CommonError;
 use shared::port::find_free_port;
 use soma_api_server::ApiService;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer, ExposeHeaders};
 use tracing::info;
 
 pub struct StartAxumServerParams {
@@ -52,8 +53,17 @@ pub async fn start_axum_server(
     let (vite_router, _) = create_vite_router().split_for_parts();
     let router = Router::new().merge(api_router).merge(vite_router);
 
-    // Add CORS layer
-    let router = router.layer(CorsLayer::permissive());
+    // Add CORS layer with explicit MCP session header support
+    // The MCP Streamable HTTP transport requires mcp-session-id to be exposed for browser clients
+    let cors = CorsLayer::new()
+        .allow_origin(AllowOrigin::any())
+        .allow_methods(AllowMethods::any())
+        .allow_headers(AllowHeaders::any())
+        .expose_headers(ExposeHeaders::list([
+            HeaderName::from_static("mcp-session-id"),
+            HeaderName::from_static("mcp-protocol-version"),
+        ]));
+    let router = router.layer(cors);
 
     info!("Router initiated");
 

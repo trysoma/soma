@@ -168,10 +168,6 @@ export interface BridgeApiListProviderInstancesGroupedByFunctionRequest {
 	functionCategory?: string | null;
 }
 
-export interface BridgeApiListenToMcpSseRequest {
-	mcpServerInstanceId: string;
-}
-
 export interface BridgeApiRemoveMcpServerInstanceFunctionRequest {
 	mcpServerInstanceId: string;
 	functionControllerTypeId: string;
@@ -190,11 +186,6 @@ export interface BridgeApiStartUserCredentialBrokeringRequest {
 	providerControllerTypeId: string;
 	credentialControllerTypeId: string;
 	startUserCredentialBrokeringParamsInner: StartUserCredentialBrokeringParamsInner;
-}
-
-export interface BridgeApiTriggerMcpMessageRequest {
-	mcpServerInstanceId: string;
-	body: object;
 }
 
 export interface BridgeApiUpdateMcpServerInstanceOperationRequest {
@@ -1541,55 +1532,6 @@ export class BridgeApi extends runtime.BaseAPI {
 	}
 
 	/**
-	 * Establish Server-Sent Events (SSE) connection for MCP protocol communication
-	 * MCP SSE connection
-	 */
-	async listenToMcpSseRaw(
-		requestParameters: BridgeApiListenToMcpSseRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<void>> {
-		if (requestParameters.mcpServerInstanceId == null) {
-			throw new runtime.RequiredError(
-				"mcpServerInstanceId",
-				'Required parameter "mcpServerInstanceId" was null or undefined when calling listenToMcpSse().',
-			);
-		}
-
-		const queryParameters: any = {};
-
-		const headerParameters: runtime.HTTPHeaders = {};
-
-		let urlPath = `/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp`;
-		urlPath = urlPath.replace(
-			`{${"mcp_server_instance_id"}}`,
-			encodeURIComponent(String(requestParameters.mcpServerInstanceId)),
-		);
-
-		const response = await this.request(
-			{
-				path: urlPath,
-				method: "GET",
-				headers: headerParameters,
-				query: queryParameters,
-			},
-			initOverrides,
-		);
-
-		return new runtime.VoidApiResponse(response);
-	}
-
-	/**
-	 * Establish Server-Sent Events (SSE) connection for MCP protocol communication
-	 * MCP SSE connection
-	 */
-	async listenToMcpSse(
-		requestParameters: BridgeApiListenToMcpSseRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<void> {
-		await this.listenToMcpSseRaw(requestParameters, initOverrides);
-	}
-
-	/**
 	 * Remove a function mapping from an MCP server instance
 	 * Remove function from MCP server instance
 	 */
@@ -1813,65 +1755,6 @@ export class BridgeApi extends runtime.BaseAPI {
 			initOverrides,
 		);
 		return await response.value();
-	}
-
-	/**
-	 * Send a JSON-RPC message to the MCP server
-	 * Send MCP message
-	 */
-	async triggerMcpMessageRaw(
-		requestParameters: BridgeApiTriggerMcpMessageRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<void>> {
-		if (requestParameters.mcpServerInstanceId == null) {
-			throw new runtime.RequiredError(
-				"mcpServerInstanceId",
-				'Required parameter "mcpServerInstanceId" was null or undefined when calling triggerMcpMessage().',
-			);
-		}
-
-		if (requestParameters.body == null) {
-			throw new runtime.RequiredError(
-				"body",
-				'Required parameter "body" was null or undefined when calling triggerMcpMessage().',
-			);
-		}
-
-		const queryParameters: any = {};
-
-		const headerParameters: runtime.HTTPHeaders = {};
-
-		headerParameters["Content-Type"] = "application/json";
-
-		let urlPath = `/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp`;
-		urlPath = urlPath.replace(
-			`{${"mcp_server_instance_id"}}`,
-			encodeURIComponent(String(requestParameters.mcpServerInstanceId)),
-		);
-
-		const response = await this.request(
-			{
-				path: urlPath,
-				method: "POST",
-				headers: headerParameters,
-				query: queryParameters,
-				body: requestParameters.body as any,
-			},
-			initOverrides,
-		);
-
-		return new runtime.VoidApiResponse(response);
-	}
-
-	/**
-	 * Send a JSON-RPC message to the MCP server
-	 * Send MCP message
-	 */
-	async triggerMcpMessage(
-		requestParameters: BridgeApiTriggerMcpMessageRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<void> {
-		await this.triggerMcpMessageRaw(requestParameters, initOverrides);
 	}
 
 	/**

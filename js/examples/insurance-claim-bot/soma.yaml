@@ -13,14 +13,14 @@ bridge:
       credential_controller_type_id: no_auth
       display_name: internal
       resource_server_credential:
-        id: 7853f633-400a-4743-914d-00f662356f75
+        id: c7173469-54a5-4075-b3d4-f5ea68c12580
         type_id: resource_server_no_auth
         metadata: {}
         value:
           metadata: {}
         dek_alias: default
       user_credential:
-        id: d02229b1-e034-496a-93cc-7dd146543a82
+        id: dc6124aa-e859-4526-a4ba-42e11a56095d
         type_id: user_no_auth
         metadata: {}
         value:
@@ -33,14 +33,14 @@ bridge:
       credential_controller_type_id: no_auth
       display_name: internal
       resource_server_credential:
-        id: c75fcd69-5f31-46a3-8a16-d0045cdb7a97
+        id: 7c696576-9ebd-46a4-9cd8-27449932110b
         type_id: resource_server_no_auth
         metadata: {}
         value:
           metadata: {}
         dek_alias: default
       user_credential:
-        id: 7fd6d4f0-00ce-4ce7-9eb0-d480710895ee
+        id: 3d0c89f5-dac0-494c-a667-28662f6dad6a
         type_id: user_no_auth
         metadata: {}
         value:
@@ -48,6 +48,24 @@ bridge:
         dek_alias: default
       functions:
       - research-claim
+  mcp_servers:
+    test-3:
+      name: test-3
+      functions: []
+    test-2:
+      name: test-2
+      functions: []
+    test:
+      name: test
+      functions:
+      - function_controller_type_id: approve-claim
+        provider_controller_type_id: approve-claim
+        provider_instance_id: 1b8c7dd2-45a9-4c82-8a9f-69cdb732883e
+        function_name: approve_claim
+      - function_controller_type_id: research-claim
+        provider_controller_type_id: research-claim
+        provider_instance_id: 452b1c4c-6ba7-4284-b362-2431750569fc
+        function_name: research_claim
 secrets:
   OPENAI_API_KEY:
     value: ViY4JLxjdk8TmSDEXx1Msrb153aSQB9RVeFmKFsSAayoENC0szCNcWEy3E8LgR4arWNVqsChpLDWaraye2BF4n0VsK82QgHyjcY/GL4qcA9fmQwmfu1EKD2B3LMUSp0FogGSG8v6gwwxuE2+Ur4PKJkPytcX6bYf7kzNqRAUfjqeE2wqIOHg5dEFii3DBmsUWM0yMpPIEXTZPpUCjhY626AU/CAg8rcFYoFj69TN+uWmG9nKCMpf5/bAfOG+Yo5F
