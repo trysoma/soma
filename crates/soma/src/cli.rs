@@ -18,7 +18,7 @@ pub fn unwrap_and_error<T>(cmd: Result<T, CommonError>) -> T {
         Ok(value) => value,
         Err(e) => {
             error!("Error: {:?}", &e);
-            panic!("Error: {:?}", &e);
+            std::process::exit(1);
         }
     }
 }

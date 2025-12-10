@@ -46,6 +46,9 @@ sys.path.pop(0)
 sys.path.insert(0, 'agents')
 from index import default as agent_0  # type: ignore  # pyright: ignore  # noqa: E402
 sys.path.pop(0)
+sys.path.insert(0, 'agents')
+from new import default as agent_1  # type: ignore  # pyright: ignore  # noqa: E402
+sys.path.pop(0)
 
 print("SDK server starting...")
 
@@ -211,6 +214,18 @@ async def main() -> None:
         ))
 
 
+    # Register agent: new
+    agent = agent_1
+    if (hasattr(agent, 'agent_id') and hasattr(agent, 'project_id')
+            and hasattr(agent, 'name') and hasattr(agent, 'description')):
+        add_agent(Agent(
+            agent.agent_id,
+            agent.project_id,
+            agent.name,
+            agent.description,
+        ))
+
+
     print("SDK server ready!")
 
 
@@ -267,10 +282,24 @@ async def main() -> None:
             await wrap_handler(
                 agent_0.entrypoint, agent_0
             )(ctx, input_data)
+        # Create Virtual Object for agent
+        agent_1_object = restate.VirtualObject(
+            f"{agent_1.project_id}.{agent_1.agent_id}"
+        )
+        
+        @agent_1_object.handler("entrypoint")
+        async def agent_1_entrypoint(
+            ctx: restate.ObjectContext,
+            input_data: dict[str, str]
+        ) -> None:
+            await wrap_handler(
+                agent_1.entrypoint, agent_1
+            )(ctx, input_data)
 
         # Create Restate app with services
         restate_services_list = [
-        agent_0_object
+        agent_0_object,
+        agent_1_object,
         ]
         app = restate.app(services=restate_services_list)
 

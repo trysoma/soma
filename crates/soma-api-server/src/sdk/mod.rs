@@ -1,5 +1,6 @@
 mod interface;
 mod python;
+pub mod sdk_agent_sync;
 pub mod sdk_provider_sync;
 mod typescript;
 

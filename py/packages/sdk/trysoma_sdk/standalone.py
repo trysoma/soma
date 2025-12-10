@@ -223,7 +223,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
 
         # Create Restate app with services
         restate_services_list = [
-{chr(10).join([f"        agent_{idx}_object" for idx in range(len(agent_files))])}
+{chr(10).join([f"        agent_{idx}_object," for idx in range(len(agent_files))])}
         ]
         app = restate.app(services=restate_services_list)
 

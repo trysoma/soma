@@ -281,7 +281,7 @@ export function A2aChatLayout() {
 						</Button>
 					}
 				/>
-				<main className="h-full max-h-[calc(100vh-var(--header-height)-var(--nav-height)-var(--sub-nav-height))] overflow-y-scroll w-full flex-1">
+				<main className="h-full max-h-[calc(100vh-var(--header-height)-var(--nav-height)-var(--sub-nav-height)-var(--sub-sub-nav-height))] overflow-y-scroll w-full flex-1">
 					<A2aChat />
 				</main>
 			</SidebarProvider>

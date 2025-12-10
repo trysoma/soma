@@ -6,8 +6,16 @@ import {
 	TaskStatus,
 } from "@trysoma/api-client";
 import { createSomaAgent, patterns } from "@trysoma/sdk";
-import { type LanguageModel, streamText, tool, wrapLanguageModel } from "ai";
+import {
+	generateText,
+	type LanguageModel,
+	type ModelMessage,
+	streamText,
+	tool,
+	wrapLanguageModel,
+} from "ai";
 import { z } from "zod";
+import { type AgentsDefinition, getAgents } from "../soma/agents";
 import { type BridgeDefinition, getBridge } from "../soma/bridge";
 import { convertToAiSdkMessages } from "../utils";
 
@@ -31,11 +39,13 @@ interface DiscoverClaimInput {
 
 interface ProcessClaimInput {
 	assessment: Assessment;
+	model: LanguageModel;
 }
 
 const handlers = {
 	discoverClaim: patterns.chat<
 		BridgeDefinition,
+		AgentsDefinition,
 		DiscoverClaimInput,
 		Assessment
 	>(
@@ -91,33 +101,84 @@ const handlers = {
 			});
 		},
 	),
-	processClaim: patterns.workflow<BridgeDefinition, ProcessClaimInput, void>(
+	processClaim: patterns.workflow<
+		BridgeDefinition,
+		AgentsDefinition,
+		ProcessClaimInput,
+		void
+	>(
 		async ({
 			ctx,
 			soma: _soma,
-			history: _history,
+			history,
 			bridge,
-			input: { assessment },
+			input: { assessment, model },
+			agents,
 			sendMessage,
 		}) => {
-			ctx.console.log("Assessment", assessment);
+			ctx.console.log("Beginning to research claim and process it", assessment);
 
-			// once you enable the bridge mcp function, with account name ("internal"), you can uncomment this.
-			// await bridge.approveClaim.internal.approveClaim({
-			// 	claim: {
-			// 		amount: assessment.claim.amount,
-			// 		category: assessment.claim.category,
-			// 		date: assessment.claim.date,
-			// 		email: assessment.claim.email,
-			// 		reason: assessment.claim.reason,
-			// 	},
-			// });
+			const messagesWithResearchAgent: ModelMessage[] = [
+				...convertToAiSdkMessages(history),
+				{
+					role: "system",
+					content:
+						"You are now trying to research familiar claims to the one provided. You are discussing this with a research agent. Any messages / questions you respond with will go to the research agent. include the assessment information in your first message. Once you have some research, call the onComplete tool with an approval decision.",
+				},
+			];
+
+			let approvalDecision: boolean | undefined;
+			while (approvalDecision === undefined) {
+				const { text } = await generateText({
+					model,
+					messages: messagesWithResearchAgent,
+					tools: {
+						onComplete: tool({
+							description: "Call this tool once you have some research",
+							inputSchema: z.object({
+								approval: z.boolean(),
+							}),
+							execute: async (input: { approval: boolean }) => {
+								approvalDecision = input.approval;
+							},
+						}),
+					},
+				});
+
+				const responseStream =
+					await agents.acme.claimResearchAgent.sendMessageStream({
+						message: {
+							role: "user",
+							parts: [
+								{
+									text,
+									metadata: {},
+									kind: "text",
+								},
+							],
+							messageId: "123",
+							kind: "message",
+						},
+					});
+
+				for await (const event of responseStream) {
+					if (event.kind === "message") {
+						messagesWithResearchAgent.push({
+							role: "user",
+							content: event.parts
+								.map((part) => (part.kind === "text" ? part.text : ""))
+								.join(""),
+						});
+						break;
+					}
+				}
+			}
 
 			await sendMessage({
 				metadata: {},
 				parts: [
 					{
-						text: "Please wait while we process your claim... You should receive an email with the results shortly.",
+						text: `Please wait while we process your claim... You should receive an email with the results shortly. Your claim has been ${approvalDecision ? "approved" : "denied"}`,
 						metadata: {},
 						type: MessagePartTypeEnum.TextPart,
 					},
@@ -135,6 +196,7 @@ export default createSomaAgent({
 	description: "An agent that can process insurance claims.",
 	entrypoint: async ({ ctx, soma, taskId, contextId: _contextId }) => {
 		const bridge = getBridge(ctx);
+		const agents = await getAgents(ctx);
 
 		const model = wrapLanguageModel({
 			model: openai("gpt-4o"),
@@ -145,6 +207,7 @@ export default createSomaAgent({
 		const assessment = await handlers.discoverClaim({
 			ctx,
 			bridge,
+			agents,
 			input: { model },
 			taskId,
 			soma,
@@ -154,7 +217,8 @@ export default createSomaAgent({
 		await handlers.processClaim({
 			ctx,
 			bridge,
-			input: { assessment },
+			agents,
+			input: { assessment, model },
 			taskId,
 			soma,
 			interruptable: false,

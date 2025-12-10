@@ -1,0 +1,285 @@
+//! MCP server instance management and protocol routes
+
+use super::{API_VERSION_1, BridgeService, PATH_PREFIX, SERVICE_ROUTE_KEY};
+use crate::logic::{
+    AddMcpServerInstanceFunctionRequest, AddMcpServerInstanceFunctionResponse,
+    CreateMcpServerInstanceRequest, CreateMcpServerInstanceResponse, GetMcpServerInstanceResponse,
+    ListMcpServerInstancesParams, ListMcpServerInstancesResponse,
+    RemoveMcpServerInstanceFunctionResponse, UpdateMcpServerInstanceFunctionRequest,
+    UpdateMcpServerInstanceFunctionResponse, UpdateMcpServerInstanceRequest,
+    UpdateMcpServerInstanceResponse, add_mcp_server_instance_function, create_mcp_server_instance,
+    delete_mcp_server_instance, get_mcp_server_instance, list_mcp_server_instances,
+    remove_mcp_server_instance_function, update_mcp_server_instance,
+    update_mcp_server_instance_function,
+};
+use axum::extract::{Json, Path, Query, State};
+use shared::adapters::openapi::{API_VERSION_TAG, JsonResponse};
+use shared::error::CommonError;
+
+// ============================================================================
+// MCP Server Instance endpoints
+// ============================================================================
+
+#[utoipa::path(
+    post,
+    path = format!("{}/{}/{}/mcp-instance", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    request_body = CreateMcpServerInstanceRequest,
+    responses(
+        (status = 200, description = "Create MCP server instance", body = CreateMcpServerInstanceResponse),
+        (status = 400, description = "Bad Request", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Create MCP server instance",
+    description = "Create a new MCP server instance with a user-provided ID",
+    operation_id = "create-mcp-server-instance",
+)]
+pub async fn route_create_mcp_server_instance(
+    State(ctx): State<BridgeService>,
+    Json(request): Json<CreateMcpServerInstanceRequest>,
+) -> JsonResponse<CreateMcpServerInstanceResponse, CommonError> {
+    let res = create_mcp_server_instance(
+        ctx.on_config_change_tx(),
+        ctx.repository(),
+        request,
+        true, // publish_on_change_evt
+    )
+    .await;
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/mcp-instance/{{mcp_server_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("mcp_server_instance_id" = String, Path, description = "MCP server instance ID"),
+    ),
+    responses(
+        (status = 200, description = "Get MCP server instance", body = GetMcpServerInstanceResponse),
+        (status = 404, description = "Not Found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Get MCP server instance",
+    description = "Retrieve an MCP server instance by its ID",
+    operation_id = "get-mcp-server-instance",
+)]
+pub async fn route_get_mcp_server_instance(
+    State(ctx): State<BridgeService>,
+    Path(mcp_server_instance_id): Path<String>,
+) -> JsonResponse<GetMcpServerInstanceResponse, CommonError> {
+    let res = get_mcp_server_instance(ctx.repository(), &mcp_server_instance_id).await;
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    patch,
+    path = format!("{}/{}/{}/mcp-instance/{{mcp_server_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("mcp_server_instance_id" = String, Path, description = "MCP server instance ID"),
+    ),
+    request_body = UpdateMcpServerInstanceRequest,
+    responses(
+        (status = 200, description = "Update MCP server instance", body = UpdateMcpServerInstanceResponse),
+        (status = 404, description = "Not Found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Update MCP server instance",
+    description = "Update an MCP server instance name",
+    operation_id = "update-mcp-server-instance",
+)]
+pub async fn route_update_mcp_server_instance(
+    State(ctx): State<BridgeService>,
+    Path(mcp_server_instance_id): Path<String>,
+    Json(request): Json<UpdateMcpServerInstanceRequest>,
+) -> JsonResponse<UpdateMcpServerInstanceResponse, CommonError> {
+    let res = update_mcp_server_instance(
+        ctx.on_config_change_tx(),
+        ctx.repository(),
+        &mcp_server_instance_id,
+        request,
+        true, // publish_on_change_evt
+    )
+    .await;
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    delete,
+    path = format!("{}/{}/{}/mcp-instance/{{mcp_server_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("mcp_server_instance_id" = String, Path, description = "MCP server instance ID"),
+    ),
+    responses(
+        (status = 200, description = "Delete MCP server instance"),
+        (status = 404, description = "Not Found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Delete MCP server instance",
+    description = "Delete an MCP server instance and all its function mappings",
+    operation_id = "delete-mcp-server-instance",
+)]
+pub async fn route_delete_mcp_server_instance(
+    State(ctx): State<BridgeService>,
+    Path(mcp_server_instance_id): Path<String>,
+) -> JsonResponse<(), CommonError> {
+    let res = delete_mcp_server_instance(
+        ctx.on_config_change_tx(),
+        ctx.repository(),
+        &mcp_server_instance_id,
+        true, // publish_on_change_evt
+    )
+    .await;
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/mcp-instance", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ListMcpServerInstancesParams
+    ),
+    responses(
+        (status = 200, description = "List MCP server instances", body = ListMcpServerInstancesResponse),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "List MCP server instances",
+    description = "List all MCP server instances with pagination",
+    operation_id = "list-mcp-server-instances",
+)]
+pub async fn route_list_mcp_server_instances(
+    State(ctx): State<BridgeService>,
+    Query(params): Query<ListMcpServerInstancesParams>,
+) -> JsonResponse<ListMcpServerInstancesResponse, CommonError> {
+    let res = list_mcp_server_instances(ctx.repository(), params).await;
+    JsonResponse::from(res)
+}
+
+// ============================================================================
+// MCP Server Instance Function endpoints
+// ============================================================================
+
+#[utoipa::path(
+    post,
+    path = format!("{}/{}/{}/mcp-instance/{{mcp_server_instance_id}}/function", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("mcp_server_instance_id" = String, Path, description = "MCP server instance ID"),
+    ),
+    request_body = AddMcpServerInstanceFunctionRequest,
+    responses(
+        (status = 200, description = "Add function to MCP server instance", body = AddMcpServerInstanceFunctionResponse),
+        (status = 400, description = "Bad Request", body = CommonError),
+        (status = 404, description = "Not Found", body = CommonError),
+        (status = 409, description = "Conflict (function name already exists)", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Add function to MCP server instance",
+    description = "Add a function mapping to an MCP server instance with a custom name",
+    operation_id = "add-mcp-server-instance-function",
+)]
+pub async fn route_add_mcp_server_instance_function(
+    State(ctx): State<BridgeService>,
+    Path(mcp_server_instance_id): Path<String>,
+    Json(request): Json<AddMcpServerInstanceFunctionRequest>,
+) -> JsonResponse<AddMcpServerInstanceFunctionResponse, CommonError> {
+    let res = add_mcp_server_instance_function(
+        ctx.on_config_change_tx(),
+        ctx.repository(),
+        &mcp_server_instance_id,
+        request,
+        true, // publish_on_change_evt
+    )
+    .await;
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    patch,
+    path = format!("{}/{}/{}/mcp-instance/{{mcp_server_instance_id}}/function/{{function_controller_type_id}}/{{provider_controller_type_id}}/{{provider_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("mcp_server_instance_id" = String, Path, description = "MCP server instance ID"),
+        ("function_controller_type_id" = String, Path, description = "Function controller type ID"),
+        ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
+        ("provider_instance_id" = String, Path, description = "Provider instance ID"),
+    ),
+    request_body = UpdateMcpServerInstanceFunctionRequest,
+    responses(
+        (status = 200, description = "Update function in MCP server instance", body = UpdateMcpServerInstanceFunctionResponse),
+        (status = 404, description = "Not Found", body = CommonError),
+        (status = 409, description = "Conflict (function name already exists)", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Update function in MCP server instance",
+    description = "Update the function name and description for a function mapping",
+    operation_id = "update-mcp-server-instance-function",
+)]
+pub async fn route_update_mcp_server_instance_function(
+    State(ctx): State<BridgeService>,
+    Path((
+        mcp_server_instance_id,
+        function_controller_type_id,
+        provider_controller_type_id,
+        provider_instance_id,
+    )): Path<(String, String, String, String)>,
+    Json(request): Json<UpdateMcpServerInstanceFunctionRequest>,
+) -> JsonResponse<UpdateMcpServerInstanceFunctionResponse, CommonError> {
+    let res = update_mcp_server_instance_function(
+        ctx.on_config_change_tx(),
+        ctx.repository(),
+        &mcp_server_instance_id,
+        &function_controller_type_id,
+        &provider_controller_type_id,
+        &provider_instance_id,
+        request,
+        true, // publish_on_change_evt
+    )
+    .await;
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    delete,
+    path = format!("{}/{}/{}/mcp-instance/{{mcp_server_instance_id}}/function/{{function_controller_type_id}}/{{provider_controller_type_id}}/{{provider_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("mcp_server_instance_id" = String, Path, description = "MCP server instance ID"),
+        ("function_controller_type_id" = String, Path, description = "Function controller type ID"),
+        ("provider_controller_type_id" = String, Path, description = "Provider controller type ID"),
+        ("provider_instance_id" = String, Path, description = "Provider instance ID"),
+    ),
+    responses(
+        (status = 200, description = "Remove function from MCP server instance", body = RemoveMcpServerInstanceFunctionResponse),
+        (status = 404, description = "Not Found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Remove function from MCP server instance",
+    description = "Remove a function mapping from an MCP server instance",
+    operation_id = "remove-mcp-server-instance-function",
+)]
+pub async fn route_remove_mcp_server_instance_function(
+    State(ctx): State<BridgeService>,
+    Path((
+        mcp_server_instance_id,
+        function_controller_type_id,
+        provider_controller_type_id,
+        provider_instance_id,
+    )): Path<(String, String, String, String)>,
+) -> JsonResponse<RemoveMcpServerInstanceFunctionResponse, CommonError> {
+    let res = remove_mcp_server_instance_function(
+        ctx.on_config_change_tx(),
+        ctx.repository(),
+        &mcp_server_instance_id,
+        &function_controller_type_id,
+        &provider_controller_type_id,
+        &provider_instance_id,
+        true, // publish_on_change_evt
+    )
+    .await;
+    JsonResponse::from(res)
+}
+

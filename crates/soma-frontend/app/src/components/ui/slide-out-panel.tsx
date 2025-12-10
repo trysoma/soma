@@ -42,7 +42,7 @@ export const SlideOutPanel = ({
 						animate={{ x: 0 }}
 						exit={{ x: "100%" }}
 						transition={{ type: "spring", damping: 30, stiffness: 300 }}
-						className="fixed top-0 right-0 h-screen w-2/3 bg-background border-l shadow-2xl z-50 flex flex-col"
+						className="fixed top-0 right-0 h-screen w-[50vw] bg-background border-l shadow-2xl z-50 flex flex-col"
 						onClick={(e) => e.stopPropagation()}
 					>
 						{/* Header */}

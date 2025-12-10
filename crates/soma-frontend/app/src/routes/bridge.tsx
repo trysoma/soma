@@ -20,8 +20,8 @@ function LayoutComponent() {
 						href: LINKS.BRIDGE_MANAGE_CREDENTIALS(),
 					},
 					{
-						label: "MCP Inspector",
-						href: LINKS.BRIDGE_MCP_INSPECTOR(),
+						label: "MCP Servers",
+						href: LINKS.BRIDGE_MCP_SERVERS(),
 					},
 				]}
 				nestLevel="second"

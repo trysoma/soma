@@ -10,7 +10,7 @@
 	],
 	"compilerOptions": {
 		"module": "es2022",
-		"moduleResolution": "node",
+		"moduleResolution": "bundler",
 		"noImplicitReturns": true,
 		"outDir": "dist",
 		"sourceMap": true,

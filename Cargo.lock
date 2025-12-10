@@ -1591,6 +1591,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25ae13da2f202d56bd7f91c25fba009e7717a1e4a1cc98a76d844b65ae912e9d"
+dependencies = [
+ "darling_core 0.23.0",
+ "darling_macro 0.23.0",
+]
+
+[[package]]
 name = "darling_core"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1619,6 +1629,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling_core"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9865a50f7c335f53564bb694ef660825eb8610e0a53d3e11bf1b0d3df31e03b0"
+dependencies = [
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim",
+ "syn 2.0.111",
+]
+
+[[package]]
 name = "darling_macro"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1636,6 +1659,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d38308df82d1080de0afee5d069fa14b0326a88c14f15c5ccda35b4a6c414c81"
 dependencies = [
  "darling_core 0.21.3",
+ "quote",
+ "syn 2.0.111",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac3984ec7bd6cfa798e62b4a642426a5be0e68f9401cfc2a01e3fa9ea2fcdb8d"
+dependencies = [
+ "darling_core 0.23.0",
  "quote",
  "syn 2.0.111",
 ]
@@ -4223,6 +4257,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
+name = "pastey"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57d6c094ee800037dff99e02cab0eaf3142826586742a270ab3d7a62656bd27a"
+
+[[package]]
 name = "pbkdf2"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5294,10 +5334,10 @@ dependencies = [
 
 [[package]]
 name = "rmcp"
-version = "0.7.0"
-source = "git+https://github.com/trysoma/modelcontextprotocol-rust-sdk?rev=6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c#6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c"
+version = "0.11.0"
+source = "git+https://github.com/modelcontextprotocol/rust-sdk?rev=bce055506861e30a650889bf48df7667bc2403eb#bce055506861e30a650889bf48df7667bc2403eb"
 dependencies = [
- "axum 0.8.7",
+ "async-trait",
  "base64 0.22.1",
  "bytes",
  "chrono",
@@ -5305,7 +5345,7 @@ dependencies = [
  "http 1.4.0",
  "http-body 1.0.1",
  "http-body-util",
- "paste",
+ "pastey",
  "pin-project-lite",
  "rand 0.9.2",
  "rmcp-macros",
@@ -5324,10 +5364,10 @@ dependencies = [
 
 [[package]]
 name = "rmcp-macros"
-version = "0.7.0"
-source = "git+https://github.com/trysoma/modelcontextprotocol-rust-sdk?rev=6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c#6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c"
+version = "0.11.0"
+source = "git+https://github.com/modelcontextprotocol/rust-sdk?rev=bce055506861e30a650889bf48df7667bc2403eb#bce055506861e30a650889bf48df7667bc2403eb"
 dependencies = [
- "darling 0.21.3",
+ "darling 0.23.0",
  "proc-macro2",
  "quote",
  "serde_json",

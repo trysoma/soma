@@ -111,6 +111,7 @@ message FunctionController {
 
 message GenerateBridgeClientRequest {
   repeated FunctionInstanceData function_instances = 1;
+  repeated Agent agents = 2;
 }
 
 message GenerateBridgeClientResponse {

@@ -3,7 +3,7 @@ import type {
 	Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { Bell, Hammer } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HistoryAndNotifications } from "./history-and-notifications";
@@ -11,12 +11,17 @@ import { PingTab } from "./ping-tab";
 import { ToolsTab } from "./tools-tab";
 import { useMCPConnection } from "./use-mcp-connection";
 
-export function MCPInspector() {
+interface MCPInspectorProps {
+	mcpServerInstanceId: string;
+}
+
+export function MCPInspector({ mcpServerInstanceId }: MCPInspectorProps) {
 	const [tools, setTools] = useState<Tool[]>([]);
 	const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
 	const [toolResult, setToolResult] =
 		useState<CompatibilityCallToolResult | null>(null);
 	const [activeTab, setActiveTab] = useState("tools");
+	const hasAutoConnectedRef = useRef(false);
 
 	const {
 		connectionStatus,
@@ -29,15 +34,16 @@ export function MCPInspector() {
 		clearRequestHistory,
 		clearNotifications,
 	} = useMCPConnection({
-		serverUrl: "http://localhost:3000/api/bridge/v1/mcp",
+		serverUrl: `http://localhost:3000/api/bridge/v1/mcp-instance/${mcpServerInstanceId}/mcp`,
 	});
 
+	// Auto-connect on mount (only once)
 	useEffect(() => {
-		// Auto-connect on mount
-		if (connectionStatus === "disconnected") {
+		if (!hasAutoConnectedRef.current) {
+			hasAutoConnectedRef.current = true;
 			connect();
 		}
-	}, [connect, connectionStatus]);
+	}, [connect]);
 
 	const listTools = async () => {
 		try {

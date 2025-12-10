@@ -1,7 +1,7 @@
 import type { ProviderController } from "@trysoma/sdk";
 import { createSomaFunction } from "@trysoma/sdk/bridge";
 import z from "zod";
-import { assessmentSchema } from "../agents";
+import { assessmentSchema } from "../agents/claim-process-agent";
 export const providerController: ProviderController = {
 	typeId: "approve-claim",
 	name: "Approve Claim",

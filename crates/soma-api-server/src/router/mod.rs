@@ -1,4 +1,4 @@
-use axum::Router;
+use axum::{Router, extract::OriginalUri, middleware};
 use shared::adapters::openapi::API_VERSION_TAG;
 use utoipa::openapi::tag::TagBuilder;
 use utoipa::openapi::{Info, OpenApi};
@@ -9,11 +9,21 @@ use encryption::router::create_router as create_encryption_router;
 use identity::router::create_router as create_identity_router;
 use shared::error::CommonError;
 
-pub(crate) mod a2a;
+pub(crate) mod agent;
 pub(crate) mod environment_variable;
 pub(crate) mod internal;
 pub(crate) mod secret;
 pub(crate) mod task;
+
+/// Middleware that stores the original URI in request extensions before nest_service strips the path.
+async fn store_original_uri(
+    original_uri: OriginalUri,
+    mut request: axum::http::Request<axum::body::Body>,
+    next: middleware::Next,
+) -> axum::response::Response {
+    request.extensions_mut().insert(original_uri);
+    next.run(request).await
+}
 
 pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonError> {
     let mut router = Router::new();
@@ -22,7 +32,7 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
 
     // agent router
 
-    let (agent_router, _) = a2a::create_router().split_for_parts();
+    let (agent_router, _) = agent::create_router().split_for_parts();
 
     let agent_router = agent_router.with_state(api_service.agent_service);
     router = router.merge(agent_router);
@@ -34,8 +44,15 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
 
     // bridge router
     let (bridge_router, _) = create_bridge_router().split_for_parts();
-    let bridge_router = bridge_router.with_state(api_service.bridge_service);
+    let bridge_router = bridge_router.with_state(api_service.bridge_service.clone());
     router = router.merge(bridge_router);
+
+    // MCP Streamable HTTP service - nested under /api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp
+    let mcp_service = api_service.bridge_service.mcp_service().clone();
+    router = router.nest_service(
+        "/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp",
+        mcp_service,
+    );
 
     // internal router
     let (internal_router, _) = internal::create_router().split_for_parts();
@@ -62,11 +79,14 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
     let identity_router = identity_router.with_state(api_service.identity_service);
     router = router.merge(identity_router);
 
+    // Apply middleware to store original URI for nested services (like MCP)
+    let router = router.layer(middleware::from_fn(store_original_uri));
+
     Ok(router)
 }
 
 pub fn generate_openapi_spec() -> OpenApi {
-    let (_, mut spec) = a2a::create_router().split_for_parts();
+    let (_, mut spec) = agent::create_router().split_for_parts();
     let (_, task_spec) = task::create_router().split_for_parts();
     let (_, bridge_spec) = create_bridge_router().split_for_parts();
     let (_, internal_spec) = internal::create_router().split_for_parts();
@@ -114,8 +134,8 @@ pub fn generate_openapi_spec() -> OpenApi {
             .description(Some("Internal endpoints for health checks, runtime configuration, and SDK code generation"))
             .build(),
         TagBuilder::new()
-            .name("a2a")
-            .description(Some("Agent-to-agent communication endpoints for agent cards, definitions, and JSON-RPC requests"))
+            .name("agent")
+            .description(Some("Agent management and A2A (agent-to-agent) communication endpoints"))
             .build(),
         TagBuilder::new()
             .name("identity")

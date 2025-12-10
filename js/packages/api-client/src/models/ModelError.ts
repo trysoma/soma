@@ -20,16 +20,16 @@
 export interface ModelError {
 	/**
 	 *
-	 * @type {any}
+	 * @type {string}
 	 * @memberof ModelError
 	 */
-	data?: any | null;
+	message: string;
 	/**
 	 *
 	 * @type {string}
 	 * @memberof ModelError
 	 */
-	message: string;
+	name: string;
 }
 
 /**
@@ -37,6 +37,7 @@ export interface ModelError {
  */
 export function instanceOfModelError(value: object): value is ModelError {
 	if (!("message" in value) || value.message === undefined) return false;
+	if (!("name" in value) || value.name === undefined) return false;
 	return true;
 }
 
@@ -52,8 +53,8 @@ export function ModelErrorFromJSONTyped(
 		return json;
 	}
 	return {
-		data: json.data == null ? undefined : json.data,
 		message: json.message,
+		name: json.name,
 	};
 }
 
@@ -70,7 +71,7 @@ export function ModelErrorToJSONTyped(
 	}
 
 	return {
-		data: value.data,
 		message: value.message,
+		name: value.name,
 	};
 }

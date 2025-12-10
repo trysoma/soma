@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-export * from "./A2aApi";
+export * from "./AgentApi";
 export * from "./BridgeApi";
 export * from "./EncryptionApi";
 export * from "./EnvironmentVariableApi";

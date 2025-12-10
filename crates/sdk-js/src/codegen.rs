@@ -3,8 +3,11 @@ use shared::error::CommonError;
 use std::collections::HashMap;
 use tera::{Context, Tera};
 
-/// TypeScript template loaded at compile time
-const TYPESCRIPT_TEMPLATE: &str = include_str!("typescript.ts.tera");
+/// TypeScript bridge template loaded at compile time
+const BRIDGE_TEMPLATE: &str = include_str!("bridge.ts.tera");
+
+/// TypeScript agents template loaded at compile time
+const AGENTS_TEMPLATE: &str = include_str!("agents.ts.tera");
 
 /// Simplified data structures for code generation from API data
 #[derive(Debug, Clone)]
@@ -56,6 +59,35 @@ struct FunctionData {
     params_type_name: String,
     return_type: String,
     return_type_name: String,
+}
+
+/// Agent data structure for code generation
+#[derive(Debug, Clone)]
+pub struct AgentData {
+    pub id: String,
+    pub project_id: String,
+    pub name: String,
+    pub description: String,
+}
+
+/// Serializable agent data for template
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AgentTemplateData {
+    id: String,
+    project_id: String,
+    name: String,
+    description: String,
+    camel_case_id: String,
+    var_name: String,
+}
+
+/// Serializable project data for template (groups agents by project)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ProjectTemplateData {
+    id: String,
+    interface_name: String,
+    camel_case_id: String,
+    agents: Vec<AgentTemplateData>,
 }
 
 /// Generates TypeScript code from API data
@@ -156,15 +188,89 @@ pub fn generate_typescript_code_from_api_data(
 
     // Create Tera instance and render template
     let mut tera = Tera::default();
-    tera.add_raw_template("typescript", TYPESCRIPT_TEMPLATE)
+    tera.add_raw_template("bridge", BRIDGE_TEMPLATE)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to add template: {e}")))?;
 
     let mut context = Context::new();
     context.insert("providers", &providers);
 
     let rendered = tera
-        .render("typescript", &context)
+        .render("bridge", &context)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to render template: {e}")))?;
+
+    Ok(rendered)
+}
+
+/// Generates TypeScript agents code from agent data
+pub fn generate_typescript_agents_code(agents: &[AgentData]) -> Result<String, CommonError> {
+    // Group agents by project
+    let mut projects_map: HashMap<String, Vec<&AgentData>> = HashMap::new();
+
+    for agent in agents {
+        projects_map
+            .entry(agent.project_id.clone())
+            .or_default()
+            .push(agent);
+    }
+
+    // Build flat list of agents for template
+    let agents_template: Vec<AgentTemplateData> = agents
+        .iter()
+        .map(|agent| AgentTemplateData {
+            id: agent.id.clone(),
+            project_id: agent.project_id.clone(),
+            name: agent.name.clone(),
+            description: agent.description.clone(),
+            camel_case_id: to_camel_case(&agent.id),
+            var_name: format!(
+                "{}_{}",
+                to_camel_case(&agent.project_id),
+                to_camel_case(&agent.id)
+            ),
+        })
+        .collect();
+
+    // Build project data for template
+    let projects: Vec<ProjectTemplateData> = projects_map
+        .into_iter()
+        .map(|(project_id, project_agents)| {
+            let agents: Vec<AgentTemplateData> = project_agents
+                .iter()
+                .map(|agent| AgentTemplateData {
+                    id: agent.id.clone(),
+                    project_id: agent.project_id.clone(),
+                    name: agent.name.clone(),
+                    description: agent.description.clone(),
+                    camel_case_id: to_camel_case(&agent.id),
+                    var_name: format!(
+                        "{}_{}",
+                        to_camel_case(&agent.project_id),
+                        to_camel_case(&agent.id)
+                    ),
+                })
+                .collect();
+
+            ProjectTemplateData {
+                id: project_id.clone(),
+                interface_name: to_pascal_case(&project_id),
+                camel_case_id: to_camel_case(&project_id),
+                agents,
+            }
+        })
+        .collect();
+
+    // Create Tera instance and render template
+    let mut tera = Tera::default();
+    tera.add_raw_template("agents", AGENTS_TEMPLATE)
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to add agents template: {e}")))?;
+
+    let mut context = Context::new();
+    context.insert("agents", &agents_template);
+    context.insert("projects", &projects);
+
+    let rendered = tera.render("agents", &context).map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!("Failed to render agents template: {e}"))
+    })?;
 
     Ok(rendered)
 }
@@ -295,39 +401,91 @@ fn sanitize_identifier(name: &str) -> String {
         .collect()
 }
 
-/// Convert snake_case or kebab-case to PascalCase
+/// Convert snake_case, kebab-case, or camelCase to PascalCase
 fn to_pascal_case(s: &str) -> String {
-    s.split(['_', '-'])
-        .filter(|s| !s.is_empty())
-        .map(|word| {
-            let mut chars = word.chars();
-            match chars.next() {
-                None => String::new(),
-                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+    // First split by underscore and hyphen
+    let parts: Vec<&str> = s.split(['_', '-']).filter(|s| !s.is_empty()).collect();
+
+    let mut result = String::new();
+
+    for part in &parts {
+        // Split each part by uppercase letters to handle camelCase
+        let words = split_on_uppercase(part);
+
+        for word in words {
+            if word.is_empty() {
+                continue;
             }
-        })
-        .collect()
+            // Capitalize first letter of each word
+            let mut chars = word.chars();
+            if let Some(first) = chars.next() {
+                result.push_str(&first.to_uppercase().collect::<String>());
+                result.push_str(&chars.as_str().to_lowercase());
+            }
+        }
+    }
+
+    result
 }
 
-/// Convert snake_case or kebab-case to camelCase
+/// Convert snake_case, kebab-case, or PascalCase to camelCase
+/// Preserves existing camelCase strings
 fn to_camel_case(s: &str) -> String {
+    // First split by underscore and hyphen
     let parts: Vec<&str> = s.split(['_', '-']).filter(|s| !s.is_empty()).collect();
 
     if parts.is_empty() {
         return String::new();
     }
 
-    let mut result = parts[0].to_lowercase();
+    let mut result = String::new();
+    let mut is_first_word = true;
 
-    for part in &parts[1..] {
-        let mut chars = part.chars();
-        if let Some(first) = chars.next() {
-            result.push_str(&first.to_uppercase().collect::<String>());
-            result.push_str(chars.as_str());
+    for part in &parts {
+        // Split each part by uppercase letters to handle PascalCase/camelCase
+        let words = split_on_uppercase(part);
+
+        for word in words {
+            if word.is_empty() {
+                continue;
+            }
+
+            if is_first_word {
+                // First word should be all lowercase
+                result.push_str(&word.to_lowercase());
+                is_first_word = false;
+            } else {
+                // Subsequent words should have first letter uppercase, rest lowercase
+                let mut chars = word.chars();
+                if let Some(first) = chars.next() {
+                    result.push_str(&first.to_uppercase().collect::<String>());
+                    result.push_str(&chars.as_str().to_lowercase());
+                }
+            }
         }
     }
 
     result
+}
+
+/// Split a string on uppercase letters, preserving the uppercase letter at the start of each segment
+fn split_on_uppercase(s: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut current_word = String::new();
+
+    for c in s.chars() {
+        if c.is_uppercase() && !current_word.is_empty() {
+            words.push(current_word);
+            current_word = String::new();
+        }
+        current_word.push(c);
+    }
+
+    if !current_word.is_empty() {
+        words.push(current_word);
+    }
+
+    words
 }
 
 /// Strip provider prefix from function name and convert to camelCase
@@ -376,6 +534,9 @@ mod unit_test {
         assert_eq!(to_pascal_case("my_function"), "MyFunction");
         assert_eq!(to_pascal_case("my-function"), "MyFunction");
         assert_eq!(to_pascal_case("myFunction"), "MyFunction");
+        assert_eq!(to_pascal_case("claimResearchAgent"), "ClaimResearchAgent");
+        assert_eq!(to_pascal_case("ClaimResearchAgent"), "ClaimResearchAgent");
+        assert_eq!(to_pascal_case("acme"), "Acme");
         assert_eq!(
             to_pascal_case("my_long_function_name"),
             "MyLongFunctionName"
@@ -386,7 +547,10 @@ mod unit_test {
     fn test_to_camel_case() {
         assert_eq!(to_camel_case("my_function"), "myFunction");
         assert_eq!(to_camel_case("my-function"), "myFunction");
-        assert_eq!(to_camel_case("myFunction"), "myfunction");
+        assert_eq!(to_camel_case("myFunction"), "myFunction");
+        assert_eq!(to_camel_case("MyFunction"), "myFunction");
+        assert_eq!(to_camel_case("claimResearchAgent"), "claimResearchAgent");
+        assert_eq!(to_camel_case("ClaimResearchAgent"), "claimResearchAgent");
         assert_eq!(to_camel_case("my_long_function_name"), "myLongFunctionName");
         assert_eq!(to_camel_case("google_mail"), "googleMail");
         assert_eq!(to_camel_case("approve_claim"), "approveClaim");

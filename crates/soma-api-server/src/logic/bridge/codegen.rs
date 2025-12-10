@@ -5,10 +5,13 @@ use shared::error::CommonError;
 use tonic::transport::Channel;
 use tracing::{error, info};
 
+use crate::sdk::sdk_agent_sync::{AgentCache, get_all_agents};
+
 /// Triggers bridge client generation via gRPC call to SDK server
 pub async fn trigger_bridge_client_generation(
     sdk_client: &mut SomaSdkServiceClient<Channel>,
     bridge_repo: &impl ProviderRepositoryLike,
+    agent_cache: &AgentCache,
 ) -> Result<(), CommonError> {
     info!("Triggering bridge client generation via SDK server");
 
@@ -21,9 +24,22 @@ pub async fn trigger_bridge_client_generation(
         .map(convert_to_proto_function_instance)
         .collect();
 
+    // Get agents from cache and convert to proto
+    let agents = get_all_agents(agent_cache);
+    let proto_agents: Vec<sdk_proto::Agent> = agents
+        .into_iter()
+        .map(|agent| sdk_proto::Agent {
+            id: agent.id,
+            project_id: agent.project_id,
+            name: agent.name,
+            description: agent.description,
+        })
+        .collect();
+
     // Call gRPC method
     let request = tonic::Request::new(sdk_proto::GenerateBridgeClientRequest {
         function_instances: proto_function_instances,
+        agents: proto_agents,
     });
 
     match sdk_client.generate_bridge_client(request).await {

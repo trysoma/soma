@@ -5,14 +5,14 @@ import { LINKS } from "@/lib/links";
 export const Route = createFileRoute("/")({
 	// component: HomePage,
 	beforeLoad: () => {
-		return <Navigate to={LINKS.A2A()} />;
+		return <Navigate to={LINKS.AGENTS()} />;
 	},
 });
 
 export default function HomePage() {
 	const navigate = useNavigate();
 	useEffect(() => {
-		navigate({ to: LINKS.A2A() });
+		navigate({ to: LINKS.AGENTS() });
 	}, [navigate]);
-	return <Navigate to={LINKS.A2A()} />;
+	return <Navigate to={LINKS.AGENTS()} />;
 }

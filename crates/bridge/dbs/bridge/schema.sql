@@ -61,3 +61,30 @@ CREATE TABLE IF NOT EXISTS broker_state (
     -- TODO: uncomment this when we have a way to delete broker states
     -- FOREIGN KEY (provider_instance_id) REFERENCES provider_instance(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS mcp_server_instance (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS mcp_server_instance_function (
+    mcp_server_instance_id TEXT NOT NULL,
+    function_controller_type_id TEXT NOT NULL,
+    provider_controller_type_id TEXT NOT NULL,
+    provider_instance_id TEXT NOT NULL,
+    function_name TEXT NOT NULL,
+    function_description TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (mcp_server_instance_id, function_controller_type_id, provider_controller_type_id, provider_instance_id),
+    FOREIGN KEY (mcp_server_instance_id) REFERENCES mcp_server_instance(id) ON DELETE CASCADE,
+    FOREIGN KEY (function_controller_type_id, provider_controller_type_id, provider_instance_id)
+        REFERENCES function_instance(function_controller_type_id, provider_controller_type_id, provider_instance_id) ON DELETE CASCADE
+);
+
+-- Ensure function_name is unique within each MCP server instance
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_server_instance_function_name
+    ON mcp_server_instance_function(mcp_server_instance_id, function_name);

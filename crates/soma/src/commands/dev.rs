@@ -279,22 +279,22 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     add_subsystem_handle("bridge_sync_yaml", Some(bridge_sync_handle));
     add_subsystem_handle("restate", Some(restate_handle));
     add_subsystem_handle("sdk_server", subsystems.sdk_server);
-    add_subsystem_handle("mcp", subsystems.mcp);
     add_subsystem_handle("credential_rotation", subsystems.credential_rotation);
 
     // Systems that can trigger shutdown (unexpected exits)
+    // Note: MCP is now handled as a nested Tower service within the axum router,
+    // so it doesn't have a separate subsystem handle.
     let systems_that_can_trigger_shutdown: Vec<&str> = vec![
         "restate",
         "bridge_sync_yaml",
         "axum_server",
-        "mcp",
         "sdk_server",
         "credential_rotation",
     ];
 
     // Systems that require graceful shutdown (we wait for these after shutdown is triggered)
     let systems_requiring_graceful_shutdown: Vec<&str> =
-        vec!["restate", "axum_server", "sdk_server", "mcp"];
+        vec!["restate", "axum_server", "sdk_server"];
 
     // Track which systems have completed
     use std::collections::HashSet;

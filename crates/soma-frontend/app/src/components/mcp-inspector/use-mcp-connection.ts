@@ -1,12 +1,12 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type {
 	ClientRequest,
 	ServerCapabilities,
 	ServerNotification,
 } from "@modelcontextprotocol/sdk/types.js";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
 type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
@@ -25,14 +25,16 @@ export function useMCPConnection({ serverUrl }: UseMCPConnectionOptions) {
 		useState<ConnectionStatus>("disconnected");
 	const [serverCapabilities, setServerCapabilities] =
 		useState<ServerCapabilities | null>(null);
-	const [mcpClient, setMcpClient] = useState<Client | null>(null);
-	const [_clientTransport, setClientTransport] = useState<Transport | null>(
-		null,
-	);
 	const [requestHistory, setRequestHistory] = useState<RequestHistoryItem[]>(
 		[],
 	);
 	const [notifications, setNotifications] = useState<ServerNotification[]>([]);
+
+	// Use refs to store client and transport to avoid stale closure issues
+	const mcpClientRef = useRef<Client | null>(null);
+	const transportRef = useRef<Transport | null>(null);
+	// Track if we're currently connecting to prevent race conditions
+	const isConnectingRef = useRef(false);
 
 	const pushHistory = useCallback((request: object, response?: object) => {
 		setRequestHistory((prev) => [
@@ -44,7 +46,35 @@ export function useMCPConnection({ serverUrl }: UseMCPConnectionOptions) {
 		]);
 	}, []);
 
+	const disconnect = useCallback(async () => {
+		const client = mcpClientRef.current;
+		if (client) {
+			try {
+				await client.close();
+			} catch (error) {
+				// Ignore close errors - connection may already be closed
+				console.debug("Error closing MCP client:", error);
+			}
+		}
+		mcpClientRef.current = null;
+		transportRef.current = null;
+		setConnectionStatus("disconnected");
+		setServerCapabilities(null);
+	}, []);
+
 	const connect = useCallback(async () => {
+		// Prevent concurrent connection attempts
+		if (isConnectingRef.current) {
+			return;
+		}
+
+		// Close any existing connection first
+		if (mcpClientRef.current) {
+			await disconnect();
+		}
+
+		isConnectingRef.current = true;
+
 		try {
 			setConnectionStatus("connecting");
 
@@ -62,10 +92,27 @@ export function useMCPConnection({ serverUrl }: UseMCPConnectionOptions) {
 				clientCapabilities,
 			);
 
-			const transport = new SSEClientTransport(new URL(serverUrl));
+			const transport = new StreamableHTTPClientTransport(new URL(serverUrl));
+
+			// Set up close handler before connecting
+			client.onclose = () => {
+				console.debug("MCP client connection closed");
+				mcpClientRef.current = null;
+				transportRef.current = null;
+				setConnectionStatus("disconnected");
+				setServerCapabilities(null);
+			};
+
+			// Set up error handler
+			client.onerror = (error) => {
+				console.error("MCP client error:", error);
+				setConnectionStatus("error");
+			};
 
 			await client.connect(transport as Transport);
-			setClientTransport(transport);
+
+			mcpClientRef.current = client;
+			transportRef.current = transport;
 
 			const capabilities = client.getServerCapabilities();
 			setServerCapabilities(capabilities ?? null);
@@ -89,35 +136,40 @@ export function useMCPConnection({ serverUrl }: UseMCPConnectionOptions) {
 				return Promise.resolve();
 			};
 
-			setMcpClient(client);
 			setConnectionStatus("connected");
 		} catch (error) {
 			console.error("Failed to connect to MCP server:", error);
 			setConnectionStatus("error");
+			mcpClientRef.current = null;
+			transportRef.current = null;
+		} finally {
+			isConnectingRef.current = false;
 		}
-	}, [serverUrl, pushHistory]);
+	}, [serverUrl, pushHistory, disconnect]);
 
-	const disconnect = useCallback(async () => {
-		await mcpClient?.close();
-		setMcpClient(null);
-		setClientTransport(null);
-		setConnectionStatus("disconnected");
-		setServerCapabilities(null);
-	}, [mcpClient]);
+	// Cleanup on unmount
+	useEffect(() => {
+		return () => {
+			const client = mcpClientRef.current;
+			if (client) {
+				client.close().catch((error) => {
+					console.debug("Error closing MCP client on unmount:", error);
+				});
+			}
+		};
+	}, []);
 
 	const makeRequest = useCallback(
 		async (request: ClientRequest, schema?: any): Promise<any> => {
-			if (!mcpClient) {
+			const client = mcpClientRef.current;
+			if (!client) {
 				throw new Error("MCP client not connected");
 			}
 
 			try {
 				// If no schema provided, use a passthrough object schema
 				const responseSchema = schema || z.object({}).catchall(z.any());
-				const response = await mcpClient.request(
-					request as any,
-					responseSchema,
-				);
+				const response = await client.request(request as any, responseSchema);
 				pushHistory(request, response);
 				return response;
 			} catch (error) {
@@ -127,7 +179,7 @@ export function useMCPConnection({ serverUrl }: UseMCPConnectionOptions) {
 				throw error;
 			}
 		},
-		[mcpClient, pushHistory],
+		[pushHistory],
 	);
 
 	const clearRequestHistory = useCallback(() => {

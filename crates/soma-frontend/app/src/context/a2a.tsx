@@ -15,8 +15,11 @@ import {
 import { v4 } from "uuid";
 import type { components } from "@/@types/openapi";
 import $api from "@/lib/api-client";
-export const DEFAULT_AGENT_CARD_PATH = "/api/a2a/v1/.well-known/agent.json";
-export const DEFAULT_AGENT_SSE_PATH = "/api/a2a/v1";
+// Helper to construct agent-specific paths
+export const getAgentCardPath = (projectId: string, agentId: string) =>
+	`/api/agent/${projectId}/${agentId}/a2a/.well-known/agent.json`;
+export const getAgentA2APath = (projectId: string, agentId: string) =>
+	`/api/agent/${projectId}/${agentId}/a2a`;
 // type User = Awaited<WhoAmI>;
 
 // type UserContextValue = {
@@ -280,7 +283,15 @@ const mapA2aTaskStatusUpdateToWrappedTask = (
 	});
 	return wrappedTask;
 };
-function A2aProviderInner({ children }: { children: ReactNode }) {
+interface A2aProviderProps {
+	children: ReactNode;
+	projectId: string;
+	agentId: string;
+}
+
+function A2aProviderInner({ children, projectId, agentId }: A2aProviderProps) {
+	// Construct agent-specific paths
+	const agentCardPath = getAgentCardPath(projectId, agentId);
 	const [ready, setReady] = useState(false);
 	const [agentCard, setAgentCard] = useState<AgentCard | null>(null);
 	const [contexts, setContexts] = useState<Context[]>([]);
@@ -297,7 +308,7 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 	const [_curContextPageToken, setCurContextPageToken] = useState<
 		string | undefined
 	>(undefined);
-	const fetchPageOfContexts = async (pageToken: string | null) => {
+	const fetchPageOfContexts = useCallback(async (pageToken: string | null) => {
 		const res = await $api.GET("/api/task/v1/context", {
 			params: {
 				query: {
@@ -335,7 +346,7 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 
 			return prevCopy;
 		});
-	};
+	}, []);
 
 	const fetchPageOfTasks = async (
 		contextId: string,
@@ -386,14 +397,14 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 	}, [fetchPageOfContexts]);
 
 	// manage the task stream
-	const unsubscribeTaskStream = async () => {
+	const unsubscribeTaskStream = useCallback(async () => {
 		if (a2aTaskStream.current) {
 			// TODO: a2ajs does not support aborting the SSE stream
 			// await a2aTaskStream.current.generator.return();
 			a2aTaskStream.current.abort.abort();
 			a2aTaskStream.current = null;
 		}
-	};
+	}, []);
 
 	const processTaskStream = async (
 		generator: ReturnType<A2AClient["resubscribeTask"]>,
@@ -425,7 +436,10 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 				// instead of submitted
 				case "task": {
 					// taskId can be null if it's the first message
-					if (a2aTaskStream.current?.taskId !== event.id) {
+					if (
+						a2aTaskStream.current &&
+						a2aTaskStream.current.taskId !== event.id
+					) {
 						a2aTaskStream.current.taskId = event.id;
 						console.log("taskId for stream changed to", event.id);
 					}
@@ -601,11 +615,13 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		(async () => {
 			try {
-				const agentCard = await fetch(DEFAULT_AGENT_CARD_PATH);
-				if (!agentCard.ok) {
-					throw new Error(`Failed to fetch agent card: ${agentCard.status}`);
+				const agentCardResponse = await fetch(agentCardPath);
+				if (!agentCardResponse.ok) {
+					throw new Error(
+						`Failed to fetch agent card: ${agentCardResponse.status}`,
+					);
 				}
-				const agentCardJson: AgentCard = await agentCard.json();
+				const agentCardJson: AgentCard = await agentCardResponse.json();
 				a2aClient.current = new A2AClient(agentCardJson);
 
 				setAgentCard(agentCardJson);
@@ -614,7 +630,7 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 				console.error("Error initializing A2A client:", error);
 			}
 		})();
-	}, []);
+	}, [agentCardPath]);
 
 	// Cleanup on unmount
 	useEffect(() => {
@@ -836,10 +852,16 @@ function A2aProviderInner({ children }: { children: ReactNode }) {
 	);
 }
 
-export function A2aProvider({ children }: { children: ReactNode }) {
+export function A2aProvider({
+	children,
+	projectId,
+	agentId,
+}: A2aProviderProps) {
 	return (
 		<Suspense fallback={<></>}>
-			<A2aProviderInner>{children}</A2aProviderInner>
+			<A2aProviderInner projectId={projectId} agentId={agentId}>
+				{children}
+			</A2aProviderInner>
 		</Suspense>
 	);
 }

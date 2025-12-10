@@ -130,3 +130,19 @@ sql:
             # query parameters for rotation
             - column: get_provider_instances_with_credentials.rotation_window_end
               rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # mcp_server_instance table
+            - db_type: datetime
+              column: mcp_server_instance.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: mcp_server_instance.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # mcp_server_instance_function table
+            - db_type: datetime
+              column: mcp_server_instance_function.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: mcp_server_instance_function.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"

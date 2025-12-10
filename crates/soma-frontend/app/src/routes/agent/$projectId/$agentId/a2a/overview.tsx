@@ -10,27 +10,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageLayout } from "@/components/ui/page-layout";
-import { DEFAULT_AGENT_CARD_PATH, DEFAULT_AGENT_SSE_PATH } from "@/context/a2a";
+import { getAgentA2APath, getAgentCardPath } from "@/context/a2a";
 
-export const Route = createFileRoute("/a2a/")({
-	component: RouteComponent,
-});
+export const Route = createFileRoute("/agent/$projectId/$agentId/a2a/overview")(
+	{
+		component: RouteComponent,
+	},
+);
 
 function RouteComponent() {
+	const { projectId, agentId } = Route.useParams();
 	const baseUrl = window.location.origin;
+
+	const agentCardPath = getAgentCardPath(projectId, agentId);
+	const agentA2APath = getAgentA2APath(projectId, agentId);
 
 	return (
 		<PageLayout className="py-6">
 			<div className="space-y-6">
 				<PageHeader
-					title="Agent 2 Agent"
-					description="Below is information about how to access your agent via the Agent 2 Agent protocol."
+					title={`Agent: ${agentId}`}
+					description={`Project: ${projectId}`}
 				/>
 				<Card>
 					<CardHeader>
 						<CardTitle>Connectivity information</CardTitle>
 						<CardDescription>
-							Use the below A2A compliant endpoints to connect to your agent.
+							Use the below A2A compliant endpoints to connect to this agent.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -40,15 +46,15 @@ function RouteComponent() {
 								<Input
 									disabled
 									type="text"
-									value={`${baseUrl}${DEFAULT_AGENT_CARD_PATH}`}
+									value={`${baseUrl}${agentCardPath}`}
 								/>
 							</div>
 							<div className="flex flex-col gap-2 max-w-lg">
-								<Label>Agent SSE endpoint:</Label>
+								<Label>Agent A2A endpoint:</Label>
 								<Input
 									disabled
 									type="text"
-									value={`${baseUrl}${DEFAULT_AGENT_SSE_PATH}`}
+									value={`${baseUrl}${agentA2APath}`}
 								/>
 							</div>
 						</div>

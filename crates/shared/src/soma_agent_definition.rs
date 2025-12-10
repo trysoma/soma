@@ -393,6 +393,36 @@ impl From<EnvelopeKeyConfig> for EnvelopeEncryptionKey {
 pub struct BridgeConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub providers: Option<HashMap<String, ProviderConfig>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp_servers: Option<HashMap<String, McpServerConfig>>,
+}
+
+/// Configuration for an MCP server instance stored in soma.yaml
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct McpServerConfig {
+    /// Display name for the MCP server
+    pub name: String,
+    /// Functions exposed by this MCP server
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub functions: Option<Vec<McpServerFunctionConfig>>,
+}
+
+/// Configuration for a function mapping within an MCP server
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct McpServerFunctionConfig {
+    /// The function controller type ID
+    pub function_controller_type_id: String,
+    /// The provider controller type ID
+    pub provider_controller_type_id: String,
+    /// The provider instance ID
+    pub provider_instance_id: String,
+    /// The MCP function name exposed to clients
+    pub function_name: String,
+    /// Optional description for the function
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub function_description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
@@ -472,6 +502,38 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
         &self,
         provider_controller_type_id: String,
         function_controller_type_id: String,
+        provider_instance_id: String,
+    ) -> Result<(), CommonError>;
+
+    // MCP server instance operations
+    async fn add_mcp_server(
+        &self,
+        mcp_server_id: String,
+        config: McpServerConfig,
+    ) -> Result<(), CommonError>;
+    async fn update_mcp_server(
+        &self,
+        mcp_server_id: String,
+        config: McpServerConfig,
+    ) -> Result<(), CommonError>;
+    async fn remove_mcp_server(&self, mcp_server_id: String) -> Result<(), CommonError>;
+
+    // MCP server function operations
+    async fn add_mcp_server_function(
+        &self,
+        mcp_server_id: String,
+        function_config: McpServerFunctionConfig,
+    ) -> Result<(), CommonError>;
+    async fn update_mcp_server_function(
+        &self,
+        mcp_server_id: String,
+        function_config: McpServerFunctionConfig,
+    ) -> Result<(), CommonError>;
+    async fn remove_mcp_server_function(
+        &self,
+        mcp_server_id: String,
+        function_controller_type_id: String,
+        provider_controller_type_id: String,
         provider_instance_id: String,
     ) -> Result<(), CommonError>;
 
@@ -620,7 +682,10 @@ impl YamlSomaAgentDefinition {
 
     fn ensure_bridge_config(definition: &mut SomaAgentDefinition) {
         if definition.bridge.is_none() {
-            definition.bridge = Some(BridgeConfig { providers: None });
+            definition.bridge = Some(BridgeConfig {
+                providers: None,
+                mcp_servers: None,
+            });
         }
     }
 
@@ -896,6 +961,218 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         info!(
             "Function instance ({}) removed from provider ({}, {})",
             function_controller_type_id, provider_controller_type_id, provider_instance_id
+        );
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn add_mcp_server(
+        &self,
+        mcp_server_id: String,
+        config: McpServerConfig,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_bridge_config(&mut definition);
+
+        let bridge = definition.bridge.as_mut().unwrap();
+        if bridge.mcp_servers.is_none() {
+            bridge.mcp_servers = Some(HashMap::new());
+        }
+
+        bridge
+            .mcp_servers
+            .as_mut()
+            .unwrap()
+            .insert(mcp_server_id.clone(), config);
+        info!("MCP server added: {:?}", mcp_server_id);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn update_mcp_server(
+        &self,
+        mcp_server_id: String,
+        config: McpServerConfig,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_bridge_config(&mut definition);
+
+        let bridge = definition.bridge.as_mut().unwrap();
+        if bridge.mcp_servers.is_none() {
+            bridge.mcp_servers = Some(HashMap::new());
+        }
+
+        let mcp_servers = bridge.mcp_servers.as_mut().unwrap();
+        match mcp_servers.get_mut(&mcp_server_id) {
+            Some(existing_config) => {
+                // Update name but preserve functions if not provided
+                existing_config.name = config.name;
+                if config.functions.is_some() {
+                    existing_config.functions = config.functions;
+                }
+            }
+            None => {
+                mcp_servers.insert(mcp_server_id.clone(), config);
+            }
+        }
+
+        info!("MCP server updated: {:?}", mcp_server_id);
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_mcp_server(&self, mcp_server_id: String) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(bridge) = &mut definition.bridge {
+            if let Some(mcp_servers) = &mut bridge.mcp_servers {
+                mcp_servers.remove(&mcp_server_id);
+                info!("MCP server removed: {:?}", mcp_server_id);
+                self.save(definition).await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn add_mcp_server_function(
+        &self,
+        mcp_server_id: String,
+        function_config: McpServerFunctionConfig,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        let bridge = match &mut definition.bridge {
+            Some(bridge) => bridge,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Bridge configuration not found"
+                )));
+            }
+        };
+        let mcp_servers = match &mut bridge.mcp_servers {
+            Some(mcp_servers) => mcp_servers,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "MCP servers not found"
+                )))
+            }
+        };
+        let mcp_server = match mcp_servers.get_mut(&mcp_server_id) {
+            Some(mcp_server) => mcp_server,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "MCP server not found: {}",
+                    mcp_server_id
+                )))
+            }
+        };
+        if mcp_server.functions.is_none() {
+            mcp_server.functions = Some(Vec::new());
+        }
+        let functions = mcp_server.functions.as_mut().unwrap();
+        functions.push(function_config.clone());
+        info!(
+            "MCP server function added to {}: {:?}",
+            mcp_server_id, function_config.function_name
+        );
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn update_mcp_server_function(
+        &self,
+        mcp_server_id: String,
+        function_config: McpServerFunctionConfig,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        let bridge = match &mut definition.bridge {
+            Some(bridge) => bridge,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Bridge configuration not found"
+                )));
+            }
+        };
+        let mcp_servers = match &mut bridge.mcp_servers {
+            Some(mcp_servers) => mcp_servers,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "MCP servers not found"
+                )))
+            }
+        };
+        let mcp_server = match mcp_servers.get_mut(&mcp_server_id) {
+            Some(mcp_server) => mcp_server,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "MCP server not found: {}",
+                    mcp_server_id
+                )))
+            }
+        };
+        let functions = match &mut mcp_server.functions {
+            Some(functions) => functions,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "No functions in MCP server"
+                )))
+            }
+        };
+
+        // Find and update the function
+        if let Some(func) = functions.iter_mut().find(|f| {
+            f.function_controller_type_id == function_config.function_controller_type_id
+                && f.provider_controller_type_id == function_config.provider_controller_type_id
+                && f.provider_instance_id == function_config.provider_instance_id
+        }) {
+            func.function_name = function_config.function_name.clone();
+            func.function_description = function_config.function_description.clone();
+        }
+
+        info!(
+            "MCP server function updated in {}: {:?}",
+            mcp_server_id, function_config.function_name
+        );
+        self.save(definition).await?;
+        Ok(())
+    }
+
+    async fn remove_mcp_server_function(
+        &self,
+        mcp_server_id: String,
+        function_controller_type_id: String,
+        provider_controller_type_id: String,
+        provider_instance_id: String,
+    ) -> Result<(), CommonError> {
+        let mut definition = self.cached_definition.lock().await;
+        let bridge = match &mut definition.bridge {
+            Some(bridge) => bridge,
+            None => return Ok(()),
+        };
+        let mcp_servers = match &mut bridge.mcp_servers {
+            Some(mcp_servers) => mcp_servers,
+            None => return Ok(()),
+        };
+        let mcp_server = match mcp_servers.get_mut(&mcp_server_id) {
+            Some(mcp_server) => mcp_server,
+            None => return Ok(()),
+        };
+        let functions = match &mut mcp_server.functions {
+            Some(functions) => functions,
+            None => return Ok(()),
+        };
+
+        functions.retain(|f| {
+            !(f.function_controller_type_id == function_controller_type_id
+                && f.provider_controller_type_id == provider_controller_type_id
+                && f.provider_instance_id == provider_instance_id)
+        });
+
+        info!(
+            "MCP server function removed from {}: {}/{}/{}",
+            mcp_server_id,
+            function_controller_type_id,
+            provider_controller_type_id,
+            provider_instance_id
         );
         self.save(definition).await?;
         Ok(())

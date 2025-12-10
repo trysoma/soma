@@ -58,3 +58,28 @@ export const invalidateFunctionInstancesData = (queryClient: QueryClient) => {
 		exact: false,
 	});
 };
+
+export const invalidateMcpInstancesData = (queryClient: QueryClient) => {
+	// Invalidate all MCP instance related queries using predicate to match any query key containing the path
+	queryClient.invalidateQueries({
+		predicate: (query) => {
+			const queryKey = query.queryKey;
+			return (
+				Array.isArray(queryKey) &&
+				queryKey.some(
+					(key) =>
+						typeof key === "string" &&
+						key.includes("/api/bridge/v1/mcp-instance"),
+				)
+			);
+		},
+	});
+};
+
+export const invalidateMcpInstanceById = (
+	queryClient: QueryClient,
+	_mcpServerInstanceId: string,
+) => {
+	// Invalidate all MCP instance queries - the predicate approach handles both list and individual queries
+	invalidateMcpInstancesData(queryClient);
+};

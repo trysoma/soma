@@ -6,15 +6,19 @@ use crate::logic::instance::{
     ProviderInstanceSerialized, ProviderInstanceSerializedWithCredentials,
     ProviderInstanceSerializedWithFunctions,
 };
+use crate::logic::mcp_server_instance::{
+    McpServerInstanceFunctionSerialized, McpServerInstanceSerializedWithFunctions,
+};
 use shared::error::CommonError;
 
 // Import generated Row types from parent module
 use super::{
     Row_get_broker_state_by_id, Row_get_function_instance_by_id,
-    Row_get_function_instance_with_credentials, Row_get_provider_instance_by_id,
-    Row_get_provider_instances, Row_get_provider_instances_grouped_by_function_controller_type_id,
+    Row_get_function_instance_with_credentials, Row_get_mcp_server_instance_by_id,
+    Row_get_provider_instance_by_id, Row_get_provider_instances,
+    Row_get_provider_instances_grouped_by_function_controller_type_id,
     Row_get_resource_server_credential_by_id, Row_get_resource_server_credentials,
-    Row_get_user_credential_by_id, Row_get_user_credentials,
+    Row_get_user_credential_by_id, Row_get_user_credentials, Row_list_mcp_server_instances,
 };
 
 // Helper function to deserialize functions JSON array
@@ -516,6 +520,97 @@ impl TryFrom<super::Row_get_provider_instances_with_credentials>
             },
             resource_server_credential,
             user_credential,
+        })
+    }
+}
+
+/// Helper function to deserialize MCP server instance functions from JSON array
+fn deserialize_mcp_server_instance_functions(
+    json_value: &str,
+) -> Result<Vec<McpServerInstanceFunctionSerialized>, CommonError> {
+    // Handle null, empty, or "null" string cases
+    if json_value.is_empty()
+        || json_value == "null"
+        || json_value == "[]"
+        || json_value.trim().is_empty()
+    {
+        return Ok(Vec::new());
+    }
+
+    serde_json::from_str(json_value).map_err(|e| CommonError::Repository {
+        msg: format!("Failed to deserialize MCP server instance functions JSON: {e}"),
+        source: Some(e.into()),
+    })
+}
+
+impl TryFrom<Row_get_mcp_server_instance_by_id> for McpServerInstanceSerializedWithFunctions {
+    type Error = CommonError;
+
+    fn try_from(row: Row_get_mcp_server_instance_by_id) -> Result<Self, Self::Error> {
+        let functions = deserialize_mcp_server_instance_functions(&row.functions)?;
+
+        Ok(McpServerInstanceSerializedWithFunctions {
+            id: row.id,
+            name: row.name,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            functions,
+        })
+    }
+}
+
+impl TryFrom<Row_list_mcp_server_instances> for McpServerInstanceSerializedWithFunctions {
+    type Error = CommonError;
+
+    fn try_from(row: Row_list_mcp_server_instances) -> Result<Self, Self::Error> {
+        let functions = deserialize_mcp_server_instance_functions(&row.functions)?;
+
+        Ok(McpServerInstanceSerializedWithFunctions {
+            id: row.id,
+            name: row.name,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            functions,
+        })
+    }
+}
+
+impl TryFrom<super::Row_get_mcp_server_instance_function_by_name>
+    for McpServerInstanceFunctionSerialized
+{
+    type Error = CommonError;
+
+    fn try_from(
+        row: super::Row_get_mcp_server_instance_function_by_name,
+    ) -> Result<Self, Self::Error> {
+        Ok(McpServerInstanceFunctionSerialized {
+            mcp_server_instance_id: row.mcp_server_instance_id,
+            function_controller_type_id: row.function_controller_type_id,
+            provider_controller_type_id: row.provider_controller_type_id,
+            provider_instance_id: row.provider_instance_id,
+            function_name: row.function_name,
+            function_description: row.function_description,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        })
+    }
+}
+
+impl TryFrom<super::Row_list_mcp_server_instance_functions>
+    for McpServerInstanceFunctionSerialized
+{
+    type Error = CommonError;
+
+    fn try_from(row: super::Row_list_mcp_server_instance_functions) -> Result<Self, Self::Error> {
+        Ok(McpServerInstanceFunctionSerialized {
+            mcp_server_instance_id: row.mcp_server_instance_id,
+            function_controller_type_id: row.function_controller_type_id,
+            provider_controller_type_id: row.provider_controller_type_id,
+            provider_instance_id: row.provider_instance_id,
+            function_name: row.function_name,
+            function_description: row.function_description,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
         })
     }
 }
