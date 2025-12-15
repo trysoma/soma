@@ -8,6 +8,7 @@ When making changes, adding or removing an api endpoint, first:
 2. For the route body parameters, body response, always define the types in crates/$crate/src/logic.rs or the relevant file in the logic folder 
 3. Never define business logic in the actual router method body, always invoke a logic_ function in the body, passing in any dependencies (repository, etc.) as well as parameters for the logic function to execute
 4. Always return JsonResponse<$LogicReturnType, CommonError> or impl IntoResponse (if a non-json response like a redirect)
+5. Always add trace level logs around every API endpoint, logic function and repository method. To both the start and end of each method.
 
 Note:
 

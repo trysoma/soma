@@ -62,48 +62,8 @@ async function invokeBridgeFunction<TParams, TResult>(
 
 
 
-export type ResearchClaimResearchClaimParams = { claim: { amount: number; category: string; date: string; email: string; reason: string } };
-export type ResearchClaimResearchClaimResult = { summary: string };
-
-
-
-
-
-export type ApproveClaimApproveClaimParams = { claim: { amount: number; category: string; date: string; email: string; reason: string } };
-export type ApproveClaimApproveClaimResult = { approved: boolean };
-
-
-
-
-
-// Provider: research-claim
-export interface ResearchClaim {
-  
-  "internal": {
-    
-    researchClaim: (params: ResearchClaimResearchClaimParams) => Promise<ResearchClaimResearchClaimResult>;
-    
-  };
-  
-}
-
-// Provider: approve-claim
-export interface ApproveClaim {
-  
-  "internal": {
-    
-    approveClaim: (params: ApproveClaimApproveClaimParams) => Promise<ApproveClaimApproveClaimResult>;
-    
-  };
-  
-}
-
 
 export interface Bridge {
-  
-  researchClaim: ResearchClaim;
-  
-  approveClaim: ApproveClaim;
   
 }
 
@@ -112,54 +72,8 @@ export type BridgeDefinition = Bridge;
 export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
   const baseUrl = config?.SOMA_BASE_URL || process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000';
   
-  const researchClaim: ResearchClaim = {
-    
-    "internal": {
-      
-      researchClaim: async (params: ResearchClaimResearchClaimParams): Promise<ResearchClaimResearchClaimResult> => {
-        return invokeBridgeFunction<ResearchClaimResearchClaimParams, ResearchClaimResearchClaimResult>(
-          ctx,
-          'research-claim',
-          'internal',
-          'researchClaim',
-          '452b1c4c-6ba7-4284-b362-2431750569fc',
-          'research-claim',
-          params,
-          baseUrl
-        );
-      },
-      
-    },
-    
-  };
-  
-  const approveClaim: ApproveClaim = {
-    
-    "internal": {
-      
-      approveClaim: async (params: ApproveClaimApproveClaimParams): Promise<ApproveClaimApproveClaimResult> => {
-        return invokeBridgeFunction<ApproveClaimApproveClaimParams, ApproveClaimApproveClaimResult>(
-          ctx,
-          'approve-claim',
-          'internal',
-          'approveClaim',
-          '1b8c7dd2-45a9-4c82-8a9f-69cdb732883e',
-          'approve-claim',
-          params,
-          baseUrl
-        );
-      },
-      
-    },
-    
-  };
-  
 
   return {
-    
-    researchClaim: researchClaim,
-    
-    approveClaim: approveClaim,
     
   };
 }

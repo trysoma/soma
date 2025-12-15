@@ -90,7 +90,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use http::StatusCode;
-use tracing::error;
+use tracing::debug;
 use utoipa::IntoResponses;
 
 pub struct JsonResponse<T: Serialize, E: Serialize>(Result<T, E>);
@@ -120,8 +120,7 @@ impl<T: Serialize, E: Serialize + IntoResponse + Debug> IntoResponse for JsonRes
         match self.0 {
             Ok(value) => (StatusCode::OK, Json(value)).into_response(),
             Err(error) => {
-                error!("Error: {:?}", error);
-
+                debug!(error = ?error, "Request error response");
                 error.into_response()
             }
         }

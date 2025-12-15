@@ -46,7 +46,6 @@ serde_json = { version = "1.0" }
 serde_yaml = "0.9.34"
 tempfile = "3.19.1"
 thiserror = "2.0"
-tokio-graceful-shutdown = "0.16.0"
 tokio-stream = "0.1.17"
 uds_windows = "1.1.0"
 url = "2.5.4"

@@ -1,6 +1,7 @@
 use axum::extract::{Json, Path, Query, State};
 use shared::adapters::openapi::API_VERSION_TAG;
 use std::sync::Arc;
+use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -60,6 +61,7 @@ async fn route_create_environment_variable(
     State(ctx): State<Arc<EnvironmentVariableService>>,
     Json(request): Json<CreateEnvironmentVariableRequest>,
 ) -> JsonResponse<CreateEnvironmentVariableResponse, CommonError> {
+    trace!(key = %request.key, "Creating environment variable");
     let res = create_environment_variable(
         &ctx.on_change_tx,
         &ctx.repository,
@@ -68,6 +70,7 @@ async fn route_create_environment_variable(
         true,
     )
     .await;
+    trace!(success = res.is_ok(), "Creating environment variable completed");
     JsonResponse::from(res)
 }
 
@@ -91,7 +94,9 @@ async fn route_import_environment_variable(
     State(ctx): State<Arc<EnvironmentVariableService>>,
     Json(request): Json<ImportEnvironmentVariableRequest>,
 ) -> JsonResponse<EnvironmentVariable, CommonError> {
+    trace!(env_var_key = %request.key, "Importing environment variable");
     let res = import_environment_variable(&ctx.repository, request).await;
+    trace!(success = res.is_ok(), "Importing environment variable completed");
     JsonResponse::from(res)
 }
 
@@ -117,7 +122,9 @@ async fn route_list_environment_variables(
     State(ctx): State<Arc<EnvironmentVariableService>>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListEnvironmentVariablesResponse, CommonError> {
+    trace!(page_size = pagination.page_size, "Listing environment variables");
     let res = list_environment_variables(&ctx.repository, pagination).await;
+    trace!(success = res.is_ok(), "Listing environment variables completed");
     JsonResponse::from(res)
 }
 
@@ -144,7 +151,9 @@ async fn route_get_environment_variable_by_id(
     State(ctx): State<Arc<EnvironmentVariableService>>,
     Path(env_var_id): Path<WrappedUuidV4>,
 ) -> JsonResponse<GetEnvironmentVariableResponse, CommonError> {
+    trace!(env_var_id = %env_var_id, "Getting environment variable by ID");
     let res = get_environment_variable_by_id(&ctx.repository, env_var_id).await;
+    trace!(success = res.is_ok(), "Getting environment variable by ID completed");
     JsonResponse::from(res)
 }
 
@@ -171,7 +180,9 @@ async fn route_get_environment_variable_by_key(
     State(ctx): State<Arc<EnvironmentVariableService>>,
     Path(key): Path<String>,
 ) -> JsonResponse<GetEnvironmentVariableResponse, CommonError> {
+    trace!(key = %key, "Getting environment variable by key");
     let res = get_environment_variable_by_key(&ctx.repository, key).await;
+    trace!(success = res.is_ok(), "Getting environment variable by key completed");
     JsonResponse::from(res)
 }
 
@@ -200,6 +211,7 @@ async fn route_update_environment_variable(
     Path(env_var_id): Path<WrappedUuidV4>,
     Json(request): Json<UpdateEnvironmentVariableRequest>,
 ) -> JsonResponse<UpdateEnvironmentVariableResponse, CommonError> {
+    trace!(env_var_id = %env_var_id, "Updating environment variable");
     let res = update_environment_variable(
         &ctx.on_change_tx,
         &ctx.repository,
@@ -209,6 +221,7 @@ async fn route_update_environment_variable(
         true,
     )
     .await;
+    trace!(success = res.is_ok(), "Updating environment variable completed");
     JsonResponse::from(res)
 }
 
@@ -235,6 +248,7 @@ async fn route_delete_environment_variable(
     State(ctx): State<Arc<EnvironmentVariableService>>,
     Path(env_var_id): Path<WrappedUuidV4>,
 ) -> JsonResponse<DeleteEnvironmentVariableResponse, CommonError> {
+    trace!(env_var_id = %env_var_id, "Deleting environment variable");
     let res = delete_environment_variable(
         &ctx.on_change_tx,
         &ctx.repository,
@@ -243,6 +257,7 @@ async fn route_delete_environment_variable(
         true,
     )
     .await;
+    trace!(success = res.is_ok(), "Deleting environment variable completed");
     JsonResponse::from(res)
 }
 

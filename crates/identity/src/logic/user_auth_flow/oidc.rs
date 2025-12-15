@@ -146,7 +146,7 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
     config: &OidcConfig,
     oauth_state: &OAuthState,
 ) -> Result<OAuthCallbackResult, CommonError> {
-    tracing::debug!("OIDC callback: exchanging code for tokens");
+    tracing::trace!("OIDC callback: exchanging code for tokens");
 
     // Exchange code for tokens
     let token_exchange_params = BaseTokenExchangeParams {
@@ -163,11 +163,11 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
     let token_response = exchange_code_for_tokens(token_exchange_params)
         .await
         .map_err(|e| {
-            tracing::error!("OIDC callback: token exchange failed: {:?}", e);
+            tracing::debug!(error = ?e, "OIDC callback: token exchange failed");
             e
         })?;
 
-    tracing::debug!("OIDC callback: extracting claims from token response");
+    tracing::trace!("OIDC callback: extracting claims from token response");
 
     // Extract and validate ID token claims
     let normalized = extract_oidc_claims(
@@ -178,21 +178,21 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
     )
     .await
     .map_err(|e| {
-        tracing::error!("OIDC callback: claim extraction failed: {:?}", e);
+        tracing::debug!(error = ?e, "OIDC callback: claim extraction failed");
         e
     })?;
 
-    tracing::debug!("OIDC callback: issuing internal tokens for user");
+    tracing::trace!("OIDC callback: issuing internal tokens for user");
 
     // Issue internal tokens
     let token_result = issue_tokens_for_normalized_user(repository, crypto_cache, normalized)
         .await
         .map_err(|e| {
-            tracing::error!("OIDC callback: token issuance failed: {:?}", e);
+            tracing::debug!(error = ?e, "OIDC callback: token issuance failed");
             e
         })?;
 
-    tracing::info!("OIDC callback: successfully authenticated user");
+    tracing::debug!("OIDC callback: user authenticated");
 
     Ok(OAuthCallbackResult {
         issued_tokens: token_result,
@@ -254,7 +254,7 @@ async fn extract_oidc_claims(
     let access_token_claims = if let Some(introspect_url) = &config.introspect_url {
         // If introspect_url is set, use token introspection (RFC 7662)
         // This treats the access token as opaque and validates it via the introspection endpoint
-        tracing::debug!("Using token introspection for access token");
+        tracing::trace!("Using token introspection for access token");
         Some(
             introspect_token(
                 introspect_url,
@@ -277,10 +277,7 @@ async fn extract_oidc_claims(
             Err(e) => {
                 // Access token is not a JWT and no introspection endpoint configured
                 // This is an error - we need to be able to get claims from the access token
-                tracing::error!(
-                    "Access token is not a JWT and no introspect_url configured: {:?}",
-                    e
-                );
+                tracing::debug!(error = ?e, "Access token is not a JWT and no introspect_url configured");
                 return Err(e);
             }
         }

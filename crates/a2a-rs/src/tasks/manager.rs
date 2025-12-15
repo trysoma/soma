@@ -7,7 +7,7 @@ use crate::{
     types::{ContextId, Message, Task, TaskArtifactUpdateEvent, TaskId, TaskStatusUpdateEvent},
 };
 use derive_builder::Builder;
-use tracing::debug;
+use tracing::trace;
 
 /// Helps manage a task's lifecycle during execution of a request.
 /// Responsible for retrieving, saving, and updating the `Task` object based on
@@ -47,7 +47,7 @@ impl TaskManager {
     pub async fn get_task(&mut self) -> Result<Option<Task>, A2aServerError> {
         let task_id = match self.task_id.as_ref() {
             None => {
-                debug!("task_id is not set, cannot get task.");
+                trace!("task_id not set, cannot get task");
                 return Ok(None);
             }
             Some(id) => id.clone(),
@@ -57,12 +57,13 @@ impl TaskManager {
             return Ok(Some(task.clone()));
         }
 
-        debug!("Attempting to get task from store with id: {}", &task_id);
+        trace!(task_id = %task_id, "Getting task from store");
         let task = self.task_store.get(&task_id).await?;
 
-        match task.as_ref() {
-            Some(_) => debug!("Task {} retrieved successfully", &task_id),
-            None => debug!("Task {} not found", task_id),
+        if task.is_some() {
+            trace!(task_id = %task_id, "Task retrieved");
+        } else {
+            trace!(task_id = %task_id, "Task not found");
         }
 
         self.current_task = task.clone();
@@ -93,8 +94,7 @@ impl TaskManager {
                 ));
             }
         } else {
-            // If we don't have a task_id yet, set it from the incoming task
-            debug!("Setting task_id in TaskManager to: {}", task.id);
+            trace!(task_id = %task.id, "Setting task_id in TaskManager");
             self.task_id = Some(task.id.clone());
         }
 
@@ -111,15 +111,11 @@ impl TaskManager {
                 ));
             }
         } else {
-            // If we don't have a context_id yet, set it from the incoming task
-            debug!("Setting context_id in TaskManager to: {}", task.context_id);
+            trace!(context_id = %task.context_id, "Setting context_id in TaskManager");
             self.context_id = Some(task.context_id.clone());
         }
 
-        debug!(
-            "Saving task with id: {}, context_id: {}",
-            task.id, task.context_id
-        );
+        trace!(task_id = %task.id, context_id = %task.context_id, "Saving task");
 
         self.task_store.save(&task).await?;
         self.current_task = Some(task.clone());
@@ -135,10 +131,7 @@ impl TaskManager {
         // Validate task ID matches if we have one
         if let Some(ref task_id) = self.task_id {
             if task_id != &event.task_id {
-                debug!(
-                    "Task ID mismatch: TaskManager has task_id={}, but event has task_id={}",
-                    task_id, event.task_id
-                );
+                trace!(expected = %task_id, actual = %event.task_id, "Task ID mismatch");
                 return Err(A2aServerError::InternalError(
                     ErrorBuilder::default()
                         .message("Task manager task ID does not match event Task ID".to_string())
@@ -147,11 +140,7 @@ impl TaskManager {
                 ));
             }
         } else if !event.task_id.is_empty() {
-            // If we don't have a task_id yet and the event has one, set it
-            debug!(
-                "Setting task_id in TaskManager from TaskStatusUpdate to: {}",
-                event.task_id
-            );
+            trace!(task_id = %event.task_id, "Setting task_id from TaskStatusUpdate");
             self.task_id = Some(event.task_id.clone());
         }
 
@@ -168,11 +157,7 @@ impl TaskManager {
                 ));
             }
         } else if !event.context_id.is_empty() {
-            // If we don't have a context_id yet and the event has one, set it
-            debug!(
-                "Setting context_id in TaskManager from TaskStatusUpdate to: {}",
-                event.context_id
-            );
+            trace!(context_id = %event.context_id, "Setting context_id from TaskStatusUpdate");
             self.context_id = Some(event.context_id.clone());
         }
 
@@ -182,7 +167,7 @@ impl TaskManager {
             None => {
                 // If we have task_id but no task in store, create a minimal task from the event
                 if let (Some(task_id), Some(context_id)) = (&self.task_id, &self.context_id) {
-                    debug!("Creating new task from TaskStatusUpdate event");
+                    trace!(task_id = %task_id, "Creating task from TaskStatusUpdate");
                     Task {
                         id: task_id.clone(),
                         context_id: context_id.clone(),
@@ -231,11 +216,7 @@ impl TaskManager {
                 ));
             }
         } else if !event.task_id.is_empty() {
-            // If we don't have a task_id yet and the event has one, set it
-            debug!(
-                "Setting task_id in TaskManager from TaskArtifactUpdate to: {}",
-                event.task_id
-            );
+            trace!(task_id = %event.task_id, "Setting task_id from TaskArtifactUpdate");
             self.task_id = Some(event.task_id.clone());
         }
 
@@ -252,11 +233,7 @@ impl TaskManager {
                 ));
             }
         } else if !event.context_id.is_empty() {
-            // If we don't have a context_id yet and the event has one, set it
-            debug!(
-                "Setting context_id in TaskManager from TaskArtifactUpdate to: {}",
-                event.context_id
-            );
+            trace!(context_id = %event.context_id, "Setting context_id from TaskArtifactUpdate");
             self.context_id = Some(event.context_id.clone());
         }
 

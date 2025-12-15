@@ -6,7 +6,6 @@ use axum::{
 };
 use http::StatusCode;
 use serde::Serialize;
-use tracing::error;
 use utoipa::IntoResponses;
 
 pub const API_VERSION_TAG: &str = "v1";
@@ -38,7 +37,7 @@ impl<T: Serialize, E: Serialize + IntoResponse + Debug> IntoResponse for JsonRes
         match self.0 {
             Ok(value) => (StatusCode::OK, Json(value)).into_response(),
             Err(error) => {
-                error!("Error: {:?}", error);
+                tracing::debug!(error = ?error, "Request error");
 
                 error.into_response()
             }
@@ -72,7 +71,7 @@ impl<E: Serialize + ToOwned + IntoResponse + Debug> IntoResponse for RedirectRes
         match self.0 {
             Ok(redirect) => redirect.into_response(),
             Err(error) => {
-                error!("Error: {:?}", error);
+                tracing::debug!(error = ?error, "Redirect error");
 
                 error.into_response()
             }

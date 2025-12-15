@@ -635,8 +635,7 @@ impl ProviderRepositoryLike for Repository {
         CommonError,
     > {
         // Convert the slice of strings to JSON array format for SQLite IN clause
-        let ids_json = function_controller_type_ids.join(", ");
-        tracing::info!("ids_json: {}", ids_json);
+        tracing::trace!(count = function_controller_type_ids.len(), "Querying provider instances by function type IDs");
 
         let sqlc_params = ManualGetProviderInstancesGroupedByFunctionControllerTypeIdParams {
             function_controller_type_ids: &Some(function_controller_type_ids.to_vec()),

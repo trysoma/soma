@@ -4,35 +4,35 @@ use std::net::SocketAddr;
 use http::header::HeaderName;
 use shared::error::CommonError;
 use shared::port::find_free_port;
+use shared::process_manager::ShutdownCallback;
 use soma_api_server::ApiService;
+use std::pin::Pin;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer, ExposeHeaders};
-use tracing::info;
 
 pub struct StartAxumServerParams {
     pub host: String,
     pub port: u16,
-    pub system_shutdown_signal_rx: tokio::sync::broadcast::Receiver<()>,
     pub api_service: ApiService,
+}
+
+pub struct StartAxumServerResult {
+    pub server_fut: Pin<Box<dyn Future<Output = Result<(), std::io::Error>> + Send>>,
+    pub handle: axum_server::Handle,
+    pub addr: SocketAddr,
+    pub on_shutdown_triggered: ShutdownCallback,
+    pub on_shutdown_complete: ShutdownCallback,
 }
 
 /// Starts the Axum server
 pub async fn start_axum_server(
     params: StartAxumServerParams,
-) -> Result<
-    (
-        impl Future<Output = Result<(), std::io::Error>>,
-        axum_server::Handle,
-        SocketAddr,
-    ),
-    CommonError,
-> {
-    let mut system_shutdown_signal_rx = params.system_shutdown_signal_rx;
+) -> Result<StartAxumServerResult, CommonError> {
     let port = find_free_port(params.port, params.port + 100)?;
     let addr: SocketAddr = format!("{}:{}", params.host, port)
         .parse()
         .map_err(|e| CommonError::AddrParseError { source: e })?;
 
-    info!("Starting server on {}", addr);
+    tracing::debug!(address = %addr, "Starting server");
 
     let handle = axum_server::Handle::new();
 
@@ -41,7 +41,7 @@ pub async fn start_axum_server(
 
     // Add the frontend router (Vite dev server in debug, static files in release)
     #[cfg(debug_assertions)]
-    let _vite_scope_guard = {
+    let vite_scope_guard = {
         use soma_frontend::start_vite_dev_server;
         start_vite_dev_server()
     };
@@ -65,39 +65,59 @@ pub async fn start_axum_server(
         ]));
     let router = router.layer(cors);
 
-    info!("Router initiated");
+    tracing::trace!("Router initiated");
 
-    let server_fut = axum_server::bind(addr)
+    let server_fut = Box::pin(axum_server::bind(addr)
         .handle(handle.clone())
-        .serve(router.into_make_service());
+        .serve(router.into_make_service()));
 
-    let handle_clone = handle.clone();
-
-    tokio::spawn(async move {
-        let _ = system_shutdown_signal_rx.recv().await;
-
-        info!("Shutting down axum server, waiting for in-flight requests to complete...");
-
-        // Initiate graceful shutdown (stops accepting new connections, waits for in-flight requests)
-        handle_clone.graceful_shutdown(Some(std::time::Duration::from_secs(30)));
-
-        #[cfg(debug_assertions)]
-        {
-            use soma_frontend::stop_vite_dev_server;
-
-            drop(_vite_scope_guard);
-            if let Err(e) = stop_vite_dev_server().await {
-                use tracing::error;
-
-                error!("Failed to stop vite dev server: {:?}", e);
-            }
-        }
-
-        info!("Axum server shut down gracefully");
+    let handle_for_shutdown = handle.clone();
+    
+    // Create on_shutdown_triggered callback
+    let on_shutdown_triggered: ShutdownCallback = Box::new(move || {
+        let handle = handle_for_shutdown.clone();
+        Box::pin(async move {
+            tracing::debug!("Shutting down server, waiting for in-flight requests");
+            // Initiate graceful shutdown (stops accepting new connections, waits for in-flight requests)
+            handle.graceful_shutdown(Some(std::time::Duration::from_secs(30)));
+        })
+    });
+    
+    // Create on_shutdown_complete callback
+    #[cfg(debug_assertions)]
+    let on_shutdown_complete: ShutdownCallback = {
+        use std::sync::{Arc, Mutex};
+        let vite_guard = Arc::new(Mutex::new(Some(vite_scope_guard)));
+        let vite_guard_clone = vite_guard.clone();
+        Box::new(move || {
+            let vite_guard = vite_guard_clone.clone();
+            Box::pin(async move {
+                use soma_frontend::stop_vite_dev_server;
+                // Drop the guard (stops vite server) - only happens once even if callback is called multiple times
+                let _ = vite_guard.lock().unwrap().take();
+                if let Err(e) = stop_vite_dev_server().await {
+                    tracing::error!("Failed to stop vite dev server: {:?}", e);
+                }
+                tracing::debug!("Server shut down");
+            })
+        })
+    };
+    
+    #[cfg(not(debug_assertions))]
+    let on_shutdown_complete: ShutdownCallback = Box::new(move || {
+        Box::pin(async move {
+            tracing::debug!("Server shut down");
+        })
     });
 
-    info!("Server bound");
-    Ok((server_fut, handle, addr))
+    tracing::trace!("Server bound");
+    Ok(StartAxumServerResult {
+        server_fut,
+        handle,
+        addr,
+        on_shutdown_triggered,
+        on_shutdown_complete,
+    })
 }
 
 #[cfg(all(test, feature = "unit_test"))]

@@ -2,7 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock, broadcast};
-use tracing::debug;
+use tracing::trace;
 
 use crate::types::{Message, Task, TaskArtifactUpdateEvent, TaskStatusUpdateEvent};
 
@@ -39,7 +39,7 @@ impl EventQueue {
 
         let (sender, receiver) = broadcast::channel(max_queue_size);
 
-        debug!("EventQueue initialized.");
+        trace!("EventQueue initialized");
 
         Self {
             sender,
@@ -66,24 +66,11 @@ impl EventQueue {
         Box::pin(async move {
             let is_closed = *self.is_closed.read().await;
             if is_closed {
-                debug!("Queue is closed. Event will not be enqueued.");
+                trace!("Queue closed, event not enqueued");
                 return Ok(());
             }
 
-            match &event {
-                Event::Task(task) => debug!("Enqueuing Task event with task_id: {}", task.id),
-                Event::TaskStatusUpdate(update) => debug!(
-                    "Enqueuing TaskStatusUpdate event with task_id: {}",
-                    update.task_id
-                ),
-                Event::TaskArtifactUpdate(update) => debug!(
-                    "Enqueuing TaskArtifactUpdate event with task_id: {}",
-                    update.task_id
-                ),
-                Event::Message(msg) => {
-                    debug!("Enqueuing Message event with task_id: {:?}", msg.task_id)
-                }
-            }
+            trace!(event = ?event, "Enqueuing event");
 
             // Send to this queue
             self.sender.send(event.clone())?;
@@ -104,24 +91,19 @@ impl EventQueue {
         let mut receiver = self.receiver.lock().await;
 
         if is_closed && receiver.is_empty() {
-            debug!("Queue is closed. Event will not be dequeued.");
+            trace!("Queue closed and empty");
             return Err(DequeueError::QueueClosed);
         }
 
         if no_wait {
-            debug!("Attempting to dequeue event (no_wait=true).");
             match receiver.try_recv() {
                 Ok(event) => {
-                    debug!(
-                        "Dequeued event (no_wait=true) of type: {:?}",
-                        std::mem::discriminant(&event)
-                    );
+                    trace!(event = ?event, "Dequeued event (no_wait)");
                     Ok(event)
                 }
                 Err(broadcast::error::TryRecvError::Empty) => Err(DequeueError::QueueEmpty),
                 Err(broadcast::error::TryRecvError::Closed) => Err(DequeueError::QueueClosed),
                 Err(broadcast::error::TryRecvError::Lagged(_)) => {
-                    // Try again after the lagged messages are skipped
                     match receiver.try_recv() {
                         Ok(event) => Ok(event),
                         Err(_) => Err(DequeueError::QueueEmpty),
@@ -129,18 +111,13 @@ impl EventQueue {
                 }
             }
         } else {
-            debug!("Attempting to dequeue event (waiting).");
             match receiver.recv().await {
                 Ok(event) => {
-                    debug!(
-                        "Dequeued event (waited) of type: {:?}",
-                        std::mem::discriminant(&event)
-                    );
+                    trace!(event = ?event, "Dequeued event (waited)");
                     Ok(event)
                 }
                 Err(broadcast::error::RecvError::Closed) => Err(DequeueError::QueueClosed),
                 Err(broadcast::error::RecvError::Lagged(_)) => {
-                    // Try again after the lagged messages are skipped
                     match receiver.recv().await {
                         Ok(event) => Ok(event),
                         Err(_) => Err(DequeueError::QueueClosed),
@@ -155,17 +132,16 @@ impl EventQueue {
     /// Note: Since we're using broadcast channels, there's no direct equivalent
     /// to Python's task_done(). This is kept for API compatibility.
     pub fn task_done(&self) {
-        debug!("Marking task as done in EventQueue.");
+        // No-op for broadcast channels
     }
 
     /// Taps the event queue to create a new child queue that receives all future events.
     pub async fn tap(&self) -> EventQueue {
-        debug!("Tapping EventQueue to create a child queue.");
+        trace!("Tapping EventQueue");
 
         // Check if parent is already closed
         if *self.is_closed.read().await {
-            debug!("Cannot tap a closed EventQueue.");
-            // Return a pre-closed queue
+            trace!("Cannot tap closed queue");
             let child = EventQueue {
                 sender: self.sender.clone(),
                 receiver: Arc::new(Mutex::new(self.sender.subscribe())),
@@ -191,7 +167,7 @@ impl EventQueue {
     /// Closes the queue for future push events.
     pub fn close(&self) -> Pin<Box<dyn Future<Output = ()> + Send + Sync + '_>> {
         Box::pin(async move {
-            debug!("Closing EventQueue.");
+            trace!("Closing EventQueue");
 
             let mut is_closed = self.is_closed.write().await;
             if *is_closed {

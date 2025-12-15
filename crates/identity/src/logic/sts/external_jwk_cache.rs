@@ -58,7 +58,7 @@ impl ExternalJwksCache {
                     })?
                 }
                 _ => {
-                    tracing::warn!("Unsupported key type: {}", kty);
+                    tracing::debug!(key_type = %kty, "Skipping unsupported key type");
                     continue;
                 }
             };

@@ -2,6 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
 use shared::primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime};
+use tracing::trace;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::logic::{OnConfigChangeEvt, OnConfigChangeTx};
@@ -112,6 +113,7 @@ pub async fn create_mcp_server_instance<R: ProviderRepositoryLike>(
     request: CreateMcpServerInstanceRequest,
     publish_on_change_evt: bool,
 ) -> Result<CreateMcpServerInstanceResponse, CommonError> {
+    trace!(instance_id = %request.id, name = %request.name, "Creating MCP server instance");
     let now = WrappedChronoDateTime::now();
 
     let create_params = CreateMcpServerInstance {
@@ -151,6 +153,7 @@ pub async fn get_mcp_server_instance<R: ProviderRepositoryLike>(
     repository: &R,
     id: &str,
 ) -> Result<GetMcpServerInstanceResponse, CommonError> {
+    trace!(instance_id = %id, "Getting MCP server instance");
     let instance = repository
         .get_mcp_server_instance_by_id(id)
         .await?
@@ -169,6 +172,7 @@ pub async fn update_mcp_server_instance<R: ProviderRepositoryLike>(
     request: UpdateMcpServerInstanceRequest,
     publish_on_change_evt: bool,
 ) -> Result<UpdateMcpServerInstanceResponse, CommonError> {
+    trace!(instance_id = %id, name = %request.name, "Updating MCP server instance");
     // Verify the instance exists first
     let _ = repository
         .get_mcp_server_instance_by_id(id)
@@ -209,6 +213,7 @@ pub async fn delete_mcp_server_instance<R: ProviderRepositoryLike>(
     id: &str,
     publish_on_change_evt: bool,
 ) -> Result<(), CommonError> {
+    trace!(instance_id = %id, "Deleting MCP server instance");
     // Verify the instance exists first
     let _ = repository
         .get_mcp_server_instance_by_id(id)
@@ -235,6 +240,7 @@ pub async fn list_mcp_server_instances<R: ProviderRepositoryLike>(
     repository: &R,
     params: ListMcpServerInstancesParams,
 ) -> Result<ListMcpServerInstancesResponse, CommonError> {
+    trace!(page_size = params.page_size, "Listing MCP server instances");
     let pagination = PaginationRequest {
         page_size: params.page_size,
         next_page_token: params.next_page_token,
@@ -253,6 +259,12 @@ pub async fn add_mcp_server_instance_function<R: ProviderRepositoryLike>(
     request: AddMcpServerInstanceFunctionRequest,
     publish_on_change_evt: bool,
 ) -> Result<AddMcpServerInstanceFunctionResponse, CommonError> {
+    trace!(
+        instance_id = %mcp_server_instance_id,
+        function_name = %request.function_name,
+        function_type = %request.function_controller_type_id,
+        "Adding function to MCP server instance"
+    );
     // Verify the instance exists
     let _ = repository
         .get_mcp_server_instance_by_id(mcp_server_instance_id)
@@ -358,6 +370,14 @@ pub async fn update_mcp_server_instance_function<R: ProviderRepositoryLike>(
     request: UpdateMcpServerInstanceFunctionRequest,
     publish_on_change_evt: bool,
 ) -> Result<UpdateMcpServerInstanceFunctionResponse, CommonError> {
+    trace!(
+        instance_id = %mcp_server_instance_id,
+        function_type = %function_controller_type_id,
+        provider_type = %provider_controller_type_id,
+        provider_instance_id = %provider_instance_id,
+        new_name = %request.function_name,
+        "Updating MCP server instance function"
+    );
     // Verify the instance exists
     let instance = repository
         .get_mcp_server_instance_by_id(mcp_server_instance_id)
@@ -460,6 +480,13 @@ pub async fn remove_mcp_server_instance_function<R: ProviderRepositoryLike>(
     provider_instance_id: &str,
     publish_on_change_evt: bool,
 ) -> Result<RemoveMcpServerInstanceFunctionResponse, CommonError> {
+    trace!(
+        instance_id = %mcp_server_instance_id,
+        function_type = %function_controller_type_id,
+        provider_type = %provider_controller_type_id,
+        provider_instance_id = %provider_instance_id,
+        "Removing function from MCP server instance"
+    );
     // Verify the instance exists
     let instance = repository
         .get_mcp_server_instance_by_id(mcp_server_instance_id)

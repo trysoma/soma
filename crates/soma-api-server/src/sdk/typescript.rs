@@ -17,13 +17,6 @@ impl SdkClient for Typescript {
         // Note: ctx.file_change_tx is available but intentionally unused here.
         // Vite handles HMR automatically, so we don't need to manually handle file changes.
 
-        let mut cmd = Command::new("pnpm");
-
-        cmd.arg("dlx")
-            .arg("vite")
-            .arg("dev")
-            .current_dir(ctx.project_dir.clone());
-
         // Set the SOMA_SERVER_SOCK environment variable and initial secrets/env vars
         let mut env_vars = HashMap::from([
             ("SOMA_SERVER_SOCK".to_string(), ctx.socket_path),
@@ -43,17 +36,31 @@ impl SdkClient for Typescript {
             env_vars.insert(key, value);
         }
 
-        // Run with clear_env=true to prevent host environment variables from leaking
-        // Only the essential system variables and explicitly provided env vars will be set
-        shared::command::run_child_process_with_env_options(
-            "pnpm-dev-server",
-            cmd,
-            Some(ctx.kill_signal_rx),
-            Some(env_vars),
-            true, // Clear inherited environment, only use provided env vars
-        )
-        .await?;
+        // Use process manager to start the Vite dev server
+        let mut process_manager = ctx.process_manager.lock().await;
+        process_manager.start_process("pnpm-dev-server", shared::process_manager::ProcessConfig {
+            script: "pnpm".to_string(),
+            args: vec!["dlx".to_string(), "vite".to_string(), "dev".to_string()],
+            cwd: Some(ctx.project_dir.clone()),
+            env: env_vars,
+            health_check: None,
+            on_terminal_stop: shared::process_manager::OnTerminalStop::TriggerShutdown,
+            on_stop: shared::process_manager::OnStop::Restart(shared::process_manager::RestartConfig {
+                max_restarts: 10,
+                restart_delay: 2000,
+            }),
+            shutdown_priority: 7, // Lower than SDK server thread (8) so it shuts down first
+            follow_logs: false,
+            on_shutdown_triggered: None,
+            on_shutdown_complete: None,
+        }).await?;
 
+        // Wait for shutdown - the process manager will handle cleanup
+        // Drop the lock so other threads can access the process manager
+        drop(process_manager);
+        // Wait for process manager shutdown - this will return when shutdown is triggered
+        ctx.process_manager.lock().await.wait_for_shutdown().await;
+        
         Ok(())
     }
 

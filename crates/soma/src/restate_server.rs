@@ -1,23 +1,16 @@
 use anyhow::Context;
-use indicatif::ProgressBar;
-use shared::command::run_child_process;
 use shared::error::CommonError;
-use shared::subsystem::SubsystemHandle;
 use std::time::Duration;
 use std::{collections::HashMap, fs};
 use std::path::PathBuf;
-use tokio::process::Command;
-use tokio::sync::broadcast;
-use tokio::time::sleep;
-use tracing::{debug, error, info, trace};
-use reqwest::Client;
-
+use tracing::{debug, trace};
+use shared::restate::deploy::wait_for_healthy_restate_admin;
 use shared::port::is_port_in_use;
 use soma_api_server::restate::{
     RestateServerLocalParams, RestateServerParams, RestateServerRemoteParams,
 };
 use std::env::var;
-use crate::process_manager::{CustomProcessManager, OnStop, ProcessConfig};
+use shared::process_manager::{CustomProcessManager, OnStop, OnTerminalStop, ProcessConfig, RestartConfig};
 
 /// The embedded restate-server binary for the current platform
 /// This is included at compile time from the binary downloaded during build
@@ -103,11 +96,11 @@ pub fn install_bundled_restate() -> Result<PathBuf, CommonError> {
 
     // Check if binary already exists
     if binary_path.exists() {
-        tracing::info!("restate-server already installed at {:?}", binary_path);
+        tracing::debug!("restate-server already installed at {:?}", binary_path);
         return Ok(binary_path);
     }
 
-    tracing::info!("Installing bundled restate-server to {:?}", binary_path);
+    tracing::debug!("Installing bundled restate-server to {:?}", binary_path);
 
     // Write the embedded binary to the file
     fs::write(&binary_path, binary_data).context("Failed to write restate-server binary")?;
@@ -122,7 +115,7 @@ pub fn install_bundled_restate() -> Result<PathBuf, CommonError> {
             .context("Failed to set restate-server binary permissions")?;
     }
 
-    tracing::info!("Successfully installed restate-server binary");
+    tracing::debug!("Successfully installed restate-server binary");
     Ok(binary_path)
 }
 
@@ -242,8 +235,15 @@ async fn start_restate_server_local(
             retries: 3,
             enabled: true,
         }),
-        on_stop: OnStop::TriggerShutdown,
+        on_stop: OnStop::Restart(RestartConfig {
+            max_restarts: 10,
+            restart_delay: 1000,
+        }),
+        on_terminal_stop: OnTerminalStop::TriggerShutdown,
         shutdown_priority: 10,
+        follow_logs: false,
+        on_shutdown_triggered: None,
+        on_shutdown_complete: None,
     }).await?;
     
     Ok(())
@@ -264,56 +264,16 @@ pub async fn start_restate(
     match restate_params {
         RestateServerParams::Local(params) => {
             trace!("Starting a local restate server process");
-            let bar = ProgressBar::new_spinner();
-            bar.enable_steady_tick(Duration::from_millis(100));
-            bar.set_message("Starting local restate server...");
+            
             let admin_port = params.admin_port;
             start_restate_server_local(process_manager, params).await?;
 
             trace!("Waiting for Restate admin endpoint to be ready...");
-            // Wait for Restate admin endpoint to be ready (200 status code)
+            // Wait for Restate admin endpoint to be ready
+            // wait_for_healthy_restate_admin handles retries internally and returns an error if it fails
             let admin_url = format!("http://127.0.0.1:{}", admin_port);
-            let client = Client::new();
-            let max_retries = 30;
-            let retry_delay = Duration::from_secs(2);
-            let mut endpoint_ready = false;
-            
-            for attempt in 1..=max_retries {
-                trace!("Checking Restate admin endpoint (attempt {}/{}): {}", attempt, max_retries, admin_url);
-                
-                match client.get(&admin_url).send().await {
-                    Ok(response) => {
-                        if response.status().as_u16() == 200 {
-                            trace!("Restate admin endpoint is ready (200 OK)");
-                            endpoint_ready = true;
-                            break;
-                        } else {
-                            trace!("Restate admin endpoint returned status: {}", response.status().as_u16());
-                        }
-                    }
-                    Err(e) => {
-                        trace!("Failed to connect to Restate admin endpoint: {}", e);
-                    }
-                }
-                
-                if attempt < max_retries {
-                    trace!("Waiting {} seconds before next attempt", retry_delay.as_secs());
-                    sleep(retry_delay).await;
-                }
-            }
-            
-            if !endpoint_ready {
-                error!("Restate admin process started but endpoint did not become ready after {} attempts ({} seconds)", max_retries, max_retries * retry_delay.as_secs());
-                return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "Restate admin endpoint at {} did not become ready after {} attempts ({} seconds)",
-                    admin_url,
-                    max_retries,
-                    max_retries * retry_delay.as_secs()
-                )));
-            }
-            
+            wait_for_healthy_restate_admin(&admin_url).await?;
             trace!("Restate admin endpoint is ready");
-            bar.finish_and_clear();
             trace!("Local restate server process started");
             
         }

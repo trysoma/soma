@@ -1,6 +1,7 @@
 use axum::extract::{Json, Path, Query, State};
 use shared::adapters::openapi::API_VERSION_TAG;
 use std::sync::Arc;
+use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -59,6 +60,7 @@ async fn route_create_secret(
     State(ctx): State<Arc<SecretService>>,
     Json(request): Json<CreateSecretRequest>,
 ) -> JsonResponse<CreateSecretResponse, CommonError> {
+    trace!(key = %request.key, "Creating secret");
     let res = create_secret(
         &ctx.on_change_tx,
         &ctx.repository,
@@ -68,6 +70,7 @@ async fn route_create_secret(
         true,
     )
     .await;
+    trace!(success = res.is_ok(), "Creating secret completed");
     JsonResponse::from(res)
 }
 
@@ -91,7 +94,9 @@ async fn route_import_secret(
     State(ctx): State<Arc<SecretService>>,
     Json(request): Json<ImportSecretRequest>,
 ) -> JsonResponse<Secret, CommonError> {
+    trace!(secret_key = %request.key, "Importing secret");
     let res = import_secret(&ctx.repository, request).await;
+    trace!(success = res.is_ok(), "Importing secret completed");
     JsonResponse::from(res)
 }
 
@@ -117,7 +122,9 @@ async fn route_list_secrets(
     State(ctx): State<Arc<SecretService>>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListSecretsResponse, CommonError> {
+    trace!(page_size = pagination.page_size, "Listing secrets");
     let res = list_secrets(&ctx.repository, pagination).await;
+    trace!(success = res.is_ok(), "Listing secrets completed");
     JsonResponse::from(res)
 }
 
@@ -143,8 +150,10 @@ async fn route_list_decrypted_secrets(
     State(ctx): State<Arc<SecretService>>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListDecryptedSecretsResponse, CommonError> {
+    trace!(page_size = pagination.page_size, "Listing decrypted secrets");
     let res =
         list_decrypted_secrets(&ctx.repository, ctx.encryption_service.cache(), pagination).await;
+    trace!(success = res.is_ok(), "Listing decrypted secrets completed");
     JsonResponse::from(res)
 }
 
@@ -171,7 +180,9 @@ async fn route_get_secret_by_id(
     State(ctx): State<Arc<SecretService>>,
     Path(secret_id): Path<WrappedUuidV4>,
 ) -> JsonResponse<GetSecretResponse, CommonError> {
+    trace!(secret_id = %secret_id, "Getting secret by ID");
     let res = get_secret_by_id(&ctx.repository, secret_id).await;
+    trace!(success = res.is_ok(), "Getting secret by ID completed");
     JsonResponse::from(res)
 }
 
@@ -198,7 +209,9 @@ async fn route_get_secret_by_key(
     State(ctx): State<Arc<SecretService>>,
     Path(key): Path<String>,
 ) -> JsonResponse<GetSecretResponse, CommonError> {
+    trace!(key = %key, "Getting secret by key");
     let res = get_secret_by_key(&ctx.repository, key).await;
+    trace!(success = res.is_ok(), "Getting secret by key completed");
     JsonResponse::from(res)
 }
 
@@ -227,6 +240,7 @@ async fn route_update_secret(
     Path(secret_id): Path<WrappedUuidV4>,
     Json(request): Json<UpdateSecretRequest>,
 ) -> JsonResponse<UpdateSecretResponse, CommonError> {
+    trace!(secret_id = %secret_id, "Updating secret");
     let res = update_secret(
         &ctx.on_change_tx,
         &ctx.repository,
@@ -237,6 +251,7 @@ async fn route_update_secret(
         true,
     )
     .await;
+    trace!(success = res.is_ok(), "Updating secret completed");
     JsonResponse::from(res)
 }
 
@@ -263,6 +278,7 @@ async fn route_delete_secret(
     State(ctx): State<Arc<SecretService>>,
     Path(secret_id): Path<WrappedUuidV4>,
 ) -> JsonResponse<DeleteSecretResponse, CommonError> {
+    trace!(secret_id = %secret_id, "Deleting secret");
     let res = delete_secret(
         &ctx.on_change_tx,
         &ctx.repository,
@@ -272,6 +288,7 @@ async fn route_delete_secret(
         true,
     )
     .await;
+    trace!(success = res.is_ok(), "Deleting secret completed");
     JsonResponse::from(res)
 }
 

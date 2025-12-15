@@ -66,7 +66,7 @@ pub async fn establish_connection_with_retry(socket_path: &str) -> Result<(), Co
         // Try to create client
         match create_unix_socket_client(socket_path).await {
             Ok(_) => {
-                info!("Successfully connected to SDK server");
+                tracing::debug!("Connected to SDK server");
                 return Ok(());
             }
             Err(e) => {
@@ -97,7 +97,7 @@ pub async fn monitor_connection_health(socket_path: &str) {
 
         if !Path::new(socket_path).exists() {
             // Socket file disappeared - server is restarting
-            info!("Socket file disappeared, server is restarting");
+            tracing::trace!("Socket file disappeared, server restarting");
             return;
         }
 
@@ -110,7 +110,7 @@ pub async fn monitor_connection_health(socket_path: &str) {
             }
             Err(e) => {
                 // Health check failed - server likely restarted
-                info!("Health check failed, server likely restarted: {:?}", e);
+                tracing::trace!(error = ?e, "Health check failed, server restarted");
                 return;
             }
         }
@@ -146,7 +146,6 @@ mod windows_impl {
     }
 }
 
-use tracing::info;
 #[cfg(unix)]
 pub use unix_impl::*;
 

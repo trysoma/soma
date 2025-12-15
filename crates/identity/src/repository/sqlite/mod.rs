@@ -879,10 +879,7 @@ impl UserRepositoryLike for Repository {
     ) -> Result<(), CommonError> {
         let (config_type, config_json) = params.config.to_db_values()?;
 
-        tracing::info!(
-            "Creating user auth flow(s) config with type: {}",
-            config_type
-        );
+        tracing::trace!(config_type = %config_type, "Creating user auth flow config");
 
         let sqlc_params = create_user_auth_flow_config_params {
             id: &params.id,

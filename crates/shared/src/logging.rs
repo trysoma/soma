@@ -22,7 +22,7 @@ pub fn configure_logging() -> Result<(), anyhow::Error> {
             "warn"
         };
         // Append pmdaemon override
-        format!("{},pmdaemon::manager={}", rust_log, pmdaemon_level)
+        format!("{},pmdaemon::manager={},pmdaemon::process={}", rust_log, pmdaemon_level, pmdaemon_level)
     };
     
     let subscriber = tracing_subscriber::fmt()

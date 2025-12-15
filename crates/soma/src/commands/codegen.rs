@@ -1,5 +1,5 @@
 use clap::Args;
-use tracing::info;
+use tracing::debug;
 
 use shared::error::CommonError;
 use soma_api_client::apis::internal_api;
@@ -23,7 +23,7 @@ pub async fn cmd_codegen(
     let api_config = create_and_wait_for_api_client(&params.api_url, params.timeout_secs).await?;
 
     // Trigger codegen via API
-    info!("Triggering bridge client generation...");
+    debug!("Triggering bridge client generation...");
 
     internal_api::trigger_codegen(&api_config)
         .await
@@ -33,7 +33,7 @@ pub async fn cmd_codegen(
             ))
         })?;
 
-    info!("Bridge client generation complete!");
+    debug!("Bridge client generation complete!");
 
     Ok(())
 }

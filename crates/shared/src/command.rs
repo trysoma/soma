@@ -5,7 +5,7 @@ use tokio::{
     process::Command,
     sync::{broadcast, oneshot},
 };
-use tracing::{error, info};
+use tracing::{debug, error, trace, warn};
 
 pub async fn run_child_process(
     process_name: &str,
@@ -96,7 +96,7 @@ pub async fn run_child_process_with_env_options(
     }
     .map_err(|e| anyhow::anyhow!("{process_name} process error: {e}"))?;
 
-    info!("🚀 Started {} (pid={:?})", process_name, child.id());
+    debug!(process = %process_name, pid = ?child.id(), "Process started");
 
     let (status_tx, status_rx) = oneshot::channel::<Result<(), CommonError>>();
     let process_name_clone = process_name.to_string();
@@ -106,7 +106,7 @@ pub async fn run_child_process_with_env_options(
         if let Some(mut kill_signal_rx) = kill_signal {
             // Wait for kill signal
             let _ = kill_signal_rx.recv().await;
-            info!("🔪 Kill signal received for {}", process_name_clone);
+            trace!(process = %process_name_clone, "Kill signal received");
 
             // Kill the entire process group to ensure child processes are terminated
             #[cfg(unix)]
@@ -116,7 +116,7 @@ pub async fn run_child_process_with_env_options(
 
                 // Send SIGTERM to the entire process group (negative PID)
                 let pgid = Pid::from_raw(-(pid as i32));
-                info!("🔪 Sending SIGTERM to process group {}", pid);
+                trace!(process = %process_name_clone, pid, "Sending SIGTERM to process group");
                 let _ = kill(pgid, Signal::SIGTERM);
 
                 // Wait a bit for graceful shutdown
@@ -125,31 +125,24 @@ pub async fn run_child_process_with_env_options(
 
                 match wait_result {
                     Ok(Ok(status)) => {
-                        info!("🛑 {} exited with {:?}", process_name_clone, status);
-                        // Since we sent SIGTERM ourselves, any exit should be treated as clean
-                        // The process may exit with a non-zero code when terminated by SIGTERM,
-                        // but that's expected behavior when we intentionally kill it
-                        info!("✅ {} terminated cleanly by SIGTERM", process_name_clone);
+                        trace!(process = %process_name_clone, ?status, "Process exited");
                     }
                     Ok(Err(err)) => {
-                        error!("❌ Failed to wait for {}: {:?}", process_name_clone, err);
+                        error!(process = %process_name_clone, error = ?err, "Failed to wait for process");
                         let _ = status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
                             "{process_name_clone} exited with error: {err:?}"
                         ))));
                         return;
                     }
                     Err(_) => {
-                        // Timeout expired — escalate to SIGKILL
-                        info!(
-                            "⏰ Timeout waiting for {}, sending SIGKILL",
-                            process_name_clone
-                        );
+                        // Timeout expired - escalate to SIGKILL
+                        warn!(process = %process_name_clone, "Process did not terminate, sending SIGKILL");
                         let _ = kill(pgid, Signal::SIGKILL);
 
                         match child.wait().await {
-                            Ok(status) => info!("🧨 {} killed: {:?}", process_name_clone, status),
+                            Ok(status) => trace!(process = %process_name_clone, ?status, "Process killed"),
                             Err(err) => {
-                                error!("❌ Failed to reap {}: {:?}", process_name_clone, err);
+                                error!(process = %process_name_clone, error = ?err, "Failed to reap process");
                                 let _ = status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
                                     "{process_name_clone} exited with error: {err:?}"
                                 ))));
@@ -164,9 +157,9 @@ pub async fn run_child_process_with_env_options(
             {
                 let _ = child.kill().await;
                 match child.wait().await {
-                    Ok(status) => info!("🛑 {} terminated: {:?}", process_name_clone, status),
+                    Ok(status) => trace!(process = %process_name_clone, ?status, "Process terminated"),
                     Err(err) => {
-                        error!("❌ Failed to wait for {}: {:?}", process_name_clone, err);
+                        error!(process = %process_name_clone, error = ?err, "Failed to wait for process");
                         let _ = status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
                             "{process_name_clone} exited with error: {err:?}"
                         ))));
@@ -179,9 +172,9 @@ pub async fn run_child_process_with_env_options(
             match child.wait().await {
                 Ok(status) => {
                     if status.success() {
-                        info!("✅ {} exited successfully", process_name_clone);
+                        trace!(process = %process_name_clone, "Process exited successfully");
                     } else {
-                        error!("❌ {} exited with status: {:?}", process_name_clone, status);
+                        error!(process = %process_name_clone, ?status, "Process exited with error");
                         let _ = status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
                             "{process_name_clone} exited with non-zero status: {status:?}"
                         ))));
@@ -189,7 +182,7 @@ pub async fn run_child_process_with_env_options(
                     }
                 }
                 Err(err) => {
-                    error!("❌ Failed to wait for {}: {:?}", process_name_clone, err);
+                    error!(process = %process_name_clone, error = ?err, "Failed to wait for process");
                     let _ = status_tx.send(Err(CommonError::Unknown(anyhow::anyhow!(
                         "{process_name_clone} wait error: {err:?}"
                     ))));

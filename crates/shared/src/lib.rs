@@ -9,6 +9,7 @@ pub mod logging;
 pub mod node;
 pub mod port;
 pub mod primitives;
+pub mod process_manager;
 pub mod restate;
 pub mod soma_agent_definition;
 pub mod subsystem;

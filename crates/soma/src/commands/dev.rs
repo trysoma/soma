@@ -5,11 +5,13 @@ use std::time::Duration;
 
 use clap::Args;
 use clap::Parser;
+use futures::future;
+use indicatif::ProgressBar;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
 use tracing::debug;
 use tracing::trace;
-use tracing::{error, info, warn};
+use tracing::error;
 use url::Url;
 
 use shared::error::CommonError;
@@ -17,7 +19,7 @@ use shared::port::find_free_port;
 use shared::soma_agent_definition::{SomaAgentDefinitionLike, YamlSomaAgentDefinition};
 
 use crate::bridge::start_bridge_sync_to_yaml_subsystem;
-use crate::process_manager::CustomProcessManager;
+use shared::process_manager::CustomProcessManager;
 use crate::server::{StartAxumServerParams, start_axum_server};
 use crate::utils::wait_for_soma_api_health_check;
 use crate::utils::{CliConfig, construct_cwd_absolute};
@@ -83,9 +85,67 @@ pub struct DevParams {
 }
 
 /// Main entry point for the start command
-pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(), CommonError> {
-    let (system_shutdown_signal_trigger, _system_shutdown_signal_receiver) =
-        broadcast::channel::<()>(1);
+pub async fn cmd_dev(params: DevParams, cli_config: &mut CliConfig) -> Result<(), CommonError> {
+    // Create shutdown notification channel
+    let (shutdown_notifier_tx, mut shutdown_notifier_rx) = oneshot::channel();
+    
+    // Create process manager with shutdown notifier
+    let mut process_manager = shared::process_manager::CustomProcessManager::new_with_shutdown_notifier(Some(shutdown_notifier_tx)).await
+        .inspect_err(|_e| {
+            error!("Failed to start process manager");
+        })?;
+    
+    // Spawn cmd_dev_inner
+    let process_manager_arc = Arc::new(tokio::sync::Mutex::new(process_manager));
+    let process_manager_arc_for_shutdown = process_manager_arc.clone();
+    let params_clone = params.clone();
+    let cli_config_clone = cli_config.clone();
+    let mut cmd_dev_inner_handle = tokio::spawn(async move {
+        cmd_dev_inner(params_clone, &cli_config_clone, process_manager_arc).await
+    });
+    
+    // Wait for one of: Ctrl+C, cmd_dev_inner to complete/error, or shutdown notification
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            debug!("Shutdown signal received, triggering graceful shutdown");
+        }
+        result = &mut cmd_dev_inner_handle => {
+            match result {
+                Ok(Ok(())) => {
+                    debug!("cmd_dev_inner completed successfully");
+                }
+                Ok(Err(e)) => {
+                    debug!(error = ?e, "cmd_dev_inner returned error");
+                    return Err(e);
+                }
+                Err(e) => {
+                    debug!(error = ?e, "cmd_dev_inner panicked");
+                    return Err(CommonError::Unknown(anyhow::anyhow!("{e:?}")));
+                }
+            }
+        }
+        _ = &mut shutdown_notifier_rx => {
+            debug!("Process manager triggered shutdown");
+        }
+    }
+    
+    // Trigger process manager shutdown
+    {
+        let mut pm = process_manager_arc_for_shutdown.lock().await;
+        pm.trigger_shutdown().await?;
+        pm.on_shutdown_complete().await?;
+    }
+    
+    debug!("Shutdown complete");
+    Ok(())
+}
+
+/// Inner implementation of the dev command
+async fn cmd_dev_inner(
+    params: DevParams,
+    _cli_config: &CliConfig,
+    process_manager_arc: Arc<tokio::sync::Mutex<shared::process_manager::CustomProcessManager>>,
+) -> Result<(), CommonError> {
     let project_dir = construct_cwd_absolute(params.clone().cwd)?;
 
     debug!("Starting dev server in project directory: {}", project_dir.display());
@@ -184,14 +244,22 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
 
 
     // Start Restate server subsystem
+    let mut bar = ProgressBar::new_spinner();
+    bar.enable_steady_tick(Duration::from_millis(100));
+    bar.set_message("Waiting for Restate to start...");
     crate::restate_server::start_restate(
         &mut process_manager,
         restate_params.clone(),
     ).await?;
+    bar.finish_and_clear();
     trace!("Restate server configured");
 
     // Create API service and start all subsystems
     trace!("Starting API server");
+    bar = ProgressBar::new_spinner();
+    bar.enable_steady_tick(Duration::from_millis(100));
+    bar.set_message("Waiting for API server to start...");
+    let process_manager_arc = Arc::new(tokio::sync::Mutex::new(process_manager));
     let api_service_bundle = create_api_service(CreateApiServiceParams {
         project_dir: project_dir.clone(),
         host: params.host.clone(),
@@ -202,9 +270,10 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         db_auth_token: params.db_auth_token.clone(),
         soma_definition: soma_definition.clone(),
         restate_params: restate_params.clone(),
-        system_shutdown_signal: system_shutdown_signal_trigger.clone(),
+        process_manager: process_manager_arc.clone(),
     })
     .await?;
+    bar.finish_and_clear();
     trace!("API server started");
 
     // Start bridge config change listener subsystem (uses unified change channel from factory)
@@ -220,73 +289,87 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
 
 
     // Start Axum server subsystem
-    // let (on_server_started_tx, on_server_started_rx) = oneshot::channel::<()>();
-    let axum_system_shutdown_signal_rx = system_shutdown_signal_trigger.subscribe();
-    let (axum_shutdown_complete_signal_trigger, axum_shutdown_complete_signal_receiver) =
-        oneshot::channel::<()>();
     let api_service_clone = api_service.clone();
     let host_clone = params.host.clone();
     let port_clone = params.port;
 
-    let (server_fut, _handle, _addr) = match start_axum_server(StartAxumServerParams {
+    let axum_server_result = match start_axum_server(StartAxumServerParams {
         api_service: api_service_clone,
         host: host_clone,
         port: port_clone,
-        system_shutdown_signal_rx: axum_system_shutdown_signal_rx,
     })
     .await
     {
         Ok(result) => result,
         Err(e) => {
             error!("Failed to start Axum server: {:?}", e);
-            let _ = axum_shutdown_complete_signal_trigger.send(());
             return Err(e);
         }
     };
 
-    // let _ = on_server_started_tx.send(());
-
+    // Register axum server with process manager
+    let on_shutdown_triggered = axum_server_result.on_shutdown_triggered;
+    let on_shutdown_complete = axum_server_result.on_shutdown_complete;
+    
+    // Start the server future in a separate task (not managed by process manager since it's a one-shot)
+    let server_fut = axum_server_result.server_fut;
     tokio::spawn(async move {
         let res = server_fut.await;
         match res {
-            Ok(()) => info!("Axum server stopped gracefully"),
-            Err(e) => error!("Axum server stopped with error: {:?}", e),
+            Ok(()) => trace!("Axum server stopped"),
+            Err(e) => error!(error = ?e, "Axum server stopped with error"),
         }
-        let _ = axum_shutdown_complete_signal_trigger.send(());
     });
+    
+    let process_manager_for_axum = process_manager_arc.clone();
+    process_manager_for_axum.lock().await.start_thread("axum_server", shared::process_manager::ThreadConfig {
+        spawn_fn: move || {
+            // This thread just waits forever since the server is running in a separate task
+            tokio::spawn(async move {
+                futures::future::pending::<Result<(), CommonError>>().await
+            })
+        },
+        health_check: None,
+        on_terminal_stop: shared::process_manager::OnTerminalStop::TriggerShutdown,
+        on_stop: shared::process_manager::OnStop::Nothing,
+        shutdown_priority: 9,
+        follow_logs: false,
+        on_shutdown_triggered: Some(on_shutdown_triggered),
+        on_shutdown_complete: Some(on_shutdown_complete),
+    }).await
+    .inspect_err(|e| error!(error = %e, "Failed to register axum server with process manager"))?;
 
     // Create API client configuration for the soma API server
     let api_base_url = format!("http://{}:{}", params.host, params.port);
     let api_config = crate::utils::create_api_client_config(&api_base_url);
 
     // Wait for API service to be ready
-    info!("Waiting for API service to be ready...");
+    bar = ProgressBar::new_spinner();
+    bar.enable_steady_tick(Duration::from_millis(100));
+    bar.set_message("Synchronizing soma.yaml on server start");
+    trace!("Waiting for API service");
     wait_for_soma_api_health_check(&api_config, 30, 10).await?;
-    info!("API service is ready");
-
+    trace!("API service ready");
     // Sync bridge from soma definition (now all providers should be available)
-    info!("Syncing bridge from soma.yaml...");
+    trace!("Syncing bridge from soma.yaml");
     crate::bridge::sync_yaml_to_api_on_start::sync_bridge_db_from_soma_definition_on_start(
         &api_config,
         &soma_definition,
     )
     .await?;
-    info!("Bridge sync completed");
+    trace!("Bridge sync completed");
 
     // Enable dev mode STS config for development
-    info!("Enabling dev mode STS configuration...");
+    trace!("Enabling dev mode STS configuration");
     let dev_sts_result = enable_dev_mode_sts(&api_config).await;
     match dev_sts_result {
-        Ok(()) => info!("Dev mode STS configuration enabled"),
-        Err(e) => warn!(
-            "Failed to enable dev mode STS configuration: {:?}. Continuing without it.",
-            e
-        ),
+        Ok(()) => trace!("Dev mode STS configuration enabled"),
+        Err(e) => debug!(error = ?e, "Failed to enable dev mode STS configuration, continuing"),
     }
 
     // Give SDK server time to fully initialize its gRPC handlers after bridge sync
     // This ensures that secrets/env vars created during bridge sync can be synced properly
-    info!("Waiting for SDK server to be fully ready after bridge sync...");
+    trace!("Waiting for SDK server after bridge sync");
     tokio::time::sleep(Duration::from_millis(1000)).await;
 
     // Reload soma definition (with error handling to avoid crashes on race conditions)
@@ -297,178 +380,10 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         );
         // Don't fail the entire process - the cached definition should still be valid
     }
+    bar.finish_and_clear();
 
-    // Shutdown monitoring thread - handles both unexpected exits and graceful shutdown
-    let system_shutdown_signal_trigger_clone = system_shutdown_signal_trigger.clone();
-    let mut shutdown_requested_rx = system_shutdown_signal_trigger.subscribe();
-
-    // Convert subsystem handles to shutdown receivers
-    let mut shutdown_receivers: Vec<(&str, oneshot::Receiver<()>)> =
-        vec![("axum_server", axum_shutdown_complete_signal_receiver)];
-
-    // Helper to convert SubsystemHandle to (name, receiver) pair
-    let mut add_subsystem_handle =
-        |name: &'static str, handle: Option<shared::subsystem::SubsystemHandle>| {
-            if let Some(h) = handle {
-                let (tx, rx) = oneshot::channel();
-                let handle_name = name;
-                tokio::spawn(async move {
-                    h.wait_for_shutdown().await;
-                    let _ = tx.send(());
-                });
-                shutdown_receivers.push((handle_name, rx));
-            }
-        };
-
-    // Add all subsystems from the bundle
-    add_subsystem_handle("bridge_sync_yaml", Some(bridge_sync_handle));
-    // add_subsystem_handle("restate", Some(restate_handle));
-    add_subsystem_handle("sdk_server", subsystems.sdk_server);
-    add_subsystem_handle("credential_rotation", subsystems.credential_rotation);
-
-    // Systems that can trigger shutdown (unexpected exits)
-    // Note: MCP is now handled as a nested Tower service within the axum router,
-    // so it doesn't have a separate subsystem handle.
-    let systems_that_can_trigger_shutdown: Vec<&str> = vec![
-        // "restate",
-        "bridge_sync_yaml",
-        "axum_server",
-        "sdk_server",
-        "credential_rotation",
-    ];
-
-    // Systems that require graceful shutdown (we wait for these after shutdown is triggered)
-    let systems_requiring_graceful_shutdown: Vec<&str> =
-        vec!["restate", "axum_server", "sdk_server"];
-
-    // Track which systems have completed
-    use std::collections::HashSet;
-    use std::sync::{Arc, Mutex};
-    use tokio::sync::Notify;
-
-    let completed_systems: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
-    let completion_notify = Arc::new(Notify::new());
-
-    // Spawn tasks to track each system's completion (these run independently)
-    for (name, receiver) in shutdown_receivers {
-        let name_str = name.to_string();
-        let completed_systems_clone = completed_systems.clone();
-        let completion_notify_clone = completion_notify.clone();
-        tokio::spawn(async move {
-            let _ = receiver.await;
-            let mut completed = completed_systems_clone.lock().unwrap();
-            completed.insert(name_str);
-            drop(completed);
-            completion_notify_clone.notify_waiters();
-        });
-    }
-
-    let shutdown_monitor_handle = tokio::spawn(async move {
-        use futures::future::FutureExt;
-
-        // Wait for either shutdown signal OR first system that can trigger shutdown to complete
-        let shutdown_signal_fut = shutdown_requested_rx.recv().map(|_| None::<String>).boxed();
-
-        // Create futures that complete when systems that can trigger shutdown complete
-        let mut trigger_futures = Vec::new();
-        for name in systems_that_can_trigger_shutdown {
-            let name_str = name.to_string();
-            let completed_systems_clone = completed_systems.clone();
-            let completion_notify_clone = completion_notify.clone();
-            let fut = async move {
-                loop {
-                    // Check if system has completed
-                    {
-                        let completed = completed_systems_clone.lock().unwrap();
-                        if completed.contains(&name_str) {
-                            return Some(name_str);
-                        }
-                    }
-                    // Wait for notification instead of polling
-                    completion_notify_clone.notified().await;
-                }
-            };
-            trigger_futures.push(fut.boxed());
-        }
-
-        let mut all_waits = vec![shutdown_signal_fut];
-        all_waits.extend(trigger_futures);
-
-        let (result, _idx, _remaining) = futures::future::select_all(all_waits).await;
-
-        let was_unexpected = result.is_some();
-        if was_unexpected {
-            if let Some(triggered_name) = result {
-                info!(
-                    "System shutdown gracefully, triggered by unexpected exit of {} system",
-                    triggered_name
-                );
-                let _ = system_shutdown_signal_trigger_clone.send(());
-            }
-        } else {
-            info!("Shutdown requested, waiting for all systems to complete");
-        }
-
-        // Now wait for all systems that require graceful shutdown to complete
-        let systems_to_wait_for: Vec<String> = systems_requiring_graceful_shutdown
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        // Wait for remaining systems with timeout
-        let timeout_fut = tokio::time::sleep(Duration::from_secs(30));
-        let completed_systems_for_check = completed_systems.clone();
-        let systems_to_wait_for_check = systems_to_wait_for.clone();
-        let completion_notify_for_check = completion_notify.clone();
-        let check_completion = async move {
-            loop {
-                // Check if all systems have completed
-                {
-                    let completed = completed_systems_for_check.lock().unwrap();
-                    let all_complete = systems_to_wait_for_check
-                        .iter()
-                        .all(|name| completed.contains(name));
-                    if all_complete {
-                        break;
-                    }
-                }
-                // Wait for notification instead of polling
-                completion_notify_for_check.notified().await;
-            }
-        };
-
-        tokio::select! {
-          _ = timeout_fut => {
-            let completed = completed_systems.lock().unwrap();
-            let still_waiting: Vec<String> = systems_to_wait_for
-              .into_iter()
-              .filter(|name| !completed.contains(name))
-              .collect();
-            error!("Failed to wait for graceful shutdown of {} systems (timeout after 30s)", still_waiting.join(", "));
-          }
-          _ = check_completion => {
-            info!("All systems shut down gracefully");
-          }
-        }
-    });
-
-    // Wait for shutdown signal (Ctrl+C)
-    tokio::signal::ctrl_c().await?;
-    info!("Shutdown signal received, triggering graceful shutdown");
-    let _ = system_shutdown_signal_trigger.send(());
-
-    // Wait for shutdown monitor to complete with a shorter timeout
-    // The subsystems should have already stopped by now based on the logs
-    tokio::select! {
-      _ = shutdown_monitor_handle => {
-        info!("Shutdown monitoring completed");
-      }
-      _ = tokio::time::sleep(Duration::from_secs(5)) => {
-        info!("Shutdown monitoring timed out after 5s, all subsystems already stopped - proceeding");
-      }
-    }
-
-    info!("Shutdown complete");
+    // Wait indefinitely - shutdown will be handled by the outer cmd_dev function
+    future::pending::<()>().await;
     Ok(())
 }
 
@@ -510,7 +425,7 @@ async fn enable_dev_mode_sts(
     });
 
     if dev_mode_exists {
-        info!("Dev mode STS configuration already exists");
+        trace!("Dev mode STS configuration already exists");
         return Ok(());
     }
 

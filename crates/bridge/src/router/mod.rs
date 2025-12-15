@@ -14,7 +14,7 @@ use encryption::logic::crypto_services::CryptoCache;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use rmcp::transport::streamable_http_server::StreamableHttpService;
 use shared::error::CommonError;
-use tracing::info;
+use tracing::{debug, trace};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
@@ -93,7 +93,7 @@ impl BridgeService {
         mcp_service: StreamableHttpService<BridgeMcpService, LocalSessionManager>,
     ) -> Result<Self, CommonError> {
         // Run initial credential rotation check for expired and soon-to-expire credentials (30 min window)
-        info!("Running initial credential rotation check...");
+        debug!("Running initial credential rotation check");
         process_credential_rotations_with_window(
             &repository,
             &on_config_change_tx,
@@ -101,7 +101,7 @@ impl BridgeService {
             30,
         )
         .await?;
-        info!("Initial credential rotation check complete");
+        trace!("Initial credential rotation check complete");
 
         Ok(Self {
             repository,

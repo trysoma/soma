@@ -212,7 +212,7 @@ where
 
     // Refresh cache with new data
     if let Err(e) = jwks_cache.refresh_cache().await {
-        tracing::warn!("Failed to refresh JWKS cache: {:?}", e);
+        tracing::debug!(error = ?e, "Failed to refresh JWKS cache");
     }
 
     Ok(jwks_response)
@@ -280,15 +280,15 @@ where
     let result = repository.list_jwt_signing_keys(&pagination).await?;
 
     if result.items.is_empty() {
-        tracing::info!("No JWKs found, creating initial JWK...");
+        tracing::debug!("No JWKs found, creating initial JWK");
         let request = CreateJwkRequest {
             dek_alias: default_dek_alias.to_string(),
             expires_in_days: 30,
         };
         create_jwk(repository, crypto_cache, jwks_cache, request).await?;
-        tracing::info!("Initial JWK created successfully");
+        tracing::debug!("Initial JWK created");
     } else {
-        tracing::info!("JWKs already exist, skipping initial creation");
+        tracing::trace!("JWKs exist, initializing cache");
         // Initialize cache with existing JWKs
         jwks_cache.refresh_cache().await?;
     }
@@ -314,7 +314,7 @@ pub async fn jwk_rotation_task<R>(
     loop {
         tokio::select! {
             _ = timer.tick() => {
-                tracing::info!("Starting JWK rotation check");
+                tracing::trace!("Starting JWK rotation check");
 
                 if let Err(e) = process_jwk_rotation(
                     &repo,
@@ -324,19 +324,19 @@ pub async fn jwk_rotation_task<R>(
                 )
                 .await
                 {
-                    tracing::error!("Error processing JWK rotation: {:?}", e);
+                    tracing::error!(error = ?e, "JWK rotation failed");
                 }
 
-                tracing::info!("Completed JWK rotation check");
+                tracing::trace!("JWK rotation check complete");
             }
             _ = shutdown_rx.recv() => {
-                tracing::info!("JWK rotation task shutdown requested");
+                tracing::debug!("JWK rotation task shutdown requested");
                 break;
             }
         }
     }
 
-    tracing::info!("JWK rotation task stopped");
+    tracing::debug!("JWK rotation task stopped");
 }
 
 /// Process JWK rotation - check if any JWKs expire in more than 5 days, create one if not
@@ -368,15 +368,15 @@ where
         .any(|key| !key.invalidated && key.expires_at.get_inner() > &threshold);
 
     if !has_valid_key {
-        tracing::info!("No JWKs expire in more than 5 days, creating new JWK...");
+        tracing::debug!("No JWKs expire in more than 5 days, creating new JWK");
         let request = CreateJwkRequest {
             dek_alias: default_dek_alias.to_string(),
             expires_in_days: 30,
         };
         create_jwk(repository, crypto_cache, jwks_cache, request).await?;
-        tracing::info!("New JWK created successfully");
+        tracing::debug!("New JWK created");
     } else {
-        tracing::debug!("JWKs with expiration > 5 days exist, no action needed");
+        tracing::trace!("JWKs with expiration > 5 days exist, no action needed");
     }
 
     // Remove expired/invalidated keys from cache

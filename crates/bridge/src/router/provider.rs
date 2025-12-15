@@ -1,5 +1,7 @@
 //! Provider and function management routes
 
+use tracing::trace;
+
 use super::{API_VERSION_1, BridgeService, PATH_PREFIX, SERVICE_ROUTE_KEY};
 use crate::logic::{
     BrokerAction, BrokerInput, CreateProviderInstanceParamsInner, CreateProviderInstanceResponse,
@@ -57,7 +59,9 @@ pub async fn route_list_available_providers(
     State(_ctx): State<BridgeService>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListAvailableProvidersResponse, CommonError> {
+    trace!(page_size = pagination.page_size, "Listing available providers");
     let res = list_available_providers(pagination).await;
+    trace!(success = res.is_ok(), "Listing available providers completed");
     JsonResponse::from(res)
 }
 
@@ -80,6 +84,12 @@ pub async fn route_create_provider_instance(
     Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
     Json(params): Json<CreateProviderInstanceParamsInner>,
 ) -> JsonResponse<CreateProviderInstanceResponse, CommonError> {
+    trace!(
+        provider_type = %provider_controller_type_id,
+        credential_type = %credential_controller_type_id,
+        display_name = %params.display_name,
+        "Creating provider instance"
+    );
     let res = create_provider_instance(
         ctx.on_config_change_tx(),
         ctx.repository(),
@@ -93,6 +103,7 @@ pub async fn route_create_provider_instance(
         true,
     )
     .await;
+    trace!(success = res.is_ok(), "Creating provider instance completed");
     JsonResponse::from(res)
 }
 
@@ -118,6 +129,11 @@ pub async fn route_update_provider_instance(
     Path(provider_instance_id): Path<String>,
     Json(params): Json<UpdateProviderInstanceParamsInner>,
 ) -> JsonResponse<UpdateProviderInstanceResponse, CommonError> {
+    trace!(
+        provider_instance_id = %provider_instance_id,
+        display_name = %params.display_name,
+        "Updating provider instance"
+    );
     let res = update_provider_instance(
         ctx.on_config_change_tx(),
         ctx.repository(),
@@ -128,6 +144,7 @@ pub async fn route_update_provider_instance(
         true,
     )
     .await;
+    trace!(success = res.is_ok(), "Updating provider instance completed");
     JsonResponse::from(res)
 }
 
@@ -151,6 +168,7 @@ pub async fn route_get_provider_instance(
     State(ctx): State<BridgeService>,
     Path(provider_instance_id): Path<String>,
 ) -> JsonResponse<GetProviderInstanceResponse, CommonError> {
+    trace!(provider_instance_id = %provider_instance_id, "Getting provider instance");
     let res = get_provider_instance(
         ctx.repository(),
         WithProviderInstanceId {
@@ -159,6 +177,7 @@ pub async fn route_get_provider_instance(
         },
     )
     .await;
+    trace!(success = res.is_ok(), "Getting provider instance completed");
     JsonResponse::from(res)
 }
 
@@ -189,6 +208,11 @@ pub async fn route_encrypt_resource_server_configuration(
     Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
     Json(params): Json<EncryptCredentialConfigurationParamsInner>,
 ) -> JsonResponse<EncryptedCredentialConfigurationResponse, CommonError> {
+    trace!(
+        provider_type = %provider_controller_type_id,
+        credential_type = %credential_controller_type_id,
+        "Encrypting resource server configuration"
+    );
     let res = encrypt_resource_server_configuration(
         ctx.encryption_service(),
         WithProviderControllerTypeId {
@@ -200,6 +224,7 @@ pub async fn route_encrypt_resource_server_configuration(
         },
     )
     .await;
+    trace!(success = res.is_ok(), "Encrypting resource server configuration completed");
     JsonResponse::from(res)
 }
 
@@ -226,6 +251,11 @@ pub async fn route_encrypt_user_credential_configuration(
     Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
     Json(params): Json<EncryptCredentialConfigurationParamsInner>,
 ) -> JsonResponse<EncryptedCredentialConfigurationResponse, CommonError> {
+    trace!(
+        provider_type = %provider_controller_type_id,
+        credential_type = %credential_controller_type_id,
+        "Encrypting user credential configuration"
+    );
     let res = encrypt_user_credential_configuration(
         ctx.encryption_service(),
         WithProviderControllerTypeId {
@@ -237,6 +267,7 @@ pub async fn route_encrypt_user_credential_configuration(
         },
     )
     .await;
+    trace!(success = res.is_ok(), "Encrypting user credential configuration completed");
     JsonResponse::from(res)
 }
 
@@ -267,6 +298,11 @@ pub async fn route_create_resource_server_credential(
     Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
     Json(params): Json<CreateResourceServerCredentialParamsInner>,
 ) -> JsonResponse<CreateResourceServerCredentialResponse, CommonError> {
+    trace!(
+        provider_type = %provider_controller_type_id,
+        credential_type = %credential_controller_type_id,
+        "Creating resource server credential"
+    );
     let res = create_resource_server_credential(
         ctx.repository(),
         WithProviderControllerTypeId {
@@ -278,6 +314,7 @@ pub async fn route_create_resource_server_credential(
         },
     )
     .await;
+    trace!(success = res.is_ok(), "Creating resource server credential completed");
     JsonResponse::from(res)
 }
 
@@ -308,6 +345,11 @@ pub async fn route_create_user_credential(
     Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
     Json(params): Json<CreateUserCredentialParamsInner>,
 ) -> JsonResponse<CreateUserCredentialResponse, CommonError> {
+    trace!(
+        provider_type = %provider_controller_type_id,
+        credential_type = %credential_controller_type_id,
+        "Creating user credential"
+    );
     let res = create_user_credential(
         ctx.repository(),
         WithProviderControllerTypeId {
@@ -319,6 +361,7 @@ pub async fn route_create_user_credential(
         },
     )
     .await;
+    trace!(success = res.is_ok(), "Creating user credential completed");
     JsonResponse::from(res)
 }
 
@@ -388,6 +431,11 @@ pub async fn route_start_user_credential_brokering(
     Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
     Json(params): Json<StartUserCredentialBrokeringParamsInner>,
 ) -> JsonResponse<UserCredentialBrokeringResponse, CommonError> {
+    trace!(
+        provider_type = %provider_controller_type_id,
+        credential_type = %credential_controller_type_id,
+        "Starting user credential brokering"
+    );
     let res = start_user_credential_brokering(
         ctx.on_config_change_tx(),
         ctx.repository(),
@@ -400,6 +448,7 @@ pub async fn route_start_user_credential_brokering(
         },
     )
     .await;
+    trace!(success = res.is_ok(), "Starting user credential brokering completed");
 
     JsonResponse::from(res)
 }
@@ -435,6 +484,12 @@ pub async fn generic_oauth_callback(
     State(ctx): State<BridgeService>,
     Query(params): Query<GenericOAuthCallbackParams>,
 ) -> impl IntoResponse {
+    trace!(
+        has_state = params.state.is_some(),
+        has_code = params.code.is_some(),
+        has_error = params.error.is_some(),
+        "Handling OAuth callback"
+    );
     // Check for OAuth errors first
     if let Some(error) = params.error {
         let error_desc = params
@@ -490,6 +545,7 @@ pub async fn generic_oauth_callback(
         },
     )
     .await;
+    trace!(success = res.is_ok(), "OAuth callback handling completed");
 
     handle_user_credential_brokering_response(res).into_response()
 }
@@ -518,6 +574,7 @@ pub async fn route_delete_provider_instance(
     State(ctx): State<BridgeService>,
     Path(provider_instance_id): Path<String>,
 ) -> JsonResponse<(), CommonError> {
+    trace!(provider_instance_id = %provider_instance_id, "Deleting provider instance");
     let res = delete_provider_instance(
         ctx.on_config_change_tx(),
         ctx.repository(),
@@ -528,6 +585,7 @@ pub async fn route_delete_provider_instance(
         true,
     )
     .await;
+    trace!(success = res.is_ok(), "Deleting provider instance completed");
     JsonResponse::from(res)
 }
 
@@ -554,6 +612,11 @@ pub async fn route_enable_function(
     Path((provider_instance_id, function_controller_type_id)): Path<(String, String)>,
     Json(params): Json<EnableFunctionParamsInner>,
 ) -> JsonResponse<EnableFunctionResponse, CommonError> {
+    trace!(
+        provider_instance_id = %provider_instance_id,
+        function_type = %function_controller_type_id,
+        "Enabling function"
+    );
     let res = enable_function(
         ctx.on_config_change_tx(),
         ctx.repository(),
@@ -567,6 +630,7 @@ pub async fn route_enable_function(
         true,
     )
     .await;
+    trace!(success = res.is_ok(), "Enabling function completed");
 
     JsonResponse::from(res)
 }
@@ -592,6 +656,11 @@ pub async fn route_disable_function(
     State(ctx): State<BridgeService>,
     Path((provider_instance_id, function_controller_type_id)): Path<(String, String)>,
 ) -> JsonResponse<DisableFunctionResponse, CommonError> {
+    trace!(
+        provider_instance_id = %provider_instance_id,
+        function_type = %function_controller_type_id,
+        "Disabling function"
+    );
     let res = disable_function(
         ctx.on_config_change_tx(),
         ctx.repository(),
@@ -605,6 +674,7 @@ pub async fn route_disable_function(
         true,
     )
     .await;
+    trace!(success = res.is_ok(), "Disabling function completed");
 
     JsonResponse::from(res)
 }
@@ -632,6 +702,11 @@ pub async fn route_invoke_function(
     Path((provider_instance_id, function_controller_type_id)): Path<(String, String)>,
     Json(params): Json<InvokeFunctionParamsInner>,
 ) -> JsonResponse<InvokeFunctionResponse, CommonError> {
+    trace!(
+        provider_instance_id = %provider_instance_id,
+        function_type = %function_controller_type_id,
+        "Invoking function"
+    );
     let res = invoke_function(
         ctx.repository(),
         ctx.encryption_service(),
@@ -644,6 +719,7 @@ pub async fn route_invoke_function(
         },
     )
     .await;
+    trace!(success = res.is_ok(), "Invoking function completed");
     JsonResponse::from(res)
 }
 
@@ -677,6 +753,12 @@ pub async fn route_list_provider_instances(
     State(ctx): State<BridgeService>,
     Query(query): Query<ListProviderInstancesQuery>,
 ) -> JsonResponse<ListProviderInstancesResponse, CommonError> {
+    trace!(
+        page_size = query.page_size,
+        status = ?query.status,
+        provider_type = ?query.provider_controller_type_id,
+        "Listing provider instances"
+    );
     let res = list_provider_instances(
         ctx.repository(),
         ListProviderInstancesParams {
@@ -689,6 +771,7 @@ pub async fn route_list_provider_instances(
         },
     )
     .await;
+    trace!(success = res.is_ok(), "Listing provider instances completed");
     JsonResponse::from(res)
 }
 
@@ -712,7 +795,9 @@ pub async fn route_list_provider_instances_grouped_by_function(
     State(ctx): State<BridgeService>,
     Query(query): Query<ListProviderInstancesGroupedByFunctionParams>,
 ) -> JsonResponse<ListProviderInstancesGroupedByFunctionResponse, CommonError> {
+    trace!("Listing provider instances grouped by function");
     let res = list_provider_instances_grouped_by_function(ctx.repository(), query).await;
+    trace!(success = res.is_ok(), "Listing provider instances grouped by function completed");
     JsonResponse::from(res)
 }
 
@@ -744,6 +829,11 @@ pub async fn route_list_function_instances(
     State(ctx): State<BridgeService>,
     Query(query): Query<ListFunctionInstancesQuery>,
 ) -> JsonResponse<ListFunctionInstancesResponse, CommonError> {
+    trace!(
+        page_size = query.page_size,
+        provider_instance_id = ?query.provider_instance_id,
+        "Listing function instances"
+    );
     let res = list_function_instances(
         ctx.repository(),
         ListFunctionInstancesParams {
@@ -755,6 +845,7 @@ pub async fn route_list_function_instances(
         },
     )
     .await;
+    trace!(success = res.is_ok(), "Listing function instances completed");
     JsonResponse::from(res)
 }
 
@@ -774,6 +865,8 @@ pub async fn route_list_function_instances(
 pub async fn route_get_function_instances_openapi_spec(
     State(ctx): State<BridgeService>,
 ) -> JsonResponse<OpenApi, CommonError> {
+    trace!("Getting function instances OpenAPI spec");
     let res = get_function_instances_openapi_spec(ctx.repository()).await;
+    trace!(success = res.is_ok(), "Getting function instances OpenAPI spec completed");
     JsonResponse::from(res)
 }

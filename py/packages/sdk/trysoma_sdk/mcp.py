@@ -3,10 +3,13 @@ Durable MCP (Model Context Protocol) client for Restate.
 Provides a client wrapper that makes all MCP operations replayable via Restate.
 """
 
+import logging
 import os
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 from typing import cast
+
+logger = logging.getLogger(__name__)
 
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
@@ -90,6 +93,7 @@ class SomaMcpClient:
 
     async def ping(self) -> EmptyResult:
         """Ping the MCP server (durable)."""
+        logger.debug("Pinging MCP server %s", self._client_name)
         index = self._request_index
         self._request_index += 1
 
@@ -100,6 +104,7 @@ class SomaMcpClient:
         data = await self._ctx.run(
             f"mcp-{self._client_name}-ping-index-{index}", do_ping
         )
+        logger.debug("Pinging MCP server %s completed", self._client_name)
         return EmptyResult.model_validate(data)
 
     async def list_tools(
@@ -107,6 +112,7 @@ class SomaMcpClient:
         cursor: str | None = None,
     ) -> ListToolsResult:
         """List available tools (durable)."""
+        logger.debug("Listing tools on MCP server %s", self._client_name)
         index = self._request_index
         self._request_index += 1
 
@@ -117,7 +123,9 @@ class SomaMcpClient:
         data = await self._ctx.run(
             f"mcp-{self._client_name}-listTools-index-{index}", do_list
         )
-        return ListToolsResult.model_validate(data)
+        result = ListToolsResult.model_validate(data)
+        logger.debug("Listing tools on MCP server %s completed (count=%d)", self._client_name, len(result.tools))
+        return result
 
     async def call_tool(
         self,
@@ -125,6 +133,7 @@ class SomaMcpClient:
         arguments: dict[str, object] | None = None,
     ) -> CallToolResult:
         """Call a tool on the MCP server (durable)."""
+        logger.debug("Calling tool %s on MCP server %s", name, self._client_name)
         index = self._request_index
         self._request_index += 1
 
@@ -135,13 +144,16 @@ class SomaMcpClient:
         data = await self._ctx.run(
             f"mcp-{self._client_name}-callTool-index-{index}", do_call
         )
-        return CallToolResult.model_validate(data)
+        result = CallToolResult.model_validate(data)
+        logger.debug("Calling tool %s on MCP server %s completed", name, self._client_name)
+        return result
 
     async def list_resources(
         self,
         cursor: str | None = None,
     ) -> ListResourcesResult:
         """List available resources (durable)."""
+        logger.debug("Listing resources on MCP server %s", self._client_name)
         index = self._request_index
         self._request_index += 1
 
@@ -152,7 +164,9 @@ class SomaMcpClient:
         data = await self._ctx.run(
             f"mcp-{self._client_name}-listResources-index-{index}", do_list
         )
-        return ListResourcesResult.model_validate(data)
+        result = ListResourcesResult.model_validate(data)
+        logger.debug("Listing resources on MCP server %s completed", self._client_name)
+        return result
 
     async def list_resource_templates(
         self,
@@ -173,6 +187,7 @@ class SomaMcpClient:
 
     async def read_resource(self, uri: str) -> ReadResourceResult:
         """Read a resource by URI (durable)."""
+        logger.debug("Reading resource %s on MCP server %s", uri, self._client_name)
         index = self._request_index
         self._request_index += 1
 
@@ -183,7 +198,9 @@ class SomaMcpClient:
         data = await self._ctx.run(
             f"mcp-{self._client_name}-readResource-index-{index}", do_read
         )
-        return ReadResourceResult.model_validate(data)
+        result = ReadResourceResult.model_validate(data)
+        logger.debug("Reading resource %s on MCP server %s completed", uri, self._client_name)
+        return result
 
     async def subscribe_resource(self, uri: str) -> EmptyResult:
         """Subscribe to a resource for updates (durable)."""
@@ -236,6 +253,7 @@ class SomaMcpClient:
         arguments: dict[str, str] | None = None,
     ) -> GetPromptResult:
         """Get a prompt by name (durable)."""
+        logger.debug("Getting prompt %s on MCP server %s", name, self._client_name)
         index = self._request_index
         self._request_index += 1
 
@@ -246,7 +264,9 @@ class SomaMcpClient:
         data = await self._ctx.run(
             f"mcp-{self._client_name}-getPrompt-index-{index}", do_get
         )
-        return GetPromptResult.model_validate(data)
+        result = GetPromptResult.model_validate(data)
+        logger.debug("Getting prompt %s on MCP server %s completed", name, self._client_name)
+        return result
 
     async def send_roots_list_changed(self) -> None:
         """Send roots list changed notification (durable)."""
@@ -293,6 +313,7 @@ async def create_soma_mcp_client(
             result = await client.call_tool('my-tool', {'arg': 'value'})
         ```
     """
+    logger.debug("Creating MCP client for instance %s", mcp_server_instance_id)
     mcp_url = get_mcp_url(mcp_server_instance_id, config)
 
     async with streamablehttp_client(mcp_url) as (
@@ -305,6 +326,7 @@ async def create_soma_mcp_client(
             write_stream=write_stream,
         ) as session:
             await session.initialize()
+            logger.debug("Creating MCP client for instance %s completed", mcp_server_instance_id)
             yield SomaMcpClient(ctx, session, mcp_server_instance_id)
 
 

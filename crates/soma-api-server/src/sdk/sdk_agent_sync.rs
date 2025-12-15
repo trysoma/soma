@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{debug, trace};
 use utoipa::ToSchema;
 
 /// Metadata for a registered agent
@@ -38,14 +38,10 @@ pub fn create_agent_cache() -> AgentCache {
     Arc::new(DashMap::new())
 }
 
-/// Sync agents from SDK metadata to the cache
-/// 1. Clear existing cache entries
-/// 2. Add all agents from SDK metadata
+/// Sync agents from SDK metadata to the cache.
+/// Clears existing cache entries and adds all agents from SDK metadata.
 pub fn sync_agents_from_metadata(cache: &AgentCache, metadata: &sdk_proto::MetadataResponse) {
-    info!(
-        "Syncing {} agents from SDK metadata to cache",
-        metadata.agents.len()
-    );
+    debug!(count = metadata.agents.len(), "Syncing agents from SDK");
 
     // Step 1: Clear existing cache
     cache.clear();
@@ -62,16 +58,15 @@ pub fn sync_agents_from_metadata(cache: &AgentCache, metadata: &sdk_proto::Metad
             .or_default()
             .insert(agent_id.clone(), agent_metadata);
 
-        info!(
-            "✅ Cached agent: project={}, agent={}, name={}",
-            project_id, agent_id, agent.name
+        trace!(
+            project_id = %project_id,
+            agent_id = %agent_id,
+            name = %agent.name,
+            "Cached agent"
         );
     }
 
-    info!(
-        "✅ Successfully synced {} agents to cache",
-        metadata.agents.len()
-    );
+    trace!(count = metadata.agents.len(), "Agent sync complete");
 }
 
 /// Get all agents from the cache as a flat list

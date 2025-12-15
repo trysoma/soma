@@ -222,7 +222,7 @@ impl ServerHandler for BridgeMcpService {
             },
         )
         .await
-        .inspect_err(|e| tracing::error!("Error invoking function: {:?}", e));
+        .inspect_err(|e| tracing::debug!(error = ?e, "Function invocation failed"));
 
         match function_instance {
             Ok(invoke_response) => match invoke_response {

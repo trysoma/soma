@@ -11,7 +11,7 @@ use soma_api_client::{
     },
     models,
 };
-use tracing::info;
+use tracing::debug;
 
 /// Synchronizes encryption and bridge data from soma.yaml to the API on startup.
 ///
@@ -76,7 +76,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 "Failed to create envelope encryption key '{key_id}': {e:?}"
                             ))
                         })?;
-                    info!("Created envelope encryption key: {}", key_id);
+                    debug!("Created envelope encryption key: {}", key_id);
                 }
 
                 // 1b. Sync DEKs for this envelope key
@@ -107,7 +107,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                     "Failed to import DEK with alias '{alias}' under envelope key '{key_id}': {e:?}"
                                 ))
                             })?;
-                            info!(
+                            debug!(
                                 "Imported DEK with ID '{}' under envelope key '{}'",
                                 imported_dek.id, key_id
                             );
@@ -125,7 +125,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                         imported_dek.id
                                     ))
                                 })?;
-                            info!("Created DEK alias '{}' -> '{}'", alias, imported_dek.id);
+                            debug!("Created DEK alias '{}' -> '{}'", alias, imported_dek.id);
                         }
                     }
                 }
@@ -173,7 +173,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 let provider_controller_type_id = &provider_config.provider_controller_type_id;
                 let credential_controller_type_id = &provider_config.credential_controller_type_id;
 
-                tracing::info!(
+                tracing::debug!(
                     "Syncing provider '{}' with controller type_id: '{}', credential type_id: '{}'",
                     provider_id,
                     provider_controller_type_id,
@@ -192,7 +192,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                 if needs_recreate {
                     // Delete existing provider if it exists
                     if existing_providers.contains_key(provider_id) {
-                        tracing::info!(
+                        tracing::debug!(
                             "Provider '{}' configuration changed, recreating",
                             provider_id
                         );
@@ -204,7 +204,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 ))
                             })?;
                     } else {
-                        tracing::info!("Creating new provider '{}'", provider_id);
+                        tracing::debug!("Creating new provider '{}'", provider_id);
                     }
 
                     // Create resource server credential
@@ -285,7 +285,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                         ))
                     })?;
                 } else {
-                    tracing::info!("Provider '{}' unchanged, preserving", provider_id);
+                    tracing::trace!("Provider '{}' unchanged, preserving", provider_id);
                 }
 
                 // Sync function instances for this provider
@@ -358,7 +358,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
             // Delete provider instances not in yaml (only if status is "active")
             for (provider_id, existing) in existing_providers.iter() {
                 if !yaml_provider_ids.contains(provider_id) && existing.status == "active" {
-                    tracing::info!(
+                    tracing::debug!(
                         "Deleting provider '{}' not in yaml (status: active)",
                         provider_id
                     );
@@ -374,7 +374,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
         }
     }
 
-    info!("Bridge synced from soma definition");
+    debug!("Bridge synced from soma definition");
 
     // 3. Sync secrets
     // NOTE: Secrets in soma.yaml are stored with their ENCRYPTED values
@@ -424,12 +424,12 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                             "Failed to import secret '{key}': {e:?}"
                         ))
                     })?;
-                info!("Imported secret '{}'", key);
+                debug!("Imported secret '{}'", key);
             }
         }
     }
 
-    info!("Secrets synced from soma definition");
+    debug!("Secrets synced from soma definition");
 
     // 4. Sync environment variables
     if let Some(env_vars) = &soma_definition.environment_variables {
@@ -480,12 +480,12 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                             "Failed to create environment variable '{key}': {e:?}"
                         ))
                     })?;
-                info!("Created environment variable '{}'", key);
+                debug!("Created environment variable '{}'", key);
             }
         }
     }
 
-    info!("Environment variables synced from soma definition");
+    debug!("Environment variables synced from soma definition");
 
     // 5. Sync MCP server instances
     if let Some(bridge_config) = &soma_definition.bridge {
@@ -543,7 +543,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 "Failed to create MCP server instance '{mcp_server_id}': {e:?}"
                             ))
                         })?;
-                    info!("Created MCP server instance '{}'", mcp_server_id);
+                    debug!("Created MCP server instance '{}'", mcp_server_id);
                 } else if needs_update {
                     // Update MCP server instance name
                     let update_req = models::UpdateMcpServerInstanceRequest {
@@ -556,7 +556,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 "Failed to update MCP server instance '{mcp_server_id}': {e:?}"
                             ))
                         })?;
-                    info!("Updated MCP server instance '{}'", mcp_server_id);
+                    debug!("Updated MCP server instance '{}'", mcp_server_id);
                 }
 
                 // Sync functions for this MCP server
@@ -613,7 +613,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 "Failed to remove function from MCP server '{mcp_server_id}': {e:?}"
                             ))
                         })?;
-                        info!(
+                        debug!(
                             "Removed function '{}/{}/{}' from MCP server '{}'",
                             func_ctrl_id, prov_ctrl_id, prov_inst_id, mcp_server_id
                         );
@@ -657,7 +657,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                     func_config.function_name
                                 ))
                             })?;
-                            info!(
+                            debug!(
                                 "Added function '{}' to MCP server '{}'",
                                 func_config.function_name, mcp_server_id
                             );
@@ -705,7 +705,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                             func_config.function_name
                                         ))
                                     })?;
-                                    info!(
+                                    debug!(
                                         "Updated function '{}' in MCP server '{}'",
                                         func_config.function_name, mcp_server_id
                                     );
@@ -726,13 +726,13 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 "Failed to delete MCP server instance '{mcp_server_id}': {e:?}"
                             ))
                         })?;
-                    info!("Deleted MCP server instance '{}' not in yaml", mcp_server_id);
+                    debug!("Deleted MCP server instance '{}' not in yaml", mcp_server_id);
                 }
             }
         }
     }
 
-    info!("MCP server instances synced from soma definition");
+    debug!("MCP server instances synced from soma definition");
 
     // 6. Sync identity configuration (API keys and STS configs)
     if let Some(identity_config) = &soma_definition.identity {
@@ -788,7 +788,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 "Failed to import API key '{id}': {e:?}"
                             ))
                         })?;
-                    info!("Imported API key '{}'", id);
+                    debug!("Imported API key '{}'", id);
                 }
             }
         }
@@ -879,7 +879,7 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 "Failed to create STS config '{id}': {e:?}"
                             ))
                         })?;
-                    info!("Created STS config '{}'", id);
+                    debug!("Created STS config '{}'", id);
                 }
             }
         }
@@ -936,12 +936,12 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 "Failed to import user auth flow config '{id}': {e:?}"
                             ))
                         })?;
-                    info!("Imported user auth flow config '{}'", id);
+                    debug!("Imported user auth flow config '{}'", id);
                 }
             }
         }
 
-        info!("Identity configuration synced from soma definition");
+        debug!("Identity configuration synced from soma definition");
     }
 
     Ok(())

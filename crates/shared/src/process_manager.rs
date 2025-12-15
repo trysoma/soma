@@ -1,18 +1,21 @@
 use pmdaemon::{ProcessConfig as PmDaemonProcessConfig, ProcessManager, ProcessState, ProcessStatus, config::ExecMode};
-use shared::error::CommonError;
+use crate::error::CommonError;
 use tokio::time::{sleep, Duration};
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 use uuid::Uuid;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
 use tokio::fs::OpenOptions;
 use tokio::sync::mpsc;
+use tokio::sync::oneshot;
+use std::pin::Pin;
 
 pub struct CustomProcessManager {
     manager: ProcessManager,
     processes: Arc<RwLock<std::collections::HashMap<String, ProcessHandle>>>,
     shutdown_triggered: Arc<RwLock<bool>>,
+    shutdown_notifier: Arc<RwLock<Option<oneshot::Sender<()>>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -38,14 +41,19 @@ pub enum ProcessHandleInner {
     JoinHandle(tokio::task::JoinHandle<Result<(), CommonError>>),
 }
 
+pub type ShutdownCallback = Box<dyn Fn() -> Pin<Box<dyn std::future::Future<Output = ()> + Send>> + Send + Sync>;
+
 pub struct ProcessHandle {
     inner: ProcessHandleInner,
+    #[allow(dead_code)] // Stored for debugging/future use, used during thread startup
     on_terminal_stop: OnTerminalStop,
+    #[allow(dead_code)] // Stored for debugging/future use, used during thread startup
     on_stop: Option<OnStop>, // Only used for threads, None for processes
     shutdown_priority: u32,
+    on_shutdown_triggered: Option<ShutdownCallback>,
+    on_shutdown_complete: Option<ShutdownCallback>,
 }
 
-#[derive(Debug)]
 pub struct ProcessConfig {
 
     /// Script or command to execute (required) - path to executable or command name
@@ -74,6 +82,12 @@ pub struct ProcessConfig {
     /// Shutdown priority (higher number = higher priority, shutdown first)
     pub shutdown_priority: u32,
     pub follow_logs: bool,
+    /// Optional callback invoked when shutdown is triggered (before stopping the process)
+    /// Has a 30s timeout - if it takes longer, shutdown proceeds anyway
+    pub on_shutdown_triggered: Option<ShutdownCallback>,
+    /// Optional callback invoked when shutdown is complete (after stopping the process)
+    /// Has a 30s timeout - if it takes longer, shutdown proceeds anyway
+    pub on_shutdown_complete: Option<ShutdownCallback>,
 }
 
 pub struct ThreadConfig<F> {
@@ -85,6 +99,12 @@ pub struct ThreadConfig<F> {
     /// Shutdown priority (higher number = higher priority, shutdown first)
     pub shutdown_priority: u32,
     pub follow_logs: bool,
+    /// Optional callback invoked when shutdown is triggered (before stopping the thread)
+    /// Has a 30s timeout - if it takes longer, shutdown proceeds anyway
+    pub on_shutdown_triggered: Option<ShutdownCallback>,
+    /// Optional callback invoked when shutdown is complete (after stopping the thread)
+    /// Has a 30s timeout - if it takes longer, shutdown proceeds anyway
+    pub on_shutdown_complete: Option<ShutdownCallback>,
 }
 
 impl<F> ThreadConfig<F>
@@ -106,17 +126,19 @@ where
             on_stop,
             shutdown_priority,
             follow_logs,
+            on_shutdown_triggered: None,
+            on_shutdown_complete: None,
         }
     }
 }
 
-fn construct_pm_process_config(config: ProcessConfig, name: &str, log_file_path: PathBuf) -> PmDaemonProcessConfig {
+fn construct_pm_process_config(config: &ProcessConfig, name: &str, log_file_path: PathBuf) -> PmDaemonProcessConfig {
     PmDaemonProcessConfig {
         name: name.to_string(),
-        script: config.script,
-        args: config.args,
-        cwd: config.cwd,
-        env: config.env,
+        script: config.script.clone(),
+        args: config.args.clone(),
+        cwd: config.cwd.clone(),
+        env: config.env.clone(),
         instances: 1,
         exec_mode: ExecMode::Fork,
         autorestart: true,
@@ -135,32 +157,53 @@ fn construct_pm_process_config(config: ProcessConfig, name: &str, log_file_path:
         group: None,
         namespace: "default".to_string(),
         port: None,
-        health_check: config.health_check,
+        health_check: config.health_check.clone(),
     }
 }
 
 impl ProcessHandle {
-    pub fn new_with_process_status(inner: ProcessStatus, on_terminal_stop: OnTerminalStop, shutdown_priority: u32) -> Self {
+    pub fn new_with_process_status(
+        inner: ProcessStatus,
+        on_terminal_stop: OnTerminalStop,
+        shutdown_priority: u32,
+        on_shutdown_triggered: Option<ShutdownCallback>,
+        on_shutdown_complete: Option<ShutdownCallback>,
+    ) -> Self {
         Self {
             inner: ProcessHandleInner::ProcessStatus(inner),
             on_terminal_stop,
             on_stop: None, // Processes use pmdaemon's restart mechanism
             shutdown_priority,
+            on_shutdown_triggered,
+            on_shutdown_complete,
         }
     }
 
-    pub fn new_with_join_handle(inner: tokio::task::JoinHandle<Result<(), CommonError>>, on_terminal_stop: OnTerminalStop, on_stop: OnStop, shutdown_priority: u32) -> Self {
+    pub fn new_with_join_handle(
+        inner: tokio::task::JoinHandle<Result<(), CommonError>>,
+        on_terminal_stop: OnTerminalStop,
+        on_stop: OnStop,
+        shutdown_priority: u32,
+        on_shutdown_triggered: Option<ShutdownCallback>,
+        on_shutdown_complete: Option<ShutdownCallback>,
+    ) -> Self {
         Self {
             inner: ProcessHandleInner::JoinHandle(inner),
             on_terminal_stop,
             on_stop: Some(on_stop),
             shutdown_priority,
+            on_shutdown_triggered,
+            on_shutdown_complete,
         }
     }
 }
 
 impl CustomProcessManager {
     pub async fn new() -> Result<Self, CommonError> {
+        Self::new_with_shutdown_notifier(None).await
+    }
+
+    pub async fn new_with_shutdown_notifier(shutdown_notifier: Option<oneshot::Sender<()>>) -> Result<Self, CommonError> {
         // Note: we dont ever want to resume processes from a previous session, so we start from scratch every time
         let uuid = Uuid::new_v4();
         let temp_pmdaemon_home = std::env::temp_dir().join(format!("pmdaemon/{uuid}"));
@@ -176,27 +219,106 @@ impl CustomProcessManager {
             manager,
             processes,
             shutdown_triggered,
+            shutdown_notifier: Arc::new(RwLock::new(shutdown_notifier)),
         })
     }
 
     pub async fn stop_process(&mut self, name: &str) -> Result<(), CommonError> {
         trace!(process = %name, "Stopping process");
-        if let Some(process) = self.processes.write().await.get(name) {
-            match &process.inner {
-                ProcessHandleInner::ProcessStatus(_status) => {
-                    trace!(process = %name, "Sending stop signal via ProcessStatus");
-                    self.manager.stop(name).await
-                        .inspect_err(|e| error!(process = %name, error = %e, "Failed to send stop signal"))?;
+        
+        // Get the process handle and call on_shutdown_triggered if present
+        let on_shutdown_triggered_future = {
+            let processes = self.processes.read().await;
+            processes.get(name).and_then(|p| p.on_shutdown_triggered.as_ref().map(|cb| cb()))
+        };
+        
+        // Call on_shutdown_triggered with timeout
+        if let Some(future) = on_shutdown_triggered_future {
+            trace!(process = %name, "Calling on_shutdown_triggered callback");
+            match tokio::time::timeout(Duration::from_secs(30), future).await {
+                Ok(()) => trace!(process = %name, "on_shutdown_triggered callback completed"),
+                Err(_) => warn!(process = %name, "on_shutdown_triggered callback timed out after 30s, proceeding with shutdown"),
+            }
+        }
+        
+        // Stop the process
+        let shutdown_triggered = *self.shutdown_triggered.read().await;
+        let is_pmdaemon_process = {
+            let processes = self.processes.read().await;
+            processes.get(name).map(|p| matches!(&p.inner, ProcessHandleInner::ProcessStatus(_)))
+        };
+        
+        if let Some(true) = is_pmdaemon_process {
+            trace!(process = %name, "Sending stop signal via ProcessStatus");
+            self.manager.stop(name).await
+                .inspect_err(|e| error!(process = %name, error = %e, "Failed to send stop signal"))?;
+            
+            // During shutdown, pmdaemon may restart the process due to autorestart: true
+            // Keep stopping it until it stays stopped
+            if shutdown_triggered {
+                let mut consecutive_stops = 0;
+                loop {
+                    sleep(Duration::from_millis(1000)).await;
+                    match self.manager.get_process_info(name).await {
+                        Err(_) => {
+                            trace!(process = %name, "Process not found, considered stopped");
+                            break;
+                        }
+                        Ok(info) if info.state == ProcessState::Stopped => {
+                            consecutive_stops += 1;
+                            if consecutive_stops >= 2 {
+                                trace!(process = %name, "Process stopped and stayed stopped");
+                                break;
+                            }
+                        }
+                        _ => {
+                            // Process is running again, stop it
+                            consecutive_stops = 0;
+                            warn!(process = %name, "Process restarted during shutdown, stopping again");
+                            if let Err(e) = self.manager.stop(name).await {
+                                warn!(process = %name, error = %e, "Failed to stop restarted process");
+                            }
+                        }
+                    }
                 }
+            } else {
+                // Normal shutdown, just wait for stop
+                self.wait_for_stop(name).await?;
+            }
+        } else if let Some(process) = self.processes.write().await.get(name) {
+            match &process.inner {
                 ProcessHandleInner::JoinHandle(handle) => {
                     trace!(process = %name, "Aborting thread handle");
                     handle.abort();
+                    // For threads, wait a bit for abort to complete
+                    sleep(Duration::from_millis(100)).await;
                 }
+                _ => {}
+            }
+        } else {
+            // Process not found, consider it stopped
+            trace!(process = %name, "Process not found in registry");
+        }
+        trace!(process = %name, "Process stopped");
+        
+        // Get and call on_shutdown_complete callback if present
+        let on_shutdown_complete_future = {
+            let processes = self.processes.read().await;
+            processes.get(name).and_then(|p| p.on_shutdown_complete.as_ref().map(|cb| cb()))
+        };
+        
+        // Remove from processes map
+        self.processes.write().await.remove(name);
+        
+        // Call on_shutdown_complete with timeout
+        if let Some(future) = on_shutdown_complete_future {
+            trace!(process = %name, "Calling on_shutdown_complete callback");
+            match tokio::time::timeout(Duration::from_secs(30), future).await {
+                Ok(()) => trace!(process = %name, "on_shutdown_complete callback completed"),
+                Err(_) => warn!(process = %name, "on_shutdown_complete callback timed out after 30s, proceeding"),
             }
         }
-        self.wait_for_stop(name).await?;
-        trace!(process = %name, "Process stopped");
-        self.processes.write().await.remove(name);
+        
         Ok(())
     }
     
@@ -281,6 +403,8 @@ impl CustomProcessManager {
                 }),
                 shutdown_priority: config.shutdown_priority.saturating_sub(1), // Log processes have lower priority
                 follow_logs: false,
+                on_shutdown_triggered: None,
+                on_shutdown_complete: None,
             })
                 .await
                 .inspect_err(|e| error!(process = %log_process_name, error = %e, "Failed to start log tailing thread"))?;
@@ -292,12 +416,16 @@ impl CustomProcessManager {
         
         // Use a dummy log file path for pmdaemon config (it will use its own paths anyway)
         let dummy_log_path = logs_dir.join(format!("{}.log", name));
-        let pm_config = construct_pm_process_config(config, &name, dummy_log_path);
+        let pm_config = construct_pm_process_config(&config, &name, dummy_log_path);
+        
+        // Extract shutdown callbacks after using config (construct_pm_process_config doesn't use them)
+        let on_shutdown_triggered = config.on_shutdown_triggered;
+        let on_shutdown_complete = config.on_shutdown_complete;
         
         // Start new service
         let process_id = self.manager.start(pm_config).await
             .inspect_err(|e| error!(process = %name, error = %e, "Failed to start process"))?;
-        debug!(process = %name, process_id = %process_id, "Process started");
+        info!(process = %name, process_id = %process_id, "Process started");
         
         // Health checks are configured in the ProcessConfig
         // The process manager handles health monitoring internally
@@ -305,7 +433,7 @@ impl CustomProcessManager {
         // Update our process tracking
         let info = self.manager.get_process_info(name).await
             .inspect_err(|e| error!(process = %name, error = %e, "Failed to get process info"))?;
-        self.processes.write().await.insert(name.to_string(), ProcessHandle::new_with_process_status(info, on_terminal_stop, shutdown_priority));
+        self.processes.write().await.insert(name.to_string(), ProcessHandle::new_with_process_status(info, on_terminal_stop, shutdown_priority, on_shutdown_triggered, on_shutdown_complete));
         trace!(process = %name, "Process registered");
 
         Ok(())
@@ -359,6 +487,7 @@ impl CustomProcessManager {
         
         // Get a reference to shutdown_triggered for the restart loop
         let shutdown_triggered = self.shutdown_triggered.clone();
+        let shutdown_notifier = self.shutdown_notifier.clone();
         
         // Create a wrapper handle that manages the thread lifecycle, including restarts
         let wrapper_handle = tokio::spawn(async move {
@@ -404,8 +533,9 @@ impl CustomProcessManager {
                             match on_terminal_stop_clone {
                                 OnTerminalStop::TriggerShutdown => {
                                     warn!(thread = %name_clone, "Thread exceeded max restarts, triggering shutdown");
-                                    // Note: Actual shutdown triggering would need access to shutdown signal
-                                    // This is logged for now - caller can handle shutdown logic
+                                    if let Some(notifier) = shutdown_notifier.write().await.take() {
+                                        let _ = notifier.send(());
+                                    }
                                 }
                                 OnTerminalStop::Ignore => {
                                     debug!(thread = %name_clone, "Thread exceeded max restarts, ignoring as configured");
@@ -424,8 +554,9 @@ impl CustomProcessManager {
                         match on_terminal_stop_clone {
                             OnTerminalStop::TriggerShutdown => {
                                 warn!(thread = %name_clone, "Thread stopped, triggering shutdown");
-                                // Note: Actual shutdown triggering would need access to shutdown signal
-                                // This is logged for now - caller can handle shutdown logic
+                                if let Some(notifier) = shutdown_notifier.write().await.take() {
+                                    let _ = notifier.send(());
+                                }
                             }
                             OnTerminalStop::Ignore => {
                                 debug!(thread = %name_clone, "Thread stopped, ignoring as configured");
@@ -449,6 +580,8 @@ impl CustomProcessManager {
             config.on_terminal_stop,
             config.on_stop,
             shutdown_priority,
+            config.on_shutdown_triggered,
+            config.on_shutdown_complete,
         );
         
         // Store the process handle
@@ -466,7 +599,7 @@ impl CustomProcessManager {
         // Set shutdown flag to prevent new starts
         *self.shutdown_triggered.write().await = true;
         
-        debug!("Initiating graceful shutdown");
+        info!("Graceful shutdown initiated");
         
         // Get all processes with their names and priorities
         let processes = self.processes.read().await;
@@ -495,6 +628,32 @@ impl CustomProcessManager {
         Ok(())
     }
 
+    /// Called when shutdown is complete. Can be used for cleanup or notifications.
+    pub async fn on_shutdown_complete(&self) -> Result<(), CommonError> {
+        // Verify all processes are stopped
+        let processes = self.processes.read().await;
+        if !processes.is_empty() {
+            let remaining: Vec<&String> = processes.keys().collect();
+            warn!(remaining = ?remaining, "Processes still registered after shutdown");
+        } else {
+            trace!("All processes removed");
+        }
+        
+        Ok(())
+    }
+    
+    /// Returns a future that completes when shutdown is triggered
+    pub fn wait_for_shutdown(&self) -> impl std::future::Future<Output = ()> + Send {
+        let shutdown_triggered = self.shutdown_triggered.clone();
+        async move {
+            loop {
+                if *shutdown_triggered.read().await {
+                    break;
+                }
+                sleep(Duration::from_millis(100)).await;
+            }
+        }
+    }
 }
 
 async fn tail_log_file(log_file_path: &PathBuf, process_name: &str) -> Result<(), CommonError> {
@@ -586,3 +745,4 @@ async fn tail_log_file(log_file_path: &PathBuf, process_name: &str) -> Result<()
         sleep(Duration::from_secs(1)).await;
     }
 }
+

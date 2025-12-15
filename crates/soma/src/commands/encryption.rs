@@ -2,7 +2,7 @@ use clap::{Args, Subcommand};
 use shared::error::CommonError;
 use soma_api_client::apis::encryption_api;
 use soma_api_client::models;
-use tracing::info;
+use tracing::debug;
 
 use crate::utils::{CliConfig, create_and_wait_for_api_client};
 
@@ -121,7 +121,7 @@ async fn create_default_dek(
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create DEK: {e:?}")))?;
 
-    info!("Created data encryption key: {}", dek.id);
+    debug!("Created data encryption key: {}", dek.id);
 
     // Create the default alias for the DEK
     let alias_params = models::CreateDekAliasRequest {
@@ -135,7 +135,7 @@ async fn create_default_dek(
             CommonError::Unknown(anyhow::anyhow!("Failed to create default alias: {e:?}"))
         })?;
 
-    info!("Created '{}' alias for DEK: {}", DEFAULT_ALIAS, dek.id);
+    debug!("Created '{}' alias for DEK: {}", DEFAULT_ALIAS, dek.id);
 
     Ok(())
 }
@@ -153,7 +153,7 @@ pub async fn cmd_enc_key_add(
 
     match key_type {
         AddKeyType::Aws { arn, region } => {
-            info!(
+            debug!(
                 "Adding AWS KMS envelope encryption key: {} in region {}",
                 arn, region
             );
@@ -183,23 +183,23 @@ pub async fn cmd_enc_key_add(
                 }
             };
 
-            info!(
+            debug!(
                 "Successfully created envelope encryption key: {}",
                 envelope_id
             );
 
             // If no default alias exists, create a DEK and set it as default
             if !has_default_alias {
-                info!("No default DEK alias found, creating default DEK...");
+                debug!("No default DEK alias found, creating default DEK...");
                 create_default_dek(&api_config, &envelope_id).await?;
             } else {
-                info!("Default DEK alias already exists, skipping DEK creation");
+                debug!("Default DEK alias already exists, skipping DEK creation");
             }
 
             Ok(())
         }
         AddKeyType::Local { file_name } => {
-            info!(
+            debug!(
                 "Adding local envelope encryption key at file name: {}",
                 file_name
             );
@@ -228,17 +228,17 @@ pub async fn cmd_enc_key_add(
                 }
             };
 
-            info!(
+            debug!(
                 "Successfully created envelope encryption key: {}",
                 envelope_id
             );
 
             // If no default alias exists, create a DEK and set it as default
             if !has_default_alias {
-                info!("No default DEK alias found, creating default DEK...");
+                debug!("No default DEK alias found, creating default DEK...");
                 create_default_dek(&api_config, &envelope_id).await?;
             } else {
-                info!("Default DEK alias already exists, skipping DEK creation");
+                debug!("Default DEK alias already exists, skipping DEK creation");
             }
 
             Ok(())
@@ -256,11 +256,11 @@ pub async fn cmd_enc_key_rm(
 
     let envelope_id = match key_type {
         RmKeyType::Aws { arn } => {
-            info!("Checking AWS KMS encryption key: {}", arn);
+            debug!("Checking AWS KMS encryption key: {}", arn);
             arn
         }
         RmKeyType::Local { file_name } => {
-            info!("Checking local encryption key at file name: {}", file_name);
+            debug!("Checking local encryption key at file name: {}", file_name);
             file_name
         }
     };
@@ -300,7 +300,7 @@ pub async fn cmd_enc_key_rm(
     // No DEKs tied to this envelope key - we can delete it
     // Note: The API doesn't have a delete endpoint for envelope keys yet
     // For now, we'll just inform the user that the key has no DEKs
-    info!(
+    debug!(
         "Envelope encryption key {} has no associated DEKs",
         envelope_id
     );
@@ -319,13 +319,13 @@ pub async fn cmd_enc_key_migrate(
     api_url: &str,
     timeout_secs: u64,
 ) -> Result<(), CommonError> {
-    info!("Migrating all DEKs from '{}' to '{}'", from, to);
+    debug!("Migrating all DEKs from '{}' to '{}'", from, to);
 
     // Create API client and wait for server to be ready
     let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
 
-    info!("Source envelope key: {}", from);
-    info!("Target envelope key: {}", to);
+    debug!("Source envelope key: {}", from);
+    debug!("Target envelope key: {}", to);
 
     // Call the migrate_all_data_encryption_keys endpoint
     let migrate_params = models::MigrateAllDataEncryptionKeysParamsRoute {
@@ -336,7 +336,7 @@ pub async fn cmd_enc_key_migrate(
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to migrate DEKs: {e:?}")))?;
 
-    info!("Migration completed successfully!");
+    debug!("Migration completed successfully!");
     println!("Successfully migrated all DEKs from '{from}' to '{to}'");
 
     Ok(())

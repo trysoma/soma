@@ -13,6 +13,8 @@ Ensure to review crates/$crate/dbs/*/schema.sql and crates/$crate/dbs/*/queries/
 8. implement any type conversions from the generated sqlc types to types in the logic folders in  src/$crate/repository/sqlite/raw_from.rs
 9. implement the repository trait for sqlite using the generated functions
 10. Add tests for the repository functions
+11. Always add trace level logs around every repository method. To both the start and end of each method.
+
 
 For example:
 

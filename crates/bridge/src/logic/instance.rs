@@ -9,7 +9,7 @@ use shared::{
         WrappedUuidV4,
     },
 };
-use tracing::info;
+use tracing::trace;
 use utoipa::{
     IntoParams, ToSchema,
     openapi::{
@@ -248,6 +248,12 @@ pub async fn list_provider_instances(
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListProviderInstancesParams,
 ) -> Result<ListProviderInstancesResponse, CommonError> {
+    trace!(
+        page_size = params.pagination.page_size,
+        status = ?params.status,
+        provider_type = ?params.provider_controller_type_id,
+        "Fetching provider instances from repository"
+    );
     let provider_instances_with_data = repo
         .list_provider_instances(
             &params.pagination,
@@ -307,6 +313,11 @@ pub async fn list_function_instances(
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListFunctionInstancesParams,
 ) -> Result<ListFunctionInstancesResponse, CommonError> {
+    trace!(
+        page_size = params.pagination.page_size,
+        provider_instance_id = ?params.provider_instance_id,
+        "Fetching function instances from repository"
+    );
     let function_instances = repo
         .list_function_instances(&params.pagination, params.provider_instance_id.as_deref())
         .await?;
@@ -346,13 +357,11 @@ pub async fn get_function_instances(
             ) {
                 Ok(controller) => controller,
                 Err(e) => {
-                    tracing::warn!(
-                        "Skipping provider instance '{}' (type: {}): {}",
-                        provider_instance.provider_instance.id,
-                        provider_instance
-                            .provider_instance
-                            .provider_controller_type_id,
-                        e
+                    tracing::debug!(
+                        provider_instance_id = %provider_instance.provider_instance.id,
+                        provider_type = %provider_instance.provider_instance.provider_controller_type_id,
+                        error = %e,
+                        "Skipping provider instance: controller not found"
                     );
                     continue;
                 }
@@ -366,13 +375,11 @@ pub async fn get_function_instances(
                 ) {
                     Ok(controller) => controller,
                     Err(e) => {
-                        tracing::warn!(
-                            "Skipping function '{}' for provider '{}': {}",
-                            function_instance.function_controller_type_id,
-                            provider_instance
-                                .provider_instance
-                                .provider_controller_type_id,
-                            e
+                        tracing::debug!(
+                            function_type = %function_instance.function_controller_type_id,
+                            provider_type = %provider_instance.provider_instance.provider_controller_type_id,
+                            error = %e,
+                            "Skipping function: controller not found"
                         );
                         continue;
                     }
@@ -453,10 +460,7 @@ pub async fn get_function_instances_openapi_spec(
         let params_json_schema = params_schema.get_inner().as_value();
         let (params_openapi_json, params_defs) =
             convert_jsonschema_to_openapi(params_json_schema, &params_schema_name)?;
-        info!(
-            "Params OpenAPI schema for {}: {}",
-            params_schema_name, params_openapi_json
-        );
+        trace!(schema = %params_schema_name, "Generated params OpenAPI schema");
 
         // Deserialize JSON Value into utoipa Schema
         let params_utoipa_schema: utoipa::openapi::schema::Schema =
@@ -493,10 +497,7 @@ pub async fn get_function_instances_openapi_spec(
         let response_json_schema = response_schema.get_inner().as_value();
         let (response_openapi_json, response_defs) =
             convert_jsonschema_to_openapi(response_json_schema, &response_schema_name)?;
-        info!(
-            "Response OpenAPI schema for {}: {}",
-            response_schema_name, response_openapi_json
-        );
+        trace!(schema = %response_schema_name, "Generated response OpenAPI schema");
 
         // Deserialize JSON Value into utoipa Schema
         let response_utoipa_schema: utoipa::openapi::schema::Schema =
@@ -634,6 +635,12 @@ pub async fn create_provider_instance(
     params: CreateProviderInstanceParams,
     publish_on_change_evt: bool,
 ) -> Result<CreateProviderInstanceResponse, CommonError> {
+    trace!(
+        provider_type = %params.provider_controller_type_id,
+        credential_type = %params.inner.credential_controller_type_id,
+        display_name = %params.inner.inner.display_name,
+        "Creating provider instance"
+    );
     let provider_controller = get_provider_controller(&params.provider_controller_type_id)?;
 
     let _credential_controller = get_credential_controller(
@@ -727,6 +734,11 @@ pub async fn update_provider_instance(
     params: UpdateProviderInstanceParams,
     publish_on_change_evt: bool,
 ) -> Result<UpdateProviderInstanceResponse, CommonError> {
+    trace!(
+        provider_instance_id = %params.provider_instance_id,
+        display_name = %params.inner.display_name,
+        "Updating provider instance"
+    );
     repo.update_provider_instance(&params.provider_instance_id, &params.inner.display_name)
         .await?;
 
@@ -790,6 +802,7 @@ pub async fn delete_provider_instance(
     params: DeleteProviderInstanceParams,
     publish_on_change_evt: bool,
 ) -> Result<DeleteProviderInstanceResponse, CommonError> {
+    trace!(provider_instance_id = %params.provider_instance_id, "Deleting provider instance");
     repo.delete_provider_instance(&params.provider_instance_id)
         .await?;
     if publish_on_change_evt {
@@ -825,6 +838,12 @@ pub async fn list_provider_instances_grouped_by_function(
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListProviderInstancesGroupedByFunctionParams,
 ) -> Result<ListProviderInstancesGroupedByFunctionResponse, CommonError> {
+    trace!(
+        page_size = params.page_size,
+        provider_type = ?params.provider_controller_type_id,
+        function_category = ?params.function_category,
+        "Listing provider instances grouped by function"
+    );
     // Get all providers from registry
     let providers = PROVIDER_REGISTRY
         .read()
@@ -962,6 +981,7 @@ pub async fn get_provider_instance(
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: GetProviderInstanceParams,
 ) -> Result<GetProviderInstanceResponse, CommonError> {
+    trace!(provider_instance_id = %params.provider_instance_id, "Getting provider instance");
     let provider_instance = repo
         .get_provider_instance_by_id(&params.provider_instance_id)
         .await?
@@ -1017,6 +1037,11 @@ pub async fn enable_function(
     params: EnableFunctionParams,
     publish_on_change_evt: bool,
 ) -> Result<EnableFunctionResponse, CommonError> {
+    trace!(
+        provider_instance_id = %params.provider_instance_id,
+        function_type = %params.inner.function_controller_type_id,
+        "Enabling function"
+    );
     // Verify provider instance exists
     let provider_instance = repo
         .get_provider_instance_by_id(&params.provider_instance_id)
@@ -1079,6 +1104,11 @@ pub async fn invoke_function(
     encryption_service: &CryptoCache,
     params: InvokeFunctionParams,
 ) -> Result<InvokeFunctionResponse, CommonError> {
+    trace!(
+        provider_instance_id = %params.provider_instance_id,
+        function_type = %params.inner.function_controller_type_id,
+        "Invoking function"
+    );
     // Get provider instance to retrieve provider_controller_type_id
     let provider_instance = repo
         .get_provider_instance_by_id(&params.provider_instance_id)
@@ -1155,6 +1185,11 @@ pub async fn disable_function(
     params: DisableFunctionParams,
     publish_on_change_evt: bool,
 ) -> Result<DisableFunctionResponse, CommonError> {
+    trace!(
+        provider_instance_id = %params.provider_instance_id,
+        function_type = %params.inner.function_controller_type_id,
+        "Disabling function"
+    );
     // Get provider instance to retrieve provider_controller_type_id
     let provider_instance = repo
         .get_provider_instance_by_id(&params.provider_instance_id)

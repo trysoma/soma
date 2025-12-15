@@ -3,7 +3,7 @@ use bridge::repository::ProviderRepositoryLike;
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use shared::error::CommonError;
 use tonic::transport::Channel;
-use tracing::{error, info};
+use tracing::{debug, error, trace};
 
 use crate::sdk::sdk_agent_sync::{AgentCache, get_all_agents};
 
@@ -13,7 +13,7 @@ pub async fn trigger_bridge_client_generation(
     bridge_repo: &impl ProviderRepositoryLike,
     agent_cache: &AgentCache,
 ) -> Result<(), CommonError> {
-    info!("Triggering bridge client generation via SDK server");
+    trace!("Triggering bridge client generation");
 
     // Get function instances from bridge
     let function_instances = get_function_instances(bridge_repo).await?;
@@ -46,12 +46,12 @@ pub async fn trigger_bridge_client_generation(
         Ok(response) => {
             let result = response.into_inner();
             match result.result {
-                Some(sdk_proto::generate_bridge_client_response::Result::Success(success)) => {
-                    info!("Bridge client generation succeeded: {}", success.message);
+                Some(sdk_proto::generate_bridge_client_response::Result::Success(_)) => {
+                    debug!("Bridge client generated");
                     Ok(())
                 }
                 Some(sdk_proto::generate_bridge_client_response::Result::Error(error)) => {
-                    error!("Bridge client generation failed: {}", error.message);
+                    error!(error = %error.message, "Bridge client generation failed");
                     Err(CommonError::Unknown(anyhow::anyhow!(
                         "Bridge client generation failed: {}",
                         error.message
@@ -66,7 +66,7 @@ pub async fn trigger_bridge_client_generation(
             }
         }
         Err(e) => {
-            error!("Failed to call generate_bridge_client gRPC method: {:?}", e);
+            error!(error = ?e, "Failed to call generate_bridge_client gRPC");
             Err(CommonError::Unknown(anyhow::anyhow!(
                 "Failed to call generate_bridge_client: {e}"
             )))

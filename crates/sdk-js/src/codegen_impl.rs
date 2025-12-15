@@ -22,10 +22,10 @@ impl core_types::SdkCodeGenerator for TypeScriptCodeGenerator {
         &self,
         request: core_types::GenerateBridgeClientRequest,
     ) -> Result<core_types::GenerateBridgeClientResponse, CommonError> {
-        info!(
-            "TypeScript code generator invoked with {} function instances and {} agents",
-            request.function_instances.len(),
-            request.agents.len()
+        tracing::trace!(
+            functions = request.function_instances.len(),
+            agents = request.agents.len(),
+            "Generating TypeScript code"
         );
 
         // Convert proto function instances to codegen types
@@ -98,7 +98,7 @@ impl core_types::SdkCodeGenerator for TypeScriptCodeGenerator {
         std::fs::write(&bridge_path, typescript_code).map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!("Failed to write bridge client file: {e}"))
         })?;
-        info!("Bridge client written to: {}", bridge_path.display());
+        tracing::debug!(path = %bridge_path.display(), "Bridge client generated");
 
         // Generate and write agents.ts (only if there are agents)
         if !agents.is_empty() {
@@ -110,7 +110,7 @@ impl core_types::SdkCodeGenerator for TypeScriptCodeGenerator {
             std::fs::write(&agents_path, agents_code).map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to write agents file: {e}"))
             })?;
-            info!("Agents client written to: {}", agents_path.display());
+            tracing::debug!(path = %agents_path.display(), "Agents client generated");
         }
 
         Ok(core_types::GenerateBridgeClientResponse {

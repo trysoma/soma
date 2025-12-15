@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::collections::HashMap;
 use std::time::Duration;
 use thiserror::Error;
-use tracing::{debug, info, warn};
+use tracing::{debug, trace};
 use url::Url;
 
 use crate::error::CommonError;
@@ -58,8 +58,7 @@ where
         let url = self.inner.url().clone();
         if !self.status_code().is_success() {
             let body = self.inner.text().await?;
-            info!("Response from {} ({})", url, http_status_code);
-            info!("  {}", body);
+            debug!(url = %url, status = %http_status_code, body = %body, "API error response");
             // Wrap the error into ApiError
             return Err(Error::Api(Box::new(ApiError {
                 http_status_code,
@@ -68,9 +67,8 @@ where
             })));
         }
 
-        debug!("Response from {} ({})", url, http_status_code);
         let body = self.inner.text().await?;
-        debug!("  {}", body);
+        trace!(url = %url, status = %http_status_code, body = %body, "API response");
         Ok(serde_json::from_str(&body)?)
     }
 
@@ -78,9 +76,8 @@ where
         let http_status_code = self.inner.status();
         let url = self.inner.url().clone();
 
-        debug!("Response from {} ({})", url, http_status_code);
         let body = self.inner.text().await?;
-        debug!("  {}", body);
+        trace!(url = %url, status = %http_status_code, body = %body, "API error response parsed");
         Ok(ApiError {
             http_status_code,
             url,
@@ -94,7 +91,7 @@ where
     pub fn success_or_error(self) -> Result<StatusCode, Error> {
         let http_status_code = self.inner.status();
         let url = self.inner.url().clone();
-        info!("Response from {} ({})", url, http_status_code);
+        trace!(url = %url, status = %http_status_code, "Response received");
         match self.inner.error_for_status() {
             Ok(_) => Ok(http_status_code),
             Err(e) => Err(Error::Network(e)),
@@ -162,22 +159,6 @@ impl AdminClient {
             }
         }
 
-        // we couldn't validate the admin API. This could mean that the server is not running or
-        // runs an old version which does not support version information. Query the health endpoint
-        // to see whether the server is reachable and fail if not.
-        if client
-            .health()
-            .await
-            .map_err(Into::into)
-            .and_then(|r| r.success_or_error())
-            .is_err()
-        {
-            return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Unable to connect to the Restate server '{}'. Please make sure that it is running and reachable.",
-                client.base_url
-            )));
-        }
-
         Ok(client)
     }
 
@@ -232,6 +213,34 @@ impl AdminClient {
         }
     }
 
+    /// Ensures the Restate server is reachable and healthy.
+    /// This should be called when you need to verify connectivity before using the client.
+    pub async fn ensure_healthy(&self) -> Result<(), CommonError> {
+        // Try to get version information first
+        if let Ok(envelope) = self.version().await {
+            if envelope.into_body().await.is_ok() {
+                // Version endpoint works, server is healthy
+                return Ok(());
+            }
+        }
+
+        // If version endpoint doesn't work, check health endpoint
+        // This could mean that the server is not running or runs an old version
+        // which does not support version information.
+        self.health()
+            .await
+            .map_err(Into::into)
+            .and_then(|r| r.success_or_error())
+            .map_err(|_| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "Unable to connect to the Restate server '{}'. Please make sure that it is running and reachable.",
+                    self.base_url
+                ))
+            })?;
+
+        Ok(())
+    }
+
     /// Prepare a request builder for the given method and path.
     pub(crate) fn prepare(&self, method: reqwest::Method, path: Url) -> reqwest::RequestBuilder {
         let request_builder = self
@@ -269,10 +278,10 @@ impl AdminClient {
     where
         T: DeserializeOwned + Send,
     {
-        debug!("Sending request {} ({})", method, path);
+        trace!(method = %method, url = %path, "Sending request");
         let request = self.prepare(method, path.clone());
         let resp = request.send().await?;
-        debug!("Response from {} ({})", path, resp.status());
+        trace!(url = %path, status = %resp.status(), "Request completed");
         Ok(resp.into())
     }
 
@@ -286,10 +295,10 @@ impl AdminClient {
         T: DeserializeOwned + Send,
         B: Serialize + std::fmt::Debug + Send,
     {
-        debug!("Sending request {} ({}): {:?}", method, path, body);
+        trace!(method = %method, url = %path, body = ?body, "Sending request with body");
         let request = self.prepare_with_body(method, path.clone(), body);
         let resp = request.send().await?;
-        debug!("Response from {} ({})", path, resp.status());
+        trace!(url = %path, status = %resp.status(), "Request completed");
         Ok(resp.into())
     }
 
@@ -309,8 +318,7 @@ impl AdminClient {
         // Use versioned URL for the query endpoint
         let query_url = self.versioned_url(["query"]);
 
-        info!("Querying state via SQL API: {}", query_url);
-        info!("Query: {}", query);
+        trace!(url = %query_url, query = %query, "Executing SQL query");
 
         #[derive(Serialize, Debug)]
         struct SqlQueryRequest {
@@ -334,8 +342,7 @@ impl AdminClient {
 
         // Handle non-success status codes
         if !status.is_success() {
-            info!("Response from {} ({})", url, status);
-            info!("  {}", raw_body);
+            trace!(url = %url, status = %status, body = %raw_body, "SQL query error response");
             // Try to parse as ApiError body
             let error_body =
                 serde_json::from_str::<ApiErrorBody>(&raw_body).unwrap_or_else(|_| ApiErrorBody {
@@ -351,7 +358,7 @@ impl AdminClient {
 
         // Handle empty responses (when query returns no rows)
         if raw_body.trim().is_empty() {
-            warn!("Empty response from SQL query, returning empty state map");
+            trace!("SQL query returned no rows");
             return Ok(HashMap::new());
         }
 
@@ -359,10 +366,7 @@ impl AdminClient {
         let response: SqlQueryResponse = match serde_json::from_str(&raw_body) {
             Ok(r) => r,
             Err(e) => {
-                warn!(
-                    "Failed to parse SQL query response: {}. Raw body: {}",
-                    e, raw_body
-                );
+                debug!(error = %e, body = %raw_body, "Failed to parse SQL query response");
                 return Err(Error::Serialization(e));
             }
         };

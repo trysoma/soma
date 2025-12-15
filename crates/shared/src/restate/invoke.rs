@@ -1,7 +1,6 @@
 use anyhow::Result;
 use reqwest::Client;
 use serde::Serialize;
-use tracing::info;
 
 #[derive(Clone)]
 pub struct RestateIngressClient {
@@ -50,12 +49,11 @@ impl RestateIngressClient {
             self.restate_base,
             urlencoding::encode(awakeable_id)
         );
-        info!("Resolving awakeable: {}", url);
+        tracing::trace!(url = %url, "Resolving awakeable");
         let res = self.client.post(&url).json(&body).send().await?;
         let status = res.status();
         let text = res.text().await?;
-        info!("Response from {} ({})", url, status);
-        info!("  {}", text);
+        tracing::trace!(url = %url, status = %status, "Awakeable response");
 
         if !status.is_success() {
             return Err(anyhow::anyhow!("Failed to resolve awakeable: {text}"));
@@ -72,12 +70,11 @@ impl RestateIngressClient {
             self.restate_base,
             urlencoding::encode(awakeable_id)
         );
-        info!("Resolving awakeable: {}", url);
+        tracing::trace!(url = %url, "Resolving awakeable");
         let res = self.client.post(&url).json(body).send().await?;
         let status = res.status();
         let text = res.text().await?;
-        info!("Response from {} ({})", url, status);
-        info!("  {}", text);
+        tracing::trace!(url = %url, status = %status, "Awakeable response");
 
         if !status.is_success() {
             return Err(anyhow::anyhow!("Failed to resolve awakeable: {text}"));
@@ -94,8 +91,7 @@ impl RestateIngressClient {
         let res = self.client.post(&url).json(body).send().await?;
         let status = res.status();
         let text = res.text().await?;
-        info!("Response from {} ({})", url, status);
-        info!("  {}", text);
+        tracing::trace!(url = %url, status = %status, "Reject awakeable response");
 
         if !status.is_success() {
             return Err(anyhow::anyhow!("Failed to reject awakeable: {text}"));

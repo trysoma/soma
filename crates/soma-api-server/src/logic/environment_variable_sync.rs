@@ -2,7 +2,7 @@ use shared::error::CommonError;
 use shared::primitives::PaginationRequest;
 use shared::subsystem::SubsystemHandle;
 use tokio::sync::broadcast;
-use tracing::{error, info, warn};
+use tracing::{debug, error, trace, warn};
 
 use crate::logic::on_change_pubsub::EnvironmentVariableChangeRx;
 use crate::repository::EnvironmentVariableRepositoryLike;
@@ -105,11 +105,8 @@ pub async fn sync_environment_variables_to_sdk(
     let inner = response.into_inner();
 
     match inner.kind {
-        Some(sdk_proto::set_environment_variables_response::Kind::Data(data)) => {
-            info!(
-                "Successfully synced environment variables to SDK: {}",
-                data.message
-            );
+        Some(sdk_proto::set_environment_variables_response::Kind::Data(_)) => {
+            trace!("Environment variables synced to SDK");
             Ok(())
         }
         Some(sdk_proto::set_environment_variables_response::Kind::Error(error)) => {
@@ -151,11 +148,8 @@ pub async fn sync_environment_variable_to_sdk(
     let inner = response.into_inner();
 
     match inner.kind {
-        Some(sdk_proto::set_environment_variables_response::Kind::Data(data)) => {
-            info!(
-                "Successfully synced environment variable to SDK: {}",
-                data.message
-            );
+        Some(sdk_proto::set_environment_variables_response::Kind::Data(_)) => {
+            trace!("Environment variable synced to SDK");
             Ok(())
         }
         Some(sdk_proto::set_environment_variables_response::Kind::Error(error)) => {
@@ -191,11 +185,8 @@ pub async fn unset_environment_variable_in_sdk(
     let inner = response.into_inner();
 
     match inner.kind {
-        Some(sdk_proto::unset_environment_variable_response::Kind::Data(data)) => {
-            info!(
-                "Successfully unset environment variable in SDK: {}",
-                data.message
-            );
+        Some(sdk_proto::unset_environment_variable_response::Kind::Data(_)) => {
+            trace!("Unset environment variable in SDK");
             Ok(())
         }
         Some(sdk_proto::unset_environment_variable_response::Kind::Error(error)) => {
@@ -229,7 +220,7 @@ pub async fn run_environment_variable_sync_loop(
     } = params;
     let repository = repository.clone();
 
-    info!("Starting environment variable sync loop");
+    debug!("Environment variable sync loop started");
 
     loop {
         tokio::select! {
@@ -237,35 +228,35 @@ pub async fn run_environment_variable_sync_loop(
             event = environment_variable_change_rx.recv() => {
                 match event {
                     Ok(evt) => {
-                        info!("Environment variable change event received: {:?}", evt);
+                        trace!(event = ?evt, "Environment variable change event");
 
                         // On any env var change, re-sync all env vars
                         // This is simpler than tracking individual changes and ensures consistency
                         match sync_all_environment_variables(&repository, &socket_path).await {
                             Ok(()) => {
-                                info!("Environment variables re-synced after change event");
+                                trace!("Environment variables re-synced");
                             }
                             Err(e) => {
-                                error!("Failed to re-sync environment variables after change: {:?}", e);
+                                error!(error = ?e, "Failed to re-sync environment variables");
                             }
                         }
                     }
                     Err(broadcast::error::RecvError::Closed) => {
-                        info!("Environment variable change channel closed, stopping env var sync");
+                        debug!("Environment variable change channel closed");
                         break;
                     }
                     Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!("Environment variable change channel lagged, skipped {} messages. Re-syncing all env vars.", skipped);
+                        warn!(skipped, "Environment variable change channel lagged, re-syncing");
                         // Re-sync all env vars to ensure we're in a consistent state
                         if let Err(e) = sync_all_environment_variables(&repository, &socket_path).await {
-                            error!("Failed to re-sync environment variables after lag: {:?}", e);
+                            error!(error = ?e, "Failed to re-sync environment variables after lag");
                         }
                     }
                 }
             }
             // Handle shutdown
             _ = shutdown_rx.recv() => {
-                info!("Shutdown signal received, stopping environment variable sync");
+                debug!("Environment variable sync stopping");
                 break;
             }
         }
@@ -281,7 +272,7 @@ async fn sync_all_environment_variables(
 ) -> Result<(), CommonError> {
     // Fetch all environment variables
     let env_vars = fetch_all_environment_variables(repository).await?;
-    info!("Fetched {} environment variables to sync", env_vars.len());
+    trace!(count = env_vars.len(), "Syncing environment variables to SDK");
 
     // Connect to SDK and sync
     let mut client = shared::uds::create_soma_unix_socket_client(socket_path).await?;

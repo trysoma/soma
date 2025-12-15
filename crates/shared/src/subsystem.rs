@@ -1,5 +1,5 @@
 use tokio::sync::{broadcast, oneshot};
-use tracing::{error, info};
+use tracing::{debug, error};
 
 /// A helper for managing subsystem lifecycle with graceful shutdown
 pub struct SubsystemHandle {
@@ -28,11 +28,8 @@ impl SubsystemHandle {
     /// Wait for the subsystem to complete shutdown
     pub async fn wait_for_shutdown(self) {
         match self.shutdown_complete_rx.await {
-            Ok(()) => info!("{} subsystem stopped gracefully", self.name),
-            Err(_) => error!(
-                "{} subsystem stopped without signaling completion",
-                self.name
-            ),
+            Ok(()) => debug!(subsystem = %self.name, "Subsystem stopped"),
+            Err(_) => error!(subsystem = %self.name, "Subsystem stopped without signaling completion"),
         }
     }
 
@@ -55,7 +52,7 @@ impl SubsystemShutdownSignal {
 
     /// Signal with a custom message
     pub fn signal_with_message(self, message: &str) {
-        info!("{}: {}", self.name, message);
+        debug!(subsystem = %self.name, message = %message, "Subsystem signaling");
         let _ = self.shutdown_complete_tx.send(());
     }
 }
@@ -78,7 +75,7 @@ where
                 signal.signal_with_message("stopped gracefully");
             }
             Err(e) => {
-                error!("{} stopped with error: {:?}", subsystem_name, e);
+                error!(subsystem = %subsystem_name, error = ?e, "Subsystem stopped with error");
                 signal.signal();
             }
         }

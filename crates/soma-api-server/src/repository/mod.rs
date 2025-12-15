@@ -9,7 +9,7 @@ use shared::{
 };
 
 pub use sqlite::Repository;
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::logic::environment_variable::EnvironmentVariable;
 use crate::logic::secret::Secret;

@@ -5,6 +5,7 @@ use shared::{
     adapters::openapi::{API_VERSION_TAG, JsonResponse},
     error::CommonError,
 };
+use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::sts::config::{
@@ -40,6 +41,7 @@ async fn route_create_sts_config(
     State(service): State<IdentityService>,
     Json(params): Json<StsTokenConfig>,
 ) -> JsonResponse<StsTokenConfig, CommonError> {
+    trace!("Creating STS configuration");
     let result = create_sts_config(
         service.repository.as_ref(),
         &service.on_config_change_tx,
@@ -47,6 +49,7 @@ async fn route_create_sts_config(
         true, // publish_on_change_evt
     )
     .await;
+    trace!(success = result.is_ok(), "Creating STS configuration completed");
     JsonResponse::from(result)
 }
 
@@ -69,8 +72,10 @@ async fn route_get_sts_config(
     State(service): State<IdentityService>,
     Path(id): Path<String>,
 ) -> JsonResponse<StsTokenConfig, CommonError> {
+    trace!(config_id = %id, "Getting STS configuration");
     let params = GetStsConfigParams { id };
     let result = get_sts_config(service.repository.as_ref(), params).await;
+    trace!(success = result.is_ok(), "Getting STS configuration completed");
     JsonResponse::from(result)
 }
 
@@ -93,6 +98,7 @@ async fn route_delete_sts_config(
     State(service): State<IdentityService>,
     Path(id): Path<String>,
 ) -> JsonResponse<DeleteStsConfigResponse, CommonError> {
+    trace!(config_id = %id, "Deleting STS configuration");
     let params = DeleteStsConfigParams { id };
     let result = delete_sts_config(
         service.repository.as_ref(),
@@ -101,6 +107,7 @@ async fn route_delete_sts_config(
         true, // publish_on_change_evt
     )
     .await;
+    trace!(success = result.is_ok(), "Deleting STS configuration completed");
     JsonResponse::from(result)
 }
 
@@ -122,6 +129,8 @@ async fn route_list_sts_configs(
     State(service): State<IdentityService>,
     Query(query): Query<PaginationRequest>,
 ) -> JsonResponse<ListStsConfigResponse, CommonError> {
+    trace!(page_size = query.page_size, "Listing STS configurations");
     let result = list_sts_configs(service.repository.as_ref(), &query).await;
+    trace!(success = result.is_ok(), "Listing STS configurations completed");
     JsonResponse::from(result)
 }

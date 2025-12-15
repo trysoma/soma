@@ -3,6 +3,8 @@
  * All methods are wrapped with ctx.run() for durability.
  */
 
+/* eslint-disable no-console */
+
 import type {
 	AgentCard,
 	CancelTaskResponse,
@@ -88,12 +90,15 @@ export class A2AClient {
 	 * The entire request/response cycle is wrapped for durability.
 	 */
 	async sendMessage(params: MessageSendParams): Promise<SendMessageResponse> {
-		return this.ctx.run(
+		console.debug(`[A2A] Sending message to agent ${this.restateId}`);
+		const result = await this.ctx.run(
 			`a2a-${this.restateId}-sendMessage-index-${this.requestIndex++}`,
 			async () => {
 				return this.client.sendMessage(params);
 			},
 		);
+		console.debug(`[A2A] Sending message to agent ${this.restateId} completed`);
+		return result;
 	}
 
 	/**
@@ -104,6 +109,7 @@ export class A2AClient {
 	async *sendMessageStream(
 		params: MessageSendParams,
 	): AsyncGenerator<A2AStreamEventData, void, undefined> {
+		console.debug(`[A2A] Starting streaming message to agent ${this.restateId}`);
 		const stream = this.client.sendMessageStream(params);
 		const durableStream = new DurableStream(
 			this.ctx,
@@ -111,30 +117,39 @@ export class A2AClient {
 			stream,
 		);
 		yield* durableStream;
+		console.debug(
+			`[A2A] Streaming message to agent ${this.restateId} completed`,
+		);
 	}
 
 	/**
 	 * Get a task by ID (durable).
 	 */
 	async getTask(params: TaskQueryParams): Promise<GetTaskResponse> {
-		return this.ctx.run(
+		console.debug(`[A2A] Getting task ${params.id}`);
+		const result = await this.ctx.run(
 			`a2a-${this.restateId}-getTask-index-${this.requestIndex++}`,
 			async () => {
 				return this.client.getTask(params);
 			},
 		);
+		console.debug(`[A2A] Getting task ${params.id} completed`);
+		return result;
 	}
 
 	/**
 	 * Cancel a task by ID (durable).
 	 */
 	async cancelTask(params: TaskIdParams): Promise<CancelTaskResponse> {
-		return this.ctx.run(
+		console.debug(`[A2A] Canceling task ${params.id}`);
+		const result = await this.ctx.run(
 			`a2a-${this.restateId}-cancelTask-index-${this.requestIndex++}`,
 			async () => {
 				return this.client.cancelTask(params);
 			},
 		);
+		console.debug(`[A2A] Canceling task ${params.id} completed`);
+		return result;
 	}
 
 	/**
@@ -144,6 +159,7 @@ export class A2AClient {
 	async *resubscribeTask(
 		params: TaskIdParams,
 	): AsyncGenerator<A2AStreamEventData, void, undefined> {
+		console.debug(`[A2A] Resubscribing to task ${params.id}`);
 		const stream = this.client.resubscribeTask(params);
 		const durableStream = new DurableStream(
 			this.ctx,
@@ -151,18 +167,22 @@ export class A2AClient {
 			stream,
 		);
 		yield* durableStream;
+		console.debug(`[A2A] Resubscribing to task ${params.id} completed`);
 	}
 
 	/**
 	 * Get the agent card (durable).
 	 */
 	async getAgentCard(): Promise<AgentCard> {
-		return this.ctx.run(
+		console.debug(`[A2A] Getting agent card for ${this.restateId}`);
+		const result = await this.ctx.run(
 			`a2a-${this.restateId}-getAgentCard-index-${this.requestIndex++}`,
 			async () => {
 				return this.client.getAgentCard();
 			},
 		);
+		console.debug(`[A2A] Getting agent card for ${this.restateId} completed`);
+		return result;
 	}
 }
 
@@ -179,9 +199,11 @@ export async function createA2AClient(
 	cardUrl: string,
 	agentId: string,
 ): Promise<A2AClient> {
+	console.debug(`[A2A] Creating A2A client for agent ${agentId} from ${cardUrl}`);
 	const baseClient = await ctx.run(`init-a2a-${agentId}`, async () => {
 		return BaseA2AClient.fromCardUrl(cardUrl);
 	});
+	console.debug(`[A2A] Creating A2A client for agent ${agentId} completed`);
 	return new A2AClient(ctx, baseClient, agentId);
 }
 

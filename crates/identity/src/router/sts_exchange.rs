@@ -6,6 +6,7 @@ use axum::{
 };
 use axum_extra::extract::cookie::CookieJar;
 use shared::{adapters::openapi::API_VERSION_TAG, error::CommonError};
+use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::internal_token_issuance::NormalizedTokenIssuanceResult;
@@ -47,6 +48,7 @@ async fn route_exchange_sts_token(
     headers: HeaderMap,
     jar: CookieJar,
 ) -> impl IntoResponse {
+    trace!(sts_config_id = %sts_config_id, "Exchanging STS token");
     let params = ExchangeStsTokenParams {
         headers,
         sts_token_config_id: sts_config_id,
@@ -59,6 +61,7 @@ async fn route_exchange_sts_token(
         params,
     )
     .await;
+    trace!(success = result.is_ok(), "Exchanging STS token completed");
 
     match result {
         Ok(token_result) => build_token_response(jar, &token_result),

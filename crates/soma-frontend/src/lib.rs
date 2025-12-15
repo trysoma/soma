@@ -10,8 +10,6 @@ use utoipa_axum::router::OpenApiRouter;
 use vite_rs_axum_0_8::ViteServe;
 
 use shared::error::CommonError;
-#[cfg(debug_assertions)]
-use tracing::info;
 
 // The vite_rs::Embed proc macro embeds frontend assets at compile time
 // The path is relative to CARGO_MANIFEST_DIR
@@ -54,7 +52,7 @@ pub async fn wait_for_vite_dev_server_shutdown() -> Result<(), CommonError> {
 /// Returns a guard that stops the server when dropped
 #[cfg(debug_assertions)]
 pub fn start_vite_dev_server() -> impl Drop {
-    info!("Starting vite dev server");
+    tracing::debug!("Starting vite dev server");
     // The return value is a scope guard that stops the server when dropped
     let guard = Assets::start_dev_server(false);
     guard.unwrap_or_else(|| {
@@ -65,7 +63,7 @@ pub fn start_vite_dev_server() -> impl Drop {
 /// Stops the Vite dev server and waits for shutdown (debug builds only)
 #[cfg(debug_assertions)]
 pub async fn stop_vite_dev_server() -> Result<(), CommonError> {
-    info!("Stopping vite dev server");
+    tracing::debug!("Stopping vite dev server");
     Assets::stop_dev_server();
     wait_for_vite_dev_server_shutdown().await?;
     Ok(())

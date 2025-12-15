@@ -215,7 +215,7 @@ pub async fn introspect_token(
         });
     }
 
-    tracing::debug!("Token introspection successful, token is active");
+    tracing::trace!("Token introspection successful");
     Ok(obj)
 }
 

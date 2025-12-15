@@ -13,6 +13,7 @@ use shared::{
     primitives::{PaginationRequest, WrappedChronoDateTime},
 };
 use std::path::PathBuf;
+use tracing::trace;
 use utoipa::ToSchema;
 
 use super::{EncryptionKeyEvent, EncryptionKeyEventSender};
@@ -177,6 +178,7 @@ pub async fn create_envelope_encryption_key(
     params: CreateEnvelopeEncryptionKeyParams,
     publish_on_change_evt: bool,
 ) -> Result<CreateEnvelopeEncryptionKeyResponse, CommonError> {
+    trace!(key_id = %params.id(), "Creating envelope encryption key");
     let now = WrappedChronoDateTime::now();
 
     if let EnvelopeEncryptionKey::Local(local) = &params {
@@ -201,6 +203,7 @@ pub async fn create_envelope_encryption_key(
             })?;
     }
 
+    trace!(key_id = %params.id(), "Creating envelope encryption key completed");
     Ok(params)
 }
 
@@ -212,7 +215,10 @@ pub async fn list_envelope_encryption_keys<R>(
 where
     R: EncryptionKeyRepositoryLike,
 {
-    repo.list_envelope_encryption_keys_paginated(&params).await
+    trace!(page_size = params.page_size, "Listing envelope encryption keys");
+    let res = repo.list_envelope_encryption_keys_paginated(&params).await;
+    trace!(success = res.is_ok(), "Listing envelope encryption keys completed");
+    res
 }
 
 /// Delete an envelope encryption key
@@ -223,8 +229,6 @@ pub async fn delete_envelope_encryption_key(
     params: DeleteEnvelopeEncryptionKeyParams,
     publish_on_change_evt: bool,
 ) -> Result<DeleteEnvelopeEncryptionKeyResponse, CommonError> {
-    use tracing::info;
-
     // Check if any data encryption keys are using this envelope key
     let envelope_key = repo
         .get_envelope_encryption_key_by_id(&params.envelope_encryption_key_id)
@@ -266,10 +270,7 @@ pub async fn delete_envelope_encryption_key(
     repo.delete_envelope_encryption_key(&params.envelope_encryption_key_id)
         .await?;
 
-    info!(
-        "Deleted envelope encryption key: {}",
-        params.envelope_encryption_key_id
-    );
+    tracing::debug!(key_id = %params.envelope_encryption_key_id, "Deleted envelope encryption key");
 
     // Publish event if publish_on_change_evt is true
     if publish_on_change_evt {
@@ -299,8 +300,6 @@ pub async fn migrate_data_encryption_key(
     params: MigrateDataEncryptionKeyParams,
     publish_on_change_evt: bool,
 ) -> Result<MigrateDataEncryptionKeyResponse, CommonError> {
-    use tracing::info;
-
     // Step 1: Get the "to" envelope encryption key from the repository
     let to_envelope_key = repo
         .get_envelope_encryption_key_by_id(&params.to_envelope_encryption_key_id)
@@ -326,9 +325,10 @@ pub async fn migrate_data_encryption_key(
         }
     };
 
-    info!(
-        "Migrating data encryption key {} to envelope key {}",
-        params.data_encryption_key_id, params.to_envelope_encryption_key_id
+    tracing::debug!(
+        dek_id = %params.data_encryption_key_id,
+        to_envelope_key = %params.to_envelope_encryption_key_id,
+        "Migrating data encryption key"
     );
 
     // Step 3: Get the existing DEK
@@ -464,9 +464,10 @@ pub async fn migrate_data_encryption_key(
     )
     .await?;
 
-    info!(
-        "Successfully migrated DEK {} to {}",
-        params.data_encryption_key_id, new_dek_id
+    tracing::debug!(
+        old_dek_id = %params.data_encryption_key_id,
+        new_dek_id = %new_dek_id,
+        "DEK migration complete"
     );
 
     // Publish events if publish_on_change_evt is true
@@ -631,7 +632,6 @@ where
     R: EncryptionKeyRepositoryLike + DataEncryptionKeyRepositoryLike,
 {
     use shared::primitives::PaginationRequest;
-    use tracing::info;
 
     // Get the "to" envelope encryption key from the repository
     let to_envelope_key = repo
@@ -655,13 +655,9 @@ where
         )?,
     };
 
-    info!(
-        "Migrating all data encryption keys from envelope key {} to {}",
-        match from_envelope_key_id {
-            EnvelopeEncryptionKey::AwsKms(aws_kms) => aws_kms.arn.clone(),
-            EnvelopeEncryptionKey::Local(local) => local.file_name.clone(),
-        },
-        params.to_envelope_encryption_key_id
+    tracing::debug!(
+        to_envelope_key = %params.to_envelope_encryption_key_id,
+        "Migrating all DEKs to new envelope key"
     );
 
     // Get all DEKs for the from envelope key
@@ -697,7 +693,7 @@ where
         page_token = deks.next_page_token;
     }
 
-    info!("Found {} DEKs to migrate", all_deks.len());
+    tracing::debug!(count = all_deks.len(), "Found DEKs to migrate");
 
     // Migrate each DEK
     for old_dek in all_deks {
@@ -718,7 +714,7 @@ where
         .await?;
     }
 
-    info!("Successfully migrated all DEKs");
+    tracing::debug!("All DEKs migrated successfully");
 
     Ok(())
 }

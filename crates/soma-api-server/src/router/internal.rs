@@ -4,6 +4,7 @@ use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
+use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use shared::{
@@ -44,7 +45,9 @@ pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {
 async fn route_health(
     State(ctx): State<Arc<InternalService>>,
 ) -> JsonResponse<CheckSdkHealthResponse, CommonError> {
+    trace!("Checking SDK health");
     let response = crate::logic::internal::check_sdk_health(&ctx.sdk_client).await;
+    trace!(success = response.is_ok(), "Checking SDK health completed");
     JsonResponse::from(response)
 }
 
@@ -62,7 +65,9 @@ async fn route_health(
 async fn route_runtime_config(
     State(_ctx): State<Arc<InternalService>>,
 ) -> JsonResponse<RuntimeConfigResponse, CommonError> {
+    trace!("Getting runtime config");
     let runtime_config = crate::logic::internal::runtime_config().await;
+    trace!(success = runtime_config.is_ok(), "Getting runtime config completed");
     JsonResponse::from(runtime_config)
 }
 
@@ -82,12 +87,14 @@ async fn route_runtime_config(
 async fn route_trigger_codegen(
     State(ctx): State<Arc<InternalService>>,
 ) -> JsonResponse<TriggerCodegenResponse, CommonError> {
+    trace!("Triggering codegen");
     let response = crate::logic::internal::trigger_codegen(
         &ctx.sdk_client,
         ctx.bridge_service.repository(),
         &ctx.agent_cache,
     )
     .await;
+    trace!(success = response.is_ok(), "Triggering codegen completed");
 
     JsonResponse::from(response)
 }
@@ -108,6 +115,7 @@ async fn route_trigger_codegen(
 async fn route_resync_sdk(
     State(ctx): State<Arc<InternalService>>,
 ) -> JsonResponse<ResyncSdkResponse, CommonError> {
+    trace!("Resyncing SDK");
     let response = crate::logic::internal::resync_sdk(
         &ctx.repository,
         &ctx.crypto_cache,
@@ -117,6 +125,7 @@ async fn route_resync_sdk(
         ctx.bridge_service.repository(),
     )
     .await;
+    trace!(success = response.is_ok(), "Resyncing SDK completed");
     JsonResponse::from(response)
 }
 

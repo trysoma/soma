@@ -14,7 +14,7 @@ use shared::{
         PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedSchema, WrappedUuidV4,
     },
 };
-use tracing::info;
+use tracing::{debug, trace};
 use utoipa::ToSchema;
 
 use ::encryption::logic::crypto_services::{DecryptionService, EncryptionService};
@@ -439,7 +439,7 @@ async fn process_broker_outcome(
                 credential_controller_type_id: credential_controller.type_id().to_string(),
             };
 
-            info!("Saving broker state to database: {:?}", broker_state);
+            trace!(broker_state_id = %broker_state.id, "Saving broker state");
             // Save broker state to database
             repo.create_broker_state(&crate::repository::CreateBrokerState::from(
                 broker_state.clone(),
@@ -639,7 +639,7 @@ pub async fn credential_rotation_task<R>(
     loop {
         tokio::select! {
             _ = timer.tick() => {
-                tracing::info!("Starting credential rotation check");
+                trace!("Starting credential rotation check");
 
                 if let Err(e) = process_credential_rotations_with_window(
                     &repo,
@@ -649,19 +649,19 @@ pub async fn credential_rotation_task<R>(
                 )
                 .await
                 {
-                    tracing::error!("Error processing credential rotations: {:?}", e);
+                    tracing::error!(error = ?e, "Credential rotation failed");
                 }
 
-                tracing::info!("Completed credential rotation check");
+                trace!("Credential rotation check complete");
             }
             _ = shutdown_rx.recv() => {
-                tracing::info!("Credential rotation task shutdown requested");
+                debug!("Credential rotation task shutdown requested");
                 break;
             }
         }
     }
 
-    tracing::info!("Credential rotation task stopped");
+    debug!("Credential rotation task stopped");
 }
 
 pub async fn process_credential_rotations_with_window<R>(
@@ -695,20 +695,14 @@ where
                 Some(&rotation_window_end),
             )
             .await?;
-        info!(
-            "Provider instances with credentials: {:?}",
-            provider_instances.items.len()
-        );
+        trace!(count = provider_instances.items.len(), "Fetched provider instances for rotation check");
         next_page_token = provider_instances.next_page_token.clone();
 
         let refresh_fut = provider_instances
             .items
             .iter()
             .map(async |pi| {
-                info!(
-                    "Processing credential rotation for provider instance: {:?}",
-                    pi.provider_instance.id
-                );
+                trace!(provider_instance_id = %pi.provider_instance.id, "Processing credential rotation");
                 process_credential_rotation(
                     repo,
                     on_config_change_tx,

@@ -6,7 +6,7 @@ use encryption::logic::EncryptionKeyEvent;
 use encryption::logic::envelope::EnvelopeEncryptionKey;
 use identity::logic::OnConfigChangeEvt as IdentityOnConfigChangeEvt;
 use serde_json::json;
-use tracing::{info, warn};
+use tracing::{debug, trace, warn};
 
 use shared::error::CommonError;
 use shared::soma_agent_definition::{
@@ -28,7 +28,7 @@ pub async fn sync_on_soma_change(
         let event = match soma_change_rx.recv().await {
             Ok(event) => event,
             Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                info!("Soma change receiver closed");
+                debug!("Soma change receiver closed");
                 return Ok(());
             }
             Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
@@ -63,7 +63,7 @@ async fn handle_bridge_event(
 ) -> Result<(), CommonError> {
     match event {
         OnConfigChangeEvt::ProviderInstanceAdded(provider_instance) => {
-            info!(
+            debug!(
                 "Provider instance added: {:?}",
                 provider_instance.provider_instance.id
             );
@@ -127,7 +127,7 @@ async fn handle_bridge_event(
                 .await?;
         }
         OnConfigChangeEvt::ProviderInstanceUpdated(provider_instance) => {
-            info!(
+            debug!(
                 "Provider instance updated: {:?}",
                 provider_instance.provider_instance.id
             );
@@ -196,7 +196,7 @@ async fn handle_bridge_event(
                 .await?;
         }
         OnConfigChangeEvt::FunctionInstanceAdded(function_instance_serialized) => {
-            info!(
+            debug!(
                 "Function instance added: {:?}",
                 function_instance_serialized.function_controller_type_id
             );
@@ -217,7 +217,7 @@ async fn handle_bridge_event(
             provider_controller_type_id,
             provider_instance_id,
         ) => {
-            info!(
+            debug!(
                 "Function instance removed: function_controller_type_id={:?}, provider_instance_id={:?}",
                 function_controller_type_id, provider_instance_id
             );
@@ -230,7 +230,7 @@ async fn handle_bridge_event(
                 .await?;
         }
         OnConfigChangeEvt::McpServerInstanceAdded(mcp_server) => {
-            info!("MCP server instance added: {:?}", mcp_server.id);
+            debug!("MCP server instance added: {:?}", mcp_server.id);
 
             let functions = mcp_server
                 .functions
@@ -255,7 +255,7 @@ async fn handle_bridge_event(
                 .await?;
         }
         OnConfigChangeEvt::McpServerInstanceUpdated(mcp_server) => {
-            info!("MCP server instance updated: {:?}", mcp_server.id);
+            debug!("MCP server instance updated: {:?}", mcp_server.id);
 
             let functions = mcp_server
                 .functions
@@ -280,11 +280,11 @@ async fn handle_bridge_event(
                 .await?;
         }
         OnConfigChangeEvt::McpServerInstanceRemoved(mcp_server_id) => {
-            info!("MCP server instance removed: {:?}", mcp_server_id);
+            debug!("MCP server instance removed: {:?}", mcp_server_id);
             soma_definition.remove_mcp_server(mcp_server_id).await?;
         }
         OnConfigChangeEvt::McpServerInstanceFunctionAdded(function) => {
-            info!(
+            debug!(
                 "MCP server function added: {:?} to {:?}",
                 function.function_name, function.mcp_server_instance_id
             );
@@ -302,7 +302,7 @@ async fn handle_bridge_event(
                 .await?;
         }
         OnConfigChangeEvt::McpServerInstanceFunctionUpdated(function) => {
-            info!(
+            debug!(
                 "MCP server function updated: {:?} in {:?}",
                 function.function_name, function.mcp_server_instance_id
             );
@@ -325,7 +325,7 @@ async fn handle_bridge_event(
             provider_controller_type_id,
             provider_instance_id,
         ) => {
-            info!(
+            debug!(
                 "MCP server function removed from {:?}: {}/{}/{}",
                 mcp_server_instance_id,
                 function_controller_type_id,
@@ -351,7 +351,7 @@ async fn handle_encryption_event(
 ) -> Result<(), CommonError> {
     match event {
         EncryptionKeyEvent::EnvelopeEncryptionKeyAdded(eek) => {
-            info!("Envelope encryption key added: {:?}", eek.id());
+            debug!("Envelope encryption key added: {:?}", eek.id());
             let key_id = eek.id();
             let config = match eek {
                 EnvelopeEncryptionKey::AwsKms(aws_kms) => {
@@ -371,13 +371,13 @@ async fn handle_encryption_event(
             soma_definition.add_envelope_key(key_id, config).await?;
         }
         EncryptionKeyEvent::EnvelopeEncryptionKeyRemoved(eek_id) => {
-            info!("Envelope encryption key removed: {:?}", eek_id);
+            debug!("Envelope encryption key removed: {:?}", eek_id);
             soma_definition.remove_envelope_key(eek_id).await?;
         }
         EncryptionKeyEvent::DataEncryptionKeyAdded(dek) => {
             // DEK creation events are ignored - we only sync DEKs when aliases are added/updated
             // This ensures we always have complete data (including alias) in YAML
-            info!(
+            trace!(
                 "Data encryption key added: {:?} (ignoring - will sync when alias is added)",
                 dek.id
             );
@@ -385,7 +385,7 @@ async fn handle_encryption_event(
         EncryptionKeyEvent::DataEncryptionKeyRemoved(dek_id) => {
             // DEK removal events are ignored - we only sync DEKs when aliases are added/updated/removed
             // When a DEK is removed, its aliases are also removed, which will trigger alias removal events
-            info!(
+            trace!(
                 "Data encryption key removed: {:?} (ignoring - will sync when alias is removed)",
                 dek_id
             );
@@ -397,7 +397,7 @@ async fn handle_encryption_event(
             to_envelope_key,
             aliases,
         } => {
-            info!(
+            debug!(
                 "Data encryption key migrated: {:?} -> {:?} from {:?} to {:?} with aliases: {:?}",
                 old_dek_id,
                 new_dek_id,
@@ -467,7 +467,7 @@ async fn handle_encryption_event(
         EncryptionKeyEvent::DataEncryptionKeyAliasAdded { alias, dek } => {
             // Add or update the DEK in YAML with the alias as the key
             // The event includes full DEK data, so we can add it directly
-            info!(
+            debug!(
                 "DEK alias added: {:?} -> {:?} - adding DEK to yaml",
                 alias, dek.id
             );
@@ -511,7 +511,7 @@ async fn handle_encryption_event(
             }
         }
         EncryptionKeyEvent::DataEncryptionKeyAliasRemoved { alias } => {
-            info!("DEK alias removed: {:?} - removing DEK from yaml", alias);
+            debug!("DEK alias removed: {:?} - removing DEK from yaml", alias);
             // Remove the DEK from YAML by searching all envelope keys
             let definition = soma_definition.get_definition().await?;
             if let Some(encryption) = &definition.encryption {
@@ -532,7 +532,7 @@ async fn handle_encryption_event(
         EncryptionKeyEvent::DataEncryptionKeyAliasUpdated { alias, dek } => {
             // Alias updated means the alias now points to a different DEK
             // Update the DEK in YAML with the new DEK data
-            info!("DEK alias updated: {:?} -> {:?}", alias, dek.id);
+            debug!("DEK alias updated: {:?} -> {:?}", alias, dek.id);
             let envelope_key_id = dek.envelope_encryption_key_id.id();
 
             // Check if alias already exists in YAML
@@ -596,12 +596,12 @@ async fn handle_secret_event(
                 .unwrap_or(false);
 
             if secret_exists_in_yaml {
-                info!(
+                trace!(
                     "Secret '{}' already exists in YAML, skipping write to preserve encrypted value",
                     secret.key
                 );
             } else {
-                info!("Secret created: {:?}", secret.key);
+                debug!("Secret created: {:?}", secret.key);
                 let config = SecretConfig {
                     value: secret.encrypted_secret,
                     dek_alias: secret.dek_alias,
@@ -610,7 +610,7 @@ async fn handle_secret_event(
             }
         }
         SecretChangeEvt::Updated(secret) => {
-            info!("Secret updated: {:?}", secret.key);
+            debug!("Secret updated: {:?}", secret.key);
             let config = SecretConfig {
                 value: secret.encrypted_secret,
                 dek_alias: secret.dek_alias,
@@ -618,7 +618,7 @@ async fn handle_secret_event(
             soma_definition.update_secret(secret.key, config).await?;
         }
         SecretChangeEvt::Deleted { id: _, key } => {
-            info!("Secret deleted: {:?}", key);
+            debug!("Secret deleted: {:?}", key);
             soma_definition.remove_secret(key).await?;
         }
     }
@@ -631,19 +631,19 @@ async fn handle_environment_variable_event(
 ) -> Result<(), CommonError> {
     match event {
         EnvironmentVariableChangeEvt::Created(env_var) => {
-            info!("Environment variable created: {:?}", env_var.key);
+            debug!("Environment variable created: {:?}", env_var.key);
             soma_definition
                 .add_environment_variable(env_var.key, env_var.value)
                 .await?;
         }
         EnvironmentVariableChangeEvt::Updated(env_var) => {
-            info!("Environment variable updated: {:?}", env_var.key);
+            debug!("Environment variable updated: {:?}", env_var.key);
             soma_definition
                 .update_environment_variable(env_var.key, env_var.value)
                 .await?;
         }
         EnvironmentVariableChangeEvt::Deleted { id: _, key } => {
-            info!("Environment variable deleted: {:?}", key);
+            debug!("Environment variable deleted: {:?}", key);
             soma_definition.remove_environment_variable(key).await?;
         }
     }
@@ -656,7 +656,7 @@ async fn handle_identity_event(
 ) -> Result<(), CommonError> {
     match event {
         IdentityOnConfigChangeEvt::ApiKeyCreated(api_key_info) => {
-            info!("API key created: {:?}", api_key_info.id);
+            debug!("API key created: {:?}", api_key_info.id);
 
             // Check if this API key already exists in YAML
             // If it does, skip writing to avoid overwriting with a re-encrypted value
@@ -669,7 +669,7 @@ async fn handle_identity_event(
                 .unwrap_or(false);
 
             if api_key_exists_in_yaml {
-                info!(
+                trace!(
                     "API key '{}' already exists in YAML, skipping write to preserve encrypted value",
                     api_key_info.id
                 );
@@ -685,7 +685,7 @@ async fn handle_identity_event(
             }
         }
         IdentityOnConfigChangeEvt::ApiKeyDeleted(id) => {
-            info!("API key deleted: {:?}", id);
+            debug!("API key deleted: {:?}", id);
             soma_definition.remove_api_key(id).await?;
         }
         IdentityOnConfigChangeEvt::StsConfigCreated(sts_config_info) => {
@@ -693,7 +693,7 @@ async fn handle_identity_event(
 
             // Skip syncing DevMode configs to YAML - they are ephemeral and only used in dev
             if matches!(&sts_config_info, IdentityStsTokenConfig::DevMode(_)) {
-                info!("Skipping DevMode STS config sync to YAML (dev mode configs are ephemeral)");
+                trace!("Skipping DevMode STS config sync to YAML (dev mode configs are ephemeral)");
                 return Ok(());
             }
 
@@ -702,7 +702,7 @@ async fn handle_identity_event(
                 IdentityStsTokenConfig::DevMode(config) => config.id.clone(),
             };
 
-            info!("STS config created: {:?}", config_id);
+            debug!("STS config created: {:?}", config_id);
 
             // Check if this STS config already exists in YAML
             let definition = soma_definition.get_definition().await?;
@@ -714,7 +714,7 @@ async fn handle_identity_event(
                 .unwrap_or(false);
 
             if sts_config_exists_in_yaml {
-                info!(
+                trace!(
                     "STS config '{}' already exists in YAML, skipping write",
                     config_id
                 );
@@ -744,12 +744,12 @@ async fn handle_identity_event(
             }
         }
         IdentityOnConfigChangeEvt::StsConfigDeleted(id) => {
-            info!("STS config deleted: {:?}", id);
+            debug!("STS config deleted: {:?}", id);
             soma_definition.remove_sts_config(id).await?;
         }
         IdentityOnConfigChangeEvt::UserAuthFlowConfigCreated(config) => {
             let config_id = config.id().to_string();
-            info!("User auth flow config created: {:?}", config_id);
+            debug!("User auth flow config created: {:?}", config_id);
 
             // Check if this config already exists in YAML
             let definition = soma_definition.get_definition().await?;
@@ -761,7 +761,7 @@ async fn handle_identity_event(
                 .unwrap_or(false);
 
             if config_exists_in_yaml {
-                info!(
+                trace!(
                     "User auth flow config '{}' already exists in YAML, skipping write to preserve encrypted value",
                     config_id
                 );
@@ -774,7 +774,7 @@ async fn handle_identity_event(
             }
         }
         IdentityOnConfigChangeEvt::UserAuthFlowConfigDeleted(id) => {
-            info!("User auth flow config deleted: {:?}", id);
+            debug!("User auth flow config deleted: {:?}", id);
             soma_definition.remove_user_auth_flow(id).await?;
         }
     }

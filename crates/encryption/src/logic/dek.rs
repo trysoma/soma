@@ -7,6 +7,7 @@ use shared::{
     error::CommonError,
     primitives::{PaginationRequest, WrappedChronoDateTime},
 };
+use tracing::trace;
 use utoipa::ToSchema;
 
 use super::{EncryptionKeyEvent, EncryptionKeyEventSender};
@@ -242,6 +243,11 @@ pub async fn create_data_encryption_key<R>(
 where
     R: DataEncryptionKeyRepositoryLike + crate::repository::EncryptionKeyRepositoryLike,
 {
+    trace!(
+        envelope_id = %params.envelope_encryption_key_id,
+        dek_id = ?params.inner.id,
+        "Creating data encryption key"
+    );
     let dek = create_data_encryption_key_internal(repo, params, local_envelope_encryption_key_path)
         .await?;
 
@@ -254,6 +260,7 @@ where
             })?;
     }
 
+    trace!(dek_id = %dek.id, "Creating data encryption key completed");
     Ok(dek)
 }
 
@@ -268,6 +275,12 @@ pub async fn import_data_encryption_key<R>(
 where
     R: DataEncryptionKeyRepositoryLike + crate::repository::EncryptionKeyRepositoryLike,
 {
+    trace!(
+        envelope_id = %params.envelope_encryption_key_id,
+        dek_id = ?params.inner.id,
+        "Importing data encryption key"
+    );
+    let dek_id_for_trace = params.inner.id.clone();
     use shared::primitives::WrappedChronoDateTime;
 
     // Look up the envelope encryption key from the database
@@ -331,6 +344,7 @@ where
             })?;
     }
 
+    trace!(dek_id = ?dek_id_for_trace, "Importing data encryption key completed");
     Ok(data_encryption_key)
 }
 
@@ -342,6 +356,11 @@ pub async fn list_data_encryption_keys<R>(
 where
     R: DataEncryptionKeyRepositoryLike + crate::repository::EncryptionKeyRepositoryLike,
 {
+    trace!(
+        envelope_id = %params.envelope_encryption_key_id,
+        page_size = params.inner.page_size,
+        "Listing data encryption keys"
+    );
     // Look up the envelope encryption key from the database
     let envelope_key = repo
         .get_envelope_encryption_key_by_id(&params.envelope_encryption_key_id)
@@ -353,7 +372,9 @@ where
             ))
         })?;
 
-    list_data_encryption_keys_by_envelope_key_id(repo, &envelope_key, params.inner).await
+    let res = list_data_encryption_keys_by_envelope_key_id(repo, &envelope_key, params.inner).await;
+    trace!(success = res.is_ok(), "Listing data encryption keys completed");
+    res
 }
 
 /// List data encryption keys filtered by envelope encryption key ID
@@ -438,7 +459,10 @@ pub async fn get_data_encryption_key_by_id<R>(
 where
     R: DataEncryptionKeyRepositoryLike,
 {
-    repo.get_data_encryption_key_by_id(id).await
+    trace!(dek_id = %id, "Getting data encryption key by ID");
+    let res = repo.get_data_encryption_key_by_id(id).await;
+    trace!(success = res.is_ok(), found = res.as_ref().map(|r| r.is_some()).unwrap_or(false), "Getting data encryption key by ID completed");
+    res
 }
 
 /// Delete a data encryption key
@@ -451,6 +475,7 @@ pub async fn delete_data_encryption_key<R>(
 where
     R: DataEncryptionKeyRepositoryLike,
 {
+    trace!(dek_id = %id, "Deleting data encryption key");
     repo.delete_data_encryption_key(&id).await?;
 
     // Publish event if requested
@@ -462,6 +487,7 @@ where
             })?;
     }
 
+    trace!("Deleting data encryption key completed");
     Ok(())
 }
 

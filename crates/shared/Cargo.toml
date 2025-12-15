@@ -34,7 +34,6 @@ shared-macros.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tokio-graceful-shutdown.workspace = true
 tokio-rustls.workspace = true
 tonic.workspace = true
 tower.workspace = true

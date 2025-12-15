@@ -1,5 +1,7 @@
 //! MCP server instance management and protocol routes
 
+use tracing::trace;
+
 use super::{API_VERSION_1, BridgeService, PATH_PREFIX, SERVICE_ROUTE_KEY};
 use crate::logic::{
     AddMcpServerInstanceFunctionRequest, AddMcpServerInstanceFunctionResponse,
@@ -38,6 +40,11 @@ pub async fn route_create_mcp_server_instance(
     State(ctx): State<BridgeService>,
     Json(request): Json<CreateMcpServerInstanceRequest>,
 ) -> JsonResponse<CreateMcpServerInstanceResponse, CommonError> {
+    trace!(
+        instance_id = %request.id,
+        name = %request.name,
+        "Creating MCP server instance"
+    );
     let res = create_mcp_server_instance(
         ctx.on_config_change_tx(),
         ctx.repository(),
@@ -45,6 +52,7 @@ pub async fn route_create_mcp_server_instance(
         true, // publish_on_change_evt
     )
     .await;
+    trace!(success = res.is_ok(), "Creating MCP server instance completed");
     JsonResponse::from(res)
 }
 
@@ -68,7 +76,9 @@ pub async fn route_get_mcp_server_instance(
     State(ctx): State<BridgeService>,
     Path(mcp_server_instance_id): Path<String>,
 ) -> JsonResponse<GetMcpServerInstanceResponse, CommonError> {
+    trace!(instance_id = %mcp_server_instance_id, "Getting MCP server instance");
     let res = get_mcp_server_instance(ctx.repository(), &mcp_server_instance_id).await;
+    trace!(success = res.is_ok(), "Getting MCP server instance completed");
     JsonResponse::from(res)
 }
 
@@ -94,6 +104,11 @@ pub async fn route_update_mcp_server_instance(
     Path(mcp_server_instance_id): Path<String>,
     Json(request): Json<UpdateMcpServerInstanceRequest>,
 ) -> JsonResponse<UpdateMcpServerInstanceResponse, CommonError> {
+    trace!(
+        instance_id = %mcp_server_instance_id,
+        name = ?request.name,
+        "Updating MCP server instance"
+    );
     let res = update_mcp_server_instance(
         ctx.on_config_change_tx(),
         ctx.repository(),
@@ -102,6 +117,7 @@ pub async fn route_update_mcp_server_instance(
         true, // publish_on_change_evt
     )
     .await;
+    trace!(success = res.is_ok(), "Updating MCP server instance completed");
     JsonResponse::from(res)
 }
 
@@ -125,6 +141,7 @@ pub async fn route_delete_mcp_server_instance(
     State(ctx): State<BridgeService>,
     Path(mcp_server_instance_id): Path<String>,
 ) -> JsonResponse<(), CommonError> {
+    trace!(instance_id = %mcp_server_instance_id, "Deleting MCP server instance");
     let res = delete_mcp_server_instance(
         ctx.on_config_change_tx(),
         ctx.repository(),
@@ -132,6 +149,7 @@ pub async fn route_delete_mcp_server_instance(
         true, // publish_on_change_evt
     )
     .await;
+    trace!(success = res.is_ok(), "Deleting MCP server instance completed");
     JsonResponse::from(res)
 }
 
@@ -154,7 +172,9 @@ pub async fn route_list_mcp_server_instances(
     State(ctx): State<BridgeService>,
     Query(params): Query<ListMcpServerInstancesParams>,
 ) -> JsonResponse<ListMcpServerInstancesResponse, CommonError> {
+    trace!(page_size = params.page_size, "Listing MCP server instances");
     let res = list_mcp_server_instances(ctx.repository(), params).await;
+    trace!(success = res.is_ok(), "Listing MCP server instances completed");
     JsonResponse::from(res)
 }
 
@@ -186,6 +206,11 @@ pub async fn route_add_mcp_server_instance_function(
     Path(mcp_server_instance_id): Path<String>,
     Json(request): Json<AddMcpServerInstanceFunctionRequest>,
 ) -> JsonResponse<AddMcpServerInstanceFunctionResponse, CommonError> {
+    trace!(
+        instance_id = %mcp_server_instance_id,
+        function_name = %request.function_name,
+        "Adding function to MCP server instance"
+    );
     let res = add_mcp_server_instance_function(
         ctx.on_config_change_tx(),
         ctx.repository(),
@@ -194,6 +219,7 @@ pub async fn route_add_mcp_server_instance_function(
         true, // publish_on_change_evt
     )
     .await;
+    trace!(success = res.is_ok(), "Adding function to MCP server instance completed");
     JsonResponse::from(res)
 }
 
@@ -228,6 +254,13 @@ pub async fn route_update_mcp_server_instance_function(
     )): Path<(String, String, String, String)>,
     Json(request): Json<UpdateMcpServerInstanceFunctionRequest>,
 ) -> JsonResponse<UpdateMcpServerInstanceFunctionResponse, CommonError> {
+    trace!(
+        instance_id = %mcp_server_instance_id,
+        function_type = %function_controller_type_id,
+        provider_type = %provider_controller_type_id,
+        provider_instance_id = %provider_instance_id,
+        "Updating MCP server instance function"
+    );
     let res = update_mcp_server_instance_function(
         ctx.on_config_change_tx(),
         ctx.repository(),
@@ -239,6 +272,7 @@ pub async fn route_update_mcp_server_instance_function(
         true, // publish_on_change_evt
     )
     .await;
+    trace!(success = res.is_ok(), "Updating MCP server instance function completed");
     JsonResponse::from(res)
 }
 
@@ -270,6 +304,13 @@ pub async fn route_remove_mcp_server_instance_function(
         provider_instance_id,
     )): Path<(String, String, String, String)>,
 ) -> JsonResponse<RemoveMcpServerInstanceFunctionResponse, CommonError> {
+    trace!(
+        instance_id = %mcp_server_instance_id,
+        function_type = %function_controller_type_id,
+        provider_type = %provider_controller_type_id,
+        provider_instance_id = %provider_instance_id,
+        "Removing function from MCP server instance"
+    );
     let res = remove_mcp_server_instance_function(
         ctx.on_config_change_tx(),
         ctx.repository(),
@@ -280,6 +321,7 @@ pub async fn route_remove_mcp_server_instance_function(
         true, // publish_on_change_evt
     )
     .await;
+    trace!(success = res.is_ok(), "Removing function from MCP server instance completed");
     JsonResponse::from(res)
 }
 

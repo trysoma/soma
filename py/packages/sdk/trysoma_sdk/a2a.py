@@ -3,9 +3,12 @@ Durable A2A client wrapper that makes all A2A operations replayable via Restate.
 All methods are wrapped with ctx.run() for durability.
 """
 
+import logging
 from typing import AsyncIterator, TypeVar, Generic, Union, cast, TYPE_CHECKING, TypeAlias
 
 from restate import ObjectContext
+
+logger = logging.getLogger(__name__)
 
 # A2A types - these are the core types from a2a-python
 from a2a.types import (
@@ -133,6 +136,7 @@ class A2AClient:
         Send a message to the agent (non-streaming, durable).
         The entire request/response cycle is wrapped for durability.
         """
+        logger.debug("Sending message to agent %s", self._restate_id)
         index = self._request_index
         self._request_index += 1
 
@@ -160,9 +164,13 @@ class A2AClient:
         )
         # Try to parse as Task first, then Message
         try:
-            return Task.model_validate(data)
+            result = Task.model_validate(data)
+            logger.debug("Sending message to agent %s completed", self._restate_id)
+            return result
         except Exception:
-            return Message.model_validate(data)
+            result = Message.model_validate(data)
+            logger.debug("Sending message to agent %s completed", self._restate_id)
+            return result
 
     async def send_message_stream(
         self,
@@ -173,6 +181,7 @@ class A2AClient:
         Each event from the stream is individually made durable.
         Returns an async generator that yields events durably.
         """
+        logger.debug("Starting streaming message to agent %s", self._restate_id)
         index = self._request_index
         self._request_index += 1
 
@@ -203,9 +212,11 @@ class A2AClient:
                     yield cast(StreamEventType, event_response)
             else:
                 yield cast(StreamEventType, event_response)
+        logger.debug("Streaming message to agent %s completed", self._restate_id)
 
     async def get_task(self, params: TaskQueryParams) -> Task:
         """Get a task by ID (durable)."""
+        logger.debug("Getting task %s", params.id)
         index = self._request_index
         self._request_index += 1
 
@@ -229,10 +240,13 @@ class A2AClient:
             f"a2a-{self._restate_id}-getTask-index-{index}",
             do_get,
         )
-        return Task.model_validate(data)
+        result = Task.model_validate(data)
+        logger.debug("Getting task %s completed", params.id)
+        return result
 
     async def cancel_task(self, params: TaskIdParams) -> Task:
         """Cancel a task by ID (durable)."""
+        logger.debug("Canceling task %s", params.id)
         index = self._request_index
         self._request_index += 1
 
@@ -256,7 +270,9 @@ class A2AClient:
             f"a2a-{self._restate_id}-cancelTask-index-{index}",
             do_cancel,
         )
-        return Task.model_validate(data)
+        result = Task.model_validate(data)
+        logger.debug("Canceling task %s completed", params.id)
+        return result
 
     async def resubscribe_task(
         self,
@@ -266,6 +282,7 @@ class A2AClient:
         Resubscribe to a task's event stream.
         Each event from the stream is individually made durable.
         """
+        logger.debug("Resubscribing to task %s", params.id)
         index = self._request_index
         self._request_index += 1
 
@@ -295,9 +312,11 @@ class A2AClient:
                     yield cast(StreamEventType, event_response)
             else:
                 yield cast(StreamEventType, event_response)
+        logger.debug("Resubscribing to task %s completed", params.id)
 
     async def get_agent_card(self) -> AgentCard:
         """Get the agent card (durable)."""
+        logger.debug("Getting agent card for %s", self._restate_id)
         index = self._request_index
         self._request_index += 1
 
@@ -309,7 +328,9 @@ class A2AClient:
             f"a2a-{self._restate_id}-getAgentCard-index-{index}",
             do_get_card,
         )
-        return AgentCard.model_validate(data)
+        result = AgentCard.model_validate(data)
+        logger.debug("Getting agent card for %s completed", self._restate_id)
+        return result
 
 
 async def create_a2a_client(
@@ -332,6 +353,8 @@ async def create_a2a_client(
     from a2a.client import A2ACardResolver
     from urllib.parse import urlparse
 
+    logger.debug("Creating A2A client for agent %s from %s", agent_id, card_url)
+
     async def init_client() -> dict[str, object]:
         parsed_url = urlparse(card_url)
         base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
@@ -352,6 +375,7 @@ async def create_a2a_client(
     httpx_client = httpx.AsyncClient()
     base_client = BaseA2AClient(httpx_client=httpx_client)
 
+    logger.debug("Creating A2A client for agent %s completed", agent_id)
     return A2AClient(ctx, base_client, agent_id)
 
 
