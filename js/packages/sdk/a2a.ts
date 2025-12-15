@@ -25,6 +25,47 @@ export type A2AStreamEventData =
 	| TaskStatusUpdateEvent
 	| TaskArtifactUpdateEvent;
 
+class DurableStream<T> {
+	private stream: AsyncGenerator<T, void, undefined> | undefined;
+	private index: number;
+	private streamName: string;
+	private ctx: ObjectContext;
+
+	constructor(
+		ctx: ObjectContext,
+		streamName: string,
+		stream: AsyncGenerator<T, void, undefined>,
+	) {
+		this.ctx = ctx;
+		this.streamName = streamName;
+		this.stream = stream;
+		this.index = 0;
+	}
+
+	async *[Symbol.asyncIterator]() {
+		while (true) {
+			const event = await this.ctx.run(
+				`${this.streamName}-event-index-${this.index}`,
+				async () => this.stream?.next(),
+			);
+
+			// Note: this should never happen, this is only
+			// if the we initially crashed and now are resuming
+			if (!event) {
+				throw new Error(
+					`Restated durable stream ${this.streamName} error. We should never get here. Our journal is out of sync.`,
+				);
+			}
+
+			if (event.done) {
+				break;
+			}
+			yield event.value;
+			this.index++;
+		}
+	}
+}
+
 /**
  * Durable A2A client wrapper that makes all A2A operations replayable via Restate.
  * All methods are wrapped with ctx.run() for durability.
@@ -32,12 +73,14 @@ export type A2AStreamEventData =
 export class A2AClient {
 	private ctx: ObjectContext;
 	private client: BaseA2AClient;
-	private agentId: string;
+	private restateId: string;
+	private requestIndex: number;
 
-	constructor(ctx: ObjectContext, client: BaseA2AClient, agentId: string) {
+	constructor(ctx: ObjectContext, client: BaseA2AClient, restateId: string) {
 		this.ctx = ctx;
 		this.client = client;
-		this.agentId = agentId;
+		this.restateId = restateId;
+		this.requestIndex = 0;
 	}
 
 	/**
@@ -45,9 +88,12 @@ export class A2AClient {
 	 * The entire request/response cycle is wrapped for durability.
 	 */
 	async sendMessage(params: MessageSendParams): Promise<SendMessageResponse> {
-		return this.ctx.run(`a2a-${this.agentId}-sendMessage`, async () => {
-			return this.client.sendMessage(params);
-		});
+		return this.ctx.run(
+			`a2a-${this.restateId}-sendMessage-index-${this.requestIndex++}`,
+			async () => {
+				return this.client.sendMessage(params);
+			},
+		);
 	}
 
 	/**
@@ -58,19 +104,13 @@ export class A2AClient {
 	async *sendMessageStream(
 		params: MessageSendParams,
 	): AsyncGenerator<A2AStreamEventData, void, undefined> {
-		// Start the stream (this creates the SSE connection)
 		const stream = this.client.sendMessageStream(params);
-		let eventIndex = 0;
-
-		for await (const event of stream) {
-			// Make each event durable by wrapping it in ctx.run
-			const durableEvent = await this.ctx.run(
-				`a2a-${this.agentId}-stream-event-${eventIndex}`,
-				async () => event,
-			);
-			eventIndex++;
-			yield durableEvent;
-		}
+		const durableStream = new DurableStream(
+			this.ctx,
+			`a2a-${this.restateId}-sendMessageStream-index-${this.requestIndex++}`,
+			stream,
+		);
+		yield* durableStream;
 	}
 
 	/**
@@ -78,7 +118,7 @@ export class A2AClient {
 	 */
 	async getTask(params: TaskQueryParams): Promise<GetTaskResponse> {
 		return this.ctx.run(
-			`a2a-${this.agentId}-getTask-${params.id}`,
+			`a2a-${this.restateId}-getTask-index-${this.requestIndex++}`,
 			async () => {
 				return this.client.getTask(params);
 			},
@@ -90,7 +130,7 @@ export class A2AClient {
 	 */
 	async cancelTask(params: TaskIdParams): Promise<CancelTaskResponse> {
 		return this.ctx.run(
-			`a2a-${this.agentId}-cancelTask-${params.id}`,
+			`a2a-${this.restateId}-cancelTask-index-${this.requestIndex++}`,
 			async () => {
 				return this.client.cancelTask(params);
 			},
@@ -105,25 +145,24 @@ export class A2AClient {
 		params: TaskIdParams,
 	): AsyncGenerator<A2AStreamEventData, void, undefined> {
 		const stream = this.client.resubscribeTask(params);
-		let eventIndex = 0;
-
-		for await (const event of stream) {
-			const durableEvent = await this.ctx.run(
-				`a2a-${this.agentId}-resubscribe-event-${params.id}-${eventIndex}`,
-				async () => event,
-			);
-			eventIndex++;
-			yield durableEvent;
-		}
+		const durableStream = new DurableStream(
+			this.ctx,
+			`a2a-${this.restateId}-resubscribeTask-index-${this.requestIndex++}`,
+			stream,
+		);
+		yield* durableStream;
 	}
 
 	/**
 	 * Get the agent card (durable).
 	 */
 	async getAgentCard(): Promise<AgentCard> {
-		return this.ctx.run(`a2a-${this.agentId}-getAgentCard`, async () => {
-			return this.client.getAgentCard();
-		});
+		return this.ctx.run(
+			`a2a-${this.restateId}-getAgentCard-index-${this.requestIndex++}`,
+			async () => {
+				return this.client.getAgentCard();
+			},
+		);
 	}
 }
 

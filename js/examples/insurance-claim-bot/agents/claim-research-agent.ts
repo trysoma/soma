@@ -7,6 +7,7 @@ import {
 	TaskStatus,
 } from "@trysoma/api-client";
 import { createSomaAgent, patterns } from "@trysoma/sdk";
+import { createSomaAiSdkMcpClient } from "@trysoma/sdk/vercel-ai-sdk";
 import {
 	type LanguageModel,
 	streamText,
@@ -55,18 +56,18 @@ const handlers = {
 
 			ctx.console.log("Messages", messages);
 
-			let {
-				transport,
-				sessionId,
-			} = createSomaMcpTransport(ctx, "test");
-			const mcpClient = await createMCPClient({
-				transport,
-			})
-			sessionId = transport.sessionId;
+			const mcpClient = await createSomaAiSdkMcpClient(ctx, {
+				baseMcpClient: {
+					mcpServerInstanceId: "test",
+				},
+			});
 			const tools = await mcpClient.tools();
-			ctx.console.log("Tools", tools.tools);
+			ctx.console.log("Tools", tools);
 
-			const stream = streamText({
+			const {
+				fullStream,
+				text
+			} = streamText({
 				model,
 				messages,
 				tools: {
@@ -82,20 +83,36 @@ const handlers = {
 			});
 			let agentOutput = "";
 
-			for await (const evt of stream.fullStream) {
+			for await (const evt of fullStream) {
 				if (evt.type === "text-delta") {
 					process.stdout.write(evt.text);
 					agentOutput += evt.text;
-					// messages.push({ role: "assistant", content: agentOutput });
 					// stream output back to user
+				} else if (evt.type === "tool-call") {
+					// Tool call initiated - you can log this if needed
+					ctx.console.log(`Tool called: ${evt.toolName}`, evt);
+				} else if (evt.type === "tool-result") {
+					// Tool execution completed - result is available here
+					ctx.console.log(`Tool result for ${evt.toolCallId}:`, evt);
+					// The model will automatically receive this result and continue streaming
+				}
+				else {
+					ctx.console.log("Event", evt);
+
 				}
 			}
+			const finalText = await text;
+			ctx.console.log("Final text", finalText);
+			messages.push({
+				role: "assistant",
+				content: finalText,
+			});
 
 			await sendMessage({
 				metadata: {},
 				parts: [
 					{
-						text: agentOutput,
+						text: finalText,
 						metadata: {},
 						type: MessagePartTypeEnum.TextPart,
 					},
@@ -117,9 +134,10 @@ export default createSomaAgent({
 		const bridge = getBridge(ctx);
 		const agents = await getAgents(ctx);
 
+		// Note: Type assertion needed due to version mismatch between ai SDK v3 and restate middleware v2
 		const model = wrapLanguageModel({
-			model: openai("gpt-5"),
-			middleware: durableCalls(ctx, { maxRetryAttempts: 3 }),
+			model: openai("gpt-5") as unknown as Parameters<typeof wrapLanguageModel>[0]["model"],
+			middleware: durableCalls(ctx, { maxRetryAttempts: 3 }) as unknown as Parameters<typeof wrapLanguageModel>[0]["middleware"],
 		});
 
 		ctx.console.log("Researching claim...");

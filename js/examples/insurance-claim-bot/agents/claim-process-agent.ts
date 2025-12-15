@@ -198,9 +198,10 @@ export default createSomaAgent({
 		const bridge = getBridge(ctx);
 		const agents = await getAgents(ctx);
 
+		// Note: Type assertion needed due to version mismatch between ai SDK v3 and restate middleware v2
 		const model = wrapLanguageModel({
-			model: openai("gpt-4o"),
-			middleware: durableCalls(ctx, { maxRetryAttempts: 3 }),
+			model: openai("gpt-4o") as unknown as Parameters<typeof wrapLanguageModel>[0]["model"],
+			middleware: durableCalls(ctx, { maxRetryAttempts: 3 }) as unknown as Parameters<typeof wrapLanguageModel>[0]["middleware"],
 		});
 
 		ctx.console.log("Discovering claim...");

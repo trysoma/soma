@@ -147,6 +147,13 @@ pub enum CommonError {
         #[source]
         source: reqwest::Error,
     },
+    #[error("pmdaemon error")]
+    PmdaemonError {
+        #[serde(skip)]
+        #[from]
+        #[source]
+        source: pmdaemon::Error,
+    },
 }
 
 impl From<CommonError> for A2aServerError {
@@ -317,6 +324,7 @@ impl IntoResponse for CommonError {
             | CommonError::GlobSetError { .. }
             | CommonError::NotifyError { .. }
             | CommonError::ReqwestError { .. }
+            | CommonError::PmdaemonError { .. }
             | CommonError::AddrParseError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
@@ -341,6 +349,7 @@ impl IntoResponse for CommonError {
                 CommonError::GlobSetError { .. } => "InternalServerError",
                 CommonError::NotifyError { .. } => "InternalServerError",
                 CommonError::ReqwestError { .. } => "InternalServerError",
+                CommonError::PmdaemonError { .. } => "InternalServerError",
             }
             .to_string(),
             message: self.to_string(),
@@ -381,7 +390,8 @@ impl From<CommonError> for ErrorData {
             | CommonError::VarError { .. }
             | CommonError::GlobSetError { .. }
             | CommonError::NotifyError { .. }
-            | CommonError::ReqwestError { .. } => {
+            | CommonError::ReqwestError { .. }
+            | CommonError::PmdaemonError { .. } => {
                 ErrorData::internal_error(error.to_string(), None)
             }
         }

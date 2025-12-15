@@ -105,7 +105,7 @@ libsql = { git = "https://github.com/trysoma/tursodatabase-libsql", rev = "25266
 ] }
 libsql-server = { git = "https://github.com/trysoma/tursodatabase-libsql", rev = "25266445e3d3b76ed781d5a7acb82f1ece29c09e" }
 #this is branch soma, pinned to this commit
-libsql_migration = { git = "https://github.com/trysoma/prashant1k99-libsql_migration", rev = "148108c50c07ad66b468cb3ad84d3ca1c5e5f0e9" }
+libsql_migration = { git = "https://github.com/trysoma/prashant1k99-libsql_migration", rev = "436ec89ba0e37cb239e1039c22981d679f4d8f0f" }
 # thsi is release tag v0.2.0-pre.12
 ## GRPC
 prost = "0.13"
@@ -187,6 +187,9 @@ serde_repr = "^0.1"
 serde_with = { version = "^3.8", default-features = false, features = ["base64", "std", "macros"] }
 sha2 = "0.10.9"
 zip = "2.2.2"
+pmdaemon ="0.1.4"
+human-panic = "2.0.4"
+indicatif = "0.18.3"
 
 ## internal crates
 a2a-rs = { path = "./crates/a2a-rs" }

@@ -4,13 +4,16 @@ mod commands;
 mod restate_server;
 mod server;
 mod utils;
-
+mod process_manager;
 use clap::Parser;
+use human_panic::setup_panic;
+
 
 use crate::cli::{Cli, run_cli};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    setup_panic!();
     // Initialize tracing
     shared::env::configure_env()?;
     shared::logging::configure_logging()?;

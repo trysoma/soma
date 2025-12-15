@@ -18,52 +18,62 @@ fn main() {
     println!("cargo:warning=Generating openapi spec in /openapi.json");
 
     let openapi_json_path = workspace_dir.join("openapi.json");
+    let typescript_client_path = app_dir.join("src/@types/openapi.d.ts");
 
-    let spec = soma_api_server::router::generate_openapi_spec();
-    let openapi_client_json =
-        serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
-    fs::write(&openapi_json_path, openapi_client_json).expect("Failed to write openapi.json");
+    if cfg!(debug_assertions) || (openapi_json_path.exists() && typescript_client_path.exists()) {
+        println!(
+            "cargo:warning=Debug build or frontend already built, skipping openapi spec generation and client generation"
+        );
+    } else {
 
-    // Step 2: Generate TypeScript client
-    println!("cargo:warning=Generating typescript client");
+        let spec = soma_api_server::router::generate_openapi_spec();
+        let openapi_client_json =
+            serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
+        fs::write(&openapi_json_path, openapi_client_json).expect("Failed to write openapi.json");
 
-    let openapi_client_path_str = openapi_json_path.to_string_lossy();
 
-    let generator_output = Command::new("npx")
-        .args([
-            "--yes",
-            "openapi-typescript@latest",
-            &openapi_client_path_str,
-            "-o",
-            format!("{}/src/@types/openapi.d.ts", app_dir.display()).as_str(),
-        ])
-        .current_dir(&app_dir)
-        .output();
+        // Step 2: Generate TypeScript client
+        println!("cargo:warning=Generating typescript client");
 
-    match generator_output {
-        Ok(output) => {
-            if !output.status.success() {
-                println!(
-                    "cargo:warning=npx openapi-typescript failed with exit code: {:?}",
-                    output.status.code()
-                );
-                if !output.stdout.is_empty() {
+        let openapi_client_path_str = openapi_json_path.to_string_lossy();
+
+        let generator_output = Command::new("npx")
+            .args([
+                "--yes",
+                "openapi-typescript@latest",
+                &openapi_client_path_str,
+                "-o",
+                typescript_client_path.to_str().unwrap(),
+            ])
+            .current_dir(&app_dir)
+            .output();
+
+        match generator_output {
+            Ok(output) => {
+                if !output.status.success() {
                     println!(
-                        "cargo:warning=stdout: {}",
-                        String::from_utf8_lossy(&output.stdout)
+                        "cargo:warning=npx openapi-typescript failed with exit code: {:?}",
+                        output.status.code()
                     );
-                }
-                if !output.stderr.is_empty() {
-                    println!(
-                        "cargo:warning=stderr: {}",
-                        String::from_utf8_lossy(&output.stderr)
-                    );
+                    if !output.stdout.is_empty() {
+                        println!(
+                            "cargo:warning=stdout: {}",
+                            String::from_utf8_lossy(&output.stdout)
+                        );
+                    }
+                    if !output.stderr.is_empty() {
+                        println!(
+                            "cargo:warning=stderr: {}",
+                            String::from_utf8_lossy(&output.stderr)
+                        );
+                    }
                 }
             }
+            Err(e) => {
+                println!("cargo:warning=Could not run npx openapi-typescript: {e}");
+            }
         }
-        Err(e) => {
-            println!("cargo:warning=Could not run npx openapi-typescript: {e}");
-        }
+
     }
 
     // Step 3: Check if frontend is already built (routes.json exists)

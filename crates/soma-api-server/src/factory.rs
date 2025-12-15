@@ -16,7 +16,7 @@ use shared::uds::{
 };
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info, warn};
+use tracing::{error, info, trace, warn};
 
 use crate::logic::on_change_pubsub::{SomaChangeTx, create_soma_change_channel, run_change_pubsub};
 use crate::logic::task::ConnectionManager;
@@ -65,22 +65,24 @@ pub async fn create_api_service(
     } = params;
 
     // Determine SDK runtime
+    trace!("Determining SDK runtime");
     let sdk_runtime = match determine_sdk_runtime(&project_dir)? {
         Some(runtime) => runtime,
         None => {
+            error!("No SDK runtime matched");
             return Err(CommonError::Unknown(anyhow::anyhow!(
                 "No SDK runtime matched"
             )));
         }
     };
-
+    trace!("SDK runtime determined: {:?}", sdk_runtime);
     // Setup database and repositories
-    info!("Setting up database and repositories...");
+    trace!("Setting up database and repositories...");
     let connection_manager = ConnectionManager::new();
     let db_url = url::Url::parse(&db_conn_string)?;
     let (_db, conn, repository, bridge_repo, encryption_repo) =
         setup_repository(&db_url, &db_auth_token).await?;
-
+    trace!("Database and repositories setup");
     // Create identity repository (uses same connection)
     let identity_repo = identity::repository::Repository::new(conn.clone());
 
@@ -106,14 +108,15 @@ pub async fn create_api_service(
     let (soma_change_tx, _soma_change_rx) = create_soma_change_channel(100);
 
     // Initialize the crypto cache from the encryption repository
-    info!("Initializing crypto cache...");
+    trace!("Initializing crypto cache");
     let local_envelope_encryption_key_path = project_dir.join(".soma/envelope-encryption-keys");
     let crypto_cache = CryptoCache::new(
         encryption_repo.clone(),
         local_envelope_encryption_key_path.clone(),
     );
-    encryption::logic::crypto_services::init_crypto_cache(&crypto_cache).await?;
-
+    encryption::logic::crypto_services::init_crypto_cache(&crypto_cache).await
+        .inspect_err(|e| error!("Failed to initialize crypto cache"))?;
+    trace!("Crypto cache initialized");
     // Create the agent cache early (shared between services, needed for codegen)
     let agent_cache = sdk_agent_sync::create_agent_cache();
 

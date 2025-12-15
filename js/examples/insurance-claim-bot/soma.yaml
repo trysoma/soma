@@ -13,14 +13,14 @@ bridge:
       credential_controller_type_id: no_auth
       display_name: internal
       resource_server_credential:
-        id: c7173469-54a5-4075-b3d4-f5ea68c12580
+        id: c615d7bc-4251-4bb0-aaa7-5d38f9bbfc32
         type_id: resource_server_no_auth
         metadata: {}
         value:
           metadata: {}
         dek_alias: default
       user_credential:
-        id: dc6124aa-e859-4526-a4ba-42e11a56095d
+        id: 664149a7-fa0d-416c-aa66-072a268518fc
         type_id: user_no_auth
         metadata: {}
         value:
@@ -33,14 +33,14 @@ bridge:
       credential_controller_type_id: no_auth
       display_name: internal
       resource_server_credential:
-        id: 7c696576-9ebd-46a4-9cd8-27449932110b
+        id: aebb56ee-ee5a-4447-aafe-889a726d2a73
         type_id: resource_server_no_auth
         metadata: {}
         value:
           metadata: {}
         dek_alias: default
       user_credential:
-        id: 3d0c89f5-dac0-494c-a667-28662f6dad6a
+        id: b95aaf07-9777-4271-ac97-7eb7ec758d7a
         type_id: user_no_auth
         metadata: {}
         value:
@@ -49,12 +49,6 @@ bridge:
       functions:
       - research-claim
   mcp_servers:
-    test-3:
-      name: test-3
-      functions: []
-    test-2:
-      name: test-2
-      functions: []
     test:
       name: test
       functions:
@@ -66,6 +60,12 @@ bridge:
         provider_controller_type_id: research-claim
         provider_instance_id: 452b1c4c-6ba7-4284-b362-2431750569fc
         function_name: research_claim
+    test-2:
+      name: test-2
+      functions: []
+    test-3:
+      name: test-3
+      functions: []
 secrets:
   OPENAI_API_KEY:
     value: ViY4JLxjdk8TmSDEXx1Msrb153aSQB9RVeFmKFsSAayoENC0szCNcWEy3E8LgR4arWNVqsChpLDWaraye2BF4n0VsK82QgHyjcY/GL4qcA9fmQwmfu1EKD2B3LMUSp0FogGSG8v6gwwxuE2+Ur4PKJkPytcX6bYf7kzNqRAUfjqeE2wqIOHg5dEFii3DBmsUWM0yMpPIEXTZPpUCjhY626AU/CAg8rcFYoFj69TN+uWmG9nKCMpf5/bAfOG+Yo5F

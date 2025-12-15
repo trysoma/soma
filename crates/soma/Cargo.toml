@@ -65,7 +65,9 @@ soma-frontend.workspace = true
 comfy-table.workspace = true
 inquire.workspace = true
 identity.workspace = true
-
+pmdaemon.workspace = true
+human-panic.workspace = true
+indicatif.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

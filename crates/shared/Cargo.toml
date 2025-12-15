@@ -50,6 +50,7 @@ humantime.workspace = true
 urlencoding.workspace = true
 sdk-proto.workspace = true
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
+pmdaemon.workspace = true
 
 [dev-dependencies]
 chrono.workspace = true

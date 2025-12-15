@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
 use soma_api_client::apis::configuration::Configuration as ApiClientConfiguration;
 use tokio::sync::{Mutex, MutexGuard};
-use tracing::info;
+use tracing::{debug, info};
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct CliUser {
@@ -84,14 +84,16 @@ pub fn get_config_file_path() -> Result<PathBuf, CommonError> {
 
 pub async fn get_or_init_cli_config() -> Result<CliConfig, CommonError> {
     let config_file_path = get_config_file_path()?;
-    info!("Config file path: {:?}", config_file_path);
+    debug!("We are looking for the config file at: {:?}", config_file_path);
     let config = match config_file_path.exists() {
         true => {
+            debug!("Config file found at: {:?}", config_file_path);
             let config_file = File::open(config_file_path)?;
             let config = serde_json::from_reader(config_file)?;
             CliConfig::new(config)
         }
         false => {
+            debug!("Config file not found at: {:?}, creating it", config_file_path);
             fs::create_dir_all(config_file_path.parent().unwrap())?;
             let config = CliConfigInner {
                 cloud: CloudConfig {

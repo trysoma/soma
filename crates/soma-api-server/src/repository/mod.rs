@@ -9,7 +9,7 @@ use shared::{
 };
 
 pub use sqlite::Repository;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::logic::environment_variable::EnvironmentVariable;
 use crate::logic::secret::Secret;
@@ -256,8 +256,7 @@ pub async fn setup_repository(
     ),
     CommonError,
 > {
-    info!("Setting up database repository...");
-    info!("conn_string: {}", conn_string);
+    debug!("conn_string: {}", conn_string);
     let migrations = merge_nested_migrations(vec![
         Repository::load_sql_migrations(),
         bridge::repository::Repository::load_sql_migrations(),

@@ -7,6 +7,8 @@ use clap::Args;
 use clap::Parser;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
+use tracing::debug;
+use tracing::trace;
 use tracing::{error, info, warn};
 use url::Url;
 
@@ -15,6 +17,7 @@ use shared::port::find_free_port;
 use shared::soma_agent_definition::{SomaAgentDefinitionLike, YamlSomaAgentDefinition};
 
 use crate::bridge::start_bridge_sync_to_yaml_subsystem;
+use crate::process_manager::CustomProcessManager;
 use crate::server::{StartAxumServerParams, start_axum_server};
 use crate::utils::wait_for_soma_api_health_check;
 use crate::utils::{CliConfig, construct_cwd_absolute};
@@ -85,8 +88,18 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         broadcast::channel::<()>(1);
     let project_dir = construct_cwd_absolute(params.clone().cwd)?;
 
+    debug!("Starting dev server in project directory: {}", project_dir.display());
+    trace!("Starting process manager");
+    let mut process_manager = CustomProcessManager::new().await
+        .inspect_err(|_e| {
+            error!("Failed to start process manager");
+        })?;
+    trace!("Process manager started");
+
+    trace!("setting up Libsql database");
     // Resolve relative db_conn_string paths relative to project_dir
     let db_conn_string = if params.db_conn_string.as_str().starts_with("libsql://./") {
+        debug!("Libsql connection is a relative path, resolving to absolute path");
         // Extract the path portion after libsql://./
         let url_str = params.db_conn_string.as_str();
         let path_with_query = url_str.strip_prefix("libsql://./").unwrap_or("");
@@ -105,48 +118,80 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
             format!("libsql://{path_str}?{query_part}")
         };
 
-        info!("Database path resolved to: {}", absolute_path.display());
+        debug!("Database path resolved to: {}", absolute_path.display());
 
         if params.clean && absolute_path.exists() {
-            info!("Cleaning local sqlite DB...");
-            std::fs::remove_file(absolute_path).unwrap_or_else(|e| {
-                error!("Failed to clean local sqlite DB: {e:?}");
-            });
+            debug!("Libsql connection is a relative path and --clean flag is set, cleaning local sqlite DB");
+            trace!("Deleting local sqlite DB file: {}", absolute_path.display());
+            std::fs::remove_file(absolute_path)
+            .inspect_err(|_e| {
+                error!("Failed to clean local sqlite DB");
+            })
+            .map_err(|e| CommonError::from(e))?;
+            trace!("Local sqlite DB file deleted successfully");
         }
 
         Url::parse(&new_url_str).unwrap_or_else(|_| params.db_conn_string.clone())
     } else {
+        debug!("Libsql connection is a remote HTTP connection or an absolute file path, using as is");
         params.db_conn_string.clone()
     };
 
-    // Load soma definition
-    let soma_definition: Arc<dyn SomaAgentDefinitionLike> = load_soma_definition(&project_dir)?;
+    trace!("Libsql database setup complete");
 
+    // Load soma definition
+    trace!("Loading soma definition");
+    let soma_definition: Arc<dyn SomaAgentDefinitionLike> = load_soma_definition(&project_dir)
+        .inspect_err(|_e| {
+            error!("Failed to load soma definition");
+        })?;
+    debug!("soma definition: {:?}", soma_definition.get_definition().await?);
+    trace!("Soma definition loaded");
+
+    trace!("Configuring restate server");
     // Find free port for SDK server
     let soma_restate_service_port = find_free_port(9080, 10080)?;
 
     // Setup Restate parameters
     let restate_params = match params.remote_restate {
-        Some(remote_restate) => remote_restate.try_into()?,
-        None => RestateServerParams::Local(RestateServerLocalParams {
-            project_dir: project_dir.clone(),
-            ingress_port: 8080,
-            admin_port: 9070,
-            soma_restate_service_port,
-            soma_restate_service_additional_headers: std::collections::HashMap::new(),
-            clean: params.clean,
-        }),
+        Some(remote_restate) => {
+            debug!("Configuring remote restate server parameters");
+            debug!("restate admin url: {:?}", remote_restate.admin_url);
+            debug!("restate ingress url: {:?}", remote_restate.ingress_url);
+            debug!("restate admin token: **********");
+            remote_restate.try_into()?
+        },
+        None => {
+            let restate_server_data_dir = project_dir.join(".soma/restate-data");
+            let ingress_port = 8080;
+            let admin_port = 9070;
+            debug!("Configuring local restate server parameters");
+            debug!("restate server data directory: {:?}", restate_server_data_dir);
+            debug!("restate ingress port (this is where requests to trigger a restate workflow are sent): {:?}", ingress_port);
+            debug!("restate admin port (this is where the restate admin API is exposed): {:?}", admin_port);
+            debug!("restate soma restate service port (this is where the Soma SDK restate service is exposed): {:?}", soma_restate_service_port);
+            debug!("restate clean: {:?}", params.clean);
+            RestateServerParams::Local(RestateServerLocalParams {
+                restate_server_data_dir,
+                ingress_port,
+                admin_port,
+                soma_restate_service_port,
+                soma_restate_service_additional_headers: std::collections::HashMap::new(),
+                clean: params.clean,
+            })
+        },
     };
 
+
     // Start Restate server subsystem
-    info!("Starting Restate server...");
-    let restate_handle = crate::restate_server::start_restate_subsystem(
+    crate::restate_server::start_restate(
+        &mut process_manager,
         restate_params.clone(),
-        system_shutdown_signal_trigger.subscribe(),
-    )?;
+    ).await?;
+    trace!("Restate server configured");
 
     // Create API service and start all subsystems
-    info!("Initializing API service and starting all subsystems...");
+    trace!("Starting API server");
     let api_service_bundle = create_api_service(CreateApiServiceParams {
         project_dir: project_dir.clone(),
         host: params.host.clone(),
@@ -160,19 +205,19 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
         system_shutdown_signal: system_shutdown_signal_trigger.clone(),
     })
     .await?;
+    trace!("API server started");
 
     // Start bridge config change listener subsystem (uses unified change channel from factory)
-    info!("Starting bridge config change listener...");
+    trace!("Starting bridge config change listener...");
     let bridge_sync_handle = start_bridge_sync_to_yaml_subsystem(
         soma_definition.clone(),
         project_dir.clone(),
         api_service_bundle.soma_change_tx.subscribe(),
     )?;
-
+    trace!("Bridge config change listener started");
     let api_service = api_service_bundle.api_service;
     let subsystems = api_service_bundle.subsystems;
 
-    info!("API service initialized and all subsystems started");
 
     // Start Axum server subsystem
     // let (on_server_started_tx, on_server_started_rx) = oneshot::channel::<()>();
@@ -277,7 +322,7 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
 
     // Add all subsystems from the bundle
     add_subsystem_handle("bridge_sync_yaml", Some(bridge_sync_handle));
-    add_subsystem_handle("restate", Some(restate_handle));
+    // add_subsystem_handle("restate", Some(restate_handle));
     add_subsystem_handle("sdk_server", subsystems.sdk_server);
     add_subsystem_handle("credential_rotation", subsystems.credential_rotation);
 
@@ -285,7 +330,7 @@ pub async fn cmd_dev(params: DevParams, _cli_config: &mut CliConfig) -> Result<(
     // Note: MCP is now handled as a nested Tower service within the axum router,
     // so it doesn't have a separate subsystem handle.
     let systems_that_can_trigger_shutdown: Vec<&str> = vec![
-        "restate",
+        // "restate",
         "bridge_sync_yaml",
         "axum_server",
         "sdk_server",
@@ -432,6 +477,7 @@ fn load_soma_definition(
     project_dir: &Path,
 ) -> Result<Arc<dyn SomaAgentDefinitionLike>, CommonError> {
     let path_to_soma_definition = project_dir.join("soma.yaml");
+    debug!("Loading soma definition from: {}", path_to_soma_definition.display());
 
     if !path_to_soma_definition.exists() {
         return Err(CommonError::Unknown(anyhow::anyhow!(

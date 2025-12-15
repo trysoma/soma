@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use clap::{Parser, Subcommand};
 use shared::error::CommonError;
 use tracing::error;
@@ -13,15 +15,6 @@ use crate::{
 
 pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub fn unwrap_and_error<T>(cmd: Result<T, CommonError>) -> T {
-    match cmd {
-        Ok(value) => value,
-        Err(e) => {
-            error!("Error: {:?}", &e);
-            std::process::exit(1);
-        }
-    }
-}
 
 #[derive(Parser)]
 pub struct Cli {
@@ -61,14 +54,31 @@ pub enum Commands {
     /// Show Soma version
     Version,
 }
+fn log_error_chain(err: &(dyn Error)) {
+    let mut current: Option<&(dyn Error)> = Some(err);
+
+    while let Some(e) = current {
+        eprintln!("Caused by: {}", e);
+        current = e.source();
+    }
+}
+
+fn handle_error(err: &CommonError) {
+    eprintln!("Error: {}", err);
+    log_error_chain(&err);
+    ::std::process::exit(1);
+}
 
 pub async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
     let mut config = get_or_init_cli_config()
         .await
-        .inspect_err(|e| {
-            error!("Failed to get or init CLI config: {:?}", e);
-        })
-        .unwrap();
+        .or_else(|e| {
+            error!("Failed to load or create a fresh CLI config");
+            handle_error(&e);
+            Err(e)
+        })?;
+
+    
 
     let cmd_res = match cli.command {
         Commands::Dev(params) => commands::dev::cmd_dev(params, &mut config).await,
@@ -89,6 +99,8 @@ pub async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
         }
     };
 
-    unwrap_and_error(cmd_res);
+    if let Err(e) = cmd_res {
+        handle_error(&e);
+    }
     Ok(())
 }
