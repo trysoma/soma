@@ -1,6 +1,5 @@
 use shared::error::CommonError;
 use std::path::PathBuf;
-use tracing::info;
 
 use crate::codegen;
 use sdk_core as core_types;
