@@ -364,3 +364,64 @@ impl AuthClient {
         }
     }
 }
+
+impl AuthClientLike for AuthClient {
+    /// Authenticate credentials and return an Identity
+    async fn authenticate(&self, credentials: RawCredentials) -> Result<Identity, CommonError> {
+        match credentials {
+            RawCredentials::MachineApiKey(api_key) => self.authenticate_api_key(&api_key).await,
+            RawCredentials::HumanInternalToken(internal_token) => {
+                self.authenticate_internal_token(&internal_token).await
+            }
+            RawCredentials::MachineOnBehalfOfHuman(api_key, internal_token) => {
+                self.authenticate_machine_on_behalf_of_human(&api_key, &internal_token)
+                    .await
+            }
+        }
+    }
+    /// Authenticate from HTTP headers
+    ///
+    /// This method extracts credentials from HTTP headers and authenticates them.
+    /// Priority order for internal token:
+    /// 1. Authorization header (with or without "Bearer " prefix)
+    /// 2. soma_access_token cookie
+    ///
+    /// API key is checked from the x-api-key header.
+    ///
+    /// Returns:
+    /// - `Identity::Unauthenticated` if no credentials are found
+    /// - The appropriate `Identity` variant if credentials are found and valid
+    /// - An error if credentials are found but invalid
+    async fn authenticate_from_headers(
+        &self,
+        headers: &HeaderMap,
+    ) -> Result<Identity, CommonError> {
+        // Extract internal token from Authorization header or cookie
+        let internal_token = self.extract_internal_token(headers);
+
+        // Extract API key from x-api-key header
+        let api_key = self.extract_api_key(headers);
+
+        // Build RawCredentials based on what we found
+        let credentials = match (internal_token, api_key) {
+            (Some(token), Some(key)) => {
+                // Both present - machine on behalf of human
+                RawCredentials::MachineOnBehalfOfHuman(ApiKey(key), InternalToken(token))
+            }
+            (Some(token), None) => {
+                // Only internal token - human authentication
+                RawCredentials::HumanInternalToken(InternalToken(token))
+            }
+            (None, Some(key)) => {
+                // Only API key - machine authentication
+                RawCredentials::MachineApiKey(ApiKey(key))
+            }
+            (None, None) => {
+                // No credentials found
+                return Ok(Identity::Unauthenticated);
+            }
+        };
+
+        self.authenticate(credentials).await
+    }
+}
