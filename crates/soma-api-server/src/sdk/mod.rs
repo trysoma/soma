@@ -150,7 +150,6 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
     Ok(())
 }
 
-
 #[cfg(all(test, feature = "unit_test"))]
 mod unit_test {
     use super::*;

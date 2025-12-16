@@ -16,7 +16,10 @@ fn travese_up_for_env_file(file_name: &str) -> Option<PathBuf> {
         );
         Some(relative_workspace_root)
     } else {
-        trace!("No environment variables file found with name: {:?} in current directory or workspace root", file_name);
+        trace!(
+            "No environment variables file found with name: {:?} in current directory or workspace root",
+            file_name
+        );
         None
     }
 }
@@ -31,7 +34,10 @@ fn load_optional_env_file(file_name: Option<PathBuf>) {
             debug!("Loaded environment variables from: {}", path.display());
         }
         None => {
-            debug!("No environment variables file foun with name: {:?} in current directory or workspace root", file_name);
+            debug!(
+                "No environment variables file foun with name: {:?} in current directory or workspace root",
+                file_name
+            );
         }
     };
 }

@@ -52,7 +52,10 @@ pub async fn route_create_mcp_server_instance(
         true, // publish_on_change_evt
     )
     .await;
-    trace!(success = res.is_ok(), "Creating MCP server instance completed");
+    trace!(
+        success = res.is_ok(),
+        "Creating MCP server instance completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -78,7 +81,10 @@ pub async fn route_get_mcp_server_instance(
 ) -> JsonResponse<GetMcpServerInstanceResponse, CommonError> {
     trace!(instance_id = %mcp_server_instance_id, "Getting MCP server instance");
     let res = get_mcp_server_instance(ctx.repository(), &mcp_server_instance_id).await;
-    trace!(success = res.is_ok(), "Getting MCP server instance completed");
+    trace!(
+        success = res.is_ok(),
+        "Getting MCP server instance completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -117,7 +123,10 @@ pub async fn route_update_mcp_server_instance(
         true, // publish_on_change_evt
     )
     .await;
-    trace!(success = res.is_ok(), "Updating MCP server instance completed");
+    trace!(
+        success = res.is_ok(),
+        "Updating MCP server instance completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -149,7 +158,10 @@ pub async fn route_delete_mcp_server_instance(
         true, // publish_on_change_evt
     )
     .await;
-    trace!(success = res.is_ok(), "Deleting MCP server instance completed");
+    trace!(
+        success = res.is_ok(),
+        "Deleting MCP server instance completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -174,7 +186,10 @@ pub async fn route_list_mcp_server_instances(
 ) -> JsonResponse<ListMcpServerInstancesResponse, CommonError> {
     trace!(page_size = params.page_size, "Listing MCP server instances");
     let res = list_mcp_server_instances(ctx.repository(), params).await;
-    trace!(success = res.is_ok(), "Listing MCP server instances completed");
+    trace!(
+        success = res.is_ok(),
+        "Listing MCP server instances completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -219,7 +234,10 @@ pub async fn route_add_mcp_server_instance_function(
         true, // publish_on_change_evt
     )
     .await;
-    trace!(success = res.is_ok(), "Adding function to MCP server instance completed");
+    trace!(
+        success = res.is_ok(),
+        "Adding function to MCP server instance completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -272,7 +290,10 @@ pub async fn route_update_mcp_server_instance_function(
         true, // publish_on_change_evt
     )
     .await;
-    trace!(success = res.is_ok(), "Updating MCP server instance function completed");
+    trace!(
+        success = res.is_ok(),
+        "Updating MCP server instance function completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -321,7 +342,9 @@ pub async fn route_remove_mcp_server_instance_function(
         true, // publish_on_change_evt
     )
     .await;
-    trace!(success = res.is_ok(), "Removing function from MCP server instance completed");
+    trace!(
+        success = res.is_ok(),
+        "Removing function from MCP server instance completed"
+    );
     JsonResponse::from(res)
 }
-

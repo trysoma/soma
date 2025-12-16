@@ -86,7 +86,10 @@ async fn route_create_envelope_encryption_key(
         true,
     )
     .await;
-    trace!(success = res.is_ok(), "Creating envelope encryption key completed");
+    trace!(
+        success = res.is_ok(),
+        "Creating envelope encryption key completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -113,9 +116,15 @@ async fn route_list_envelope_encryption_keys(
     State(ctx): State<EncryptionService>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListEnvelopeEncryptionKeysResponse, CommonError> {
-    trace!(page_size = pagination.page_size, "Listing envelope encryption keys");
+    trace!(
+        page_size = pagination.page_size,
+        "Listing envelope encryption keys"
+    );
     let res = list_envelope_encryption_keys(ctx.repository(), pagination).await;
-    trace!(success = res.is_ok(), "Listing envelope encryption keys completed");
+    trace!(
+        success = res.is_ok(),
+        "Listing envelope encryption keys completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -171,7 +180,10 @@ async fn route_create_data_encryption_key(
         true,
     )
     .await;
-    trace!(success = res.is_ok(), "Creating data encryption key completed");
+    trace!(
+        success = res.is_ok(),
+        "Creating data encryption key completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -225,7 +237,10 @@ async fn route_import_data_encryption_key(
         true,
     )
     .await;
-    trace!(success = res.is_ok(), "Importing data encryption key completed");
+    trace!(
+        success = res.is_ok(),
+        "Importing data encryption key completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -261,7 +276,10 @@ async fn route_list_data_encryption_keys(
         inner: pagination,
     };
     let res = list_data_encryption_keys(ctx.repository(), list_params).await;
-    trace!(success = res.is_ok(), "Listing data encryption keys completed");
+    trace!(
+        success = res.is_ok(),
+        "Listing data encryption keys completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -314,7 +332,10 @@ async fn route_migrate_data_encryption_key(
         true,
     )
     .await;
-    trace!(success = res.is_ok(), "Migrating data encryption key completed");
+    trace!(
+        success = res.is_ok(),
+        "Migrating data encryption key completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -364,7 +385,10 @@ async fn route_migrate_all_data_encryption_keys(
         true,
     )
     .await;
-    trace!(success = res.is_ok(), "Migrating all data encryption keys completed");
+    trace!(
+        success = res.is_ok(),
+        "Migrating all data encryption keys completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -436,7 +460,10 @@ async fn route_get_dek_by_alias_or_id(
 ) -> JsonResponse<DataEncryptionKey, CommonError> {
     trace!(alias_or_id = %alias_or_id, "Getting DEK by alias or ID");
     let res = get_by_alias_or_id(ctx.repository(), &alias_or_id).await;
-    trace!(success = res.is_ok(), "Getting DEK by alias or ID completed");
+    trace!(
+        success = res.is_ok(),
+        "Getting DEK by alias or ID completed"
+    );
     JsonResponse::from(res)
 }
 

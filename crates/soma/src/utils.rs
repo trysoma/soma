@@ -84,7 +84,10 @@ pub fn get_config_file_path() -> Result<PathBuf, CommonError> {
 
 pub async fn get_or_init_cli_config() -> Result<CliConfig, CommonError> {
     let config_file_path = get_config_file_path()?;
-    debug!("We are looking for the config file at: {:?}", config_file_path);
+    debug!(
+        "We are looking for the config file at: {:?}",
+        config_file_path
+    );
     let config = match config_file_path.exists() {
         true => {
             debug!("Config file found at: {:?}", config_file_path);
@@ -93,7 +96,10 @@ pub async fn get_or_init_cli_config() -> Result<CliConfig, CommonError> {
             CliConfig::new(config)
         }
         false => {
-            debug!("Config file not found at: {:?}, creating it", config_file_path);
+            debug!(
+                "Config file not found at: {:?}, creating it",
+                config_file_path
+            );
             fs::create_dir_all(config_file_path.parent().unwrap())?;
             let config = CliConfigInner {
                 cloud: CloudConfig {
@@ -208,11 +214,7 @@ pub async fn create_and_wait_for_api_client(
                     )));
                 }
                 if attempt == 1 {
-                    tracing::trace!(
-                        attempt = attempt,
-                        max = max_retries,
-                        "Waiting for server"
-                    );
+                    tracing::trace!(attempt = attempt, max = max_retries, "Waiting for server");
                 }
                 tokio::time::sleep(Duration::from_secs(2)).await;
             }

@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import (
+from langchain_openai import ChatOpenAI  # type: ignore[import-not-found]
+from langchain_core.messages import (  # type: ignore[import-not-found]
     HumanMessage,
     AIMessage,
     SystemMessage,
@@ -286,7 +286,9 @@ async def process_claim_handler(
                 "function": {
                     "name": tool.name,
                     "description": tool.description or f"Tool: {tool.name}",
-                    "parameters": tool.args_schema.model_json_schema() if hasattr(tool, 'args_schema') else {"type": "object", "properties": {}},
+                    "parameters": tool.args_schema.model_json_schema()
+                    if hasattr(tool, "args_schema")
+                    else {"type": "object", "properties": {}},
                 },
             }
             all_tools.append(tool_dict)
@@ -315,7 +317,9 @@ async def process_claim_handler(
                     if tool_name == "make_decision":
                         approval_decision = tool_args.get("approved", False)
                         decision_reason = tool_args.get("reason", "")
-                        print(f"Decision made: {'Approved' if approval_decision else 'Denied'} - {decision_reason}")
+                        print(
+                            f"Decision made: {'Approved' if approval_decision else 'Denied'} - {decision_reason}"
+                        )
                         break
 
                     # Execute MCP tool
@@ -345,9 +349,13 @@ async def process_claim_handler(
                     if hasattr(follow_up, "tool_calls") and follow_up.tool_calls:
                         for fc in follow_up.tool_calls:
                             if fc.get("name") == "make_decision":
-                                approval_decision = fc.get("args", {}).get("approved", False)
+                                approval_decision = fc.get("args", {}).get(
+                                    "approved", False
+                                )
                                 decision_reason = fc.get("args", {}).get("reason", "")
-                                print(f"Decision made: {'Approved' if approval_decision else 'Denied'} - {decision_reason}")
+                                print(
+                                    f"Decision made: {'Approved' if approval_decision else 'Denied'} - {decision_reason}"
+                                )
                                 break
 
         except Exception as e:

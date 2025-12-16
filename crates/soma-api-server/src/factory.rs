@@ -9,7 +9,9 @@ use rmcp::transport::streamable_http_server::{
     StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
 use shared::error::CommonError;
-use shared::process_manager::{CustomProcessManager, OnStop, OnTerminalStop, RestartConfig, ThreadConfig};
+use shared::process_manager::{
+    CustomProcessManager, OnStop, OnTerminalStop, RestartConfig, ThreadConfig,
+};
 use shared::soma_agent_definition::SomaAgentDefinitionLike;
 use shared::uds::{
     DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client, establish_connection_with_retry,
@@ -111,7 +113,8 @@ pub async fn create_api_service(
         encryption_repo.clone(),
         local_envelope_encryption_key_path.clone(),
     );
-    encryption::logic::crypto_services::init_crypto_cache(&crypto_cache).await
+    encryption::logic::crypto_services::init_crypto_cache(&crypto_cache)
+        .await
         .inspect_err(|_e| error!("Failed to initialize crypto cache"))?;
     trace!("Crypto cache initialized");
     // Create the agent cache early (shared between services, needed for codegen)
@@ -150,7 +153,8 @@ pub async fn create_api_service(
         repository.clone(),
         crypto_cache.clone(),
         process_manager.clone(),
-    ).await?;
+    )
+    .await?;
 
     // Wait for SDK server and sync providers
     let socket_path = DEFAULT_SOMA_SERVER_SOCK.to_string();
@@ -345,47 +349,53 @@ pub async fn create_api_service(
     let encryption_change_tx_for_pubsub = encryption_change_tx.clone();
     let secret_change_tx_for_pubsub = secret_change_tx.clone();
     let environment_variable_change_tx_for_pubsub = environment_variable_change_tx.clone();
-    process_manager.start_thread("change_pubsub", ThreadConfig {
-        spawn_fn: {
-            let soma_change_tx = soma_change_tx_for_pubsub.clone();
-            let identity_change_tx = identity_change_tx_for_pubsub.clone();
-            let on_bridge_config_change_tx = on_bridge_config_change_tx_for_pubsub.clone();
-            let encryption_change_tx = encryption_change_tx_for_pubsub.clone();
-            let secret_change_tx = secret_change_tx_for_pubsub.clone();
-            let environment_variable_change_tx = environment_variable_change_tx_for_pubsub.clone();
-            move || {
-                let soma_change_tx = soma_change_tx.clone();
-                let identity_change_tx = identity_change_tx.clone();
-                let on_bridge_config_change_tx = on_bridge_config_change_tx.clone();
-                let encryption_change_tx = encryption_change_tx.clone();
-                let secret_change_tx = secret_change_tx.clone();
-                let environment_variable_change_tx = environment_variable_change_tx.clone();
-                tokio::spawn(async move {
-                    run_change_pubsub(
-                        soma_change_tx,
-                        on_bridge_config_change_tx.subscribe(),
-                        encryption_change_tx.subscribe(),
-                        secret_change_tx.subscribe(),
-                        environment_variable_change_tx.subscribe(),
-                        identity_change_tx.subscribe(),
-                    )
-                    .await;
-                    Ok(())
-                })
-            }
-        },
-        health_check: None,
-        on_terminal_stop: OnTerminalStop::TriggerShutdown,
-        on_stop: OnStop::Restart(RestartConfig {
-            max_restarts: 5,
-            restart_delay: 1000,
-        }),
-        shutdown_priority: 5,
-        follow_logs: false,
-        on_shutdown_triggered: None,
-        on_shutdown_complete: None,
-    }).await
-    .inspect_err(|e| error!(error = %e, "Failed to start change pubsub thread"))?;
+    process_manager
+        .start_thread(
+            "change_pubsub",
+            ThreadConfig {
+                spawn_fn: {
+                    let soma_change_tx = soma_change_tx_for_pubsub.clone();
+                    let identity_change_tx = identity_change_tx_for_pubsub.clone();
+                    let on_bridge_config_change_tx = on_bridge_config_change_tx_for_pubsub.clone();
+                    let encryption_change_tx = encryption_change_tx_for_pubsub.clone();
+                    let secret_change_tx = secret_change_tx_for_pubsub.clone();
+                    let environment_variable_change_tx =
+                        environment_variable_change_tx_for_pubsub.clone();
+                    move || {
+                        let soma_change_tx = soma_change_tx.clone();
+                        let identity_change_tx = identity_change_tx.clone();
+                        let on_bridge_config_change_tx = on_bridge_config_change_tx.clone();
+                        let encryption_change_tx = encryption_change_tx.clone();
+                        let secret_change_tx = secret_change_tx.clone();
+                        let environment_variable_change_tx = environment_variable_change_tx.clone();
+                        tokio::spawn(async move {
+                            run_change_pubsub(
+                                soma_change_tx,
+                                on_bridge_config_change_tx.subscribe(),
+                                encryption_change_tx.subscribe(),
+                                secret_change_tx.subscribe(),
+                                environment_variable_change_tx.subscribe(),
+                                identity_change_tx.subscribe(),
+                            )
+                            .await;
+                            Ok(())
+                        })
+                    }
+                },
+                health_check: None,
+                on_terminal_stop: OnTerminalStop::TriggerShutdown,
+                on_stop: OnStop::Restart(RestartConfig {
+                    max_restarts: 5,
+                    restart_delay: 1000,
+                }),
+                shutdown_priority: 5,
+                follow_logs: false,
+                on_shutdown_triggered: None,
+                on_shutdown_complete: None,
+            },
+        )
+        .await
+        .inspect_err(|e| error!(error = %e, "Failed to start change pubsub thread"))?;
 
     // Note: MCP service is now nested directly in the router as a Tower service.
     // No separate subsystem is needed.
@@ -401,7 +411,8 @@ pub async fn create_api_service(
         crypto_cache.clone(),
         on_bridge_config_change_tx.clone(),
         process_manager.clone(),
-    ).await?;
+    )
+    .await?;
 
     // Start bridge client generation listener
     trace!("Starting bridge client generation listener");
@@ -410,31 +421,39 @@ pub async fn create_api_service(
         let sdk_client_clone = sdk_client.clone();
         let agent_cache_clone = agent_cache.clone();
         let bridge_client_gen_rx_clone = bridge_client_gen_rx.resubscribe();
-        process_manager.start_thread("bridge_client_generation", ThreadConfig {
-            spawn_fn: move || {
-                let bridge_repo = bridge_repo_clone.clone();
-                let sdk_client = sdk_client_clone.clone();
-                let agent_cache = agent_cache_clone.clone();
-                let on_bridge_config_change_rx = bridge_client_gen_rx_clone.resubscribe();
-                tokio::spawn(async move {
-                    crate::logic::bridge::run_bridge_client_generation_loop(
-                        bridge_repo,
-                        sdk_client,
-                        agent_cache,
-                        on_bridge_config_change_rx,
-                    ).await;
-                    Ok(())
-                })
-            },
-            health_check: None,
-            on_terminal_stop: OnTerminalStop::Ignore,
-            on_stop: OnStop::Nothing,
-            shutdown_priority: 4,
-            follow_logs: false,
-            on_shutdown_triggered: None,
-            on_shutdown_complete: None,
-        }).await
-        .inspect_err(|e| error!(error = %e, "Failed to start bridge client generation thread"))?;
+        process_manager
+            .start_thread(
+                "bridge_client_generation",
+                ThreadConfig {
+                    spawn_fn: move || {
+                        let bridge_repo = bridge_repo_clone.clone();
+                        let sdk_client = sdk_client_clone.clone();
+                        let agent_cache = agent_cache_clone.clone();
+                        let on_bridge_config_change_rx = bridge_client_gen_rx_clone.resubscribe();
+                        tokio::spawn(async move {
+                            crate::logic::bridge::run_bridge_client_generation_loop(
+                                bridge_repo,
+                                sdk_client,
+                                agent_cache,
+                                on_bridge_config_change_rx,
+                            )
+                            .await;
+                            Ok(())
+                        })
+                    },
+                    health_check: None,
+                    on_terminal_stop: OnTerminalStop::Ignore,
+                    on_stop: OnStop::Nothing,
+                    shutdown_priority: 4,
+                    follow_logs: false,
+                    on_shutdown_triggered: None,
+                    on_shutdown_complete: None,
+                },
+            )
+            .await
+            .inspect_err(
+                |e| error!(error = %e, "Failed to start bridge client generation thread"),
+            )?;
     }
 
     // Start secret sync subsystem
@@ -446,31 +465,39 @@ pub async fn create_api_service(
         let crypto_cache_clone = crypto_cache.clone();
         let socket_path_clone = socket_path_clone.clone();
         let secret_sync_rx_clone = secret_sync_rx.resubscribe();
-        process_manager.start_thread("secret_sync", ThreadConfig {
-            spawn_fn: move || {
-                let repository = repository_clone.clone();
-                let crypto_cache = crypto_cache_clone.clone();
-                let socket_path = socket_path_clone.clone();
-                let secret_change_rx = secret_sync_rx_clone.resubscribe();
-                tokio::spawn(async move {
-                    crate::logic::secret_sync::run_secret_sync_loop(crate::logic::secret_sync::SecretSyncParams {
-                        repository: Arc::new(repository),
-                        crypto_cache,
-                        socket_path,
-                        secret_change_rx,
-                    }).await?;
-                    Ok(())
-                })
-            },
-            health_check: None,
-            on_terminal_stop: OnTerminalStop::Ignore,
-            on_stop: OnStop::Nothing,
-            shutdown_priority: 5,
-            follow_logs: false,
-            on_shutdown_triggered: None,
-            on_shutdown_complete: None,
-        }).await
-        .inspect_err(|e| error!(error = %e, "Failed to start secret sync thread"))?;
+        process_manager
+            .start_thread(
+                "secret_sync",
+                ThreadConfig {
+                    spawn_fn: move || {
+                        let repository = repository_clone.clone();
+                        let crypto_cache = crypto_cache_clone.clone();
+                        let socket_path = socket_path_clone.clone();
+                        let secret_change_rx = secret_sync_rx_clone.resubscribe();
+                        tokio::spawn(async move {
+                            crate::logic::secret_sync::run_secret_sync_loop(
+                                crate::logic::secret_sync::SecretSyncParams {
+                                    repository: Arc::new(repository),
+                                    crypto_cache,
+                                    socket_path,
+                                    secret_change_rx,
+                                },
+                            )
+                            .await?;
+                            Ok(())
+                        })
+                    },
+                    health_check: None,
+                    on_terminal_stop: OnTerminalStop::Ignore,
+                    on_stop: OnStop::Nothing,
+                    shutdown_priority: 5,
+                    follow_logs: false,
+                    on_shutdown_triggered: None,
+                    on_shutdown_complete: None,
+                },
+            )
+            .await
+            .inspect_err(|e| error!(error = %e, "Failed to start secret sync thread"))?;
     }
 
     // Start environment variable sync subsystem
@@ -515,33 +542,39 @@ pub async fn create_api_service(
         let jwks_cache_clone = internal_jwks_cache.clone();
         let jwk_rotation_state_clone = jwk_rotation_state.clone();
         let encryption_change_rx_clone = encryption_change_rx_for_jwk.resubscribe();
-        process_manager.start_thread("jwk_init_listener", ThreadConfig {
-            spawn_fn: move || {
-                let identity_repo = identity_repo_clone.clone();
-                let crypto_cache = crypto_cache_clone.clone();
-                let jwks_cache = jwks_cache_clone.clone();
-                let jwk_rotation_state = jwk_rotation_state_clone.clone();
-                let encryption_change_rx = encryption_change_rx_clone.resubscribe();
-                tokio::spawn(async move {
-                    crate::logic::identity::run_jwk_init_listener(
-                        identity_repo,
-                        crypto_cache,
-                        jwks_cache,
-                        jwk_rotation_state,
-                        encryption_change_rx,
-                    ).await?;
-                    Ok(())
-                })
-            },
-            health_check: None,
-            on_terminal_stop: OnTerminalStop::Ignore,
-            on_stop: OnStop::Nothing,
-            shutdown_priority: 2,
-            follow_logs: false,
-            on_shutdown_triggered: None,
-            on_shutdown_complete: None,
-        }).await
-        .inspect_err(|e| error!(error = %e, "Failed to start JWK init listener thread"))?;
+        process_manager
+            .start_thread(
+                "jwk_init_listener",
+                ThreadConfig {
+                    spawn_fn: move || {
+                        let identity_repo = identity_repo_clone.clone();
+                        let crypto_cache = crypto_cache_clone.clone();
+                        let jwks_cache = jwks_cache_clone.clone();
+                        let jwk_rotation_state = jwk_rotation_state_clone.clone();
+                        let encryption_change_rx = encryption_change_rx_clone.resubscribe();
+                        tokio::spawn(async move {
+                            crate::logic::identity::run_jwk_init_listener(
+                                identity_repo,
+                                crypto_cache,
+                                jwks_cache,
+                                jwk_rotation_state,
+                                encryption_change_rx,
+                            )
+                            .await?;
+                            Ok(())
+                        })
+                    },
+                    health_check: None,
+                    on_terminal_stop: OnTerminalStop::Ignore,
+                    on_stop: OnStop::Nothing,
+                    shutdown_priority: 2,
+                    follow_logs: false,
+                    on_shutdown_triggered: None,
+                    on_shutdown_complete: None,
+                },
+            )
+            .await
+            .inspect_err(|e| error!(error = %e, "Failed to start JWK init listener thread"))?;
     }
 
     // Note: Initial sync of secrets and environment variables now happens AFTER SDK server
@@ -564,45 +597,49 @@ async fn start_sdk_server_subsystem(
 ) -> Result<(), CommonError> {
     use crate::sdk::{StartDevSdkParams, start_dev_sdk};
 
-    process_manager.start_thread("sdk_server", ThreadConfig {
-        spawn_fn: {
-            let project_dir = project_dir.clone();
-            let sdk_runtime = sdk_runtime.clone();
-            let restate_service_port = restate_service_port;
-            let repository = repository.clone();
-            let crypto_cache = crypto_cache.clone();
-            let process_manager_for_thread = process_manager.clone();
-            move || {
-                let project_dir = project_dir.clone();
-                let sdk_runtime = sdk_runtime.clone();
-                let repository = repository.clone();
-                let crypto_cache = crypto_cache.clone();
-                let process_manager = process_manager_for_thread.clone();
-                tokio::spawn(async move {
-                    start_dev_sdk(StartDevSdkParams {
-                        project_dir,
-                        sdk_runtime,
-                        restate_service_port,
-                        repository: std::sync::Arc::new(repository),
-                        crypto_cache,
-                        process_manager,
-                    })
-                    .await
-                })
-            }
-        },
-        health_check: None,
-        on_terminal_stop: OnTerminalStop::TriggerShutdown,
-        on_stop: OnStop::Restart(RestartConfig {
-            max_restarts: 10,
-            restart_delay: 2000,
-        }),
-        shutdown_priority: 8,
-        follow_logs: false,
-        on_shutdown_triggered: None,
-        on_shutdown_complete: None,
-    }).await
-    .inspect_err(|e| error!(error = %e, "Failed to start SDK server thread"))?;
+    process_manager
+        .start_thread(
+            "sdk_server",
+            ThreadConfig {
+                spawn_fn: {
+                    let project_dir = project_dir.clone();
+                    let sdk_runtime = sdk_runtime.clone();
+                    let repository = repository.clone();
+                    let crypto_cache = crypto_cache.clone();
+                    let process_manager_for_thread = process_manager.clone();
+                    move || {
+                        let project_dir = project_dir.clone();
+                        let sdk_runtime = sdk_runtime.clone();
+                        let repository = repository.clone();
+                        let crypto_cache = crypto_cache.clone();
+                        let process_manager = process_manager_for_thread.clone();
+                        tokio::spawn(async move {
+                            start_dev_sdk(StartDevSdkParams {
+                                project_dir,
+                                sdk_runtime,
+                                restate_service_port,
+                                repository: std::sync::Arc::new(repository),
+                                crypto_cache,
+                                process_manager,
+                            })
+                            .await
+                        })
+                    }
+                },
+                health_check: None,
+                on_terminal_stop: OnTerminalStop::TriggerShutdown,
+                on_stop: OnStop::Restart(RestartConfig {
+                    max_restarts: 10,
+                    restart_delay: 2000,
+                }),
+                shutdown_priority: 8,
+                follow_logs: false,
+                on_shutdown_triggered: None,
+                on_shutdown_complete: None,
+            },
+        )
+        .await
+        .inspect_err(|e| error!(error = %e, "Failed to start SDK server thread"))?;
 
     Ok(())
 }
@@ -660,38 +697,43 @@ async fn start_credential_rotation_subsystem(
     on_bridge_change_tx: OnConfigChangeTx,
     process_manager: Arc<CustomProcessManager>,
 ) -> Result<(), CommonError> {
-    process_manager.start_thread("credential_rotation", ThreadConfig {
-        spawn_fn: {
-            let bridge_repo = bridge_repo.clone();
-            let crypto_cache = crypto_cache.clone();
-            let on_bridge_change_tx = on_bridge_change_tx.clone();
-            move || {
-                let bridge_repo = bridge_repo.clone();
-                let crypto_cache = crypto_cache.clone();
-                let on_bridge_change_tx = on_bridge_change_tx.clone();
-                tokio::spawn(async move {
-                    bridge::logic::credential_rotation_task(
-                        bridge_repo,
-                        crypto_cache,
-                        on_bridge_change_tx,
-                    )
-                    .await;
-                    Ok(())
-                })
-            }
-        },
-        health_check: None,
-        on_terminal_stop: OnTerminalStop::Ignore,
-        on_stop: OnStop::Restart(RestartConfig {
-            max_restarts: 5,
-            restart_delay: 1000,
-        }),
-        shutdown_priority: 3,
-        follow_logs: false,
-        on_shutdown_triggered: None,
-        on_shutdown_complete: None,
-    }).await
-    .inspect_err(|e| error!(error = %e, "Failed to start credential rotation thread"))?;
+    process_manager
+        .start_thread(
+            "credential_rotation",
+            ThreadConfig {
+                spawn_fn: {
+                    let bridge_repo = bridge_repo.clone();
+                    let crypto_cache = crypto_cache.clone();
+                    let on_bridge_change_tx = on_bridge_change_tx.clone();
+                    move || {
+                        let bridge_repo = bridge_repo.clone();
+                        let crypto_cache = crypto_cache.clone();
+                        let on_bridge_change_tx = on_bridge_change_tx.clone();
+                        tokio::spawn(async move {
+                            bridge::logic::credential_rotation_task(
+                                bridge_repo,
+                                crypto_cache,
+                                on_bridge_change_tx,
+                            )
+                            .await;
+                            Ok(())
+                        })
+                    }
+                },
+                health_check: None,
+                on_terminal_stop: OnTerminalStop::Ignore,
+                on_stop: OnStop::Restart(RestartConfig {
+                    max_restarts: 5,
+                    restart_delay: 1000,
+                }),
+                shutdown_priority: 3,
+                follow_logs: false,
+                on_shutdown_triggered: None,
+                on_shutdown_complete: None,
+            },
+        )
+        .await
+        .inspect_err(|e| error!(error = %e, "Failed to start credential rotation thread"))?;
 
     Ok(())
 }

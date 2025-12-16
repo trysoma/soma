@@ -70,7 +70,10 @@ async fn route_create_environment_variable(
         true,
     )
     .await;
-    trace!(success = res.is_ok(), "Creating environment variable completed");
+    trace!(
+        success = res.is_ok(),
+        "Creating environment variable completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -96,7 +99,10 @@ async fn route_import_environment_variable(
 ) -> JsonResponse<EnvironmentVariable, CommonError> {
     trace!(env_var_key = %request.key, "Importing environment variable");
     let res = import_environment_variable(&ctx.repository, request).await;
-    trace!(success = res.is_ok(), "Importing environment variable completed");
+    trace!(
+        success = res.is_ok(),
+        "Importing environment variable completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -122,9 +128,15 @@ async fn route_list_environment_variables(
     State(ctx): State<Arc<EnvironmentVariableService>>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListEnvironmentVariablesResponse, CommonError> {
-    trace!(page_size = pagination.page_size, "Listing environment variables");
+    trace!(
+        page_size = pagination.page_size,
+        "Listing environment variables"
+    );
     let res = list_environment_variables(&ctx.repository, pagination).await;
-    trace!(success = res.is_ok(), "Listing environment variables completed");
+    trace!(
+        success = res.is_ok(),
+        "Listing environment variables completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -153,7 +165,10 @@ async fn route_get_environment_variable_by_id(
 ) -> JsonResponse<GetEnvironmentVariableResponse, CommonError> {
     trace!(env_var_id = %env_var_id, "Getting environment variable by ID");
     let res = get_environment_variable_by_id(&ctx.repository, env_var_id).await;
-    trace!(success = res.is_ok(), "Getting environment variable by ID completed");
+    trace!(
+        success = res.is_ok(),
+        "Getting environment variable by ID completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -182,7 +197,10 @@ async fn route_get_environment_variable_by_key(
 ) -> JsonResponse<GetEnvironmentVariableResponse, CommonError> {
     trace!(key = %key, "Getting environment variable by key");
     let res = get_environment_variable_by_key(&ctx.repository, key).await;
-    trace!(success = res.is_ok(), "Getting environment variable by key completed");
+    trace!(
+        success = res.is_ok(),
+        "Getting environment variable by key completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -221,7 +239,10 @@ async fn route_update_environment_variable(
         true,
     )
     .await;
-    trace!(success = res.is_ok(), "Updating environment variable completed");
+    trace!(
+        success = res.is_ok(),
+        "Updating environment variable completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -257,7 +278,10 @@ async fn route_delete_environment_variable(
         true,
     )
     .await;
-    trace!(success = res.is_ok(), "Deleting environment variable completed");
+    trace!(
+        success = res.is_ok(),
+        "Deleting environment variable completed"
+    );
     JsonResponse::from(res)
 }
 

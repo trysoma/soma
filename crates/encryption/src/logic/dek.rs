@@ -373,7 +373,10 @@ where
         })?;
 
     let res = list_data_encryption_keys_by_envelope_key_id(repo, &envelope_key, params.inner).await;
-    trace!(success = res.is_ok(), "Listing data encryption keys completed");
+    trace!(
+        success = res.is_ok(),
+        "Listing data encryption keys completed"
+    );
     res
 }
 
@@ -461,7 +464,11 @@ where
 {
     trace!(dek_id = %id, "Getting data encryption key by ID");
     let res = repo.get_data_encryption_key_by_id(id).await;
-    trace!(success = res.is_ok(), found = res.as_ref().map(|r| r.is_some()).unwrap_or(false), "Getting data encryption key by ID completed");
+    trace!(
+        success = res.is_ok(),
+        found = res.as_ref().map(|r| r.is_some()).unwrap_or(false),
+        "Getting data encryption key by ID completed"
+    );
     res
 }
 

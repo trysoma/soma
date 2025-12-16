@@ -182,7 +182,10 @@ pub async fn resync_sdk(
     let env_vars = fetch_all_environment_variables(repository).await?;
     let env_vars_count = env_vars.len();
     if !env_vars.is_empty() {
-        trace!(count = env_vars_count, "Syncing environment variables to SDK");
+        trace!(
+            count = env_vars_count,
+            "Syncing environment variables to SDK"
+        );
         sync_environment_variables_to_sdk(client, env_vars).await?;
     }
 

@@ -7,7 +7,6 @@ mod utils;
 use clap::Parser;
 use human_panic::setup_panic;
 
-
 use crate::cli::{Cli, run_cli};
 
 #[tokio::main]

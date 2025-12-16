@@ -59,7 +59,9 @@ pub async fn run_jwk_init_listener(
                     &crypto_cache,
                     &jwks_cache,
                     &jwk_rotation_state,
-                ).await {
+                )
+                .await
+                {
                     warn!(error = ?e, "Error handling encryption event for JWK init");
                 }
             }

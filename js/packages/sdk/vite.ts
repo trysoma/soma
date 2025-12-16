@@ -609,7 +609,10 @@ await new Promise(() => {});
 function standaloneServerPlugin(baseDir: string): Plugin {
 	let serverProcess: ChildProcess | null = null;
 	const standaloneFilePath = resolve(baseDir, "soma/standalone.ts");
-	let watcherHandlers: Array<{ event: string; handler: (file: string) => void }> = [];
+	let watcherHandlers: Array<{
+		event: string;
+		handler: (file: string) => void;
+	}> = [];
 	let devServerRef: ViteDevServer | null = null;
 
 	// Cleanup function to kill SDK server process and remove watchers
@@ -619,7 +622,7 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 			for (const { event, handler } of watcherHandlers) {
 				try {
 					devServerRef.watcher.off(event, handler);
-				} catch (e) {
+				} catch (_e) {
 					// Ignore errors - watcher might already be closed
 				}
 			}
@@ -634,22 +637,22 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 			if (pid) {
 				try {
 					// Kill process group (negative PID kills the group)
-					process.kill(-pid, 'SIGTERM');
-				} catch (e) {
+					process.kill(-pid, "SIGTERM");
+				} catch (_e) {
 					// Try killing just the process if group kill fails
 					try {
-						serverProcess.kill('SIGTERM');
-					} catch (e2) {
+						serverProcess.kill("SIGTERM");
+					} catch (_e2) {
 						// Process might already be dead
 					}
 				}
 				// Force kill immediately - don't wait, as parent may exit
 				try {
-					process.kill(-pid, 'SIGKILL');
-				} catch (e) {
+					process.kill(-pid, "SIGKILL");
+				} catch (_e) {
 					try {
-						serverProcess.kill('SIGKILL');
-					} catch (e2) {
+						serverProcess.kill("SIGKILL");
+					} catch (_e2) {
 						// Process might already be dead
 					}
 				}
@@ -754,19 +757,19 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 			// Kill the entire process group
 			if (pid) {
 				try {
-					process.kill(-pid, 'SIGTERM');
-				} catch (e) {
+					process.kill(-pid, "SIGTERM");
+				} catch (_e) {
 					try {
-						serverProcess.kill('SIGTERM');
-					} catch (e2) {
+						serverProcess.kill("SIGTERM");
+					} catch (_e2) {
 						// Process might already be dead
 					}
 				}
 				// Force kill after 500ms if still running
 				setTimeout(() => {
 					try {
-						process.kill(-pid, 'SIGKILL');
-					} catch (e) {
+						process.kill(-pid, "SIGKILL");
+					} catch (_e) {
 						// Process might already be dead
 					}
 				}, 500);
@@ -805,10 +808,10 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 	const exitHandler = () => {
 		cleanup();
 	};
-	process.on('exit', exitHandler);
-	process.on('SIGINT', exitHandler);
-	process.on('SIGTERM', exitHandler);
-	process.on('SIGHUP', exitHandler);
+	process.on("exit", exitHandler);
+	process.on("SIGINT", exitHandler);
+	process.on("SIGTERM", exitHandler);
+	process.on("SIGHUP", exitHandler);
 
 	return {
 		name: "soma-standalone-server",
@@ -871,7 +874,7 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 			watcherHandlers = [
 				{ event: "add", handler: onAdd },
 				{ event: "unlink", handler: onUnlink },
-				{ event: "change", handler: onChange }
+				{ event: "change", handler: onChange },
 			];
 
 			// Start server after Vite is ready

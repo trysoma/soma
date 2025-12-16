@@ -493,7 +493,10 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
             use std::collections::HashSet;
 
             // Get existing MCP server instances
-            let existing_mcp_servers: HashMap<String, models::McpServerInstanceSerializedWithFunctions> = {
+            let existing_mcp_servers: HashMap<
+                String,
+                models::McpServerInstanceSerializedWithFunctions,
+            > = {
                 let mut servers = HashMap::new();
                 let mut next_page_token: Option<String> = None;
                 loop {
@@ -663,9 +666,8 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                             );
                         } else {
                             // Check if function needs update (name or description changed)
-                            let existing_func = existing_mcp_servers
-                                .get(mcp_server_id)
-                                .and_then(|s| {
+                            let existing_func =
+                                existing_mcp_servers.get(mcp_server_id).and_then(|s| {
                                     s.functions.iter().find(|f| {
                                         f.function_controller_type_id
                                             == func_config.function_controller_type_id
@@ -726,7 +728,10 @@ pub async fn sync_bridge_db_from_soma_definition_on_start(
                                 "Failed to delete MCP server instance '{mcp_server_id}': {e:?}"
                             ))
                         })?;
-                    debug!("Deleted MCP server instance '{}' not in yaml", mcp_server_id);
+                    debug!(
+                        "Deleted MCP server instance '{}' not in yaml",
+                        mcp_server_id
+                    );
                 }
             }
         }

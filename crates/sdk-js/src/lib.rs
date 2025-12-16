@@ -468,10 +468,13 @@ pub fn set_environment_variable_handler(
 ) -> Result<()> {
     let callback = Arc::new(callback);
 
-    let handler: core_types::EnvironmentVariableHandler = Arc::new(
-        move |env_vars: Vec<core_types::EnvironmentVariable>| {
+    let handler: core_types::EnvironmentVariableHandler =
+        Arc::new(move |env_vars: Vec<core_types::EnvironmentVariable>| {
             let callback = Arc::clone(&callback);
-            trace!(count = env_vars.len(), "Environment variable handler invoked");
+            trace!(
+                count = env_vars.len(),
+                "Environment variable handler invoked"
+            );
             Box::pin(async move {
                 // Convert core environment variables to JS environment variables
                 let js_env_vars: Vec<js_types::EnvironmentVariable> = env_vars
@@ -515,8 +518,7 @@ pub fn set_environment_variable_handler(
                     )))),
                 }
             })
-        },
-    );
+        });
 
     trace!("Registering environment variable handler");
     get_grpc_service()?.set_environment_variable_handler(handler);

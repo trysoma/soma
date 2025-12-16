@@ -127,7 +127,10 @@ async fn route_list_tasks_by_context_id(
         },
     )
     .await;
-    trace!(success = res.is_ok(), "Listing tasks by context ID completed");
+    trace!(
+        success = res.is_ok(),
+        "Listing tasks by context ID completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -274,7 +277,10 @@ async fn route_get_task_timeline_items(
         },
     )
     .await;
-    trace!(success = res.is_ok(), "Getting task timeline items completed");
+    trace!(
+        success = res.is_ok(),
+        "Getting task timeline items completed"
+    );
     JsonResponse::from(res)
 }
 

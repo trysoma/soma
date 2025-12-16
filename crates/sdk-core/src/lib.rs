@@ -57,7 +57,10 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
             agents: proto_agents,
         };
 
-        trace!(provider_count, agent_count, "Getting SDK metadata completed");
+        trace!(
+            provider_count,
+            agent_count, "Getting SDK metadata completed"
+        );
         Ok(Response::new(response))
     }
 
@@ -125,7 +128,8 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         trace!("Generating bridge client");
 
         let req = request.into_inner();
-        let result = match self.code_generator.generate_bridge_client(req).await {
+
+        match self.code_generator.generate_bridge_client(req).await {
             Ok(response) => {
                 trace!("Generating bridge client completed");
                 Ok(Response::new(response))
@@ -141,8 +145,7 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
                     )),
                 }))
             }
-        };
-        result
+        }
     }
 
     async fn set_secrets(
@@ -205,7 +208,10 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
             Some(h) => h.clone(),
             None => {
                 debug!("No environment variable handler registered");
-                trace!(count, "Setting environment variables completed (no handler)");
+                trace!(
+                    count,
+                    "Setting environment variables completed (no handler)"
+                );
                 return Ok(Response::new(sdk_proto::SetEnvironmentVariablesResponse {
                     kind: Some(Kind::Error(sdk_proto::CallbackError {
                         message: "No environment variable handler registered".to_string(),
@@ -220,7 +226,11 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
             .await
             .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
 
-        trace!(count, success = result.is_ok(), "Setting environment variables completed");
+        trace!(
+            count,
+            success = result.is_ok(),
+            "Setting environment variables completed"
+        );
 
         let result = result?;
 
@@ -662,7 +672,10 @@ pub async fn resync_sdk(base_url: Option<String>) -> Result<ResyncSdkResponse, C
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Resync failed: {e:?}")));
 
-    trace!(success = result.is_ok(), "Calling SDK resync endpoint completed");
+    trace!(
+        success = result.is_ok(),
+        "Calling SDK resync endpoint completed"
+    );
     result?;
 
     Ok(ResyncSdkResponse {})

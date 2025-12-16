@@ -673,13 +673,9 @@ pub async fn credential_rotation_task<R>(
         timer.tick().await;
         trace!("Starting credential rotation check");
 
-        if let Err(e) = process_credential_rotations_with_window(
-            &repo,
-            &on_config_change_tx,
-            &crypto_cache,
-            20,
-        )
-        .await
+        if let Err(e) =
+            process_credential_rotations_with_window(&repo, &on_config_change_tx, &crypto_cache, 20)
+                .await
         {
             tracing::error!(error = ?e, "Credential rotation failed");
         }
@@ -719,7 +715,10 @@ where
                 Some(&rotation_window_end),
             )
             .await?;
-        trace!(count = provider_instances.items.len(), "Fetched provider instances for rotation check");
+        trace!(
+            count = provider_instances.items.len(),
+            "Fetched provider instances for rotation check"
+        );
         next_page_token = provider_instances.next_page_token.clone();
 
         let refresh_fut = provider_instances

@@ -248,4 +248,3 @@ async fn sync_all_secrets(
     let mut client = shared::uds::create_soma_unix_socket_client(socket_path).await?;
     sync_secrets_to_sdk(&mut client, secrets).await
 }
-

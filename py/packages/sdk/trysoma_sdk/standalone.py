@@ -70,10 +70,12 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
             import_path = str(path.parent)
             module_name = path.stem
             function_imports.append(
-                f"sys.path.insert(0, {repr(import_path)})\n"
-                f"from {module_name} import default as {var_name}  "
-                f"# type: ignore  # pyright: ignore  # noqa: E402\n"
-                f"sys.path.pop(0)"
+                f"sys.path.insert(0, {repr(import_path)})"
+                + chr(10)
+                + f"from {module_name} import default as {var_name}  "
+                + "# type: ignore  # pyright: ignore  # noqa: E402"
+                + chr(10)
+                + "sys.path.pop(0)"
             )
         else:
             # In production, import from built modules
@@ -132,10 +134,12 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
             import_path = str(path.parent)
             module_name = path.stem
             agent_imports.append(
-                f"sys.path.insert(0, {repr(import_path)})\n"
-                f"from {module_name} import default as {var_name}  "
-                f"# type: ignore  # pyright: ignore  # noqa: E402\n"
-                f"sys.path.pop(0)"
+                f"sys.path.insert(0, {repr(import_path)})"
+                + chr(10)
+                + f"from {module_name} import default as {var_name}  "
+                + "# type: ignore  # pyright: ignore  # noqa: E402"
+                + chr(10)
+                + "sys.path.pop(0)"
             )
         else:
             module_path = f"agents.{name.replace('/', '.')}"
@@ -538,7 +542,9 @@ async def main() -> None:
             + chr(10)
             + "    ) -> None:"
             + chr(10)
-            + '        print("\\n[SDK] Shutting down")'
+            + '        print("'
+            + chr(10)
+            + '[SDK] Shutting down")'
             + chr(10)
             + "        stop_event.set()"
             + chr(10)

@@ -249,7 +249,11 @@ impl DefaultRequestHandler {
         event_task_id: &str,
     ) -> Result<(), A2aServerError> {
         if task_id != event_task_id {
-            warn!(expected = task_id, actual = event_task_id, "Task ID mismatch");
+            warn!(
+                expected = task_id,
+                actual = event_task_id,
+                "Task ID mismatch"
+            );
             Err(A2aServerError::InternalError(
                 ErrorBuilder::default()
                     .message("Task ID mismatch in agent response".to_string())

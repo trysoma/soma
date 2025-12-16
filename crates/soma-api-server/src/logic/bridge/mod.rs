@@ -38,16 +38,26 @@ pub async fn run_bridge_client_generation_loop(
                     let mut client_guard = sdk_client.lock().await;
                     if let Some(ref mut client) = *client_guard {
                         // Verify SDK server is ready by checking health
-                        let health_ready = match client.health_check(tonic::Request::new(())).await {
+                        let health_ready = match client.health_check(tonic::Request::new(())).await
+                        {
                             Ok(_) => true,
                             Err(e) => {
-                                warn!("SDK server healthcheck failed, skipping bridge client generation: {:?}", e);
+                                warn!(
+                                    "SDK server healthcheck failed, skipping bridge client generation: {:?}",
+                                    e
+                                );
                                 false
                             }
                         };
 
                         if health_ready {
-                            match crate::logic::bridge::codegen::trigger_bridge_client_generation(client, &bridge_repo, &agent_cache).await {
+                            match crate::logic::bridge::codegen::trigger_bridge_client_generation(
+                                client,
+                                &bridge_repo,
+                                &agent_cache,
+                            )
+                            .await
+                            {
                                 Ok(()) => {
                                     debug!("Bridge client generation completed successfully");
                                 }
@@ -63,11 +73,16 @@ pub async fn run_bridge_client_generation_loop(
                 }
             }
             Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                info!("Bridge config change receiver closed, stopping bridge client generation listener");
+                info!(
+                    "Bridge config change receiver closed, stopping bridge client generation listener"
+                );
                 break;
             }
             Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
-                warn!("Bridge config change receiver lagged, skipped {} messages", skipped);
+                warn!(
+                    "Bridge config change receiver lagged, skipped {} messages",
+                    skipped
+                );
                 // Continue listening
             }
         }

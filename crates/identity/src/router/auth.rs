@@ -152,7 +152,10 @@ async fn route_start_authorization(
         params,
     )
     .await;
-    trace!(success = result.is_ok(), "Starting authorization flow completed");
+    trace!(
+        success = result.is_ok(),
+        "Starting authorization flow completed"
+    );
 
     match result {
         Ok(result) => Redirect::temporary(&result.login_redirect_url).into_response(),
@@ -287,7 +290,10 @@ async fn route_refresh_token(
         params,
     )
     .await;
-    trace!(success = result.is_ok(), "Refreshing access token completed");
+    trace!(
+        success = result.is_ok(),
+        "Refreshing access token completed"
+    );
 
     match result {
         Ok(token_result) => {
@@ -316,7 +322,10 @@ async fn route_whoami(State(service): State<IdentityService>, headers: HeaderMap
     let auth_client = service.auth_client();
 
     let result = auth_client.authenticate_from_headers(&headers).await;
-    trace!(success = result.is_ok(), "Getting current identity completed");
+    trace!(
+        success = result.is_ok(),
+        "Getting current identity completed"
+    );
 
     match result {
         Ok(identity) => Json(identity).into_response(),

@@ -1,16 +1,18 @@
 use anyhow::Context;
 use shared::error::CommonError;
-use std::time::Duration;
-use std::{collections::HashMap, fs};
-use std::path::PathBuf;
-use tracing::{debug, trace};
-use shared::restate::deploy::wait_for_healthy_restate_admin;
 use shared::port::is_port_in_use;
+use shared::process_manager::{
+    CustomProcessManager, OnStop, OnTerminalStop, ProcessConfig, RestartConfig,
+};
+use shared::restate::deploy::wait_for_healthy_restate_admin;
 use soma_api_server::restate::{
     RestateServerLocalParams, RestateServerParams, RestateServerRemoteParams,
 };
 use std::env::var;
-use shared::process_manager::{CustomProcessManager, OnStop, OnTerminalStop, ProcessConfig, RestartConfig};
+use std::path::PathBuf;
+use std::time::Duration;
+use std::{collections::HashMap, fs};
+use tracing::{debug, trace};
 
 /// The embedded restate-server binary for the current platform
 /// This is included at compile time from the binary downloaded during build
@@ -143,18 +145,18 @@ pub fn ensure_restate_binary() -> Result<String, CommonError> {
     // Try to install the bundled binary if available
     if RESTATE_BINARY.is_some() {
         match install_bundled_restate() {
-            Ok(installed_path) => return Ok(installed_path.display().to_string()),
+            Ok(installed_path) => Ok(installed_path.display().to_string()),
             Err(e) => {
                 tracing::error!("Failed to install bundled restate-server");
 
-                return Err(e)
+                Err(e)
             }
         }
     } else {
         tracing::error!("No bundled restate-server binary available for this platform to install");
-        return Err(CommonError::Unknown(anyhow::anyhow!(
+        Err(CommonError::Unknown(anyhow::anyhow!(
             "No bundled restate-server binary available for this platform to install"
-        )));
+        )))
     }
 }
 
@@ -187,7 +189,10 @@ async fn start_restate_server_local(
     if params.clean {
         debug!("Clean flag is set, deleting Restate data directory");
         let restate_data_dir = params.restate_server_data_dir.clone();
-        trace!("Checking if Restate data directory exists: {:?}", restate_data_dir);
+        trace!(
+            "Checking if Restate data directory exists: {:?}",
+            restate_data_dir
+        );
         if restate_data_dir.exists() {
             trace!(
                 "Cleaning Restate data directory: {}",
@@ -208,44 +213,57 @@ async fn start_restate_server_local(
     let restate_binary_path = ensure_restate_binary()?;
     debug!("Using restate-server binary: {}", restate_binary_path);
 
-    process_manager.start_process("restate-server", ProcessConfig {
-        script: restate_binary_path,
-        args: vec![
-            "--log-filter".to_string(),
-            var("RUST_LOG").unwrap_or("info".to_string()),
-            "--tracing-filter".to_string(),
-            var("RUST_LOG").unwrap_or("info".to_string()),
-            "--log-format".to_string(),
-            "pretty".to_string(),
-            "--base-dir".to_string(),
-            params.restate_server_data_dir.display().to_string(),
-        ],
-        cwd: None,
-        env: {
-            let mut env = HashMap::new();
-            env.insert("RESTATE__INGRESS__BIND_ADDRESS".to_string(), format!("127.0.0.1:{}", params.ingress_port));
-            env.insert("RESTATE__ADMIN__BIND_ADDRESS".to_string(), format!("127.0.0.1:{}", params.admin_port));
-            // env.insert("RESTATE__ADVERTISED_ADDRESS".to_string(), format!("127.0.0.1:{}", params.admin_port));
-            env
-        },
-        health_check: Some(pmdaemon::health::HealthCheckConfig {
-            check_type: pmdaemon::HealthCheckType::Http { url: (format!("http://127.0.0.1:{}", params.admin_port)) },
-            timeout: Duration::from_secs(5),
-            interval: Duration::from_secs(5),
-            retries: 3,
-            enabled: true,
-        }),
-        on_stop: OnStop::Restart(RestartConfig {
-            max_restarts: 10,
-            restart_delay: 1000,
-        }),
-        on_terminal_stop: OnTerminalStop::TriggerShutdown,
-        shutdown_priority: 10,
-        follow_logs: false,
-        on_shutdown_triggered: None,
-        on_shutdown_complete: None,
-    }).await?;
-    
+    process_manager
+        .start_process(
+            "restate-server",
+            ProcessConfig {
+                script: restate_binary_path,
+                args: vec![
+                    "--log-filter".to_string(),
+                    var("RUST_LOG").unwrap_or("info".to_string()),
+                    "--tracing-filter".to_string(),
+                    var("RUST_LOG").unwrap_or("info".to_string()),
+                    "--log-format".to_string(),
+                    "pretty".to_string(),
+                    "--base-dir".to_string(),
+                    params.restate_server_data_dir.display().to_string(),
+                ],
+                cwd: None,
+                env: {
+                    let mut env = HashMap::new();
+                    env.insert(
+                        "RESTATE__INGRESS__BIND_ADDRESS".to_string(),
+                        format!("127.0.0.1:{}", params.ingress_port),
+                    );
+                    env.insert(
+                        "RESTATE__ADMIN__BIND_ADDRESS".to_string(),
+                        format!("127.0.0.1:{}", params.admin_port),
+                    );
+                    // env.insert("RESTATE__ADVERTISED_ADDRESS".to_string(), format!("127.0.0.1:{}", params.admin_port));
+                    env
+                },
+                health_check: Some(pmdaemon::health::HealthCheckConfig {
+                    check_type: pmdaemon::HealthCheckType::Http {
+                        url: (format!("http://127.0.0.1:{}", params.admin_port)),
+                    },
+                    timeout: Duration::from_secs(5),
+                    interval: Duration::from_secs(5),
+                    retries: 3,
+                    enabled: true,
+                }),
+                on_stop: OnStop::Restart(RestartConfig {
+                    max_restarts: 10,
+                    restart_delay: 1000,
+                }),
+                on_terminal_stop: OnTerminalStop::TriggerShutdown,
+                shutdown_priority: 10,
+                follow_logs: false,
+                on_shutdown_triggered: None,
+                on_shutdown_complete: None,
+            },
+        )
+        .await?;
+
     Ok(())
 }
 
@@ -264,18 +282,17 @@ pub async fn start_restate(
     match restate_params {
         RestateServerParams::Local(params) => {
             trace!("Starting a local restate server process");
-            
+
             let admin_port = params.admin_port;
             start_restate_server_local(process_manager, params).await?;
 
             trace!("Waiting for Restate admin endpoint to be ready...");
             // Wait for Restate admin endpoint to be ready
             // wait_for_healthy_restate_admin handles retries internally and returns an error if it fails
-            let admin_url = format!("http://127.0.0.1:{}", admin_port);
+            let admin_url = format!("http://127.0.0.1:{admin_port}");
             wait_for_healthy_restate_admin(&admin_url).await?;
             trace!("Restate admin endpoint is ready");
             trace!("Local restate server process started");
-            
         }
         RestateServerParams::Remote(params) => {
             trace!("Restate is running remotely, checking health and client can connect...");

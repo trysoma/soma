@@ -1,4 +1,3 @@
-import { experimental_createMCPClient as createMCPClient } from "@ai-sdk/mcp";
 import { openai } from "@ai-sdk/openai";
 import { durableCalls } from "@restatedev/vercel-ai-middleware";
 import {
@@ -8,18 +7,12 @@ import {
 } from "@trysoma/api-client";
 import { createSomaAgent, patterns } from "@trysoma/sdk";
 import { createSomaAiSdkMcpClient } from "@trysoma/sdk/vercel-ai-sdk";
-import {
-	type LanguageModel,
-	streamText,
-	type ToolSet,
-	tool,
-	wrapLanguageModel,
-} from "ai";
+import { type LanguageModel, streamText, tool, wrapLanguageModel } from "ai";
 import { z } from "zod";
 import { type AgentsDefinition, getAgents } from "../soma/agents";
 import { type BridgeDefinition, getBridge } from "../soma/bridge";
 import { convertToAiSdkMessages } from "../utils";
-import { createSomaMcpClient, createSomaMcpTransport } from "@trysoma/sdk/mcp";
+
 interface ClaimResearchInput {
 	model: LanguageModel;
 }
@@ -64,10 +57,7 @@ const handlers = {
 			const tools = await mcpClient.tools();
 			ctx.console.log("Tools", tools);
 
-			const {
-				fullStream,
-				text
-			} = streamText({
+			const { fullStream, text } = streamText({
 				model,
 				messages,
 				tools: {
@@ -81,12 +71,12 @@ const handlers = {
 					}),
 				},
 			});
-			let agentOutput = "";
+			let _agentOutput = "";
 
 			for await (const evt of fullStream) {
 				if (evt.type === "text-delta") {
 					process.stdout.write(evt.text);
-					agentOutput += evt.text;
+					_agentOutput += evt.text;
 					// stream output back to user
 				} else if (evt.type === "tool-call") {
 					// Tool call initiated - you can log this if needed
@@ -95,10 +85,8 @@ const handlers = {
 					// Tool execution completed - result is available here
 					ctx.console.log(`Tool result for ${evt.toolCallId}:`, evt);
 					// The model will automatically receive this result and continue streaming
-				}
-				else {
+				} else {
 					ctx.console.log("Event", evt);
-
 				}
 			}
 			const finalText = await text;
@@ -136,8 +124,12 @@ export default createSomaAgent({
 
 		// Note: Type assertion needed due to version mismatch between ai SDK v3 and restate middleware v2
 		const model = wrapLanguageModel({
-			model: openai("gpt-5") as unknown as Parameters<typeof wrapLanguageModel>[0]["model"],
-			middleware: durableCalls(ctx, { maxRetryAttempts: 3 }) as unknown as Parameters<typeof wrapLanguageModel>[0]["middleware"],
+			model: openai("gpt-5") as unknown as Parameters<
+				typeof wrapLanguageModel
+			>[0]["model"],
+			middleware: durableCalls(ctx, {
+				maxRetryAttempts: 3,
+			}) as unknown as Parameters<typeof wrapLanguageModel>[0]["middleware"],
 		});
 
 		ctx.console.log("Researching claim...");

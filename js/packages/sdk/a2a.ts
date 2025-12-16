@@ -109,7 +109,9 @@ export class A2AClient {
 	async *sendMessageStream(
 		params: MessageSendParams,
 	): AsyncGenerator<A2AStreamEventData, void, undefined> {
-		console.debug(`[A2A] Starting streaming message to agent ${this.restateId}`);
+		console.debug(
+			`[A2A] Starting streaming message to agent ${this.restateId}`,
+		);
 		const stream = this.client.sendMessageStream(params);
 		const durableStream = new DurableStream(
 			this.ctx,
@@ -199,7 +201,9 @@ export async function createA2AClient(
 	cardUrl: string,
 	agentId: string,
 ): Promise<A2AClient> {
-	console.debug(`[A2A] Creating A2A client for agent ${agentId} from ${cardUrl}`);
+	console.debug(
+		`[A2A] Creating A2A client for agent ${agentId} from ${cardUrl}`,
+	);
 	const baseClient = await ctx.run(`init-a2a-${agentId}`, async () => {
 		return BaseA2AClient.fromCardUrl(cardUrl);
 	});

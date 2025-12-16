@@ -3,26 +3,26 @@
  * Provides AI SDK compatible tools from Soma MCP servers.
  */
 
-import type { JSONSchema7 } from '@ai-sdk/provider';
+import type { JSONSchema7 } from "@ai-sdk/provider";
+import type {
+	GetPromptResult,
+	ListPromptsResult,
+	ListResourcesResult,
+	ListResourceTemplatesResult,
+	Notification,
+	Result,
+} from "@modelcontextprotocol/sdk/types.js";
+import type { ObjectContext } from "@restatedev/restate-sdk";
 // Import from 'ai' package to ensure version compatibility with the ai SDK's internal validation
 import {
 	dynamicTool,
 	jsonSchema,
-	tool,
 	type Tool,
 	type ToolExecutionOptions,
+	tool,
 } from "ai";
-import type {
-	ListResourcesResult,
-	ListResourceTemplatesResult,
-	ListPromptsResult,
-	GetPromptResult,
-	Notification,
-	Result,
-} from "@modelcontextprotocol/sdk/types.js";
-import { ObjectContext } from "@restatedev/restate-sdk";
+import type { z } from "zod";
 import { createSomaMcpClient, SomaMcpClient } from "./mcp.js";
-import { z } from "zod";
 
 /**
  * Tool metadata from MCP server.
@@ -37,23 +37,43 @@ export interface ToolMeta {
 export interface CallToolResult {
 	content: Array<
 		| { type: "text"; text: string; _meta?: Record<string, unknown> }
-		| { type: "image"; data: string; mimeType: string; _meta?: Record<string, unknown> }
-		| { type: "audio"; data: string; mimeType: string; _meta?: Record<string, unknown> }
 		| {
-			type: "resource";
-			resource:
-				| { uri: string; text: string; mimeType?: string; _meta?: Record<string, unknown> }
-				| { uri: string; blob: string; mimeType?: string; _meta?: Record<string, unknown> };
-			_meta?: Record<string, unknown>;
-		}
+				type: "image";
+				data: string;
+				mimeType: string;
+				_meta?: Record<string, unknown>;
+		  }
 		| {
-			type: "resource_link";
-			uri: string;
-			name: string;
-			description?: string;
-			mimeType?: string;
-			_meta?: Record<string, unknown>;
-		}
+				type: "audio";
+				data: string;
+				mimeType: string;
+				_meta?: Record<string, unknown>;
+		  }
+		| {
+				type: "resource";
+				resource:
+					| {
+							uri: string;
+							text: string;
+							mimeType?: string;
+							_meta?: Record<string, unknown>;
+					  }
+					| {
+							uri: string;
+							blob: string;
+							mimeType?: string;
+							_meta?: Record<string, unknown>;
+					  };
+				_meta?: Record<string, unknown>;
+		  }
+		| {
+				type: "resource_link";
+				uri: string;
+				name: string;
+				description?: string;
+				mimeType?: string;
+				_meta?: Record<string, unknown>;
+		  }
 	>;
 	isError?: boolean;
 	structuredContent?: Record<string, unknown>;
@@ -64,7 +84,9 @@ export interface CallToolResult {
  * Tool schemas configuration - either 'automatic' for JSON schema inference
  * or a record of tool names to their Zod schemas.
  */
-export type ToolSchemas = 'automatic' | Record<string, { inputSchema: z.ZodType }>;
+export type ToolSchemas =
+	| "automatic"
+	| Record<string, { inputSchema: z.ZodType }>;
 
 /**
  * AI SDK tool with optional metadata.
@@ -76,8 +98,8 @@ export type McpTool = Tool & { _meta?: ToolMeta };
  * When schemas is 'automatic', tools use dynamicTool with JSON schema.
  * When schemas is a record, tools use the provided Zod schemas.
  */
-export type McpToolSet<TOOL_SCHEMAS extends ToolSchemas = 'automatic'> =
-	TOOL_SCHEMAS extends 'automatic'
+export type McpToolSet<TOOL_SCHEMAS extends ToolSchemas = "automatic"> =
+	TOOL_SCHEMAS extends "automatic"
 		? Record<string, McpTool>
 		: { [K in keyof TOOL_SCHEMAS & string]: McpTool };
 
@@ -100,15 +122,21 @@ export interface RequestOptions {
 /**
  * Configuration options for creating a SomaVercelAiSdkMcpClient.
  */
-export interface SomaMcpToolsConfig<RequestT extends Request = Request, NotificationT extends Notification = Notification, ResultT extends Result = Result> {
+export interface SomaMcpToolsConfig<
+	RequestT extends Request = Request,
+	NotificationT extends Notification = Notification,
+	ResultT extends Result = Result,
+> {
 	/**
 	 * The base MCP client - either an existing SomaMcpClient instance
 	 * or configuration to create one.
 	 */
-	baseMcpClient: SomaMcpClient<RequestT, NotificationT, ResultT> | {
-		somaBaseUrl?: string;
-		mcpServerInstanceId: string;
-	};
+	baseMcpClient:
+		| SomaMcpClient<RequestT, NotificationT, ResultT>
+		| {
+				somaBaseUrl?: string;
+				mcpServerInstanceId: string;
+		  };
 }
 
 /**
@@ -118,7 +146,11 @@ export interface SomaMcpToolsConfig<RequestT extends Request = Request, Notifica
  * This client is modeled after the Vercel AI SDK's MCPClient implementation
  * but uses SomaMcpClient as the underlying transport.
  */
-export class SomaVercelAiSdkMcpClient<RequestT extends Request = Request, NotificationT extends Notification = Notification, ResultT extends Result = Result> {
+export class SomaVercelAiSdkMcpClient<
+	RequestT extends Request = Request,
+	NotificationT extends Notification = Notification,
+	ResultT extends Result = Result,
+> {
 	private mcpClient: SomaMcpClient<RequestT, NotificationT, ResultT>;
 
 	/**
@@ -156,8 +188,8 @@ export class SomaVercelAiSdkMcpClient<RequestT extends Request = Request, Notifi
 	 * });
 	 * ```
 	 */
-	async tools<TOOL_SCHEMAS extends ToolSchemas = 'automatic'>({
-		schemas = 'automatic' as TOOL_SCHEMAS,
+	async tools<TOOL_SCHEMAS extends ToolSchemas = "automatic">({
+		schemas = "automatic" as TOOL_SCHEMAS,
 	}: {
 		schemas?: TOOL_SCHEMAS;
 	} = {}): Promise<McpToolSet<TOOL_SCHEMAS>> {
@@ -169,11 +201,9 @@ export class SomaVercelAiSdkMcpClient<RequestT extends Request = Request, Notifi
 			const title = annotations?.title ?? mcpTool.title;
 
 			// Skip tools not in the provided schemas when using typed schemas
-			if (schemas !== 'automatic' && !(name in (schemas as object))) {
+			if (schemas !== "automatic" && !(name in (schemas as object))) {
 				continue;
 			}
-
-			const self = this;
 
 			const execute = async (
 				// biome-ignore lint/suspicious/noExplicitAny: matches AI SDK pattern
@@ -181,29 +211,33 @@ export class SomaVercelAiSdkMcpClient<RequestT extends Request = Request, Notifi
 				options: ToolExecutionOptions,
 			): Promise<CallToolResult> => {
 				options?.abortSignal?.throwIfAborted();
-				const result = await self.mcpClient.callTool({ name, arguments: args });
+				const result = await this.mcpClient.callTool({ name, arguments: args });
 				return result as CallToolResult;
 			};
 
 			const toolWithExecute =
-				schemas === 'automatic'
+				schemas === "automatic"
 					? dynamicTool({
-						description,
-						title,
-						inputSchema: jsonSchema({
-							...inputSchema,
-							properties: inputSchema.properties ?? {},
-							additionalProperties: false,
-						} as JSONSchema7),
-						execute,
-					})
-					// biome-ignore lint/suspicious/noExplicitAny: matches AI SDK pattern for typed schemas
-					: tool({
-						description,
-						title,
-						inputSchema: (schemas as Record<string, { inputSchema: z.ZodType<any> }>)[name]!.inputSchema,
-						execute,
-					});
+							description,
+							title,
+							inputSchema: jsonSchema({
+								...inputSchema,
+								properties: inputSchema.properties ?? {},
+								additionalProperties: false,
+							} as JSONSchema7),
+							execute,
+						})
+					: // biome-ignore lint/suspicious/noExplicitAny: matches AI SDK pattern for typed schemas
+						tool({
+							description,
+							title,
+							//@ts-expect-error
+							inputSchema: (
+								schemas as Record<string, { inputSchema: z.ZodType<any> }>
+							)[name]?.inputSchema,
+							//@ts-expect-error
+							execute,
+						});
 
 			tools[name] = { ...toolWithExecute, _meta };
 		}
@@ -215,7 +249,7 @@ export class SomaVercelAiSdkMcpClient<RequestT extends Request = Request, Notifi
 	 * List available resources from the MCP server.
 	 */
 	async listResources(options?: {
-		params?: PaginatedRequest['params'];
+		params?: PaginatedRequest["params"];
 	}): Promise<ListResourcesResult> {
 		return this.mcpClient.listResources(options?.params);
 	}
@@ -240,7 +274,7 @@ export class SomaVercelAiSdkMcpClient<RequestT extends Request = Request, Notifi
 	 * List available prompts from the MCP server.
 	 */
 	async listPrompts(options?: {
-		params?: PaginatedRequest['params'];
+		params?: PaginatedRequest["params"];
 	}): Promise<ListPromptsResult> {
 		return this.mcpClient.listPrompts(options?.params);
 	}
@@ -252,7 +286,10 @@ export class SomaVercelAiSdkMcpClient<RequestT extends Request = Request, Notifi
 		name: string;
 		arguments?: Record<string, string>;
 	}): Promise<GetPromptResult> {
-		return this.mcpClient.getPrompt({ name: args.name, arguments: args.arguments });
+		return this.mcpClient.getPrompt({
+			name: args.name,
+			arguments: args.arguments,
+		});
 	}
 }
 
@@ -292,7 +329,11 @@ export class SomaVercelAiSdkMcpClient<RequestT extends Request = Request, Notifi
  * });
  * ```
  */
-export async function createSomaAiSdkMcpClient<RequestT extends Request = Request, NotificationT extends Notification = Notification, ResultT extends Result = Result>(
+export async function createSomaAiSdkMcpClient<
+	RequestT extends Request = Request,
+	NotificationT extends Notification = Notification,
+	ResultT extends Result = Result,
+>(
 	restate: ObjectContext,
 	config: SomaMcpToolsConfig<RequestT, NotificationT, ResultT>,
 ): Promise<SomaVercelAiSdkMcpClient<RequestT, NotificationT, ResultT>> {

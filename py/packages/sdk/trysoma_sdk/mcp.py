@@ -5,11 +5,9 @@ Provides a client wrapper that makes all MCP operations replayable via Restate.
 
 import logging
 import os
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import cast
-
-logger = logging.getLogger(__name__)
 
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
@@ -25,6 +23,8 @@ from mcp.types import (
 )
 from pydantic import AnyUrl
 from restate import ObjectContext
+
+logger = logging.getLogger(__name__)
 
 
 class SomaMcpClientConfig:
@@ -124,7 +124,11 @@ class SomaMcpClient:
             f"mcp-{self._client_name}-listTools-index-{index}", do_list
         )
         result = ListToolsResult.model_validate(data)
-        logger.debug("Listing tools on MCP server %s completed (count=%d)", self._client_name, len(result.tools))
+        logger.debug(
+            "Listing tools on MCP server %s completed (count=%d)",
+            self._client_name,
+            len(result.tools),
+        )
         return result
 
     async def call_tool(
@@ -145,7 +149,9 @@ class SomaMcpClient:
             f"mcp-{self._client_name}-callTool-index-{index}", do_call
         )
         result = CallToolResult.model_validate(data)
-        logger.debug("Calling tool %s on MCP server %s completed", name, self._client_name)
+        logger.debug(
+            "Calling tool %s on MCP server %s completed", name, self._client_name
+        )
         return result
 
     async def list_resources(
@@ -199,7 +205,9 @@ class SomaMcpClient:
             f"mcp-{self._client_name}-readResource-index-{index}", do_read
         )
         result = ReadResourceResult.model_validate(data)
-        logger.debug("Reading resource %s on MCP server %s completed", uri, self._client_name)
+        logger.debug(
+            "Reading resource %s on MCP server %s completed", uri, self._client_name
+        )
         return result
 
     async def subscribe_resource(self, uri: str) -> EmptyResult:
@@ -265,7 +273,9 @@ class SomaMcpClient:
             f"mcp-{self._client_name}-getPrompt-index-{index}", do_get
         )
         result = GetPromptResult.model_validate(data)
-        logger.debug("Getting prompt %s on MCP server %s completed", name, self._client_name)
+        logger.debug(
+            "Getting prompt %s on MCP server %s completed", name, self._client_name
+        )
         return result
 
     async def send_roots_list_changed(self) -> None:
@@ -313,7 +323,6 @@ async def create_soma_mcp_client(
             result = await client.call_tool('my-tool', {'arg': 'value'})
         ```
     """
-    logger.debug("Creating MCP client for instance %s", mcp_server_instance_id)
     mcp_url = get_mcp_url(mcp_server_instance_id, config)
 
     async with streamablehttp_client(mcp_url) as (
@@ -326,7 +335,6 @@ async def create_soma_mcp_client(
             write_stream=write_stream,
         ) as session:
             await session.initialize()
-            logger.debug("Creating MCP client for instance %s completed", mcp_server_instance_id)
             yield SomaMcpClient(ctx, session, mcp_server_instance_id)
 
 

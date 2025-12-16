@@ -25,12 +25,10 @@ fn main() {
             "cargo:warning=Debug build or frontend already built, skipping openapi spec generation and client generation"
         );
     } else {
-
         let spec = soma_api_server::router::generate_openapi_spec();
         let openapi_client_json =
             serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
         fs::write(&openapi_json_path, openapi_client_json).expect("Failed to write openapi.json");
-
 
         // Step 2: Generate TypeScript client
         println!("cargo:warning=Generating typescript client");
@@ -73,7 +71,6 @@ fn main() {
                 println!("cargo:warning=Could not run npx openapi-typescript: {e}");
             }
         }
-
     }
 
     // Step 3: Check if frontend is already built (routes.json exists)

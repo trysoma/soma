@@ -56,20 +56,19 @@ export interface SomaMcpClientConfig {
  * const result = await client.callTool({ name: 'my-tool', arguments: {} });
  * ```
  */
-export async function createSomaMcpClient<RequestT extends Request = Request, NotificationT extends Notification = Notification, ResultT extends Result = Result>(
+export async function createSomaMcpClient<
+	RequestT extends Request = Request,
+	NotificationT extends Notification = Notification,
+	ResultT extends Result = Result,
+>(
 	ctx: ObjectContext,
 	mcpServerInstanceId: string,
 	config?: SomaMcpClientConfig,
 ): Promise<SomaMcpClient<RequestT, NotificationT, ResultT>> {
-
-
-	const client = new SomaMcpClient<RequestT, NotificationT, ResultT>(
-		ctx,
-		{
-			name: mcpServerInstanceId,
-			version: "1.0.0",
-		},
-	);
+	const client = new SomaMcpClient<RequestT, NotificationT, ResultT>(ctx, {
+		name: mcpServerInstanceId,
+		version: "1.0.0",
+	});
 
 	const { transport, sessionId: _sessionId } = createSomaMcpTransport(
 		ctx,

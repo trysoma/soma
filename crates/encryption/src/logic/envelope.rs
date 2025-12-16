@@ -215,9 +215,15 @@ pub async fn list_envelope_encryption_keys<R>(
 where
     R: EncryptionKeyRepositoryLike,
 {
-    trace!(page_size = params.page_size, "Listing envelope encryption keys");
+    trace!(
+        page_size = params.page_size,
+        "Listing envelope encryption keys"
+    );
     let res = repo.list_envelope_encryption_keys_paginated(&params).await;
-    trace!(success = res.is_ok(), "Listing envelope encryption keys completed");
+    trace!(
+        success = res.is_ok(),
+        "Listing envelope encryption keys completed"
+    );
     res
 }
 

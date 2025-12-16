@@ -11,8 +11,8 @@ use crate::logic::mcp::BridgeMcpService;
 use crate::logic::{OnConfigChangeTx, process_credential_rotations_with_window};
 use crate::repository::Repository;
 use encryption::logic::crypto_services::CryptoCache;
-use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use rmcp::transport::streamable_http_server::StreamableHttpService;
+use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use shared::error::CommonError;
 use tracing::{debug, trace};
 use utoipa_axum::router::OpenApiRouter;
@@ -73,7 +73,6 @@ pub fn create_router() -> OpenApiRouter<BridgeService> {
         .routes(routes!(
             mcp_server_instance::route_remove_mcp_server_instance_function
         ))
-        
 }
 
 /// Inner state for the bridge service containing all shared dependencies

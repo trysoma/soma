@@ -150,7 +150,10 @@ async fn route_list_decrypted_secrets(
     State(ctx): State<Arc<SecretService>>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListDecryptedSecretsResponse, CommonError> {
-    trace!(page_size = pagination.page_size, "Listing decrypted secrets");
+    trace!(
+        page_size = pagination.page_size,
+        "Listing decrypted secrets"
+    );
     let res =
         list_decrypted_secrets(&ctx.repository, ctx.encryption_service.cache(), pagination).await;
     trace!(success = res.is_ok(), "Listing decrypted secrets completed");

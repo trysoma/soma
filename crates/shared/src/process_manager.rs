@@ -1,15 +1,19 @@
-use pmdaemon::{ProcessConfig as PmDaemonProcessConfig, ProcessManager, ProcessState, ProcessStatus, config::ExecMode};
 use crate::error::CommonError;
-use tokio::time::{sleep, Duration};
-use tracing::{debug, error, trace, warn};
-use uuid::Uuid;
+use pmdaemon::{
+    ProcessConfig as PmDaemonProcessConfig, ProcessManager, ProcessState, ProcessStatus,
+    config::ExecMode,
+};
+use std::path::Path;
+use std::pin::Pin;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
-use tokio::sync::{RwLock, Mutex};
-use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
 use tokio::fs::OpenOptions;
+use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
-use std::pin::Pin;
+use tokio::sync::{Mutex, RwLock};
+use tokio::time::{Duration, sleep};
+use tracing::{debug, error, trace, warn};
+use uuid::Uuid;
 
 pub struct CustomProcessManager {
     manager: Arc<Mutex<ProcessManager>>,
@@ -41,11 +45,14 @@ pub enum ProcessHandleInner {
     JoinHandle(tokio::task::JoinHandle<Result<(), CommonError>>),
 }
 
-pub type ShutdownCallback = Box<dyn Fn() -> Pin<Box<dyn std::future::Future<Output = ()> + Send>> + Send + Sync>;
+pub type ShutdownCallback =
+    Box<dyn Fn() -> Pin<Box<dyn std::future::Future<Output = ()> + Send>> + Send + Sync>;
 
 pub struct ProcessHandle {
     inner: ProcessHandleInner,
+    #[allow(dead_code)]
     on_terminal_stop: OnTerminalStop,
+    #[allow(dead_code)]
     on_stop: Option<OnStop>, // Only used for threads, None for processes
     shutdown_priority: u32,
     on_shutdown_triggered: Option<ShutdownCallback>,
@@ -53,7 +60,6 @@ pub struct ProcessHandle {
 }
 
 pub struct ProcessConfig {
-
     /// Script or command to execute (required) - path to executable or command name
     pub script: String,
 
@@ -76,7 +82,7 @@ pub struct ProcessConfig {
 
     pub on_terminal_stop: OnTerminalStop,
     pub on_stop: OnStop, // For process restart behavior (handled by pmdaemon)
-    
+
     /// Shutdown priority (higher number = higher priority, shutdown first)
     pub shutdown_priority: u32,
     pub follow_logs: bool,
@@ -130,7 +136,11 @@ where
     }
 }
 
-fn construct_pm_process_config(config: &ProcessConfig, name: &str, log_file_path: PathBuf) -> PmDaemonProcessConfig {
+fn construct_pm_process_config(
+    config: &ProcessConfig,
+    name: &str,
+    log_file_path: PathBuf,
+) -> PmDaemonProcessConfig {
     PmDaemonProcessConfig {
         name: name.to_string(),
         script: config.script.clone(),
@@ -201,18 +211,21 @@ impl CustomProcessManager {
         Self::new_with_shutdown_notifier(None).await
     }
 
-    pub async fn new_with_shutdown_notifier(shutdown_notifier: Option<oneshot::Sender<()>>) -> Result<Self, CommonError> {
+    pub async fn new_with_shutdown_notifier(
+        shutdown_notifier: Option<oneshot::Sender<()>>,
+    ) -> Result<Self, CommonError> {
         // Note: we dont ever want to resume processes from a previous session, so we start from scratch every time
         let uuid = Uuid::new_v4();
         let temp_pmdaemon_home = std::env::temp_dir().join(format!("pmdaemon/{uuid}"));
         unsafe {
             std::env::set_var("PMDAEMON_HOME", temp_pmdaemon_home.display().to_string());
         }
-        let manager = Arc::new(Mutex::new(ProcessManager::new().await
-            .map_err(|e| CommonError::from(e))?));
+        let manager = Arc::new(Mutex::new(
+            ProcessManager::new().await.map_err(CommonError::from)?,
+        ));
         let processes = Arc::new(RwLock::new(std::collections::HashMap::new()));
         let shutdown_triggered = Arc::new(RwLock::new(false));
-        
+
         Ok(Self {
             manager,
             processes,
@@ -227,14 +240,18 @@ impl CustomProcessManager {
         // Get the process handle and call on_shutdown_triggered if present
         let on_shutdown_triggered_future = {
             let processes = self.processes.read().await;
-            processes.get(name).and_then(|p| p.on_shutdown_triggered.as_ref().map(|cb| cb()))
+            processes
+                .get(name)
+                .and_then(|p| p.on_shutdown_triggered.as_ref().map(|cb| cb()))
         };
 
         // Call on_shutdown_triggered with timeout
         if let Some(future) = on_shutdown_triggered_future {
             match tokio::time::timeout(Duration::from_secs(30), future).await {
                 Ok(()) => trace!(process = %name, "on_shutdown_triggered callback completed"),
-                Err(_) => warn!(process = %name, "on_shutdown_triggered callback timed out after 30s, proceeding with shutdown"),
+                Err(_) => {
+                    warn!(process = %name, "on_shutdown_triggered callback timed out after 30s, proceeding with shutdown")
+                }
             }
         }
 
@@ -242,14 +259,16 @@ impl CustomProcessManager {
         let shutdown_triggered = *self.shutdown_triggered.read().await;
         let is_pmdaemon_process = {
             let processes = self.processes.read().await;
-            processes.get(name).map(|p| matches!(&p.inner, ProcessHandleInner::ProcessStatus(_)))
+            processes
+                .get(name)
+                .map(|p| matches!(&p.inner, ProcessHandleInner::ProcessStatus(_)))
         };
 
         if let Some(true) = is_pmdaemon_process {
             if shutdown_triggered {
                 // During shutdown, use delete instead of stop to prevent autorestart
                 trace!(process = %name, "Deleting pmdaemon process (shutdown mode)");
-                
+
                 // Get PID before deleting (if available)
                 let pid = {
                     let processes = self.processes.read().await;
@@ -261,15 +280,16 @@ impl CustomProcessManager {
                         }
                     })
                 };
-                
-                self.manager.lock().await.delete(name).await
-                    .inspect_err(|e| error!(process = %name, error = %e, "Failed to delete process"))?;
-                
+
+                self.manager.lock().await.delete(name).await.inspect_err(
+                    |e| error!(process = %name, error = %e, "Failed to delete process"),
+                )?;
+
                 // Wait for process to stop, checking PID directly if available
                 let stop_timeout = Duration::from_secs(5);
                 let start = std::time::Instant::now();
                 let mut stopped = false;
-                
+
                 if let Some(pid_value) = pid {
                     // Check PID directly to see if process is still running
                     while start.elapsed() < stop_timeout {
@@ -304,22 +324,26 @@ impl CustomProcessManager {
                             break;
                         }
                     }
-                    
+
                     // If process is still running, try to kill it directly
                     if !stopped {
                         warn!(process = %name, pid = pid_value, "Process still running after delete, attempting to kill");
                         #[cfg(unix)]
                         {
-                            use nix::sys::signal::{kill, Signal};
+                            use nix::sys::signal::{Signal, kill};
                             use nix::unistd::Pid;
-                            if let Err(e) = kill(Pid::from_raw(pid_value as i32), Some(Signal::SIGTERM)) {
+                            if let Err(e) =
+                                kill(Pid::from_raw(pid_value as i32), Some(Signal::SIGTERM))
+                            {
                                 warn!(process = %name, pid = pid_value, error = ?e, "Failed to send SIGTERM");
                             } else {
                                 // Wait a bit for SIGTERM to take effect
                                 sleep(Duration::from_millis(1000)).await;
                                 // Check if still running, then force kill
                                 if kill(Pid::from_raw(pid_value as i32), None).is_ok() {
-                                    if let Err(e) = kill(Pid::from_raw(pid_value as i32), Some(Signal::SIGKILL)) {
+                                    if let Err(e) =
+                                        kill(Pid::from_raw(pid_value as i32), Some(Signal::SIGKILL))
+                                    {
                                         warn!(process = %name, pid = pid_value, error = ?e, "Failed to send SIGKILL");
                                     }
                                 }
@@ -338,8 +362,9 @@ impl CustomProcessManager {
             } else {
                 // Normal stop (not during shutdown), just stop and wait
                 trace!(process = %name, "Sending stop signal");
-                self.manager.lock().await.stop(name).await
-                    .inspect_err(|e| error!(process = %name, error = %e, "Failed to send stop signal"))?;
+                self.manager.lock().await.stop(name).await.inspect_err(
+                    |e| error!(process = %name, error = %e, "Failed to send stop signal"),
+                )?;
                 self.wait_for_stop(name).await?;
             }
         } else {
@@ -369,7 +394,9 @@ impl CustomProcessManager {
         // Get and call on_shutdown_complete callback if present
         let on_shutdown_complete_future = {
             let processes = self.processes.read().await;
-            processes.get(name).and_then(|p| p.on_shutdown_complete.as_ref().map(|cb| cb()))
+            processes
+                .get(name)
+                .and_then(|p| p.on_shutdown_complete.as_ref().map(|cb| cb()))
         };
 
         // Remove from processes map
@@ -379,45 +406,58 @@ impl CustomProcessManager {
         if let Some(future) = on_shutdown_complete_future {
             match tokio::time::timeout(Duration::from_secs(30), future).await {
                 Ok(()) => trace!(process = %name, "on_shutdown_complete callback completed"),
-                Err(_) => warn!(process = %name, "on_shutdown_complete callback timed out after 30s, proceeding"),
+                Err(_) => {
+                    warn!(process = %name, "on_shutdown_complete callback timed out after 30s, proceeding")
+                }
             }
         }
 
         trace!(process = %name, "Process stopped");
         Ok(())
     }
-    
-    pub async fn start_process(&self, name: &str, config: ProcessConfig) -> Result<(), CommonError> {
+
+    pub async fn start_process(
+        &self,
+        name: &str,
+        config: ProcessConfig,
+    ) -> Result<(), CommonError> {
         // Check if shutdown has been triggered
         if *self.shutdown_triggered.read().await {
             debug!(process = %name, "Shutdown triggered, skipping process start");
             return Ok(());
         }
-        
+
         trace!(process = %name, "Starting process");
-        
+
         // Stop existing service if it exists
-        if let Ok(_) = self.manager.lock().await.get_process_info(name).await {
+        if self
+            .manager
+            .lock()
+            .await
+            .get_process_info(name)
+            .await
+            .is_ok()
+        {
             trace!(process = %name, "Stopping existing process");
             self.manager.lock().await.stop(name).await?;
             self.wait_for_stop(name).await?;
         }
-        let log_process_name = format!("sys-{}-log", name);
+        let log_process_name = format!("sys-{name}-log");
         self.stop_process(&log_process_name).await
             .inspect_err(|e| error!(process = %log_process_name, error = %e, "Failed to stop log tailing process"))?;
-        
+
         // Get PMDAEMON_HOME to construct actual log file paths
         let pmdaemon_home = std::env::var("PMDAEMON_HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|_| std::env::temp_dir().join("pmdaemon"));
-        
+
         // PMDaemon writes to {PMDAEMON_HOME}/logs/{process-name}-out.log and {process-name}-error.log
         let logs_dir = pmdaemon_home.join("logs");
-        let out_log_path = logs_dir.join(format!("{}-out.log", name));
-        let error_log_path = logs_dir.join(format!("{}-error.log", name));
-        
+        let out_log_path = logs_dir.join(format!("{name}-out.log"));
+        let error_log_path = logs_dir.join(format!("{name}-error.log"));
+
         trace!(process = %name, out_log = %out_log_path.display(), error_log = %error_log_path.display(), "Resolved log file paths");
-        
+
         // Start log tailing task for both stdout and stderr
         if config.follow_logs {
             // Store the handle - capture the spawn logic in a closure
@@ -428,39 +468,37 @@ impl CustomProcessManager {
                 spawn_fn: move || {
                     let out_path = out_log_path_final.clone();
                     let error_path = error_log_path_final.clone();
-                    let name = format!("{}-log", name_for_log);
+                    let name = format!("{name_for_log}-log");
                     tokio::spawn(async move {
                         // Tail both out and error logs
                         let out_handle: tokio::task::JoinHandle<Result<(), CommonError>> = tokio::spawn({
                             let out_path = out_path.clone();
-                            let name = format!("{}-out", name);
+                            let name = format!("{name}-out");
                             async move {
                                 tail_log_file(&out_path, &name).await
                                     .inspect_err(|e| error!(log_file = %out_path.display(), error = %e, "Failed to tail stdout log"))?;
                                 Ok(())
                             }
                         });
-                        
                         let error_handle: tokio::task::JoinHandle<Result<(), CommonError>> = tokio::spawn({
                             let error_path = error_path.clone();
-                            let name = format!("{}-err", name);
+                            let name = format!("{name}-err");
                             async move {
                                 tail_log_file(&error_path, &name).await
                                     .inspect_err(|e| error!(log_file = %error_path.display(), error = %e, "Failed to tail stderr log"))?;
                                 Ok(())
                             }
                         });
-                        
                         // Wait for both to complete (they run forever, so this will never return)
                         tokio::select! {
                             _ = out_handle => {},
                             _ = error_handle => {},
                         }
-                        
+
                         Ok(())
                     })
                 },
-                health_check: None, 
+                health_check: None,
                 on_terminal_stop: OnTerminalStop::TriggerShutdown,
                 on_stop: OnStop::Restart(RestartConfig {
                     max_restarts: 10,
@@ -474,39 +512,57 @@ impl CustomProcessManager {
                 .await
                 .inspect_err(|e| error!(process = %log_process_name, error = %e, "Failed to start log tailing thread"))?;
         }
-        
+
         // Clone on_terminal_stop and shutdown_priority before moving config
-        let on_terminal_stop = config.on_terminal_stop.clone();   
+        let on_terminal_stop = config.on_terminal_stop.clone();
         let shutdown_priority = config.shutdown_priority;
-        
+
         // Use a dummy log file path for pmdaemon config (it will use its own paths anyway)
-        let dummy_log_path = logs_dir.join(format!("{}.log", name));
-        let pm_config = construct_pm_process_config(&config, &name, dummy_log_path);
-        
+        let dummy_log_path = logs_dir.join(format!("{name}.log"));
+        let pm_config = construct_pm_process_config(&config, name, dummy_log_path);
+
         // Extract shutdown callbacks after using config (construct_pm_process_config doesn't use them)
         let on_shutdown_triggered = config.on_shutdown_triggered;
         let on_shutdown_complete = config.on_shutdown_complete;
-        
+
         // Start new service
-        self.manager.lock().await.start(pm_config).await
+        self.manager
+            .lock()
+            .await
+            .start(pm_config)
+            .await
             .inspect_err(|e| error!(process = %name, error = %e, "Failed to start process"))?;
-        
+
         // Health checks are configured in the ProcessConfig
         // The process manager handles health monitoring internally
-        
+
         // Update our process tracking
-        let info = self.manager.lock().await.get_process_info(name).await
+        let info = self
+            .manager
+            .lock()
+            .await
+            .get_process_info(name)
+            .await
             .inspect_err(|e| error!(process = %name, error = %e, "Failed to get process info"))?;
-        self.processes.write().await.insert(name.to_string(), ProcessHandle::new_with_process_status(info, on_terminal_stop, shutdown_priority, on_shutdown_triggered, on_shutdown_complete));
+        self.processes.write().await.insert(
+            name.to_string(),
+            ProcessHandle::new_with_process_status(
+                info,
+                on_terminal_stop,
+                shutdown_priority,
+                on_shutdown_triggered,
+                on_shutdown_complete,
+            ),
+        );
         trace!(process = %name, "Process registered");
 
         Ok(())
     }
-    
+
     async fn wait_for_stop(&self, name: &str) -> Result<(), CommonError> {
         let timeout = Duration::from_secs(30);
         let start = std::time::Instant::now();
-        
+
         while start.elapsed() < timeout {
             match self.manager.lock().await.get_process_info(name).await {
                 Err(_) => {
@@ -523,8 +579,10 @@ impl CustomProcessManager {
                 }
             }
         }
-        
-        Err(CommonError::Unknown(anyhow::anyhow!("Process did not stop within timeout")))
+
+        Err(CommonError::Unknown(anyhow::anyhow!(
+            "Process did not stop within timeout"
+        )))
     }
 
     pub async fn start_thread<F>(
@@ -540,7 +598,7 @@ impl CustomProcessManager {
             debug!(thread = %name, "Shutdown triggered, skipping thread start");
             return Ok(());
         }
-        
+
         trace!(thread = %name, "Starting thread");
 
         let name_clone = name.to_string();
@@ -548,11 +606,11 @@ impl CustomProcessManager {
         let on_stop_clone = config.on_stop.clone();
         let shutdown_priority = config.shutdown_priority;
         let spawn_fn = config.spawn_fn;
-        
+
         // Get a reference to shutdown_triggered for the restart loop
         let shutdown_triggered = self.shutdown_triggered.clone();
         let shutdown_notifier = self.shutdown_notifier.clone();
-        
+
         // Create a wrapper handle that manages the thread lifecycle, including restarts
         let wrapper_handle = tokio::spawn(async move {
             let mut restart_count = 0u32;
@@ -560,20 +618,21 @@ impl CustomProcessManager {
                 OnStop::Restart(restart_config) => restart_config.max_restarts,
                 OnStop::Nothing => 0,
             };
-            
-            let mut last_result: Result<Result<(), CommonError>, tokio::task::JoinError> = Ok(Ok(()));
-            
+
+            let mut last_result: Result<Result<(), CommonError>, tokio::task::JoinError> =
+                Ok(Ok(()));
+
             loop {
                 // Check if shutdown was triggered
                 if *shutdown_triggered.read().await {
                     trace!(thread = %name_clone, "Shutdown triggered, stopping thread");
                     break;
                 }
-                
+
                 // Spawn the thread using the callback
                 let handle = (spawn_fn)();
                 last_result = handle.await;
-                
+
                 // Log the result
                 match &last_result {
                     Ok(Ok(())) => {
@@ -586,7 +645,7 @@ impl CustomProcessManager {
                         error!(thread = %name_clone, error = ?e, "Thread join handle error");
                     }
                 }
-                
+
                 // Handle on_stop action
                 match &on_stop_clone {
                     OnStop::Restart(restart_config) => {
@@ -607,7 +666,7 @@ impl CustomProcessManager {
                             }
                             break;
                         }
-                        
+
                         let delay_ms = restart_config.restart_delay;
                         trace!(thread = %name_clone, delay_ms, attempt = restart_count, max_attempts = max_restarts, "Restarting thread");
                         sleep(Duration::from_millis(delay_ms)).await;
@@ -630,14 +689,16 @@ impl CustomProcessManager {
                     }
                 }
             }
-            
+
             // Return the last result, converting join errors to CommonError
             match last_result {
                 Ok(inner_result) => inner_result,
-                Err(e) => Err(CommonError::Unknown(anyhow::anyhow!("Join handle error: {:?}", e))),
+                Err(e) => Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Join handle error: {e:?}"
+                ))),
             }
         });
-        
+
         // Create process handle with the wrapper handle
         let process_handle = ProcessHandle::new_with_join_handle(
             wrapper_handle,
@@ -647,9 +708,12 @@ impl CustomProcessManager {
             config.on_shutdown_triggered,
             config.on_shutdown_complete,
         );
-        
+
         // Store the process handle
-        self.processes.write().await.insert(name.to_string(), process_handle);
+        self.processes
+            .write()
+            .await
+            .insert(name.to_string(), process_handle);
 
         trace!(thread = %name, "Thread registered");
 
@@ -667,7 +731,8 @@ impl CustomProcessManager {
 
         // Get all processes with their names and priorities
         let processes = self.processes.read().await;
-        let mut process_list: Vec<(String, u32)> = processes.iter()
+        let mut process_list: Vec<(String, u32)> = processes
+            .iter()
             .map(|(name, handle)| (name.clone(), handle.shutdown_priority))
             .collect();
         drop(processes);
@@ -675,7 +740,10 @@ impl CustomProcessManager {
         // Sort by shutdown priority (highest first)
         process_list.sort_by(|a, b| b.1.cmp(&a.1));
 
-        trace!(count = process_list.len(), "Shutting down processes in priority order");
+        trace!(
+            count = process_list.len(),
+            "Shutting down processes in priority order"
+        );
 
         // Shutdown each process/thread in priority order
         for (name, _priority) in process_list {
@@ -698,10 +766,10 @@ impl CustomProcessManager {
         } else {
             trace!("All processes removed");
         }
-        
+
         Ok(())
     }
-    
+
     /// Returns a clone of the shutdown_triggered flag for external use.
     /// Use this to wait for shutdown without holding the process manager lock.
     pub fn get_shutdown_signal(&self) -> Arc<RwLock<bool>> {
@@ -724,15 +792,15 @@ impl CustomProcessManager {
     }
 }
 
-async fn tail_log_file(log_file_path: &PathBuf, process_name: &str) -> Result<(), CommonError> {
+async fn tail_log_file(log_file_path: &Path, process_name: &str) -> Result<(), CommonError> {
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
-    
+
     // Spawn task to read log file and send lines through channel
-    let log_file_path_clone = log_file_path.clone();
     let tx_clone = tx.clone();
+    let log_file_path_clone = log_file_path.to_path_buf();
     tokio::spawn(async move {
         let mut last_position = 0u64;
-        
+
         loop {
             match OpenOptions::new()
                 .read(true)
@@ -748,26 +816,26 @@ async fn tail_log_file(log_file_path: &PathBuf, process_name: &str) -> Result<()
                             continue;
                         }
                     };
-                    
+
                     let current_size = metadata.len();
-                    
+
                     // If file was truncated or we haven't started reading yet
                     if current_size < last_position {
                         last_position = 0;
                     }
-                    
+
                     // Seek to last position
                     if let Err(e) = file.seek(SeekFrom::Start(last_position)).await {
                         error!(log_file = %log_file_path_clone.display(), position = last_position, error = %e, "Failed to seek in log file");
                         sleep(Duration::from_millis(1000)).await;
                         continue;
                     }
-                    
+
                     // Read new content
                     if current_size > last_position {
                         let mut reader = BufReader::new(file);
                         let mut buffer = String::new();
-                        
+
                         loop {
                             buffer.clear();
                             match reader.read_line(&mut buffer).await {
@@ -789,7 +857,7 @@ async fn tail_log_file(log_file_path: &PathBuf, process_name: &str) -> Result<()
                             }
                         }
                     }
-                    
+
                     sleep(Duration::from_millis(100)).await;
                 }
                 Err(_) => {
@@ -799,18 +867,17 @@ async fn tail_log_file(log_file_path: &PathBuf, process_name: &str) -> Result<()
             }
         }
     });
-    
+
     // Spawn task to receive log lines and print them
     let process_name_clone = process_name.to_string();
     tokio::spawn(async move {
         while let Some(line) = rx.recv().await {
-            println!("[{}] {}", process_name_clone, line);
+            println!("[{process_name_clone}] {line}");
         }
     });
-    
+
     // Keep the function running (this task will run until aborted)
     loop {
         sleep(Duration::from_secs(1)).await;
     }
 }
-

@@ -67,7 +67,10 @@ async fn route_runtime_config(
 ) -> JsonResponse<RuntimeConfigResponse, CommonError> {
     trace!("Getting runtime config");
     let runtime_config = crate::logic::internal::runtime_config().await;
-    trace!(success = runtime_config.is_ok(), "Getting runtime config completed");
+    trace!(
+        success = runtime_config.is_ok(),
+        "Getting runtime config completed"
+    );
     JsonResponse::from(runtime_config)
 }
 

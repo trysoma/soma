@@ -487,7 +487,10 @@ pub fn set_environment_variable_handler(callback: Py<PyAny>) -> PyResult<()> {
     let handler: core_types::EnvironmentVariableHandler =
         Arc::new(move |env_vars: Vec<core_types::EnvironmentVariable>| {
             let callback: Arc<Py<PyAny>> = Arc::clone(&callback);
-            trace!(count = env_vars.len(), "Environment variable handler invoked");
+            trace!(
+                count = env_vars.len(),
+                "Environment variable handler invoked"
+            );
 
             Box::pin(async move {
                 let py_env_vars: Vec<py_types::EnvironmentVariable> = env_vars

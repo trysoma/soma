@@ -17,7 +17,9 @@ pub struct StartAxumServerParams {
 
 pub struct StartAxumServerResult {
     pub server_fut: Pin<Box<dyn Future<Output = Result<(), std::io::Error>> + Send>>,
+    #[allow(dead_code)]
     pub handle: axum_server::Handle,
+    #[allow(dead_code)]
     pub addr: SocketAddr,
     pub on_shutdown_triggered: ShutdownCallback,
     pub on_shutdown_complete: ShutdownCallback,
@@ -67,12 +69,14 @@ pub async fn start_axum_server(
 
     tracing::trace!("Router initiated");
 
-    let server_fut = Box::pin(axum_server::bind(addr)
-        .handle(handle.clone())
-        .serve(router.into_make_service()));
+    let server_fut = Box::pin(
+        axum_server::bind(addr)
+            .handle(handle.clone())
+            .serve(router.into_make_service()),
+    );
 
     let handle_for_shutdown = handle.clone();
-    
+
     // Create on_shutdown_triggered callback
     let on_shutdown_triggered: ShutdownCallback = Box::new(move || {
         let handle = handle_for_shutdown.clone();
@@ -82,7 +86,7 @@ pub async fn start_axum_server(
             handle.graceful_shutdown(Some(std::time::Duration::from_secs(30)));
         })
     });
-    
+
     // Create on_shutdown_complete callback
     #[cfg(debug_assertions)]
     let on_shutdown_complete: ShutdownCallback = {
@@ -110,7 +114,7 @@ pub async fn start_axum_server(
             })
         })
     };
-    
+
     #[cfg(not(debug_assertions))]
     let on_shutdown_complete: ShutdownCallback = Box::new(move || {
         Box::pin(async move {

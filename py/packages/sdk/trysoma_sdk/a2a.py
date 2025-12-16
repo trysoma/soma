@@ -4,13 +4,17 @@ All methods are wrapped with ctx.run() for durability.
 """
 
 import logging
-from typing import AsyncIterator, TypeVar, Generic, Union, cast, TYPE_CHECKING, TypeAlias
+from typing import (
+    AsyncIterator,
+    TypeVar,
+    Generic,
+    Union,
+    cast,
+    TYPE_CHECKING,
+    TypeAlias,
+)
 
-from restate import ObjectContext
-
-logger = logging.getLogger(__name__)
-
-# A2A types - these are the core types from a2a-python
+from a2a.client import A2AClient as BaseA2AClient
 from a2a.types import (
     AgentCard,
     Message,
@@ -30,7 +34,9 @@ from a2a.types import (
     GetTaskSuccessResponse,
     CancelTaskSuccessResponse,
 )
-from a2a.client import A2AClient as BaseA2AClient
+from restate import ObjectContext
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from a2a.client import ClientEvent
@@ -164,7 +170,7 @@ class A2AClient:
         )
         # Try to parse as Task first, then Message
         try:
-            result = Task.model_validate(data)
+            result: Message | Task = Task.model_validate(data)
             logger.debug("Sending message to agent %s completed", self._restate_id)
             return result
         except Exception:
@@ -203,9 +209,8 @@ class A2AClient:
             # Extract result from SendStreamingMessageResponse
             if hasattr(event_response, "root"):
                 from a2a.types import SendStreamingMessageSuccessResponse
-                if isinstance(
-                    event_response.root, SendStreamingMessageSuccessResponse
-                ):
+
+                if isinstance(event_response.root, SendStreamingMessageSuccessResponse):
                     result = event_response.root.result
                     yield cast(StreamEventType, result)
                 else:
@@ -303,9 +308,8 @@ class A2AClient:
             # Extract result from SendStreamingMessageResponse
             if hasattr(event_response, "root"):
                 from a2a.types import SendStreamingMessageSuccessResponse
-                if isinstance(
-                    event_response.root, SendStreamingMessageSuccessResponse
-                ):
+
+                if isinstance(event_response.root, SendStreamingMessageSuccessResponse):
                     result = event_response.root.result
                     yield cast(StreamEventType, result)
                 else:

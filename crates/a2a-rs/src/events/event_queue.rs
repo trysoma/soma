@@ -103,12 +103,10 @@ impl EventQueue {
                 }
                 Err(broadcast::error::TryRecvError::Empty) => Err(DequeueError::QueueEmpty),
                 Err(broadcast::error::TryRecvError::Closed) => Err(DequeueError::QueueClosed),
-                Err(broadcast::error::TryRecvError::Lagged(_)) => {
-                    match receiver.try_recv() {
-                        Ok(event) => Ok(event),
-                        Err(_) => Err(DequeueError::QueueEmpty),
-                    }
-                }
+                Err(broadcast::error::TryRecvError::Lagged(_)) => match receiver.try_recv() {
+                    Ok(event) => Ok(event),
+                    Err(_) => Err(DequeueError::QueueEmpty),
+                },
             }
         } else {
             match receiver.recv().await {
@@ -117,12 +115,10 @@ impl EventQueue {
                     Ok(event)
                 }
                 Err(broadcast::error::RecvError::Closed) => Err(DequeueError::QueueClosed),
-                Err(broadcast::error::RecvError::Lagged(_)) => {
-                    match receiver.recv().await {
-                        Ok(event) => Ok(event),
-                        Err(_) => Err(DequeueError::QueueClosed),
-                    }
-                }
+                Err(broadcast::error::RecvError::Lagged(_)) => match receiver.recv().await {
+                    Ok(event) => Ok(event),
+                    Err(_) => Err(DequeueError::QueueClosed),
+                },
             }
         }
     }

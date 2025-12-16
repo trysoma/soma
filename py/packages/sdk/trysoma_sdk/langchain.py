@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
-from langchain_core.tools import BaseTool, StructuredTool
+from langchain_core.tools import BaseTool, StructuredTool  # type: ignore[import-not-found]
 from mcp.types import CallToolResult, Tool as McpTool
 from pydantic import BaseModel, create_model
 from restate import ObjectContext
@@ -25,7 +25,9 @@ from trysoma_sdk.mcp import (
 )
 
 
-def _json_schema_to_pydantic_model(name: str, schema: dict[str, Any]) -> type[BaseModel]:
+def _json_schema_to_pydantic_model(
+    name: str, schema: dict[str, Any]
+) -> type[BaseModel]:
     """
     Convert a JSON schema to a Pydantic model.
 
@@ -180,9 +182,7 @@ class SomaLangchainMcpClient:
 
         return tools
 
-    async def list_resources(
-        self, cursor: str | None = None
-    ) -> ListResourcesResult:
+    async def list_resources(self, cursor: str | None = None) -> ListResourcesResult:
         """List available resources from the MCP server."""
         return await self._mcp_client.list_resources(cursor=cursor)
 
@@ -249,7 +249,9 @@ async def create_soma_langchain_mcp_client(
         ```
     """
     # Create the underlying durable MCP client using context manager
-    async with create_soma_mcp_client(ctx, mcp_server_instance_id, config) as mcp_client:
+    async with create_soma_mcp_client(
+        ctx, mcp_server_instance_id, config
+    ) as mcp_client:
         yield SomaLangchainMcpClient(mcp_client)
 
 

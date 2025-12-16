@@ -241,7 +241,10 @@ pub async fn run_environment_variable_sync_loop(
                 break;
             }
             Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                warn!(skipped, "Environment variable change channel lagged, re-syncing");
+                warn!(
+                    skipped,
+                    "Environment variable change channel lagged, re-syncing"
+                );
                 // Re-sync all env vars to ensure we're in a consistent state
                 if let Err(e) = sync_all_environment_variables(&repository, &socket_path).await {
                     error!(error = ?e, "Failed to re-sync environment variables after lag");
@@ -260,7 +263,10 @@ async fn sync_all_environment_variables(
 ) -> Result<(), CommonError> {
     // Fetch all environment variables
     let env_vars = fetch_all_environment_variables(repository).await?;
-    trace!(count = env_vars.len(), "Syncing environment variables to SDK");
+    trace!(
+        count = env_vars.len(),
+        "Syncing environment variables to SDK"
+    );
 
     // Connect to SDK and sync
     let mut client = shared::uds::create_soma_unix_socket_client(socket_path).await?;

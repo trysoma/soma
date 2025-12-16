@@ -2,7 +2,7 @@
 name = "trysoma_insurance_claim_bot_example"
 version = "0.0.0"
 description = "Example insurance claim bot agent using Soma Python SDK"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 readme = "README.md"
 dependencies = [
     "trysoma_sdk",

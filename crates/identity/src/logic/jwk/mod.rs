@@ -314,13 +314,8 @@ pub async fn jwk_rotation_task<R>(
         timer.tick().await;
         tracing::trace!("Starting JWK rotation check");
 
-        if let Err(e) = process_jwk_rotation(
-            &repo,
-            &crypto_cache,
-            &jwks_cache,
-            &default_dek_alias,
-        )
-        .await
+        if let Err(e) =
+            process_jwk_rotation(&repo, &crypto_cache, &jwks_cache, &default_dek_alias).await
         {
             tracing::error!(error = ?e, "JWK rotation failed");
         }

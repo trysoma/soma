@@ -49,7 +49,10 @@ async fn route_create_sts_config(
         true, // publish_on_change_evt
     )
     .await;
-    trace!(success = result.is_ok(), "Creating STS configuration completed");
+    trace!(
+        success = result.is_ok(),
+        "Creating STS configuration completed"
+    );
     JsonResponse::from(result)
 }
 
@@ -75,7 +78,10 @@ async fn route_get_sts_config(
     trace!(config_id = %id, "Getting STS configuration");
     let params = GetStsConfigParams { id };
     let result = get_sts_config(service.repository.as_ref(), params).await;
-    trace!(success = result.is_ok(), "Getting STS configuration completed");
+    trace!(
+        success = result.is_ok(),
+        "Getting STS configuration completed"
+    );
     JsonResponse::from(result)
 }
 
@@ -107,7 +113,10 @@ async fn route_delete_sts_config(
         true, // publish_on_change_evt
     )
     .await;
-    trace!(success = result.is_ok(), "Deleting STS configuration completed");
+    trace!(
+        success = result.is_ok(),
+        "Deleting STS configuration completed"
+    );
     JsonResponse::from(result)
 }
 
@@ -131,6 +140,9 @@ async fn route_list_sts_configs(
 ) -> JsonResponse<ListStsConfigResponse, CommonError> {
     trace!(page_size = query.page_size, "Listing STS configurations");
     let result = list_sts_configs(service.repository.as_ref(), &query).await;
-    trace!(success = result.is_ok(), "Listing STS configurations completed");
+    trace!(
+        success = result.is_ok(),
+        "Listing STS configurations completed"
+    );
     JsonResponse::from(result)
 }

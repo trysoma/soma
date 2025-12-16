@@ -4,7 +4,7 @@ use crate::error::CommonError;
 // AND https://github.com/restatedev/cdk/blob/main/lib/restate-constructs/register-service-handler/entrypoint.mts
 use super::admin_client::AdminClient;
 use super::admin_interface::AdminClientInterface;
-use anyhow::{ anyhow};
+use anyhow::anyhow;
 use http::{HeaderName, HeaderValue, Uri};
 use restate_admin_rest_model::deployments::RegisterDeploymentRequest;
 use restate_admin_rest_model::services::ModifyServiceRequest;
@@ -67,7 +67,9 @@ pub struct DeploymentRegistrationConfig {
 }
 
 /// Registers a deployment with Restate with retry logic
-pub async fn register_deployment(config: DeploymentRegistrationConfig) -> Result<ServiceMetadata, CommonError> {
+pub async fn register_deployment(
+    config: DeploymentRegistrationConfig,
+) -> Result<ServiceMetadata, CommonError> {
     // Wait for Restate admin to be healthy
     wait_for_healthy_restate_admin(&config.admin_url).await?;
 
@@ -101,7 +103,8 @@ async fn wait_for_healthy_http_service(uri: &str) -> Result<(), CommonError> {
     trace!(uri = %uri, "Checking HTTP service connectivity");
 
     // Parse the URI to extract host and port
-    let url = Url::parse(uri).map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid URI '{uri}': {e}")))?;
+    let url = Url::parse(uri)
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid URI '{uri}': {e}")))?;
 
     let host = url
         .host_str()
@@ -116,7 +119,9 @@ async fn wait_for_healthy_http_service(uri: &str) -> Result<(), CommonError> {
                 _ => None,
             }
         })
-        .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("Could not determine port for URI '{uri}'")))?;
+        .ok_or_else(|| {
+            CommonError::Unknown(anyhow::anyhow!("Could not determine port for URI '{uri}'"))
+        })?;
 
     for attempt in 0..MAX_HEALTH_CHECK_ATTEMPTS {
         // Use a TCP connection check - this works for HTTP/1.1, HTTP/2, or any protocol
@@ -165,8 +170,9 @@ pub async fn wait_for_healthy_restate_admin(admin_url: &str) -> Result<(), Commo
     debug!(admin_url = %admin_url, "Checking Restate admin health");
 
     for attempt in 0..MAX_HEALTH_CHECK_ATTEMPTS {
-        let base_url = Url::parse(admin_url)
-            .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid admin URL '{}': {}", admin_url, e)))?;
+        let base_url = Url::parse(admin_url).map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Invalid admin URL '{admin_url}': {e}"))
+        })?;
 
         match AdminClient::new(base_url, None).await {
             Ok(client) => match client.ensure_healthy().await {
@@ -191,9 +197,7 @@ pub async fn wait_for_healthy_restate_admin(admin_url: &str) -> Result<(), Commo
     }
 
     Err(CommonError::Unknown(anyhow::anyhow!(
-        "Restate admin at {} did not become healthy after {} attempts",
-        admin_url,
-        MAX_HEALTH_CHECK_ATTEMPTS
+        "Restate admin at {admin_url} did not become healthy after {MAX_HEALTH_CHECK_ATTEMPTS} attempts"
     )))
 }
 
@@ -204,8 +208,13 @@ async fn register_deployment_with_retry(
     const MAX_REGISTRATION_ATTEMPTS: u32 = 3;
     const REGISTRATION_BACKOFF_MS: u64 = 2000;
 
-    let base_url = Url::parse(&config.admin_url)
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid admin URL '{}': {}", config.admin_url, e)))?;
+    let base_url = Url::parse(&config.admin_url).map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!(
+            "Invalid admin URL '{}': {}",
+            config.admin_url,
+            e
+        ))
+    })?;
 
     let client = AdminClient::new(base_url, config.bearer_token.clone()).await?;
     client.ensure_healthy().await?;

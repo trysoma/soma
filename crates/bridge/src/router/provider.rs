@@ -59,9 +59,15 @@ pub async fn route_list_available_providers(
     State(_ctx): State<BridgeService>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListAvailableProvidersResponse, CommonError> {
-    trace!(page_size = pagination.page_size, "Listing available providers");
+    trace!(
+        page_size = pagination.page_size,
+        "Listing available providers"
+    );
     let res = list_available_providers(pagination).await;
-    trace!(success = res.is_ok(), "Listing available providers completed");
+    trace!(
+        success = res.is_ok(),
+        "Listing available providers completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -103,7 +109,10 @@ pub async fn route_create_provider_instance(
         true,
     )
     .await;
-    trace!(success = res.is_ok(), "Creating provider instance completed");
+    trace!(
+        success = res.is_ok(),
+        "Creating provider instance completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -144,7 +153,10 @@ pub async fn route_update_provider_instance(
         true,
     )
     .await;
-    trace!(success = res.is_ok(), "Updating provider instance completed");
+    trace!(
+        success = res.is_ok(),
+        "Updating provider instance completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -224,7 +236,10 @@ pub async fn route_encrypt_resource_server_configuration(
         },
     )
     .await;
-    trace!(success = res.is_ok(), "Encrypting resource server configuration completed");
+    trace!(
+        success = res.is_ok(),
+        "Encrypting resource server configuration completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -267,7 +282,10 @@ pub async fn route_encrypt_user_credential_configuration(
         },
     )
     .await;
-    trace!(success = res.is_ok(), "Encrypting user credential configuration completed");
+    trace!(
+        success = res.is_ok(),
+        "Encrypting user credential configuration completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -314,7 +332,10 @@ pub async fn route_create_resource_server_credential(
         },
     )
     .await;
-    trace!(success = res.is_ok(), "Creating resource server credential completed");
+    trace!(
+        success = res.is_ok(),
+        "Creating resource server credential completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -448,7 +469,10 @@ pub async fn route_start_user_credential_brokering(
         },
     )
     .await;
-    trace!(success = res.is_ok(), "Starting user credential brokering completed");
+    trace!(
+        success = res.is_ok(),
+        "Starting user credential brokering completed"
+    );
 
     JsonResponse::from(res)
 }
@@ -585,7 +609,10 @@ pub async fn route_delete_provider_instance(
         true,
     )
     .await;
-    trace!(success = res.is_ok(), "Deleting provider instance completed");
+    trace!(
+        success = res.is_ok(),
+        "Deleting provider instance completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -771,7 +798,10 @@ pub async fn route_list_provider_instances(
         },
     )
     .await;
-    trace!(success = res.is_ok(), "Listing provider instances completed");
+    trace!(
+        success = res.is_ok(),
+        "Listing provider instances completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -797,7 +827,10 @@ pub async fn route_list_provider_instances_grouped_by_function(
 ) -> JsonResponse<ListProviderInstancesGroupedByFunctionResponse, CommonError> {
     trace!("Listing provider instances grouped by function");
     let res = list_provider_instances_grouped_by_function(ctx.repository(), query).await;
-    trace!(success = res.is_ok(), "Listing provider instances grouped by function completed");
+    trace!(
+        success = res.is_ok(),
+        "Listing provider instances grouped by function completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -845,7 +878,10 @@ pub async fn route_list_function_instances(
         },
     )
     .await;
-    trace!(success = res.is_ok(), "Listing function instances completed");
+    trace!(
+        success = res.is_ok(),
+        "Listing function instances completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -867,6 +903,9 @@ pub async fn route_get_function_instances_openapi_spec(
 ) -> JsonResponse<OpenApi, CommonError> {
     trace!("Getting function instances OpenAPI spec");
     let res = get_function_instances_openapi_spec(ctx.repository()).await;
-    trace!(success = res.is_ok(), "Getting function instances OpenAPI spec completed");
+    trace!(
+        success = res.is_ok(),
+        "Getting function instances OpenAPI spec completed"
+    );
     JsonResponse::from(res)
 }

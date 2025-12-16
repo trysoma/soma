@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import (
+from langchain_openai import ChatOpenAI  # type: ignore[import-not-found]
+from langchain_core.messages import (  # type: ignore[import-not-found]
     HumanMessage,
     AIMessage,
     SystemMessage,
@@ -108,7 +108,9 @@ async def claim_research_handler(
                 "function": {
                     "name": tool.name,
                     "description": tool.description or f"Tool: {tool.name}",
-                    "parameters": tool.args_schema.model_json_schema() if hasattr(tool, 'args_schema') else {"type": "object", "properties": {}},
+                    "parameters": tool.args_schema.model_json_schema()
+                    if hasattr(tool, "args_schema")
+                    else {"type": "object", "properties": {}},
                 },
             }
             all_tools.append(tool_dict)

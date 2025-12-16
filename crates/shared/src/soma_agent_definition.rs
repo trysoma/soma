@@ -778,7 +778,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         envelope_key
             .deks_mut()
             .insert(alias.clone(), DekConfig { encrypted_key });
-        
+
         self.save(definition).await?;
         trace!(envelope_key_id = %envelope_key_id, alias = %alias, "DEK added");
         Ok(())
@@ -1081,16 +1081,15 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
                     "MCP servers not found"
-                )))
+                )));
             }
         };
         let mcp_server = match mcp_servers.get_mut(&mcp_server_id) {
             Some(mcp_server) => mcp_server,
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "MCP server not found: {}",
-                    mcp_server_id
-                )))
+                    "MCP server not found: {mcp_server_id}"
+                )));
             }
         };
         if mcp_server.functions.is_none() {
@@ -1131,16 +1130,15 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
                     "MCP servers not found"
-                )))
+                )));
             }
         };
         let mcp_server = match mcp_servers.get_mut(&mcp_server_id) {
             Some(mcp_server) => mcp_server,
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "MCP server not found: {}",
-                    mcp_server_id
-                )))
+                    "MCP server not found: {mcp_server_id}"
+                )));
             }
         };
         let functions = match &mut mcp_server.functions {
@@ -1148,7 +1146,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
                     "No functions in MCP server"
-                )))
+                )));
             }
         };
 

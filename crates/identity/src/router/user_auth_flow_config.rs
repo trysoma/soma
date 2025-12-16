@@ -68,7 +68,10 @@ async fn route_create_user_auth_flow_config(
         true, // publish_on_change_evt
     )
     .await;
-    trace!(success = result.is_ok(), "Creating user auth flow configuration completed");
+    trace!(
+        success = result.is_ok(),
+        "Creating user auth flow configuration completed"
+    );
     JsonResponse::from(result)
 }
 
@@ -94,7 +97,10 @@ async fn route_get_user_auth_flow_config(
     trace!(config_id = %id, "Getting user auth flow configuration");
     let params = GetUserAuthFlowConfigParams { id };
     let result = get_user_auth_flow_config(service.repository.as_ref(), params).await;
-    trace!(success = result.is_ok(), "Getting user auth flow configuration completed");
+    trace!(
+        success = result.is_ok(),
+        "Getting user auth flow configuration completed"
+    );
     JsonResponse::from(result)
 }
 
@@ -126,7 +132,10 @@ async fn route_delete_user_auth_flow_config(
         true, // publish_on_change_evt
     )
     .await;
-    trace!(success = result.is_ok(), "Deleting user auth flow configuration completed");
+    trace!(
+        success = result.is_ok(),
+        "Deleting user auth flow configuration completed"
+    );
     JsonResponse::from(result)
 }
 
@@ -158,7 +167,10 @@ async fn route_list_user_auth_flow_configs(
         config_type: query.config_type,
     };
     let result = list_user_auth_flow_configs(service.repository.as_ref(), params).await;
-    trace!(success = result.is_ok(), "Listing user auth flow configurations completed");
+    trace!(
+        success = result.is_ok(),
+        "Listing user auth flow configurations completed"
+    );
     JsonResponse::from(result)
 }
 
@@ -181,6 +193,9 @@ async fn route_import_user_auth_flow_config(
 ) -> JsonResponse<ImportUserAuthFlowConfigResponse, CommonError> {
     trace!(config_id = %params.config.id(), "Importing user auth flow configuration");
     let result = import_user_auth_flow_config(service.repository.as_ref(), params).await;
-    trace!(success = result.is_ok(), "Importing user auth flow configuration completed");
+    trace!(
+        success = result.is_ok(),
+        "Importing user auth flow configuration completed"
+    );
     JsonResponse::from(result)
 }

@@ -9,8 +9,8 @@ use futures::future;
 use indicatif::ProgressBar;
 use tokio::sync::oneshot;
 use tracing::debug;
-use tracing::trace;
 use tracing::error;
+use tracing::trace;
 use url::Url;
 
 use shared::error::CommonError;
@@ -18,10 +18,10 @@ use shared::port::find_free_port;
 use shared::soma_agent_definition::{SomaAgentDefinitionLike, YamlSomaAgentDefinition};
 
 use crate::bridge::run_bridge_sync_to_yaml_loop;
-use shared::process_manager::CustomProcessManager;
 use crate::server::{StartAxumServerParams, start_axum_server};
 use crate::utils::wait_for_soma_api_health_check;
 use crate::utils::{CliConfig, construct_cwd_absolute};
+use shared::process_manager::CustomProcessManager;
 use soma_api_server::factory::{CreateApiServiceParams, create_api_service};
 use soma_api_server::restate::{
     RestateServerLocalParams, RestateServerParams, RestateServerRemoteParams,
@@ -89,7 +89,11 @@ pub async fn cmd_dev(params: DevParams, cli_config: &mut CliConfig) -> Result<()
     let (shutdown_notifier_tx, mut shutdown_notifier_rx) = oneshot::channel();
 
     // Create process manager with shutdown notifier (uses interior mutability, no Mutex needed)
-    let process_manager = shared::process_manager::CustomProcessManager::new_with_shutdown_notifier(Some(shutdown_notifier_tx)).await
+    let process_manager =
+        shared::process_manager::CustomProcessManager::new_with_shutdown_notifier(Some(
+            shutdown_notifier_tx,
+        ))
+        .await
         .inspect_err(|_e| {
             error!("Failed to start process manager");
         })?;
@@ -141,7 +145,9 @@ pub async fn cmd_dev(params: DevParams, cli_config: &mut CliConfig) -> Result<()
 
     // Trigger process manager shutdown
     process_manager_arc_for_shutdown.trigger_shutdown().await?;
-    process_manager_arc_for_shutdown.on_shutdown_complete().await?;
+    process_manager_arc_for_shutdown
+        .on_shutdown_complete()
+        .await?;
 
     debug!("Shutdown complete");
     Ok(())
@@ -155,7 +161,10 @@ async fn cmd_dev_inner(
 ) -> Result<(), CommonError> {
     let project_dir = construct_cwd_absolute(params.clone().cwd)?;
 
-    debug!("Starting dev server in project directory: {}", project_dir.display());
+    debug!(
+        "Starting dev server in project directory: {}",
+        project_dir.display()
+    );
 
     trace!("setting up Libsql database");
     // Resolve relative db_conn_string paths relative to project_dir
@@ -182,19 +191,23 @@ async fn cmd_dev_inner(
         debug!("Database path resolved to: {}", absolute_path.display());
 
         if params.clean && absolute_path.exists() {
-            debug!("Libsql connection is a relative path and --clean flag is set, cleaning local sqlite DB");
+            debug!(
+                "Libsql connection is a relative path and --clean flag is set, cleaning local sqlite DB"
+            );
             trace!("Deleting local sqlite DB file: {}", absolute_path.display());
             std::fs::remove_file(absolute_path)
-            .inspect_err(|_e| {
-                error!("Failed to clean local sqlite DB");
-            })
-            .map_err(|e| CommonError::from(e))?;
+                .inspect_err(|_e| {
+                    error!("Failed to clean local sqlite DB");
+                })
+                .map_err(CommonError::from)?;
             trace!("Local sqlite DB file deleted successfully");
         }
 
         Url::parse(&new_url_str).unwrap_or_else(|_| params.db_conn_string.clone())
     } else {
-        debug!("Libsql connection is a remote HTTP connection or an absolute file path, using as is");
+        debug!(
+            "Libsql connection is a remote HTTP connection or an absolute file path, using as is"
+        );
         params.db_conn_string.clone()
     };
 
@@ -206,7 +219,10 @@ async fn cmd_dev_inner(
         .inspect_err(|_e| {
             error!("Failed to load soma definition");
         })?;
-    debug!("soma definition: {:?}", soma_definition.get_definition().await?);
+    debug!(
+        "soma definition: {:?}",
+        soma_definition.get_definition().await?
+    );
     trace!("Soma definition loaded");
 
     trace!("Configuring restate server");
@@ -221,16 +237,28 @@ async fn cmd_dev_inner(
             debug!("restate ingress url: {:?}", remote_restate.ingress_url);
             debug!("restate admin token: **********");
             remote_restate.try_into()?
-        },
+        }
         None => {
             let restate_server_data_dir = project_dir.join(".soma/restate-data");
             let ingress_port = 8080;
             let admin_port = 9070;
             debug!("Configuring local restate server parameters");
-            debug!("restate server data directory: {:?}", restate_server_data_dir);
-            debug!("restate ingress port (this is where requests to trigger a restate workflow are sent): {:?}", ingress_port);
-            debug!("restate admin port (this is where the restate admin API is exposed): {:?}", admin_port);
-            debug!("restate soma restate service port (this is where the Soma SDK restate service is exposed): {:?}", soma_restate_service_port);
+            debug!(
+                "restate server data directory: {:?}",
+                restate_server_data_dir
+            );
+            debug!(
+                "restate ingress port (this is where requests to trigger a restate workflow are sent): {:?}",
+                ingress_port
+            );
+            debug!(
+                "restate admin port (this is where the restate admin API is exposed): {:?}",
+                admin_port
+            );
+            debug!(
+                "restate soma restate service port (this is where the Soma SDK restate service is exposed): {:?}",
+                soma_restate_service_port
+            );
             debug!("restate clean: {:?}", params.clean);
             RestateServerParams::Local(RestateServerLocalParams {
                 restate_server_data_dir,
@@ -240,18 +268,14 @@ async fn cmd_dev_inner(
                 soma_restate_service_additional_headers: std::collections::HashMap::new(),
                 clean: params.clean,
             })
-        },
+        }
     };
-
 
     // Start Restate server subsystem
     let mut bar = ProgressBar::new_spinner();
     bar.enable_steady_tick(Duration::from_millis(100));
     bar.set_message("Waiting for Restate to start...");
-    crate::restate_server::start_restate(
-        &process_manager,
-        restate_params.clone(),
-    ).await?;
+    crate::restate_server::start_restate(&process_manager, restate_params.clone()).await?;
     bar.finish_and_clear();
     trace!("Restate server configured");
 
@@ -281,27 +305,32 @@ async fn cmd_dev_inner(
     let soma_definition_for_bridge = soma_definition.clone();
     let project_dir_for_bridge = project_dir.clone();
     let soma_change_rx = api_service_bundle.soma_change_tx.subscribe();
-    process_manager.start_thread("bridge_sync_to_yaml", shared::process_manager::ThreadConfig {
-        spawn_fn: move || {
-            let soma_definition = soma_definition_for_bridge.clone();
-            let project_dir = project_dir_for_bridge.clone();
-            let soma_change_rx = soma_change_rx.resubscribe();
-            tokio::spawn(async move {
-                run_bridge_sync_to_yaml_loop(soma_definition, project_dir, soma_change_rx).await
-            })
-        },
-        health_check: None,
-        on_terminal_stop: shared::process_manager::OnTerminalStop::Ignore,
-        on_stop: shared::process_manager::OnStop::Nothing,
-        shutdown_priority: 2,
-        follow_logs: false,
-        on_shutdown_triggered: None,
-        on_shutdown_complete: None,
-    }).await
-    .inspect_err(|e| error!(error = %e, "Failed to start bridge sync to YAML thread"))?;
+    process_manager
+        .start_thread(
+            "bridge_sync_to_yaml",
+            shared::process_manager::ThreadConfig {
+                spawn_fn: move || {
+                    let soma_definition = soma_definition_for_bridge.clone();
+                    let project_dir = project_dir_for_bridge.clone();
+                    let soma_change_rx = soma_change_rx.resubscribe();
+                    tokio::spawn(async move {
+                        run_bridge_sync_to_yaml_loop(soma_definition, project_dir, soma_change_rx)
+                            .await
+                    })
+                },
+                health_check: None,
+                on_terminal_stop: shared::process_manager::OnTerminalStop::Ignore,
+                on_stop: shared::process_manager::OnStop::Nothing,
+                shutdown_priority: 2,
+                follow_logs: false,
+                on_shutdown_triggered: None,
+                on_shutdown_complete: None,
+            },
+        )
+        .await
+        .inspect_err(|e| error!(error = %e, "Failed to start bridge sync to YAML thread"))?;
     trace!("Bridge config change listener started");
     let api_service = api_service_bundle.api_service;
-
 
     // Start Axum server subsystem
     let api_service_clone = api_service.clone();
@@ -325,7 +354,7 @@ async fn cmd_dev_inner(
     // Register axum server with process manager
     let on_shutdown_triggered = axum_server_result.on_shutdown_triggered;
     let on_shutdown_complete = axum_server_result.on_shutdown_complete;
-    
+
     // Start the server future in a separate task (not managed by process manager since it's a one-shot)
     let server_fut = axum_server_result.server_fut;
     tokio::spawn(async move {
@@ -335,23 +364,30 @@ async fn cmd_dev_inner(
             Err(e) => error!(error = ?e, "Axum server stopped with error"),
         }
     });
-    
-    process_manager.start_thread("axum_server", shared::process_manager::ThreadConfig {
-        spawn_fn: move || {
-            // This thread just waits forever since the server is running in a separate task
-            tokio::spawn(async move {
-                futures::future::pending::<Result<(), CommonError>>().await
-            })
-        },
-        health_check: None,
-        on_terminal_stop: shared::process_manager::OnTerminalStop::TriggerShutdown,
-        on_stop: shared::process_manager::OnStop::Nothing,
-        shutdown_priority: 9,
-        follow_logs: false,
-        on_shutdown_triggered: Some(on_shutdown_triggered),
-        on_shutdown_complete: Some(on_shutdown_complete),
-    }).await
-    .inspect_err(|e| error!(error = %e, "Failed to register axum server with process manager"))?;
+
+    process_manager
+        .start_thread(
+            "axum_server",
+            shared::process_manager::ThreadConfig {
+                spawn_fn: move || {
+                    // This thread just waits forever since the server is running in a separate task
+                    tokio::spawn(async move {
+                        futures::future::pending::<Result<(), CommonError>>().await
+                    })
+                },
+                health_check: None,
+                on_terminal_stop: shared::process_manager::OnTerminalStop::TriggerShutdown,
+                on_stop: shared::process_manager::OnStop::Nothing,
+                shutdown_priority: 9,
+                follow_logs: false,
+                on_shutdown_triggered: Some(on_shutdown_triggered),
+                on_shutdown_complete: Some(on_shutdown_complete),
+            },
+        )
+        .await
+        .inspect_err(
+            |e| error!(error = %e, "Failed to register axum server with process manager"),
+        )?;
 
     // Create API client configuration for the soma API server
     let api_base_url = format!("http://{}:{}", params.host, params.port);
@@ -406,7 +442,10 @@ fn load_soma_definition(
     project_dir: &Path,
 ) -> Result<Arc<dyn SomaAgentDefinitionLike>, CommonError> {
     let path_to_soma_definition = project_dir.join("soma.yaml");
-    debug!("Loading soma definition from: {}", path_to_soma_definition.display());
+    debug!(
+        "Loading soma definition from: {}",
+        path_to_soma_definition.display()
+    );
 
     if !path_to_soma_definition.exists() {
         return Err(CommonError::Unknown(anyhow::anyhow!(

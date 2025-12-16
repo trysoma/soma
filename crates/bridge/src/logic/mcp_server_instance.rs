@@ -197,7 +197,9 @@ pub async fn update_mcp_server_instance<R: ProviderRepositoryLike>(
 
     if publish_on_change_evt {
         on_config_change_tx
-            .send(OnConfigChangeEvt::McpServerInstanceUpdated(instance.clone()))
+            .send(OnConfigChangeEvt::McpServerInstanceUpdated(
+                instance.clone(),
+            ))
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
             })?;
@@ -360,6 +362,7 @@ pub async fn add_mcp_server_instance_function<R: ProviderRepositoryLike>(
 }
 
 /// Updates a function in an MCP server instance (only function_name and function_description)
+#[allow(clippy::too_many_arguments)]
 pub async fn update_mcp_server_instance_function<R: ProviderRepositoryLike>(
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
@@ -740,8 +743,14 @@ mod unit_test {
         let update_request = UpdateMcpServerInstanceRequest {
             name: "Updated Name".to_string(),
         };
-        let result =
-            update_mcp_server_instance(&tx, &repo, &create_request.id, update_request.clone(), false).await;
+        let result = update_mcp_server_instance(
+            &tx,
+            &repo,
+            &create_request.id,
+            update_request.clone(),
+            false,
+        )
+        .await;
         assert!(result.is_ok());
 
         let instance = result.unwrap();
@@ -762,7 +771,8 @@ mod unit_test {
         let update_request = UpdateMcpServerInstanceRequest {
             name: "Updated Name".to_string(),
         };
-        let result = update_mcp_server_instance(&tx, &repo, "non-existent-id", update_request, false).await;
+        let result =
+            update_mcp_server_instance(&tx, &repo, "non-existent-id", update_request, false).await;
         assert!(result.is_err());
     }
 
@@ -850,7 +860,9 @@ mod unit_test {
                 id: format!("test-list-instance-{i}"),
                 name: format!("Test Instance {i}"),
             };
-            create_mcp_server_instance(&tx, &repo, request, false).await.unwrap();
+            create_mcp_server_instance(&tx, &repo, request, false)
+                .await
+                .unwrap();
         }
 
         let params = ListMcpServerInstancesParams {
@@ -882,7 +894,9 @@ mod unit_test {
                 id: format!("test-pagination-instance-{i}"),
                 name: format!("Test Instance {i}"),
             };
-            create_mcp_server_instance(&tx, &repo, request, false).await.unwrap();
+            create_mcp_server_instance(&tx, &repo, request, false)
+                .await
+                .unwrap();
         }
 
         // First page
@@ -944,8 +958,14 @@ mod unit_test {
             function_description: Some("A custom function".to_string()),
         };
 
-        let result =
-            add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request.clone(), false).await;
+        let result = add_mcp_server_instance_function(
+            &tx,
+            &repo,
+            &create_request.id,
+            add_request.clone(),
+            false,
+        )
+        .await;
         assert!(result.is_ok(), "Expected Ok, got {result:?}");
 
         let instance = result.unwrap();
@@ -990,9 +1010,15 @@ mod unit_test {
             function_description: None,
         };
 
-        add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request.clone(), false)
-            .await
-            .unwrap();
+        add_mcp_server_instance_function(
+            &tx,
+            &repo,
+            &create_request.id,
+            add_request.clone(),
+            false,
+        )
+        .await
+        .unwrap();
 
         // Try to add another function with the same name - should fail
         // We need another function instance for this test
@@ -1017,7 +1043,8 @@ mod unit_test {
         };
 
         let result =
-            add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request2, false).await;
+            add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request2, false)
+                .await;
         assert!(result.is_err());
 
         // Check that it's an InvalidRequest error
@@ -1058,7 +1085,9 @@ mod unit_test {
             function_description: None,
         };
 
-        let result = add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request, false).await;
+        let result =
+            add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request, false)
+                .await;
         assert!(result.is_err());
     }
 
