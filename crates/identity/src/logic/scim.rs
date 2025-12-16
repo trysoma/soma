@@ -11,6 +11,7 @@ use shared::{
     error::CommonError,
     primitives::{PaginationRequest, WrappedChronoDateTime},
 };
+use tracing::{debug, info, trace, warn};
 use utoipa::{IntoParams, ToSchema};
 
 // ============================================================================
@@ -411,6 +412,8 @@ pub async fn create_user_from_scim(
         .or_else(|| scim_user.id.clone())
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
+    debug!(user_id = %user_id, user_name = %scim_user.user_name, "Resolved user ID for SCIM user creation");
+
     // Extract primary email
     let email = scim_user
         .emails
@@ -421,6 +424,7 @@ pub async fn create_user_from_scim(
         .or_else(|| {
             // If no emails, use userName if it looks like an email
             if scim_user.user_name.contains('@') {
+                debug!(user_name = %scim_user.user_name, "Using userName as email");
                 Some(scim_user.user_name.clone())
             } else {
                 None
@@ -429,6 +433,7 @@ pub async fn create_user_from_scim(
 
     // Check if user already exists
     if let Some(existing) = repo.get_user_by_id(&user_id).await? {
+        debug!(user_id = %existing.id, "User already exists");
         return Err(CommonError::InvalidRequest {
             msg: format!("User with id '{}' already exists", existing.id),
             source: None,
@@ -445,6 +450,7 @@ pub async fn create_user_from_scim(
         updated_at: now,
     };
 
+    trace!(user_id = %user_id, "Inserting SCIM user into repository");
     repo.create_user(&user).await?;
 
     // Fetch the created user and return as SCIM
@@ -453,6 +459,7 @@ pub async fn create_user_from_scim(
         .await?
         .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("Failed to retrieve created user")))?;
 
+    info!(user_id = %user_id, "SCIM user created");
     Ok(user_to_scim(&user, ""))
 }
 
@@ -575,8 +582,10 @@ pub async fn replace_user_scim(
         description: None,
     };
 
+    trace!(user_id = %user_id, "Updating user attributes");
     repo.update_user(user_id, &update_user).await?;
 
+    debug!(user_id = %user_id, "SCIM user replaced");
     // Return updated user
     get_user_scim(repo, user_id, base_url).await
 }
@@ -653,8 +662,10 @@ pub async fn patch_user_scim(
         role,
         description: None,
     };
+    trace!(user_id = %user_id, "Updating user attributes");
     repo.update_user(user_id, &update_user).await?;
 
+    debug!(user_id = %user_id, "SCIM user patched");
     get_user_scim(repo, user_id, base_url).await
 }
 
@@ -674,12 +685,16 @@ pub async fn delete_user_scim(
         })?;
 
     // Delete user's group memberships first
+    trace!(user_id = %user_id, "Deleting user group memberships");
     repo.delete_group_memberships_by_user_id(user_id).await?;
     // Delete user's API keys
+    trace!(user_id = %user_id, "Deleting user API keys");
     repo.delete_api_keys_by_user_id(user_id).await?;
     // Delete the user
+    trace!(user_id = %user_id, "Deleting user record");
     repo.delete_user(user_id).await?;
 
+    info!(user_id = %user_id, "SCIM user deleted");
     Ok(())
 }
 
@@ -702,8 +717,11 @@ pub async fn create_group_from_scim(
         .or_else(|| scim_group.id.clone())
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
+    debug!(group_id = %group_id, display_name = %scim_group.display_name, "Resolved group ID for SCIM group creation");
+
     // Check if group already exists
     if let Some(existing) = repo.get_group_by_id(&group_id).await? {
+        debug!(group_id = %existing.id, "Group already exists");
         return Err(CommonError::InvalidRequest {
             msg: format!("Group with id '{}' already exists", existing.id),
             source: None,
@@ -717,9 +735,12 @@ pub async fn create_group_from_scim(
         updated_at: now,
     };
 
+    trace!(group_id = %group_id, "Inserting SCIM group into repository");
     repo.create_group(&group).await?;
 
     // Add members if provided
+    let member_count = scim_group.members.len();
+    let mut added_count = 0;
     for member in &scim_group.members {
         // Verify the user exists
         if repo.get_user_by_id(&member.value).await?.is_some() {
@@ -730,10 +751,19 @@ pub async fn create_group_from_scim(
                 updated_at: now,
             };
             // Ignore errors for member creation (user might not exist)
-            let _ = repo.create_group_membership(&membership).await;
+            if repo.create_group_membership(&membership).await.is_ok() {
+                added_count += 1;
+            }
+        } else {
+            warn!(group_id = %group_id, user_id = %member.value, "Skipping member: user not found");
         }
     }
 
+    if member_count > 0 {
+        debug!(group_id = %group_id, requested = member_count, added = added_count, "Added group members");
+    }
+
+    info!(group_id = %group_id, display_name = %scim_group.display_name, "SCIM group created");
     // Return the created group
     get_group_scim(repo, &group_id, base_url).await
 }
@@ -831,12 +861,15 @@ pub async fn replace_group_scim(
         })?;
 
     // Update group name
+    trace!(group_id = %group_id, display_name = %scim_group.display_name, "Updating group name");
     repo.update_group(group_id, &scim_group.display_name)
         .await?;
 
     // Replace members: delete all existing and add new ones
+    trace!(group_id = %group_id, "Removing existing group memberships");
     repo.delete_group_memberships_by_group_id(group_id).await?;
 
+    let mut added_count = 0;
     for member in &scim_group.members {
         if repo.get_user_by_id(&member.value).await?.is_some() {
             let membership = GroupMembership {
@@ -845,10 +878,15 @@ pub async fn replace_group_scim(
                 created_at: now,
                 updated_at: now,
             };
-            let _ = repo.create_group_membership(&membership).await;
+            if repo.create_group_membership(&membership).await.is_ok() {
+                added_count += 1;
+            }
+        } else {
+            warn!(group_id = %group_id, user_id = %member.value, "Skipping member: user not found");
         }
     }
 
+    debug!(group_id = %group_id, member_count = added_count, "SCIM group replaced");
     get_group_scim(repo, group_id, base_url).await
 }
 
@@ -970,9 +1008,11 @@ pub async fn patch_group_scim(
 
     // Update display name if changed
     if display_name != existing.name {
+        trace!(group_id = %group_id, new_name = %display_name, "Updating group display name");
         repo.update_group(group_id, &display_name).await?;
     }
 
+    debug!(group_id = %group_id, "SCIM group patched");
     get_group_scim(repo, group_id, base_url).await
 }
 
@@ -992,10 +1032,13 @@ pub async fn delete_group_scim(
         })?;
 
     // Delete group memberships first
+    trace!(group_id = %group_id, "Deleting group memberships");
     repo.delete_group_memberships_by_group_id(group_id).await?;
     // Delete the group
+    trace!(group_id = %group_id, "Deleting group record");
     repo.delete_group(group_id).await?;
 
+    info!(group_id = %group_id, "SCIM group deleted");
     Ok(())
 }
 
