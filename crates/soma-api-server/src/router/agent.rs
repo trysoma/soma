@@ -27,7 +27,7 @@ use std::time::Duration;
 use std::{pin::Pin, sync::Arc};
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt as TokioStreamExt;
-use tracing::info;
+use tracing::trace;
 use url::Url;
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
@@ -92,7 +92,9 @@ pub fn create_router() -> OpenApiRouter<Arc<AgentService>> {
 async fn route_list_agents(
     State(ctx): State<Arc<AgentService>>,
 ) -> JsonResponse<ListAgentsResponse, CommonError> {
+    trace!("Listing agents");
     let agents = crate::logic::agent::list_agents(&ctx.agent_cache);
+    trace!(count = agents.len(), "Listing agents completed");
     JsonResponse::from(Ok(ListAgentsResponse { agents }))
 }
 
@@ -116,12 +118,15 @@ async fn route_agent_card(
     State(ctx): State<Arc<AgentService>>,
     Path(path_params): Path<AgentPathParams>,
 ) -> impl IntoResponse {
-    info!(
-        "Received agent card request for project: {}, agent: {}",
-        path_params.project_id, path_params.agent_id
+    trace!(
+        project_id = %path_params.project_id,
+        agent_id = %path_params.agent_id,
+        "Getting agent card"
     );
 
-    match ctx.get_agent_card(&path_params).await {
+    let result = ctx.get_agent_card(&path_params).await;
+    trace!(success = result.is_ok(), "Getting agent card completed");
+    match result {
         Ok(card) => (http::StatusCode::OK, Json(card)).into_response(),
         Err(e) => (http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
@@ -149,9 +154,11 @@ async fn route_a2a_jsonrpc(
     Path(path_params): Path<AgentPathParams>,
     Json(body): Json<a2a_rs::types::JsonrpcRequest>,
 ) -> impl IntoResponse {
-    info!(
-        "Received JSON-RPC request for project: {}, agent: {}, method: {}",
-        path_params.project_id, path_params.agent_id, body.method
+    trace!(
+        project_id = %path_params.project_id,
+        agent_id = %path_params.agent_id,
+        method = %body.method,
+        "Handling A2A JSON-RPC request"
     );
 
     // Get the request handler with path params context
@@ -209,7 +216,7 @@ async fn route_a2a_jsonrpc(
             }
         }
         "message/stream" => {
-            info!("Received message/stream request");
+            trace!("Processing message/stream request");
             let params: a2a_rs::types::MessageSendParams =
                 match serde_json::from_value(serde_json::Value::Object(body.params)) {
                     Ok(p) => p,
@@ -226,7 +233,7 @@ async fn route_a2a_jsonrpc(
                 match stream_res {
                     Ok(mut stream) => {
                         while let Some(item) = stream.next().await {
-                            info!("Sending message stream item");
+                            trace!("Sending message stream item");
                             if tx.send(item).is_err() {
                                 break;
                             }
@@ -244,10 +251,7 @@ async fn route_a2a_jsonrpc(
                     a2a_rs::types::SendStreamingMessageSuccessResponseResult,
                 > = item.into();
                 let res = a2a_rs::types::CustomJsonrpcResponse::new(id_for_task.clone(), data);
-                info!(
-                    "Sending message stream item {:?}",
-                    serde_json::to_string(&res).unwrap()
-                );
+                trace!("Emitting SSE event");
                 SseEvent::default().json_data(res)
             });
 
@@ -260,7 +264,7 @@ async fn route_a2a_jsonrpc(
                 .into_response();
         }
         "tasks/resubscribe" => {
-            info!("Received tasks/resubscribe request");
+            trace!("Processing tasks/resubscribe request");
             let params: a2a_rs::types::TaskIdParams =
                 match serde_json::from_value(serde_json::Value::Object(body.params)) {
                     Ok(p) => p,
@@ -525,21 +529,21 @@ impl AgentExecutor for ProxiedAgent {
             let event_queue_clone = event_queue.clone();
             tokio::spawn(async move {
                 while let Some(event) = receiver.recv().await {
-                    info!("Received event: {:?}", event);
+                    trace!("Received A2A event from connection");
 
                     // Send event back to a2a response stream
                     match event_queue_clone.enqueue_event(event.clone()).await {
                         Ok(_) => (),
                         Err(e) => {
-                            info!(
-                                "Failed to enqueue event: {:?}, channel most likely closed",
-                                e
+                            trace!(
+                                error = %e,
+                                "Failed to enqueue event, channel closed"
                             );
                             break;
                         }
                     }
                 }
-                info!("Removing connection");
+                trace!("Removing connection");
                 connection_manager
                     .remove_connection(task_id_clone, connection_id_clone)
                     .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)
@@ -570,7 +574,7 @@ impl AgentExecutor for ProxiedAgent {
                 None => unreachable!("message must be present"),
             };
 
-            info!("Invoking runtime agent with task: {:?}", task);
+            trace!(task_id = %task.id, "Invoking runtime agent");
 
             // assume the latest timelineitem is the one for processing
             let message = task_logic::create_message(
@@ -613,7 +617,7 @@ impl AgentExecutor for ProxiedAgent {
 
             // Use path params stored in the agent to construct service name
             let service_name = format!("{}.{}", self.project_id, self.agent_id);
-            info!("Using agent service: {} from path params", service_name);
+            trace!(service = %service_name, "Resolved agent service name");
             let object_id = construct_initial_object_id(&task.id);
 
             // Use the task status from the database if available, otherwise convert from context task
@@ -638,7 +642,7 @@ impl AgentExecutor for ProxiedAgent {
 
             match task_status {
                 task_logic::TaskStatus::Submitted => {
-                    info!("New task detected, invoking entrypoint handler");
+                    trace!(task_id = %task.id, "New task, invoking entrypoint handler");
 
                     let body: serde_json::Value = json!({
                         "taskId": task.id,
@@ -674,7 +678,7 @@ impl AgentExecutor for ProxiedAgent {
                 }
                 _ => {
                     // Existing task - resolve the new_input_promise awakeable
-                    info!("Existing task detected, resolving new_input_promise awakeable");
+                    trace!(task_id = %task.id, "Existing task, resolving new_input_promise awakeable");
 
                     // TODO: we could have a race condition where promise is not created yet in restate sdk
                     // Get the awakeable ID from Restate state using SQL API
@@ -689,7 +693,7 @@ impl AgentExecutor for ProxiedAgent {
                                 as Box<dyn std::error::Error + Send + Sync + 'static>
                         })?;
 
-                    info!("Restate state: {:?}", restate_state);
+                    trace!("Retrieved Restate state for awakeable lookup");
 
                     let new_input_promise = restate_state.get("new_input_promise").cloned();
                     match new_input_promise {
@@ -730,7 +734,7 @@ impl AgentExecutor for ProxiedAgent {
         >,
     > {
         Box::pin(async move {
-            info!("HelloWorldAgent cancel called");
+            trace!("Executing task cancel");
 
             // Create a cancelled task
             let task = Task {

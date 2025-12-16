@@ -21,7 +21,7 @@ use shared::{
     error::CommonError,
     primitives::{WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4},
 };
-use tracing::info;
+use tracing::{info, trace};
 
 /// List all agents from the agent cache
 pub fn list_agents(cache: &AgentCache) -> Vec<AgentListItem> {
@@ -56,7 +56,7 @@ fn convert_common_error(error: CommonError) -> A2aServerError {
 #[async_trait::async_trait]
 impl TaskStore for RepositoryTaskStore {
     async fn save(&self, task: &Task) -> Result<(), A2aServerError> {
-        info!("Saving task: {:?}", task);
+        trace!(task_id = %task.id, "Saving task to store");
         let task_id = WrappedUuidV4::try_from(task.id.clone()).map_err(convert_common_error)?;
 
         // Check if task already exists
@@ -84,6 +84,7 @@ impl TaskStore for RepositoryTaskStore {
 
         if existing_task.is_some() {
             // Task exists, update it
+            trace!(task_id = %task_id, status = ?task.status.state, "Updating existing task");
             self.repository
                 .update_task_status(&crate::repository::UpdateTaskStatus {
                     id: task_id,
@@ -96,6 +97,7 @@ impl TaskStore for RepositoryTaskStore {
                 .map_err(convert_common_error)
         } else {
             // Task doesn't exist, create it
+            info!(task_id = %task_id, context_id = %task.context_id, "Task created");
             self.repository
                 .create_task(&CreateTask {
                     id: task_id,

@@ -62,8 +62,68 @@ async function invokeBridgeFunction<TParams, TResult>(
 
 
 
+export type ApproveClaimApproveClaimParams = { claim: { amount: number; category: string; date: string; email: string; reason: string } };
+export type ApproveClaimApproveClaimResult = { approved: boolean };
+
+
+
+
+
+export type ResearchClaimResearchClaimParams = { claim: { amount: number; category: string; date: string; email: string; reason: string } };
+export type ResearchClaimResearchClaimResult = { summary: string };
+
+
+
+
+
+export type StripeStripeProcessRefundParams = { refund_id: string };
+export type StripeStripeProcessRefundResult = { success: boolean };
+
+
+
+
+
+// Provider: approve-claim
+export interface ApproveClaim {
+  
+  "internal": {
+    
+    approveClaim: (params: ApproveClaimApproveClaimParams) => Promise<ApproveClaimApproveClaimResult>;
+    
+  };
+  
+}
+
+// Provider: research-claim
+export interface ResearchClaim {
+  
+  "internal": {
+    
+    researchClaim: (params: ResearchClaimResearchClaimParams) => Promise<ResearchClaimResearchClaimResult>;
+    
+  };
+  
+}
+
+// Provider: stripe
+export interface Stripe {
+  
+  "internal-2": {
+    
+    processRefund: (params: StripeStripeProcessRefundParams) => Promise<StripeStripeProcessRefundResult>;
+    
+  };
+  
+}
+
 
 export interface Bridge {
+  
+  approveClaim: ApproveClaim;
+  
+  researchClaim: ResearchClaim;
+  
+  stripe: Stripe;
   
 }
 
@@ -72,8 +132,77 @@ export type BridgeDefinition = Bridge;
 export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
   const baseUrl = config?.SOMA_BASE_URL || process.env.SOMA_SERVER_BASE_URL || 'http://localhost:3000';
   
+  const approveClaim: ApproveClaim = {
+    
+    "internal": {
+      
+      approveClaim: async (params: ApproveClaimApproveClaimParams): Promise<ApproveClaimApproveClaimResult> => {
+        return invokeBridgeFunction<ApproveClaimApproveClaimParams, ApproveClaimApproveClaimResult>(
+          ctx,
+          'approve-claim',
+          'internal',
+          'approveClaim',
+          '1b8c7dd2-45a9-4c82-8a9f-69cdb732883e',
+          'approve-claim',
+          params,
+          baseUrl
+        );
+      },
+      
+    },
+    
+  };
+  
+  const researchClaim: ResearchClaim = {
+    
+    "internal": {
+      
+      researchClaim: async (params: ResearchClaimResearchClaimParams): Promise<ResearchClaimResearchClaimResult> => {
+        return invokeBridgeFunction<ResearchClaimResearchClaimParams, ResearchClaimResearchClaimResult>(
+          ctx,
+          'research-claim',
+          'internal',
+          'researchClaim',
+          '452b1c4c-6ba7-4284-b362-2431750569fc',
+          'research-claim',
+          params,
+          baseUrl
+        );
+      },
+      
+    },
+    
+  };
+  
+  const stripe: Stripe = {
+    
+    "internal-2": {
+      
+      processRefund: async (params: StripeStripeProcessRefundParams): Promise<StripeStripeProcessRefundResult> => {
+        return invokeBridgeFunction<StripeStripeProcessRefundParams, StripeStripeProcessRefundResult>(
+          ctx,
+          'stripe',
+          'internal-2',
+          'processRefund',
+          'da61de4c-3363-467e-bcf9-977a668aeb1d',
+          'stripe_process_refund',
+          params,
+          baseUrl
+        );
+      },
+      
+    },
+    
+  };
+  
 
   return {
+    
+    approveClaim: approveClaim,
+    
+    researchClaim: researchClaim,
+    
+    stripe: stripe,
     
   };
 }

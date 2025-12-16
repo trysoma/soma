@@ -25,15 +25,15 @@ export interface AgentsConfig {
 
 
 /**
- * Agent: Claim Research Agent
- * Project: acme
- * Description: An agent that can research insurance claims.
- */
-
-/**
  * Agent: Insurance Claims Agent
  * Project: acme
  * Description: An agent that can process insurance claims.
+ */
+
+/**
+ * Agent: Claim Research Agent
+ * Project: acme
+ * Description: An agent that can research insurance claims.
  */
 
 
@@ -41,9 +41,9 @@ export interface AgentsConfig {
 
 export interface AcmeAgents {
   
-  claimResearchAgent: A2AClient;
-  
   insuranceClaimsAgent: A2AClient;
+  
+  claimResearchAgent: A2AClient;
   
 }
 
@@ -94,26 +94,26 @@ export async function getAgents(ctx: ObjectContext, config?: AgentsConfig): Prom
 
   // Initialize all A2A clients
   
-  const acme_claimResearchAgentClient = await ctx.run('init-a2a-acme-claimResearchAgent', async () => {
-    const cardUrl = `${baseUrl}/api/agent/acme/claimResearchAgent/a2a/.well-known/agent.json`;
-    return BaseA2AClient.fromCardUrl(cardUrl);
-  });
-  const acme_claimResearchAgent = new A2AClient(ctx, acme_claimResearchAgentClient, 'acme.claimResearchAgent');
-  
   const acme_insuranceClaimsAgentClient = await ctx.run('init-a2a-acme-insuranceClaimsAgent', async () => {
     const cardUrl = `${baseUrl}/api/agent/acme/insuranceClaimsAgent/a2a/.well-known/agent.json`;
     return BaseA2AClient.fromCardUrl(cardUrl);
   });
   const acme_insuranceClaimsAgent = new A2AClient(ctx, acme_insuranceClaimsAgentClient, 'acme.insuranceClaimsAgent');
   
+  const acme_claimResearchAgentClient = await ctx.run('init-a2a-acme-claimResearchAgent', async () => {
+    const cardUrl = `${baseUrl}/api/agent/acme/claimResearchAgent/a2a/.well-known/agent.json`;
+    return BaseA2AClient.fromCardUrl(cardUrl);
+  });
+  const acme_claimResearchAgent = new A2AClient(ctx, acme_claimResearchAgentClient, 'acme.claimResearchAgent');
+  
 
   return {
     
     acme: {
       
-      claimResearchAgent: acme_claimResearchAgent,
-      
       insuranceClaimsAgent: acme_insuranceClaimsAgent,
+      
+      claimResearchAgent: acme_claimResearchAgent,
       
     },
     

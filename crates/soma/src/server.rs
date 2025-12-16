@@ -93,10 +93,18 @@ pub async fn start_axum_server(
             let vite_guard = vite_guard_clone.clone();
             Box::pin(async move {
                 use soma_frontend::stop_vite_dev_server;
-                // Drop the guard (stops vite server) - only happens once even if callback is called multiple times
-                let _ = vite_guard.lock().unwrap().take();
+                // First call stop_vite_dev_server to gracefully stop it
                 if let Err(e) = stop_vite_dev_server().await {
-                    tracing::error!("Failed to stop vite dev server: {:?}", e);
+                    tracing::warn!(error = ?e, "Failed to stop vite dev server gracefully");
+                }
+                // Then drop the guard - use catch_unwind to prevent panic from crashing the process
+                let guard = vite_guard.lock().unwrap().take();
+                if let Some(guard) = guard {
+                    if let Err(e) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        drop(guard);
+                    })) {
+                        tracing::warn!(error = ?e, "Vite dev server guard drop panicked, process may still be running");
+                    }
                 }
                 tracing::debug!("Server shut down");
             })

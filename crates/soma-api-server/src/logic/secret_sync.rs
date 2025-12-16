@@ -1,7 +1,6 @@
 use encryption::logic::crypto_services::{CryptoCache, EncryptedString};
 use shared::error::CommonError;
 use shared::primitives::PaginationRequest;
-use shared::subsystem::SubsystemHandle;
 use tokio::sync::broadcast;
 use tracing::{debug, error, trace, warn};
 
@@ -187,58 +186,47 @@ pub struct SecretSyncParams {
     pub crypto_cache: CryptoCache,
     pub socket_path: String,
     pub secret_change_rx: SecretChangeRx,
-    pub shutdown_rx: broadcast::Receiver<()>,
 }
 
-/// Run the secret sync loop - listens for secret changes and syncs to SDK
+/// Run the secret sync loop - listens for secret changes and syncs to SDK.
+/// This function runs indefinitely until aborted by the process manager.
 pub async fn run_secret_sync_loop(params: SecretSyncParams) -> Result<(), CommonError> {
     let SecretSyncParams {
         repository,
         crypto_cache,
         socket_path,
         mut secret_change_rx,
-        mut shutdown_rx,
     } = params;
     let repository = repository.clone();
 
     debug!("Secret sync loop started");
 
     loop {
-        tokio::select! {
-            // Handle secret change events
-            event = secret_change_rx.recv() => {
-                match event {
-                    Ok(evt) => {
-                        trace!(event = ?evt, "Secret change event");
+        match secret_change_rx.recv().await {
+            Ok(evt) => {
+                trace!(event = ?evt, "Secret change event");
 
-                        // On any secret change, re-sync all secrets
-                        // This is simpler than tracking individual changes and ensures consistency
-                        match sync_all_secrets(&repository, &crypto_cache, &socket_path).await {
-                            Ok(()) => {
-                                trace!("Secrets re-synced");
-                            }
-                            Err(e) => {
-                                error!(error = ?e, "Failed to re-sync secrets");
-                            }
-                        }
+                // On any secret change, re-sync all secrets
+                // This is simpler than tracking individual changes and ensures consistency
+                match sync_all_secrets(&repository, &crypto_cache, &socket_path).await {
+                    Ok(()) => {
+                        trace!("Secrets re-synced");
                     }
-                    Err(broadcast::error::RecvError::Closed) => {
-                        debug!("Secret change channel closed");
-                        break;
-                    }
-                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!(skipped, "Secret change channel lagged, re-syncing");
-                        // Re-sync all secrets to ensure we're in a consistent state
-                        if let Err(e) = sync_all_secrets(&repository, &crypto_cache, &socket_path).await {
-                            error!(error = ?e, "Failed to re-sync secrets after lag");
-                        }
+                    Err(e) => {
+                        error!(error = ?e, "Failed to re-sync secrets");
                     }
                 }
             }
-            // Handle shutdown
-            _ = shutdown_rx.recv() => {
-                debug!("Secret sync stopping");
+            Err(broadcast::error::RecvError::Closed) => {
+                debug!("Secret change channel closed");
                 break;
+            }
+            Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                warn!(skipped, "Secret change channel lagged, re-syncing");
+                // Re-sync all secrets to ensure we're in a consistent state
+                if let Err(e) = sync_all_secrets(&repository, &crypto_cache, &socket_path).await {
+                    error!(error = ?e, "Failed to re-sync secrets after lag");
+                }
             }
         }
     }
@@ -261,36 +249,3 @@ async fn sync_all_secrets(
     sync_secrets_to_sdk(&mut client, secrets).await
 }
 
-/// Start the secret sync subsystem
-pub fn start_secret_sync_subsystem(
-    repository: crate::repository::Repository,
-    crypto_cache: CryptoCache,
-    socket_path: String,
-    secret_change_rx: SecretChangeRx,
-    shutdown_rx: broadcast::Receiver<()>,
-) -> Result<SubsystemHandle, CommonError> {
-    let (handle, signal) = SubsystemHandle::new("Secret Sync");
-    let repository = std::sync::Arc::new(repository);
-
-    tokio::spawn(async move {
-        match run_secret_sync_loop(SecretSyncParams {
-            repository,
-            crypto_cache,
-            socket_path,
-            secret_change_rx,
-            shutdown_rx,
-        })
-        .await
-        {
-            Ok(()) => {
-                signal.signal_with_message("stopped gracefully");
-            }
-            Err(e) => {
-                error!("Secret sync stopped with error: {:?}", e);
-                signal.signal();
-            }
-        }
-    });
-
-    Ok(handle)
-}

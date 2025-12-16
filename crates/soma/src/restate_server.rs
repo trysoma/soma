@@ -159,7 +159,7 @@ pub fn ensure_restate_binary() -> Result<String, CommonError> {
 }
 
 async fn start_restate_server_local(
-    process_manager: &mut CustomProcessManager,
+    process_manager: &CustomProcessManager,
     params: RestateServerLocalParams,
 ) -> Result<(), CommonError> {
     trace!("Checking local restate server ports are free");
@@ -258,7 +258,7 @@ async fn start_restate_server_remote(
 }
 
 pub async fn start_restate(
-    process_manager: &mut CustomProcessManager,
+    process_manager: &CustomProcessManager,
     restate_params: RestateServerParams,
 ) -> Result<(), CommonError> {
     match restate_params {

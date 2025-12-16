@@ -628,23 +628,32 @@ function standaloneServerPlugin(baseDir: string): Plugin {
 
 		if (serverProcess) {
 			console.log("Killing SDK server process...");
-			// Try graceful shutdown first (SIGTERM)
-			try {
-				serverProcess.kill('SIGTERM');
-			} catch (e) {
-				// Process might already be dead
-			}
-			// Force kill after 2 seconds if still running
-			setTimeout(() => {
-				if (serverProcess && !serverProcess.killed) {
-					console.log("Force killing SDK server process...");
+			const pid = serverProcess.pid;
+			// Kill the entire process group to ensure child processes are killed
+			// When using shell: true, the actual process is a child of the shell
+			if (pid) {
+				try {
+					// Kill process group (negative PID kills the group)
+					process.kill(-pid, 'SIGTERM');
+				} catch (e) {
+					// Try killing just the process if group kill fails
 					try {
-						serverProcess.kill('SIGKILL');
-					} catch (e) {
+						serverProcess.kill('SIGTERM');
+					} catch (e2) {
 						// Process might already be dead
 					}
 				}
-			}, 2000);
+				// Force kill immediately - don't wait, as parent may exit
+				try {
+					process.kill(-pid, 'SIGKILL');
+				} catch (e) {
+					try {
+						serverProcess.kill('SIGKILL');
+					} catch (e2) {
+						// Process might already be dead
+					}
+				}
+			}
 			serverProcess = null;
 		}
 	};
@@ -741,14 +750,27 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 	function restartServer() {
 		if (serverProcess) {
 			console.log("Restarting SDK server...");
-			// Kill the existing process
-			serverProcess.kill('SIGTERM');
-			// Force kill after 1 second if still running
-			setTimeout(() => {
-				if (serverProcess && !serverProcess.killed) {
-					serverProcess.kill('SIGKILL');
+			const pid = serverProcess.pid;
+			// Kill the entire process group
+			if (pid) {
+				try {
+					process.kill(-pid, 'SIGTERM');
+				} catch (e) {
+					try {
+						serverProcess.kill('SIGTERM');
+					} catch (e2) {
+						// Process might already be dead
+					}
 				}
-			}, 1000);
+				// Force kill after 500ms if still running
+				setTimeout(() => {
+					try {
+						process.kill(-pid, 'SIGKILL');
+					} catch (e) {
+						// Process might already be dead
+					}
+				}, 500);
+			}
 			serverProcess = null;
 		}
 
@@ -765,7 +787,7 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 			stdio: "inherit",
 			cwd: baseDir,
 			shell: true,
-			detached: false, // Ensure process is killed when parent exits
+			detached: true, // Create new process group so we can kill the entire tree
 		});
 
 		serverProcess.on("error", (err: Error) => {
@@ -778,6 +800,15 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 			}
 		});
 	}
+
+	// Register process exit handlers to ensure cleanup on unexpected exits
+	const exitHandler = () => {
+		cleanup();
+	};
+	process.on('exit', exitHandler);
+	process.on('SIGINT', exitHandler);
+	process.on('SIGTERM', exitHandler);
+	process.on('SIGHUP', exitHandler);
 
 	return {
 		name: "soma-standalone-server",

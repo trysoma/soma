@@ -1,10 +1,10 @@
 use pmdaemon::{ProcessConfig as PmDaemonProcessConfig, ProcessManager, ProcessState, ProcessStatus, config::ExecMode};
 use crate::error::CommonError;
 use tokio::time::{sleep, Duration};
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, trace, warn};
 use uuid::Uuid;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, Mutex};
 use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, SeekFrom};
 use tokio::fs::OpenOptions;
 use tokio::sync::mpsc;
@@ -12,7 +12,7 @@ use tokio::sync::oneshot;
 use std::pin::Pin;
 
 pub struct CustomProcessManager {
-    manager: ProcessManager,
+    manager: Arc<Mutex<ProcessManager>>,
     processes: Arc<RwLock<std::collections::HashMap<String, ProcessHandle>>>,
     shutdown_triggered: Arc<RwLock<bool>>,
     shutdown_notifier: Arc<RwLock<Option<oneshot::Sender<()>>>>,
@@ -45,9 +45,7 @@ pub type ShutdownCallback = Box<dyn Fn() -> Pin<Box<dyn std::future::Future<Outp
 
 pub struct ProcessHandle {
     inner: ProcessHandleInner,
-    #[allow(dead_code)] // Stored for debugging/future use, used during thread startup
     on_terminal_stop: OnTerminalStop,
-    #[allow(dead_code)] // Stored for debugging/future use, used during thread startup
     on_stop: Option<OnStop>, // Only used for threads, None for processes
     shutdown_priority: u32,
     on_shutdown_triggered: Option<ShutdownCallback>,
@@ -210,8 +208,8 @@ impl CustomProcessManager {
         unsafe {
             std::env::set_var("PMDAEMON_HOME", temp_pmdaemon_home.display().to_string());
         }
-        let manager = ProcessManager::new().await
-            .map_err(|e| CommonError::from(e))?;
+        let manager = Arc::new(Mutex::new(ProcessManager::new().await
+            .map_err(|e| CommonError::from(e))?));
         let processes = Arc::new(RwLock::new(std::collections::HashMap::new()));
         let shutdown_triggered = Arc::new(RwLock::new(false));
         
@@ -223,106 +221,173 @@ impl CustomProcessManager {
         })
     }
 
-    pub async fn stop_process(&mut self, name: &str) -> Result<(), CommonError> {
+    pub async fn stop_process(&self, name: &str) -> Result<(), CommonError> {
         trace!(process = %name, "Stopping process");
-        
+
         // Get the process handle and call on_shutdown_triggered if present
         let on_shutdown_triggered_future = {
             let processes = self.processes.read().await;
             processes.get(name).and_then(|p| p.on_shutdown_triggered.as_ref().map(|cb| cb()))
         };
-        
+
         // Call on_shutdown_triggered with timeout
         if let Some(future) = on_shutdown_triggered_future {
-            trace!(process = %name, "Calling on_shutdown_triggered callback");
             match tokio::time::timeout(Duration::from_secs(30), future).await {
                 Ok(()) => trace!(process = %name, "on_shutdown_triggered callback completed"),
                 Err(_) => warn!(process = %name, "on_shutdown_triggered callback timed out after 30s, proceeding with shutdown"),
             }
         }
-        
+
         // Stop the process
         let shutdown_triggered = *self.shutdown_triggered.read().await;
         let is_pmdaemon_process = {
             let processes = self.processes.read().await;
             processes.get(name).map(|p| matches!(&p.inner, ProcessHandleInner::ProcessStatus(_)))
         };
-        
+
         if let Some(true) = is_pmdaemon_process {
-            trace!(process = %name, "Sending stop signal via ProcessStatus");
-            self.manager.stop(name).await
-                .inspect_err(|e| error!(process = %name, error = %e, "Failed to send stop signal"))?;
-            
-            // During shutdown, pmdaemon may restart the process due to autorestart: true
-            // Keep stopping it until it stays stopped
             if shutdown_triggered {
-                let mut consecutive_stops = 0;
-                loop {
-                    sleep(Duration::from_millis(1000)).await;
-                    match self.manager.get_process_info(name).await {
-                        Err(_) => {
-                            trace!(process = %name, "Process not found, considered stopped");
+                // During shutdown, use delete instead of stop to prevent autorestart
+                trace!(process = %name, "Deleting pmdaemon process (shutdown mode)");
+                
+                // Get PID before deleting (if available)
+                let pid = {
+                    let processes = self.processes.read().await;
+                    processes.get(name).and_then(|p| {
+                        if let ProcessHandleInner::ProcessStatus(status) = &p.inner {
+                            status.pid
+                        } else {
+                            None
+                        }
+                    })
+                };
+                
+                self.manager.lock().await.delete(name).await
+                    .inspect_err(|e| error!(process = %name, error = %e, "Failed to delete process"))?;
+                
+                // Wait for process to stop, checking PID directly if available
+                let stop_timeout = Duration::from_secs(5);
+                let start = std::time::Instant::now();
+                let mut stopped = false;
+                
+                if let Some(pid_value) = pid {
+                    // Check PID directly to see if process is still running
+                    while start.elapsed() < stop_timeout {
+                        #[cfg(unix)]
+                        {
+                            use nix::sys::signal::kill;
+                            use nix::unistd::Pid;
+                            // Send signal 0 to check if process exists
+                            match kill(Pid::from_raw(pid_value as i32), None) {
+                                Ok(_) => {
+                                    // Process still exists, wait a bit
+                                    sleep(Duration::from_millis(100)).await;
+                                }
+                                Err(nix::errno::Errno::ESRCH) => {
+                                    // Process doesn't exist (stopped)
+                                    stopped = true;
+                                    break;
+                                }
+                                Err(e) => {
+                                    // Some other error, assume stopped
+                                    trace!(process = %name, pid = pid_value, error = ?e, "Error checking process status, assuming stopped");
+                                    stopped = true;
+                                    break;
+                                }
+                            }
+                        }
+                        #[cfg(not(unix))]
+                        {
+                            // On non-Unix, just wait a bit and assume it stopped
+                            sleep(Duration::from_millis(500)).await;
+                            stopped = true;
                             break;
                         }
-                        Ok(info) if info.state == ProcessState::Stopped => {
-                            consecutive_stops += 1;
-                            if consecutive_stops >= 2 {
-                                trace!(process = %name, "Process stopped and stayed stopped");
-                                break;
+                    }
+                    
+                    // If process is still running, try to kill it directly
+                    if !stopped {
+                        warn!(process = %name, pid = pid_value, "Process still running after delete, attempting to kill");
+                        #[cfg(unix)]
+                        {
+                            use nix::sys::signal::{kill, Signal};
+                            use nix::unistd::Pid;
+                            if let Err(e) = kill(Pid::from_raw(pid_value as i32), Some(Signal::SIGTERM)) {
+                                warn!(process = %name, pid = pid_value, error = ?e, "Failed to send SIGTERM");
+                            } else {
+                                // Wait a bit for SIGTERM to take effect
+                                sleep(Duration::from_millis(1000)).await;
+                                // Check if still running, then force kill
+                                if kill(Pid::from_raw(pid_value as i32), None).is_ok() {
+                                    if let Err(e) = kill(Pid::from_raw(pid_value as i32), Some(Signal::SIGKILL)) {
+                                        warn!(process = %name, pid = pid_value, error = ?e, "Failed to send SIGKILL");
+                                    }
+                                }
                             }
                         }
-                        _ => {
-                            // Process is running again, stop it
-                            consecutive_stops = 0;
-                            warn!(process = %name, "Process restarted during shutdown, stopping again");
-                            if let Err(e) = self.manager.stop(name).await {
-                                warn!(process = %name, error = %e, "Failed to stop restarted process");
-                            }
+                        #[cfg(not(unix))]
+                        {
+                            warn!(process = %name, pid = pid_value, "Direct process kill not supported on this platform");
                         }
                     }
+                } else {
+                    // No PID available, just wait a bit
+                    trace!(process = %name, "PID unknown, waiting for process to stop");
+                    sleep(Duration::from_millis(1000)).await;
                 }
             } else {
-                // Normal shutdown, just wait for stop
+                // Normal stop (not during shutdown), just stop and wait
+                trace!(process = %name, "Sending stop signal");
+                self.manager.lock().await.stop(name).await
+                    .inspect_err(|e| error!(process = %name, error = %e, "Failed to send stop signal"))?;
                 self.wait_for_stop(name).await?;
             }
-        } else if let Some(process) = self.processes.write().await.get(name) {
-            match &process.inner {
-                ProcessHandleInner::JoinHandle(handle) => {
-                    trace!(process = %name, "Aborting thread handle");
-                    handle.abort();
-                    // For threads, wait a bit for abort to complete
-                    sleep(Duration::from_millis(100)).await;
-                }
-                _ => {}
-            }
         } else {
-            // Process not found, consider it stopped
-            trace!(process = %name, "Process not found in registry");
+            // Check for thread handle - acquire lock briefly, abort, then release lock
+            let handle_to_abort = {
+                let processes = self.processes.read().await;
+                if let Some(process) = processes.get(name) {
+                    match &process.inner {
+                        ProcessHandleInner::JoinHandle(handle) => {
+                            trace!(process = %name, "Aborting thread handle");
+                            handle.abort();
+                            true
+                        }
+                        _ => false,
+                    }
+                } else {
+                    false
+                }
+            };
+
+            if handle_to_abort {
+                // Wait a bit for abort to complete, without holding any locks
+                sleep(Duration::from_millis(100)).await;
+            }
         }
-        trace!(process = %name, "Process stopped");
-        
+
         // Get and call on_shutdown_complete callback if present
         let on_shutdown_complete_future = {
             let processes = self.processes.read().await;
             processes.get(name).and_then(|p| p.on_shutdown_complete.as_ref().map(|cb| cb()))
         };
-        
+
         // Remove from processes map
         self.processes.write().await.remove(name);
-        
+
         // Call on_shutdown_complete with timeout
         if let Some(future) = on_shutdown_complete_future {
-            trace!(process = %name, "Calling on_shutdown_complete callback");
             match tokio::time::timeout(Duration::from_secs(30), future).await {
                 Ok(()) => trace!(process = %name, "on_shutdown_complete callback completed"),
                 Err(_) => warn!(process = %name, "on_shutdown_complete callback timed out after 30s, proceeding"),
             }
         }
-        
+
+        trace!(process = %name, "Process stopped");
         Ok(())
     }
     
-    pub async fn start_process(&mut self, name: &str, config: ProcessConfig) -> Result<(), CommonError> {
+    pub async fn start_process(&self, name: &str, config: ProcessConfig) -> Result<(), CommonError> {
         // Check if shutdown has been triggered
         if *self.shutdown_triggered.read().await {
             debug!(process = %name, "Shutdown triggered, skipping process start");
@@ -332,9 +397,9 @@ impl CustomProcessManager {
         trace!(process = %name, "Starting process");
         
         // Stop existing service if it exists
-        if let Ok(_) = self.manager.get_process_info(name).await {
+        if let Ok(_) = self.manager.lock().await.get_process_info(name).await {
             trace!(process = %name, "Stopping existing process");
-            self.manager.stop(name).await?;
+            self.manager.lock().await.stop(name).await?;
             self.wait_for_stop(name).await?;
         }
         let log_process_name = format!("sys-{}-log", name);
@@ -423,15 +488,14 @@ impl CustomProcessManager {
         let on_shutdown_complete = config.on_shutdown_complete;
         
         // Start new service
-        let process_id = self.manager.start(pm_config).await
+        self.manager.lock().await.start(pm_config).await
             .inspect_err(|e| error!(process = %name, error = %e, "Failed to start process"))?;
-        info!(process = %name, process_id = %process_id, "Process started");
         
         // Health checks are configured in the ProcessConfig
         // The process manager handles health monitoring internally
         
         // Update our process tracking
-        let info = self.manager.get_process_info(name).await
+        let info = self.manager.lock().await.get_process_info(name).await
             .inspect_err(|e| error!(process = %name, error = %e, "Failed to get process info"))?;
         self.processes.write().await.insert(name.to_string(), ProcessHandle::new_with_process_status(info, on_terminal_stop, shutdown_priority, on_shutdown_triggered, on_shutdown_complete));
         trace!(process = %name, "Process registered");
@@ -444,7 +508,7 @@ impl CustomProcessManager {
         let start = std::time::Instant::now();
         
         while start.elapsed() < timeout {
-            match self.manager.get_process_info(name).await {
+            match self.manager.lock().await.get_process_info(name).await {
                 Err(_) => {
                     trace!(process = %name, "Process not found, considered stopped");
                     return Ok(());
@@ -464,7 +528,7 @@ impl CustomProcessManager {
     }
 
     pub async fn start_thread<F>(
-        &mut self,
+        &self,
         name: &str,
         config: ThreadConfig<F>,
     ) -> Result<(), CommonError>
@@ -595,36 +659,32 @@ impl CustomProcessManager {
     /// Triggers graceful shutdown of all processes and threads, ordered by shutdown priority.
     /// Higher priority processes/threads are shut down first.
     /// Once called, no new processes or threads can be started.
-    pub async fn trigger_shutdown(&mut self) -> Result<(), CommonError> {
+    pub async fn trigger_shutdown(&self) -> Result<(), CommonError> {
         // Set shutdown flag to prevent new starts
         *self.shutdown_triggered.write().await = true;
-        
-        info!("Graceful shutdown initiated");
-        
+
+        debug!("Graceful shutdown initiated");
+
         // Get all processes with their names and priorities
         let processes = self.processes.read().await;
         let mut process_list: Vec<(String, u32)> = processes.iter()
             .map(|(name, handle)| (name.clone(), handle.shutdown_priority))
             .collect();
         drop(processes);
-        
+
         // Sort by shutdown priority (highest first)
         process_list.sort_by(|a, b| b.1.cmp(&a.1));
-        
+
         trace!(count = process_list.len(), "Shutting down processes in priority order");
-        
+
         // Shutdown each process/thread in priority order
-        for (name, priority) in process_list {
-            trace!(process = %name, priority, "Stopping process");
-            
-            // Stop the process
+        for (name, _priority) in process_list {
             if let Err(e) = self.stop_process(&name).await {
                 warn!(process = %name, error = %e, "Failed to stop process, continuing shutdown");
-                // Continue with other processes even if one fails
             }
         }
-        
-        trace!("Shutdown sequence completed");
+
+        debug!("Shutdown sequence completed");
         Ok(())
     }
 
@@ -642,7 +702,15 @@ impl CustomProcessManager {
         Ok(())
     }
     
-    /// Returns a future that completes when shutdown is triggered
+    /// Returns a clone of the shutdown_triggered flag for external use.
+    /// Use this to wait for shutdown without holding the process manager lock.
+    pub fn get_shutdown_signal(&self) -> Arc<RwLock<bool>> {
+        self.shutdown_triggered.clone()
+    }
+
+    /// Returns a future that completes when shutdown is triggered.
+    /// Note: This function should be called briefly to get the future, then the lock released.
+    /// The returned future does not hold any locks.
     pub fn wait_for_shutdown(&self) -> impl std::future::Future<Output = ()> + Send {
         let shutdown_triggered = self.shutdown_triggered.clone();
         async move {

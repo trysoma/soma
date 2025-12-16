@@ -4,7 +4,6 @@ mod commands;
 mod restate_server;
 mod server;
 mod utils;
-mod process_manager;
 use clap::Parser;
 use human_panic::setup_panic;
 

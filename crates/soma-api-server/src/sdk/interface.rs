@@ -23,7 +23,7 @@ pub struct ClientCtx {
     /// Pre-fetched environment variables to inject into SDK
     pub initial_environment_variables: std::collections::HashMap<String, String>,
     /// Process manager for managing SDK processes
-    pub process_manager: std::sync::Arc<tokio::sync::Mutex<shared::process_manager::CustomProcessManager>>,
+    pub process_manager: std::sync::Arc<shared::process_manager::CustomProcessManager>,
 }
 
 #[allow(dead_code)]

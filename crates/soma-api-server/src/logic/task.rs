@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{fmt, str::FromStr, sync::Arc};
 use tokio::sync::mpsc::{Receiver, Sender};
-use tracing::info;
+use tracing::{info, trace};
 use utoipa::ToSchema;
 
 use crate::repository::{Repository, TaskRepositoryLike, UpdateTaskStatus};
@@ -86,30 +86,29 @@ impl ConnectionManager {
         task_id: WrappedUuidV4,
         message: a2a_rs::events::Event,
     ) -> Result<(), CommonError> {
-        info!("Sending message to connections for task_id: {}", task_id);
+        trace!(task_id = %task_id, "Broadcasting to connections");
         let connections = match self.connections_by_task_id.get(&task_id) {
             Some(connections) => connections,
             None => return Ok(()),
         };
-
-        info!("Connections found for task_id: {}", task_id);
 
         // Collect all senders first (release DashMap guard)
         let senders: Vec<_> = connections
             .iter()
             .map(|entry| entry.sender.clone())
             .collect();
+        let connection_count = senders.len();
         drop(connections);
+
+        trace!(task_id = %task_id, count = connection_count, "Sending to connections");
 
         // Run up to 32 sends in parallel (adjust concurrency level as needed)
         stream::iter(senders)
             .for_each_concurrent(32, |sender| {
                 let message = message.clone();
-                let task_id = task_id.clone();
                 async move {
-                    info!("Sending message to connection for task_id: {}", task_id);
                     if let Err(e) = sender.send(message).await {
-                        tracing::warn!("Failed to send to connection: {e:?}");
+                        tracing::warn!(error = %e, "Failed to send to connection");
                     }
                 }
             })
@@ -570,6 +569,12 @@ pub async fn update_task_status(
         })
         .await?;
 
+    info!(
+        task_id = %request.task_id,
+        status = request.inner.status.as_str(),
+        "Task status updated"
+    );
+
     let timeline_item = TaskTimelineItem {
         id: WrappedUuidV4::new(),
         task_id: request.task_id.clone(),
@@ -663,6 +668,14 @@ pub async fn create_message(
         parts: request.inner.parts,
         created_at: WrappedChronoDateTime::now(),
     };
+
+    info!(
+        task_id = %request.task_id,
+        message_id = %message.id,
+        role = %message.role,
+        "Message created"
+    );
+
     repository
         .insert_message(&message.clone().try_into()?)
         .await?;

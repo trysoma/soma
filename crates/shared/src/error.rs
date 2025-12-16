@@ -328,6 +328,12 @@ impl IntoResponse for CommonError {
             | CommonError::AddrParseError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
+        // Get a more detailed message for Unknown errors
+        let message = match &self {
+            CommonError::Unknown(e) => e.to_string(),
+            _ => self.to_string(),
+        };
+
         let body = Json(ErrorResponse {
             name: match self {
                 CommonError::Authentication { .. } => "Authentication",
@@ -352,7 +358,7 @@ impl IntoResponse for CommonError {
                 CommonError::PmdaemonError { .. } => "InternalServerError",
             }
             .to_string(),
-            message: self.to_string(),
+            message,
         });
 
         (status, body).into_response()

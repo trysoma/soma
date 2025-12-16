@@ -1,6 +1,5 @@
 use shared::error::CommonError;
 use shared::primitives::PaginationRequest;
-use shared::subsystem::SubsystemHandle;
 use tokio::sync::broadcast;
 use tracing::{debug, error, trace, warn};
 
@@ -205,10 +204,10 @@ pub struct EnvironmentVariableSyncParams {
     pub repository: std::sync::Arc<crate::repository::Repository>,
     pub socket_path: String,
     pub environment_variable_change_rx: EnvironmentVariableChangeRx,
-    pub shutdown_rx: broadcast::Receiver<()>,
 }
 
-/// Run the environment variable sync loop - listens for env var changes and syncs to SDK
+/// Run the environment variable sync loop - listens for env var changes and syncs to SDK.
+/// This function runs indefinitely until aborted by the process manager.
 pub async fn run_environment_variable_sync_loop(
     params: EnvironmentVariableSyncParams,
 ) -> Result<(), CommonError> {
@@ -216,48 +215,37 @@ pub async fn run_environment_variable_sync_loop(
         repository,
         socket_path,
         mut environment_variable_change_rx,
-        mut shutdown_rx,
     } = params;
     let repository = repository.clone();
 
     debug!("Environment variable sync loop started");
 
     loop {
-        tokio::select! {
-            // Handle environment variable change events
-            event = environment_variable_change_rx.recv() => {
-                match event {
-                    Ok(evt) => {
-                        trace!(event = ?evt, "Environment variable change event");
+        match environment_variable_change_rx.recv().await {
+            Ok(evt) => {
+                trace!(event = ?evt, "Environment variable change event");
 
-                        // On any env var change, re-sync all env vars
-                        // This is simpler than tracking individual changes and ensures consistency
-                        match sync_all_environment_variables(&repository, &socket_path).await {
-                            Ok(()) => {
-                                trace!("Environment variables re-synced");
-                            }
-                            Err(e) => {
-                                error!(error = ?e, "Failed to re-sync environment variables");
-                            }
-                        }
+                // On any env var change, re-sync all env vars
+                // This is simpler than tracking individual changes and ensures consistency
+                match sync_all_environment_variables(&repository, &socket_path).await {
+                    Ok(()) => {
+                        trace!("Environment variables re-synced");
                     }
-                    Err(broadcast::error::RecvError::Closed) => {
-                        debug!("Environment variable change channel closed");
-                        break;
-                    }
-                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!(skipped, "Environment variable change channel lagged, re-syncing");
-                        // Re-sync all env vars to ensure we're in a consistent state
-                        if let Err(e) = sync_all_environment_variables(&repository, &socket_path).await {
-                            error!(error = ?e, "Failed to re-sync environment variables after lag");
-                        }
+                    Err(e) => {
+                        error!(error = ?e, "Failed to re-sync environment variables");
                     }
                 }
             }
-            // Handle shutdown
-            _ = shutdown_rx.recv() => {
-                debug!("Environment variable sync stopping");
+            Err(broadcast::error::RecvError::Closed) => {
+                debug!("Environment variable change channel closed");
                 break;
+            }
+            Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                warn!(skipped, "Environment variable change channel lagged, re-syncing");
+                // Re-sync all env vars to ensure we're in a consistent state
+                if let Err(e) = sync_all_environment_variables(&repository, &socket_path).await {
+                    error!(error = ?e, "Failed to re-sync environment variables after lag");
+                }
             }
         }
     }
@@ -277,38 +265,6 @@ async fn sync_all_environment_variables(
     // Connect to SDK and sync
     let mut client = shared::uds::create_soma_unix_socket_client(socket_path).await?;
     sync_environment_variables_to_sdk(&mut client, env_vars).await
-}
-
-/// Start the environment variable sync subsystem
-pub fn start_environment_variable_sync_subsystem(
-    repository: crate::repository::Repository,
-    socket_path: String,
-    environment_variable_change_rx: EnvironmentVariableChangeRx,
-    shutdown_rx: broadcast::Receiver<()>,
-) -> Result<SubsystemHandle, CommonError> {
-    let (handle, signal) = SubsystemHandle::new("Environment Variable Sync");
-    let repository = std::sync::Arc::new(repository);
-
-    tokio::spawn(async move {
-        match run_environment_variable_sync_loop(EnvironmentVariableSyncParams {
-            repository,
-            socket_path,
-            environment_variable_change_rx,
-            shutdown_rx,
-        })
-        .await
-        {
-            Ok(()) => {
-                signal.signal_with_message("stopped gracefully");
-            }
-            Err(e) => {
-                error!("Environment variable sync stopped with error: {:?}", e);
-                signal.signal();
-            }
-        }
-    });
-
-    Ok(handle)
 }
 
 #[cfg(all(test, feature = "unit_test"))]

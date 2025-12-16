@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use tokio::process::Command;
-
+use futures::future;
 use super::interface::{ClientCtx, SdkClient};
 
 pub struct Typescript {}
@@ -14,8 +13,7 @@ impl Typescript {
 
 impl SdkClient for Typescript {
     async fn start_dev_server(&self, ctx: ClientCtx) -> Result<(), shared::error::CommonError> {
-        // Note: ctx.file_change_tx is available but intentionally unused here.
-        // Vite handles HMR automatically, so we don't need to manually handle file changes.
+        // Note: Vite handles HMR automatically, so we don't need to manually handle file changes.
 
         // Set the SOMA_SERVER_SOCK environment variable and initial secrets/env vars
         let mut env_vars = HashMap::from([
@@ -37,8 +35,7 @@ impl SdkClient for Typescript {
         }
 
         // Use process manager to start the Vite dev server
-        let mut process_manager = ctx.process_manager.lock().await;
-        process_manager.start_process("pnpm-dev-server", shared::process_manager::ProcessConfig {
+        ctx.process_manager.start_process("pnpm-dev-server", shared::process_manager::ProcessConfig {
             script: "pnpm".to_string(),
             args: vec!["dlx".to_string(), "vite".to_string(), "dev".to_string()],
             cwd: Some(ctx.project_dir.clone()),
@@ -55,22 +52,13 @@ impl SdkClient for Typescript {
             on_shutdown_complete: None,
         }).await?;
 
-        // Wait for shutdown - the process manager will handle cleanup
-        // Drop the lock so other threads can access the process manager
-        drop(process_manager);
-        // Wait for process manager shutdown - this will return when shutdown is triggered
-        ctx.process_manager.lock().await.wait_for_shutdown().await;
-        
+        // Wait indefinitely - the process manager will handle shutdown by aborting this thread
+        future::pending::<()>().await;
+
         Ok(())
     }
 
     async fn build(&self, ctx: ClientCtx) -> Result<(), shared::error::CommonError> {
-        let mut cmd = Command::new("pnpm");
-        cmd.arg("dlx")
-            .arg("vite")
-            .arg("build")
-            .current_dir(ctx.project_dir.clone());
-
         // Start with initial secrets and environment variables for consistent build environment
         let mut env_vars = HashMap::new();
         for (key, value) in ctx.initial_secrets {
@@ -80,15 +68,20 @@ impl SdkClient for Typescript {
             env_vars.insert(key, value);
         }
 
-        // Run with clear_env=true for consistent build environment
-        shared::command::run_child_process_with_env_options(
-            "pnpm-build",
-            cmd,
-            None,
-            Some(env_vars),
-            true, // Clear inherited environment
-        )
-        .await?;
+        // Use process manager to run the build process
+        ctx.process_manager.start_process("pnpm-build", shared::process_manager::ProcessConfig {
+            script: "pnpm".to_string(),
+            args: vec!["dlx".to_string(), "vite".to_string(), "build".to_string()],
+            cwd: Some(ctx.project_dir.clone()),
+            env: env_vars,
+            health_check: None,
+            on_terminal_stop: shared::process_manager::OnTerminalStop::Ignore,
+            on_stop: shared::process_manager::OnStop::Nothing, // Build is one-shot, don't restart
+            shutdown_priority: 1,
+            follow_logs: true,
+            on_shutdown_triggered: None,
+            on_shutdown_complete: None,
+        }).await?;
 
         Ok(())
     }

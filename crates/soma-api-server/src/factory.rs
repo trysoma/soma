@@ -11,11 +11,9 @@ use rmcp::transport::streamable_http_server::{
 use shared::error::CommonError;
 use shared::process_manager::{CustomProcessManager, OnStop, OnTerminalStop, RestartConfig, ThreadConfig};
 use shared::soma_agent_definition::SomaAgentDefinitionLike;
-use shared::subsystem::SubsystemHandle;
 use shared::uds::{
     DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client, establish_connection_with_retry,
 };
-use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, trace};
 
@@ -24,7 +22,6 @@ use crate::logic::task::ConnectionManager;
 use crate::repository::setup_repository;
 use crate::restate::RestateServerParams;
 use crate::sdk::{SdkRuntime, determine_sdk_runtime, sdk_agent_sync, sdk_provider_sync};
-use crate::subsystems::Subsystems;
 use crate::{ApiService, InitApiServiceParams};
 
 pub struct CreateApiServiceParams {
@@ -37,12 +34,11 @@ pub struct CreateApiServiceParams {
     pub db_auth_token: Option<String>,
     pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub restate_params: RestateServerParams,
-    pub process_manager: Arc<tokio::sync::Mutex<CustomProcessManager>>,
+    pub process_manager: Arc<CustomProcessManager>,
 }
 
 pub struct ApiServiceBundle {
     pub api_service: ApiService,
-    pub subsystems: Subsystems,
     /// Unified change channel for external listeners to subscribe to bridge and encryption events
     pub soma_change_tx: SomaChangeTx,
 }
@@ -147,7 +143,7 @@ pub async fn create_api_service(
 
     // Start SDK server subsystem
     debug!("Starting SDK server");
-    let sdk_server_handle = start_sdk_server_subsystem(
+    start_sdk_server_subsystem(
         project_dir.clone(),
         sdk_runtime,
         soma_restate_service_port,
@@ -281,30 +277,6 @@ pub async fn create_api_service(
     // Create MCP cancellation token for graceful shutdown
     let mcp_ct = CancellationToken::new();
 
-    // Subscribe to system shutdown to cancel MCP service
-    let process_manager_clone_for_lock = process_manager.clone();
-    let process_manager_clone_for_spawn = process_manager.clone();
-    let mcp_ct_for_thread = mcp_ct.clone();
-    process_manager_clone_for_lock.lock().await.start_thread("mcp_shutdown_listener", ThreadConfig {
-        spawn_fn: move || {
-            let process_manager_for_mcp = process_manager_clone_for_spawn.clone();
-            let ct = mcp_ct_for_thread.clone();
-            tokio::spawn(async move {
-                process_manager_for_mcp.lock().await.wait_for_shutdown().await;
-                ct.cancel();
-                Ok(())
-            })
-        },
-        health_check: None,
-        on_terminal_stop: OnTerminalStop::Ignore,
-        on_stop: OnStop::Nothing,
-        shutdown_priority: 1,
-        follow_logs: false,
-        on_shutdown_triggered: None,
-        on_shutdown_complete: None,
-    }).await
-    .inspect_err(|e| error!(error = %e, "Failed to start MCP shutdown listener thread"))?;
-
     // Create the StreamableHttpService for MCP
     // Note: BridgeMcpService is created fresh for each request by the service factory
     // Clone values for use in the service factory closure
@@ -373,11 +345,9 @@ pub async fn create_api_service(
     let encryption_change_tx_for_pubsub = encryption_change_tx.clone();
     let secret_change_tx_for_pubsub = secret_change_tx.clone();
     let environment_variable_change_tx_for_pubsub = environment_variable_change_tx.clone();
-    let process_manager_clone = process_manager.clone();
-    process_manager_clone.lock().await.start_thread("change_pubsub", ThreadConfig {
+    process_manager.start_thread("change_pubsub", ThreadConfig {
         spawn_fn: {
             let soma_change_tx = soma_change_tx_for_pubsub.clone();
-            let process_manager_for_pubsub = process_manager_clone.clone();
             let identity_change_tx = identity_change_tx_for_pubsub.clone();
             let on_bridge_config_change_tx = on_bridge_config_change_tx_for_pubsub.clone();
             let encryption_change_tx = encryption_change_tx_for_pubsub.clone();
@@ -385,20 +355,12 @@ pub async fn create_api_service(
             let environment_variable_change_tx = environment_variable_change_tx_for_pubsub.clone();
             move || {
                 let soma_change_tx = soma_change_tx.clone();
-                let process_manager_for_pubsub = process_manager_for_pubsub.clone();
                 let identity_change_tx = identity_change_tx.clone();
                 let on_bridge_config_change_tx = on_bridge_config_change_tx.clone();
                 let encryption_change_tx = encryption_change_tx.clone();
                 let secret_change_tx = secret_change_tx.clone();
                 let environment_variable_change_tx = environment_variable_change_tx.clone();
                 tokio::spawn(async move {
-                    // Create a broadcast channel for shutdown_rx (run_change_pubsub expects this)
-                    let (shutdown_tx, mut shutdown_rx) = broadcast::channel(1);
-                    // Spawn a task to monitor process manager shutdown and signal change_pubsub
-                    tokio::spawn(async move {
-                        process_manager_for_pubsub.lock().await.wait_for_shutdown().await;
-                        let _ = shutdown_tx.send(());
-                    });
                     run_change_pubsub(
                         soma_change_tx,
                         on_bridge_config_change_tx.subscribe(),
@@ -406,7 +368,6 @@ pub async fn create_api_service(
                         secret_change_tx.subscribe(),
                         environment_variable_change_tx.subscribe(),
                         identity_change_tx.subscribe(),
-                        shutdown_rx,
                     )
                     .await;
                     Ok(())
@@ -435,7 +396,7 @@ pub async fn create_api_service(
 
     // Start credential rotation
     trace!("Starting credential rotation");
-    let credential_rotation_handle = start_credential_rotation_subsystem(
+    start_credential_rotation_subsystem(
         bridge_repo.clone(),
         crypto_cache.clone(),
         on_bridge_config_change_tx.clone(),
@@ -444,35 +405,24 @@ pub async fn create_api_service(
 
     // Start bridge client generation listener
     trace!("Starting bridge client generation listener");
-    let bridge_client_gen_handle = {
+    {
         let bridge_repo_clone = bridge_repo.clone();
         let sdk_client_clone = sdk_client.clone();
         let agent_cache_clone = agent_cache.clone();
         let bridge_client_gen_rx_clone = bridge_client_gen_rx.resubscribe();
-        let process_manager_for_bridge = process_manager.clone();
-        let (handle, _signal) = shared::subsystem::SubsystemHandle::new("Bridge Client Generation");
-        process_manager.lock().await.start_thread("bridge_client_generation", ThreadConfig {
+        process_manager.start_thread("bridge_client_generation", ThreadConfig {
             spawn_fn: move || {
                 let bridge_repo = bridge_repo_clone.clone();
                 let sdk_client = sdk_client_clone.clone();
                 let agent_cache = agent_cache_clone.clone();
-                let mut on_bridge_config_change_rx = bridge_client_gen_rx_clone.resubscribe();
-                let process_manager_for_bridge = process_manager_for_bridge.clone();
+                let on_bridge_config_change_rx = bridge_client_gen_rx_clone.resubscribe();
                 tokio::spawn(async move {
-                    // Create a broadcast channel for shutdown_rx (start_bridge_client_generation_subsystem expects this)
-                    let (shutdown_tx, mut shutdown_rx) = broadcast::channel(1);
-                    // Spawn a task to monitor process manager shutdown and signal bridge client generation
-                    tokio::spawn(async move {
-                        process_manager_for_bridge.lock().await.wait_for_shutdown().await;
-                        let _ = shutdown_tx.send(());
-                    });
-                    crate::logic::bridge::start_bridge_client_generation_subsystem(
+                    crate::logic::bridge::run_bridge_client_generation_loop(
                         bridge_repo,
                         sdk_client,
                         agent_cache,
                         on_bridge_config_change_rx,
-                        shutdown_rx,
-                    )?;
+                    ).await;
                     Ok(())
                 })
             },
@@ -485,41 +435,29 @@ pub async fn create_api_service(
             on_shutdown_complete: None,
         }).await
         .inspect_err(|e| error!(error = %e, "Failed to start bridge client generation thread"))?;
-        handle
-    };
+    }
 
     // Start secret sync subsystem
     trace!("Starting secret sync subsystem");
     let secret_sync_rx = secret_change_tx.subscribe();
     let socket_path_clone = socket_path.clone();
-    let secret_sync_handle = {
+    {
         let repository_clone = repository.clone();
         let crypto_cache_clone = crypto_cache.clone();
         let socket_path_clone = socket_path_clone.clone();
         let secret_sync_rx_clone = secret_sync_rx.resubscribe();
-        let process_manager_for_secret = process_manager.clone();
-        let (handle, _signal) = shared::subsystem::SubsystemHandle::new("Secret Sync");
-        process_manager.lock().await.start_thread("secret_sync", ThreadConfig {
+        process_manager.start_thread("secret_sync", ThreadConfig {
             spawn_fn: move || {
                 let repository = repository_clone.clone();
                 let crypto_cache = crypto_cache_clone.clone();
                 let socket_path = socket_path_clone.clone();
-                let mut secret_change_rx = secret_sync_rx_clone.resubscribe();
-                let process_manager_for_secret = process_manager_for_secret.clone();
+                let secret_change_rx = secret_sync_rx_clone.resubscribe();
                 tokio::spawn(async move {
-                    // Create a broadcast channel for shutdown_rx
-                    let (shutdown_tx, mut shutdown_rx) = broadcast::channel(1);
-                    // Spawn a task to monitor process manager shutdown
-                    tokio::spawn(async move {
-                        process_manager_for_secret.lock().await.wait_for_shutdown().await;
-                        let _ = shutdown_tx.send(());
-                    });
                     crate::logic::secret_sync::run_secret_sync_loop(crate::logic::secret_sync::SecretSyncParams {
                         repository: Arc::new(repository),
                         crypto_cache,
                         socket_path,
                         secret_change_rx,
-                        shutdown_rx,
                     }).await?;
                     Ok(())
                 })
@@ -533,38 +471,26 @@ pub async fn create_api_service(
             on_shutdown_complete: None,
         }).await
         .inspect_err(|e| error!(error = %e, "Failed to start secret sync thread"))?;
-        handle
-    };
+    }
 
     // Start environment variable sync subsystem
     trace!("Starting environment variable sync subsystem");
     let env_var_sync_rx = environment_variable_change_tx.subscribe();
     let socket_path_for_env_sync = socket_path.clone();
-    let env_var_sync_handle = {
+    {
         let repository_clone = repository.clone();
         let socket_path_clone = socket_path_for_env_sync.clone();
         let env_var_sync_rx_clone = env_var_sync_rx.resubscribe();
-        let process_manager_for_env = process_manager.clone();
-        let (handle, _signal) = shared::subsystem::SubsystemHandle::new("Environment Variable Sync");
-        process_manager.lock().await.start_thread("environment_variable_sync", ThreadConfig {
+        process_manager.start_thread("environment_variable_sync", ThreadConfig {
             spawn_fn: move || {
                 let repository = repository_clone.clone();
                 let socket_path = socket_path_clone.clone();
-                let mut env_var_change_rx = env_var_sync_rx_clone.resubscribe();
-                let process_manager_for_env = process_manager_for_env.clone();
+                let env_var_change_rx = env_var_sync_rx_clone.resubscribe();
                 tokio::spawn(async move {
-                    // Create a broadcast channel for shutdown_rx
-                    let (shutdown_tx, mut shutdown_rx) = broadcast::channel(1);
-                    // Spawn a task to monitor process manager shutdown
-                    tokio::spawn(async move {
-                        process_manager_for_env.lock().await.wait_for_shutdown().await;
-                        let _ = shutdown_tx.send(());
-                    });
                     crate::logic::environment_variable_sync::run_environment_variable_sync_loop(crate::logic::environment_variable_sync::EnvironmentVariableSyncParams {
                         repository: Arc::new(repository),
                         socket_path,
                         environment_variable_change_rx: env_var_change_rx,
-                        shutdown_rx,
                     }).await?;
                     Ok(())
                 })
@@ -578,48 +504,31 @@ pub async fn create_api_service(
             on_shutdown_complete: None,
         }).await
         .inspect_err(|e| error!(error = %e, "Failed to start environment variable sync thread"))?;
-        handle
-    };
+    }
 
     // Start JWK init listener (will start JWK rotation when default DEK is available)
     trace!("Starting JWK init listener");
     let encryption_change_rx_for_jwk = encryption_change_tx.subscribe();
-    let jwk_init_handle = {
+    {
         let identity_repo_clone = identity_repo.clone();
         let crypto_cache_clone = crypto_cache.clone();
         let jwks_cache_clone = internal_jwks_cache.clone();
         let jwk_rotation_state_clone = jwk_rotation_state.clone();
-        let mut encryption_change_rx_clone = encryption_change_rx_for_jwk.resubscribe();
-        let process_manager_for_jwk = process_manager.clone();
-        let (handle, _signal) = shared::subsystem::SubsystemHandle::new("JWK Init Listener");
-        process_manager.lock().await.start_thread("jwk_init_listener", ThreadConfig {
+        let encryption_change_rx_clone = encryption_change_rx_for_jwk.resubscribe();
+        process_manager.start_thread("jwk_init_listener", ThreadConfig {
             spawn_fn: move || {
                 let identity_repo = identity_repo_clone.clone();
                 let crypto_cache = crypto_cache_clone.clone();
                 let jwks_cache = jwks_cache_clone.clone();
                 let jwk_rotation_state = jwk_rotation_state_clone.clone();
-                let mut encryption_change_rx = encryption_change_rx_clone.resubscribe();
-                let process_manager_for_jwk = process_manager_for_jwk.clone();
+                let encryption_change_rx = encryption_change_rx_clone.resubscribe();
                 tokio::spawn(async move {
-                    // Create a broadcast channel for shutdown_rx
-                    let (shutdown_tx, mut shutdown_rx) = broadcast::channel(1);
-                    // Create another channel for system_shutdown_signal (used internally by JWK init)
-                    let (system_shutdown_tx, _) = broadcast::channel(1);
-                    let system_shutdown_tx_for_spawn = system_shutdown_tx.clone();
-                    // Spawn a task to monitor process manager shutdown
-                    tokio::spawn(async move {
-                        process_manager_for_jwk.lock().await.wait_for_shutdown().await;
-                        let _ = shutdown_tx.send(());
-                        let _ = system_shutdown_tx_for_spawn.send(());
-                    });
                     crate::logic::identity::run_jwk_init_listener(
                         identity_repo,
                         crypto_cache,
                         jwks_cache,
                         jwk_rotation_state,
                         encryption_change_rx,
-                        shutdown_rx,
-                        system_shutdown_tx,
                     ).await?;
                     Ok(())
                 })
@@ -633,8 +542,7 @@ pub async fn create_api_service(
             on_shutdown_complete: None,
         }).await
         .inspect_err(|e| error!(error = %e, "Failed to start JWK init listener thread"))?;
-        handle
-    };
+    }
 
     // Note: Initial sync of secrets and environment variables now happens AFTER SDK server
     // healthcheck passes (see above, around line 171). This ensures the SDK server's gRPC
@@ -642,14 +550,6 @@ pub async fn create_api_service(
 
     Ok(ApiServiceBundle {
         api_service,
-        subsystems: Subsystems {
-            sdk_server: Some(sdk_server_handle),
-            credential_rotation: Some(credential_rotation_handle),
-            bridge_client_generation: Some(bridge_client_gen_handle),
-            secret_sync: Some(secret_sync_handle),
-            environment_variable_sync: Some(env_var_sync_handle),
-            jwk_init_listener: Some(jwk_init_handle),
-        },
         soma_change_tx,
     })
 }
@@ -660,14 +560,11 @@ async fn start_sdk_server_subsystem(
     restate_service_port: u16,
     repository: crate::repository::Repository,
     crypto_cache: CryptoCache,
-    process_manager: Arc<tokio::sync::Mutex<CustomProcessManager>>,
-) -> Result<SubsystemHandle, CommonError> {
+    process_manager: Arc<CustomProcessManager>,
+) -> Result<(), CommonError> {
     use crate::sdk::{StartDevSdkParams, start_dev_sdk};
 
-    let (handle, _signal) = SubsystemHandle::new("SDK Server");
-    let process_manager_clone = process_manager.clone();
-
-    process_manager_clone.lock().await.start_thread("sdk_server", ThreadConfig {
+    process_manager.start_thread("sdk_server", ThreadConfig {
         spawn_fn: {
             let project_dir = project_dir.clone();
             let sdk_runtime = sdk_runtime.clone();
@@ -707,7 +604,7 @@ async fn start_sdk_server_subsystem(
     }).await
     .inspect_err(|e| error!(error = %e, "Failed to start SDK server thread"))?;
 
-    Ok(handle)
+    Ok(())
 }
 
 /// Waits for SDK server healthcheck to pass, retrying up to max_iterations times
@@ -761,35 +658,22 @@ async fn start_credential_rotation_subsystem(
     bridge_repo: bridge::repository::Repository,
     crypto_cache: CryptoCache,
     on_bridge_change_tx: OnConfigChangeTx,
-    process_manager: Arc<tokio::sync::Mutex<CustomProcessManager>>,
-) -> Result<SubsystemHandle, CommonError> {
-    let (handle, _signal) = SubsystemHandle::new("Credential Rotation");
-    let process_manager_clone = process_manager.clone();
-
-    process_manager_clone.lock().await.start_thread("credential_rotation", ThreadConfig {
+    process_manager: Arc<CustomProcessManager>,
+) -> Result<(), CommonError> {
+    process_manager.start_thread("credential_rotation", ThreadConfig {
         spawn_fn: {
             let bridge_repo = bridge_repo.clone();
             let crypto_cache = crypto_cache.clone();
             let on_bridge_change_tx = on_bridge_change_tx.clone();
-            let process_manager_for_cred = process_manager.clone();
             move || {
                 let bridge_repo = bridge_repo.clone();
                 let crypto_cache = crypto_cache.clone();
                 let on_bridge_change_tx = on_bridge_change_tx.clone();
-                let process_manager_for_cred = process_manager_for_cred.clone();
                 tokio::spawn(async move {
-                    // Create a broadcast channel for shutdown_rx (credential rotation expects this)
-                    let (shutdown_tx, shutdown_rx) = broadcast::channel(1);
-                    // Spawn a task to monitor process manager shutdown and signal credential rotation
-                    tokio::spawn(async move {
-                        process_manager_for_cred.lock().await.wait_for_shutdown().await;
-                        let _ = shutdown_tx.send(());
-                    });
                     bridge::logic::credential_rotation_task(
                         bridge_repo,
                         crypto_cache,
                         on_bridge_change_tx,
-                        shutdown_rx,
                     )
                     .await;
                     Ok(())
@@ -809,5 +693,5 @@ async fn start_credential_rotation_subsystem(
     }).await
     .inspect_err(|e| error!(error = %e, "Failed to start credential rotation thread"))?;
 
-    Ok(handle)
+    Ok(())
 }

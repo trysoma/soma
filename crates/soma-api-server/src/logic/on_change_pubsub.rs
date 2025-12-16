@@ -72,7 +72,8 @@ pub fn create_soma_change_channel(capacity: usize) -> (SomaChangeTx, SomaChangeR
     broadcast::channel(capacity)
 }
 
-/// Starts the unified change pubsub system that forwards bridge, encryption, secret, environment variable, and identity events to the unified channel
+/// Starts the unified change pubsub system that forwards bridge, encryption, secret, environment variable, and identity events to the unified channel.
+/// This function runs indefinitely until aborted by the process manager.
 pub async fn run_change_pubsub(
     soma_change_tx: SomaChangeTx,
     mut bridge_change_rx: bridge::logic::OnConfigChangeRx,
@@ -80,7 +81,6 @@ pub async fn run_change_pubsub(
     mut secret_change_rx: SecretChangeRx,
     mut environment_variable_change_rx: EnvironmentVariableChangeRx,
     mut identity_change_rx: identity::logic::OnConfigChangeRx,
-    mut shutdown_rx: broadcast::Receiver<()>,
 ) {
     debug!("Change pubsub system started");
 
@@ -175,11 +175,6 @@ pub async fn run_change_pubsub(
                         warn!(skipped, "Identity change channel lagged");
                     }
                 }
-            }
-            // Handle shutdown
-            _ = shutdown_rx.recv() => {
-                debug!("Change pubsub stopping");
-                break;
             }
         }
     }

@@ -85,7 +85,7 @@ pub struct StartDevSdkParams {
     pub restate_service_port: u16,
     pub repository: std::sync::Arc<crate::repository::Repository>,
     pub crypto_cache: CryptoCache,
-    pub process_manager: std::sync::Arc<tokio::sync::Mutex<shared::process_manager::CustomProcessManager>>,
+    pub process_manager: std::sync::Arc<shared::process_manager::CustomProcessManager>,
 }
 
 /// Starts the development SDK server with hot reloading on file changes

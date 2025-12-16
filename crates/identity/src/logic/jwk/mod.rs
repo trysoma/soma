@@ -296,14 +296,13 @@ where
     Ok(())
 }
 
-/// Background task that periodically checks and creates JWKs if needed
-/// This function is designed to be called in its own tokio::spawn
+/// Background task that periodically checks and creates JWKs if needed.
+/// This function runs indefinitely until aborted by the process manager.
 pub async fn jwk_rotation_task<R>(
     repo: R,
     crypto_cache: CryptoCache,
     jwks_cache: JwksCache,
     default_dek_alias: String,
-    mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
 ) where
     R: UserRepositoryLike,
 {
@@ -312,31 +311,22 @@ pub async fn jwk_rotation_task<R>(
     let mut timer = interval(Duration::from_secs(10 * 60)); // 10 minutes
 
     loop {
-        tokio::select! {
-            _ = timer.tick() => {
-                tracing::trace!("Starting JWK rotation check");
+        timer.tick().await;
+        tracing::trace!("Starting JWK rotation check");
 
-                if let Err(e) = process_jwk_rotation(
-                    &repo,
-                    &crypto_cache,
-                    &jwks_cache,
-                    &default_dek_alias,
-                )
-                .await
-                {
-                    tracing::error!(error = ?e, "JWK rotation failed");
-                }
-
-                tracing::trace!("JWK rotation check complete");
-            }
-            _ = shutdown_rx.recv() => {
-                tracing::debug!("JWK rotation task shutdown requested");
-                break;
-            }
+        if let Err(e) = process_jwk_rotation(
+            &repo,
+            &crypto_cache,
+            &jwks_cache,
+            &default_dek_alias,
+        )
+        .await
+        {
+            tracing::error!(error = ?e, "JWK rotation failed");
         }
-    }
 
-    tracing::debug!("JWK rotation task stopped");
+        tracing::trace!("JWK rotation check complete");
+    }
 }
 
 /// Process JWK rotation - check if any JWKs expire in more than 5 days, create one if not

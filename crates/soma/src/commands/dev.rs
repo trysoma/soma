@@ -7,7 +7,6 @@ use clap::Args;
 use clap::Parser;
 use futures::future;
 use indicatif::ProgressBar;
-use tokio::sync::broadcast;
 use tokio::sync::oneshot;
 use tracing::debug;
 use tracing::trace;
@@ -18,7 +17,7 @@ use shared::error::CommonError;
 use shared::port::find_free_port;
 use shared::soma_agent_definition::{SomaAgentDefinitionLike, YamlSomaAgentDefinition};
 
-use crate::bridge::start_bridge_sync_to_yaml_subsystem;
+use crate::bridge::run_bridge_sync_to_yaml_loop;
 use shared::process_manager::CustomProcessManager;
 use crate::server::{StartAxumServerParams, start_axum_server};
 use crate::utils::wait_for_soma_api_health_check;
@@ -88,31 +87,39 @@ pub struct DevParams {
 pub async fn cmd_dev(params: DevParams, cli_config: &mut CliConfig) -> Result<(), CommonError> {
     // Create shutdown notification channel
     let (shutdown_notifier_tx, mut shutdown_notifier_rx) = oneshot::channel();
-    
-    // Create process manager with shutdown notifier
-    let mut process_manager = shared::process_manager::CustomProcessManager::new_with_shutdown_notifier(Some(shutdown_notifier_tx)).await
+
+    // Create process manager with shutdown notifier (uses interior mutability, no Mutex needed)
+    let process_manager = shared::process_manager::CustomProcessManager::new_with_shutdown_notifier(Some(shutdown_notifier_tx)).await
         .inspect_err(|_e| {
             error!("Failed to start process manager");
         })?;
-    
-    // Spawn cmd_dev_inner
-    let process_manager_arc = Arc::new(tokio::sync::Mutex::new(process_manager));
+
+    // Wrap in Arc for sharing across tasks (no Mutex needed - interior mutability)
+    let process_manager_arc = Arc::new(process_manager);
     let process_manager_arc_for_shutdown = process_manager_arc.clone();
     let params_clone = params.clone();
     let cli_config_clone = cli_config.clone();
     let mut cmd_dev_inner_handle = tokio::spawn(async move {
         cmd_dev_inner(params_clone, &cli_config_clone, process_manager_arc).await
     });
-    
+
     // Wait for one of: Ctrl+C, cmd_dev_inner to complete/error, or shutdown notification
-    tokio::select! {
+    let shutdown_reason = tokio::select! {
+        biased;  // Check ctrl_c first
+
         _ = tokio::signal::ctrl_c() => {
-            debug!("Shutdown signal received, triggering graceful shutdown");
+            debug!("Shutdown signal received (Ctrl+C)");
+            "ctrl_c"
+        }
+        _ = &mut shutdown_notifier_rx => {
+            debug!("Process manager triggered shutdown");
+            "notifier"
         }
         result = &mut cmd_dev_inner_handle => {
             match result {
                 Ok(Ok(())) => {
                     debug!("cmd_dev_inner completed successfully");
+                    return Ok(());
                 }
                 Ok(Err(e)) => {
                     debug!(error = ?e, "cmd_dev_inner returned error");
@@ -124,18 +131,18 @@ pub async fn cmd_dev(params: DevParams, cli_config: &mut CliConfig) -> Result<()
                 }
             }
         }
-        _ = &mut shutdown_notifier_rx => {
-            debug!("Process manager triggered shutdown");
-        }
-    }
-    
+    };
+
+    debug!(reason = shutdown_reason, "Initiating shutdown sequence");
+
+    // Abort the cmd_dev_inner task since it's waiting on pending()
+    cmd_dev_inner_handle.abort();
+    let _ = cmd_dev_inner_handle.await;
+
     // Trigger process manager shutdown
-    {
-        let mut pm = process_manager_arc_for_shutdown.lock().await;
-        pm.trigger_shutdown().await?;
-        pm.on_shutdown_complete().await?;
-    }
-    
+    process_manager_arc_for_shutdown.trigger_shutdown().await?;
+    process_manager_arc_for_shutdown.on_shutdown_complete().await?;
+
     debug!("Shutdown complete");
     Ok(())
 }
@@ -144,17 +151,11 @@ pub async fn cmd_dev(params: DevParams, cli_config: &mut CliConfig) -> Result<()
 async fn cmd_dev_inner(
     params: DevParams,
     _cli_config: &CliConfig,
-    process_manager_arc: Arc<tokio::sync::Mutex<shared::process_manager::CustomProcessManager>>,
+    process_manager: Arc<CustomProcessManager>,
 ) -> Result<(), CommonError> {
     let project_dir = construct_cwd_absolute(params.clone().cwd)?;
 
     debug!("Starting dev server in project directory: {}", project_dir.display());
-    trace!("Starting process manager");
-    let mut process_manager = CustomProcessManager::new().await
-        .inspect_err(|_e| {
-            error!("Failed to start process manager");
-        })?;
-    trace!("Process manager started");
 
     trace!("setting up Libsql database");
     // Resolve relative db_conn_string paths relative to project_dir
@@ -248,7 +249,7 @@ async fn cmd_dev_inner(
     bar.enable_steady_tick(Duration::from_millis(100));
     bar.set_message("Waiting for Restate to start...");
     crate::restate_server::start_restate(
-        &mut process_manager,
+        &process_manager,
         restate_params.clone(),
     ).await?;
     bar.finish_and_clear();
@@ -259,7 +260,6 @@ async fn cmd_dev_inner(
     bar = ProgressBar::new_spinner();
     bar.enable_steady_tick(Duration::from_millis(100));
     bar.set_message("Waiting for API server to start...");
-    let process_manager_arc = Arc::new(tokio::sync::Mutex::new(process_manager));
     let api_service_bundle = create_api_service(CreateApiServiceParams {
         project_dir: project_dir.clone(),
         host: params.host.clone(),
@@ -270,22 +270,37 @@ async fn cmd_dev_inner(
         db_auth_token: params.db_auth_token.clone(),
         soma_definition: soma_definition.clone(),
         restate_params: restate_params.clone(),
-        process_manager: process_manager_arc.clone(),
+        process_manager: process_manager.clone(),
     })
     .await?;
     bar.finish_and_clear();
     trace!("API server started");
 
-    // Start bridge config change listener subsystem (uses unified change channel from factory)
+    // Start bridge config change listener (uses unified change channel from factory)
     trace!("Starting bridge config change listener...");
-    let bridge_sync_handle = start_bridge_sync_to_yaml_subsystem(
-        soma_definition.clone(),
-        project_dir.clone(),
-        api_service_bundle.soma_change_tx.subscribe(),
-    )?;
+    let soma_definition_for_bridge = soma_definition.clone();
+    let project_dir_for_bridge = project_dir.clone();
+    let soma_change_rx = api_service_bundle.soma_change_tx.subscribe();
+    process_manager.start_thread("bridge_sync_to_yaml", shared::process_manager::ThreadConfig {
+        spawn_fn: move || {
+            let soma_definition = soma_definition_for_bridge.clone();
+            let project_dir = project_dir_for_bridge.clone();
+            let soma_change_rx = soma_change_rx.resubscribe();
+            tokio::spawn(async move {
+                run_bridge_sync_to_yaml_loop(soma_definition, project_dir, soma_change_rx).await
+            })
+        },
+        health_check: None,
+        on_terminal_stop: shared::process_manager::OnTerminalStop::Ignore,
+        on_stop: shared::process_manager::OnStop::Nothing,
+        shutdown_priority: 2,
+        follow_logs: false,
+        on_shutdown_triggered: None,
+        on_shutdown_complete: None,
+    }).await
+    .inspect_err(|e| error!(error = %e, "Failed to start bridge sync to YAML thread"))?;
     trace!("Bridge config change listener started");
     let api_service = api_service_bundle.api_service;
-    let subsystems = api_service_bundle.subsystems;
 
 
     // Start Axum server subsystem
@@ -321,8 +336,7 @@ async fn cmd_dev_inner(
         }
     });
     
-    let process_manager_for_axum = process_manager_arc.clone();
-    process_manager_for_axum.lock().await.start_thread("axum_server", shared::process_manager::ThreadConfig {
+    process_manager.start_thread("axum_server", shared::process_manager::ThreadConfig {
         spawn_fn: move || {
             // This thread just waits forever since the server is running in a separate task
             tokio::spawn(async move {
