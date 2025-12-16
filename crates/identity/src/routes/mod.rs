@@ -196,23 +196,33 @@ async fn route_create_user(
     State(ctx): State<IdentityService>,
     Json(req): Json<CreateUserRequest>,
 ) -> JsonResponse<UserResponse, CommonError> {
-    let now = WrappedChronoDateTime::now();
-    let user_id = req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-
-    let user_type = UserType::parse(&req.user_type).unwrap_or(UserType::Human);
-    let role = Role::parse(&req.role).unwrap_or(Role::User);
-
-    let user = User {
-        id: user_id.clone(),
-        user_type,
-        email: req.email,
-        role,
-        description: None,
-        created_at: now,
-        updated_at: now,
-    };
-
     let res = async {
+        let now = WrappedChronoDateTime::now();
+        let user_id = req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+        let user_type =
+            UserType::parse(&req.user_type).ok_or_else(|| CommonError::InvalidRequest {
+                msg: format!(
+                    "Invalid user_type: '{}'. Expected 'human' or 'service_principal'",
+                    req.user_type
+                ),
+                source: None,
+            })?;
+        let role = Role::parse(&req.role).ok_or_else(|| CommonError::InvalidRequest {
+            msg: format!("Invalid role: '{}'. Expected 'admin' or 'user'", req.role),
+            source: None,
+        })?;
+
+        let user = User {
+            id: user_id.clone(),
+            user_type,
+            email: req.email,
+            role,
+            description: None,
+            created_at: now,
+            updated_at: now,
+        };
+
         ctx.repository().create_user(&user).await?;
         ctx.repository()
             .get_user_by_id(&user_id)

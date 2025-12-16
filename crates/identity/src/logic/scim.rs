@@ -497,6 +497,11 @@ pub async fn get_user_scim(
 }
 
 /// List users with SCIM pagination
+///
+/// Note: Our repository uses cursor-based pagination without a total count.
+/// Per SCIM 2.0 spec, `totalResults` should reflect the total matching resources.
+/// Since we don't have this information, we return the current page count when
+/// there's no more data, or indicate unknown (-1) when pagination continues.
 pub async fn list_users_scim(
     repo: &impl UserRepositoryLike,
     params: ScimListParams,
@@ -515,7 +520,13 @@ pub async fn list_users_scim(
         .map(|u| user_to_scim(u, base_url))
         .collect();
 
-    let total = scim_users.len() as i64;
+    // If there's no next page, total is the current count; otherwise unknown
+    let total = if users_response.next_page_token.is_none() {
+        scim_users.len() as i64
+    } else {
+        // SCIM spec doesn't require totalResults, but -1 indicates unknown
+        -1
+    };
 
     Ok(ScimListResponse::new(
         scim_users,
@@ -756,6 +767,8 @@ pub async fn get_group_scim(
 }
 
 /// List groups with SCIM pagination
+///
+/// Note: See `list_users_scim` for comments on totalResults limitations.
 pub async fn list_groups_scim(
     repo: &impl UserRepositoryLike,
     params: ScimListParams,
@@ -782,7 +795,12 @@ pub async fn list_groups_scim(
         scim_groups.push(group_to_scim(group, &members_response.items, base_url));
     }
 
-    let total = scim_groups.len() as i64;
+    // If there's no next page, total is the current count; otherwise unknown
+    let total = if groups_response.next_page_token.is_none() {
+        scim_groups.len() as i64
+    } else {
+        -1
+    };
 
     Ok(ScimListResponse::new(
         scim_groups,
@@ -984,7 +1002,7 @@ pub async fn delete_group_scim(
 // Tests
 // ============================================================================
 
-#[cfg(test)]
+#[cfg(all(test, feature = "unit_test"))]
 mod tests {
     use super::*;
     use crate::repository::Repository;
