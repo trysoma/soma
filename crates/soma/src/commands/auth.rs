@@ -554,7 +554,6 @@ async fn collect_token_mapping() -> Result<models::TokenMapping, CommonError> {
             let roles = vec![
                 ("Admin", "admin"),
                 ("Maintainer", "maintainer"),
-                ("ReadOnlyMaintainer", "read-only-maintainer"),
                 ("Agent", "agent"),
                 ("User", "user"),
             ];
@@ -635,7 +634,6 @@ async fn collect_token_mapping() -> Result<models::TokenMapping, CommonError> {
             let roles = vec![
                 ("Admin", "admin"),
                 ("Maintainer", "maintainer"),
-                ("ReadOnlyMaintainer", "read-only-maintainer"),
                 ("Agent", "agent"),
                 ("User", "user"),
             ];
@@ -723,7 +721,6 @@ fn string_to_role(role: &str) -> models::Role {
     match role {
         "Admin" => models::Role::Admin,
         "Maintainer" => models::Role::Maintainer,
-        "ReadOnlyMaintainer" => models::Role::ReadOnlyMaintainer,
         "Agent" => models::Role::Agent,
         "User" => models::Role::User,
         _ => models::Role::User,

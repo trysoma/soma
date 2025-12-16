@@ -50,7 +50,7 @@ _install-sqlc-gen-from-template: ## Install sqlc-gen-from-template if not alread
 		echo "  Make sure $$INSTALL_DIR is in your PATH"; \
 	fi
 
-install: _install-sqlc-gen-from-template py-build-sdk-core ## Install all dependencies (Rust, Node.js, and Python)
+install: _install-sqlc-gen-from-template ## Install all dependencies (Rust, Node.js, and Python)
 	git submodule update --init --recursive
 	@echo "Installing JS monorepo dependencies..."
 	pnpm install

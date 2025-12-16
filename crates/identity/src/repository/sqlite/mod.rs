@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 mod raw_impl;
 
-#[allow(clippy::all)]
+#[allow(clippy::all, unused_mut)]
 pub mod generated {
     include!("raw.generated.rs");
 }
@@ -10,13 +10,13 @@ pub mod generated {
 pub use generated::*;
 
 use crate::logic::sts::config::StsTokenConfigType;
-use crate::logic::user::{Role, UserType};
 use crate::logic::user_auth_flow::oauth::OAuthState;
 use crate::repository::{
     Group, GroupMemberWithUser, GroupMembership, HashedApiKey, HashedApiKeyWithUser, JwtSigningKey,
     StsConfigurationDb, UpdateUser, User, UserAuthFlowConfigDb, UserGroupWithGroup,
     UserRepositoryLike,
 };
+use shared::identity::{Role, UserType};
 
 use anyhow::Context;
 use shared::error::CommonError;
@@ -1063,7 +1063,8 @@ mod unit_test {
     use super::*;
     use crate::logic::api_key::HashedApiKey;
     use crate::logic::internal_token_issuance::JwtSigningKey;
-    use crate::logic::user::{Group, GroupMembership, Role, User, UserType};
+    use crate::logic::user::{Group, GroupMembership, User};
+    use shared::identity::{Role, UserType};
     use shared::primitives::WrappedChronoDateTime;
 
     async fn setup_test_db() -> Repository {

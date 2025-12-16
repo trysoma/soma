@@ -25,10 +25,10 @@ sql:
               rust_type: "shared::primitives::WrappedChronoDateTime"
             - db_type: text
               column: user.type
-              rust_type: "crate::logic::user::UserType"
+              rust_type: "shared::identity::UserType"
             - db_type: text
               column: user.role
-              rust_type: "crate::logic::user::Role"
+              rust_type: "shared::identity::Role"
 
             # api_key table
             - db_type: datetime

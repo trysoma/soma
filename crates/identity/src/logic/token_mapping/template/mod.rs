@@ -4,7 +4,7 @@ pub use self::apply::*;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::logic::user::Role;
+use shared::identity::Role;
 
 /// Indicates which token type (ID token for OIDC, access token response for OAuth)
 /// contains the field

@@ -11,9 +11,9 @@ use crate::logic::token_mapping::template::{
     DecodedTokenSources, JwtTokenTemplateConfig, JwtTokenTemplateValidationConfig, TokenLocation,
     apply_mapping_template,
 };
-use crate::logic::user::Role;
 use crate::logic::{decode_jwt_to_claims, fetch_userinfo};
 use crate::repository::UserRepositoryLike;
+use shared::identity::Role;
 
 /// Apply dev mode configuration - returns a default dev user
 fn apply_dev_mode_config() -> Result<NormalizedTokenInputFields, CommonError> {

@@ -69,13 +69,7 @@ pub async fn cmd_api_key_add(
     timeout_secs: u64,
 ) -> Result<(), CommonError> {
     // Validate role
-    let valid_roles = [
-        "admin",
-        "maintainer",
-        "read-only-maintainer",
-        "agent",
-        "user",
-    ];
+    let valid_roles = ["admin", "maintainer", "agent", "user"];
     if !valid_roles.contains(&role.as_str()) {
         return Err(CommonError::InvalidRequest {
             msg: format!(
@@ -94,7 +88,6 @@ pub async fn cmd_api_key_add(
     let role_enum = match role.to_lowercase().as_str() {
         "admin" => models::Role::Admin,
         "maintainer" => models::Role::Maintainer,
-        "read-only-maintainer" => models::Role::ReadOnlyMaintainer,
         "agent" => models::Role::Agent,
         "user" => models::Role::User,
         _ => {

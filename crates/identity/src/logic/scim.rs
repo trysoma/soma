@@ -3,9 +3,10 @@
 //! This module provides logic functions for syncing external IDP users and groups
 //! into our repository based on the SCIM 2.0 specification.
 
-use crate::logic::user::{Group, GroupMembership, Role, User, UserType};
+use crate::logic::user::GroupMembership;
 use crate::repository::{GroupMemberWithUser, UpdateUser, UserRepositoryLike};
 use serde::{Deserialize, Serialize};
+use shared::identity::{Group, Role, User, UserType};
 use shared::{
     error::CommonError,
     primitives::{PaginationRequest, WrappedChronoDateTime},

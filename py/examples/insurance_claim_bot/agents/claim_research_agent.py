@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from langchain_openai import ChatOpenAI  # type: ignore[import-not-found]
-from langchain_core.messages import (  # type: ignore[import-not-found]
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import (
     HumanMessage,
     AIMessage,
     SystemMessage,
@@ -103,14 +103,22 @@ async def claim_research_handler(
         # Convert MCP tools to OpenAI tool format
         all_tools = [output_research_tool]
         for tool in mcp_tools:
+            # Get parameters from args_schema if it's a Pydantic model
+            parameters: dict[str, Any] = {"type": "object", "properties": {}}
+            if (
+                hasattr(tool, "args_schema")
+                and tool.args_schema is not None
+                and isinstance(tool.args_schema, type)
+                and issubclass(tool.args_schema, BaseModel)
+            ):
+                parameters = tool.args_schema.model_json_schema()
+
             tool_dict = {
                 "type": "function",
                 "function": {
                     "name": tool.name,
                     "description": tool.description or f"Tool: {tool.name}",
-                    "parameters": tool.args_schema.model_json_schema()
-                    if hasattr(tool, "args_schema")
-                    else {"type": "object", "properties": {}},
+                    "parameters": parameters,
                 },
             }
             all_tools.append(tool_dict)

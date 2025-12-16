@@ -5,7 +5,7 @@ use super::{
     GroupToRoleMapping, JwtTokenMappingConfig, MappingSource, ScopeToGroupMapping,
     ScopeToRoleMapping,
 };
-use crate::logic::user::Role;
+use shared::identity::Role;
 
 /// Result of applying a mapping template to extract normalized user fields
 pub struct NormalizedMappingResult {

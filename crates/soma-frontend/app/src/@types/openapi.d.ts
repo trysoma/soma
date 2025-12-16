@@ -2017,7 +2017,7 @@ export interface components {
 		 * @description User role in the system
 		 * @enum {string}
 		 */
-		Role: "admin" | "maintainer" | "read_only_maintainer" | "agent" | "user";
+		Role: "admin" | "maintainer" | "agent" | "user";
 		RuntimeConfigResponse: Record<string, never>;
 		ScopeToGroupMapping: {
 			group: string;

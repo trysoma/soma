@@ -14,7 +14,7 @@ use crate::logic::api_key::cache::ApiKeyCache;
 use crate::logic::{DEFAULT_DEK_ALIAS, OnConfigChangeEvt, OnConfigChangeTx, validate_id};
 use crate::repository::UserRepositoryLike;
 
-use crate::logic::user::{Role, User, UserType};
+use shared::identity::{Role, User, UserType};
 
 /// Parameters for creating an API key
 #[derive(Debug, Deserialize, ToSchema)]

@@ -8666,7 +8666,6 @@
         "enum": [
           "admin",
           "maintainer",
-          "read_only_maintainer",
           "agent",
           "user"
         ]

@@ -19,7 +19,6 @@
 export const Role = {
 	Admin: "admin",
 	Maintainer: "maintainer",
-	ReadOnlyMaintainer: "read_only_maintainer",
 	Agent: "agent",
 	User: "user",
 } as const;

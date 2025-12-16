@@ -7,11 +7,12 @@
 
 pub mod scim;
 
-use crate::logic::user::{Group, GroupMembership, Role, User, UserType};
+use crate::logic::user::GroupMembership;
 use crate::repository::Repository;
 use crate::repository::{GroupMemberWithUser, UpdateUser, UserGroupWithGroup, UserRepositoryLike};
 use axum::extract::{Json, Path, Query, State};
 use serde::{Deserialize, Serialize};
+use shared::identity::{Group, Role, User, UserType};
 use shared::{
     adapters::openapi::{API_VERSION_TAG, JsonResponse},
     error::CommonError,

@@ -4,12 +4,12 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum_extra::extract::cookie::CookieJar;
 use http::HeaderMap;
 use serde::{Deserialize, Serialize};
+use shared::adapters::openapi::JsonResponse;
 use shared::{adapters::openapi::API_VERSION_TAG, error::CommonError};
 use tracing::trace;
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::logic::auth_client::Identity;
 use crate::logic::internal_token_issuance::{
     NormalizedTokenIssuanceResult, RefreshTokenParams, RefreshTokenResult, refresh_access_token,
 };
@@ -18,6 +18,7 @@ use crate::logic::user_auth_flow::{
     handle_authorization_handshake_callback, start_authorization_handshake,
 };
 use crate::service::IdentityService;
+use shared::identity::{AuthClientLike, Identity};
 
 use super::{
     API_VERSION_1, PATH_PREFIX, REFRESH_TOKEN_COOKIE_NAME, SERVICE_ROUTE_KEY, add_token_cookies,
@@ -317,18 +318,16 @@ async fn route_refresh_token(
     summary = "Get current identity",
     description = "Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)",
 )]
-async fn route_whoami(State(service): State<IdentityService>, headers: HeaderMap) -> Response {
+async fn route_whoami(
+    State(service): State<IdentityService>,
+    headers: HeaderMap,
+) -> JsonResponse<Identity, CommonError> {
     trace!("Getting current identity");
     let auth_client = service.auth_client();
-
     let result = auth_client.authenticate_from_headers(&headers).await;
     trace!(
         success = result.is_ok(),
         "Getting current identity completed"
     );
-
-    match result {
-        Ok(identity) => Json(identity).into_response(),
-        Err(error) => error.into_response(),
-    }
+    JsonResponse::from(result)
 }

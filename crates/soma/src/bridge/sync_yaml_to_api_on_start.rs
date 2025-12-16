@@ -983,7 +983,6 @@ fn parse_role_string(role: &str) -> Result<models::Role, CommonError> {
     match role.to_lowercase().as_str() {
         "admin" => Ok(models::Role::Admin),
         "maintainer" => Ok(models::Role::Maintainer),
-        "read-only-maintainer" | "readonlymaintainer" => Ok(models::Role::ReadOnlyMaintainer),
         "agent" => Ok(models::Role::Agent),
         "user" => Ok(models::Role::User),
         _ => Err(CommonError::InvalidRequest {

@@ -27,7 +27,6 @@ class Role(str, Enum):
     """
     ADMIN = "admin"
     MAINTAINER = "maintainer"
-    READ_ONLY_MAINTAINER = "read_only_maintainer"
     AGENT = "agent"
     USER = "user"
 
