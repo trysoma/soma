@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
-from langchain_core.tools import BaseTool, StructuredTool  # type: ignore[import-not-found]
+from langchain_core.tools import BaseTool, StructuredTool
 from mcp.types import CallToolResult, Tool as McpTool
 from pydantic import BaseModel, create_model
 from restate import ObjectContext
