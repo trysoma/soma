@@ -125,10 +125,25 @@ pub struct ScimUser {
     pub meta: Option<ScimMeta>,
 }
 
+/// Provides the SCIM core User schema URIs used for User resources.
+///
+/// # Examples
+///
+/// ```
+/// let schemas = default_user_schemas();
+/// assert_eq!(schemas, vec!["urn:ietf:params:scim:schemas:core:2.0:User".to_string()]);
+/// ```
 fn default_user_schemas() -> Vec<String> {
     vec!["urn:ietf:params:scim:schemas:core:2.0:User".to_string()]
 }
 
+/// Returns the default `true` value for fields that should default to true.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(default_true(), true);
+/// ```
 fn default_true() -> bool {
     true
 }
@@ -160,6 +175,14 @@ pub struct ScimGroup {
     pub meta: Option<ScimMeta>,
 }
 
+/// Default SCIM core schema URIs for Group resources.
+///
+/// # Examples
+///
+/// ```
+/// let schemas = default_group_schemas();
+/// assert_eq!(schemas, vec!["urn:ietf:params:scim:schemas:core:2.0:Group".to_string()]);
+/// ```
 fn default_group_schemas() -> Vec<String> {
     vec!["urn:ietf:params:scim:schemas:core:2.0:Group".to_string()]
 }
@@ -186,6 +209,27 @@ pub struct ScimListResponse<T> {
 }
 
 impl<T> ScimListResponse<T> {
+    /// Constructs a SCIM ListResponse containing the given resources and pagination metadata.
+    ///
+    /// The response's `schemas` field is set to the standard SCIM ListResponse schema.
+    ///
+    —
+    /// # Parameters
+    ///
+    /// - `resources`: the page of resources to include in this response.
+    /// - `total_results`: the total number of matching results across all pages.
+    /// - `start_index`: the 1-based index of the first resource in `resources` within the total result set.
+    /// - `items_per_page`: the maximum number of items returned in this page (page size).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let resp = ScimListResponse::new(vec![1, 2, 3], 10, 1, 3);
+    /// assert_eq!(resp.total_results, 10);
+    /// assert_eq!(resp.start_index, 1);
+    /// assert_eq!(resp.items_per_page, 3);
+    /// assert_eq!(resp.resources, vec![1, 2, 3]);
+    /// ```
     pub fn new(
         resources: Vec<T>,
         total_results: i64,
@@ -251,6 +295,19 @@ pub struct ScimError {
 }
 
 impl ScimError {
+    /// Constructs a SCIM error response with the standard SCIM Error schema.
+    ///
+    /// The returned value contains the SCIM Error schema URN in `schemas`, the HTTP
+    /// status code as a string in `status`, the provided `detail` message, and the
+    /// optional `scim_type`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let err = ScimError::new(404, "User not found", None);
+    /// assert_eq!(err.status, "404");
+    /// assert!(err.schemas.contains(&"urn:ietf:params:scim:api:messages:2.0:Error".to_string()));
+    /// ```
     pub fn new(status: u16, detail: impl Into<String>, scim_type: Option<String>) -> Self {
         Self {
             schemas: vec!["urn:ietf:params:scim:api:messages:2.0:Error".to_string()],
@@ -260,14 +317,57 @@ impl ScimError {
         }
     }
 
+    /// Create a SCIM error representing HTTP 404 Not Found.
+    ///
+    /// The returned `ScimError` has `status` set to 404, no `scimType`, and `detail` set to the provided message.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let err = ScimError::not_found("user not found");
+    /// assert_eq!(err.status, 404);
+    /// assert!(err.scim_type.is_none());
+    /// assert_eq!(err.detail, "user not found");
+    /// ```
     pub fn not_found(detail: impl Into<String>) -> Self {
         Self::new(404, detail, None)
     }
 
+    /// Creates a SCIM 2.0 Bad Request error (`status` 400) with SCIM type `invalidValue`.
+    ///
+    /// The provided `detail` is used as the human-readable error message.
+    ///
+    /// # Parameters
+    ///
+    /// - `detail`: Detail message to include in the error.
+    ///
+    /// # Returns
+    ///
+    /// A `ScimError` representing an HTTP 400 Bad Request with `scimType` set to `"invalidValue"`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let err = ScimError::bad_request("invalid email format");
+    /// assert_eq!(err.scim_type.as_deref(), Some("invalidValue"));
+    /// assert_eq!(err.detail, "invalid email format");
+    /// ```
     pub fn bad_request(detail: impl Into<String>) -> Self {
         Self::new(400, detail, Some("invalidValue".to_string()))
     }
 
+    /// Constructs a SCIM error representing a resource conflict (HTTP 409) with scimType "uniqueness".
+    ///
+    /// The returned error uses status 409 and sets `scimType` to `"uniqueness"`, with `detail` set to the provided message.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let err = ScimError::conflict("group already exists");
+    /// assert_eq!(err.status, 409);
+    /// assert_eq!(err.scim_type.as_deref(), Some("uniqueness"));
+    /// assert!(err.detail.contains("group already exists"));
+    /// ```
     pub fn conflict(detail: impl Into<String>) -> Self {
         Self::new(409, detail, Some("uniqueness".to_string()))
     }
@@ -298,15 +398,44 @@ pub struct ScimListParams {
     pub count: i64,
 }
 
+/// Default start index for SCIM list queries.
+///
+/// Returns the 1-based start index used when no start index is provided.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(default_start_index(), 1);
+/// ```
 fn default_start_index() -> i64 {
     1
 }
 
+/// Provides the default item count for SCIM list requests.
+///
+/// Returns `100` as the default count.
+///
+/// # Examples
+///
+/// ```
+/// let c = default_count();
+/// assert_eq!(c, 100);
+/// ```
 fn default_count() -> i64 {
     100
 }
 
 impl Default for ScimListParams {
+    /// Creates a ScimListParams instance populated with standard default query values.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let params = ScimListParams::default();
+    /// assert_eq!(params.start_index, 1);
+    /// assert_eq!(params.count, 100);
+    /// assert!(params.filter.is_none());
+    /// ```
     fn default() -> Self {
         Self {
             filter: None,
@@ -331,7 +460,29 @@ pub type ScimGroupListResponse = ScimListResponse<ScimGroup>;
 // Conversion Functions
 // ============================================================================
 
-/// Convert our internal User to a SCIM User
+/// Convert an internal `User` into its SCIM `ScimUser` representation.
+///
+/// The returned `ScimUser` contains the user's ID, external ID, username (falls back to ID if no email),
+/// a single `work` email if the internal user has an email, an Active flag set to true, and SCIM `meta`
+/// populated with resource type, timestamps, and a `location` built from `base_url`.
+///
+/// # Examples
+///
+/// ```
+/// // Construct a `User` (fields shown for illustration; adapt to your `User` type).
+/// let user = User {
+///     id: "user-123".to_string(),
+///     email: Some("alice@example.com".to_string()),
+///     created_at: chrono::Utc::now(),
+///     updated_at: chrono::Utc::now(),
+///     ..Default::default()
+/// };
+/// let scim = user_to_scim(&user, "https://scim.example.com");
+/// assert_eq!(scim.meta.as_ref().unwrap().resource_type, "User");
+/// assert_eq!(scim.id.as_deref(), Some("user-123"));
+/// assert_eq!(scim.emails.len(), 1);
+/// assert_eq!(scim.emails[0].email_type.as_deref(), Some("work"));
+/// ```
 pub fn user_to_scim(user: &User, base_url: &str) -> ScimUser {
     let primary_email = user.email.clone();
     let emails = primary_email
@@ -364,7 +515,34 @@ pub fn user_to_scim(user: &User, base_url: &str) -> ScimUser {
     }
 }
 
-/// Convert our internal Group to a SCIM Group
+/// Convert an internal `Group` and its members into a SCIM 2.0 `ScimGroup`.
+///
+/// # Examples
+///
+/// ```
+/// // Construct minimal test values (types shown here exist in the crate).
+/// let group = Group {
+///     id: "group-1".to_string(),
+///     name: "Engineering".to_string(),
+///     created_at: chrono::Utc::now(),
+///     updated_at: chrono::Utc::now(),
+/// };
+///
+/// let user = User {
+///     id: "user-1".to_string(),
+///     email: "alice@example.com".to_string(),
+///     ..Default::default()
+/// };
+///
+/// let member = GroupMemberWithUser { user };
+///
+/// let scim = group_to_scim(&group, &[member], "https://api.example.com");
+///
+/// assert_eq!(scim.display_name, "Engineering");
+/// assert_eq!(scim.members.len(), 1);
+/// assert_eq!(scim.members[0].value, "user-1");
+/// assert_eq!(scim.meta.as_ref().unwrap().resource_type, "Group");
+/// ```
 pub fn group_to_scim(group: &Group, members: &[GroupMemberWithUser], base_url: &str) -> ScimGroup {
     let scim_members: Vec<ScimGroupMember> = members
         .iter()
@@ -396,7 +574,42 @@ pub fn group_to_scim(group: &Group, members: &[GroupMemberWithUser], base_url: &
 // SCIM User Logic Functions
 // ============================================================================
 
-/// Create a user from a SCIM User payload
+/// Creates an internal user from a SCIM User payload and returns the created SCIM representation.
+///
+/// The function determines the new user's id using `external_id` if present, then `id`, and finally a generated UUID.
+/// It selects the primary email (or first email) from the SCIM payload, or falls back to `userName` if it looks like an email.
+/// If a user with the chosen id already exists this returns `CommonError::InvalidRequest`. On success the created
+/// user is returned converted to a `ScimUser`.
+///
+/// # Returns
+///
+/// The created user converted to a `ScimUser`.
+///
+/// # Errors
+///
+/// Returns `CommonError::InvalidRequest` if a user with the resolved id already exists, `CommonError::Unknown` if the
+/// created user cannot be retrieved after creation, or other repository errors propagated from the repository.
+///
+/// # Examples
+///
+/// ```
+/// # tokio_test::block_on(async {
+/// let repo = /* impl UserRepositoryLike */ unimplemented!();
+/// let scim_user = ScimUser {
+///     schemas: vec![String::from("urn:ietf:params:scim:schemas:core:2.0:User")],
+///     id: None,
+///     external_id: Some("alice-ext".into()),
+///     user_name: "alice@example.com".into(),
+///     name: None,
+///     display_name: None,
+///     emails: vec![ScimEmail { value: "alice@example.com".into(), r#type: Some("work".into()), primary: true }],
+///     active: true,
+///     groups: None,
+///     meta: None,
+/// };
+/// let created = create_user_from_scim(&repo, scim_user).await;
+/// # });
+/// ```
 pub async fn create_user_from_scim(
     repo: &impl UserRepositoryLike,
     scim_user: ScimUser,
@@ -455,7 +668,20 @@ pub async fn create_user_from_scim(
     Ok(user_to_scim(&user, ""))
 }
 
-/// Get a user by ID and return as SCIM User
+/// Retrieve a user by ID and convert it to a SCIM User with group memberships populated.
+///
+/// The returned SCIM user includes metadata and a `groups` list built from the user's group memberships.
+///
+/// # Examples
+///
+/// ```
+/// // Example usage (requires an async runtime and a repository implementing `UserRepositoryLike`).
+/// // let repo = ...; // implementor of UserRepositoryLike
+/// // let scim_user = tokio::runtime::Runtime::new().unwrap().block_on(async {
+/// //     get_user_scim(&repo, "user-id", "https://example.com").await.unwrap()
+/// // });
+/// ```
+/* No outer attributes */
 pub async fn get_user_scim(
     repo: &impl UserRepositoryLike,
     user_id: &str,
@@ -496,7 +722,24 @@ pub async fn get_user_scim(
     Ok(scim_user)
 }
 
-/// List users with SCIM pagination
+/// Lists users from the repository and returns a SCIM ListResponse constructed from the provided parameters.
+///
+/// Converts repository user records to `ScimUser` resources, then wraps them in a `ScimListResponse` whose
+/// `total_results`, `start_index`, and `items_per_page` are derived from the given `params`.
+///
+/// # Returns
+///
+/// A `ScimListResponse<ScimUser>` containing the converted users and pagination metadata.
+///
+/// # Examples
+///
+/// ```
+/// # async fn example(repo: &impl UserRepositoryLike, base_url: &str) -> Result<(), CommonError> {
+/// let params = ScimListParams::default();
+/// let list = list_users_scim(repo, params, base_url).await?;
+/// assert!(list.total_results >= 0);
+/// # Ok(()) }
+/// ```
 pub async fn list_users_scim(
     repo: &impl UserRepositoryLike,
     params: ScimListParams,
@@ -525,7 +768,26 @@ pub async fn list_users_scim(
     ))
 }
 
-/// Replace a user (PUT operation)
+/// Replaces a user's attributes using the provided SCIM User representation.
+///
+/// This updates the stored user's attributes according to the SCIM payload (for example, the primary
+/// email or the first email value; `userName` is used as an email fallback when it contains '@'),
+/// and returns the updated resource as a SCIM User. Returns `CommonError::NotFound` if the target
+/// user does not exist; other repository errors are propagated.
+///
+/// # Returns
+///
+/// `ScimUser` containing the user's current state after the replacement.
+///
+/// # Examples
+///
+/// ```
+/// // async context (e.g. inside a #[tokio::test] async fn)
+/// // let repo = ...; // an implementation of UserRepositoryLike
+/// // let scim_user = ScimUser { user_name: "alice@example.com".into(), emails: vec![ScimEmail { value: "alice@example.com".into(), ..Default::default() }], ..Default::default() };
+/// // let updated = replace_user_scim(&repo, "user-id", scim_user, "https://example.com").await.unwrap();
+/// // assert_eq!(updated.user_name, "alice@example.com");
+/// ```
 pub async fn replace_user_scim(
     repo: &impl UserRepositoryLike,
     user_id: &str,
@@ -569,7 +831,37 @@ pub async fn replace_user_scim(
     get_user_scim(repo, user_id, base_url).await
 }
 
-/// Patch a user (PATCH operation)
+/// Apply a SCIM PATCH request to update a user's mutable SCIM attributes.
+///
+/// This applies the provided `ScimPatchRequest` to the user identified by `user_id`,
+/// updating attributes that SCIM exposes for modification (currently email). The function
+/// interprets `add`/`replace` operations targeting `emails` (or an emails value payload)
+/// to set the user's primary email, and handles `remove` on `emails` to clear it.
+/// SCIM-driven role changes are ignored.
+///
+/// # Returns
+///
+/// Updated `ScimUser` representation of the user after the patch.
+///
+/// # Examples
+///
+/// ```
+/// # async fn example(repo: &impl UserRepositoryLike, base_url: &str) -> Result<(), CommonError> {
+/// use serde_json::json;
+///
+/// let patch = ScimPatchRequest {
+///     schemas: vec!["urn:ietf:params:scim:api:messages:2.0:PatchOp".into()],
+///     operations: vec![ScimPatchOperation {
+///         op: ScimPatchOp::Replace,
+///         path: Some("emails".into()),
+///         value: Some(json!([ { "value": "new@example.com", "type": "work", "primary": true } ])),
+///     }],
+/// };
+///
+/// let updated = patch_user_scim(repo, "user-id-123", patch, base_url).await?;
+/// assert_eq!(updated.emails.first().and_then(|e| Some(e.value.clone())), Some("new@example.com".into()));
+/// # Ok(()) }
+/// ```
 pub async fn patch_user_scim(
     repo: &impl UserRepositoryLike,
     user_id: &str,
@@ -646,7 +938,17 @@ pub async fn patch_user_scim(
     get_user_scim(repo, user_id, base_url).await
 }
 
-/// Delete a user
+/// Delete a user and its related resources (group memberships and API keys).
+///
+/// # Examples
+///
+/// ```
+/// // Example assumes an async runtime and a `repo` implementing `UserRepositoryLike`.
+/// // Run inside an async test or runtime (e.g. `#[tokio::test]`).
+/// # async fn example(repo: &impl UserRepositoryLike) {
+/// delete_user_scim(repo, "user-id").await.unwrap();
+/// # }
+/// ```
 pub async fn delete_user_scim(
     repo: &impl UserRepositoryLike,
     user_id: &str,
@@ -675,7 +977,35 @@ pub async fn delete_user_scim(
 // SCIM Group Logic Functions
 // ============================================================================
 
-/// Create a group from a SCIM Group payload
+/// Create a new group from a SCIM Group payload and persist it in the repository.
+///
+/// Uses the group's `external_id` or `id` from the SCIM payload as the group identifier; if neither
+/// is present a new UUID is generated. If the payload includes members, each member is added to
+/// the group only if the referenced user exists; membership creation errors are ignored for
+/// individual members.
+///
+/// # Returns
+///
+/// The created group represented as a `ScimGroup`.
+///
+/// # Examples
+///
+/// ```rust
+/// # use std::sync::Arc;
+/// # async fn example() {
+/// // `repo` must implement `UserRepositoryLike` (test double or repository instance).
+/// let repo = /* test repo */ unimplemented!();
+/// let scim_group = ScimGroup {
+///     display_name: Some("Engineering".to_string()),
+///     members: vec![],
+///     ..Default::default()
+/// };
+/// let created = create_group_from_scim(&repo, scim_group, "https://example.com")
+///     .await
+///     .unwrap();
+/// assert_eq!(created.display_name.as_deref(), Some("Engineering"));
+/// # }
+/// ```
 pub async fn create_group_from_scim(
     repo: &impl UserRepositoryLike,
     scim_group: ScimGroup,
@@ -726,7 +1056,21 @@ pub async fn create_group_from_scim(
     get_group_scim(repo, &group_id, base_url).await
 }
 
-/// Get a group by ID and return as SCIM Group
+/// Retrieve a group by its ID and return it as a SCIM `ScimGroup`.
+///
+/// Returns a NotFound `CommonError` if the group does not exist. The returned
+/// SCIM group includes populated member entries and metadata derived from the
+/// stored group record and the provided `base_url`.
+///
+/// # Examples
+///
+/// ```no_run
+/// # async fn doc_example(repo: &impl UserRepositoryLike) -> Result<(), CommonError> {
+/// let scim_group = get_group_scim(repo, "group-123", "https://example.com").await?;
+/// assert_eq!(scim_group.id.as_deref(), Some("group-123"));
+/// # Ok(())
+/// # }
+/// ```
 pub async fn get_group_scim(
     repo: &impl UserRepositoryLike,
     group_id: &str,
@@ -755,7 +1099,28 @@ pub async fn get_group_scim(
     Ok(group_to_scim(&group, &members_response.items, base_url))
 }
 
-/// List groups with SCIM pagination
+/// Return a paginated SCIM-formatted list of groups including their members.
+///
+/// Converts repository groups to SCIM Group resources by listing groups with the requested
+/// pagination, loading each group's members, and assembling a ScimListResponse populated
+/// with the provided start index and count values.
+///
+/// # Returns
+///
+/// A ScimListResponse containing SCIM Group resources and pagination metadata derived from `params`.
+///
+/// # Examples
+///
+/// ```no_run
+/// # use crate::logic::scim::{list_groups_scim, ScimListParams};
+/// # async fn example(repo: &impl crate::repo::UserRepositoryLike) -> Result<(), Box<dyn std::error::Error>> {
+/// let params = ScimListParams::default();
+/// let base_url = "https://example.com/scim";
+/// let response = list_groups_scim(repo, params, base_url).await?;
+/// assert!(response.total_results >= 0);
+/// # Ok(())
+/// # }
+/// ```
 pub async fn list_groups_scim(
     repo: &impl UserRepositoryLike,
     params: ScimListParams,
@@ -792,7 +1157,35 @@ pub async fn list_groups_scim(
     ))
 }
 
-/// Replace a group (PUT operation)
+/// Replace an existing group with the provided SCIM group representation.
+///
+/// Replaces the group's display name and resets its membership list to match `scim_group.members`.
+/// Memberships referencing users that do not exist are ignored.
+///
+/// # Examples
+///
+/// ```no_run
+/// # use your_crate::logic::scim::{replace_group_scim, ScimGroup};
+/// # use your_crate::repo::InMemoryRepo;
+/// # #[tokio::main]
+/// # async fn main() {
+/// let repo = InMemoryRepo::new();
+/// let scim_group = ScimGroup {
+///     id: Some("group-id".into()),
+///     external_id: None,
+///     display_name: "New Name".into(),
+///     members: vec![],
+///     meta: None,
+///     schemas: vec![],
+/// };
+/// let updated = replace_group_scim(&repo, "group-id", scim_group, "https://example.com")
+///     .await
+///     .unwrap();
+/// assert_eq!(updated.display_name, "New Name");
+/// # }
+/// ```
+///
+/// @returns `ScimGroup` representing the updated group on success.
 pub async fn replace_group_scim(
     repo: &impl UserRepositoryLike,
     group_id: &str,
@@ -833,7 +1226,37 @@ pub async fn replace_group_scim(
     get_group_scim(repo, group_id, base_url).await
 }
 
-/// Patch a group (PATCH operation)
+/// Applies a SCIM PATCH request to an existing group, updating the group's display name and memberships.
+///
+/// This function processes each operation in the provided `ScimPatchRequest`:
+/// - For `displayName` (via `path` or in an operation `value`), updates the group's display name.
+/// - For `members` (via `path` or in an operation `value`), adds provided users as group members if the user exists and is not already a member.
+/// - For `Remove` operations on `members[value eq "user_id"]`, removes the specified member; for `Remove` with `path == "members"`, removes all members.
+/// User additions ignore members that reference non-existent users and do not error on duplicate memberships.
+///
+/// Returns the group's SCIM representation after applying the patch or an error if the group does not exist or a repository operation fails.
+///
+/// # Errors
+///
+/// Returns `CommonError::NotFound` if the target group cannot be found; other repository errors may be returned as `CommonError`.
+///
+/// # Examples
+///
+/// ```
+/// # use crate::logic::scim::{patch_group_scim, ScimPatchRequest, ScimPatchOperation, ScimPatchOp};
+/// # use crate::repository::InMemoryRepo; // hypothetical test repo
+/// # async fn example(repo: &InMemoryRepo, base_url: &str) -> Result<(), crate::errors::CommonError> {
+/// let op = ScimPatchOperation {
+///     op: ScimPatchOp::Add,
+///     path: Some("members".to_string()),
+///     value: serde_json::json!([ { "value": "user-123" } ]),
+/// };
+/// let req = ScimPatchRequest { schemas: vec![], operations: vec![op] };
+/// let updated = patch_group_scim(repo, "group-1", req, base_url).await?;
+/// assert_eq!(updated.id, "group-1");
+/// # Ok(())
+/// # }
+/// ```
 pub async fn patch_group_scim(
     repo: &impl UserRepositoryLike,
     group_id: &str,
@@ -957,7 +1380,20 @@ pub async fn patch_group_scim(
     get_group_scim(repo, group_id, base_url).await
 }
 
-/// Delete a group
+/// Delete a group and all of its memberships from the repository.
+///
+/// This verifies the group exists, removes any memberships for the group, and then deletes the group record.
+/// Returns a `CommonError::NotFound` when the group does not exist; other repository errors are propagated.
+///
+/// # Examples
+///
+/// ```no_run
+/// # use crates::identity::logic::scim::delete_group_scim;
+/// # async fn example(repo: &impl crates::identity::UserRepositoryLike) -> Result<(), crates::identity::CommonError> {
+/// delete_group_scim(repo, "group-id").await?;
+/// # Ok(())
+/// # }
+/// ```
 pub async fn delete_group_scim(
     repo: &impl UserRepositoryLike,
     group_id: &str,
@@ -990,6 +1426,16 @@ mod tests {
     use crate::repository::Repository;
     use shared::primitives::SqlMigrationLoader;
 
+    /// Sets up an in-memory test Repository initialized with SQL migrations.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # async fn run() {
+    /// let repo = setup_test_repo().await;
+    /// // use `repo` to perform repository operations in tests
+    /// # }
+    /// ```
     async fn setup_test_repo() -> Repository {
         shared::setup_test!();
 
