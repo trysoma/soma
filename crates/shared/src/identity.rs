@@ -130,6 +130,10 @@ pub enum RawCredentials {
     HumanInternalToken(InternalToken),
     /// Machine acting on behalf of a human
     MachineOnBehalfOfHuman(ApiKey, InternalToken),
+    /// if we havent extracted credentials from the request, use the header map
+    HeaderMap(HeaderMap),
+    /// if user is already authenticated, use the identity
+    Identity(Identity),
 }
 
 /// Authenticated machine identity
@@ -191,7 +195,12 @@ impl Identity {
 
 #[allow(async_fn_in_trait)]
 pub trait AuthClientLike {
+    /// Authenticate from raw credentials
     async fn authenticate(&self, credentials: RawCredentials) -> Result<Identity, CommonError>;
-    async fn authenticate_from_headers(&self, headers: &HeaderMap)
-    -> Result<Identity, CommonError>;
+
+    /// Authenticate from HTTP headers
+    ///
+    /// Extracts credentials from HTTP headers and authenticates them.
+    /// Returns `Identity::Unauthenticated` if no credentials are found.
+    async fn authenticate_from_headers(&self, headers: &HeaderMap) -> Result<Identity, CommonError>;
 }
