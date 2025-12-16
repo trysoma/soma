@@ -1,9 +1,8 @@
 use encryption::logic::crypto_services::{CryptoCache, EncryptedString};
 use shared::error::CommonError;
 use shared::primitives::PaginationRequest;
-use shared::subsystem::SubsystemHandle;
 use tokio::sync::broadcast;
-use tracing::{error, info, warn};
+use tracing::{debug, error, trace, warn};
 
 use crate::logic::on_change_pubsub::SecretChangeRx;
 use crate::repository::SecretRepositoryLike;
@@ -33,10 +32,7 @@ pub async fn fetch_and_decrypt_all_secrets(
         let page = repository.as_ref().get_secrets(&pagination).await?;
 
         for secret in page.items {
-            info!(
-                "Decrypting secret '{}' with DEK alias '{}'",
-                secret.key, secret.dek_alias
-            );
+            trace!(key = %secret.key, dek_alias = %secret.dek_alias, "Decrypting secret");
             // Get decryption service for this secret's DEK alias
             match crypto_cache.get_decryption_service(&secret.dek_alias).await {
                 Ok(decryption_service) => {
@@ -46,10 +42,10 @@ pub async fn fetch_and_decrypt_all_secrets(
                         .await
                     {
                         Ok(decrypted_value) => {
-                            info!(
-                                "Successfully decrypted secret '{}' (decrypted length: {} bytes)",
-                                secret.key,
-                                decrypted_value.len()
+                            trace!(
+                                key = %secret.key,
+                                decrypted_len = decrypted_value.len(),
+                                "Secret decrypted"
                             );
                             all_secrets.push(DecryptedSecret {
                                 key: secret.key,
@@ -58,16 +54,19 @@ pub async fn fetch_and_decrypt_all_secrets(
                         }
                         Err(e) => {
                             warn!(
-                                "Failed to decrypt secret '{}': {:?}. Skipping.",
-                                secret.key, e
+                                key = %secret.key,
+                                error = ?e,
+                                "Failed to decrypt secret, skipping"
                             );
                         }
                     }
                 }
                 Err(e) => {
                     warn!(
-                        "Failed to get decryption service for DEK alias '{}': {:?}. Skipping secret '{}'.",
-                        secret.dek_alias, e, secret.key
+                        dek_alias = %secret.dek_alias,
+                        key = %secret.key,
+                        error = ?e,
+                        "Failed to get decryption service, skipping secret"
                     );
                 }
             }
@@ -108,8 +107,8 @@ pub async fn sync_secrets_to_sdk(
     let inner = response.into_inner();
 
     match inner.kind {
-        Some(sdk_proto::set_secrets_response::Kind::Data(data)) => {
-            info!("Successfully synced secrets to SDK: {}", data.message);
+        Some(sdk_proto::set_secrets_response::Kind::Data(_)) => {
+            trace!("Secrets synced to SDK");
             Ok(())
         }
         Some(sdk_proto::set_secrets_response::Kind::Error(error)) => Err(CommonError::Unknown(
@@ -140,8 +139,8 @@ pub async fn sync_secret_to_sdk(
     let inner = response.into_inner();
 
     match inner.kind {
-        Some(sdk_proto::set_secrets_response::Kind::Data(data)) => {
-            info!("Successfully synced secret to SDK: {}", data.message);
+        Some(sdk_proto::set_secrets_response::Kind::Data(_)) => {
+            trace!("Secret synced to SDK");
             Ok(())
         }
         Some(sdk_proto::set_secrets_response::Kind::Error(error)) => Err(CommonError::Unknown(
@@ -169,8 +168,8 @@ pub async fn unset_secret_in_sdk(
     let inner = response.into_inner();
 
     match inner.kind {
-        Some(sdk_proto::unset_secret_response::Kind::Data(data)) => {
-            info!("Successfully unset secret in SDK: {}", data.message);
+        Some(sdk_proto::unset_secret_response::Kind::Data(_)) => {
+            trace!("Unset secret in SDK");
             Ok(())
         }
         Some(sdk_proto::unset_secret_response::Kind::Error(error)) => Err(CommonError::Unknown(
@@ -187,58 +186,47 @@ pub struct SecretSyncParams {
     pub crypto_cache: CryptoCache,
     pub socket_path: String,
     pub secret_change_rx: SecretChangeRx,
-    pub shutdown_rx: broadcast::Receiver<()>,
 }
 
-/// Run the secret sync loop - listens for secret changes and syncs to SDK
+/// Run the secret sync loop - listens for secret changes and syncs to SDK.
+/// This function runs indefinitely until aborted by the process manager.
 pub async fn run_secret_sync_loop(params: SecretSyncParams) -> Result<(), CommonError> {
     let SecretSyncParams {
         repository,
         crypto_cache,
         socket_path,
         mut secret_change_rx,
-        mut shutdown_rx,
     } = params;
     let repository = repository.clone();
 
-    info!("Starting secret sync loop");
+    debug!("Secret sync loop started");
 
     loop {
-        tokio::select! {
-            // Handle secret change events
-            event = secret_change_rx.recv() => {
-                match event {
-                    Ok(evt) => {
-                        info!("Secret change event received: {:?}", evt);
+        match secret_change_rx.recv().await {
+            Ok(evt) => {
+                trace!(event = ?evt, "Secret change event");
 
-                        // On any secret change, re-sync all secrets
-                        // This is simpler than tracking individual changes and ensures consistency
-                        match sync_all_secrets(&repository, &crypto_cache, &socket_path).await {
-                            Ok(()) => {
-                                info!("Secrets re-synced after change event");
-                            }
-                            Err(e) => {
-                                error!("Failed to re-sync secrets after change: {:?}", e);
-                            }
-                        }
+                // On any secret change, re-sync all secrets
+                // This is simpler than tracking individual changes and ensures consistency
+                match sync_all_secrets(&repository, &crypto_cache, &socket_path).await {
+                    Ok(()) => {
+                        trace!("Secrets re-synced");
                     }
-                    Err(broadcast::error::RecvError::Closed) => {
-                        info!("Secret change channel closed, stopping secret sync");
-                        break;
-                    }
-                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!("Secret change channel lagged, skipped {} messages. Re-syncing all secrets.", skipped);
-                        // Re-sync all secrets to ensure we're in a consistent state
-                        if let Err(e) = sync_all_secrets(&repository, &crypto_cache, &socket_path).await {
-                            error!("Failed to re-sync secrets after lag: {:?}", e);
-                        }
+                    Err(e) => {
+                        error!(error = ?e, "Failed to re-sync secrets");
                     }
                 }
             }
-            // Handle shutdown
-            _ = shutdown_rx.recv() => {
-                info!("Shutdown signal received, stopping secret sync");
+            Err(broadcast::error::RecvError::Closed) => {
+                debug!("Secret change channel closed");
                 break;
+            }
+            Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                warn!(skipped, "Secret change channel lagged, re-syncing");
+                // Re-sync all secrets to ensure we're in a consistent state
+                if let Err(e) = sync_all_secrets(&repository, &crypto_cache, &socket_path).await {
+                    error!(error = ?e, "Failed to re-sync secrets after lag");
+                }
             }
         }
     }
@@ -254,43 +242,9 @@ async fn sync_all_secrets(
 ) -> Result<(), CommonError> {
     // Fetch and decrypt all secrets
     let secrets = fetch_and_decrypt_all_secrets(repository, crypto_cache).await?;
-    info!("Fetched {} secrets to sync", secrets.len());
+    trace!(count = secrets.len(), "Syncing secrets to SDK");
 
     // Connect to SDK and sync
     let mut client = shared::uds::create_soma_unix_socket_client(socket_path).await?;
     sync_secrets_to_sdk(&mut client, secrets).await
-}
-
-/// Start the secret sync subsystem
-pub fn start_secret_sync_subsystem(
-    repository: crate::repository::Repository,
-    crypto_cache: CryptoCache,
-    socket_path: String,
-    secret_change_rx: SecretChangeRx,
-    shutdown_rx: broadcast::Receiver<()>,
-) -> Result<SubsystemHandle, CommonError> {
-    let (handle, signal) = SubsystemHandle::new("Secret Sync");
-    let repository = std::sync::Arc::new(repository);
-
-    tokio::spawn(async move {
-        match run_secret_sync_loop(SecretSyncParams {
-            repository,
-            crypto_cache,
-            socket_path,
-            secret_change_rx,
-            shutdown_rx,
-        })
-        .await
-        {
-            Ok(()) => {
-                signal.signal_with_message("stopped gracefully");
-            }
-            Err(e) => {
-                error!("Secret sync stopped with error: {:?}", e);
-                signal.signal();
-            }
-        }
-    });
-
-    Ok(handle)
 }

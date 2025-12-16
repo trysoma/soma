@@ -26,6 +26,7 @@ use shared::{
 };
 use std::path::PathBuf;
 use std::sync::Arc;
+use tracing::trace;
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
@@ -76,6 +77,7 @@ async fn route_create_envelope_encryption_key(
     State(ctx): State<EncryptionService>,
     Json(params): Json<CreateEnvelopeEncryptionKeyParams>,
 ) -> JsonResponse<CreateEnvelopeEncryptionKeyResponse, CommonError> {
+    trace!(id = ?params.id(), "Creating envelope encryption key");
     let res = create_envelope_encryption_key(
         ctx.local_envelope_encryption_key_path(),
         ctx.on_change_tx(),
@@ -84,6 +86,10 @@ async fn route_create_envelope_encryption_key(
         true,
     )
     .await;
+    trace!(
+        success = res.is_ok(),
+        "Creating envelope encryption key completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -110,7 +116,15 @@ async fn route_list_envelope_encryption_keys(
     State(ctx): State<EncryptionService>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListEnvelopeEncryptionKeysResponse, CommonError> {
+    trace!(
+        page_size = pagination.page_size,
+        "Listing envelope encryption keys"
+    );
     let res = list_envelope_encryption_keys(ctx.repository(), pagination).await;
+    trace!(
+        success = res.is_ok(),
+        "Listing envelope encryption keys completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -150,6 +164,7 @@ async fn route_create_data_encryption_key(
     Path(envelope_id): Path<String>,
     Json(params): Json<CreateDataEncryptionKeyParamsRoute>,
 ) -> JsonResponse<CreateDataEncryptionKeyResponse, CommonError> {
+    trace!(envelope_id = %envelope_id, dek_id = ?params.id, "Creating data encryption key");
     let create_params = CreateDekParams {
         envelope_encryption_key_id: envelope_id,
         inner: CreateDekInnerParams {
@@ -165,6 +180,10 @@ async fn route_create_data_encryption_key(
         true,
     )
     .await;
+    trace!(
+        success = res.is_ok(),
+        "Creating data encryption key completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -200,6 +219,7 @@ async fn route_import_data_encryption_key(
     Path(envelope_id): Path<String>,
     Json(params): Json<ImportDataEncryptionKeyParamsRoute>,
 ) -> JsonResponse<ImportDekResponse, CommonError> {
+    trace!(envelope_id = %envelope_id, dek_id = ?params.id, "Importing data encryption key");
     let import_params = ImportDekParams {
         envelope_encryption_key_id: envelope_id,
         inner: ImportDekParamsInner {
@@ -217,6 +237,10 @@ async fn route_import_data_encryption_key(
         true,
     )
     .await;
+    trace!(
+        success = res.is_ok(),
+        "Importing data encryption key completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -246,11 +270,16 @@ async fn route_list_data_encryption_keys(
     Path(envelope_id): Path<String>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListDekResponse, CommonError> {
+    trace!(envelope_id = %envelope_id, page_size = pagination.page_size, "Listing data encryption keys");
     let list_params = ListDekParams {
         envelope_encryption_key_id: envelope_id,
         inner: pagination,
     };
     let res = list_data_encryption_keys(ctx.repository(), list_params).await;
+    trace!(
+        success = res.is_ok(),
+        "Listing data encryption keys completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -286,6 +315,12 @@ async fn route_migrate_data_encryption_key(
     Path((envelope_id, dek_id)): Path<(String, String)>,
     Json(params): Json<MigrateDataEncryptionKeyParamsRoute>,
 ) -> JsonResponse<(), CommonError> {
+    trace!(
+        from_envelope_id = %envelope_id,
+        dek_id = %dek_id,
+        to_envelope_id = %params.to_envelope_encryption_key_id,
+        "Migrating data encryption key"
+    );
     let res = migrate_data_encryption_key_for_envelope(
         ctx.local_envelope_encryption_key_path(),
         &envelope_id,
@@ -297,6 +332,10 @@ async fn route_migrate_data_encryption_key(
         true,
     )
     .await;
+    trace!(
+        success = res.is_ok(),
+        "Migrating data encryption key completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -331,6 +370,11 @@ async fn route_migrate_all_data_encryption_keys(
     Path(envelope_id): Path<String>,
     Json(params): Json<MigrateAllDataEncryptionKeysParamsRoute>,
 ) -> JsonResponse<(), CommonError> {
+    trace!(
+        from_envelope_id = %envelope_id,
+        to_envelope_id = %params.to_envelope_encryption_key_id,
+        "Migrating all data encryption keys"
+    );
     let res = migrate_all_data_encryption_keys_for_envelope(
         ctx.local_envelope_encryption_key_path(),
         &envelope_id,
@@ -341,6 +385,10 @@ async fn route_migrate_all_data_encryption_keys(
         true,
     )
     .await;
+    trace!(
+        success = res.is_ok(),
+        "Migrating all data encryption keys completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -376,11 +424,13 @@ async fn route_create_dek_alias(
     State(ctx): State<EncryptionService>,
     Json(req): Json<CreateDekAliasRequest>,
 ) -> JsonResponse<CreateAliasResponse, CommonError> {
+    trace!(dek_id = %req.dek_id, alias = %req.alias, "Creating DEK alias");
     let params = CreateAliasParams {
         dek_id: req.dek_id,
         inner: CreateAliasInnerParams { alias: req.alias },
     };
     let res = create_alias(ctx.on_change_tx(), ctx.repository(), ctx.cache(), params).await;
+    trace!(success = res.is_ok(), "Creating DEK alias completed");
     JsonResponse::from(res)
 }
 
@@ -408,7 +458,12 @@ async fn route_get_dek_by_alias_or_id(
     State(ctx): State<EncryptionService>,
     Path(alias_or_id): Path<String>,
 ) -> JsonResponse<DataEncryptionKey, CommonError> {
+    trace!(alias_or_id = %alias_or_id, "Getting DEK by alias or ID");
     let res = get_by_alias_or_id(ctx.repository(), &alias_or_id).await;
+    trace!(
+        success = res.is_ok(),
+        "Getting DEK by alias or ID completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -438,6 +493,7 @@ async fn route_update_dek_alias(
     Path(alias): Path<String>,
     Json(params): Json<UpdateAliasParams>,
 ) -> JsonResponse<UpdateAliasResponse, CommonError> {
+    trace!(alias = %alias, new_alias = %params.new_dek_id, "Updating DEK alias");
     let res = update_alias(
         ctx.on_change_tx(),
         ctx.repository(),
@@ -446,6 +502,7 @@ async fn route_update_dek_alias(
         params,
     )
     .await;
+    trace!(success = res.is_ok(), "Updating DEK alias completed");
     JsonResponse::from(res)
 }
 
@@ -473,7 +530,9 @@ async fn route_delete_dek_alias(
     State(ctx): State<EncryptionService>,
     Path(alias): Path<String>,
 ) -> JsonResponse<(), CommonError> {
+    trace!(alias = %alias, "Deleting DEK alias");
     let res = delete_alias(ctx.on_change_tx(), ctx.repository(), ctx.cache(), alias).await;
+    trace!(success = res.is_ok(), "Deleting DEK alias completed");
     JsonResponse::from(res)
 }
 

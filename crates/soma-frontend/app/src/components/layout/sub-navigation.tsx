@@ -13,7 +13,7 @@ export interface SubNavItem {
 
 interface SubNavProps {
 	items: SubNavItem[];
-	nestLevel?: "first" | "second";
+	nestLevel?: "first" | "second" | "third";
 	className?: string;
 }
 
@@ -56,12 +56,13 @@ export function SubNavigation({
 	}, [hoveredIndex, activeIndex]);
 
 	const isSecondLevel = nestLevel === "second";
+	const isThirdLevel = nestLevel === "third";
 
 	return (
 		<nav
 			className={cn(
 				"border-b overflow-hidden ",
-				isSecondLevel ? "bg-card" : "bg-background",
+				isSecondLevel || isThirdLevel ? "bg-card" : "bg-background",
 				className,
 			)}
 		>
@@ -70,13 +71,19 @@ export function SubNavigation({
 					<nav
 						className={cn(
 							"flex items-center px-2 overflow-x-auto overflow-y-hidden scrollbar-none relative",
-							isSecondLevel ? "h-[38px]" : "h-[46px]",
+							isThirdLevel
+								? "h-[34px]"
+								: isSecondLevel
+									? "h-[38px]"
+									: "h-[46px]",
 						)}
 						onMouseLeave={() => setHoveredIndex(null)}
 					>
-						{isSecondLevel && (
-							<div className="pl-5">
-								<CornerDownRightIcon className="size-4" />
+						{(isSecondLevel || isThirdLevel) && (
+							<div className={cn(isThirdLevel ? "pl-8" : "pl-5")}>
+								<CornerDownRightIcon
+									className={cn(isThirdLevel ? "size-3" : "size-4")}
+								/>
 							</div>
 						)}
 						{items.map((item, index) => {

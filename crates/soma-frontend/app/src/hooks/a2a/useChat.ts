@@ -3,7 +3,13 @@ import { A2AClient } from "@a2a-js/sdk/client";
 import React from "react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
-import { useAgents } from "@/hooks/a2a/useAgents";
+import {
+	type AgentIdentifier,
+	getAgentCardUrl,
+	type UseAgentsParams,
+	type UseAgentsReturn,
+	useAgents,
+} from "@/hooks/a2a/useAgents";
 import {
 	type UseChatContextsReturn,
 	useChatContexts,
@@ -24,6 +30,7 @@ interface UseChatReturn {
 	agent: AgentCard | null;
 	isLoadingAgent: boolean;
 	agentError: Error | null;
+	agentIdentifier: AgentIdentifier | null;
 	chatContexts: UseChatContextsReturn;
 	selected: UseSelectedReturn;
 	scrolling: UseScrollingReturn;
@@ -39,13 +46,29 @@ interface UseChatReturn {
 	handleArtifactSelect: (artifactId: string) => void;
 }
 
-export const useChat = (): UseChatReturn => {
+export interface UseChatParams {
+	projectId: string;
+	agentId: string;
+}
+
+export const useChat = (params: UseChatParams): UseChatReturn => {
+	const { projectId, agentId } = params;
+
 	const [newChatMessageText, setNewChatMessageText] =
 		React.useState<string>("");
 	const [autoFocusChatTextField, setAutoFocusChatTextField] =
 		React.useState<boolean>(false);
 
-	const { agent, isLoading: isLoadingAgent, error: agentError } = useAgents();
+	const agentsParams: UseAgentsParams = React.useMemo(
+		() => ({ projectId, agentId }),
+		[projectId, agentId],
+	);
+	const {
+		agent,
+		isLoading: isLoadingAgent,
+		error: agentError,
+		agentIdentifier,
+	}: UseAgentsReturn = useAgents(agentsParams);
 	const chatContexts = useChatContexts();
 	const selected = useSelected();
 	const scrolling = useScrolling();
@@ -179,14 +202,9 @@ export const useChat = (): UseChatReturn => {
 				messageSendParams.message,
 			);
 
-			// Send message
-			// const response: SendMessageResponse = await sendMessageToAgent(
-			//   agent,
-			//   messageSendParams
-			// );
-			const client = await A2AClient.fromCardUrl(
-				"/api/agent/v1/.well-known/agent.json",
-			);
+			// Send message using the dynamic agent card URL
+			const agentCardUrl = getAgentCardUrl(projectId, agentId);
+			const client = await A2AClient.fromCardUrl(agentCardUrl);
 			const response = await client.sendMessage(messageSendParams);
 
 			if ("result" in response) {
@@ -243,6 +261,7 @@ export const useChat = (): UseChatReturn => {
 		agent,
 		isLoadingAgent,
 		agentError,
+		agentIdentifier,
 		chatContexts,
 		selected,
 		scrolling,

@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, MutexGuard};
-use tracing::info;
+use tracing::trace;
 use utoipa::ToSchema;
 
 use crate::error::CommonError;
@@ -393,6 +393,36 @@ impl From<EnvelopeKeyConfig> for EnvelopeEncryptionKey {
 pub struct BridgeConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub providers: Option<HashMap<String, ProviderConfig>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp_servers: Option<HashMap<String, McpServerConfig>>,
+}
+
+/// Configuration for an MCP server instance stored in soma.yaml
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct McpServerConfig {
+    /// Display name for the MCP server
+    pub name: String,
+    /// Functions exposed by this MCP server
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub functions: Option<Vec<McpServerFunctionConfig>>,
+}
+
+/// Configuration for a function mapping within an MCP server
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct McpServerFunctionConfig {
+    /// The function controller type ID
+    pub function_controller_type_id: String,
+    /// The provider controller type ID
+    pub provider_controller_type_id: String,
+    /// The provider instance ID
+    pub provider_instance_id: String,
+    /// The MCP function name exposed to clients
+    pub function_name: String,
+    /// Optional description for the function
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub function_description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
@@ -472,6 +502,38 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
         &self,
         provider_controller_type_id: String,
         function_controller_type_id: String,
+        provider_instance_id: String,
+    ) -> Result<(), CommonError>;
+
+    // MCP server instance operations
+    async fn add_mcp_server(
+        &self,
+        mcp_server_id: String,
+        config: McpServerConfig,
+    ) -> Result<(), CommonError>;
+    async fn update_mcp_server(
+        &self,
+        mcp_server_id: String,
+        config: McpServerConfig,
+    ) -> Result<(), CommonError>;
+    async fn remove_mcp_server(&self, mcp_server_id: String) -> Result<(), CommonError>;
+
+    // MCP server function operations
+    async fn add_mcp_server_function(
+        &self,
+        mcp_server_id: String,
+        function_config: McpServerFunctionConfig,
+    ) -> Result<(), CommonError>;
+    async fn update_mcp_server_function(
+        &self,
+        mcp_server_id: String,
+        function_config: McpServerFunctionConfig,
+    ) -> Result<(), CommonError>;
+    async fn remove_mcp_server_function(
+        &self,
+        mcp_server_id: String,
+        function_controller_type_id: String,
+        provider_controller_type_id: String,
         provider_instance_id: String,
     ) -> Result<(), CommonError>;
 
@@ -620,7 +682,10 @@ impl YamlSomaAgentDefinition {
 
     fn ensure_bridge_config(definition: &mut SomaAgentDefinition) {
         if definition.bridge.is_none() {
-            definition.bridge = Some(BridgeConfig { providers: None });
+            definition.bridge = Some(BridgeConfig {
+                providers: None,
+                mcp_servers: None,
+            });
         }
     }
 
@@ -634,14 +699,18 @@ impl YamlSomaAgentDefinition {
 #[async_trait]
 impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
     async fn reload(&self) -> Result<(), CommonError> {
+        trace!(path = %self.path.display(), "Reloading soma definition");
         let definition = Self::load_agent_definition(self.path.clone())?;
         *self.cached_definition.lock().await = definition;
-        info!("Soma definition reloaded from file: {:?}", self.path);
+        trace!(path = %self.path.display(), "Soma definition reloaded");
         Ok(())
     }
 
     async fn get_definition(&self) -> Result<SomaAgentDefinition, CommonError> {
-        Ok(self.cached_definition.lock().await.clone())
+        trace!("Getting soma definition");
+        let result = self.cached_definition.lock().await.clone();
+        trace!("Retrieved soma definition");
+        Ok(result)
     }
 
     async fn add_envelope_key(
@@ -649,6 +718,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         key_id: String,
         config: EnvelopeKeyConfig,
     ) -> Result<(), CommonError> {
+        trace!(key_id = %key_id, "Adding envelope key");
         let mut definition = self.cached_definition.lock().await;
         Self::ensure_encryption_config(&mut definition);
 
@@ -662,19 +732,20 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             .as_mut()
             .unwrap()
             .insert(key_id.clone(), config);
-        info!("Envelope key added: {:?}", key_id);
         self.save(definition).await?;
+        trace!(key_id = %key_id, "Envelope key added");
         Ok(())
     }
 
     async fn remove_envelope_key(&self, key_id: String) -> Result<(), CommonError> {
+        trace!(key_id = %key_id, "Removing envelope key");
         let mut definition = self.cached_definition.lock().await;
 
         if let Some(encryption) = &mut definition.encryption {
             if let Some(envelope_keys) = &mut encryption.envelope_keys {
                 envelope_keys.remove(&key_id);
-                info!("Envelope key removed: {:?}", key_id);
                 self.save(definition).await?;
+                trace!(key_id = %key_id, "Envelope key removed");
             }
         }
         Ok(())
@@ -686,6 +757,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         alias: String,
         encrypted_key: String,
     ) -> Result<(), CommonError> {
+        trace!(envelope_key_id = %envelope_key_id, alias = %alias, "Adding DEK");
         let mut definition = self.cached_definition.lock().await;
         Self::ensure_encryption_config(&mut definition);
 
@@ -706,26 +778,22 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         envelope_key
             .deks_mut()
             .insert(alias.clone(), DekConfig { encrypted_key });
-        info!(
-            "DEK '{}' added under envelope key {}",
-            alias, envelope_key_id
-        );
+
         self.save(definition).await?;
+        trace!(envelope_key_id = %envelope_key_id, alias = %alias, "DEK added");
         Ok(())
     }
 
     async fn remove_dek(&self, envelope_key_id: String, alias: String) -> Result<(), CommonError> {
+        trace!(envelope_key_id = %envelope_key_id, alias = %alias, "Removing DEK");
         let mut definition = self.cached_definition.lock().await;
 
         if let Some(encryption) = &mut definition.encryption {
             if let Some(envelope_keys) = &mut encryption.envelope_keys {
                 if let Some(envelope_key) = envelope_keys.get_mut(&envelope_key_id) {
                     envelope_key.deks_mut().remove(&alias);
-                    info!(
-                        "DEK '{}' removed from envelope key {}",
-                        alias, envelope_key_id
-                    );
                     self.save(definition).await?;
+                    trace!(envelope_key_id = %envelope_key_id, alias = %alias, "DEK removed");
                 }
             }
         }
@@ -738,6 +806,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         old_key: String,
         new_key: String,
     ) -> Result<(), CommonError> {
+        trace!(envelope_key_id = %envelope_key_id, old_key = %old_key, new_key = %new_key, "Renaming DEK");
         let mut definition = self.cached_definition.lock().await;
 
         if let Some(encryption) = &mut definition.encryption {
@@ -746,11 +815,8 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
                     let deks = envelope_key.deks_mut();
                     if let Some(dek_config) = deks.remove(&old_key) {
                         deks.insert(new_key.clone(), dek_config);
-                        info!(
-                            "DEK renamed from '{}' to '{}' under envelope key {}",
-                            old_key, new_key, envelope_key_id
-                        );
                         self.save(definition).await?;
+                        trace!(envelope_key_id = %envelope_key_id, old_key = %old_key, new_key = %new_key, "DEK renamed");
                     }
                 }
             }
@@ -763,6 +829,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         provider_id: String,
         config: ProviderConfig,
     ) -> Result<(), CommonError> {
+        trace!(provider_id = %provider_id, "Adding provider");
         let mut definition = self.cached_definition.lock().await;
         Self::ensure_bridge_config(&mut definition);
 
@@ -776,19 +843,20 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             .as_mut()
             .unwrap()
             .insert(provider_id.clone(), config);
-        info!("Provider added to bridge: {:?}", provider_id);
         self.save(definition).await?;
+        trace!(provider_id = %provider_id, "Provider added");
         Ok(())
     }
 
     async fn remove_provider(&self, provider_id: String) -> Result<(), CommonError> {
+        trace!(provider_id = %provider_id, "Removing provider");
         let mut definition = self.cached_definition.lock().await;
 
         if let Some(bridge) = &mut definition.bridge {
             if let Some(providers) = &mut bridge.providers {
                 providers.remove(&provider_id);
-                info!("Provider removed from bridge: {:?}", provider_id);
                 self.save(definition).await?;
+                trace!(provider_id = %provider_id, "Provider removed");
             }
         }
         Ok(())
@@ -799,6 +867,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         provider_id: String,
         config: ProviderConfig,
     ) -> Result<(), CommonError> {
+        trace!(provider_id = %provider_id, "Updating provider");
         let mut definition = self.cached_definition.lock().await;
         Self::ensure_bridge_config(&mut definition);
 
@@ -826,8 +895,8 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             }
         };
 
-        info!("Provider updated in bridge: {:?}", provider_id);
         self.save(definition).await?;
+        trace!(provider_id = %provider_id, "Provider updated");
         Ok(())
     }
 
@@ -837,6 +906,12 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         function_controller_type_id: String,
         provider_instance_id: String,
     ) -> Result<(), CommonError> {
+        trace!(
+            provider_controller_type_id = %provider_controller_type_id,
+            function_controller_type_id = %function_controller_type_id,
+            provider_instance_id = %provider_instance_id,
+            "Adding function instance"
+        );
         let mut definition = self.cached_definition.lock().await;
         let bridge = match &mut definition.bridge {
             Some(bridge) => bridge,
@@ -859,11 +934,13 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         }
         let functions = provider.functions.as_mut().unwrap();
         functions.push(function_controller_type_id.clone());
-        info!(
-            "Function instance added to provider {}: {:?}",
-            provider_controller_type_id, function_controller_type_id
-        );
         self.save(definition).await?;
+        trace!(
+            provider_controller_type_id = %provider_controller_type_id,
+            function_controller_type_id = %function_controller_type_id,
+            provider_instance_id = %provider_instance_id,
+            "Function instance added"
+        );
         Ok(())
     }
 
@@ -873,6 +950,12 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         function_controller_type_id: String,
         provider_instance_id: String,
     ) -> Result<(), CommonError> {
+        trace!(
+            provider_controller_type_id = %provider_controller_type_id,
+            function_controller_type_id = %function_controller_type_id,
+            provider_instance_id = %provider_instance_id,
+            "Removing function instance"
+        );
         let mut definition = self.cached_definition.lock().await;
         let bridge = match &mut definition.bridge {
             Some(bridge) => bridge,
@@ -893,15 +976,250 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
 
         functions.retain(|f| *f != function_controller_type_id);
 
-        info!(
-            "Function instance ({}) removed from provider ({}, {})",
-            function_controller_type_id, provider_controller_type_id, provider_instance_id
-        );
         self.save(definition).await?;
+        trace!(
+            provider_controller_type_id = %provider_controller_type_id,
+            function_controller_type_id = %function_controller_type_id,
+            provider_instance_id = %provider_instance_id,
+            "Function instance removed"
+        );
+        Ok(())
+    }
+
+    async fn add_mcp_server(
+        &self,
+        mcp_server_id: String,
+        config: McpServerConfig,
+    ) -> Result<(), CommonError> {
+        trace!(mcp_server_id = %mcp_server_id, "Adding MCP server");
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_bridge_config(&mut definition);
+
+        let bridge = definition.bridge.as_mut().unwrap();
+        if bridge.mcp_servers.is_none() {
+            bridge.mcp_servers = Some(HashMap::new());
+        }
+
+        bridge
+            .mcp_servers
+            .as_mut()
+            .unwrap()
+            .insert(mcp_server_id.clone(), config);
+        self.save(definition).await?;
+        trace!(mcp_server_id = %mcp_server_id, "MCP server added");
+        Ok(())
+    }
+
+    async fn update_mcp_server(
+        &self,
+        mcp_server_id: String,
+        config: McpServerConfig,
+    ) -> Result<(), CommonError> {
+        trace!(mcp_server_id = %mcp_server_id, "Updating MCP server");
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_bridge_config(&mut definition);
+
+        let bridge = definition.bridge.as_mut().unwrap();
+        if bridge.mcp_servers.is_none() {
+            bridge.mcp_servers = Some(HashMap::new());
+        }
+
+        let mcp_servers = bridge.mcp_servers.as_mut().unwrap();
+        match mcp_servers.get_mut(&mcp_server_id) {
+            Some(existing_config) => {
+                // Update name but preserve functions if not provided
+                existing_config.name = config.name;
+                if config.functions.is_some() {
+                    existing_config.functions = config.functions;
+                }
+            }
+            None => {
+                mcp_servers.insert(mcp_server_id.clone(), config);
+            }
+        }
+
+        self.save(definition).await?;
+        trace!(mcp_server_id = %mcp_server_id, "MCP server updated");
+        Ok(())
+    }
+
+    async fn remove_mcp_server(&self, mcp_server_id: String) -> Result<(), CommonError> {
+        trace!(mcp_server_id = %mcp_server_id, "Removing MCP server");
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(bridge) = &mut definition.bridge {
+            if let Some(mcp_servers) = &mut bridge.mcp_servers {
+                mcp_servers.remove(&mcp_server_id);
+                self.save(definition).await?;
+                trace!(mcp_server_id = %mcp_server_id, "MCP server removed");
+            }
+        }
+        Ok(())
+    }
+
+    async fn add_mcp_server_function(
+        &self,
+        mcp_server_id: String,
+        function_config: McpServerFunctionConfig,
+    ) -> Result<(), CommonError> {
+        trace!(
+            mcp_server_id = %mcp_server_id,
+            function_name = %function_config.function_name,
+            "Adding MCP server function"
+        );
+        let mut definition = self.cached_definition.lock().await;
+        let bridge = match &mut definition.bridge {
+            Some(bridge) => bridge,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Bridge configuration not found"
+                )));
+            }
+        };
+        let mcp_servers = match &mut bridge.mcp_servers {
+            Some(mcp_servers) => mcp_servers,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "MCP servers not found"
+                )));
+            }
+        };
+        let mcp_server = match mcp_servers.get_mut(&mcp_server_id) {
+            Some(mcp_server) => mcp_server,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "MCP server not found: {mcp_server_id}"
+                )));
+            }
+        };
+        if mcp_server.functions.is_none() {
+            mcp_server.functions = Some(Vec::new());
+        }
+        let functions = mcp_server.functions.as_mut().unwrap();
+        functions.push(function_config.clone());
+        self.save(definition).await?;
+        trace!(
+            mcp_server_id = %mcp_server_id,
+            function_name = %function_config.function_name,
+            "MCP server function added"
+        );
+        Ok(())
+    }
+
+    async fn update_mcp_server_function(
+        &self,
+        mcp_server_id: String,
+        function_config: McpServerFunctionConfig,
+    ) -> Result<(), CommonError> {
+        trace!(
+            mcp_server_id = %mcp_server_id,
+            function_name = %function_config.function_name,
+            "Updating MCP server function"
+        );
+        let mut definition = self.cached_definition.lock().await;
+        let bridge = match &mut definition.bridge {
+            Some(bridge) => bridge,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "Bridge configuration not found"
+                )));
+            }
+        };
+        let mcp_servers = match &mut bridge.mcp_servers {
+            Some(mcp_servers) => mcp_servers,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "MCP servers not found"
+                )));
+            }
+        };
+        let mcp_server = match mcp_servers.get_mut(&mcp_server_id) {
+            Some(mcp_server) => mcp_server,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "MCP server not found: {mcp_server_id}"
+                )));
+            }
+        };
+        let functions = match &mut mcp_server.functions {
+            Some(functions) => functions,
+            None => {
+                return Err(CommonError::Unknown(anyhow::anyhow!(
+                    "No functions in MCP server"
+                )));
+            }
+        };
+
+        // Find and update the function
+        if let Some(func) = functions.iter_mut().find(|f| {
+            f.function_controller_type_id == function_config.function_controller_type_id
+                && f.provider_controller_type_id == function_config.provider_controller_type_id
+                && f.provider_instance_id == function_config.provider_instance_id
+        }) {
+            func.function_name = function_config.function_name.clone();
+            func.function_description = function_config.function_description.clone();
+        }
+
+        self.save(definition).await?;
+        trace!(
+            mcp_server_id = %mcp_server_id,
+            function_name = %function_config.function_name,
+            "MCP server function updated"
+        );
+        Ok(())
+    }
+
+    async fn remove_mcp_server_function(
+        &self,
+        mcp_server_id: String,
+        function_controller_type_id: String,
+        provider_controller_type_id: String,
+        provider_instance_id: String,
+    ) -> Result<(), CommonError> {
+        trace!(
+            mcp_server_id = %mcp_server_id,
+            function_controller_type_id = %function_controller_type_id,
+            provider_controller_type_id = %provider_controller_type_id,
+            provider_instance_id = %provider_instance_id,
+            "Removing MCP server function"
+        );
+        let mut definition = self.cached_definition.lock().await;
+        let bridge = match &mut definition.bridge {
+            Some(bridge) => bridge,
+            None => return Ok(()),
+        };
+        let mcp_servers = match &mut bridge.mcp_servers {
+            Some(mcp_servers) => mcp_servers,
+            None => return Ok(()),
+        };
+        let mcp_server = match mcp_servers.get_mut(&mcp_server_id) {
+            Some(mcp_server) => mcp_server,
+            None => return Ok(()),
+        };
+        let functions = match &mut mcp_server.functions {
+            Some(functions) => functions,
+            None => return Ok(()),
+        };
+
+        functions.retain(|f| {
+            !(f.function_controller_type_id == function_controller_type_id
+                && f.provider_controller_type_id == provider_controller_type_id
+                && f.provider_instance_id == provider_instance_id)
+        });
+
+        self.save(definition).await?;
+        trace!(
+            mcp_server_id = %mcp_server_id,
+            function_controller_type_id = %function_controller_type_id,
+            provider_controller_type_id = %provider_controller_type_id,
+            provider_instance_id = %provider_instance_id,
+            "MCP server function removed"
+        );
         Ok(())
     }
 
     async fn add_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError> {
+        trace!(key = %key, "Adding secret");
         let mut definition = self.cached_definition.lock().await;
 
         if definition.secrets.is_none() {
@@ -913,12 +1231,13 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             .as_mut()
             .unwrap()
             .insert(key.clone(), config);
-        info!("Secret added: {:?}", key);
         self.save(definition).await?;
+        trace!(key = %key, "Secret added");
         Ok(())
     }
 
     async fn update_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError> {
+        trace!(key = %key, "Updating secret");
         let mut definition = self.cached_definition.lock().await;
 
         if definition.secrets.is_none() {
@@ -930,18 +1249,19 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             .as_mut()
             .unwrap()
             .insert(key.clone(), config);
-        info!("Secret updated: {:?}", key);
         self.save(definition).await?;
+        trace!(key = %key, "Secret updated");
         Ok(())
     }
 
     async fn remove_secret(&self, key: String) -> Result<(), CommonError> {
+        trace!(key = %key, "Removing secret");
         let mut definition = self.cached_definition.lock().await;
 
         if let Some(secrets) = &mut definition.secrets {
             secrets.remove(&key);
-            info!("Secret removed: {:?}", key);
             self.save(definition).await?;
+            trace!(key = %key, "Secret removed");
         }
         Ok(())
     }
@@ -951,6 +1271,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         key: String,
         value: String,
     ) -> Result<(), CommonError> {
+        trace!(key = %key, "Adding environment variable");
         let mut definition = self.cached_definition.lock().await;
 
         if definition.environment_variables.is_none() {
@@ -962,8 +1283,8 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             .as_mut()
             .unwrap()
             .insert(key.clone(), value);
-        info!("Environment variable added: {:?}", key);
         self.save(definition).await?;
+        trace!(key = %key, "Environment variable added");
         Ok(())
     }
 
@@ -972,6 +1293,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         key: String,
         value: String,
     ) -> Result<(), CommonError> {
+        trace!(key = %key, "Updating environment variable");
         let mut definition = self.cached_definition.lock().await;
 
         if definition.environment_variables.is_none() {
@@ -983,23 +1305,25 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             .as_mut()
             .unwrap()
             .insert(key.clone(), value);
-        info!("Environment variable updated: {:?}", key);
         self.save(definition).await?;
+        trace!(key = %key, "Environment variable updated");
         Ok(())
     }
 
     async fn remove_environment_variable(&self, key: String) -> Result<(), CommonError> {
+        trace!(key = %key, "Removing environment variable");
         let mut definition = self.cached_definition.lock().await;
 
         if let Some(env_vars) = &mut definition.environment_variables {
             env_vars.remove(&key);
-            info!("Environment variable removed: {:?}", key);
             self.save(definition).await?;
+            trace!(key = %key, "Environment variable removed");
         }
         Ok(())
     }
 
     async fn add_api_key(&self, id: String, config: ApiKeyYamlConfig) -> Result<(), CommonError> {
+        trace!(id = %id, "Adding API key");
         let mut definition = self.cached_definition.lock().await;
         Self::ensure_identity_config(&mut definition);
 
@@ -1013,25 +1337,27 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             .as_mut()
             .unwrap()
             .insert(id.clone(), config);
-        info!("API key added: {:?}", id);
         self.save(definition).await?;
+        trace!(id = %id, "API key added");
         Ok(())
     }
 
     async fn remove_api_key(&self, id: String) -> Result<(), CommonError> {
+        trace!(id = %id, "Removing API key");
         let mut definition = self.cached_definition.lock().await;
 
         if let Some(identity) = &mut definition.identity {
             if let Some(api_keys) = &mut identity.api_keys {
                 api_keys.remove(&id);
-                info!("API key removed: {:?}", id);
                 self.save(definition).await?;
+                trace!(id = %id, "API key removed");
             }
         }
         Ok(())
     }
 
     async fn add_sts_config(&self, id: String, config: StsConfigYaml) -> Result<(), CommonError> {
+        trace!(id = %id, "Adding STS configuration");
         let mut definition = self.cached_definition.lock().await;
         Self::ensure_identity_config(&mut definition);
 
@@ -1045,19 +1371,20 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             .as_mut()
             .unwrap()
             .insert(id.clone(), config);
-        info!("STS configuration added: {:?}", id);
         self.save(definition).await?;
+        trace!(id = %id, "STS configuration added");
         Ok(())
     }
 
     async fn remove_sts_config(&self, id: String) -> Result<(), CommonError> {
+        trace!(id = %id, "Removing STS configuration");
         let mut definition = self.cached_definition.lock().await;
 
         if let Some(identity) = &mut definition.identity {
             if let Some(sts_configs) = &mut identity.sts_configurations {
                 sts_configs.remove(&id);
-                info!("STS configuration removed: {:?}", id);
                 self.save(definition).await?;
+                trace!(id = %id, "STS configuration removed");
             }
         }
         Ok(())
@@ -1068,6 +1395,7 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         id: String,
         config: UserAuthFlowYamlConfig,
     ) -> Result<(), CommonError> {
+        trace!(id = %id, "Adding user auth flow configuration");
         let mut definition = self.cached_definition.lock().await;
         Self::ensure_identity_config(&mut definition);
 
@@ -1081,19 +1409,20 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             .as_mut()
             .unwrap()
             .insert(id.clone(), config);
-        info!("User auth flow configuration added: {:?}", id);
         self.save(definition).await?;
+        trace!(id = %id, "User auth flow configuration added");
         Ok(())
     }
 
     async fn remove_user_auth_flow(&self, id: String) -> Result<(), CommonError> {
+        trace!(id = %id, "Removing user auth flow configuration");
         let mut definition = self.cached_definition.lock().await;
 
         if let Some(identity) = &mut definition.identity {
             if let Some(user_auth_flows) = &mut identity.user_auth_flows {
                 user_auth_flows.remove(&id);
-                info!("User auth flow configuration removed: {:?}", id);
                 self.save(definition).await?;
+                trace!(id = %id, "User auth flow configuration removed");
             }
         }
         Ok(())

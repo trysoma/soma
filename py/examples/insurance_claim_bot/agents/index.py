@@ -2,12 +2,13 @@
 
 from typing import Any
 
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import (
+from langchain_openai import ChatOpenAI  # type: ignore[import-not-found]
+from langchain_core.messages import (  # type: ignore[import-not-found]
     HumanMessage,
     AIMessage,
     SystemMessage,
     BaseMessage,
+    ToolMessage,
 )
 from pydantic import BaseModel
 
@@ -18,6 +19,7 @@ from trysoma_sdk.patterns import (
     WrappedChatHandlerParams,
     WrappedWorkflowHandlerParams,
 )
+from trysoma_sdk.langchain import create_soma_langchain_mcp_client
 from trysoma_api_client import MessageRole, TaskStatus
 from trysoma_api_client.models.create_message_request import CreateMessageRequest
 from trysoma_api_client.models.message_part import MessagePart
@@ -215,33 +217,176 @@ async def discover_claim_handler(
 async def process_claim_handler(
     params: WorkflowHandlerParams[Bridge, ProcessClaimInput, None],
 ) -> None:
-    """Handler for processing the claim."""
-    print(f"Processing claim: {params.input.assessment}")
+    """Handler for processing the claim using MCP tools for research.
 
-    # once you enable the bridge mcp function, with account name ("internal"), you can uncomment this.
-    # await params.bridge.approve_claim.internal.approve_claim(ClaimApprovalRequest(
-    #     claim_id="123",
-    #     approval=True,
-    # ))
+    This is a workflow handler that processes the claim in a single execution.
+    It uses MCP tools to research and then makes a decision.
+    """
+    assessment = params.input.assessment
+    print(f"Processing claim: {assessment}")
 
-    await params.send_message(
-        CreateMessageRequest(
-            metadata={},
-            parts=[
-                MessagePart(
-                    metadata={},
-                    type="text-part",
-                    text=(
-                        "Thank you! I have all the information I need. "
-                        "Please wait while we process your claim... "
-                        "You should receive an email with the results shortly."
-                    ),
+    # Create MCP client to access research tools using context manager
+    async with create_soma_langchain_mcp_client(
+        params.ctx,
+        mcp_server_instance_id="test",
+    ) as mcp_client:
+        mcp_tools = await mcp_client.get_tools()
+        print(f"Loaded {len(mcp_tools)} MCP tools for processing")
+
+        # Build conversation messages for research
+        research_messages: list[BaseMessage] = [
+            SystemMessage(
+                content=(
+                    "You are now researching the claim to make an approval decision. "
+                    "Use the available research tools to investigate the claim. "
+                    "Once you have gathered enough information, use the make_decision tool "
+                    "to approve or deny the claim."
                 )
-            ],
-            reference_task_ids=[],
-            role=MessageRole.AGENT,
+            ),
+            HumanMessage(
+                content=(
+                    f"Please research and process this insurance claim:\n"
+                    f"- Date: {assessment.claim.date}\n"
+                    f"- Category: {assessment.claim.category}\n"
+                    f"- Reason: {assessment.claim.reason}\n"
+                    f"- Amount: ${assessment.claim.amount}\n"
+                    f"- Email: {assessment.claim.email}"
+                )
+            ),
+        ]
+
+        # Create the decision tool - this signals workflow completion
+        make_decision_tool = {
+            "type": "function",
+            "function": {
+                "name": "make_decision",
+                "description": "Make a final decision on the claim after researching.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "approved": {
+                            "type": "boolean",
+                            "description": "Whether to approve the claim",
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "Reason for the decision",
+                        },
+                    },
+                    "required": ["approved", "reason"],
+                },
+            },
+        }
+
+        # Convert MCP tools to OpenAI tool format
+        all_tools = [make_decision_tool]
+        for tool in mcp_tools:
+            tool_dict = {
+                "type": "function",
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description or f"Tool: {tool.name}",
+                    "parameters": tool.args_schema.model_json_schema()
+                    if hasattr(tool, "args_schema")
+                    else {"type": "object", "properties": {}},
+                },
+            }
+            all_tools.append(tool_dict)
+
+        model = ChatOpenAI(model="gpt-4o", temperature=0)
+        model_with_tools = model.bind(tools=all_tools)
+
+        approval_decision: bool | None = None
+        decision_reason: str = ""
+
+        try:
+            # Invoke the model
+            response: Any = await model_with_tools.ainvoke(research_messages)
+
+            # Process tool calls
+            if hasattr(response, "tool_calls") and response.tool_calls:
+                research_messages.append(response)
+
+                for tool_call in response.tool_calls:
+                    tool_name = tool_call.get("name", "")
+                    tool_args = tool_call.get("args", {})
+                    tool_id = tool_call.get("id", "")
+
+                    print(f"Tool called: {tool_name} with args: {tool_args}")
+
+                    if tool_name == "make_decision":
+                        approval_decision = tool_args.get("approved", False)
+                        decision_reason = tool_args.get("reason", "")
+                        print(
+                            f"Decision made: {'Approved' if approval_decision else 'Denied'} - {decision_reason}"
+                        )
+                        break
+
+                    # Execute MCP tool
+                    tool_result = None
+                    for mcp_tool in mcp_tools:
+                        if mcp_tool.name == tool_name:
+                            try:
+                                tool_result = await mcp_tool.ainvoke(tool_args)
+                                print(f"Tool result: {tool_result}")
+                            except Exception as e:
+                                tool_result = f"Error executing tool: {e}"
+                            break
+
+                    if tool_result is None:
+                        tool_result = f"Unknown tool: {tool_name}"
+
+                    research_messages.append(
+                        ToolMessage(
+                            content=str(tool_result),
+                            tool_call_id=tool_id,
+                        )
+                    )
+
+                # If we executed a tool but haven't made a decision yet, get follow-up
+                if approval_decision is None:
+                    follow_up: Any = await model_with_tools.ainvoke(research_messages)
+                    if hasattr(follow_up, "tool_calls") and follow_up.tool_calls:
+                        for fc in follow_up.tool_calls:
+                            if fc.get("name") == "make_decision":
+                                approval_decision = fc.get("args", {}).get(
+                                    "approved", False
+                                )
+                                decision_reason = fc.get("args", {}).get("reason", "")
+                                print(
+                                    f"Decision made: {'Approved' if approval_decision else 'Denied'} - {decision_reason}"
+                                )
+                                break
+
+        except Exception as e:
+            print(f"Error in process_claim_handler: {e}")
+
+        # Default to denied if no decision was made
+        if approval_decision is None:
+            approval_decision = False
+            decision_reason = "Unable to complete research."
+
+        # Send the final message to the user
+        decision_text = "approved" if approval_decision else "denied"
+        await params.send_message(
+            CreateMessageRequest(
+                metadata={},
+                parts=[
+                    MessagePart(
+                        metadata={},
+                        type="text-part",
+                        text=(
+                            f"Thank you! I have processed your claim.\n\n"
+                            f"**Decision: {decision_text.upper()}**\n"
+                            f"Reason: {decision_reason}\n\n"
+                            f"You should receive an email at {assessment.claim.email} with the full details shortly."
+                        ),
+                    )
+                ],
+                reference_task_ids=[],
+                role=MessageRole.AGENT,
+            )
         )
-    )
 
 
 # Create wrapped handlers using patterns
@@ -270,7 +415,7 @@ async def entrypoint(params: HandlerParams) -> None:
 
     print(f"Claim discovered: {assessment}")
 
-    # Process the claim
+    # Process the claim using MCP tools for research
     await process_claim(
         WrappedWorkflowHandlerParams(
             ctx=params.ctx,
@@ -308,7 +453,7 @@ async def entrypoint(params: HandlerParams) -> None:
             ),
         )
 
-    await params.ctx.run_typed("update_task_status", update_status)
+    await params.ctx.run("update_task_status", update_status)
 
     print("Insurance claims agent completed.")
 

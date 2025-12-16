@@ -4,6 +4,7 @@ use shared::{
     adapters::openapi::{API_VERSION_TAG, JsonResponse},
     error::CommonError,
 };
+use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::jwk::{
@@ -38,6 +39,7 @@ async fn route_invalidate_jwk(
     State(service): State<IdentityService>,
     Path(kid): Path<String>,
 ) -> JsonResponse<InvalidateJwkResponse, CommonError> {
+    trace!(kid = %kid, "Invalidating JWK");
     let params = InvalidateJwkParams { kid };
     let result = invalidate_jwk(
         service.repository.as_ref(),
@@ -45,6 +47,7 @@ async fn route_invalidate_jwk(
         params,
     )
     .await;
+    trace!(success = result.is_ok(), "Invalidating JWK completed");
     JsonResponse::from(result)
 }
 
@@ -64,7 +67,9 @@ async fn route_list_jwks(
     State(service): State<IdentityService>,
     Query(query): Query<PaginationRequest>,
 ) -> JsonResponse<ListJwksResponse, CommonError> {
+    trace!(page_size = query.page_size, "Listing JWKs");
     let result = list_jwks(service.repository.as_ref(), &query).await;
+    trace!(success = result.is_ok(), "Listing JWKs completed");
     JsonResponse::from(result)
 }
 
@@ -80,6 +85,8 @@ async fn route_list_jwks(
 async fn route_get_jwks(
     State(service): State<IdentityService>,
 ) -> JsonResponse<GetJwksResponse, CommonError> {
+    trace!("Getting JWKS");
     let result = get_jwks(service.repository.as_ref(), &service.internal_jwks_cache).await;
+    trace!(success = result.is_ok(), "Getting JWKS completed");
     JsonResponse::from(result)
 }

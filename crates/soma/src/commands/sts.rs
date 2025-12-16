@@ -6,7 +6,7 @@ use shared::soma_agent_definition::{
     ScopeToGroupMappingYaml, ScopeToRoleMappingYaml, TokenLocationYaml,
 };
 use soma_api_client::apis::identity_api;
-use tracing::info;
+use tracing::debug;
 
 use crate::utils::{CliConfig, create_and_wait_for_api_client};
 
@@ -460,7 +460,7 @@ async fn cmd_sts_add_from_template(api_url: &str, timeout_secs: u64) -> Result<(
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create STS config: {e:?}")))?;
 
-    info!("STS configuration '{}' created", id);
+    debug!("STS configuration '{}' created", id);
     println!();
     println!("Successfully added STS configuration: {id}");
     println!("The configuration has been synced to soma.yaml.");
@@ -486,7 +486,7 @@ async fn cmd_sts_remove(id: String, api_url: &str, timeout_secs: u64) -> Result<
             CommonError::Unknown(anyhow::anyhow!("Failed to delete STS config: {e:?}"))
         })?;
 
-    info!("STS configuration '{}' removed", id);
+    debug!("STS configuration '{}' removed", id);
     println!("Successfully removed STS configuration: {id}");
 
     Ok(())

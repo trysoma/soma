@@ -1,8 +1,12 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc};
 
+use ::bridge::logic::mcp::BridgeMcpService;
 use ::bridge::router::BridgeService;
 use bridge::logic::OnConfigChangeTx;
 use encryption::logic::{EncryptionKeyEventSender, crypto_services::CryptoCache};
+use rmcp::transport::streamable_http_server::{
+    StreamableHttpService, session::local::LocalSessionManager,
+};
 use shared::{
     error::CommonError,
     restate::{admin_client::AdminClient, invoke::RestateIngressClient},
@@ -15,12 +19,13 @@ use crate::{
     logic::task::ConnectionManager,
     repository::Repository,
     router::{
-        a2a::{Agent2AgentService, Agent2AgentServiceParams},
+        agent::{AgentService, AgentServiceParams},
         environment_variable::EnvironmentVariableService,
         internal,
         secret::SecretService,
         task::TaskService,
     },
+    sdk::sdk_agent_sync::AgentCache,
 };
 pub mod factory;
 pub mod logic;
@@ -28,14 +33,13 @@ pub mod repository;
 pub mod restate;
 pub mod router;
 pub mod sdk;
-pub mod subsystems;
 
 #[cfg(all(test, feature = "unit_test"))]
 pub mod test;
 
 #[derive(Clone)]
 pub struct ApiService {
-    pub agent_service: Arc<Agent2AgentService>,
+    pub agent_service: Arc<AgentService>,
     pub task_service: Arc<TaskService>,
     pub bridge_service: BridgeService,
     pub internal_service: Arc<internal::InternalService>,
@@ -50,6 +54,8 @@ pub struct ApiService {
             >,
         >,
     >,
+    /// Cache for storing agent metadata from SDK
+    pub agent_cache: AgentCache,
 }
 
 pub struct InitApiServiceParams {
@@ -59,8 +65,7 @@ pub struct InitApiServiceParams {
     pub soma_restate_service_port: u16,
     pub connection_manager: ConnectionManager,
     pub repository: Repository,
-    pub mcp_transport_tx:
-        tokio::sync::mpsc::UnboundedSender<rmcp::transport::sse_server::SseServerTransport>,
+    pub mcp_service: StreamableHttpService<BridgeMcpService, LocalSessionManager>,
     pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub restate_ingress_client: RestateIngressClient,
     pub restate_admin_client: AdminClient,
@@ -74,7 +79,6 @@ pub struct InitApiServiceParams {
     pub bridge_repository: ::bridge::repository::Repository,
     pub identity_repository: identity::repository::Repository,
     pub internal_jwks_cache: identity::logic::jwk::cache::JwksCache,
-    pub mcp_sse_ping_interval: Duration,
     pub sdk_client: Arc<
         tokio::sync::Mutex<
             Option<
@@ -83,23 +87,27 @@ pub struct InitApiServiceParams {
         >,
     >,
     pub local_envelope_encryption_key_path: PathBuf,
+    pub agent_cache: AgentCache,
 }
 
 impl ApiService {
     pub async fn new(init_params: InitApiServiceParams) -> Result<Self, CommonError> {
+        let agent_cache = init_params.agent_cache.clone();
+
         let encryption_service = encryption::router::EncryptionService::new(
             init_params.encryption_repository.clone(),
             init_params.on_encryption_change_tx.clone(),
             init_params.crypto_cache.clone(),
             init_params.local_envelope_encryption_key_path.clone(),
         );
-        let agent_service = Arc::new(Agent2AgentService::new(Agent2AgentServiceParams {
+        let agent_service = Arc::new(AgentService::new(AgentServiceParams {
             soma_definition: init_params.soma_definition.clone(),
             host: Url::parse(format!("http://{}:{}", init_params.host, init_params.port).as_str())?,
             connection_manager: init_params.connection_manager.clone(),
             repository: init_params.repository.clone(),
             restate_ingress_client: init_params.restate_ingress_client.clone(),
             restate_admin_client: init_params.restate_admin_client.clone(),
+            agent_cache: agent_cache.clone(),
         }));
         let task_service = Arc::new(TaskService::new(
             init_params.connection_manager.clone(),
@@ -109,8 +117,7 @@ impl ApiService {
             init_params.bridge_repository.clone(),
             init_params.on_bridge_config_change_tx.clone(),
             init_params.crypto_cache.clone(),
-            init_params.mcp_transport_tx,
-            init_params.mcp_sse_ping_interval,
+            init_params.mcp_service,
         )
         .await?;
 
@@ -120,6 +127,7 @@ impl ApiService {
             std::sync::Arc::new(init_params.repository.clone()),
             init_params.crypto_cache.clone(),
             init_params.restate_params.clone(),
+            agent_cache.clone(),
         ));
 
         let secret_service = Arc::new(SecretService::new(
@@ -155,6 +163,7 @@ impl ApiService {
             environment_variable_service,
             identity_service,
             sdk_client: init_params.sdk_client,
+            agent_cache,
         })
     }
 }

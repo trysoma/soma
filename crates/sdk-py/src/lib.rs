@@ -14,7 +14,7 @@ use sdk_core as core_types;
 use shared::error::CommonError;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{debug, trace};
 use types as py_types;
 
 // Global gRPC service instance - uses Mutex<Option<...>> to allow resetting
@@ -158,7 +158,7 @@ pub fn start_grpc_server(
 #[pyfunction]
 #[pyo3(signature = () -> "None")]
 pub fn kill_grpc_service() -> PyResult<()> {
-    info!("Killing gRPC service - clearing all state");
+    debug!("Killing gRPC service");
     let mut guard = GRPC_SERVICE.lock();
     if let Some(service) = guard.as_ref() {
         // Clear the service state
@@ -166,7 +166,7 @@ pub fn kill_grpc_service() -> PyResult<()> {
     }
     // Remove the service from the global
     *guard = None;
-    info!("gRPC service killed successfully");
+    trace!("gRPC service cleared");
     Ok(())
 }
 
@@ -315,7 +315,7 @@ pub fn update_function(
     function_metadata: py_types::FunctionMetadata,
     invoke_callback: Py<PyAny>,
 ) -> PyResult<bool> {
-    info!("update_function: {:?}", function_metadata.name);
+    trace!(function = %function_metadata.name, "Updating function");
     let callback = Arc::new(invoke_callback);
 
     let core_function = core_types::FunctionController {
@@ -425,12 +425,7 @@ pub fn set_secret_handler(callback: Py<PyAny>) -> PyResult<()> {
 
     let handler: core_types::SecretHandler = Arc::new(move |secrets: Vec<core_types::Secret>| {
         let callback: Arc<Py<PyAny>> = Arc::clone(&callback);
-        let secret_keys: Vec<String> = secrets.iter().map(|s| s.key.clone()).collect();
-        info!(
-            "Secret handler invoked with {} secrets: {:?}",
-            secrets.len(),
-            secret_keys
-        );
+        trace!(count = secrets.len(), "Secret handler invoked");
 
         Box::pin(async move {
             let py_secrets: Vec<py_types::Secret> = secrets
@@ -441,10 +436,7 @@ pub fn set_secret_handler(callback: Py<PyAny>) -> PyResult<()> {
                 })
                 .collect();
 
-            info!(
-                "Calling Python secret handler callback with {} secrets",
-                py_secrets.len()
-            );
+            trace!(count = py_secrets.len(), "Calling Python secret handler");
 
             let result = Python::attach(|py| {
                 let result = callback.call1(py, (py_secrets,));
@@ -480,9 +472,9 @@ pub fn set_secret_handler(callback: Py<PyAny>) -> PyResult<()> {
         })
     });
 
-    info!("Registering secret handler");
+    trace!("Registering secret handler");
     get_grpc_service()?.set_secret_handler(handler);
-    info!("Secret handler registered successfully");
+    trace!("Secret handler registered");
     Ok(())
 }
 
@@ -495,11 +487,9 @@ pub fn set_environment_variable_handler(callback: Py<PyAny>) -> PyResult<()> {
     let handler: core_types::EnvironmentVariableHandler =
         Arc::new(move |env_vars: Vec<core_types::EnvironmentVariable>| {
             let callback: Arc<Py<PyAny>> = Arc::clone(&callback);
-            let env_var_keys: Vec<String> = env_vars.iter().map(|e| e.key.clone()).collect();
-            info!(
-                "Environment variable handler invoked with {} env vars: {:?}",
-                env_vars.len(),
-                env_var_keys
+            trace!(
+                count = env_vars.len(),
+                "Environment variable handler invoked"
             );
 
             Box::pin(async move {
@@ -511,10 +501,7 @@ pub fn set_environment_variable_handler(callback: Py<PyAny>) -> PyResult<()> {
                     })
                     .collect();
 
-                info!(
-                    "Calling Python environment variable handler callback with {} env vars",
-                    py_env_vars.len()
-                );
+                trace!(count = py_env_vars.len(), "Calling Python env var handler");
 
                 let result = Python::attach(|py| {
                     let result = callback.call1(py, (py_env_vars,));
@@ -555,9 +542,9 @@ pub fn set_environment_variable_handler(callback: Py<PyAny>) -> PyResult<()> {
             })
         });
 
-    info!("Registering environment variable handler");
+    trace!("Registering environment variable handler");
     get_grpc_service()?.set_environment_variable_handler(handler);
-    info!("Environment variable handler registered successfully");
+    trace!("Environment variable handler registered");
     Ok(())
 }
 
@@ -569,13 +556,10 @@ pub fn set_unset_secret_handler(callback: Py<PyAny>) -> PyResult<()> {
 
     let handler: core_types::UnsetSecretHandler = Arc::new(move |key: String| {
         let callback: Arc<Py<PyAny>> = Arc::clone(&callback);
-        info!("Unset secret handler invoked with key: {}", key);
+        trace!(key = %key, "Unset secret handler invoked");
 
         Box::pin(async move {
-            info!(
-                "Calling Python unset secret handler callback with key: {}",
-                key
-            );
+            trace!(key = %key, "Calling Python unset secret handler");
 
             let result = Python::attach(|py| {
                 let result = callback.call1(py, (key.clone(),));
@@ -611,9 +595,9 @@ pub fn set_unset_secret_handler(callback: Py<PyAny>) -> PyResult<()> {
         })
     });
 
-    info!("Registering unset secret handler");
+    trace!("Registering unset secret handler");
     get_grpc_service()?.set_unset_secret_handler(handler);
-    info!("Unset secret handler registered successfully");
+    trace!("Unset secret handler registered");
     Ok(())
 }
 
@@ -625,16 +609,10 @@ pub fn set_unset_environment_variable_handler(callback: Py<PyAny>) -> PyResult<(
 
     let handler: core_types::UnsetEnvironmentVariableHandler = Arc::new(move |key: String| {
         let callback: Arc<Py<PyAny>> = Arc::clone(&callback);
-        info!(
-            "Unset environment variable handler invoked with key: {}",
-            key
-        );
+        trace!(key = %key, "Unset env var handler invoked");
 
         Box::pin(async move {
-            info!(
-                "Calling Python unset environment variable handler callback with key: {}",
-                key
-            );
+            trace!(key = %key, "Calling Python unset env var handler");
 
             let result = Python::attach(|py| {
                 let result = callback.call1(py, (key.clone(),));
@@ -672,9 +650,9 @@ pub fn set_unset_environment_variable_handler(callback: Py<PyAny>) -> PyResult<(
         })
     });
 
-    info!("Registering unset environment variable handler");
+    trace!("Registering unset environment variable handler");
     get_grpc_service()?.set_unset_environment_variable_handler(handler);
-    info!("Unset environment variable handler registered successfully");
+    trace!("Unset environment variable handler registered");
     Ok(())
 }
 

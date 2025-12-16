@@ -4,6 +4,7 @@ use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
+use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use shared::{
@@ -14,6 +15,7 @@ use shared::{
 use crate::logic::internal::{
     CheckSdkHealthResponse, ResyncSdkResponse, RuntimeConfigResponse, TriggerCodegenResponse,
 };
+use crate::sdk::sdk_agent_sync::AgentCache;
 
 pub const PATH_PREFIX: &str = "/_internal";
 pub const API_VERSION_1: &str = "v1";
@@ -43,7 +45,9 @@ pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {
 async fn route_health(
     State(ctx): State<Arc<InternalService>>,
 ) -> JsonResponse<CheckSdkHealthResponse, CommonError> {
+    trace!("Checking SDK health");
     let response = crate::logic::internal::check_sdk_health(&ctx.sdk_client).await;
+    trace!(success = response.is_ok(), "Checking SDK health completed");
     JsonResponse::from(response)
 }
 
@@ -61,7 +65,12 @@ async fn route_health(
 async fn route_runtime_config(
     State(_ctx): State<Arc<InternalService>>,
 ) -> JsonResponse<RuntimeConfigResponse, CommonError> {
+    trace!("Getting runtime config");
     let runtime_config = crate::logic::internal::runtime_config().await;
+    trace!(
+        success = runtime_config.is_ok(),
+        "Getting runtime config completed"
+    );
     JsonResponse::from(runtime_config)
 }
 
@@ -81,9 +90,14 @@ async fn route_runtime_config(
 async fn route_trigger_codegen(
     State(ctx): State<Arc<InternalService>>,
 ) -> JsonResponse<TriggerCodegenResponse, CommonError> {
-    let response =
-        crate::logic::internal::trigger_codegen(&ctx.sdk_client, ctx.bridge_service.repository())
-            .await;
+    trace!("Triggering codegen");
+    let response = crate::logic::internal::trigger_codegen(
+        &ctx.sdk_client,
+        ctx.bridge_service.repository(),
+        &ctx.agent_cache,
+    )
+    .await;
+    trace!(success = response.is_ok(), "Triggering codegen completed");
 
     JsonResponse::from(response)
 }
@@ -104,13 +118,17 @@ async fn route_trigger_codegen(
 async fn route_resync_sdk(
     State(ctx): State<Arc<InternalService>>,
 ) -> JsonResponse<ResyncSdkResponse, CommonError> {
+    trace!("Resyncing SDK");
     let response = crate::logic::internal::resync_sdk(
         &ctx.repository,
         &ctx.crypto_cache,
         &ctx.restate_params,
         &ctx.sdk_client,
+        &ctx.agent_cache,
+        ctx.bridge_service.repository(),
     )
     .await;
+    trace!(success = response.is_ok(), "Resyncing SDK completed");
     JsonResponse::from(response)
 }
 
@@ -120,6 +138,7 @@ pub struct InternalService {
     repository: std::sync::Arc<crate::repository::Repository>,
     crypto_cache: CryptoCache,
     restate_params: crate::restate::RestateServerParams,
+    agent_cache: AgentCache,
 }
 
 impl InternalService {
@@ -129,6 +148,7 @@ impl InternalService {
         repository: std::sync::Arc<crate::repository::Repository>,
         crypto_cache: CryptoCache,
         restate_params: crate::restate::RestateServerParams,
+        agent_cache: AgentCache,
     ) -> Self {
         Self {
             bridge_service,
@@ -136,6 +156,7 @@ impl InternalService {
             repository,
             crypto_cache,
             restate_params,
+            agent_cache,
         }
     }
 }

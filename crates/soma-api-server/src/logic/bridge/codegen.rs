@@ -3,14 +3,17 @@ use bridge::repository::ProviderRepositoryLike;
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use shared::error::CommonError;
 use tonic::transport::Channel;
-use tracing::{error, info};
+use tracing::{debug, error, trace};
+
+use crate::sdk::sdk_agent_sync::{AgentCache, get_all_agents};
 
 /// Triggers bridge client generation via gRPC call to SDK server
 pub async fn trigger_bridge_client_generation(
     sdk_client: &mut SomaSdkServiceClient<Channel>,
     bridge_repo: &impl ProviderRepositoryLike,
+    agent_cache: &AgentCache,
 ) -> Result<(), CommonError> {
-    info!("Triggering bridge client generation via SDK server");
+    trace!("Triggering bridge client generation");
 
     // Get function instances from bridge
     let function_instances = get_function_instances(bridge_repo).await?;
@@ -21,21 +24,34 @@ pub async fn trigger_bridge_client_generation(
         .map(convert_to_proto_function_instance)
         .collect();
 
+    // Get agents from cache and convert to proto
+    let agents = get_all_agents(agent_cache);
+    let proto_agents: Vec<sdk_proto::Agent> = agents
+        .into_iter()
+        .map(|agent| sdk_proto::Agent {
+            id: agent.id,
+            project_id: agent.project_id,
+            name: agent.name,
+            description: agent.description,
+        })
+        .collect();
+
     // Call gRPC method
     let request = tonic::Request::new(sdk_proto::GenerateBridgeClientRequest {
         function_instances: proto_function_instances,
+        agents: proto_agents,
     });
 
     match sdk_client.generate_bridge_client(request).await {
         Ok(response) => {
             let result = response.into_inner();
             match result.result {
-                Some(sdk_proto::generate_bridge_client_response::Result::Success(success)) => {
-                    info!("Bridge client generation succeeded: {}", success.message);
+                Some(sdk_proto::generate_bridge_client_response::Result::Success(_)) => {
+                    debug!("Bridge client generated");
                     Ok(())
                 }
                 Some(sdk_proto::generate_bridge_client_response::Result::Error(error)) => {
-                    error!("Bridge client generation failed: {}", error.message);
+                    error!(error = %error.message, "Bridge client generation failed");
                     Err(CommonError::Unknown(anyhow::anyhow!(
                         "Bridge client generation failed: {}",
                         error.message
@@ -50,7 +66,7 @@ pub async fn trigger_bridge_client_generation(
             }
         }
         Err(e) => {
-            error!("Failed to call generate_bridge_client gRPC method: {:?}", e);
+            error!(error = ?e, "Failed to call generate_bridge_client gRPC");
             Err(CommonError::Unknown(anyhow::anyhow!(
                 "Failed to call generate_bridge_client: {e}"
             )))

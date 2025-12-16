@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use futures::{Stream, StreamExt};
 use tokio::sync::Mutex;
 use tokio::task::{AbortHandle, JoinHandle};
-use tracing::{debug, error};
+use tracing::{debug, error, trace, warn};
 
 use crate::{
     agent_execution::{
@@ -185,10 +185,10 @@ impl DefaultRequestHandler {
         let result_aggregator = {
             let mut aggregators = self.result_aggregators.lock().await;
             if let Some(existing) = aggregators.get(&task_id) {
-                debug!("Reusing existing ResultAggregator for task_id: {}", task_id);
+                trace!(task_id, "Reusing existing ResultAggregator");
                 existing.clone()
             } else {
-                debug!("Creating new ResultAggregator for task_id: {}", task_id);
+                trace!(task_id, "Creating new ResultAggregator");
                 let new_aggregator = Arc::new(ResultAggregator::new(task_manager_mut.clone()));
                 aggregators.insert(task_id.clone(), new_aggregator.clone());
                 new_aggregator
@@ -215,24 +215,19 @@ impl DefaultRequestHandler {
         })?;
 
         let producer_task = tokio::spawn(async move {
-            tracing::info!("Starting agent execution task");
+            trace!("Starting agent execution");
             if let Err(e) = agent_executor
                 .execute(request_context_for_agent, queue_clone.clone())
                 .await
             {
                 let error_msg = format!("{e:?}");
-                // Check if this is a connection closed error (happens during server shutdown)
                 if error_msg.contains("connection closed before message completed") {
-                    tracing::warn!(
-                        "Agent execution connection closed (likely due to shutdown): {}",
-                        error_msg
-                    );
+                    debug!(error = %error_msg, "Agent execution connection closed");
                 } else {
-                    error!("Agent execution failed: {:?}", e);
+                    error!(error = ?e, "Agent execution failed");
                 }
             }
-            tracing::info!("Agent execution task completed");
-            // Don't close the queue here - let the consumer close it when it receives a final event
+            trace!("Agent execution completed");
         });
 
         // Register the producer task
@@ -254,9 +249,10 @@ impl DefaultRequestHandler {
         event_task_id: &str,
     ) -> Result<(), A2aServerError> {
         if task_id != event_task_id {
-            error!(
-                "Agent generated task_id={} does not match the RequestContext task_id={}.",
-                event_task_id, task_id
+            warn!(
+                expected = task_id,
+                actual = event_task_id,
+                "Task ID mismatch"
             );
             Err(A2aServerError::InternalError(
                 ErrorBuilder::default()
@@ -292,23 +288,18 @@ impl DefaultRequestHandler {
 
     /// Cleans up the agent execution task and queue manager entry.
     async fn cleanup_producer(&self, producer_task: JoinHandle<()>, task_id: &str) {
-        debug!("Starting cleanup for task_id: {}", task_id);
+        trace!(task_id, "Cleaning up producer");
 
-        // Wait for the task to complete
         let _ = producer_task.await;
-
-        // Close the queue (this is safe to call even if already closed)
         self.queue_manager.close(task_id).await.ok();
 
-        // Remove from running agents
         let mut running_agents = self.running_agents.lock().await;
         running_agents.remove(task_id);
 
-        // Remove the result aggregator
         let mut aggregators = self.result_aggregators.lock().await;
         aggregators.remove(task_id);
 
-        debug!("Cleanup completed for task_id: {}", task_id);
+        trace!(task_id, "Producer cleanup complete");
     }
 
     /// Determines if push notification info should be set for a task.
@@ -328,17 +319,21 @@ impl DefaultRequestHandler {
 impl RequestHandler for DefaultRequestHandler {
     /// Default handler for 'tasks/get'.
     async fn on_get_task(&self, params: TaskQueryParams) -> Result<Option<Task>, A2aServerError> {
+        trace!(task_id = %params.id, "Getting task");
         let task = self.task_store.get(&params.id).await?;
         if task.is_none() {
+            trace!(task_id = %params.id, "Getting task completed (not found)");
             return Err(A2aServerError::TaskNotFoundError(
                 ErrorBuilder::default().build().unwrap(),
             ));
         }
+        trace!(task_id = %params.id, "Getting task completed");
         Ok(task)
     }
 
     /// Default handler for 'tasks/cancel'.
     async fn on_cancel_task(&self, params: TaskIdParams) -> Result<Option<Task>, A2aServerError> {
+        trace!(task_id = %params.id, "Canceling task");
         let task = self.task_store.get(&params.id).await?;
         let task = task.ok_or_else(|| {
             A2aServerError::TaskNotFoundError(ErrorBuilder::default().build().unwrap())
@@ -386,7 +381,7 @@ impl RequestHandler for DefaultRequestHandler {
         }
 
         let consumer = EventConsumer::new(queue);
-        match result_aggregator.consume_all(consumer).await? {
+        let result = match result_aggregator.consume_all(consumer).await? {
             AggregatedResult::Task(task) => Ok(Some(task)),
             _ => Err(A2aServerError::InternalError(
                 ErrorBuilder::default()
@@ -394,7 +389,9 @@ impl RequestHandler for DefaultRequestHandler {
                     .build()
                     .unwrap(),
             )),
-        }
+        };
+        trace!(task_id = %params.id, success = result.is_ok(), "Canceling task completed");
+        result
     }
 
     /// Default handler for 'message/send' interface (non-streaming).
@@ -402,6 +399,7 @@ impl RequestHandler for DefaultRequestHandler {
         &self,
         params: MessageSendParams,
     ) -> Result<SendMessageSuccessResponseResult, A2aServerError> {
+        trace!(task_id = ?params.message.task_id, "Sending message");
         let (_task_manager, task_id, queue, result_aggregator, producer_task) =
             self.setup_message_execution(params).await?;
 
@@ -442,12 +440,14 @@ impl RequestHandler for DefaultRequestHandler {
         }
 
         // Convert to SendMessageSuccessResponseResult
-        match result {
+        let response = match result {
             AggregatedResult::Task(task) => Ok(SendMessageSuccessResponseResult::Task(task)),
             AggregatedResult::Message(message) => {
                 Ok(SendMessageSuccessResponseResult::Message(message))
             }
-        }
+        };
+        trace!(task_id = %task_id, success = response.is_ok(), "Sending message completed");
+        response
     }
 
     /// Default handler for 'message/stream' (streaming).
@@ -463,6 +463,7 @@ impl RequestHandler for DefaultRequestHandler {
         >,
         A2aServerError,
     > {
+        trace!(task_id = ?params.message.task_id, "Starting streaming message send");
         let self_clone = self.clone();
         let params_clone = params.clone();
 
@@ -489,14 +490,14 @@ impl RequestHandler for DefaultRequestHandler {
                 // Validate task ID for Task events
                 if let Event::Task(ref task) = event {
                     if let Err(e) = self_clone.validate_task_id_match(&task_id, &task.id) {
-                        error!("Task ID validation failed: {:?}", e);
+                        debug!(error = ?e, "Task ID validation failed");
                     }
                 }
 
                 // Store push config if needed
                 if let (Some(store), Some(config)) = (&push_config_store, &push_config) {
                     if let Err(e) = store.set_info(&task_id, config).await {
-                        error!("Failed to store push config: {:?}", e);
+                        debug!(error = ?e, "Failed to store push config");
                     }
                 }
 
@@ -505,7 +506,7 @@ impl RequestHandler for DefaultRequestHandler {
                     &task_id,
                     &result_aggregator,
                 ).await {
-                    error!("Failed to send push notification: {:?}", e);
+                    debug!(error = ?e, "Failed to send push notification");
                 }
 
                 // Convert Event to SendStreamingMessageSuccessResponseResult
@@ -520,6 +521,7 @@ impl RequestHandler for DefaultRequestHandler {
             }
 
             // Clean up when stream is done
+            trace!(task_id = %task_id, "Streaming message send completed");
             self_clone.cleanup_producer(producer_task, &task_id).await;
         };
 
@@ -531,6 +533,7 @@ impl RequestHandler for DefaultRequestHandler {
         &self,
         params: TaskPushNotificationConfig,
     ) -> Result<TaskPushNotificationConfig, A2aServerError> {
+        trace!(task_id = %params.task_id, "Setting task push notification config");
         let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
             A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
         })?;
@@ -543,6 +546,7 @@ impl RequestHandler for DefaultRequestHandler {
             .set_info(&params.task_id, &params.push_notification_config)
             .await?;
 
+        trace!(task_id = %params.task_id, "Setting task push notification config completed");
         Ok(params)
     }
 
@@ -551,6 +555,7 @@ impl RequestHandler for DefaultRequestHandler {
         &self,
         params: GetTaskPushNotificationConfigParams,
     ) -> Result<TaskPushNotificationConfig, A2aServerError> {
+        trace!(task_id = %params.id, "Getting task push notification config");
         let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
             A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
         })?;
@@ -569,6 +574,7 @@ impl RequestHandler for DefaultRequestHandler {
             )
         })?;
 
+        trace!(task_id = %params.id, "Getting task push notification config completed");
         Ok(TaskPushNotificationConfig {
             task_id: params.id,
             push_notification_config: config,
@@ -588,6 +594,7 @@ impl RequestHandler for DefaultRequestHandler {
         >,
         A2aServerError,
     > {
+        trace!(task_id = %params.id, "Resubscribing to task");
         // Clone what we need before creating the stream
         let task_store = self.task_store.clone();
         let queue_manager = self.queue_manager.clone();
@@ -640,6 +647,7 @@ impl RequestHandler for DefaultRequestHandler {
 
                 yield result;
             }
+            trace!(task_id = %params.id, "Resubscribing to task completed");
         };
 
         Ok(Box::pin(stream)
@@ -660,6 +668,7 @@ impl RequestHandler for DefaultRequestHandler {
         &self,
         params: ListTaskPushNotificationConfigParams,
     ) -> Result<Vec<TaskPushNotificationConfig>, A2aServerError> {
+        trace!(task_id = %params.id, "Listing task push notification configs");
         let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
             A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
         })?;
@@ -670,7 +679,7 @@ impl RequestHandler for DefaultRequestHandler {
 
         let configs = push_config_store.get_info(&params.id).await?;
 
-        let task_push_notification_configs = configs
+        let task_push_notification_configs: Vec<TaskPushNotificationConfig> = configs
             .into_iter()
             .map(|config| TaskPushNotificationConfig {
                 task_id: params.id.clone(),
@@ -678,6 +687,7 @@ impl RequestHandler for DefaultRequestHandler {
             })
             .collect();
 
+        trace!(task_id = %params.id, count = task_push_notification_configs.len(), "Listing task push notification configs completed");
         Ok(task_push_notification_configs)
     }
 
@@ -686,6 +696,7 @@ impl RequestHandler for DefaultRequestHandler {
         &self,
         params: DeleteTaskPushNotificationConfigParams,
     ) -> Result<(), A2aServerError> {
+        trace!(task_id = %params.id, config_id = %params.push_notification_config_id, "Deleting task push notification config");
         let push_config_store = self.push_config_store.as_ref().ok_or_else(|| {
             A2aServerError::UnsupportedOperationError(ErrorBuilder::default().build().unwrap())
         })?;
@@ -698,6 +709,7 @@ impl RequestHandler for DefaultRequestHandler {
             .delete_info(&params.id, Some(&params.push_notification_config_id))
             .await?;
 
+        trace!(task_id = %params.id, "Deleting task push notification config completed");
         Ok(())
     }
 }

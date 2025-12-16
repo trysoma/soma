@@ -14,7 +14,7 @@ use shared::{
         PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedSchema, WrappedUuidV4,
     },
 };
-use tracing::info;
+use tracing::trace;
 use utoipa::ToSchema;
 
 use ::encryption::logic::crypto_services::{DecryptionService, EncryptionService};
@@ -220,17 +220,43 @@ pub async fn create_resource_server_credential(
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateResourceServerCredentialParams,
 ) -> Result<CreateResourceServerCredentialResponse, CommonError> {
-    let provider_controller = get_provider_controller(&params.provider_controller_type_id)?;
+    trace!(
+        provider_type = %params.provider_controller_type_id,
+        credential_type = %params.inner.credential_controller_type_id,
+        "Creating resource server credential"
+    );
+
+    let provider_controller = get_provider_controller(&params.provider_controller_type_id)
+        .map_err(|e| {
+            tracing::error!(
+                provider_type = %params.provider_controller_type_id,
+                error = %e,
+                "Failed to get provider controller"
+            );
+            e
+        })?;
 
     let credential_controller = get_credential_controller(
         &provider_controller,
         &params.inner.credential_controller_type_id,
-    )?;
+    )
+    .map_err(|e| {
+        tracing::error!(
+            credential_type = %params.inner.credential_controller_type_id,
+            error = %e,
+            "Failed to get credential controller"
+        );
+        e
+    })?;
 
     let (resource_server_credential, mut core_metadata) = credential_controller
         .from_serialized_resource_server_configuration(
             params.inner.inner.resource_server_configuration,
-        )?;
+        )
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to deserialize resource server configuration");
+            e
+        })?;
 
     if let Some(metadata) = params.inner.inner.metadata {
         core_metadata.0.extend(metadata.0);
@@ -258,8 +284,16 @@ pub async fn create_resource_server_credential(
             resource_server_credential_serialized.clone(),
         ),
     )
-    .await?;
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "Failed to save resource server credential to database");
+        e
+    })?;
 
+    trace!(
+        credential_id = %resource_server_credential_serialized.id,
+        "Resource server credential created"
+    );
     Ok(resource_server_credential_serialized)
 }
 
@@ -439,7 +473,7 @@ async fn process_broker_outcome(
                 credential_controller_type_id: credential_controller.type_id().to_string(),
             };
 
-            info!("Saving broker state to database: {:?}", broker_state);
+            trace!(broker_state_id = %broker_state.id, "Saving broker state");
             // Save broker state to database
             repo.create_broker_state(&crate::repository::CreateBrokerState::from(
                 broker_state.clone(),
@@ -622,13 +656,12 @@ where
 // Credential Rotation Background Task
 // ============================================================================
 
-/// Background task that periodically rotates credentials
-/// This function is designed to be called in its own tokio::spawn
+/// Background task that periodically rotates credentials.
+/// This function runs indefinitely until aborted by the process manager.
 pub async fn credential_rotation_task<R>(
     repo: R,
     crypto_cache: encryption::logic::crypto_services::CryptoCache,
     on_config_change_tx: OnConfigChangeTx,
-    mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
 ) where
     R: ProviderRepositoryLike,
 {
@@ -637,31 +670,18 @@ pub async fn credential_rotation_task<R>(
     let mut timer = interval(Duration::from_secs(10 * 60)); // 10 minutes
 
     loop {
-        tokio::select! {
-            _ = timer.tick() => {
-                tracing::info!("Starting credential rotation check");
+        timer.tick().await;
+        trace!("Starting credential rotation check");
 
-                if let Err(e) = process_credential_rotations_with_window(
-                    &repo,
-                    &on_config_change_tx,
-                    &crypto_cache,
-                    20,
-                )
+        if let Err(e) =
+            process_credential_rotations_with_window(&repo, &on_config_change_tx, &crypto_cache, 20)
                 .await
-                {
-                    tracing::error!("Error processing credential rotations: {:?}", e);
-                }
-
-                tracing::info!("Completed credential rotation check");
-            }
-            _ = shutdown_rx.recv() => {
-                tracing::info!("Credential rotation task shutdown requested");
-                break;
-            }
+        {
+            tracing::error!(error = ?e, "Credential rotation failed");
         }
-    }
 
-    tracing::info!("Credential rotation task stopped");
+        trace!("Credential rotation check complete");
+    }
 }
 
 pub async fn process_credential_rotations_with_window<R>(
@@ -695,9 +715,9 @@ where
                 Some(&rotation_window_end),
             )
             .await?;
-        info!(
-            "Provider instances with credentials: {:?}",
-            provider_instances.items.len()
+        trace!(
+            count = provider_instances.items.len(),
+            "Fetched provider instances for rotation check"
         );
         next_page_token = provider_instances.next_page_token.clone();
 
@@ -705,10 +725,7 @@ where
             .items
             .iter()
             .map(async |pi| {
-                info!(
-                    "Processing credential rotation for provider instance: {:?}",
-                    pi.provider_instance.id
-                );
+                trace!(provider_instance_id = %pi.provider_instance.id, "Processing credential rotation");
                 process_credential_rotation(
                     repo,
                     on_config_change_tx,

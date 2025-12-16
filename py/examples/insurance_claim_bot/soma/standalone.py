@@ -42,9 +42,15 @@ from trysoma_sdk import (  # noqa: E402
 sys.path.insert(0, 'functions')
 from approve_claim import default as func_0  # type: ignore  # pyright: ignore  # noqa: E402
 sys.path.pop(0)
+sys.path.insert(0, 'functions')
+from research_claim import default as func_1  # type: ignore  # pyright: ignore  # noqa: E402
+sys.path.pop(0)
 
 sys.path.insert(0, 'agents')
 from index import default as agent_0  # type: ignore  # pyright: ignore  # noqa: E402
+sys.path.pop(0)
+sys.path.insert(0, 'agents')
+from claim_research_agent import default as agent_1  # type: ignore  # pyright: ignore  # noqa: E402
 sys.path.pop(0)
 
 print("SDK server starting...")
@@ -197,10 +203,66 @@ async def main() -> None:
         )
 
 
+    # Register function: research_claim
+    fn = func_1
+    if hasattr(fn, 'provider_controller') and fn.provider_controller:
+        add_provider(fn.provider_controller)
+    if (hasattr(fn, 'function_metadata') and hasattr(fn, 'provider_controller')
+            and hasattr(fn, 'handler')):
+        provider_type_id = getattr(fn.provider_controller, 'type_id')
+
+        def make_invoke_callback(
+            fn_handler: Callable[[object], Awaitable[object]],
+            input_schema: type[BaseModel] | type[object]
+        ) -> Callable[[InvokeFunctionRequest], InvokeFunctionResponse]:
+            def invoke_callback(req: InvokeFunctionRequest) -> InvokeFunctionResponse:
+                try:
+                    import json
+                    params = json.loads(getattr(req, 'parameters'))
+                    # Parse input using pydantic model if available
+                    if hasattr(input_schema, 'model_validate'):
+                        schema = cast(type[BaseModel], input_schema)
+                        parsed_input = schema.model_validate(params)
+                    else:
+                        parsed_input = params
+                    loop = asyncio.get_event_loop()
+                    result = loop.run_until_complete(fn_handler(parsed_input))
+                    # Serialize output using pydantic model if available
+                    if hasattr(result, 'model_dump_json'):
+                        from pydantic import BaseModel as PydanticBaseModel
+                        pydantic_result = cast(PydanticBaseModel, result)
+                        return InvokeFunctionResponse.success(
+                            pydantic_result.model_dump_json()
+                        )
+                    else:
+                        return InvokeFunctionResponse.success(json.dumps(result))
+                except Exception as e:
+                    return InvokeFunctionResponse.failure(str(e))
+            return invoke_callback
+
+        update_function(
+            provider_type_id,
+            fn.function_metadata,
+            make_invoke_callback(fn.handler, fn.input_schema)
+        )
+
+
     # Register all agents
 
     # Register agent: index
     agent = agent_0
+    if (hasattr(agent, 'agent_id') and hasattr(agent, 'project_id')
+            and hasattr(agent, 'name') and hasattr(agent, 'description')):
+        add_agent(Agent(
+            agent.agent_id,
+            agent.project_id,
+            agent.name,
+            agent.description,
+        ))
+
+
+    # Register agent: claim_research_agent
+    agent = agent_1
     if (hasattr(agent, 'agent_id') and hasattr(agent, 'project_id')
             and hasattr(agent, 'name') and hasattr(agent, 'description')):
         add_agent(Agent(
@@ -267,10 +329,24 @@ async def main() -> None:
             await wrap_handler(
                 agent_0.entrypoint, agent_0
             )(ctx, input_data)
+        # Create Virtual Object for agent
+        agent_1_object = restate.VirtualObject(
+            f"{agent_1.project_id}.{agent_1.agent_id}"
+        )
+        
+        @agent_1_object.handler("entrypoint")
+        async def agent_1_entrypoint(
+            ctx: restate.ObjectContext,
+            input_data: dict[str, str]
+        ) -> None:
+            await wrap_handler(
+                agent_1.entrypoint, agent_1
+            )(ctx, input_data)
 
         # Create Restate app with services
         restate_services_list = [
-        agent_0_object
+        agent_0_object,
+        agent_1_object,
         ]
         app = restate.app(services=restate_services_list)
 

@@ -74,6 +74,20 @@ export type ApproveClaimApproveClaimParams = {
 };
 export type ApproveClaimApproveClaimResult = { approved: boolean };
 
+export type ResearchClaimResearchClaimParams = {
+	claim: {
+		amount: number;
+		category: string;
+		date: string;
+		email: string;
+		reason: string;
+	};
+};
+export type ResearchClaimResearchClaimResult = { summary: string };
+
+export type StripeStripeProcessRefundParams = { refund_id: string };
+export type StripeStripeProcessRefundResult = { success: boolean };
+
 // Provider: approve-claim
 export interface ApproveClaim {
 	internal: {
@@ -83,8 +97,30 @@ export interface ApproveClaim {
 	};
 }
 
+// Provider: research-claim
+export interface ResearchClaim {
+	internal: {
+		researchClaim: (
+			params: ResearchClaimResearchClaimParams,
+		) => Promise<ResearchClaimResearchClaimResult>;
+	};
+}
+
+// Provider: stripe
+export interface Stripe {
+	"internal-2": {
+		processRefund: (
+			params: StripeStripeProcessRefundParams,
+		) => Promise<StripeStripeProcessRefundResult>;
+	};
+}
+
 export interface Bridge {
 	approveClaim: ApproveClaim;
+
+	researchClaim: ResearchClaim;
+
+	stripe: Stripe;
 }
 
 export type BridgeDefinition = Bridge;
@@ -108,8 +144,52 @@ export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
 					"approve-claim",
 					"internal",
 					"approveClaim",
-					"d609a802-4b45-47db-82d9-e566510e01a4",
+					"1b8c7dd2-45a9-4c82-8a9f-69cdb732883e",
 					"approve-claim",
+					params,
+					baseUrl,
+				);
+			},
+		},
+	};
+
+	const researchClaim: ResearchClaim = {
+		internal: {
+			researchClaim: async (
+				params: ResearchClaimResearchClaimParams,
+			): Promise<ResearchClaimResearchClaimResult> => {
+				return invokeBridgeFunction<
+					ResearchClaimResearchClaimParams,
+					ResearchClaimResearchClaimResult
+				>(
+					ctx,
+					"research-claim",
+					"internal",
+					"researchClaim",
+					"452b1c4c-6ba7-4284-b362-2431750569fc",
+					"research-claim",
+					params,
+					baseUrl,
+				);
+			},
+		},
+	};
+
+	const stripe: Stripe = {
+		"internal-2": {
+			processRefund: async (
+				params: StripeStripeProcessRefundParams,
+			): Promise<StripeStripeProcessRefundResult> => {
+				return invokeBridgeFunction<
+					StripeStripeProcessRefundParams,
+					StripeStripeProcessRefundResult
+				>(
+					ctx,
+					"stripe",
+					"internal-2",
+					"processRefund",
+					"da61de4c-3363-467e-bcf9-977a668aeb1d",
+					"stripe_process_refund",
 					params,
 					baseUrl,
 				);
@@ -119,5 +199,9 @@ export function getBridge(ctx: ObjectContext, config?: BridgeConfig): Bridge {
 
 	return {
 		approveClaim: approveClaim,
+
+		researchClaim: researchClaim,
+
+		stripe: stripe,
 	};
 }

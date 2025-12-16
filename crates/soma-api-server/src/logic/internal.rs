@@ -8,14 +8,14 @@ use shared::error::CommonError;
 use shared::uds::{DEFAULT_SOMA_SERVER_SOCK, create_soma_unix_socket_client};
 use tokio::sync::Mutex;
 use tonic::{Request, transport::Channel};
-use tracing::{error, info, warn};
+use tracing::{debug, error, trace, warn};
 use utoipa::ToSchema;
 
 use crate::logic::environment_variable_sync::{
     fetch_all_environment_variables, sync_environment_variables_to_sdk,
 };
 use crate::logic::secret_sync::{fetch_and_decrypt_all_secrets, sync_secrets_to_sdk};
-use crate::sdk::sdk_provider_sync;
+use crate::sdk::{sdk_agent_sync, sdk_provider_sync};
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct CheckSdkHealthResponse {}
@@ -37,11 +37,11 @@ pub async fn check_sdk_health(
     let request = Request::new(());
     match client.health_check(request).await {
         Ok(_) => {
-            info!("SDK server health check passed");
+            trace!("SDK server health check passed");
             Ok(CheckSdkHealthResponse {})
         }
         Err(e) => {
-            warn!("SDK server health check failed: {:?}", e);
+            debug!(error = ?e, "SDK server health check failed");
             Err(CommonError::Unknown(anyhow::anyhow!(
                 "SDK server health check failed: {e}"
             )))
@@ -56,6 +56,7 @@ pub struct TriggerCodegenResponse {}
 pub async fn trigger_codegen(
     sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
     bridge_repo: &impl ProviderRepositoryLike,
+    agent_cache: &sdk_agent_sync::AgentCache,
 ) -> Result<TriggerCodegenResponse, CommonError> {
     let mut sdk_client_guard = sdk_client.lock().await;
 
@@ -68,7 +69,12 @@ pub async fn trigger_codegen(
         }
     };
 
-    crate::logic::bridge::codegen::trigger_bridge_client_generation(client, bridge_repo).await?;
+    crate::logic::bridge::codegen::trigger_bridge_client_generation(
+        client,
+        bridge_repo,
+        agent_cache,
+    )
+    .await?;
 
     Ok(TriggerCodegenResponse {})
 }
@@ -85,25 +91,26 @@ pub struct ResyncResult {
 pub struct ResyncSdkResponse {}
 
 /// Resync SDK: fetches metadata from SDK, syncs providers/agents to bridge registry,
-/// registers Restate deployments, and syncs secrets/env vars to SDK
+/// registers Restate deployments, syncs secrets/env vars to SDK, and triggers codegen
 pub async fn resync_sdk(
     repository: &std::sync::Arc<crate::repository::Repository>,
     crypto_cache: &CryptoCache,
     restate_params: &crate::restate::RestateServerParams,
     sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
+    agent_cache: &sdk_agent_sync::AgentCache,
+    bridge_repo: &impl bridge::repository::ProviderRepositoryLike,
 ) -> Result<ResyncSdkResponse, CommonError> {
     let mut sdk_client_guard = sdk_client.lock().await;
 
     // Try to reconnect to SDK server (it may have restarted)
-    info!("Resync: Reconnecting to SDK server...");
+    trace!("Reconnecting to SDK server");
     match create_soma_unix_socket_client(DEFAULT_SOMA_SERVER_SOCK).await {
         Ok(new_client) => {
-            info!("Resync: Successfully reconnected to SDK server");
+            trace!("Reconnected to SDK server");
             *sdk_client_guard = Some(new_client);
         }
         Err(e) => {
-            warn!("Resync: Failed to reconnect to SDK server: {:?}", e);
-            // Continue with existing client if reconnect fails
+            debug!(error = ?e, "Failed to reconnect to SDK server, using existing client");
         }
     }
 
@@ -124,46 +131,83 @@ pub async fn resync_sdk(
 
     let metadata = response.into_inner();
 
-    info!(
-        "Fetched SDK metadata: {} providers, {} agents",
-        metadata.bridge_providers.len(),
-        metadata.agents.len()
+    debug!(
+        providers = metadata.bridge_providers.len(),
+        agents = metadata.agents.len(),
+        "Fetched SDK metadata"
     );
 
     // Sync providers to bridge registry
     sdk_provider_sync::sync_providers_from_metadata(&metadata)?;
 
+    // Capture existing agent IDs before syncing to detect removed agents
+    let old_agent_ids = sdk_agent_sync::get_all_agent_ids(agent_cache);
+
+    // Sync agents to cache (this clears and repopulates)
+    sdk_agent_sync::sync_agents_from_metadata(agent_cache, &metadata);
+
     let providers_synced = metadata.bridge_providers.len();
     let agents_synced = metadata.agents.len();
 
+    // Find and unregister removed agents
+    let removed_agents = sdk_agent_sync::find_removed_agents(&old_agent_ids, &metadata);
+    for (project_id, agent_id) in &removed_agents {
+        let restate_service_id = format!("{project_id}.{agent_id}");
+        debug!(project_id, agent_id, "Unregistering removed agent");
+        if let Err(e) = unregister_agent_deployment(&restate_service_id, restate_params).await {
+            warn!(project_id, agent_id, error = ?e, "Failed to unregister agent");
+        }
+    }
+    if !removed_agents.is_empty() {
+        debug!(count = removed_agents.len(), "Unregistered removed agents");
+    }
+
     // Register Restate deployments for agents
     if !metadata.agents.is_empty() {
-        for agent in metadata.agents {
+        for agent in &metadata.agents {
             let restate_service_id = format!("{}.{}", agent.project_id, agent.id);
-            register_agent_deployment(agent, restate_params, &restate_service_id).await?;
+            register_agent_deployment(agent.clone(), restate_params, &restate_service_id).await?;
         }
     }
 
     // Sync secrets to SDK
     let secrets = fetch_and_decrypt_all_secrets(repository, crypto_cache).await?;
     let secrets_count = secrets.len();
-    info!("Syncing {} secrets to SDK", secrets_count);
     if !secrets.is_empty() {
+        trace!(count = secrets_count, "Syncing secrets to SDK");
         sync_secrets_to_sdk(client, secrets).await?;
     }
 
     // Sync environment variables to SDK
     let env_vars = fetch_all_environment_variables(repository).await?;
     let env_vars_count = env_vars.len();
-    info!("Syncing {} environment variables to SDK", env_vars_count);
     if !env_vars.is_empty() {
+        trace!(
+            count = env_vars_count,
+            "Syncing environment variables to SDK"
+        );
         sync_environment_variables_to_sdk(client, env_vars).await?;
     }
 
-    info!(
-        "SDK resync complete: {} providers, {} agents, {} secrets, {} env vars",
-        providers_synced, agents_synced, secrets_count, env_vars_count
+    debug!(
+        providers = providers_synced,
+        agents = agents_synced,
+        secrets = secrets_count,
+        env_vars = env_vars_count,
+        "SDK resync complete"
     );
+
+    // Trigger bridge client generation (includes agents now that they're synced)
+    trace!("Triggering bridge client generation");
+    if let Err(e) = crate::logic::bridge::codegen::trigger_bridge_client_generation(
+        client,
+        bridge_repo,
+        agent_cache,
+    )
+    .await
+    {
+        warn!(error = ?e, "Failed to trigger bridge client generation");
+    }
 
     Ok(ResyncSdkResponse {})
 }
@@ -182,9 +226,10 @@ async fn register_agent_deployment(
         additional_headers: restate_server_params.get_soma_restate_service_additional_headers(),
     };
 
-    info!(
-        "Registering service path: {} with service address: {}",
-        restate_service_id, service_address
+    debug!(
+        service_path = %restate_service_id,
+        service_address = %service_address,
+        "Registering Restate deployment"
     );
 
     let admin_url = restate_server_params.get_admin_address()?;
@@ -200,14 +245,70 @@ async fn register_agent_deployment(
 
     match restate::deploy::register_deployment(config).await {
         Ok(metadata) => {
-            info!(
-                "Successfully registered agent '{}' (service: {})",
-                agent.name, metadata.name
-            );
+            trace!(agent = %agent.name, service = %metadata.name, "Registered agent");
         }
         Err(e) => {
-            error!("Failed to register agent '{}': {:?}", agent.name, e);
-            // Continue with other agents even if one fails
+            error!(agent = %agent.name, error = ?e, "Failed to register agent");
+        }
+    }
+
+    Ok(())
+}
+
+/// Unregister a Restate deployment for a removed agent.
+/// Finds the deployment containing the service and removes it.
+async fn unregister_agent_deployment(
+    restate_service_id: &str,
+    restate_server_params: &crate::restate::RestateServerParams,
+) -> Result<(), CommonError> {
+    use shared::restate::admin_client::AdminClient;
+    use shared::restate::admin_interface::{AdminClientInterface, Deployment};
+
+    let admin_url = restate_server_params.get_admin_address()?;
+    let client = AdminClient::new(admin_url, restate_server_params.get_admin_token()).await?;
+    // Ensure the server is healthy before querying deployments
+    client.ensure_healthy().await?;
+
+    // Get all deployments to find the one containing this service
+    let deployments_response = client
+        .get_deployments()
+        .await
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to get deployments: {e}")))?;
+
+    let deployments = deployments_response
+        .into_body()
+        .await
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to parse deployments: {e}")))?;
+
+    // Find and remove deployments containing this service
+    for deployment_response in deployments.deployments {
+        let (deployment_id, _deployment, services) =
+            Deployment::from_deployment_response(deployment_response);
+
+        let has_service = services.iter().any(|s| s.name == restate_service_id);
+        if has_service {
+            trace!(deployment_id = %deployment_id, service = %restate_service_id, "Removing deployment");
+
+            match client
+                .remove_deployment(&deployment_id.to_string(), true)
+                .await
+            {
+                Ok(response) => {
+                    if response.status_code().is_success() {
+                        trace!(service = %restate_service_id, "Removed deployment");
+                    } else {
+                        warn!(
+                            service = %restate_service_id,
+                            status = %response.status_code(),
+                            "Unexpected status removing deployment"
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!(service = %restate_service_id, error = ?e, "Failed to remove deployment");
+                }
+            }
+            break;
         }
     }
 

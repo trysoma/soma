@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
 use soma_api_client::apis::configuration::Configuration as ApiClientConfiguration;
 use tokio::sync::{Mutex, MutexGuard};
-use tracing::info;
+use tracing::debug;
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct CliUser {
@@ -84,14 +84,22 @@ pub fn get_config_file_path() -> Result<PathBuf, CommonError> {
 
 pub async fn get_or_init_cli_config() -> Result<CliConfig, CommonError> {
     let config_file_path = get_config_file_path()?;
-    info!("Config file path: {:?}", config_file_path);
+    debug!(
+        "We are looking for the config file at: {:?}",
+        config_file_path
+    );
     let config = match config_file_path.exists() {
         true => {
+            debug!("Config file found at: {:?}", config_file_path);
             let config_file = File::open(config_file_path)?;
             let config = serde_json::from_reader(config_file)?;
             CliConfig::new(config)
         }
         false => {
+            debug!(
+                "Config file not found at: {:?}, creating it",
+                config_file_path
+            );
             fs::create_dir_all(config_file_path.parent().unwrap())?;
             let config = CliConfigInner {
                 cloud: CloudConfig {
@@ -166,7 +174,7 @@ pub async fn create_and_wait_for_api_client(
     api_url: &str,
     timeout_secs: u64,
 ) -> Result<ApiClientConfiguration, CommonError> {
-    use soma_api_client::apis::a2a_api;
+    use soma_api_client::apis::agent_api;
     use std::time::Duration;
 
     // Create HTTP client
@@ -187,15 +195,15 @@ pub async fn create_and_wait_for_api_client(
     };
 
     // Wait for API to be ready
-    info!("Waiting for Soma API server at {} to be ready...", api_url);
+    tracing::debug!(url = %api_url, "Waiting for Soma API server");
 
     let max_retries = timeout_secs / 2; // Check every 2 seconds
     let mut connected = false;
 
     for attempt in 1..=max_retries {
-        match a2a_api::get_agent_card(&api_config).await {
+        match agent_api::list_agents(&api_config).await {
             Ok(_) => {
-                info!("Connected to Soma API server successfully");
+                tracing::debug!("Connected to Soma API server");
                 connected = true;
                 break;
             }
@@ -206,10 +214,7 @@ pub async fn create_and_wait_for_api_client(
                     )));
                 }
                 if attempt == 1 {
-                    info!(
-                        "Waiting for server... (attempt {}/{})",
-                        attempt, max_retries
-                    );
+                    tracing::trace!(attempt = attempt, max = max_retries, "Waiting for server");
                 }
                 tokio::time::sleep(Duration::from_secs(2)).await;
             }
@@ -254,17 +259,17 @@ pub async fn wait_for_soma_api_health_check(
 
         match client.get(&health_url).send().await {
             Ok(response) if response.status().is_success() => {
-                info!("Health check successful at {}", health_url);
+                tracing::trace!(url = %health_url, "Health check passed");
                 return Ok(());
             }
             Ok(response) => {
-                info!(
-                    "Health check returned status {}, retrying...",
-                    response.status()
+                tracing::trace!(
+                    status = %response.status(),
+                    "Health check returned non-success, retrying"
                 );
             }
             Err(e) => {
-                info!("Health check failed: {}, retrying...", e);
+                tracing::trace!(error = %e, "Health check failed, retrying");
             }
         }
 

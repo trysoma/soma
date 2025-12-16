@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use futures::stream::Stream;
 use tokio::sync::Mutex;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace};
 
 use crate::{
     errors::{A2aServerError, ErrorBuilder},
@@ -23,11 +23,10 @@ impl EventConsumerExt for EventConsumer {
         match self.consume_one_blocking().await {
             Ok(event) => Some(event),
             Err(e) => {
-                // Only log as debug for queue closed, as this is expected
                 if e.to_string().contains("Queue is closed") {
-                    debug!("Queue closed, stopping event stream");
+                    trace!("Queue closed, stopping event stream");
                 } else {
-                    warn!("Error consuming event: {:?}", e);
+                    debug!(error = ?e, "Error consuming event");
                 }
                 None
             }
@@ -69,26 +68,28 @@ impl ResultAggregator {
 
         match event {
             Event::Task(task) => {
-                debug!("Processing Task event for task_id: {}", task.id);
+                trace!(task_id = %task.id, "Processing Task event");
                 let saved_task = task_manager.save_task(task).await?;
                 Ok(AggregatedResult::Task(saved_task))
             }
             Event::Message(message) => {
-                debug!("Processing Message event");
+                trace!("Processing Message event");
                 Ok(AggregatedResult::Message(message))
             }
             Event::TaskStatusUpdate(status_update) => {
-                debug!(
-                    "Processing TaskStatusUpdate event for task_id: {} with state: {:?}",
-                    status_update.task_id, status_update.status.state
+                trace!(
+                    task_id = %status_update.task_id,
+                    state = ?status_update.status.state,
+                    "Processing TaskStatusUpdate"
                 );
                 let updated_task = task_manager.save_task_status_update(status_update).await?;
                 Ok(AggregatedResult::Task(updated_task))
             }
             Event::TaskArtifactUpdate(artifact_update) => {
-                debug!(
-                    "Processing TaskArtifactUpdate event for task_id: {} with artifact_id: {}",
-                    artifact_update.task_id, artifact_update.artifact.artifact_id
+                trace!(
+                    task_id = %artifact_update.task_id,
+                    artifact_id = %artifact_update.artifact.artifact_id,
+                    "Processing TaskArtifactUpdate"
                 );
                 let updated_task = task_manager
                     .save_task_artifact_update(artifact_update)
@@ -137,12 +138,12 @@ impl ResultAggregator {
                     *self.current_result.lock().await = Some(result);
 
                     if is_terminal {
-                        debug!("Reached terminal state, stopping consumption");
+                        trace!("Terminal state reached");
                         break;
                     }
                 }
                 Err(e) => {
-                    error!("Error processing event: {:?}", e);
+                    error!(error = ?e, "Error processing event");
                     return Err(e);
                 }
             }
@@ -178,18 +179,18 @@ impl ResultAggregator {
                     *self.current_result.lock().await = Some(result);
 
                     if is_terminal {
-                        debug!("Reached terminal state, stopping consumption");
+                        trace!("Terminal state reached");
                         break;
                     }
 
                     if is_interrupt {
-                        debug!("Reached interrupt state (action required), pausing consumption");
+                        trace!("Interrupt state reached (action required)");
                         interrupted = true;
                         break;
                     }
                 }
                 Err(e) => {
-                    error!("Error processing event: {:?}", e);
+                    error!(error = ?e, "Error processing event");
                     return Err(e);
                 }
             }
@@ -216,21 +217,18 @@ impl ResultAggregator {
                 match self.process_event(event_clone.clone()).await {
                     Ok(result) => {
                         if Self::is_terminal_state(&result) {
-                            debug!("Terminal state reached in stream");
+                            trace!("Terminal state reached in stream");
                         }
-                        // Only yield the event if it was processed successfully
                         yield event;
                     }
                     Err(e) => {
-                        // Log the error but continue processing other events
                         let error_msg = e.to_string();
                         if error_msg.contains("Task not found") ||
                            error_msg.contains("task_id is not set") {
-                            debug!("Skipping event due to missing task information: {:?}", e);
+                            trace!(error = ?e, "Skipping event due to missing task info");
                         } else {
-                            error!("Error processing event in stream: {:?}", e);
+                            error!(error = ?e, "Error processing event in stream");
                         }
-                        // Don't yield events that failed to process
                     }
                 }
             }

@@ -6,7 +6,7 @@ use crate::error::CommonError;
 use libsql::params::IntoParams;
 use libsql::{BatchRows, Database, Rows};
 use tempfile::TempDir;
-use tracing::info;
+use tracing::debug;
 use url::Url;
 
 pub async fn write_migrations_to_temp_dir(
@@ -57,7 +57,7 @@ macro_rules! execute_with_retry {
                         let err_str = err.to_string();
                         if err_str.contains("database is locked") || err_str.contains("SQLITE_BUSY")
                         {
-                            tracing::warn!("Database is locked, retrying... {:?}", err);
+                            tracing::trace!(retry = _retries, "Database locked, retrying");
                             if _retries >= _max_retries {
                                 break Err(err);
                             }
@@ -68,7 +68,7 @@ macro_rules! execute_with_retry {
                             let delay_us = 10_000 * (1 << _retries.min(6));
                             tokio::time::sleep(std::time::Duration::from_micros(delay_us)).await;
                         } else {
-                            tracing::error!("Error executing with retry: {:?}", err);
+                            tracing::debug!(error = ?err, "Database execute failed");
                             break Err(err);
                         }
                     }
@@ -371,7 +371,7 @@ pub async fn establish_db_connection<'a>(
 
     let (db, conn) = match connection_type {
         ConnectionType::Local(params) => {
-            info!("establishing local connection");
+            debug!("establishing local connection");
             let db = libsql::Builder::new_local(params.path_to_db_file.clone())
                 .build()
                 .await?;
@@ -382,7 +382,7 @@ pub async fn establish_db_connection<'a>(
             (db, conn)
         }
         ConnectionType::RemoteReplica(params) => {
-            info!("establishing remote replica connection");
+            debug!("establishing remote replica connection");
             create_db_file_parent_dir(params.path_to_db_file.parent()).await?;
             let db = libsql::Builder::new_remote_replica(
                 params.path_to_db_file.clone(),
@@ -396,6 +396,7 @@ pub async fn establish_db_connection<'a>(
             (db, conn)
         }
         ConnectionType::Remote(params) => {
+            debug!("establishing remote connection");
             let db =
                 libsql::Builder::new_remote(params.remote_url.clone(), params.auth_token.clone())
                     .build()

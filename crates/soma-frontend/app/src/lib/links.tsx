@@ -1,10 +1,17 @@
 export const LINKS = {
-	A2A: () => `/a2a`,
-	A2A_CHAT: () => `/a2a/chat`,
+	// Agents list page
+	AGENTS: () => `/agent`,
+	// Agent-specific A2A routes: /agent/{projectId}/{agentId}/a2a/...
+	AGENT_A2A_OVERVIEW: (projectId: string, agentId: string) =>
+		`/agent/${projectId}/${agentId}/a2a/overview`,
+	AGENT_A2A_CHAT_DEBUGGER: (projectId: string, agentId: string) =>
+		`/agent/${projectId}/${agentId}/a2a/chat-debugger`,
 	BRIDGE: () => `/bridge`,
 	BRIDGE_ENABLE_FUNCTIONS: () => `/bridge/enable-functions`,
 	BRIDGE_MANAGE_CREDENTIALS: () => `/bridge/manage-credentials`,
-	BRIDGE_MCP_INSPECTOR: () => `/bridge/mcp-inspector`,
+	BRIDGE_MCP_SERVERS: () => `/bridge/mcp-servers`,
+	// Legacy - kept for backwards compatibility, redirects to MCP Servers tab
+	BRIDGE_MCP_INSPECTOR: () => `/bridge/mcp-servers`,
 
 	// Enable Functions - Dynamic links with functionControllerId parameter
 	BRIDGE_ENABLE_FUNCTIONS_FUNCTION: (functionControllerId: string) =>
@@ -29,4 +36,10 @@ export const LINKS = {
 		`/bridge/manage-credentials/${providerInstanceId}/functions`,
 	BRIDGE_MANAGE_CREDENTIALS_DELETE: (providerInstanceId: string) =>
 		`/bridge/manage-credentials/${providerInstanceId}/delete`,
+
+	// MCP Servers - Dynamic links with mcpServerInstanceId parameter
+	BRIDGE_MCP_SERVER_CONFIGURE: (mcpServerInstanceId: string) =>
+		`/bridge/mcp-servers/${mcpServerInstanceId}/configure`,
+	BRIDGE_MCP_SERVER_INSPECTOR: (mcpServerInstanceId: string) =>
+		`/bridge/mcp-servers/${mcpServerInstanceId}/inspector`,
 };

@@ -70,10 +70,12 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
             import_path = str(path.parent)
             module_name = path.stem
             function_imports.append(
-                f"sys.path.insert(0, {repr(import_path)})\n"
-                f"from {module_name} import default as {var_name}  "
-                f"# type: ignore  # pyright: ignore  # noqa: E402\n"
-                f"sys.path.pop(0)"
+                f"sys.path.insert(0, {repr(import_path)})"
+                + chr(10)
+                + f"from {module_name} import default as {var_name}  "
+                + "# type: ignore  # pyright: ignore  # noqa: E402"
+                + chr(10)
+                + "sys.path.pop(0)"
             )
         else:
             # In production, import from built modules
@@ -132,10 +134,12 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
             import_path = str(path.parent)
             module_name = path.stem
             agent_imports.append(
-                f"sys.path.insert(0, {repr(import_path)})\n"
-                f"from {module_name} import default as {var_name}  "
-                f"# type: ignore  # pyright: ignore  # noqa: E402\n"
-                f"sys.path.pop(0)"
+                f"sys.path.insert(0, {repr(import_path)})"
+                + chr(10)
+                + f"from {module_name} import default as {var_name}  "
+                + "# type: ignore  # pyright: ignore  # noqa: E402"
+                + chr(10)
+                + "sys.path.pop(0)"
             )
         else:
             module_path = f"agents.{name.replace('/', '.')}"
@@ -216,14 +220,14 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
             raise RuntimeError("RESTATE_SERVICE_PORT environment variable is not set")
 
         restate_port = int(restate_service_port)
-        print(f"Starting Restate server on port {{restate_port}}...")
+        print(f"[Restate] Starting on port {{restate_port}}")
 
         # Create Virtual Objects for agents
 {chr(10).join(restate_services)}
 
         # Create Restate app with services
         restate_services_list = [
-{chr(10).join([f"        agent_{idx}_object" for idx in range(len(agent_files))])}
+{chr(10).join([f"        agent_{idx}_object," for idx in range(len(agent_files))])}
         ]
         app = restate.app(services=restate_services_list)
 
@@ -261,8 +265,8 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
         try:
             await wait_for_port_free(restate_port)
         except RuntimeError as e:
-            print(f"Error: {{e}}")
-            print(f"Attempting to kill process on port {{restate_port}}...")
+            print(f"[Restate] Error: {{e}}")
+            print(f"[Restate] Killing process on port {{restate_port}}")
             import subprocess
             try:
                 # Find and kill the process using the port
@@ -276,12 +280,10 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
                     for pid in pids:
                         if pid:
                             subprocess.run(["kill", "-9", pid], check=False)
-                            print(f"Killed process {{pid}}")
                     # Wait a bit for the port to be released
                     await asyncio.sleep(1.0)
             except Exception as kill_error:
-                print(f"Failed to kill process: {{kill_error}}")
-                print(f"Please manually kill the process using port {{restate_port}} and restart")
+                print(f"[Restate] Failed to kill process: {{kill_error}}")
                 raise SystemExit(1)
 
         # Create shutdown event for graceful Hypercorn shutdown
@@ -290,7 +292,7 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
 
         def trigger_shutdown() -> None:
             \"\"\"Signal handler to trigger graceful shutdown.\"\"\"
-            print("\\n[Shutdown] Received shutdown signal, initiating graceful shutdown...")
+            print("\\n[SDK] Shutting down")
             shutdown_event.set()
 
         # Register signal handlers to trigger graceful shutdown
@@ -313,44 +315,33 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
         # Set graceful timeout for shutdown
         conf.graceful_timeout = 5.0
 
-        print(f"[Restate] Starting Restate server on port {{restate_port}}...")
+        print(f"[Restate] Starting server on port {{restate_port}}")
 
         # Start server in background task with shutdown_trigger
         server_task = None
 
         async def start_server() -> None:
-            print("[Restate] Hypercorn server task starting...")
             try:
-                # Pass shutdown_trigger to Hypercorn for graceful shutdown
                 await hypercorn.asyncio.serve(
                     app,
                     conf,
                     shutdown_trigger=shutdown_event.wait
                 )
-                print("[Restate] Hypercorn server stopped gracefully")
             except Exception as e:
-                print(f"[Restate] Error in Hypercorn server: {{e}}")
+                print(f"[Restate] Server error: {{e}}")
                 raise
             finally:
-                # Clean up gRPC service on shutdown
-                print("[Shutdown] Cleaning up gRPC service...")
                 try:
                     kill_grpc_service()
-                    print("[Shutdown] gRPC service killed successfully")
                 except Exception as cleanup_error:
-                    print(f"[Shutdown] Error cleaning up gRPC service: {{cleanup_error}}")
+                    print(f"[SDK] gRPC cleanup error: {{cleanup_error}}")
 
         server_task = asyncio.create_task(start_server())
-        print(f"[Restate] Server task created, waiting for port {{restate_port}} to be listening...")
 
-        # Wait for server to be listening
         await wait_for_port_listening(restate_port)
-        print(f"[Restate] ✓ Server is listening on port {{restate_port}}")
+        print(f"[Restate] Listening on port {{restate_port}}")
 
-        # Give the server a moment to fully initialize HTTP/2 endpoints
-        print("[Restate] Waiting 1 second for HTTP/2 endpoints to initialize...")
         await asyncio.sleep(1.0)
-        print("[Restate] HTTP/2 initialization complete")
 
         # Trigger resync in a separate thread to avoid blocking the asyncio event loop
         # Use threading.Thread instead of asyncio task to ensure it doesn't interfere
@@ -360,105 +351,65 @@ def generate_standalone_server(base_dir: Path, is_dev: bool = False) -> str:
         def trigger_resync_thread() -> None:
             """Trigger resync with API server in a separate thread."""
             try:
-                # Additional delay to ensure server is fully ready before resync
                 time.sleep(0.5)
-                print("[Resync] Starting resync in background thread...")
 
-                # Create a new event loop for this thread since resync_sdk is async
                 async def run_resync() -> None:
                     max_retries = 10
                     base_delay_ms = 500
-                    resync_success = False
 
                     for attempt in range(1, max_retries + 1):
-                        if resync_success:
-                            break
-                        print(
-                            f"[Resync] Triggering resync with API server "
-                            f"(attempt {{attempt}}/{{max_retries}})..."
-                        )
                         try:
-                            # resync_sdk is now async, so we await it
-                            print("[Resync] Calling resync_sdk()...")
                             await resync_sdk()
-                            print("[Resync] ✓ Resync with API server completed successfully")
-                            resync_success = True
+                            print("[SDK] Resync completed")
+                            return
                         except Exception as error:
-                            print(f"[Resync] Resync attempt {{attempt}} failed: {{error}}")
                             if attempt < max_retries:
                                 delay_ms = base_delay_ms * attempt
-                                print(f"[Resync] Retrying in {{delay_ms}}ms...")
+                                print(f"[SDK] Resync failed, retrying in {{delay_ms}}ms")
                                 await asyncio.sleep(delay_ms / 1000)
                             else:
-                                print(f"[Resync] ✗ Initial resync failed after {{max_retries}} attempts: {{error}}")
-                                print("[Resync] This is OK - the server is running and resync will succeed on retry (e.g., on file changes)")
-                                # Don't exit - server is running, resync will work later
+                                print(f"[SDK] Resync failed after {{max_retries}} attempts: {{error}}")
 
-                # Run the async function in a new event loop for this thread
                 asyncio.run(run_resync())
             except Exception as e:
-                # Catch any unexpected errors in the resync thread to prevent it from crashing
-                print(f"[Resync] Unexpected error in resync thread: {{e}}")
-                import traceback
-                traceback.print_exc()
+                print(f"[SDK] Resync thread error: {{e}}")
 
-        # Start resync in a daemon thread - completely separate from asyncio event loop
-        print("[Resync] Starting resync thread...")
         try:
             resync_thread = threading.Thread(target=trigger_resync_thread, daemon=True)
             resync_thread.start()
-            print("[Resync] Resync thread started successfully")
         except Exception as e:
-            print(f"[Resync] Failed to start resync thread: {{e}}")
-            import traceback
-            traceback.print_exc()
-            # Don't fail server startup if resync thread can't be created
+            print(f"[SDK] Failed to start resync thread: {{e}}")
 
-        # Keep server running until shutdown is triggered
-        print("[Restate] Server is running, awaiting server task...")
         await server_task
-        print("[Shutdown] Server shutdown complete")
     except ImportError:
-        print("Restate SDK not available, skipping agent server startup")
+        print("[SDK] Restate SDK not available")
 
-        # Trigger resync with API server (no agents case)
         max_retries = 10
         base_delay_ms = 500
-        resync_success = False
 
         for attempt in range(1, max_retries + 1):
-            if resync_success:
-                break
-            print(
-                f"Triggering resync with API server "
-                f"(attempt {{attempt}}/{{max_retries}})..."
-            )
             try:
                 await resync_sdk()
-
-                print("Resync with API server completed successfully")
-                resync_success = True
+                print("[SDK] Resync completed")
+                break
             except Exception as error:
                 if attempt < max_retries:
                     delay_ms = base_delay_ms * attempt
-                    print(f"Resync failed, retrying in {{delay_ms}}ms...")
+                    print(f"[SDK] Resync failed, retrying in {{delay_ms}}ms")
                     await asyncio.sleep(delay_ms / 1000)
                 else:
-                    print(f"Failed to resync with API server after all retries: {{error}}")
+                    print(f"[SDK] Resync failed after {{max_retries}} attempts: {{error}}")
 
-        # Keep the process alive if Restate is not available
         stop_event = asyncio.Event()
 
         def handle_signal(
             signum: int, frame: types.FrameType | None
         ) -> None:
-            print("\\nShutting down...")
-            # Clean up gRPC service on shutdown
+            print("\\n[SDK] Shutting down")
             try:
                 kill_grpc_service()
-                print("gRPC service killed successfully")
             except Exception as cleanup_error:
-                print(f"Error cleaning up gRPC service: {{cleanup_error}}")
+                print(f"[SDK] gRPC cleanup error: {{cleanup_error}}")
             stop_event.set()
 
         signal.signal(signal.SIGINT, handle_signal)
@@ -513,7 +464,7 @@ from trysoma_sdk import (  # noqa: E402
 
 {chr(10).join(agent_imports)}
 
-print("SDK server starting...")
+print("[SDK] Starting")
 
 
 async def main() -> None:
@@ -523,99 +474,49 @@ async def main() -> None:
 
     await start_grpc_server(socket_path, project_dir)
 
-    print(f"gRPC server started on {{socket_path}}")
-
-    # Register secret handler
-    print("[INFO] Registering secret handler...")
+    print(f"[SDK] gRPC server started on {{socket_path}}")
 
     def secret_handler(secrets: list[Secret]) -> SetSecretsResponse:
-        secret_keys = [getattr(s, 'key') for s in secrets]
-        print(
-            f"[INFO] Secret handler invoked with {{len(secrets)}} secrets: "
-            f"{{', '.join(secret_keys)}}"
-        )
-
+        print(f"[SDK] Setting {{len(secrets)}} secrets")
         for secret in secrets:
             os.environ[getattr(secret, 'key')] = getattr(secret, 'value')
-            print(f"[INFO] Set os.environ.{{getattr(secret, 'key')}}")
-
-        message = f"Injected {{len(secrets)}} secrets into os.environ"
-        print(f"[INFO] Secret handler completed: {{message}}")
         from trysoma_sdk_core import SetSecretsSuccess
-        return SetSecretsResponse(data=SetSecretsSuccess(message))
+        return SetSecretsResponse(data=SetSecretsSuccess(f"Injected {{len(secrets)}} secrets"))
 
     set_secret_handler(secret_handler)
-    print("[INFO] Secret handler registered successfully")
-
-    # Register environment variable handler
-    print("[INFO] Registering environment variable handler...")
 
     def env_var_handler(
         env_vars: list[EnvironmentVariable]
     ) -> SetEnvironmentVariablesResponse:
-        env_var_keys = [getattr(e, 'key') for e in env_vars]
-        print(
-            f"[INFO] Environment variable handler invoked with "
-            f"{{len(env_vars)}} env vars: {{', '.join(env_var_keys)}}"
-        )
-
+        print(f"[SDK] Setting {{len(env_vars)}} env vars")
         for env_var in env_vars:
             os.environ[getattr(env_var, 'key')] = getattr(env_var, 'value')
-            print(f"[INFO] Set os.environ.{{getattr(env_var, 'key')}}")
-
-        message = (
-            f"Injected {{len(env_vars)}} environment variables "
-            f"into os.environ"
-        )
-        print(f"[INFO] Environment variable handler completed: {{message}}")
         from trysoma_sdk_core import SetEnvironmentVariablesSuccess
         return SetEnvironmentVariablesResponse(
-            data=SetEnvironmentVariablesSuccess(message)
+            data=SetEnvironmentVariablesSuccess(f"Injected {{len(env_vars)}} env vars")
         )
 
     set_environment_variable_handler(env_var_handler)
-    print("[INFO] Environment variable handler registered successfully")
-
-    # Register unset secret handler
-    print("[INFO] Registering unset secret handler...")
 
     def unset_secret_handler(key: str) -> UnsetSecretResponse:
-        print(f"[INFO] Unset secret handler invoked with key: {{key}}")
+        print(f"[SDK] Unsetting secret {{key}}")
         if key in os.environ:
             del os.environ[key]
-        print(f"[INFO] Removed os.environ.{{key}}")
-
-        message = f"Removed secret '{{key}}' from os.environ"
-        print(f"[INFO] Unset secret handler completed: {{message}}")
         from trysoma_sdk_core import UnsetSecretSuccess
-        return UnsetSecretResponse(data=UnsetSecretSuccess(message))
+        return UnsetSecretResponse(data=UnsetSecretSuccess(f"Removed secret '{{key}}'"))
 
     set_unset_secret_handler(unset_secret_handler)
-    print("[INFO] Unset secret handler registered successfully")
-
-    # Register unset environment variable handler
-    print("[INFO] Registering unset environment variable handler...")
 
     def unset_env_var_handler(key: str) -> UnsetEnvironmentVariableResponse:
-        print(f"[INFO] Unset environment variable handler invoked with key: {{key}}")
+        print(f"[SDK] Unsetting env var {{key}}")
         if key in os.environ:
             del os.environ[key]
-        print(f"[INFO] Removed os.environ.{{key}}")
-
-        message = (
-            f"Removed environment variable '{{key}}' from os.environ"
-        )
-        print(
-            f"[INFO] Unset environment variable handler completed: "
-            f"{{message}}"
-        )
         from trysoma_sdk_core import UnsetEnvironmentVariableSuccess
         return UnsetEnvironmentVariableResponse(
-            data=UnsetEnvironmentVariableSuccess(message)
+            data=UnsetEnvironmentVariableSuccess(f"Removed env var '{{key}}'")
         )
 
     set_unset_environment_variable_handler(unset_env_var_handler)
-    print("[INFO] Unset environment variable handler registered successfully")
 
     # Register all providers and functions
 {chr(10).join(function_registrations)}
@@ -623,7 +524,7 @@ async def main() -> None:
     # Register all agents
 {chr(10).join(agent_registrations)}
 
-    print("SDK server ready!")
+    print("[SDK] Ready")
 
 {restate_code}
 {
@@ -643,7 +544,7 @@ async def main() -> None:
             + chr(10)
             + '        print("'
             + chr(10)
-            + 'Shutting down...")'
+            + '[SDK] Shutting down")'
             + chr(10)
             + "        stop_event.set()"
             + chr(10)
@@ -666,7 +567,7 @@ if __name__ == "__main__":
     import warnings
     warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*found in sys.modules.*")
     
-    print("Starting standalone server...")
+    print("[SDK] Starting standalone server")
     asyncio.run(main())
 '''
 
@@ -747,7 +648,7 @@ def get_bridge(ctx: "ObjectContext") -> Bridge:
     return Bridge(ctx)
 ''')
 
-    print(f"Generated {standalone_path}")
+    print(f"[SDK] Generated {standalone_path}")
 
 
 def clear_pycache(base_dir: Path) -> None:
@@ -800,8 +701,6 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
     agents_dir = base_dir / "agents"
     standalone_path = base_dir / "soma" / "standalone.py"
 
-    # Clear Python cache before generating
-    print("Clearing Python cache...")
     clear_pycache(base_dir)
 
     # Also clear cache in the SDK package directory to ensure fresh imports
@@ -886,7 +785,6 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
             time.sleep(0.1)
 
         # If still alive, force kill the entire process group
-        print("Process did not terminate gracefully, sending SIGKILL...")
         try:
             os.killpg(pgid, signal.SIGKILL)
         except (ProcessLookupError, OSError):
@@ -907,32 +805,20 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
         restate_port = int(restate_port_str) if restate_port_str else None
 
         if server_process:
-            print("Restarting SDK server...")
+            print("[SDK] Restarting server")
             kill_server_process_group(server_process)
 
-            # Wait for the socket to be released before starting new server
-            print("Waiting for socket to be released...")
-            if wait_for_socket_released(timeout=5.0):
-                print("Socket released.")
-            else:
-                # Force remove the socket file if it still exists
+            if not wait_for_socket_released(timeout=5.0):
                 socket_file = Path(socket_path)
                 if socket_file.exists():
-                    print("Force removing stale socket file...")
                     try:
                         socket_file.unlink()
                     except OSError as e:
-                        print(f"Warning: Could not remove socket file: {e}")
+                        print(f"[SDK] Could not remove socket file: {e}")
 
-            # Also wait for the Restate port to be free
             if restate_port:
-                print(f"Waiting for port {restate_port} to be free...")
-                if wait_for_port_free(restate_port, timeout=5.0):
-                    print(f"Port {restate_port} is free.")
-                else:
-                    print(
-                        f"Warning: Port {restate_port} still in use, new server may fail to bind."
-                    )
+                if not wait_for_port_free(restate_port, timeout=5.0):
+                    print(f"[SDK] Port {restate_port} still in use")
 
             # Small delay to ensure everything is cleaned up
             import time
@@ -941,13 +827,12 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
 
         server_process = start_server()
 
-    # Start the server initially
-    print("Starting SDK server...")
+    print("[SDK] Starting server")
     server_process = start_server()
 
     def handle_signal(signum: int, frame: types.FrameType | None) -> None:
         """Handle shutdown signal."""
-        print("\nShutting down...")
+        print("\n[SDK] Shutting down")
         if server_process:
             kill_server_process_group(server_process)
         sys.exit(0)
@@ -955,7 +840,7 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
 
-    print(f"Watching {functions_dir} and {agents_dir} for changes...")
+    print(f"[SDK] Watching {functions_dir} and {agents_dir}")
 
     # Watch both directories
     paths_to_watch = []
@@ -965,9 +850,6 @@ def watch_and_regenerate(base_dir: str | Path) -> None:
         paths_to_watch.append(str(agents_dir))
 
     if not paths_to_watch:
-        print(
-            "No functions/ or agents/ directories found. Creating empty directories..."
-        )
         functions_dir.mkdir(exist_ok=True)
         agents_dir.mkdir(exist_ok=True)
         paths_to_watch = [str(functions_dir), str(agents_dir)]

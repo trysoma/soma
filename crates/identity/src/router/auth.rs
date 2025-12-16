@@ -5,6 +5,7 @@ use axum_extra::extract::cookie::CookieJar;
 use http::HeaderMap;
 use serde::{Deserialize, Serialize};
 use shared::{adapters::openapi::API_VERSION_TAG, error::CommonError};
+use tracing::trace;
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
@@ -138,19 +139,25 @@ async fn route_start_authorization(
     Path(config_id): Path<String>,
     Query(query): Query<StartAuthorizationQuery>,
 ) -> impl IntoResponse {
+    trace!(config_id = %config_id, "Starting authorization flow");
     let params = StartAuthorizationParams {
         config_id,
         redirect_after_login: query.redirect_after_login,
     };
 
-    match start_authorization_handshake(
+    let result = start_authorization_handshake(
         service.repository.as_ref(),
         &service.crypto_cache,
         &service.base_redirect_uri,
         params,
     )
-    .await
-    {
+    .await;
+    trace!(
+        success = result.is_ok(),
+        "Starting authorization flow completed"
+    );
+
+    match result {
         Ok(result) => Redirect::temporary(&result.login_redirect_url).into_response(),
         Err(e) => e.into_response(),
     }
@@ -177,6 +184,12 @@ async fn route_auth_callback(
     Query(query): Query<AuthCallbackQuery>,
     jar: CookieJar,
 ) -> impl IntoResponse {
+    trace!(
+        has_code = query.code.is_some(),
+        has_state = query.state.is_some(),
+        has_error = query.error.is_some(),
+        "Handling auth callback"
+    );
     // Check for required parameters
     let state = match query.state {
         Some(s) => s,
@@ -209,15 +222,17 @@ async fn route_auth_callback(
         error_description: query.error_description,
     };
 
-    match handle_authorization_handshake_callback(
+    let result = handle_authorization_handshake_callback(
         service.repository.as_ref(),
         &service.crypto_cache,
         &service.external_jwks_cache,
         params,
         &service.base_redirect_uri,
     )
-    .await
-    {
+    .await;
+    trace!(success = result.is_ok(), "Handling auth callback completed");
+
+    match result {
         Ok(result) => {
             // Add token cookies using the helper function
             let jar = add_token_cookies(jar, &result.issued_tokens);
@@ -251,12 +266,14 @@ async fn route_refresh_token(
     jar: CookieJar,
     body: Option<Json<RefreshTokenRequest>>,
 ) -> Response {
+    trace!("Refreshing access token");
     // Get refresh token from body or cookie
     let refresh_token = body
         .and_then(|b| b.refresh_token.clone())
         .or_else(|| extract_refresh_token_from_jar(&jar));
 
     let Some(refresh_token) = refresh_token else {
+        trace!("Refreshing access token completed (no token provided)");
         return CommonError::Authentication {
             msg: "No refresh token provided in body or cookie".to_string(),
             source: None,
@@ -273,6 +290,10 @@ async fn route_refresh_token(
         params,
     )
     .await;
+    trace!(
+        success = result.is_ok(),
+        "Refreshing access token completed"
+    );
 
     match result {
         Ok(token_result) => {
@@ -297,9 +318,16 @@ async fn route_refresh_token(
     description = "Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)",
 )]
 async fn route_whoami(State(service): State<IdentityService>, headers: HeaderMap) -> Response {
+    trace!("Getting current identity");
     let auth_client = service.auth_client();
 
-    match auth_client.authenticate_from_headers(&headers).await {
+    let result = auth_client.authenticate_from_headers(&headers).await;
+    trace!(
+        success = result.is_ok(),
+        "Getting current identity completed"
+    );
+
+    match result {
         Ok(identity) => Json(identity).into_response(),
         Err(error) => error.into_response(),
     }

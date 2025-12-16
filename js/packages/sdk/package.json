@@ -28,6 +28,18 @@
 		"./vite": {
 			"import": "./dist/vite.js",
 			"types": "./dist/vite.d.ts"
+		},
+		"./a2a": {
+			"import": "./dist/a2a.js",
+			"types": "./dist/a2a.d.ts"
+		},
+		"./mcp": {
+			"import": "./dist/mcp.js",
+			"types": "./dist/mcp.d.ts"
+		},
+		"./vercel-ai-sdk": {
+			"import": "./dist/vercel-ai-sdk.js",
+			"types": "./dist/vercel-ai-sdk.d.ts"
 		}
 	},
 	"files": [
@@ -45,9 +57,16 @@
 	},
 	"dependencies": {
 		"@a2a-js/sdk": "^0.3.4",
+		"@ai-sdk/mcp": "1.0.0-beta.33",
+		"@ai-sdk/provider": "3.0.0-beta.26",
+		"@ai-sdk/provider-utils": "4.0.0-beta.47",
+		"@modelcontextprotocol/sdk": "^1.24.3",
+		"ai": "6.0.0-beta.148",
 		"@restatedev/restate-sdk": "^1.9.0",
 		"@trysoma/api-client": "workspace:*",
 		"@trysoma/sdk-core": "workspace:*",
+		"@types/uuid": "^11.0.0",
+		"uuid": "^13.0.0",
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {

@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 use shared::error::CommonError;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{debug, trace};
 
 use codegen_impl::TypeScriptCodeGenerator;
 use sdk_core as core_types;
@@ -42,7 +42,7 @@ pub async fn start_grpc_server(socket_path: String, project_dir: String) -> Resu
 /// This allows the service to be restarted fresh.
 #[napi]
 pub fn kill_grpc_service() -> Result<()> {
-    info!("Killing gRPC service - clearing all state");
+    debug!("Killing gRPC service");
     let mut guard = GRPC_SERVICE.lock();
     if let Some(service) = guard.as_ref() {
         // Clear the service state
@@ -50,7 +50,7 @@ pub fn kill_grpc_service() -> Result<()> {
     }
     // Remove the service from the global
     *guard = None;
-    info!("gRPC service killed successfully");
+    trace!("gRPC service cleared");
     Ok(())
 }
 
@@ -291,7 +291,7 @@ pub fn add_function(
                     })
                     .unwrap();
 
-                info!("invoke_fn result: {:?}", result);
+                trace!("Function invocation complete");
 
                 Ok::<core_types::InvokeFunctionResponse, CommonError>(
                     core_types::InvokeFunctionResponse {
@@ -331,7 +331,7 @@ pub fn update_function(
         js_types::InvokeFunctionResponse,
     >,
 ) -> Result<bool> {
-    info!("update_function: {:?}", function_metadata.name);
+    trace!(function = %function_metadata.name, "Updating function");
     let invoke_fn = Arc::new(invoke_callback);
 
     let core_function = core_types::FunctionController {
@@ -351,7 +351,7 @@ pub fn update_function(
                 };
 
                 let result = invoke_fn.call_async(Ok(js_req)).await;
-                info!("invoke_fn result: {:?}", result);
+                trace!("Function invocation complete");
 
                 match result {
                     Ok(js_response) => {
@@ -405,12 +405,7 @@ pub fn set_secret_handler(
 
     let handler: core_types::SecretHandler = Arc::new(move |secrets: Vec<core_types::Secret>| {
         let callback = Arc::clone(&callback);
-        let secret_keys: Vec<String> = secrets.iter().map(|s| s.key.clone()).collect();
-        info!(
-            "Secret handler invoked with {} secrets: {:?}",
-            secrets.len(),
-            secret_keys
-        );
+        trace!(count = secrets.len(), "Secret handler invoked");
         Box::pin(async move {
             // Convert core secrets to JS secrets
             let js_secrets: Vec<js_types::Secret> = secrets
@@ -421,17 +416,14 @@ pub fn set_secret_handler(
                 })
                 .collect();
 
-            info!(
-                "Calling JS secret handler callback with {} secrets",
-                js_secrets.len()
-            );
+            trace!(count = js_secrets.len(), "Calling JS secret handler");
             // Call the JS callback
             let result = callback
                 .call_async(Ok(js_secrets))
                 .await
                 .map_err(|e| {
                     let error_msg = format!("Failed to call secret handler: {e}");
-                    info!("Error calling secret handler callback: {}", error_msg);
+                    debug!(error = %error_msg, "Secret handler callback failed");
                     CommonError::Unknown(anyhow::anyhow!(error_msg))
                 })?
                 .await;
@@ -459,9 +451,9 @@ pub fn set_secret_handler(
         })
     });
 
-    info!("Registering secret handler");
+    trace!("Registering secret handler");
     get_grpc_service()?.set_secret_handler(handler);
-    info!("Secret handler registered successfully");
+    trace!("Secret handler registered");
     Ok(())
 }
 
@@ -476,14 +468,12 @@ pub fn set_environment_variable_handler(
 ) -> Result<()> {
     let callback = Arc::new(callback);
 
-    let handler: core_types::EnvironmentVariableHandler = Arc::new(
-        move |env_vars: Vec<core_types::EnvironmentVariable>| {
+    let handler: core_types::EnvironmentVariableHandler =
+        Arc::new(move |env_vars: Vec<core_types::EnvironmentVariable>| {
             let callback = Arc::clone(&callback);
-            let env_var_keys: Vec<String> = env_vars.iter().map(|e| e.key.clone()).collect();
-            info!(
-                "Environment variable handler invoked with {} environment variables: {:?}",
-                env_vars.len(),
-                env_var_keys
+            trace!(
+                count = env_vars.len(),
+                "Environment variable handler invoked"
             );
             Box::pin(async move {
                 // Convert core environment variables to JS environment variables
@@ -495,20 +485,14 @@ pub fn set_environment_variable_handler(
                     })
                     .collect();
 
-                info!(
-                    "Calling JS environment variable handler callback with {} environment variables",
-                    js_env_vars.len()
-                );
+                trace!(count = js_env_vars.len(), "Calling JS env var handler");
                 // Call the JS callback
                 let result = callback
                     .call_async(Ok(js_env_vars))
                     .await
                     .map_err(|e| {
                         let error_msg = format!("Failed to call environment variable handler: {e}");
-                        info!(
-                            "Error calling environment variable handler callback: {}",
-                            error_msg
-                        );
+                        debug!(error = %error_msg, "Env var handler callback failed");
                         CommonError::Unknown(anyhow::anyhow!(error_msg))
                     })?
                     .await;
@@ -534,12 +518,11 @@ pub fn set_environment_variable_handler(
                     )))),
                 }
             })
-        },
-    );
+        });
 
-    info!("Registering environment variable handler");
+    trace!("Registering environment variable handler");
     get_grpc_service()?.set_environment_variable_handler(handler);
-    info!("Environment variable handler registered successfully");
+    trace!("Environment variable handler registered");
     Ok(())
 }
 
@@ -553,16 +536,16 @@ pub fn set_unset_secret_handler(
 
     let handler: core_types::UnsetSecretHandler = Arc::new(move |key: String| {
         let callback = Arc::clone(&callback);
-        info!("Unset secret handler invoked with key: {}", key);
+        trace!(key = %key, "Unset secret handler invoked");
         Box::pin(async move {
-            info!("Calling JS unset secret handler callback with key: {}", key);
+            trace!(key = %key, "Calling JS unset secret handler");
             // Call the JS callback
             let result = callback
                 .call_async(Ok(key))
                 .await
                 .map_err(|e| {
                     let error_msg = format!("Failed to call unset secret handler: {e}");
-                    info!("Error calling unset secret handler callback: {}", error_msg);
+                    debug!(error = %error_msg, "Unset secret handler failed");
                     CommonError::Unknown(anyhow::anyhow!(error_msg))
                 })?
                 .await;
@@ -590,9 +573,9 @@ pub fn set_unset_secret_handler(
         })
     });
 
-    info!("Registering unset secret handler");
+    trace!("Registering unset secret handler");
     get_grpc_service()?.set_unset_secret_handler(handler);
-    info!("Unset secret handler registered successfully");
+    trace!("Unset secret handler registered");
     Ok(())
 }
 
@@ -606,15 +589,9 @@ pub fn set_unset_environment_variable_handler(
 
     let handler: core_types::UnsetEnvironmentVariableHandler = Arc::new(move |key: String| {
         let callback = Arc::clone(&callback);
-        info!(
-            "Unset environment variable handler invoked with key: {}",
-            key
-        );
+        trace!(key = %key, "Unset env var handler invoked");
         Box::pin(async move {
-            info!(
-                "Calling JS unset environment variable handler callback with key: {}",
-                key
-            );
+            trace!(key = %key, "Calling JS unset env var handler");
             // Call the JS callback
             let result = callback
                 .call_async(Ok(key))
@@ -622,10 +599,7 @@ pub fn set_unset_environment_variable_handler(
                 .map_err(|e| {
                     let error_msg =
                         format!("Failed to call unset environment variable handler: {e}");
-                    info!(
-                        "Error calling unset environment variable handler callback: {}",
-                        error_msg
-                    );
+                    debug!(error = %error_msg, "Unset env var handler failed");
                     CommonError::Unknown(anyhow::anyhow!(error_msg))
                 })?
                 .await;
@@ -653,9 +627,9 @@ pub fn set_unset_environment_variable_handler(
         })
     });
 
-    info!("Registering unset environment variable handler");
+    trace!("Registering unset environment variable handler");
     get_grpc_service()?.set_unset_environment_variable_handler(handler);
-    info!("Unset environment variable handler registered successfully");
+    trace!("Unset environment variable handler registered");
     Ok(())
 }
 

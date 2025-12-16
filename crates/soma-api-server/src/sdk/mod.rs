@@ -1,14 +1,13 @@
 mod interface;
 mod python;
+pub mod sdk_agent_sync;
 pub mod sdk_provider_sync;
 mod typescript;
 
 use std::path::{Path, PathBuf};
 
-use shared::subsystem::SubsystemHandle;
 use shared::uds::DEFAULT_SOMA_SERVER_SOCK;
-use tokio::sync::broadcast;
-use tracing::{error, info};
+use tracing::{debug, trace};
 
 use shared::error::CommonError;
 
@@ -84,9 +83,9 @@ pub struct StartDevSdkParams {
     pub project_dir: PathBuf,
     pub sdk_runtime: SdkRuntime,
     pub restate_service_port: u16,
-    pub kill_signal_rx: broadcast::Receiver<()>,
     pub repository: std::sync::Arc<crate::repository::Repository>,
     pub crypto_cache: CryptoCache,
+    pub process_manager: std::sync::Arc<shared::process_manager::CustomProcessManager>,
 }
 
 /// Starts the development SDK server with hot reloading on file changes
@@ -95,38 +94,38 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
     let StartDevSdkParams {
         project_dir,
         restate_service_port,
-        kill_signal_rx,
         repository,
         crypto_cache,
+        process_manager,
         ..
     } = params;
 
     // Fetch all secrets from the database
-    info!("Fetching initial secrets from database...");
+    trace!("Fetching initial secrets from database");
     let decrypted_secrets = fetch_and_decrypt_all_secrets(&repository, &crypto_cache).await?;
     let initial_secrets: std::collections::HashMap<String, String> = decrypted_secrets
         .into_iter()
         .map(|s| (s.key, s.value))
         .collect();
-    info!("Fetched {} initial secrets", initial_secrets.len());
+    debug!(count = initial_secrets.len(), "Loaded initial secrets");
 
     // Fetch all environment variables from the database
-    info!("Fetching initial environment variables from database...");
+    trace!("Fetching initial environment variables from database");
     let env_vars = fetch_all_environment_variables(&repository).await?;
     let initial_environment_variables: std::collections::HashMap<String, String> =
         env_vars.into_iter().map(|e| (e.key, e.value)).collect();
-    info!(
-        "Fetched {} initial environment variables",
-        initial_environment_variables.len()
+    debug!(
+        count = initial_environment_variables.len(),
+        "Loaded initial environment variables"
     );
 
     let ctx = ClientCtx {
         project_dir: project_dir.clone(),
         socket_path: DEFAULT_SOMA_SERVER_SOCK.to_string(),
         restate_service_port,
-        kill_signal_rx: kill_signal_rx.resubscribe(),
         initial_secrets,
         initial_environment_variables,
+        process_manager: process_manager.clone(),
     };
 
     match sdk_runtime {
@@ -137,53 +136,18 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
                 )));
             }
 
-            info!("Detected Vite project, starting dev server...");
+            debug!("Starting TypeScript/Vite dev server");
             let typescript_client = Typescript::new();
             typescript_client.start_dev_server(ctx).await?;
         }
         SdkRuntime::Python => {
-            info!("Detected Python project, starting dev server...");
+            debug!("Starting Python dev server");
             let python_client = Python::new();
             python_client.start_dev_server(ctx).await?;
         }
     }
 
     Ok(())
-}
-
-pub fn start_sdk_server_subsystem(
-    project_dir: PathBuf,
-    sdk_runtime: SdkRuntime,
-    restate_service_port: u16,
-    shutdown_rx: broadcast::Receiver<()>,
-    repository: crate::repository::Repository,
-    crypto_cache: CryptoCache,
-) -> Result<SubsystemHandle, CommonError> {
-    let (handle, signal) = SubsystemHandle::new("SDK Server");
-    let repository = std::sync::Arc::new(repository);
-
-    tokio::spawn(async move {
-        match start_dev_sdk(StartDevSdkParams {
-            project_dir,
-            sdk_runtime,
-            restate_service_port,
-            kill_signal_rx: shutdown_rx,
-            repository,
-            crypto_cache,
-        })
-        .await
-        {
-            Ok(()) => {
-                signal.signal_with_message("stopped gracefully");
-            }
-            Err(e) => {
-                error!("SDK server stopped with error: {:?}", e);
-                signal.signal();
-            }
-        }
-    });
-
-    Ok(handle)
 }
 
 #[cfg(all(test, feature = "unit_test"))]

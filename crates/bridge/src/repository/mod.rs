@@ -20,6 +20,10 @@ use crate::logic::instance::{
     ProviderInstanceSerialized, ProviderInstanceSerializedWithCredentials,
     ProviderInstanceSerializedWithFunctions,
 };
+use crate::logic::mcp_server_instance::{
+    McpServerInstanceFunctionSerialized, McpServerInstanceSerialized,
+    McpServerInstanceSerializedWithFunctions,
+};
 
 // Repository parameter structs for resource server credentials
 #[derive(Debug)]
@@ -167,6 +171,65 @@ pub struct ProviderInstancesGroupedByFunctionControllerTypeId {
     pub provider_instances: Vec<ProviderInstanceSerializedWithCredentials>,
 }
 
+// Repository parameter structs for MCP server instance
+#[derive(Debug)]
+pub struct CreateMcpServerInstance {
+    pub id: String,
+    pub name: String,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+impl From<McpServerInstanceSerialized> for CreateMcpServerInstance {
+    fn from(msi: McpServerInstanceSerialized) -> Self {
+        CreateMcpServerInstance {
+            id: msi.id,
+            name: msi.name,
+            created_at: msi.created_at,
+            updated_at: msi.updated_at,
+        }
+    }
+}
+
+// Repository parameter structs for MCP server instance function
+#[derive(Debug)]
+pub struct CreateMcpServerInstanceFunction {
+    pub mcp_server_instance_id: String,
+    pub function_controller_type_id: String,
+    pub provider_controller_type_id: String,
+    pub provider_instance_id: String,
+    pub function_name: String,
+    pub function_description: Option<String>,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+impl From<McpServerInstanceFunctionSerialized> for CreateMcpServerInstanceFunction {
+    fn from(msif: McpServerInstanceFunctionSerialized) -> Self {
+        CreateMcpServerInstanceFunction {
+            mcp_server_instance_id: msif.mcp_server_instance_id,
+            function_controller_type_id: msif.function_controller_type_id,
+            provider_controller_type_id: msif.provider_controller_type_id,
+            provider_instance_id: msif.provider_instance_id,
+            function_name: msif.function_name,
+            function_description: msif.function_description,
+            created_at: msif.created_at,
+            updated_at: msif.updated_at,
+        }
+    }
+}
+
+// Repository parameter structs for updating MCP server instance function
+#[derive(Debug)]
+pub struct UpdateMcpServerInstanceFunction {
+    pub mcp_server_instance_id: String,
+    pub function_controller_type_id: String,
+    pub provider_controller_type_id: String,
+    pub provider_instance_id: String,
+    pub function_name: String,
+    pub function_description: Option<String>,
+}
+
 // Repository trait
 #[allow(async_fn_in_trait)]
 pub trait ProviderRepositoryLike {
@@ -305,4 +368,60 @@ pub trait ProviderRepositoryLike {
         status: Option<&str>,
         rotation_window_end: Option<&WrappedChronoDateTime>,
     ) -> Result<PaginatedResponse<ProviderInstanceSerializedWithCredentials>, CommonError>;
+
+    // MCP server instance methods
+    async fn create_mcp_server_instance(
+        &self,
+        params: &CreateMcpServerInstance,
+    ) -> Result<(), CommonError>;
+
+    async fn get_mcp_server_instance_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<McpServerInstanceSerializedWithFunctions>, CommonError>;
+
+    async fn update_mcp_server_instance(&self, id: &str, name: &str) -> Result<(), CommonError>;
+
+    async fn delete_mcp_server_instance(&self, id: &str) -> Result<(), CommonError>;
+
+    async fn list_mcp_server_instances(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<McpServerInstanceSerializedWithFunctions>, CommonError>;
+
+    async fn create_mcp_server_instance_function(
+        &self,
+        params: &CreateMcpServerInstanceFunction,
+    ) -> Result<(), CommonError>;
+
+    async fn delete_mcp_server_instance_function(
+        &self,
+        mcp_server_instance_id: &str,
+        function_controller_type_id: &str,
+        provider_controller_type_id: &str,
+        provider_instance_id: &str,
+    ) -> Result<(), CommonError>;
+
+    async fn delete_all_mcp_server_instance_functions(
+        &self,
+        mcp_server_instance_id: &str,
+    ) -> Result<(), CommonError>;
+
+    async fn update_mcp_server_instance_function(
+        &self,
+        params: &UpdateMcpServerInstanceFunction,
+    ) -> Result<(), CommonError>;
+
+    async fn get_mcp_server_instance_function_by_name(
+        &self,
+        mcp_server_instance_id: &str,
+        function_name: &str,
+    ) -> Result<Option<McpServerInstanceFunctionSerialized>, CommonError>;
+
+    /// List all functions for a specific MCP server instance with pagination
+    async fn list_mcp_server_instance_functions(
+        &self,
+        mcp_server_instance_id: &str,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<McpServerInstanceFunctionSerialized>, CommonError>;
 }

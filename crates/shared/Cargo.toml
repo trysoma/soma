@@ -34,7 +34,6 @@ shared-macros.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tokio-graceful-shutdown.workspace = true
 tokio-rustls.workspace = true
 tonic.workspace = true
 tower.workspace = true
@@ -50,6 +49,7 @@ humantime.workspace = true
 urlencoding.workspace = true
 sdk-proto.workspace = true
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
+pmdaemon.workspace = true
 
 [dev-dependencies]
 chrono.workspace = true

@@ -1,8 +1,10 @@
+use crate::error::CommonError;
+
 // BASED ON https://github.com/restatedev/cdk/blob/main/lib/restate-constructs/register-service-handler/index.mts
 // AND https://github.com/restatedev/cdk/blob/main/lib/restate-constructs/register-service-handler/entrypoint.mts
 use super::admin_client::AdminClient;
 use super::admin_interface::AdminClientInterface;
-use anyhow::{Result, anyhow};
+use anyhow::anyhow;
 use http::{HeaderName, HeaderValue, Uri};
 use restate_admin_rest_model::deployments::RegisterDeploymentRequest;
 use restate_admin_rest_model::services::ModifyServiceRequest;
@@ -14,7 +16,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use std::{collections::HashMap, fmt::Display};
 use tokio::time::sleep;
-use tracing::{debug, info, warn};
+use tracing::{debug, trace, warn};
 use url::Url;
 
 /// Deployment type configuration
@@ -65,9 +67,11 @@ pub struct DeploymentRegistrationConfig {
 }
 
 /// Registers a deployment with Restate with retry logic
-pub async fn register_deployment(config: DeploymentRegistrationConfig) -> Result<ServiceMetadata> {
+pub async fn register_deployment(
+    config: DeploymentRegistrationConfig,
+) -> Result<ServiceMetadata, CommonError> {
     // Wait for Restate admin to be healthy
-    wait_for_healthy_admin(&config).await?;
+    wait_for_healthy_restate_admin(&config.admin_url).await?;
 
     // For HTTP deployments, also check if the service endpoint is healthy
     // This prevents Restate from trying to discover endpoints before the service is ready
@@ -78,14 +82,10 @@ pub async fn register_deployment(config: DeploymentRegistrationConfig) -> Result
     // Register the deployment with retry
     let service_metadata = register_deployment_with_retry(&config).await?;
 
-    let deployment_desc = match &config.deployment_type {
-        DeploymentType::Lambda { arn, .. } => format!("Lambda deployment: {arn}"),
-        DeploymentType::Http { uri, .. } => format!("HTTP deployment: {uri}"),
-    };
-
-    info!(
-        "Successfully registered {} (service: {})",
-        deployment_desc, service_metadata.name
+    debug!(
+        service = %service_metadata.name,
+        deployment = %config.deployment_type,
+        "Registered Restate deployment"
     );
 
     Ok(service_metadata)
@@ -95,22 +95,20 @@ pub async fn register_deployment(config: DeploymentRegistrationConfig) -> Result
 /// This is a lightweight check - we just verify the service is listening and can accept connections.
 /// Since the SDK server uses HTTP/2, we use a TCP connection check which works regardless of HTTP version.
 /// Restate will handle the actual endpoint discovery after registration.
-async fn wait_for_healthy_http_service(uri: &str) -> Result<()> {
+async fn wait_for_healthy_http_service(uri: &str) -> Result<(), CommonError> {
     const MAX_HEALTH_CHECK_ATTEMPTS: u32 = 5;
     const INITIAL_BACKOFF_MS: u64 = 500;
     const CONNECT_TIMEOUT_SECS: u64 = 2;
 
-    debug!(
-        "Checking if HTTP service at {} is accepting connections",
-        uri
-    );
+    trace!(uri = %uri, "Checking HTTP service connectivity");
 
     // Parse the URI to extract host and port
-    let url = Url::parse(uri).map_err(|e| anyhow!("Invalid URI '{uri}': {e}"))?;
+    let url = Url::parse(uri)
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Invalid URI '{uri}': {e}")))?;
 
     let host = url
         .host_str()
-        .ok_or_else(|| anyhow!("URI '{uri}' has no host"))?;
+        .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("URI '{uri}' has no host")))?;
     let port = url
         .port()
         .or_else(|| {
@@ -121,7 +119,9 @@ async fn wait_for_healthy_http_service(uri: &str) -> Result<()> {
                 _ => None,
             }
         })
-        .ok_or_else(|| anyhow!("Could not determine port for URI '{uri}'"))?;
+        .ok_or_else(|| {
+            CommonError::Unknown(anyhow::anyhow!("Could not determine port for URI '{uri}'"))
+        })?;
 
     for attempt in 0..MAX_HEALTH_CHECK_ATTEMPTS {
         // Use a TCP connection check - this works for HTTP/1.1, HTTP/2, or any protocol
@@ -132,146 +132,98 @@ async fn wait_for_healthy_http_service(uri: &str) -> Result<()> {
         .await
         {
             Ok(Ok(_stream)) => {
-                // Successfully connected - the service is listening
-                debug!("HTTP service at {} is accepting connections", uri);
+                trace!(uri = %uri, "HTTP service accepting connections");
                 return Ok(());
             }
             Ok(Err(e)) => {
-                // Connection failed
                 if attempt < MAX_HEALTH_CHECK_ATTEMPTS - 1 {
-                    debug!(
-                        "HTTP service not ready yet (attempt {}/{}): {}. Will retry...",
-                        attempt + 1,
-                        MAX_HEALTH_CHECK_ATTEMPTS,
-                        e
-                    );
-                    let backoff_ms = INITIAL_BACKOFF_MS * 2u64.pow(attempt.min(3)); // Cap at 4 seconds
-                    debug!(
-                        "Waiting {}ms before next HTTP service health check attempt",
-                        backoff_ms
-                    );
+                    let backoff_ms = INITIAL_BACKOFF_MS * 2u64.pow(attempt.min(3));
+                    trace!(uri = %uri, attempt = attempt + 1, error = %e, backoff_ms, "HTTP service not ready, retrying");
                     sleep(Duration::from_millis(backoff_ms)).await;
                 } else {
-                    warn!(
-                        "HTTP service at {} not ready after {} attempts, but proceeding with registration. Restate will retry discovery if needed.",
-                        uri, MAX_HEALTH_CHECK_ATTEMPTS
-                    );
-                    return Ok(()); // Allow registration to proceed
+                    debug!(uri = %uri, "HTTP service not ready after retries, proceeding anyway");
+                    return Ok(());
                 }
             }
             Err(_) => {
-                // Timeout
                 if attempt < MAX_HEALTH_CHECK_ATTEMPTS - 1 {
-                    debug!(
-                        "HTTP service connection timeout (attempt {}/{}). Will retry...",
-                        attempt + 1,
-                        MAX_HEALTH_CHECK_ATTEMPTS
-                    );
-                    let backoff_ms = INITIAL_BACKOFF_MS * 2u64.pow(attempt.min(3)); // Cap at 4 seconds
-                    debug!(
-                        "Waiting {}ms before next HTTP service health check attempt",
-                        backoff_ms
-                    );
+                    let backoff_ms = INITIAL_BACKOFF_MS * 2u64.pow(attempt.min(3));
+                    trace!(uri = %uri, attempt = attempt + 1, backoff_ms, "HTTP service connection timeout, retrying");
                     sleep(Duration::from_millis(backoff_ms)).await;
                 } else {
-                    warn!(
-                        "HTTP service at {} not ready after {} attempts (timeout), but proceeding with registration. Restate will retry discovery if needed.",
-                        uri, MAX_HEALTH_CHECK_ATTEMPTS
-                    );
-                    return Ok(()); // Allow registration to proceed
+                    debug!(uri = %uri, "HTTP service connection timeout after retries, proceeding anyway");
+                    return Ok(());
                 }
             }
         }
     }
 
-    // Should not reach here, but if we do, allow registration to proceed
-    warn!("HTTP service health check completed with issues, but proceeding with registration");
+    debug!(uri = %uri, "HTTP service health check inconclusive, proceeding");
     Ok(())
 }
 
 /// Wait for the Restate admin endpoint to be healthy with exponential backoff
-async fn wait_for_healthy_admin(config: &DeploymentRegistrationConfig) -> Result<()> {
+pub async fn wait_for_healthy_restate_admin(admin_url: &str) -> Result<(), CommonError> {
     const MAX_HEALTH_CHECK_ATTEMPTS: u32 = 10;
     const INITIAL_BACKOFF_MS: u64 = 1000;
 
-    info!("Checking health of Restate admin at {}", config.admin_url);
+    debug!(admin_url = %admin_url, "Checking Restate admin health");
 
     for attempt in 0..MAX_HEALTH_CHECK_ATTEMPTS {
-        let base_url = Url::parse(&config.admin_url)
-            .map_err(|e| anyhow!("Invalid admin URL '{}': {}", config.admin_url, e))?;
+        let base_url = Url::parse(admin_url).map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Invalid admin URL '{admin_url}': {e}"))
+        })?;
 
-        match AdminClient::new(base_url, config.bearer_token.clone()).await {
-            Ok(client) => match client.health().await {
-                Ok(response) => match response.success_or_error() {
-                    Ok(_) => {
-                        info!("Restate admin is healthy");
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        warn!(
-                            "Health check failed (attempt {}/{}): {:?}",
-                            attempt + 1,
-                            MAX_HEALTH_CHECK_ATTEMPTS,
-                            e
-                        );
-                    }
-                },
+        match AdminClient::new(base_url, None).await {
+            Ok(client) => match client.ensure_healthy().await {
+                Ok(_) => {
+                    trace!(admin_url = %admin_url, "Restate admin healthy");
+                    return Ok(());
+                }
                 Err(e) => {
-                    warn!(
-                        "Health check request failed (attempt {}/{}): {:?}",
-                        attempt + 1,
-                        MAX_HEALTH_CHECK_ATTEMPTS,
-                        e
-                    );
+                    trace!(attempt = attempt + 1, error = ?e, "Restate admin health check failed");
                 }
             },
             Err(e) => {
-                warn!(
-                    "Failed to create admin client (attempt {}/{}): {:?}",
-                    attempt + 1,
-                    MAX_HEALTH_CHECK_ATTEMPTS,
-                    e
-                );
+                trace!(attempt = attempt + 1, error = ?e, "Failed to create Restate admin client");
             }
         }
 
         if attempt < MAX_HEALTH_CHECK_ATTEMPTS - 1 {
             let backoff_ms = INITIAL_BACKOFF_MS * 2u64.pow(attempt);
-            debug!("Waiting {}ms before next health check attempt", backoff_ms);
+            trace!(backoff_ms, "Waiting before next health check");
             sleep(Duration::from_millis(backoff_ms)).await;
         }
     }
 
-    Err(anyhow!(
-        "Restate admin at {} did not become healthy after {} attempts",
-        config.admin_url,
-        MAX_HEALTH_CHECK_ATTEMPTS
-    ))
+    Err(CommonError::Unknown(anyhow::anyhow!(
+        "Restate admin at {admin_url} did not become healthy after {MAX_HEALTH_CHECK_ATTEMPTS} attempts"
+    )))
 }
 
 /// Register the deployment with retry logic
 async fn register_deployment_with_retry(
     config: &DeploymentRegistrationConfig,
-) -> Result<ServiceMetadata> {
+) -> Result<ServiceMetadata, CommonError> {
     const MAX_REGISTRATION_ATTEMPTS: u32 = 3;
     const REGISTRATION_BACKOFF_MS: u64 = 2000;
 
-    let base_url = Url::parse(&config.admin_url)
-        .map_err(|e| anyhow!("Invalid admin URL '{}': {}", config.admin_url, e))?;
+    let base_url = Url::parse(&config.admin_url).map_err(|e| {
+        CommonError::Unknown(anyhow::anyhow!(
+            "Invalid admin URL '{}': {}",
+            config.admin_url,
+            e
+        ))
+    })?;
 
     let client = AdminClient::new(base_url, config.bearer_token.clone()).await?;
+    client.ensure_healthy().await?;
 
     for attempt in 0..MAX_REGISTRATION_ATTEMPTS {
-        let deployment_desc = match &config.deployment_type {
-            DeploymentType::Lambda { arn, .. } => format!("Lambda: {arn}"),
-            DeploymentType::Http { uri, .. } => format!("HTTP: {uri}"),
-        };
-
-        info!(
-            "Attempting to register {} deployment (attempt {}/{})",
-            deployment_desc,
-            attempt + 1,
-            MAX_REGISTRATION_ATTEMPTS
+        debug!(
+            deployment = %config.deployment_type,
+            attempt = attempt + 1,
+            "Registering deployment"
         );
 
         match try_register_deployment(&client, config).await {
@@ -279,38 +231,32 @@ async fn register_deployment_with_retry(
                 return Ok(service_metadata);
             }
             Err(e) => {
-                warn!(
-                    "Registration attempt {}/{} failed: {:?}",
-                    attempt + 1,
-                    MAX_REGISTRATION_ATTEMPTS,
-                    e
-                );
-
                 if attempt < MAX_REGISTRATION_ATTEMPTS - 1 {
-                    debug!(
-                        "Waiting {}ms before next registration attempt",
-                        REGISTRATION_BACKOFF_MS
+                    warn!(
+                        attempt = attempt + 1,
+                        error = ?e,
+                        "Registration failed, retrying"
                     );
                     sleep(Duration::from_millis(REGISTRATION_BACKOFF_MS)).await;
                 } else {
-                    return Err(anyhow!(
+                    return Err(CommonError::Unknown(anyhow::anyhow!(
                         "Failed to register deployment after {MAX_REGISTRATION_ATTEMPTS} attempts: {e:?}"
-                    ));
+                    )));
                 }
             }
         }
     }
 
-    Err(anyhow!(
+    Err(CommonError::Unknown(anyhow::anyhow!(
         "Failed to register deployment after {MAX_REGISTRATION_ATTEMPTS} attempts"
-    ))
+    )))
 }
 
 /// Try to register the deployment once
 async fn try_register_deployment(
     client: &AdminClient,
     config: &DeploymentRegistrationConfig,
-) -> Result<ServiceMetadata> {
+) -> Result<ServiceMetadata, CommonError> {
     // Create the registration request based on deployment type
     let register_request = match &config.deployment_type {
         DeploymentType::Lambda {
@@ -321,7 +267,7 @@ async fn try_register_deployment(
             let lambda_arn = LambdaARN::from_str(arn)
                 .map_err(|e| anyhow!("Invalid Lambda ARN '{arn}': {e:?}"))?;
 
-            info!("Registering Lambda deployment: {}", arn);
+            trace!(arn = %arn, "Preparing Lambda deployment request");
 
             RegisterDeploymentRequest::Lambda {
                 arn: lambda_arn.to_string(),
@@ -342,7 +288,7 @@ async fn try_register_deployment(
                 .parse::<Uri>()
                 .map_err(|e| anyhow!("Invalid HTTP URI '{uri}': {e}"))?;
 
-            info!("Registering HTTP deployment: {}", uri);
+            trace!(uri = %uri, "Preparing HTTP deployment request");
 
             // Convert HashMap<String, String> to HashMap<HeaderName, HeaderValue>
             let headers = if additional_headers.is_empty() {
@@ -372,7 +318,7 @@ async fn try_register_deployment(
         }
     };
 
-    debug!("Registration request: {:?}", register_request);
+    trace!(request = ?register_request, "Sending registration request");
 
     // Discover/register the deployment
     let register_response = client
@@ -385,9 +331,9 @@ async fn try_register_deployment(
         .await
         .map_err(|e| anyhow!("Failed to parse deployment response: {e:?}"))?;
 
-    info!(
-        "Deployment registered successfully with {} services",
-        deployment_response.services.len()
+    trace!(
+        service_count = deployment_response.services.len(),
+        "Deployment registered"
     );
 
     // Find the service we're looking for
@@ -410,7 +356,7 @@ async fn try_register_deployment(
 
     // Update the service visibility if needed
     if config.private {
-        info!("Marking service '{}' as private", service_name);
+        trace!(service = %service_name, "Marking service as private");
         let modify_request = ModifyServiceRequest {
             public: Some(false),
             idempotency_retention: None,
@@ -432,7 +378,7 @@ async fn try_register_deployment(
 
         Ok(service_metadata)
     } else {
-        info!("Service '{}' will remain public", service_name);
+        trace!(service = %service_name, "Service remains public");
 
         // Fetch the service metadata to return
         let service_response = client

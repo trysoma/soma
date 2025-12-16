@@ -4,7 +4,7 @@ use inquire::{Select, Text};
 use shared::error::CommonError;
 use soma_api_client::apis::identity_api;
 use soma_api_client::models;
-use tracing::info;
+use tracing::debug;
 
 use crate::utils::{CliConfig, create_and_wait_for_api_client};
 
@@ -134,7 +134,7 @@ async fn cmd_auth_add_oauth(
             ))
         })?;
 
-    info!("User auth flow configuration '{}' created", id);
+    debug!("User auth flow configuration '{}' created", id);
     println!();
     println!("Successfully added user auth flow configuration: {id}");
     println!("The configuration has been synced to soma.yaml.");
@@ -249,7 +249,7 @@ async fn cmd_auth_add_oidc(
             ))
         })?;
 
-    info!("User auth flow configuration '{}' created", id);
+    debug!("User auth flow configuration '{}' created", id);
     println!();
     println!("Successfully added user auth flow configuration: {id}");
     println!("The configuration has been synced to soma.yaml.");
@@ -277,7 +277,7 @@ async fn cmd_auth_remove(id: String, api_url: &str, timeout_secs: u64) -> Result
             ))
         })?;
 
-    info!("User auth flow configuration '{}' removed", id);
+    debug!("User auth flow configuration '{}' removed", id);
     println!("Successfully removed user auth flow configuration: {id}");
 
     Ok(())

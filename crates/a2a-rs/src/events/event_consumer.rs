@@ -3,7 +3,7 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace};
 
 use crate::{
     errors::{A2aServerError, ErrorBuilder},
@@ -21,7 +21,7 @@ pub struct EventConsumer {
 impl EventConsumer {
     /// Initializes the EventConsumer.
     pub fn new(queue: EventQueue) -> Self {
-        debug!("EventConsumer initialized");
+        trace!("EventConsumer initialized");
         Self {
             queue,
             timeout_duration: Duration::from_millis(500),
@@ -31,18 +31,16 @@ impl EventConsumer {
 
     /// Consume one event from the agent event queue non-blocking.
     pub async fn consume_one(&self) -> Result<Event, A2aServerError> {
-        debug!("Attempting to consume one event.");
+        trace!("Consuming event (non-blocking)");
 
         match self.queue.dequeue_event(true).await {
             Ok(event) => {
-                debug!("Dequeued event of type: {:?} in consume_one.", event);
+                trace!(event = ?event, "Dequeued event");
                 self.queue.task_done();
                 Ok(event)
             }
             Err(DequeueError::QueueEmpty) => {
-                warn!(
-                    "Event queue was empty in consume_one. This might be a timing issue where the consumer is trying to read before the agent has enqueued events."
-                );
+                debug!("Queue empty during consume_one");
                 Err(A2aServerError::InternalError(
                     ErrorBuilder::default()
                         .message("Agent did not return any response".to_string())
@@ -51,7 +49,7 @@ impl EventConsumer {
                 ))
             }
             Err(DequeueError::QueueClosed) => {
-                warn!("Event queue was closed in consume_one.");
+                debug!("Queue closed during consume_one");
                 Err(A2aServerError::InternalError(
                     ErrorBuilder::default()
                         .message("Queue is closed".to_string())
@@ -64,20 +62,16 @@ impl EventConsumer {
 
     /// Consume one event from the agent event queue with blocking.
     pub async fn consume_one_blocking(&self) -> Result<Event, A2aServerError> {
-        debug!("Attempting to consume one event (blocking).");
+        trace!("Consuming event (blocking)");
 
         match self.queue.dequeue_event(false).await {
             Ok(event) => {
-                debug!(
-                    "Dequeued event of type: {:?} in consume_one_blocking.",
-                    &event
-                );
+                trace!(event = ?event, "Dequeued event (blocking)");
                 self.queue.task_done();
                 Ok(event)
             }
             Err(DequeueError::QueueEmpty) => {
-                // This shouldn't happen with blocking dequeue
-                warn!("Unexpected empty queue in consume_one_blocking.");
+                debug!("Unexpected empty queue in blocking dequeue");
                 Err(A2aServerError::InternalError(
                     ErrorBuilder::default()
                         .message("Unexpected empty queue".to_string())
@@ -86,7 +80,7 @@ impl EventConsumer {
                 ))
             }
             Err(DequeueError::QueueClosed) => {
-                debug!("Event queue was closed in consume_one_blocking.");
+                trace!("Queue closed during blocking consume");
                 Err(A2aServerError::InternalError(
                     ErrorBuilder::default()
                         .message("Queue is closed".to_string())
@@ -103,7 +97,7 @@ impl EventConsumer {
     /// until a final event is received or the queue is closed. It also
     /// monitors for exceptions set by the `agent_task_callback`.
     pub async fn consume_all(&self) -> impl futures::Stream<Item = Result<Event, A2aServerError>> {
-        debug!("Starting to consume all events from the queue.");
+        trace!("Starting consume_all");
 
         let queue = self.queue.clone();
         let timeout_duration = self.timeout_duration;
@@ -120,9 +114,8 @@ impl EventConsumer {
                 // Try to dequeue with timeout
                 match timeout(timeout_duration, queue.dequeue_event(false)).await {
                     Ok(Ok(event)) => {
-                        debug!("Dequeued event of type: {:?} in consume_all.", &event);
+                        trace!(event = ?event, "Dequeued event in consume_all");
                         queue.task_done();
-                        debug!("Marked task as done in event queue in consume_all");
 
                         let is_final_event = match &event {
                             Event::TaskStatusUpdate(update) => update.final_,
@@ -140,7 +133,7 @@ impl EventConsumer {
                         };
 
                         if is_final_event {
-                            debug!("Stopping event consumption in consume_all.");
+                            trace!("Final event received, closing queue");
                             queue.close().await;
                             yield Ok(event);
                             break;
@@ -154,11 +147,9 @@ impl EventConsumer {
                         }
                     }
                     Ok(Err(DequeueError::QueueEmpty)) => {
-                        // This shouldn't happen with no_wait=false, but handle it anyway
                         continue;
                     }
                     Err(_) => {
-                        // Timeout occurred, continue polling
                         continue;
                     }
                 }
@@ -171,19 +162,17 @@ impl EventConsumer {
     /// If the agent's asyncio task raises an exception, this callback is
     /// invoked, and the exception is stored to be re-raised by the consumer loop.
     pub async fn agent_task_callback(&self, agent_task: JoinHandle<Result<(), A2aServerError>>) {
-        debug!("Agent task callback triggered.");
+        trace!("Agent task callback triggered");
 
         match agent_task.await {
             Ok(Ok(())) => {
                 // Task completed successfully
             }
             Ok(Err(e)) => {
-                // Task returned an error
                 *self.exception.lock().await = Some(e);
             }
             Err(e) => {
-                // Task panicked or was cancelled
-                error!("Agent task panicked or was cancelled: {:?}", e);
+                error!(error = ?e, "Agent task panicked or cancelled");
                 *self.exception.lock().await = Some(A2aServerError::InternalError(
                     ErrorBuilder::default()
                         .message(format!("Agent task failed: {e}"))

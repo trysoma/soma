@@ -1,7 +1,4 @@
-use std::{sync::Once, time::Duration};
-
-use crate::error::DynError;
-use tokio_graceful_shutdown::{SubsystemHandle, Toplevel};
+use std::sync::Once;
 
 pub fn get_workspace_root() -> String {
     let crate_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -34,18 +31,6 @@ pub use setup_sql_fixtures;
 pub struct TestContext {
     pub workspace_root: String,
     pub crate_root: String,
-}
-
-pub async fn run_test_in_subsystem<Fut, Subsys>(subsys: Subsys)
-where
-    Subsys: 'static + FnOnce(SubsystemHandle<DynError>) -> Fut + Send,
-    Fut: 'static + Future<Output = ()> + Send,
-{
-    Toplevel::new(subsys)
-        .catch_signals()
-        .handle_shutdown_requests(Duration::from_millis(30_000))
-        .await
-        .unwrap()
 }
 
 pub static INIT_TEST_ONCE: Once = Once::new();

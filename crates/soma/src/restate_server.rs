@@ -1,17 +1,18 @@
 use anyhow::Context;
-use shared::command::run_child_process;
 use shared::error::CommonError;
-use shared::subsystem::SubsystemHandle;
-use std::fs;
-use std::path::PathBuf;
-use tokio::process::Command;
-use tokio::sync::broadcast;
-use tracing::{error, info};
-
 use shared::port::is_port_in_use;
+use shared::process_manager::{
+    CustomProcessManager, OnStop, OnTerminalStop, ProcessConfig, RestartConfig,
+};
+use shared::restate::deploy::wait_for_healthy_restate_admin;
 use soma_api_server::restate::{
     RestateServerLocalParams, RestateServerParams, RestateServerRemoteParams,
 };
+use std::env::var;
+use std::path::PathBuf;
+use std::time::Duration;
+use std::{collections::HashMap, fs};
+use tracing::{debug, trace};
 
 /// The embedded restate-server binary for the current platform
 /// This is included at compile time from the binary downloaded during build
@@ -97,11 +98,11 @@ pub fn install_bundled_restate() -> Result<PathBuf, CommonError> {
 
     // Check if binary already exists
     if binary_path.exists() {
-        tracing::info!("restate-server already installed at {:?}", binary_path);
+        tracing::debug!("restate-server already installed at {:?}", binary_path);
         return Ok(binary_path);
     }
 
-    tracing::info!("Installing bundled restate-server to {:?}", binary_path);
+    tracing::debug!("Installing bundled restate-server to {:?}", binary_path);
 
     // Write the embedded binary to the file
     fs::write(&binary_path, binary_data).context("Failed to write restate-server binary")?;
@@ -116,7 +117,7 @@ pub fn install_bundled_restate() -> Result<PathBuf, CommonError> {
             .context("Failed to set restate-server binary permissions")?;
     }
 
-    tracing::info!("Successfully installed restate-server binary");
+    tracing::debug!("Successfully installed restate-server binary");
     Ok(binary_path)
 }
 
@@ -130,55 +131,40 @@ pub fn install_bundled_restate() -> Result<PathBuf, CommonError> {
 pub fn ensure_restate_binary() -> Result<String, CommonError> {
     // Check if restate-server exists in PATH
     if is_restate_in_path() {
-        tracing::info!("Using restate-server from system PATH");
+        debug!("Using restate-server from system PATH");
         return Ok("restate-server".to_string());
     }
-
+    trace!("Installing restate-server binary");
     // Check if bundled binary is already installed
     let binary_path = get_restate_binary_path()?;
     if binary_path.exists() {
-        tracing::info!("Using bundled restate-server from {:?}", binary_path);
+        tracing::debug!("Using bundled restate-server from {:?}", binary_path);
         return Ok(binary_path.display().to_string());
     }
 
     // Try to install the bundled binary if available
     if RESTATE_BINARY.is_some() {
         match install_bundled_restate() {
-            Ok(installed_path) => return Ok(installed_path.display().to_string()),
+            Ok(installed_path) => Ok(installed_path.display().to_string()),
             Err(e) => {
-                tracing::warn!("Failed to install bundled restate-server: {:?}", e);
+                tracing::error!("Failed to install bundled restate-server");
+
+                Err(e)
             }
         }
     } else {
-        tracing::warn!("No bundled restate-server binary available for this platform");
-    }
-
-    // Fall back to expecting restate-server to be in PATH
-    tracing::warn!("Falling back to 'restate-server' command from PATH");
-    Ok("restate-server".to_string())
-}
-
-/// Starts the Restate server subsystem
-pub async fn start_restate_server(
-    params: RestateServerParams,
-    kill_signal_rx: tokio::sync::broadcast::Receiver<()>,
-) -> Result<(), CommonError> {
-    match params {
-        RestateServerParams::Local(params) => {
-            info!("Starting Restate server locally");
-            start_restate_server_local(params, kill_signal_rx).await
-        }
-        RestateServerParams::Remote(params) => {
-            info!("Restate is running remotely, checking health and client can connect...");
-            start_restate_server_remote(params).await
-        }
+        tracing::error!("No bundled restate-server binary available for this platform to install");
+        Err(CommonError::Unknown(anyhow::anyhow!(
+            "No bundled restate-server binary available for this platform to install"
+        )))
     }
 }
 
 async fn start_restate_server_local(
+    process_manager: &CustomProcessManager,
     params: RestateServerLocalParams,
-    kill_signal_rx: tokio::sync::broadcast::Receiver<()>,
 ) -> Result<(), CommonError> {
+    trace!("Checking local restate server ports are free");
     if is_port_in_use(params.ingress_port)? {
         return Err(CommonError::Unknown(anyhow::anyhow!(
             "Restate ingress address is in use (127.0.0.1:{})",
@@ -197,12 +183,18 @@ async fn start_restate_server_local(
             params.soma_restate_service_port
         )));
     }
+    trace!("Local restate server ports are free");
 
     // Delete Restate data directory if --clean flag is set
     if params.clean {
-        let restate_data_dir = params.project_dir.join(".soma/restate-data");
+        debug!("Clean flag is set, deleting Restate data directory");
+        let restate_data_dir = params.restate_server_data_dir.clone();
+        trace!(
+            "Checking if Restate data directory exists: {:?}",
+            restate_data_dir
+        );
         if restate_data_dir.exists() {
-            info!(
+            trace!(
                 "Cleaning Restate data directory: {}",
                 restate_data_dir.display()
             );
@@ -211,43 +203,67 @@ async fn start_restate_server_local(
                     "Failed to delete Restate data directory: {e}"
                 ))
             })?;
-            info!("Restate data directory deleted successfully");
+            trace!("Restate data directory deleted successfully");
         } else {
-            info!("Restate data directory does not exist, skipping clean");
+            debug!("Restate data directory does not exist, skipping clean");
         }
     }
 
     // Ensure restate-server binary is available (use system binary or bundled one)
     let restate_binary_path = ensure_restate_binary()?;
-    info!("Using restate-server binary: {}", restate_binary_path);
+    debug!("Using restate-server binary: {}", restate_binary_path);
 
-    let mut cmd = Command::new(&restate_binary_path);
+    process_manager
+        .start_process(
+            "restate-server",
+            ProcessConfig {
+                script: restate_binary_path,
+                args: vec![
+                    "--log-filter".to_string(),
+                    var("RUST_LOG").unwrap_or("info".to_string()),
+                    "--tracing-filter".to_string(),
+                    var("RUST_LOG").unwrap_or("info".to_string()),
+                    "--log-format".to_string(),
+                    "pretty".to_string(),
+                    "--base-dir".to_string(),
+                    params.restate_server_data_dir.display().to_string(),
+                ],
+                cwd: None,
+                env: {
+                    let mut env = HashMap::new();
+                    env.insert(
+                        "RESTATE__INGRESS__BIND_ADDRESS".to_string(),
+                        format!("127.0.0.1:{}", params.ingress_port),
+                    );
+                    env.insert(
+                        "RESTATE__ADMIN__BIND_ADDRESS".to_string(),
+                        format!("127.0.0.1:{}", params.admin_port),
+                    );
+                    // env.insert("RESTATE__ADVERTISED_ADDRESS".to_string(), format!("127.0.0.1:{}", params.admin_port));
+                    env
+                },
+                health_check: Some(pmdaemon::health::HealthCheckConfig {
+                    check_type: pmdaemon::HealthCheckType::Http {
+                        url: (format!("http://127.0.0.1:{}", params.admin_port)),
+                    },
+                    timeout: Duration::from_secs(5),
+                    interval: Duration::from_secs(5),
+                    retries: 3,
+                    enabled: true,
+                }),
+                on_stop: OnStop::Restart(RestartConfig {
+                    max_restarts: 10,
+                    restart_delay: 1000,
+                }),
+                on_terminal_stop: OnTerminalStop::TriggerShutdown,
+                shutdown_priority: 10,
+                follow_logs: false,
+                on_shutdown_triggered: None,
+                on_shutdown_complete: None,
+            },
+        )
+        .await?;
 
-    cmd.arg("--log-filter")
-        .arg("warn")
-        .arg("--tracing-filter")
-        .arg("warn")
-        .arg("--base-dir")
-        .arg(
-            params
-                .project_dir
-                .join(".soma/restate-data")
-                .display()
-                .to_string(),
-        )
-        .env(
-            "RESTATE__INGRESS__BIND_ADDRESS",
-            format!("127.0.0.1:{}", params.ingress_port),
-        )
-        .env(
-            "RESTATE__ADMIN__BIND_ADDRESS",
-            format!("127.0.0.1:{}", params.admin_port),
-        )
-        .env(
-            "RESTATE__ADVERTISED_ADDRESS",
-            format!("127.0.0.1:{}", params.soma_restate_service_port),
-        );
-    run_child_process("restate-server", cmd, Some(kill_signal_rx), None).await?;
     Ok(())
 }
 
@@ -259,23 +275,31 @@ async fn start_restate_server_remote(
     Ok(())
 }
 
-pub fn start_restate_subsystem(
+pub async fn start_restate(
+    process_manager: &CustomProcessManager,
     restate_params: RestateServerParams,
-    shutdown_rx: broadcast::Receiver<()>,
-) -> Result<SubsystemHandle, CommonError> {
-    let (handle, signal) = SubsystemHandle::new("Restate");
+) -> Result<(), CommonError> {
+    match restate_params {
+        RestateServerParams::Local(params) => {
+            trace!("Starting a local restate server process");
 
-    tokio::spawn(async move {
-        match start_restate_server(restate_params, shutdown_rx).await {
-            Ok(()) => {
-                signal.signal_with_message("stopped gracefully");
-            }
-            Err(e) => {
-                error!("Restate server stopped with error: {:?}", e);
-                signal.signal();
-            }
+            let admin_port = params.admin_port;
+            start_restate_server_local(process_manager, params).await?;
+
+            trace!("Waiting for Restate admin endpoint to be ready...");
+            // Wait for Restate admin endpoint to be ready
+            // wait_for_healthy_restate_admin handles retries internally and returns an error if it fails
+            let admin_url = format!("http://127.0.0.1:{admin_port}");
+            wait_for_healthy_restate_admin(&admin_url).await?;
+            trace!("Restate admin endpoint is ready");
+            trace!("Local restate server process started");
         }
-    });
+        RestateServerParams::Remote(params) => {
+            trace!("Restate is running remotely, checking health and client can connect...");
+            start_restate_server_remote(params).await?;
+            trace!("Remote restate server process started");
+        }
+    }
 
-    Ok(handle)
+    Ok(())
 }

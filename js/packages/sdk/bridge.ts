@@ -12,8 +12,6 @@ interface CreateSomaFunctionParams<InputType, OutputType> {
 export function createSomaFunction<InputType, OutputType>(
 	params: CreateSomaFunctionParams<InputType, OutputType>,
 ) {
-	console.log(z.toJSONSchema(params.inputSchema));
-	console.log(z.toJSONSchema(params.outputSchema));
 	return {
 		inputSchema: params.inputSchema,
 		outputSchema: params.outputSchema,

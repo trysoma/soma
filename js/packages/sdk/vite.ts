@@ -265,137 +265,86 @@ import * as http2 from 'http2';
 ${functionImports.join("\n")}
 ${agentImports.join("\n")}
 
-	console.log("SDK server starting...");
+console.debug("[SDK] Starting");
+
+// Track shutdown state (declared early so error handlers can access it)
+let isShuttingDown = false;
+
+// Handle uncaught exceptions and unhandled rejections gracefully during shutdown
+process.on('uncaughtException', (err: Error) => {
+  if (!isShuttingDown) {
+    console.error('[SDK] Uncaught exception:', err);
+    process.exit(1);
+  }
+});
+
+process.on('unhandledRejection', (reason: unknown) => {
+  if (!isShuttingDown) {
+    console.error('[SDK] Unhandled rejection:', reason);
+    process.exit(1);
+  }
+});
 
 // Start gRPC server (don't await - it runs forever)
 const socketPath = process.env.SOMA_SERVER_SOCK || '/tmp/soma-sdk.sock';
 const projectDir = process.cwd();
 startGrpcServer(socketPath, projectDir).catch(err => {
-  console.error('gRPC server error:', err);
-  process.exit(1);
+  if (!isShuttingDown) {
+    console.error('[SDK] gRPC server error:', err);
+    process.exit(1);
+  }
 });
 
-// Wait a bit for server to initialize
 await new Promise(resolve => setTimeout(resolve, 100));
-console.log(\`gRPC server started on \${socketPath}\`);
+console.debug(\`[SDK] gRPC server started on \${socketPath}\`);
 
-// Register secret handler to inject secrets into process.env
-console.log('[INFO] Registering secret handler...');
+// Register secret handler
 setSecretHandler(async (err, secrets) => {
   if (err) {
-    console.error('Error in secret handler:', err);
-    const error: CallbackError = {
-      message: err.message,
-    }
-    const res: SetSecretsResponse = {
-      error
-    }
-    return res;
+    console.error('[SDK] Secret handler error:', err);
+    return { error: { message: err.message } };
   }
-  const secretKeys = secrets.map(s => s.key);
-  console.log(\`[INFO] Secret handler invoked with \${secrets.length} secrets: \${secretKeys.join(', ')}\`);
+  console.debug(\`[SDK] Setting \${secrets.length} secrets\`);
   for (const secret of secrets) {
     process.env[secret.key] = secret.value;
-    console.log(\`[INFO] Set process.env.\${secret.key}\`);
   }
-  const message = \`Injected \${secrets.length} secrets into process.env\`;
-  console.log(\`[INFO] Secret handler completed: \${message}\`);
-  const data: SetSecretsSuccess = {
-    message,
-  }
-  const res: SetSecretsResponse = {
-    data,
-  }
-  return res;
+  return { data: { message: \`Injected \${secrets.length} secrets\` } };
 });
-console.log('[INFO] Secret handler registered successfully');
 
-// Register environment variable handler to inject environment variables into process.env
-console.log('[INFO] Registering environment variable handler...');
+// Register environment variable handler
 setEnvironmentVariableHandler(async (err, envVars) => {
   if (err) {
-    console.error('Error in environment variable handler:', err);
-    const error: CallbackError = {
-      message: err.message,
-    }
-    const res: SetEnvironmentVariablesResponse = {
-      error
-    }
-    return res;
+    console.error('[SDK] Env var handler error:', err);
+    return { error: { message: err.message } };
   }
-  const envVarKeys = envVars.map(e => e.key);
-  console.log(\`[INFO] Environment variable handler invoked with \${envVars.length} environment variables: \${envVarKeys.join(', ')}\`);
+  console.debug(\`[SDK] Setting \${envVars.length} env vars\`);
   for (const envVar of envVars) {
     process.env[envVar.key] = envVar.value;
-    console.log(\`[INFO] Set process.env.\${envVar.key}\`);
   }
-  const message = \`Injected \${envVars.length} environment variables into process.env\`;
-  console.log(\`[INFO] Environment variable handler completed: \${message}\`);
-  const data: SetEnvironmentVariablesSuccess = {
-    message,
-  }
-  const res: SetEnvironmentVariablesResponse = {
-    data,
-  }
-  return res;
+  return { data: { message: \`Injected \${envVars.length} env vars\` } };
 });
-console.log('[INFO] Environment variable handler registered successfully');
 
-// Register unset secret handler to remove secrets from process.env
-console.log('[INFO] Registering unset secret handler...');
+// Register unset secret handler
 setUnsetSecretHandler(async (err, key) => {
   if (err) {
-    console.error('Error in unset secret handler:', err);
-    const error: CallbackError = {
-      message: err.message,
-    }
-    const res: UnsetSecretResponse = {
-      error
-    }
-    return res;
+    console.error('[SDK] Unset secret handler error:', err);
+    return { error: { message: err.message } };
   }
-  console.log(\`[INFO] Unset secret handler invoked with key: \${key}\`);
+  console.debug(\`[SDK] Unsetting secret \${key}\`);
   delete process.env[key];
-  console.log(\`[INFO] Removed process.env.\${key}\`);
-  const message = \`Removed secret '\${key}' from process.env\`;
-  console.log(\`[INFO] Unset secret handler completed: \${message}\`);
-  const data: UnsetSecretSuccess = {
-    message,
-  }
-  const res: UnsetSecretResponse = {
-    data,
-  }
-  return res;
+  return { data: { message: \`Removed secret '\${key}'\` } };
 });
-console.log('[INFO] Unset secret handler registered successfully');
 
-// Register unset environment variable handler to remove environment variables from process.env
-console.log('[INFO] Registering unset environment variable handler...');
+// Register unset environment variable handler
 setUnsetEnvironmentVariableHandler(async (err, key) => {
   if (err) {
-    console.error('Error in unset environment variable handler:', err);
-    const error: CallbackError = {
-      message: err.message,
-    }
-    const res: UnsetEnvironmentVariableResponse = {
-      error
-    }
-    return res;
+    console.error('[SDK] Unset env var handler error:', err);
+    return { error: { message: err.message } };
   }
-  console.log(\`[INFO] Unset environment variable handler invoked with key: \${key}\`);
+  console.debug(\`[SDK] Unsetting env var \${key}\`);
   delete process.env[key];
-  console.log(\`[INFO] Removed process.env.\${key}\`);
-  const message = \`Removed environment variable '\${key}' from process.env\`;
-  console.log(\`[INFO] Unset environment variable handler completed: \${message}\`);
-  const data: UnsetEnvironmentVariableSuccess = {
-    message,
-  }
-  const res: UnsetEnvironmentVariableResponse = {
-    data,
-  }
-  return res;
+  return { data: { message: \`Removed env var '\${key}'\` } };
 });
-console.log('[INFO] Unset environment variable handler registered successfully');
 
 // Register all providers and functions
 ${functionRegistrations.join("\n")}
@@ -403,7 +352,7 @@ ${functionRegistrations.join("\n")}
 // Register all agents
 ${agentRegistrations.join("\n")}
 
-console.log("SDK server ready!");
+console.debug("[SDK] Ready");
 
 ${
 	hasAgents
@@ -435,12 +384,11 @@ const wrapHandler = <T>(handler: SomaHandler<T>, agent: SomaAgent): RestateHandl
 
 const restateServicePort = process.env.RESTATE_SERVICE_PORT;
 if (!restateServicePort) {
-  throw new Error('RESTATE_SERVICE_PORT environment variable is not set');
+  throw new Error('RESTATE_SERVICE_PORT not set');
 }
 const restatePort = parseInt(restateServicePort);
-console.log(\`Starting Restate server on port \${restatePort}...\`);
+console.debug(\`[SDK] Starting Restate on port \${restatePort}\`);
 
-// Wait for port to become available (in case previous instance is shutting down from HMR)
 const checkPortAvailable = (port: number): Promise<boolean> => {
   return new Promise((resolve) => {
     const server = net.createServer();
@@ -452,35 +400,26 @@ const checkPortAvailable = (port: number): Promise<boolean> => {
   });
 };
 
-// Wait for port to become available with exponential backoff
 const waitForPortAvailable = async (port: number, maxWaitSeconds: number = 30): Promise<void> => {
   const startTime = Date.now();
   let attempt = 0;
-  
+
   while (Date.now() - startTime < maxWaitSeconds * 1000) {
     const available = await checkPortAvailable(port);
-    if (available) {
-      if (attempt > 0) {
-        console.log(\`Port \${port} is now available after waiting for previous instance to shut down.\`);
-      }
-      return;
-    }
-    
-    // Exponential backoff: 100ms, 200ms, 400ms, 800ms, then cap at 1s
+    if (available) return;
     const delayMs = Math.min(100 * Math.pow(2, attempt), 1000);
     await new Promise(resolve => setTimeout(resolve, delayMs));
     attempt++;
   }
-  
-  throw new Error(\`Port \${port} did not become available within \${maxWaitSeconds} seconds. Please check if another process is using the port.\`);
+
+  throw new Error(\`Port \${port} not available within \${maxWaitSeconds}s\`);
 };
 
-// Wait for port to be available before starting (handles HMR shutdown gracefully)
 try {
   await waitForPortAvailable(restatePort);
 } catch (error: unknown) {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  console.error(errorMessage);
+  if (isShuttingDown) process.exit(0);
+  console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 }
 
@@ -492,125 +431,170 @@ ${restateServices.join(",\n")}
 });
 const httpServer = http2.createServer(http2Handler);
 
-// Handle graceful shutdown
-let isShuttingDown = false;
 const shutdown = async () => {
   if (isShuttingDown) return;
   isShuttingDown = true;
-  console.log('\\nShutting down Restate server...');
+  console.debug('[SDK] Shutting down');
 
-  // Kill the gRPC service to clean up state
   try {
     killGrpcService();
-    console.log('gRPC service killed');
   } catch (err) {
-    console.error('Error killing gRPC service:', err);
+    console.error('[SDK] Error killing gRPC:', err);
   }
 
+  // Force close HTTP server immediately - don't wait for graceful shutdown
+  // This ensures the port is released even if the process is killed
   return new Promise<void>((resolve) => {
+    let resolved = false;
+    const doResolve = () => {
+      if (!resolved) {
+        resolved = true;
+        resolve();
+      }
+    };
+
+    // Close the server - this stops accepting new connections
     httpServer.close(() => {
-      console.log('Restate server closed');
-      resolve();
+      doResolve();
     });
-    // Force close after 5 seconds if graceful shutdown doesn't complete
+
+    // Force resolve after 500ms - don't wait too long
     setTimeout(() => {
-      console.log('Forcing Restate server shutdown...');
-      resolve();
-    }, 5000);
+      doResolve();
+    }, 500);
   });
 };
 
+// Handle shutdown signals - ensure shutdown completes quickly before exiting
+// Use Promise.race to ensure we exit even if shutdown hangs
 process.on('SIGINT', async () => {
-  await shutdown();
+  await Promise.race([
+    shutdown(),
+    new Promise(resolve => setTimeout(resolve, 2000)) // Max 2 seconds
+  ]);
   process.exit(0);
 });
 process.on('SIGTERM', async () => {
-  await shutdown();
+  await Promise.race([
+    shutdown(),
+    new Promise(resolve => setTimeout(resolve, 2000)) // Max 2 seconds
+  ]);
   process.exit(0);
 });
 process.on('SIGHUP', async () => {
-  await shutdown();
+  await Promise.race([
+    shutdown(),
+    new Promise(resolve => setTimeout(resolve, 2000)) // Max 2 seconds
+  ]);
   process.exit(0);
 });
 
-// Handle server errors (must be set before listen)
 httpServer.on('error', (err: NodeJS.ErrnoException) => {
+  if (isShuttingDown) return;
   if (err.code === 'EADDRINUSE') {
-    console.error(\`Port \${restatePort} is already in use. Please stop the existing server or use a different port.\`);
+    console.error(\`[SDK] Port \${restatePort} in use\`);
   } else {
-    console.error('Restate server error:', err);
+    console.error('[SDK] Restate error:', err);
   }
   process.exit(1);
 });
 
-// Start the server
 httpServer.listen(restatePort, async () => {
-  console.log(\`Restate server listening on port \${restatePort}\`);
+  console.debug(\`[SDK] Restate listening on port \${restatePort}\`);
 
-  // Trigger resync with API server to sync providers, agents, secrets, and env vars
-  // This must happen AFTER the Restate server is listening, so Restate can verify the deployment
-  // Retry with backoff since the API server may not be ready yet
   const maxRetries = 10;
   const baseDelayMs = 500;
   let resyncSuccess = false;
 
-  for (let attempt = 1; attempt <= maxRetries && !resyncSuccess; attempt++) {
-    console.log(\`Triggering resync with API server (attempt \${attempt}/\${maxRetries})...\`);
+  for (let attempt = 1; attempt <= maxRetries && !resyncSuccess && !isShuttingDown; attempt++) {
+    if (isShuttingDown) break;
+    console.debug(\`[SDK] Resync attempt \${attempt}/\${maxRetries}\`);
     try {
       await resyncSdk();
-      console.log("Resync with API server completed successfully");
+      console.debug("[SDK] Resync completed");
       resyncSuccess = true;
     } catch (error) {
-      if (attempt < maxRetries) {
+      if (attempt < maxRetries && !isShuttingDown) {
         const delayMs = baseDelayMs * attempt;
-        console.log(\`Resync failed, retrying in \${delayMs}ms...\`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-      } else {
-        console.error("Failed to resync with API server after all retries:", error);
-        // Don't exit - secrets/env vars will be synced when the API server connects
+        await new Promise<void>((resolve) => {
+          const timeout = setTimeout(resolve, delayMs);
+          const checkShutdown = setInterval(() => {
+            if (isShuttingDown) {
+              clearTimeout(timeout);
+              clearInterval(checkShutdown);
+              resolve();
+            }
+          }, 100);
+          setTimeout(() => clearInterval(checkShutdown), delayMs);
+        });
+      } else if (!isShuttingDown) {
+        console.error("[SDK] Resync failed after retries:", error);
       }
     }
   }
 });
 `
 		: `
-// No agents defined, skipping Restate server startup
-// Trigger resync with API server to sync providers, agents, secrets, and env vars
-// Retry with backoff since the API server may not be ready yet
-const maxRetries = 10;
-const baseDelayMs = 500;
-let resyncSuccess = false;
+let isShuttingDownNoAgents = false;
 
-for (let attempt = 1; attempt <= maxRetries && !resyncSuccess; attempt++) {
-  console.log(\`Triggering resync with API server (attempt \${attempt}/\${maxRetries})...\`);
-  try {
-    await resyncSdk();
-    console.log("Resync with API server completed successfully");
-    resyncSuccess = true;
-  } catch (error) {
-    if (attempt < maxRetries) {
-      const delayMs = baseDelayMs * attempt;
-      console.log(\`Resync failed, retrying in \${delayMs}ms...\`);
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-    } else {
-      console.error("Failed to resync with API server after all retries:", error);
-      // Don't exit - secrets/env vars will be synced when the API server connects
-    }
+process.on('uncaughtException', (err: Error) => {
+  if (!isShuttingDownNoAgents) {
+    console.error('[SDK] Uncaught exception:', err);
+    process.exit(1);
   }
-}
-// Handle graceful shutdown for gRPC server only
+});
+
+process.on('unhandledRejection', (reason: unknown) => {
+  if (!isShuttingDownNoAgents) {
+    console.error('[SDK] Unhandled rejection:', reason);
+    process.exit(1);
+  }
+});
+
 const shutdownNoAgents = () => {
-  console.log('\\nShutting down...');
+  if (isShuttingDownNoAgents) return;
+  isShuttingDownNoAgents = true;
+  console.debug('[SDK] Shutting down');
   try {
     killGrpcService();
-    console.log('gRPC service killed');
   } catch (err) {
-    console.error('Error killing gRPC service:', err);
+    console.error('[SDK] Error killing gRPC:', err);
   }
   process.exit(0);
 };
 process.on('SIGINT', shutdownNoAgents);
 process.on('SIGTERM', shutdownNoAgents);
+
+const maxRetries = 10;
+const baseDelayMs = 500;
+let resyncSuccess = false;
+
+for (let attempt = 1; attempt <= maxRetries && !resyncSuccess && !isShuttingDownNoAgents; attempt++) {
+  if (isShuttingDownNoAgents) break;
+  console.debug(\`[SDK] Resync attempt \${attempt}/\${maxRetries}\`);
+  try {
+    await resyncSdk();
+    console.debug("[SDK] Resync completed");
+    resyncSuccess = true;
+  } catch (error) {
+    if (attempt < maxRetries && !isShuttingDownNoAgents) {
+      const delayMs = baseDelayMs * attempt;
+      await new Promise<void>((resolve) => {
+        const timeout = setTimeout(resolve, delayMs);
+        const checkShutdown = setInterval(() => {
+          if (isShuttingDownNoAgents) {
+            clearTimeout(timeout);
+            clearInterval(checkShutdown);
+            resolve();
+          }
+        }, 100);
+        setTimeout(() => clearInterval(checkShutdown), delayMs);
+      });
+    } else if (!isShuttingDownNoAgents) {
+      console.error("[SDK] Resync failed after retries:", error);
+    }
+  }
+}
 `
 }
 // Keep the process alive
@@ -625,6 +609,57 @@ await new Promise(() => {});
 function standaloneServerPlugin(baseDir: string): Plugin {
 	let serverProcess: ChildProcess | null = null;
 	const standaloneFilePath = resolve(baseDir, "soma/standalone.ts");
+	let watcherHandlers: Array<{
+		event: string;
+		handler: (file: string) => void;
+	}> = [];
+	let devServerRef: ViteDevServer | null = null;
+
+	// Cleanup function to kill SDK server process and remove watchers
+	const cleanup = () => {
+		// Remove watcher handlers to prevent further events
+		if (devServerRef) {
+			for (const { event, handler } of watcherHandlers) {
+				try {
+					devServerRef.watcher.off(event, handler);
+				} catch (_e) {
+					// Ignore errors - watcher might already be closed
+				}
+			}
+			watcherHandlers = [];
+		}
+
+		if (serverProcess) {
+			console.log("Killing SDK server process...");
+			const pid = serverProcess.pid;
+			// Kill the entire process group to ensure child processes are killed
+			// When using shell: true, the actual process is a child of the shell
+			if (pid) {
+				try {
+					// Kill process group (negative PID kills the group)
+					process.kill(-pid, "SIGTERM");
+				} catch (_e) {
+					// Try killing just the process if group kill fails
+					try {
+						serverProcess.kill("SIGTERM");
+					} catch (_e2) {
+						// Process might already be dead
+					}
+				}
+				// Force kill immediately - don't wait, as parent may exit
+				try {
+					process.kill(-pid, "SIGKILL");
+				} catch (_e) {
+					try {
+						serverProcess.kill("SIGKILL");
+					} catch (_e2) {
+						// Process might already be dead
+					}
+				}
+			}
+			serverProcess = null;
+		}
+	};
 
 	function regenerateStandalone() {
 		const content = generateStandaloneServer(baseDir, true);
@@ -718,7 +753,27 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 	function restartServer() {
 		if (serverProcess) {
 			console.log("Restarting SDK server...");
-			serverProcess.kill();
+			const pid = serverProcess.pid;
+			// Kill the entire process group
+			if (pid) {
+				try {
+					process.kill(-pid, "SIGTERM");
+				} catch (_e) {
+					try {
+						serverProcess.kill("SIGTERM");
+					} catch (_e2) {
+						// Process might already be dead
+					}
+				}
+				// Force kill after 500ms if still running
+				setTimeout(() => {
+					try {
+						process.kill(-pid, "SIGKILL");
+					} catch (_e) {
+						// Process might already be dead
+					}
+				}, 500);
+			}
 			serverProcess = null;
 		}
 
@@ -735,6 +790,7 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 			stdio: "inherit",
 			cwd: baseDir,
 			shell: true,
+			detached: true, // Create new process group so we can kill the entire tree
 		});
 
 		serverProcess.on("error", (err: Error) => {
@@ -748,6 +804,15 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 		});
 	}
 
+	// Register process exit handlers to ensure cleanup on unexpected exits
+	const exitHandler = () => {
+		cleanup();
+	};
+	process.on("exit", exitHandler);
+	process.on("SIGINT", exitHandler);
+	process.on("SIGTERM", exitHandler);
+	process.on("SIGHUP", exitHandler);
+
 	return {
 		name: "soma-standalone-server",
 
@@ -758,6 +823,9 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 		},
 
 		configureServer(devServer: ViteDevServer) {
+			// Store dev server reference for cleanup
+			devServerRef = devServer;
+
 			// Standalone was already generated in buildStart, but regenerate again
 			// in case configureServer is called without buildStart (shouldn't happen, but just in case)
 			regenerateStandalone();
@@ -768,7 +836,7 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 
 			devServer.watcher.add([functionsDir, agentsDir]);
 
-			devServer.watcher.on("add", (file: string) => {
+			const onAdd = (file: string) => {
 				if (file.includes("/functions/") || file.includes("/agents/")) {
 					console.log(`New file detected: ${file}`);
 					regenerateStandalone();
@@ -776,9 +844,9 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 						restartServer();
 					}
 				}
-			});
+			};
 
-			devServer.watcher.on("unlink", (file: string) => {
+			const onUnlink = (file: string) => {
 				if (file.includes("/functions/") || file.includes("/agents/")) {
 					console.log(`File removed: ${file}`);
 					regenerateStandalone();
@@ -786,9 +854,9 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 						restartServer();
 					}
 				}
-			});
+			};
 
-			devServer.watcher.on("change", (file: string) => {
+			const onChange = (file: string) => {
 				if (file.includes("/functions/") || file.includes("/agents/")) {
 					console.log(`File changed: ${file}`);
 					regenerateStandalone();
@@ -796,7 +864,18 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 						restartServer();
 					}
 				}
-			});
+			};
+
+			devServer.watcher.on("add", onAdd);
+			devServer.watcher.on("unlink", onUnlink);
+			devServer.watcher.on("change", onChange);
+
+			// Store handlers for cleanup (using top-level watcherHandlers)
+			watcherHandlers = [
+				{ event: "add", handler: onAdd },
+				{ event: "unlink", handler: onUnlink },
+				{ event: "change", handler: onChange },
+			];
 
 			// Start server after Vite is ready
 			devServer.httpServer?.once("listening", () => {
@@ -805,14 +884,26 @@ export function getBridge(_ctx: ObjectContext, config?: BridgeConfig): Bridge {
 					restartServer();
 				}, 1000);
 			});
+
+			// Cleanup SDK server when Vite dev server closes
+			devServer.httpServer?.on("close", () => {
+				cleanup();
+			});
+
+			// Also handle Vite's WebSocket close event
+			devServer.ws.on("close", () => {
+				cleanup();
+			});
 		},
 
 		buildEnd() {
 			// Kill server process when build ends
-			if (serverProcess) {
-				serverProcess.kill();
-				serverProcess = null;
-			}
+			cleanup();
+		},
+
+		closeBundle() {
+			// Kill server process when bundle closes
+			cleanup();
 		},
 	};
 }

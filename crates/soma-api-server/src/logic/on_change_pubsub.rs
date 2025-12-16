@@ -2,7 +2,7 @@ use bridge::logic::OnConfigChangeEvt as BridgeOnConfigChangeEvt;
 use encryption::logic::EncryptionKeyEvent;
 use identity::logic::OnConfigChangeEvt as IdentityOnConfigChangeEvt;
 use tokio::sync::broadcast;
-use tracing::{info, warn};
+use tracing::{debug, warn};
 
 use crate::logic::environment_variable::EnvironmentVariable;
 use crate::logic::secret::Secret;
@@ -72,7 +72,8 @@ pub fn create_soma_change_channel(capacity: usize) -> (SomaChangeTx, SomaChangeR
     broadcast::channel(capacity)
 }
 
-/// Starts the unified change pubsub system that forwards bridge, encryption, secret, environment variable, and identity events to the unified channel
+/// Starts the unified change pubsub system that forwards bridge, encryption, secret, environment variable, and identity events to the unified channel.
+/// This function runs indefinitely until aborted by the process manager.
 pub async fn run_change_pubsub(
     soma_change_tx: SomaChangeTx,
     mut bridge_change_rx: bridge::logic::OnConfigChangeRx,
@@ -80,9 +81,8 @@ pub async fn run_change_pubsub(
     mut secret_change_rx: SecretChangeRx,
     mut environment_variable_change_rx: EnvironmentVariableChangeRx,
     mut identity_change_rx: identity::logic::OnConfigChangeRx,
-    mut shutdown_rx: broadcast::Receiver<()>,
 ) {
-    info!("Starting unified change pubsub system");
+    debug!("Change pubsub system started");
 
     loop {
         tokio::select! {
@@ -92,15 +92,15 @@ pub async fn run_change_pubsub(
                     Ok(bridge_evt) => {
                         let soma_evt = SomaChangeEvt::Bridge(bridge_evt);
                         if let Err(e) = soma_change_tx.send(soma_evt) {
-                            tracing::debug!("No receivers for bridge SomaChangeEvt: {:?}", e);
+                            tracing::trace!("No receivers for bridge event: {:?}", e);
                         }
                     }
                     Err(broadcast::error::RecvError::Closed) => {
-                        info!("Bridge change channel closed, stopping change pubsub");
+                        debug!("Bridge change channel closed");
                         break;
                     }
                     Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!("Bridge change channel lagged, skipped {} messages", skipped);
+                        warn!(skipped, "Bridge change channel lagged");
                     }
                 }
             }
@@ -110,15 +110,15 @@ pub async fn run_change_pubsub(
                     Ok(encryption_evt) => {
                         let soma_evt = SomaChangeEvt::Encryption(encryption_evt);
                         if let Err(e) = soma_change_tx.send(soma_evt) {
-                            tracing::debug!("No receivers for encryption SomaChangeEvt: {:?}", e);
+                            tracing::trace!("No receivers for encryption event: {:?}", e);
                         }
                     }
                     Err(broadcast::error::RecvError::Closed) => {
-                        info!("Encryption change channel closed, stopping change pubsub");
+                        debug!("Encryption change channel closed");
                         break;
                     }
                     Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!("Encryption change channel lagged, skipped {} messages", skipped);
+                        warn!(skipped, "Encryption change channel lagged");
                     }
                 }
             }
@@ -128,15 +128,15 @@ pub async fn run_change_pubsub(
                     Ok(secret_evt) => {
                         let soma_evt = SomaChangeEvt::Secret(secret_evt);
                         if let Err(e) = soma_change_tx.send(soma_evt) {
-                            tracing::debug!("No receivers for secret SomaChangeEvt: {:?}", e);
+                            tracing::trace!("No receivers for secret event: {:?}", e);
                         }
                     }
                     Err(broadcast::error::RecvError::Closed) => {
-                        info!("Secret change channel closed, stopping change pubsub");
+                        debug!("Secret change channel closed");
                         break;
                     }
                     Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!("Secret change channel lagged, skipped {} messages", skipped);
+                        warn!(skipped, "Secret change channel lagged");
                     }
                 }
             }
@@ -146,15 +146,15 @@ pub async fn run_change_pubsub(
                     Ok(env_var_evt) => {
                         let soma_evt = SomaChangeEvt::EnvironmentVariable(env_var_evt);
                         if let Err(e) = soma_change_tx.send(soma_evt) {
-                            tracing::debug!("No receivers for environment variable SomaChangeEvt: {:?}", e);
+                            tracing::trace!("No receivers for environment variable event: {:?}", e);
                         }
                     }
                     Err(broadcast::error::RecvError::Closed) => {
-                        info!("Environment variable change channel closed, stopping change pubsub");
+                        debug!("Environment variable change channel closed");
                         break;
                     }
                     Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!("Environment variable change channel lagged, skipped {} messages", skipped);
+                        warn!(skipped, "Environment variable change channel lagged");
                     }
                 }
             }
@@ -164,22 +164,17 @@ pub async fn run_change_pubsub(
                     Ok(identity_evt) => {
                         let soma_evt = SomaChangeEvt::Identity(identity_evt);
                         if let Err(e) = soma_change_tx.send(soma_evt) {
-                            tracing::debug!("No receivers for identity SomaChangeEvt: {:?}", e);
+                            tracing::trace!("No receivers for identity event: {:?}", e);
                         }
                     }
                     Err(broadcast::error::RecvError::Closed) => {
-                        info!("Identity change channel closed, stopping change pubsub");
+                        debug!("Identity change channel closed");
                         break;
                     }
                     Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!("Identity change channel lagged, skipped {} messages", skipped);
+                        warn!(skipped, "Identity change channel lagged");
                     }
                 }
-            }
-            // Handle shutdown
-            _ = shutdown_rx.recv() => {
-                info!("Shutdown signal received, stopping change pubsub");
-                break;
             }
         }
     }

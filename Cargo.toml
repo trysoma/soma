@@ -46,7 +46,6 @@ serde_json = { version = "1.0" }
 serde_yaml = "0.9.34"
 tempfile = "3.19.1"
 thiserror = "2.0"
-tokio-graceful-shutdown = "0.16.0"
 tokio-stream = "0.1.17"
 uds_windows = "1.1.0"
 url = "2.5.4"
@@ -67,7 +66,9 @@ tokio = { version = "1.43.0", default-features = false, features = [
 
 ## HTTP/Web frameworks
 #soma branch
-rmcp = { git = "https://github.com/trysoma/modelcontextprotocol-rust-sdk", rev = "6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c",features = ["transport-sse-server"] }
+# rmcp = { git = "https://github.com/trysoma/modelcontextprotocol-rust-sdk", rev = "6b8dfbb3f486219e10e0bca818e5e0d4058ddc1c",features = ["transport-sse-server"] }
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", rev="bce055506861e30a650889bf48df7667bc2403eb", features = ["transport-streamable-http-server"] }
+
 rustls = "0.23.31"
 rustls-pemfile = "2.2.0"
 axum = { version = "0.8.6", features = ["macros", "multipart"] }
@@ -103,7 +104,7 @@ libsql = { git = "https://github.com/trysoma/tursodatabase-libsql", rev = "25266
 ] }
 libsql-server = { git = "https://github.com/trysoma/tursodatabase-libsql", rev = "25266445e3d3b76ed781d5a7acb82f1ece29c09e" }
 #this is branch soma, pinned to this commit
-libsql_migration = { git = "https://github.com/trysoma/prashant1k99-libsql_migration", rev = "148108c50c07ad66b468cb3ad84d3ca1c5e5f0e9" }
+libsql_migration = { git = "https://github.com/trysoma/prashant1k99-libsql_migration", rev = "436ec89ba0e37cb239e1039c22981d679f4d8f0f" }
 # thsi is release tag v0.2.0-pre.12
 ## GRPC
 prost = "0.13"
@@ -185,6 +186,9 @@ serde_repr = "^0.1"
 serde_with = { version = "^3.8", default-features = false, features = ["base64", "std", "macros"] }
 sha2 = "0.10.9"
 zip = "2.2.2"
+pmdaemon ="0.1.4"
+human-panic = "2.0.4"
+indicatif = "0.18.3"
 
 ## internal crates
 a2a-rs = { path = "./crates/a2a-rs" }

@@ -16,9 +16,13 @@ use crate::logic::instance::{
     FunctionInstanceSerialized, FunctionInstanceSerializedWithCredentials,
     ProviderInstanceSerializedWithCredentials, ProviderInstanceSerializedWithFunctions,
 };
+use crate::logic::mcp_server_instance::{
+    McpServerInstanceFunctionSerialized, McpServerInstanceSerializedWithFunctions,
+};
 use crate::repository::{
-    CreateBrokerState, CreateFunctionInstance, CreateProviderInstance,
-    CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
+    CreateBrokerState, CreateFunctionInstance, CreateMcpServerInstance,
+    CreateMcpServerInstanceFunction, CreateProviderInstance, CreateResourceServerCredential,
+    CreateUserCredential, ProviderRepositoryLike, UpdateMcpServerInstanceFunction,
 };
 use anyhow::Context;
 use shared::primitives::{WrappedChronoDateTime, WrappedJsonValue};
@@ -631,8 +635,10 @@ impl ProviderRepositoryLike for Repository {
         CommonError,
     > {
         // Convert the slice of strings to JSON array format for SQLite IN clause
-        let ids_json = function_controller_type_ids.join(", ");
-        tracing::info!("ids_json: {}", ids_json);
+        tracing::trace!(
+            count = function_controller_type_ids.len(),
+            "Querying provider instances by function type IDs"
+        );
 
         let sqlc_params = ManualGetProviderInstancesGroupedByFunctionControllerTypeIdParams {
             function_controller_type_ids: &Some(function_controller_type_ids.to_vec()),
@@ -784,6 +790,314 @@ impl ProviderRepositoryLike for Repository {
             items
                 .last()
                 .map(|item| item.provider_instance.created_at.to_string())
+        } else {
+            None
+        };
+
+        Ok(PaginatedResponse {
+            items,
+            next_page_token,
+        })
+    }
+
+    // MCP Server Instance methods
+    async fn create_mcp_server_instance(
+        &self,
+        params: &CreateMcpServerInstance,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = create_mcp_server_instance_params {
+            id: &params.id,
+            name: &params.name,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+        };
+
+        create_mcp_server_instance(&self.conn, sqlc_params)
+            .await
+            .context("Failed to create MCP server instance")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn get_mcp_server_instance_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<McpServerInstanceSerializedWithFunctions>, CommonError> {
+        let id_string = id.to_string();
+        let sqlc_params = get_mcp_server_instance_by_id_params { id: &id_string };
+
+        let result = get_mcp_server_instance_by_id(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get MCP server instance by id")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        result.map(|row| row.try_into()).transpose()
+    }
+
+    async fn update_mcp_server_instance(&self, id: &str, name: &str) -> Result<(), CommonError> {
+        let id_string = id.to_string();
+        let name_string = name.to_string();
+        let sqlc_params = update_mcp_server_instance_params {
+            name: &name_string,
+            id: &id_string,
+        };
+
+        update_mcp_server_instance(&self.conn, sqlc_params)
+            .await
+            .context("Failed to update MCP server instance")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn delete_mcp_server_instance(&self, id: &str) -> Result<(), CommonError> {
+        let id_string = id.to_string();
+        let sqlc_params = delete_mcp_server_instance_params { id: &id_string };
+
+        delete_mcp_server_instance(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete MCP server instance")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn list_mcp_server_instances(
+        &self,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<McpServerInstanceSerializedWithFunctions>, CommonError> {
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(|e| {
+                        CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        }
+                    })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let sqlc_params = list_mcp_server_instances_params {
+            cursor: &cursor_datetime,
+            page_size: &pagination.page_size,
+        };
+
+        let rows = list_mcp_server_instances(&self.conn, sqlc_params)
+            .await
+            .context("Failed to list MCP server instances")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Vec<McpServerInstanceSerializedWithFunctions> = rows
+            .into_iter()
+            .map(|row| row.try_into())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(PaginatedResponse::from_items_with_extra(
+            items,
+            pagination,
+            |item| vec![item.created_at.get_inner().to_rfc3339()],
+        ))
+    }
+
+    async fn create_mcp_server_instance_function(
+        &self,
+        params: &CreateMcpServerInstanceFunction,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = create_mcp_server_instance_function_params {
+            mcp_server_instance_id: &params.mcp_server_instance_id,
+            function_controller_type_id: &params.function_controller_type_id,
+            provider_controller_type_id: &params.provider_controller_type_id,
+            provider_instance_id: &params.provider_instance_id,
+            function_name: &params.function_name,
+            function_description: &params.function_description,
+            created_at: &params.created_at,
+            updated_at: &params.updated_at,
+        };
+
+        create_mcp_server_instance_function(&self.conn, sqlc_params)
+            .await
+            .context("Failed to create MCP server instance function")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn delete_mcp_server_instance_function(
+        &self,
+        mcp_server_instance_id: &str,
+        function_controller_type_id: &str,
+        provider_controller_type_id: &str,
+        provider_instance_id: &str,
+    ) -> Result<(), CommonError> {
+        let mcp_server_instance_id_string = mcp_server_instance_id.to_string();
+        let function_controller_type_id_string = function_controller_type_id.to_string();
+        let provider_controller_type_id_string = provider_controller_type_id.to_string();
+        let provider_instance_id_string = provider_instance_id.to_string();
+
+        let sqlc_params = delete_mcp_server_instance_function_params {
+            mcp_server_instance_id: &mcp_server_instance_id_string,
+            function_controller_type_id: &function_controller_type_id_string,
+            provider_controller_type_id: &provider_controller_type_id_string,
+            provider_instance_id: &provider_instance_id_string,
+        };
+
+        delete_mcp_server_instance_function(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete MCP server instance function")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn delete_all_mcp_server_instance_functions(
+        &self,
+        mcp_server_instance_id: &str,
+    ) -> Result<(), CommonError> {
+        let mcp_server_instance_id_string = mcp_server_instance_id.to_string();
+        let sqlc_params = delete_all_mcp_server_instance_functions_params {
+            mcp_server_instance_id: &mcp_server_instance_id_string,
+        };
+
+        delete_all_mcp_server_instance_functions(&self.conn, sqlc_params)
+            .await
+            .context("Failed to delete all MCP server instance functions")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn update_mcp_server_instance_function(
+        &self,
+        params: &UpdateMcpServerInstanceFunction,
+    ) -> Result<(), CommonError> {
+        let sqlc_params = update_mcp_server_instance_function_params {
+            function_name: &params.function_name,
+            function_description: &params.function_description,
+            mcp_server_instance_id: &params.mcp_server_instance_id,
+            function_controller_type_id: &params.function_controller_type_id,
+            provider_controller_type_id: &params.provider_controller_type_id,
+            provider_instance_id: &params.provider_instance_id,
+        };
+
+        update_mcp_server_instance_function(&self.conn, sqlc_params)
+            .await
+            .context("Failed to update MCP server instance function")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+        Ok(())
+    }
+
+    async fn get_mcp_server_instance_function_by_name(
+        &self,
+        mcp_server_instance_id: &str,
+        function_name: &str,
+    ) -> Result<Option<McpServerInstanceFunctionSerialized>, CommonError> {
+        let mcp_server_instance_id_string = mcp_server_instance_id.to_string();
+        let function_name_string = function_name.to_string();
+        let sqlc_params = get_mcp_server_instance_function_by_name_params {
+            mcp_server_instance_id: &mcp_server_instance_id_string,
+            function_name: &function_name_string,
+        };
+
+        let result = get_mcp_server_instance_function_by_name(&self.conn, sqlc_params)
+            .await
+            .context("Failed to get MCP server instance function by name")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        result.map(|row| row.try_into()).transpose()
+    }
+
+    async fn list_mcp_server_instance_functions(
+        &self,
+        mcp_server_instance_id: &str,
+        pagination: &PaginationRequest,
+    ) -> Result<PaginatedResponse<McpServerInstanceFunctionSerialized>, CommonError> {
+        let cursor_datetime = if let Some(token) = &pagination.next_page_token {
+            let decoded_parts =
+                decode_pagination_token(token).map_err(|e| CommonError::Repository {
+                    msg: format!("Invalid pagination token: {e}"),
+                    source: Some(e.into()),
+                })?;
+            if decoded_parts.is_empty() {
+                None
+            } else {
+                Some(
+                    WrappedChronoDateTime::try_from(decoded_parts[0].as_str()).map_err(|e| {
+                        CommonError::Repository {
+                            msg: format!("Invalid datetime in pagination token: {e}"),
+                            source: Some(e.into()),
+                        }
+                    })?,
+                )
+            }
+        } else {
+            None
+        };
+
+        let mcp_server_instance_id_string = mcp_server_instance_id.to_string();
+        let sqlc_params = list_mcp_server_instance_functions_params {
+            mcp_server_instance_id: &mcp_server_instance_id_string,
+            cursor: &cursor_datetime,
+            page_size: &pagination.page_size,
+        };
+
+        let rows = list_mcp_server_instance_functions(&self.conn, sqlc_params)
+            .await
+            .context("Failed to list MCP server instance functions")
+            .map_err(|e| CommonError::Repository {
+                msg: e.to_string(),
+                source: Some(e),
+            })?;
+
+        let items: Vec<McpServerInstanceFunctionSerialized> = rows
+            .into_iter()
+            .map(|row| row.try_into())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let has_more = items.len() > pagination.page_size as usize;
+        let items = if has_more {
+            items[..pagination.page_size as usize].to_vec()
+        } else {
+            items
+        };
+
+        let next_page_token = if has_more {
+            items.last().map(|item| item.created_at.to_string())
         } else {
             None
         };
@@ -2876,5 +3190,765 @@ mod unit_test {
             updated.next_rotation_time.is_some(),
             "All fields should be updated"
         );
+    }
+
+    // ============================================================================
+    // MCP Server Instance Repository Tests
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_create_and_get_mcp_server_instance() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let params = crate::repository::CreateMcpServerInstance {
+            id: "test-mcp-instance".to_string(),
+            name: "Test MCP Instance".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+
+        repo.create_mcp_server_instance(&params).await.unwrap();
+
+        let retrieved = repo
+            .get_mcp_server_instance_by_id(&params.id)
+            .await
+            .unwrap();
+        assert!(retrieved.is_some());
+
+        let instance = retrieved.unwrap();
+        assert_eq!(instance.id, params.id);
+        assert_eq!(instance.name, params.name);
+        assert!(instance.functions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_update_mcp_server_instance_name() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let params = crate::repository::CreateMcpServerInstance {
+            id: "test-update-name".to_string(),
+            name: "Original Name".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+
+        repo.create_mcp_server_instance(&params).await.unwrap();
+
+        // Update the name
+        repo.update_mcp_server_instance(&params.id, "Updated Name")
+            .await
+            .unwrap();
+
+        let updated = repo
+            .get_mcp_server_instance_by_id(&params.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(updated.name, "Updated Name");
+    }
+
+    #[tokio::test]
+    async fn test_delete_mcp_server_instance() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let params = crate::repository::CreateMcpServerInstance {
+            id: "test-delete-mcp".to_string(),
+            name: "To Be Deleted".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+
+        repo.create_mcp_server_instance(&params).await.unwrap();
+
+        // Verify it exists
+        let exists = repo
+            .get_mcp_server_instance_by_id(&params.id)
+            .await
+            .unwrap();
+        assert!(exists.is_some());
+
+        // Delete it
+        repo.delete_mcp_server_instance(&params.id).await.unwrap();
+
+        // Verify it's gone
+        let deleted = repo
+            .get_mcp_server_instance_by_id(&params.id)
+            .await
+            .unwrap();
+        assert!(deleted.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_list_mcp_server_instances_empty() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let pagination = shared::primitives::PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+
+        let result = repo.list_mcp_server_instances(&pagination).await.unwrap();
+        assert_eq!(result.items.len(), 0);
+        assert!(result.next_page_token.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_list_mcp_server_instances_with_items() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+
+        // Create multiple instances
+        for i in 0..3 {
+            let params = crate::repository::CreateMcpServerInstance {
+                id: format!("test-list-{i}"),
+                name: format!("Test Instance {i}"),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_mcp_server_instance(&params).await.unwrap();
+        }
+
+        let pagination = shared::primitives::PaginationRequest {
+            page_size: 10,
+            next_page_token: None,
+        };
+
+        let result = repo.list_mcp_server_instances(&pagination).await.unwrap();
+        assert_eq!(result.items.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_list_mcp_server_instances_pagination() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        // Create 5 instances with different timestamps for proper cursor-based pagination
+        for i in 0..5 {
+            // Create timestamps with 1 second intervals to ensure distinct ordering
+            let timestamp = WrappedChronoDateTime::new(
+                chrono::Utc::now() - chrono::Duration::seconds((5 - i) as i64),
+            );
+            let params = crate::repository::CreateMcpServerInstance {
+                id: format!("test-pagination-{i}"),
+                name: format!("Test Instance {i}"),
+                created_at: timestamp,
+                updated_at: timestamp,
+            };
+            repo.create_mcp_server_instance(&params).await.unwrap();
+        }
+
+        // First page (should return the 2 most recent, i.e., instances 4 and 3)
+        let pagination = shared::primitives::PaginationRequest {
+            page_size: 2,
+            next_page_token: None,
+        };
+
+        let first_page = repo.list_mcp_server_instances(&pagination).await.unwrap();
+        assert_eq!(first_page.items.len(), 2);
+        assert!(first_page.next_page_token.is_some());
+
+        // Second page (should return instances 2 and 1)
+        let pagination = shared::primitives::PaginationRequest {
+            page_size: 2,
+            next_page_token: first_page.next_page_token,
+        };
+
+        let second_page = repo.list_mcp_server_instances(&pagination).await.unwrap();
+        assert_eq!(second_page.items.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_create_mcp_server_instance_function() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let dek_alias = create_test_dek_alias();
+
+        // Create MCP instance
+        let mcp_params = crate::repository::CreateMcpServerInstance {
+            id: "test-function-mcp".to_string(),
+            name: "Test Function MCP".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+
+        // Create necessary dependencies (resource server credential, user credential, provider instance, function instance)
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            dek_alias: dek_alias.clone(),
+        };
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
+
+        let user_cred = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            dek_alias: dek_alias.clone(),
+        };
+        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+            .await
+            .unwrap();
+
+        let provider_instance_id = uuid::Uuid::new_v4().to_string();
+        let provider_instance = ProviderInstanceSerialized {
+            id: provider_instance_id.clone(),
+            display_name: "Test Provider".to_string(),
+            resource_server_credential_id: resource_server_cred.id,
+            user_credential_id: Some(user_cred.id),
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "no_auth".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+            .await
+            .unwrap();
+
+        let function_instance = FunctionInstanceSerialized {
+            function_controller_type_id: "send_email".to_string(),
+            provider_controller_type_id: "google_mail".to_string(),
+            provider_instance_id: provider_instance_id.clone(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+            .await
+            .unwrap();
+
+        // Now create the MCP server instance function
+        let function_params = crate::repository::CreateMcpServerInstanceFunction {
+            mcp_server_instance_id: mcp_params.id.clone(),
+            function_controller_type_id: function_instance.function_controller_type_id.clone(),
+            provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
+            provider_instance_id: provider_instance_id.clone(),
+            function_name: "custom_function_name".to_string(),
+            function_description: Some("A custom function".to_string()),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_mcp_server_instance_function(&function_params)
+            .await
+            .unwrap();
+
+        // Verify the MCP instance now has the function
+        let instance = repo
+            .get_mcp_server_instance_by_id(&mcp_params.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(instance.functions.len(), 1);
+        assert_eq!(instance.functions[0].function_name, "custom_function_name");
+        assert_eq!(
+            instance.functions[0].function_description,
+            Some("A custom function".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn test_update_mcp_server_instance_function() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let dek_alias = create_test_dek_alias();
+
+        // Create MCP instance
+        let mcp_params = crate::repository::CreateMcpServerInstance {
+            id: "test-update-function-mcp".to_string(),
+            name: "Test Update Function MCP".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+
+        // Create dependencies
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            dek_alias: dek_alias.clone(),
+        };
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
+
+        let user_cred = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            dek_alias: dek_alias.clone(),
+        };
+        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+            .await
+            .unwrap();
+
+        let provider_instance_id = uuid::Uuid::new_v4().to_string();
+        let provider_instance = ProviderInstanceSerialized {
+            id: provider_instance_id.clone(),
+            display_name: "Test Provider".to_string(),
+            resource_server_credential_id: resource_server_cred.id,
+            user_credential_id: Some(user_cred.id),
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "no_auth".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
+            .await
+            .unwrap();
+
+        let function_instance = FunctionInstanceSerialized {
+            function_controller_type_id: "send_email".to_string(),
+            provider_controller_type_id: "google_mail".to_string(),
+            provider_instance_id: provider_instance_id.clone(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+            .await
+            .unwrap();
+
+        // Create MCP server instance function
+        let function_params = crate::repository::CreateMcpServerInstanceFunction {
+            mcp_server_instance_id: mcp_params.id.clone(),
+            function_controller_type_id: function_instance.function_controller_type_id.clone(),
+            provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
+            provider_instance_id: provider_instance_id.clone(),
+            function_name: "original_name".to_string(),
+            function_description: None,
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_mcp_server_instance_function(&function_params)
+            .await
+            .unwrap();
+
+        // Update the function
+        let update_params = crate::repository::UpdateMcpServerInstanceFunction {
+            mcp_server_instance_id: mcp_params.id.clone(),
+            function_controller_type_id: function_instance.function_controller_type_id.clone(),
+            provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
+            provider_instance_id: provider_instance_id.clone(),
+            function_name: "updated_name".to_string(),
+            function_description: Some("Updated description".to_string()),
+        };
+        repo.update_mcp_server_instance_function(&update_params)
+            .await
+            .unwrap();
+
+        // Verify the update
+        let instance = repo
+            .get_mcp_server_instance_by_id(&mcp_params.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(instance.functions[0].function_name, "updated_name");
+        assert_eq!(
+            instance.functions[0].function_description,
+            Some("Updated description".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn test_delete_mcp_server_instance_function() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let dek_alias = create_test_dek_alias();
+
+        // Create MCP instance
+        let mcp_params = crate::repository::CreateMcpServerInstance {
+            id: "test-delete-function-mcp".to_string(),
+            name: "Test Delete Function MCP".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+
+        // Create dependencies
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            dek_alias: dek_alias.clone(),
+        };
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
+
+        let user_cred = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            dek_alias: dek_alias.clone(),
+        };
+        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+            .await
+            .unwrap();
+
+        let provider_instance_id = uuid::Uuid::new_v4().to_string();
+        let provider_instance = ProviderInstanceSerialized {
+            id: provider_instance_id.clone(),
+            display_name: "Test Provider".to_string(),
+            resource_server_credential_id: resource_server_cred.id,
+            user_credential_id: Some(user_cred.id),
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "no_auth".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
+            .await
+            .unwrap();
+
+        let function_instance = FunctionInstanceSerialized {
+            function_controller_type_id: "send_email".to_string(),
+            provider_controller_type_id: "google_mail".to_string(),
+            provider_instance_id: provider_instance_id.clone(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+            .await
+            .unwrap();
+
+        // Create MCP server instance function
+        let function_params = crate::repository::CreateMcpServerInstanceFunction {
+            mcp_server_instance_id: mcp_params.id.clone(),
+            function_controller_type_id: function_instance.function_controller_type_id.clone(),
+            provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
+            provider_instance_id: provider_instance_id.clone(),
+            function_name: "to_be_deleted".to_string(),
+            function_description: None,
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_mcp_server_instance_function(&function_params)
+            .await
+            .unwrap();
+
+        // Verify the function exists
+        let instance = repo
+            .get_mcp_server_instance_by_id(&mcp_params.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(instance.functions.len(), 1);
+
+        // Delete the function
+        repo.delete_mcp_server_instance_function(
+            &mcp_params.id,
+            &function_instance.function_controller_type_id,
+            &function_instance.provider_controller_type_id,
+            &provider_instance_id,
+        )
+        .await
+        .unwrap();
+
+        // Verify the function is gone
+        let instance = repo
+            .get_mcp_server_instance_by_id(&mcp_params.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(instance.functions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_mcp_server_instance_function_by_name() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let dek_alias = create_test_dek_alias();
+
+        // Create MCP instance
+        let mcp_params = crate::repository::CreateMcpServerInstance {
+            id: "test-get-by-name".to_string(),
+            name: "Test Get By Name".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+
+        // Create dependencies
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            dek_alias: dek_alias.clone(),
+        };
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
+
+        let user_cred = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            dek_alias: dek_alias.clone(),
+        };
+        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+            .await
+            .unwrap();
+
+        let provider_instance_id = uuid::Uuid::new_v4().to_string();
+        let provider_instance = ProviderInstanceSerialized {
+            id: provider_instance_id.clone(),
+            display_name: "Test Provider".to_string(),
+            resource_server_credential_id: resource_server_cred.id,
+            user_credential_id: Some(user_cred.id),
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "no_auth".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
+            .await
+            .unwrap();
+
+        let function_instance = FunctionInstanceSerialized {
+            function_controller_type_id: "send_email".to_string(),
+            provider_controller_type_id: "google_mail".to_string(),
+            provider_instance_id: provider_instance_id.clone(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+            .await
+            .unwrap();
+
+        // Create MCP server instance function
+        let function_params = crate::repository::CreateMcpServerInstanceFunction {
+            mcp_server_instance_id: mcp_params.id.clone(),
+            function_controller_type_id: function_instance.function_controller_type_id.clone(),
+            provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
+            provider_instance_id: provider_instance_id.clone(),
+            function_name: "unique_function_name".to_string(),
+            function_description: Some("Test description".to_string()),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_mcp_server_instance_function(&function_params)
+            .await
+            .unwrap();
+
+        // Get by name - should find it
+        let found = repo
+            .get_mcp_server_instance_function_by_name(&mcp_params.id, "unique_function_name")
+            .await
+            .unwrap();
+        assert!(found.is_some());
+        let func = found.unwrap();
+        assert_eq!(func.function_name, "unique_function_name");
+        assert_eq!(
+            func.function_description,
+            Some("Test description".to_string())
+        );
+
+        // Get by name - should not find non-existent
+        let not_found = repo
+            .get_mcp_server_instance_function_by_name(&mcp_params.id, "nonexistent_name")
+            .await
+            .unwrap();
+        assert!(not_found.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_delete_mcp_server_instance_cascades_functions() {
+        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+            .await
+            .unwrap();
+        let repo = Repository::new(conn);
+
+        let now = WrappedChronoDateTime::now();
+        let dek_alias = create_test_dek_alias();
+
+        // Create MCP instance
+        let mcp_params = crate::repository::CreateMcpServerInstance {
+            id: "test-cascade-mcp".to_string(),
+            name: "Test Cascade MCP".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+
+        // Create dependencies
+        let resource_server_cred = ResourceServerCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "resource_server_no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            dek_alias: dek_alias.clone(),
+        };
+        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+            resource_server_cred.clone(),
+        ))
+        .await
+        .unwrap();
+
+        let user_cred = UserCredentialSerialized {
+            id: WrappedUuidV4::new(),
+            type_id: "no_auth".to_string(),
+            metadata: Metadata::new(),
+            value: WrappedJsonValue::new(serde_json::json!({})),
+            created_at: now,
+            updated_at: now,
+            next_rotation_time: None,
+            dek_alias: dek_alias.clone(),
+        };
+        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+            .await
+            .unwrap();
+
+        let provider_instance_id = uuid::Uuid::new_v4().to_string();
+        let provider_instance = ProviderInstanceSerialized {
+            id: provider_instance_id.clone(),
+            display_name: "Test Provider".to_string(),
+            resource_server_credential_id: resource_server_cred.id,
+            user_credential_id: Some(user_cred.id),
+            created_at: now,
+            updated_at: now,
+            provider_controller_type_id: "google_mail".to_string(),
+            credential_controller_type_id: "no_auth".to_string(),
+            status: "active".to_string(),
+            return_on_successful_brokering: None,
+        };
+        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
+            .await
+            .unwrap();
+
+        let function_instance = FunctionInstanceSerialized {
+            function_controller_type_id: "send_email".to_string(),
+            provider_controller_type_id: "google_mail".to_string(),
+            provider_instance_id: provider_instance_id.clone(),
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+            .await
+            .unwrap();
+
+        // Create MCP server instance function
+        let function_params = crate::repository::CreateMcpServerInstanceFunction {
+            mcp_server_instance_id: mcp_params.id.clone(),
+            function_controller_type_id: function_instance.function_controller_type_id.clone(),
+            provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
+            provider_instance_id: provider_instance_id.clone(),
+            function_name: "will_be_cascaded".to_string(),
+            function_description: None,
+            created_at: now,
+            updated_at: now,
+        };
+        repo.create_mcp_server_instance_function(&function_params)
+            .await
+            .unwrap();
+
+        // Verify function exists
+        let instance = repo
+            .get_mcp_server_instance_by_id(&mcp_params.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(instance.functions.len(), 1);
+
+        // Delete the MCP instance - should cascade delete functions
+        repo.delete_mcp_server_instance(&mcp_params.id)
+            .await
+            .unwrap();
+
+        // Verify instance is gone
+        let deleted = repo
+            .get_mcp_server_instance_by_id(&mcp_params.id)
+            .await
+            .unwrap();
+        assert!(deleted.is_none());
     }
 }

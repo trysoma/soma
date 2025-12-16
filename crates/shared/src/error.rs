@@ -147,6 +147,13 @@ pub enum CommonError {
         #[source]
         source: reqwest::Error,
     },
+    #[error("pmdaemon error")]
+    PmdaemonError {
+        #[serde(skip)]
+        #[from]
+        #[source]
+        source: pmdaemon::Error,
+    },
 }
 
 impl From<CommonError> for A2aServerError {
@@ -317,7 +324,14 @@ impl IntoResponse for CommonError {
             | CommonError::GlobSetError { .. }
             | CommonError::NotifyError { .. }
             | CommonError::ReqwestError { .. }
+            | CommonError::PmdaemonError { .. }
             | CommonError::AddrParseError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+
+        // Get a more detailed message for Unknown errors
+        let message = match &self {
+            CommonError::Unknown(e) => e.to_string(),
+            _ => self.to_string(),
         };
 
         let body = Json(ErrorResponse {
@@ -341,9 +355,10 @@ impl IntoResponse for CommonError {
                 CommonError::GlobSetError { .. } => "InternalServerError",
                 CommonError::NotifyError { .. } => "InternalServerError",
                 CommonError::ReqwestError { .. } => "InternalServerError",
+                CommonError::PmdaemonError { .. } => "InternalServerError",
             }
             .to_string(),
-            message: self.to_string(),
+            message,
         });
 
         (status, body).into_response()
@@ -381,7 +396,8 @@ impl From<CommonError> for ErrorData {
             | CommonError::VarError { .. }
             | CommonError::GlobSetError { .. }
             | CommonError::NotifyError { .. }
-            | CommonError::ReqwestError { .. } => {
+            | CommonError::ReqwestError { .. }
+            | CommonError::PmdaemonError { .. } => {
                 ErrorData::internal_error(error.to_string(), None)
             }
         }

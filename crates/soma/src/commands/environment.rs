@@ -3,7 +3,7 @@ use comfy_table::{Cell, Table};
 use shared::error::CommonError;
 use soma_api_client::apis::environment_variable_api;
 use soma_api_client::models;
-use tracing::info;
+use tracing::debug;
 
 use crate::utils::{CliConfig, create_and_wait_for_api_client};
 
@@ -85,7 +85,7 @@ pub async fn cmd_env_set(
 
     if let Some(env_var) = existing_env_var {
         // Update existing environment variable
-        info!("Updating existing environment variable: {}", key);
+        debug!("Updating existing environment variable: {}", key);
         let update_req = models::UpdateEnvironmentVariableRequest { value };
         environment_variable_api::update_environment_variable(
             &api_config,
@@ -101,7 +101,7 @@ pub async fn cmd_env_set(
         println!("Updated environment variable: {key}");
     } else {
         // Create new environment variable
-        info!("Creating new environment variable: {}", key);
+        debug!("Creating new environment variable: {}", key);
         let create_req = models::CreateEnvironmentVariableRequest {
             key: key.clone(),
             value,
@@ -128,7 +128,7 @@ pub async fn cmd_env_rm(key: String, api_url: &str, timeout_secs: u64) -> Result
 
     match existing_env_var {
         Some(env_var) => {
-            info!("Deleting environment variable: {}", key);
+            debug!("Deleting environment variable: {}", key);
             environment_variable_api::delete_environment_variable(
                 &api_config,
                 &env_var.id.to_string(),

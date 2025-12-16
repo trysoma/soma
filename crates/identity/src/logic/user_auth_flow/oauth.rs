@@ -341,7 +341,7 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
     let access_token_claims = if let Some(introspect_url) = &config.introspect_url {
         // If introspect_url is set, use token introspection (RFC 7662)
         // This treats the access token as opaque and validates it via the introspection endpoint
-        tracing::debug!("Using token introspection for access token");
+        tracing::trace!("Using token introspection for access token");
         introspect_token(
             introspect_url,
             access_token,
@@ -358,10 +358,7 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
             Err(e) => {
                 // Access token is not a JWT and no introspection endpoint configured
                 // This is an error - we need to be able to get claims from the access token
-                tracing::error!(
-                    "Access token is not a JWT and no introspect_url configured: {:?}",
-                    e
-                );
+                tracing::debug!(error = ?e, "Access token is not a JWT and no introspect_url configured");
                 return Err(e);
             }
         }

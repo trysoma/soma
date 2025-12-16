@@ -3,7 +3,7 @@ use comfy_table::{Cell, Table};
 use shared::error::CommonError;
 use soma_api_client::apis::{encryption_api, secret_api};
 use soma_api_client::models;
-use tracing::info;
+use tracing::debug;
 
 use crate::utils::{CliConfig, create_and_wait_for_api_client};
 
@@ -108,7 +108,7 @@ pub async fn cmd_secret_set(
 
     if let Some(secret) = existing_secret {
         // Update existing secret
-        info!("Updating existing secret: {}", key);
+        debug!("Updating existing secret: {}", key);
         let update_req = models::UpdateSecretRequest { raw_value: value };
         secret_api::update_secret(&api_config, &secret.id.to_string(), update_req)
             .await
@@ -118,7 +118,7 @@ pub async fn cmd_secret_set(
         println!("Updated secret: {key}");
     } else {
         // Create new secret
-        info!("Creating new secret: {}", key);
+        debug!("Creating new secret: {}", key);
         let create_req = models::CreateSecretRequest {
             key: key.clone(),
             raw_value: value,
@@ -155,7 +155,7 @@ pub async fn cmd_secret_rm(
 
     match existing_secret {
         Some(secret) => {
-            info!("Deleting secret: {}", key);
+            debug!("Deleting secret: {}", key);
             secret_api::delete_secret(&api_config, &secret.id.to_string())
                 .await
                 .map_err(|e| {

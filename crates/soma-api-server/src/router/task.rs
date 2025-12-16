@@ -1,6 +1,7 @@
 use axum::extract::{Json, Path, Query, State};
 use shared::adapters::openapi::API_VERSION_TAG;
 use std::sync::Arc;
+use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -57,7 +58,9 @@ async fn route_list_tasks(
     State(ctx): State<Arc<TaskService>>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListTasksResponse, CommonError> {
+    trace!(page_size = pagination.page_size, "Listing tasks");
     let res = list_tasks(&ctx.repository, pagination).await;
+    trace!(success = res.is_ok(), "Listing tasks completed");
     JsonResponse::from(res)
 }
 
@@ -84,7 +87,9 @@ async fn route_list_contexts(
     State(ctx): State<Arc<TaskService>>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListUniqueContextsResponse, CommonError> {
+    trace!(page_size = pagination.page_size, "Listing contexts");
     let res = list_unique_contexts(&ctx.repository, pagination).await;
+    trace!(success = res.is_ok(), "Listing contexts completed");
     JsonResponse::from(res)
 }
 
@@ -113,6 +118,7 @@ async fn route_list_tasks_by_context_id(
     Query(pagination): Query<PaginationRequest>,
     Path(context_id): Path<WrappedUuidV4>,
 ) -> JsonResponse<ListTasksResponse, CommonError> {
+    trace!(context_id = %context_id, page_size = pagination.page_size, "Listing tasks by context ID");
     let res = list_tasks_by_context_id(
         &ctx.repository,
         WithContextId {
@@ -121,6 +127,10 @@ async fn route_list_tasks_by_context_id(
         },
     )
     .await;
+    trace!(
+        success = res.is_ok(),
+        "Listing tasks by context ID completed"
+    );
     JsonResponse::from(res)
 }
 
@@ -147,7 +157,9 @@ async fn route_get_task(
     State(ctx): State<Arc<TaskService>>,
     Path(task_id): Path<WrappedUuidV4>,
 ) -> JsonResponse<GetTaskResponse, CommonError> {
+    trace!(task_id = %task_id, "Getting task");
     let res = get_task(&ctx.repository, task_id).await;
+    trace!(success = res.is_ok(), "Getting task completed");
     JsonResponse::from(res)
 }
 
@@ -176,6 +188,7 @@ async fn route_update_task_status(
     Path(task_id): Path<WrappedUuidV4>,
     Json(request): Json<UpdateTaskStatusRequest>,
 ) -> JsonResponse<UpdateTaskStatusResponse, CommonError> {
+    trace!(task_id = %task_id, status = ?request.status, "Updating task status");
     let res = update_task_status(
         &ctx.repository,
         &ctx.connection_manager,
@@ -186,6 +199,7 @@ async fn route_update_task_status(
         },
     )
     .await;
+    trace!(success = res.is_ok(), "Updating task status completed");
     JsonResponse::from(res)
 }
 
@@ -214,6 +228,7 @@ async fn route_create_message(
     Path(task_id): Path<WrappedUuidV4>,
     Json(request): Json<CreateMessageRequest>,
 ) -> JsonResponse<CreateMessageResponse, CommonError> {
+    trace!(task_id = %task_id, role = ?request.role, "Creating message");
     let res = create_message(
         &ctx.repository,
         &ctx.connection_manager,
@@ -224,6 +239,7 @@ async fn route_create_message(
         false,
     )
     .await;
+    trace!(success = res.is_ok(), "Creating message completed");
     JsonResponse::from(res)
 }
 
@@ -252,6 +268,7 @@ async fn route_get_task_timeline_items(
     Path(task_id): Path<WrappedUuidV4>,
     Query(request): Query<PaginationRequest>,
 ) -> JsonResponse<GetTaskTimelineItemsResponse, CommonError> {
+    trace!(task_id = %task_id, page_size = request.page_size, "Getting task timeline items");
     let res = get_task_timeline_items(
         &ctx.repository,
         WithTaskId {
@@ -260,6 +277,10 @@ async fn route_get_task_timeline_items(
         },
     )
     .await;
+    trace!(
+        success = res.is_ok(),
+        "Getting task timeline items completed"
+    );
     JsonResponse::from(res)
 }
 

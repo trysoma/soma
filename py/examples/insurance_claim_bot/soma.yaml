@@ -1,0 +1,72 @@
+encryption:
+  envelope_keys:
+    local.bin:
+      type: local
+      file_name: local.bin
+      deks:
+        default:
+          encrypted_key: FI0PVbrw/x3+zhrwWY77RI8FFwYttLkVdhL3Ck2jIEhbsBjeZs7/6fm37C6Zahw5IpaGAILI/A2ecaC0
+bridge:
+  providers:
+    1b8c7dd2-45a9-4c82-8a9f-69cdb732883e:
+      provider_controller_type_id: approve-claim
+      credential_controller_type_id: no_auth
+      display_name: internal
+      resource_server_credential:
+        id: 81b36521-22b7-4c09-9ca5-3a6ee1b13d9c
+        type_id: resource_server_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        dek_alias: default
+      user_credential:
+        id: 2b208295-4062-495d-9995-0670a43af5ff
+        type_id: user_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        dek_alias: default
+      functions:
+      - approve-claim
+    452b1c4c-6ba7-4284-b362-2431750569fc:
+      provider_controller_type_id: research-claim
+      credential_controller_type_id: no_auth
+      display_name: internal
+      resource_server_credential:
+        id: 6bd40594-f03e-43fb-a366-b0dbe03e022d
+        type_id: resource_server_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        dek_alias: default
+      user_credential:
+        id: 5f42af78-7e24-4454-99f8-6581a799f134
+        type_id: user_no_auth
+        metadata: {}
+        value:
+          metadata: {}
+        dek_alias: default
+      functions:
+      - research-claim
+  mcp_servers:
+    test-3:
+      name: test-3
+      functions: []
+    test:
+      name: test
+      functions:
+      - function_controller_type_id: approve-claim
+        provider_controller_type_id: approve-claim
+        provider_instance_id: 1b8c7dd2-45a9-4c82-8a9f-69cdb732883e
+        function_name: approve_claim
+      - function_controller_type_id: research-claim
+        provider_controller_type_id: research-claim
+        provider_instance_id: 452b1c4c-6ba7-4284-b362-2431750569fc
+        function_name: research_claim
+    test-2:
+      name: test-2
+      functions: []
+secrets:
+  OPENAI_API_KEY:
+    value: ViY4JLxjdk8TmSDEXx1Msrb153aSQB9RVeFmKFsSAayoENC0szCNcWEy3E8LgR4arWNVqsChpLDWaraye2BF4n0VsK82QgHyjcY/GL4qcA9fmQwmfu1EKD2B3LMUSp0FogGSG8v6gwwxuE2+Ur4PKJkPytcX6bYf7kzNqRAUfjqeE2wqIOHg5dEFii3DBmsUWM0yMpPIEXTZPpUCjhY626AU/CAg8rcFYoFj69TN+uWmG9nKCMpf5/bAfOG+Yo5F
+    dek_alias: default

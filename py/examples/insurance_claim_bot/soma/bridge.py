@@ -18,6 +18,47 @@ TResult = TypeVar("TResult")
 
 
 
+# Type definitions for ResearchClaim.research_claim params
+
+class _ResearchClaimResearchClaimParamsClaim(TypedDict):
+
+
+    amount: float
+
+    category: str
+
+    date: str
+
+    email: str
+
+    reason: str
+
+
+
+
+class ResearchClaimResearchClaimParams(TypedDict):
+
+
+    claim: _ResearchClaimResearchClaimParamsClaim
+
+
+
+
+# Type definitions for ResearchClaim.research_claim result
+
+class ResearchClaimResearchClaimResult(TypedDict):
+
+
+    summary: str
+
+
+
+
+
+
+
+
+
 # Type definitions for ApproveClaim.approve_claim params
 
 class _ApproveClaimApproveClaimParamsClaim(TypedDict):
@@ -82,6 +123,37 @@ async def _invoke_bridge_function(
 
 
 
+class ResearchClaimAccount:
+    """Account wrapper for research-claim provider."""
+
+    def __init__(self, ctx: "ObjectContext", provider_instance_id: str):
+        self._ctx = ctx
+        self._provider_instance_id = provider_instance_id
+
+
+
+    async def research_claim(self, params: ResearchClaimResearchClaimParams) -> ResearchClaimResearchClaimResult:
+        """Call the research-claim function."""
+        return await _invoke_bridge_function(
+            self._ctx,
+            self._provider_instance_id,
+            "research-claim",
+            params,
+        )
+
+
+
+
+class ResearchClaim:
+    """Provider wrapper for research-claim."""
+
+    def __init__(self, ctx: "ObjectContext"):
+        self._ctx = ctx
+
+        self.internal = ResearchClaimAccount(ctx, "452b1c4c-6ba7-4284-b362-2431750569fc")
+
+
+
 class ApproveClaimAccount:
     """Account wrapper for approve-claim provider."""
 
@@ -109,7 +181,7 @@ class ApproveClaim:
     def __init__(self, ctx: "ObjectContext"):
         self._ctx = ctx
 
-        self.internal = ApproveClaimAccount(ctx, "43206d5b-9943-4699-8eca-c35154cbbc97")
+        self.internal = ApproveClaimAccount(ctx, "1b8c7dd2-45a9-4c82-8a9f-69cdb732883e")
 
 
 
@@ -119,6 +191,8 @@ class Bridge:
 
     def __init__(self, ctx: "ObjectContext"):
         self._ctx = ctx
+
+        self.research_claim = ResearchClaim(ctx)
 
         self.approve_claim = ApproveClaim(ctx)
 

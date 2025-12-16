@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::debug;
+use tracing::trace;
 
 use crate::events::{
     event_queue::EventQueue,
@@ -79,10 +79,10 @@ impl QueueManager for InMemoryQueueManager {
     async fn create_or_tap(&self, task_id: &str) -> EventQueue {
         let mut task_queue = self.task_queue.write().await;
         if let Some(queue) = task_queue.get(task_id) {
-            debug!("Found existing queue for task_id: {}, tapping it", task_id);
+            trace!(task_id, "Tapping existing queue");
             queue.tap().await
         } else {
-            debug!("Creating new queue for task_id: {}", task_id);
+            trace!(task_id, "Creating new queue");
             let queue = EventQueue::default();
             task_queue.insert(task_id.to_string(), queue.clone());
             queue

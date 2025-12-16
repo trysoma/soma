@@ -175,10 +175,10 @@ pub fn get_provider_controller(
         .read()
         .map_err(|_e| CommonError::Unknown(anyhow::anyhow!("Poison error")))?;
 
-    tracing::debug!(
-        "Looking for provider controller with type_id: {}, registered providers: {:?}",
-        provider_controller_type_id,
-        registry.iter().map(|p| p.type_id()).collect::<Vec<_>>()
+    tracing::trace!(
+        type_id = provider_controller_type_id,
+        available = ?registry.iter().map(|p| p.type_id()).collect::<Vec<_>>(),
+        "Looking up provider controller"
     );
 
     let provider_controller = registry
@@ -210,7 +210,7 @@ pub fn add_provider_controller_to_registry(
         )));
     }
 
-    tracing::info!("Adding provider controller: {}", provider.type_id());
+    tracing::debug!(type_id = %provider.type_id(), "Adding provider controller");
     registry.push(provider);
 
     Ok(())
@@ -233,10 +233,7 @@ pub fn remove_provider_controller_from_registry(
         )));
     }
 
-    tracing::info!(
-        "Removed provider controller: {}",
-        provider_controller_type_id
-    );
+    tracing::debug!(type_id = %provider_controller_type_id, "Removed provider controller");
 
     Ok(())
 }

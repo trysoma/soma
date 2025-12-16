@@ -6,9 +6,8 @@ use identity::logic::jwk::DEFAULT_JWK_DEK_ALIAS;
 use identity::logic::jwk::cache::JwksCache;
 use identity::repository::Repository as IdentityRepository;
 use shared::error::CommonError;
-use shared::subsystem::SubsystemHandle;
 use tokio::sync::broadcast;
-use tracing::{info, warn};
+use tracing::{debug, trace, warn};
 
 /// State to track whether JWK rotation has been initialized
 #[derive(Clone)]
@@ -39,85 +38,39 @@ impl Default for JwkRotationState {
     }
 }
 
-/// Starts a listener that watches for encryption key events
-/// and initializes JWK rotation when the default DEK alias is created
-pub fn start_jwk_init_on_dek_listener(
-    identity_repo: IdentityRepository,
-    crypto_cache: CryptoCache,
-    jwks_cache: JwksCache,
-    jwk_rotation_state: JwkRotationState,
-    encryption_change_rx: broadcast::Receiver<EncryptionKeyEvent>,
-    system_shutdown_signal: broadcast::Sender<()>,
-) -> Result<SubsystemHandle, CommonError> {
-    use shared::subsystem::SubsystemHandle;
-
-    let (handle, signal) = SubsystemHandle::new("JWK Init Listener");
-    let shutdown_rx = system_shutdown_signal.subscribe();
-
-    tokio::spawn(async move {
-        match run_jwk_init_listener(
-            identity_repo,
-            crypto_cache,
-            jwks_cache,
-            jwk_rotation_state,
-            encryption_change_rx,
-            shutdown_rx,
-            system_shutdown_signal,
-        )
-        .await
-        {
-            Ok(()) => {
-                signal.signal_with_message("stopped gracefully");
-            }
-            Err(e) => {
-                tracing::error!("JWK init listener stopped with error: {:?}", e);
-                signal.signal();
-            }
-        }
-    });
-
-    Ok(handle)
-}
-
-async fn run_jwk_init_listener(
+/// Runs the JWK init listener loop - watches for encryption key events
+/// and initializes JWK rotation when the default DEK alias is created.
+/// This function runs indefinitely until aborted by the process manager.
+pub async fn run_jwk_init_listener(
     identity_repo: IdentityRepository,
     crypto_cache: CryptoCache,
     jwks_cache: JwksCache,
     jwk_rotation_state: JwkRotationState,
     mut encryption_change_rx: broadcast::Receiver<EncryptionKeyEvent>,
-    mut shutdown_rx: broadcast::Receiver<()>,
-    system_shutdown_signal: broadcast::Sender<()>,
 ) -> Result<(), CommonError> {
-    info!("Starting JWK init listener, waiting for default DEK alias...");
+    debug!("JWK init listener started, waiting for DEK alias");
 
     loop {
-        tokio::select! {
-            event = encryption_change_rx.recv() => {
-                match event {
-                    Ok(encryption_evt) => {
-                        if let Err(e) = handle_encryption_event(
-                            &encryption_evt,
-                            &identity_repo,
-                            &crypto_cache,
-                            &jwks_cache,
-                            &jwk_rotation_state,
-                            &system_shutdown_signal,
-                        ).await {
-                            warn!("Error handling encryption event for JWK init: {:?}", e);
-                        }
-                    }
-                    Err(broadcast::error::RecvError::Closed) => {
-                        info!("Encryption change channel closed, stopping JWK init listener");
-                        break;
-                    }
-                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!("Encryption change channel lagged, skipped {} messages", skipped);
-                    }
+        match encryption_change_rx.recv().await {
+            Ok(encryption_evt) => {
+                if let Err(e) = handle_encryption_event(
+                    &encryption_evt,
+                    &identity_repo,
+                    &crypto_cache,
+                    &jwks_cache,
+                    &jwk_rotation_state,
+                )
+                .await
+                {
+                    warn!(error = ?e, "Error handling encryption event for JWK init");
                 }
             }
-            _ = shutdown_rx.recv() => {
-                info!("Shutdown signal received, stopping JWK init listener");
+            Err(broadcast::error::RecvError::Closed) => {
+                debug!("Encryption change channel closed");
                 break;
+            }
+            Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                warn!(skipped, "Encryption change channel lagged");
             }
         }
     }
@@ -131,7 +84,6 @@ async fn handle_encryption_event(
     crypto_cache: &CryptoCache,
     jwks_cache: &JwksCache,
     jwk_rotation_state: &JwkRotationState,
-    system_shutdown_signal: &broadcast::Sender<()>,
 ) -> Result<(), CommonError> {
     // Only handle DEK alias events
     let alias = match event {
@@ -147,14 +99,11 @@ async fn handle_encryption_event(
 
     // Check if already initialized
     if jwk_rotation_state.is_initialized() {
-        info!("JWK rotation already initialized, skipping");
+        trace!("JWK rotation already initialized");
         return Ok(());
     }
 
-    info!(
-        "Default DEK alias '{}' detected, initializing JWK system...",
-        DEFAULT_JWK_DEK_ALIAS
-    );
+    debug!(dek_alias = DEFAULT_JWK_DEK_ALIAS, "Initializing JWK system");
 
     // Create initial JWKs if needed
     identity::logic::jwk::check_jwks_exists_on_start(
@@ -168,11 +117,10 @@ async fn handle_encryption_event(
     // Mark as initialized
     jwk_rotation_state.set_initialized();
 
-    // Start the JWK rotation task
+    // Start the JWK rotation task - runs indefinitely until aborted by process manager
     let identity_repo_clone = identity_repo.clone();
     let crypto_cache_clone = crypto_cache.clone();
     let jwks_cache_clone = jwks_cache.clone();
-    let shutdown_rx = system_shutdown_signal.subscribe();
 
     tokio::spawn(async move {
         identity::logic::jwk::jwk_rotation_task(
@@ -180,13 +128,12 @@ async fn handle_encryption_event(
             crypto_cache_clone,
             jwks_cache_clone,
             DEFAULT_JWK_DEK_ALIAS.to_string(),
-            shutdown_rx,
         )
         .await;
-        info!("JWK rotation task stopped");
+        debug!("JWK rotation task stopped");
     });
 
-    info!("JWK rotation task started successfully");
+    debug!("JWK rotation task started");
 
     Ok(())
 }

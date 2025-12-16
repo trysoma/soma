@@ -3,7 +3,7 @@ use comfy_table::{Cell, Table};
 use shared::error::CommonError;
 use soma_api_client::apis::identity_api;
 use soma_api_client::models;
-use tracing::info;
+use tracing::debug;
 
 use crate::utils::{CliConfig, create_and_wait_for_api_client};
 
@@ -105,7 +105,7 @@ pub async fn cmd_api_key_add(
         }
     };
 
-    info!("Creating new API key '{}' with role: {}", id, role);
+    debug!("Creating new API key '{}' with role: {}", id, role);
     let create_req = models::CreateApiKeyParams {
         id,
         description: Some(description),
@@ -132,7 +132,7 @@ pub async fn cmd_api_key_rm(
     // Create API client and wait for server to be ready
     let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
 
-    info!("Deleting API key: {}", id);
+    debug!("Deleting API key: {}", id);
     identity_api::route_delete_api_key(&api_config, &id)
         .await
         .map_err(|e| {

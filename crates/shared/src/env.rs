@@ -1,21 +1,25 @@
 use std::path::PathBuf;
 
 use anyhow::Context;
+use tracing::{debug, trace};
 
 fn travese_up_for_env_file(file_name: &str) -> Option<PathBuf> {
     let relative_workspace_root = PathBuf::from("./../../").join(file_name);
 
     if PathBuf::from(file_name).exists() {
-        println!("Loading environment variables from: {file_name}");
+        trace!("Loading environment variables from: {file_name}");
         Some(PathBuf::from(file_name))
     } else if relative_workspace_root.exists() {
-        println!(
+        trace!(
             "Loading environment variables from: {}",
             relative_workspace_root.display()
         );
         Some(relative_workspace_root)
     } else {
-        println!("No environment variables file found");
+        trace!(
+            "No environment variables file found with name: {:?} in current directory or workspace root",
+            file_name
+        );
         None
     }
 }
@@ -23,13 +27,17 @@ fn travese_up_for_env_file(file_name: &str) -> Option<PathBuf> {
 fn load_optional_env_file(file_name: Option<PathBuf>) {
     match file_name {
         Some(path) => {
-            dotenv::from_filename(path)
+            dotenv::from_filename(path.clone())
                 .ok()
                 .context("Failed to load environment variables (.env)")
                 .unwrap();
+            debug!("Loaded environment variables from: {}", path.display());
         }
         None => {
-            println!("No environment variables file found");
+            debug!(
+                "No environment variables file foun with name: {:?} in current directory or workspace root",
+                file_name
+            );
         }
     };
 }

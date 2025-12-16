@@ -5,6 +5,7 @@ use shared::{
     adapters::openapi::{API_VERSION_TAG, JsonResponse},
     error::CommonError,
 };
+use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::api_key::{
@@ -39,6 +40,7 @@ async fn route_create_api_key(
     State(service): State<IdentityService>,
     Json(params): Json<CreateApiKeyParams>,
 ) -> JsonResponse<CreateApiKeyResponse, CommonError> {
+    trace!(api_key_id = %params.id, "Creating API key");
     let result = create_api_key(
         service.repository.as_ref(),
         &service.crypto_cache,
@@ -48,6 +50,7 @@ async fn route_create_api_key(
         true, // publish_on_change_evt
     )
     .await;
+    trace!(success = result.is_ok(), "Creating API key completed");
     JsonResponse::from(result)
 }
 
@@ -68,6 +71,7 @@ async fn route_delete_api_key(
     State(service): State<IdentityService>,
     Path(id): Path<String>,
 ) -> JsonResponse<DeleteApiKeyResponse, CommonError> {
+    trace!(api_key_id = %id, "Deleting API key");
     let params = DeleteApiKeyParams { id };
     let result = delete_api_key(
         service.repository.as_ref(),
@@ -77,6 +81,7 @@ async fn route_delete_api_key(
         true, // publish_on_change_evt
     )
     .await;
+    trace!(success = result.is_ok(), "Deleting API key completed");
     JsonResponse::from(result)
 }
 
@@ -96,7 +101,9 @@ async fn route_list_api_keys(
     State(service): State<IdentityService>,
     Query(query): Query<PaginationRequest>,
 ) -> JsonResponse<ListApiKeysResponse, CommonError> {
+    trace!(page_size = query.page_size, "Listing API keys");
     let result = list_api_keys(service.repository.as_ref(), query).await;
+    trace!(success = result.is_ok(), "Listing API keys completed");
     JsonResponse::from(result)
 }
 
@@ -115,6 +122,7 @@ async fn route_import_api_key(
     State(service): State<IdentityService>,
     Json(params): Json<EncryptedApiKeyConfig>,
 ) -> JsonResponse<ImportApiKeyResponse, CommonError> {
+    trace!(api_key_id = %params.id, "Importing API key");
     let result = import_api_key(
         service.repository.as_ref(),
         &service.crypto_cache,
@@ -122,5 +130,6 @@ async fn route_import_api_key(
         params,
     )
     .await;
+    trace!(success = result.is_ok(), "Importing API key completed");
     JsonResponse::from(result)
 }

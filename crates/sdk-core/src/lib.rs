@@ -10,7 +10,7 @@ use unix_socket::{bind_unix_listener, create_listener_stream};
 
 use sdk_proto::soma_sdk_service_server::{SomaSdkService, SomaSdkServiceServer};
 use tonic::{Request, Response, Status, transport::Server};
-use tracing::info;
+use tracing::{debug, trace};
 
 pub type GenerateBridgeClientResponse = sdk_proto::GenerateBridgeClientResponse;
 pub type GenerateBridgeClientRequest = sdk_proto::GenerateBridgeClientRequest;
@@ -41,6 +41,7 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         &self,
         _request: Request<()>,
     ) -> Result<Response<sdk_proto::MetadataResponse>, Status> {
+        trace!("Getting SDK metadata");
         let providers = self.providers.load();
         let proto_providers: Vec<sdk_proto::ProviderController> =
             providers.iter().map(Into::into).collect();
@@ -48,15 +49,24 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         let agents = self.agents.load();
         let proto_agents: Vec<sdk_proto::Agent> = agents.iter().cloned().map(Into::into).collect();
 
+        let provider_count = proto_providers.len();
+        let agent_count = proto_agents.len();
+
         let response = sdk_proto::MetadataResponse {
             bridge_providers: proto_providers,
             agents: proto_agents,
         };
 
+        trace!(
+            provider_count,
+            agent_count, "Getting SDK metadata completed"
+        );
         Ok(Response::new(response))
     }
 
     async fn health_check(&self, _request: Request<()>) -> Result<Response<()>, Status> {
+        trace!("Health check");
+        trace!("Health check completed");
         Ok(Response::new(()))
     }
 
@@ -64,6 +74,7 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         &self,
         request: Request<sdk_proto::InvokeFunctionRequest>,
     ) -> Result<Response<sdk_proto::InvokeFunctionResponse>, Status> {
+        trace!("Invoking function");
         let proto_req = request.into_inner();
         let req: InvokeFunctionRequest =
             proto_req
@@ -96,14 +107,14 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
                 ))
             })?;
 
-        info!("invoking function: {:?}", function.name);
+        trace!(function = %function.name, provider = %provider.type_id, "Executing function");
 
         // Invoke the function (Arc keeps providers alive during the call)
         let result = (function.invoke)(req)
             .await
             .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
 
-        info!("invoke_function result: {:?}", result);
+        trace!(success = result.is_ok(), "Invoking function completed");
 
         let result = result?;
 
@@ -114,13 +125,18 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         &self,
         request: Request<sdk_proto::GenerateBridgeClientRequest>,
     ) -> Result<Response<sdk_proto::GenerateBridgeClientResponse>, Status> {
-        info!("generate_bridge_client called - delegating to code generator");
+        trace!("Generating bridge client");
 
         let req = request.into_inner();
+
         match self.code_generator.generate_bridge_client(req).await {
-            Ok(response) => Ok(Response::new(response)),
+            Ok(response) => {
+                trace!("Generating bridge client completed");
+                Ok(Response::new(response))
+            }
             Err(e) => {
-                info!("Code generator returned error: {}", e);
+                debug!(error = %e, "Code generation failed");
+                trace!("Generating bridge client completed (with error)");
                 Ok(Response::new(sdk_proto::GenerateBridgeClientResponse {
                     result: Some(sdk_proto::generate_bridge_client_response::Result::Error(
                         sdk_proto::GenerateBridgeClientError {
@@ -137,10 +153,8 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         request: Request<sdk_proto::SetSecretsRequest>,
     ) -> Result<Response<sdk_proto::SetSecretsResponse>, Status> {
         use sdk_proto::set_secrets_response::Kind;
-        info!(
-            "set_secrets called with {} secrets",
-            request.get_ref().secrets.len()
-        );
+        let count = request.get_ref().secrets.len();
+        trace!(count, "Setting secrets");
 
         let proto_req = request.into_inner();
         let secrets: Vec<Secret> = proto_req.secrets.into_iter().map(Into::into).collect();
@@ -150,7 +164,8 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         let handler = match handler_guard.as_ref() {
             Some(h) => h.clone(),
             None => {
-                info!("No secret handler registered");
+                debug!("No secret handler registered");
+                trace!(count, "Setting secrets completed (no handler)");
                 return Ok(Response::new(sdk_proto::SetSecretsResponse {
                     kind: Some(Kind::Error(sdk_proto::CallbackError {
                         message: "No secret handler registered".to_string(),
@@ -159,13 +174,13 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
             }
         };
         // Call the handler
-        info!("invoking set secrets handler");
+        trace!("Invoking secret handler");
 
         let result = handler(secrets)
             .await
             .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
 
-        info!("set_secrets result: {:?}", result);
+        trace!(count, success = result.is_ok(), "Setting secrets completed");
 
         let result = result?;
 
@@ -177,10 +192,8 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         request: Request<sdk_proto::SetEnvironmentVariablesRequest>,
     ) -> Result<Response<sdk_proto::SetEnvironmentVariablesResponse>, Status> {
         use sdk_proto::set_environment_variables_response::Kind;
-        info!(
-            "set_environment_variables called with {} environment variables",
-            request.get_ref().environment_variables.len()
-        );
+        let count = request.get_ref().environment_variables.len();
+        trace!(count, "Setting environment variables");
 
         let proto_req = request.into_inner();
         let env_vars: Vec<EnvironmentVariable> = proto_req
@@ -194,7 +207,11 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         let handler = match handler_guard.as_ref() {
             Some(h) => h.clone(),
             None => {
-                info!("No environment variable handler registered");
+                debug!("No environment variable handler registered");
+                trace!(
+                    count,
+                    "Setting environment variables completed (no handler)"
+                );
                 return Ok(Response::new(sdk_proto::SetEnvironmentVariablesResponse {
                     kind: Some(Kind::Error(sdk_proto::CallbackError {
                         message: "No environment variable handler registered".to_string(),
@@ -203,13 +220,17 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
             }
         };
         // Call the handler
-        info!("invoking set environment variables handler");
+        trace!("Invoking environment variable handler");
 
         let result = handler(env_vars)
             .await
             .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
 
-        info!("set_environment_variables result: {:?}", result);
+        trace!(
+            count,
+            success = result.is_ok(),
+            "Setting environment variables completed"
+        );
 
         let result = result?;
 
@@ -221,7 +242,8 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         request: Request<sdk_proto::UnsetSecretRequest>,
     ) -> Result<Response<sdk_proto::UnsetSecretResponse>, Status> {
         use sdk_proto::unset_secret_response::Kind;
-        info!("unset_secrets called with key: {}", request.get_ref().key);
+        let key = request.get_ref().key.clone();
+        trace!(key = %key, "Unsetting secret");
 
         let proto_req = request.into_inner();
         let req: UnsetSecretRequest = proto_req.into();
@@ -231,7 +253,8 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         let handler = match handler_guard.as_ref() {
             Some(h) => h.clone(),
             None => {
-                info!("No unset secret handler registered");
+                debug!("No unset secret handler registered");
+                trace!(key = %key, "Unsetting secret completed (no handler)");
                 return Ok(Response::new(sdk_proto::UnsetSecretResponse {
                     kind: Some(Kind::Error(sdk_proto::CallbackError {
                         message: "No unset secret handler registered".to_string(),
@@ -240,13 +263,13 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
             }
         };
         // Call the handler
-        info!("invoking unset secret handler");
+        trace!("Invoking unset secret handler");
 
         let result = handler(req.key)
             .await
             .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
 
-        info!("unset_secrets result: {:?}", result);
+        trace!(key = %key, success = result.is_ok(), "Unsetting secret completed");
 
         let result = result?;
 
@@ -258,10 +281,8 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         request: Request<sdk_proto::UnsetEnvironmentVariableRequest>,
     ) -> Result<Response<sdk_proto::UnsetEnvironmentVariableResponse>, Status> {
         use sdk_proto::unset_environment_variable_response::Kind;
-        info!(
-            "unset_environment_variables called with key: {}",
-            request.get_ref().key
-        );
+        let key = request.get_ref().key.clone();
+        trace!(key = %key, "Unsetting environment variable");
 
         let proto_req = request.into_inner();
         let req: UnsetEnvironmentVariableRequest = proto_req.into();
@@ -271,7 +292,8 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         let handler = match handler_guard.as_ref() {
             Some(h) => h.clone(),
             None => {
-                info!("No unset environment variable handler registered");
+                debug!("No unset environment variable handler registered");
+                trace!(key = %key, "Unsetting environment variable completed (no handler)");
                 return Ok(Response::new(sdk_proto::UnsetEnvironmentVariableResponse {
                     kind: Some(Kind::Error(sdk_proto::CallbackError {
                         message: "No unset environment variable handler registered".to_string(),
@@ -280,13 +302,13 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
             }
         };
         // Call the handler
-        info!("invoking unset environment variable handler");
+        trace!("Invoking unset environment variable handler");
 
         let result = handler(req.key)
             .await
             .map_err(|e| Status::internal(format!("Function invocation failed: {e}")));
 
-        info!("unset_environment_variables result: {:?}", result);
+        trace!(key = %key, success = result.is_ok(), "Unsetting environment variable completed");
 
         let result = result?;
 
@@ -527,7 +549,7 @@ pub async fn start_grpc_server<G: SdkCodeGenerator + 'static>(
             .map_err(|e| anyhow::anyhow!("Failed to remove existing socket: {e}"))?;
     }
 
-    info!("Starting gRPC server on Unix socket: {:?}", socket_path);
+    debug!(socket = ?socket_path, "Starting gRPC server");
 
     // Create the gRPC service with code generator
     let service = Arc::new(GrpcService::new(providers, vec![], code_generator));
@@ -639,16 +661,22 @@ pub async fn resync_sdk(base_url: Option<String>) -> Result<ResyncSdkResponse, C
         .or_else(|| std::env::var("SOMA_SERVER_BASE_URL").ok())
         .unwrap_or_else(|| "http://localhost:3000".to_string());
 
-    info!("[SDK] Calling resync endpoint at: {}", api_base_url);
+    trace!(url = %api_base_url, "Calling SDK resync endpoint");
 
     let config = soma_api_client::apis::configuration::Configuration {
         base_path: api_base_url.clone(),
         ..Default::default()
     };
 
-    soma_api_client::apis::internal_api::resync_sdk(&config)
+    let result = soma_api_client::apis::internal_api::resync_sdk(&config)
         .await
-        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Resync failed: {e:?}")))?;
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Resync failed: {e:?}")));
+
+    trace!(
+        success = result.is_ok(),
+        "Calling SDK resync endpoint completed"
+    );
+    result?;
 
     Ok(ResyncSdkResponse {})
 }

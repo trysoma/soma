@@ -3,6 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use shared::{error::CommonError, primitives::WrappedChronoDateTime};
+use tracing::trace;
 use utoipa::ToSchema;
 
 use super::crypto_services::CryptoCache;
@@ -42,6 +43,7 @@ pub async fn create_alias<R>(
 where
     R: DataEncryptionKeyRepositoryLike,
 {
+    trace!(dek_id = %params.dek_id, alias = %params.inner.alias, "Creating DEK alias");
     // Fetch the full DEK to include in the event
     let dek = repo
         .get_data_encryption_key_by_id(&params.dek_id)
@@ -76,6 +78,7 @@ where
         dek,
     });
 
+    trace!(alias = %alias.alias, "Creating DEK alias completed");
     Ok(alias)
 }
 
@@ -89,6 +92,7 @@ pub async fn delete_alias<R>(
 where
     R: DataEncryptionKeyRepositoryLike,
 {
+    trace!(alias = %alias_name, "Deleting DEK alias");
     // Verify the alias exists and get the DEK ID it points to
     let alias_record = repo
         .get_data_encryption_key_alias_by_alias(&alias_name)
@@ -107,6 +111,7 @@ where
     let _ =
         on_change_tx.send(EncryptionKeyEvent::DataEncryptionKeyAliasRemoved { alias: alias_name });
 
+    trace!("Deleting DEK alias completed");
     Ok(())
 }
 
@@ -121,6 +126,7 @@ pub async fn update_alias<R>(
 where
     R: DataEncryptionKeyRepositoryLike,
 {
+    trace!(alias = %alias_name, new_dek_id = %params.new_dek_id, "Updating DEK alias");
     // Verify the alias exists and get the old DEK ID
     let existing_alias = repo
         .get_data_encryption_key_alias_by_alias(&alias_name)
@@ -163,6 +169,7 @@ where
         created_at: existing_alias.created_at,
     };
 
+    trace!(alias = %updated_alias.alias, "Updating DEK alias completed");
     Ok(updated_alias)
 }
 
@@ -176,17 +183,21 @@ pub async fn get_by_alias_or_id<R>(
 where
     R: DataEncryptionKeyRepositoryLike + ?Sized,
 {
+    trace!(alias_or_id = %alias_or_id, "Getting DEK by alias or ID");
     // First, try to find by alias
     if let Some(dek) = repo.get_data_encryption_key_by_alias(alias_or_id).await? {
+        trace!(dek_id = %dek.id, "Getting DEK by alias or ID completed (found by alias)");
         return Ok(dek);
     }
 
     // If not found, try to find by direct ID
     if let Some(dek) = repo.get_data_encryption_key_by_id(alias_or_id).await? {
+        trace!(dek_id = %dek.id, "Getting DEK by alias or ID completed (found by ID)");
         return Ok(dek);
     }
 
     // Neither alias nor ID found
+    trace!("Getting DEK by alias or ID completed (not found)");
     Err(CommonError::NotFound {
         msg: "Data encryption key not found with alias or ID".to_string(),
         lookup_id: alias_or_id.to_string(),
@@ -202,5 +213,8 @@ pub async fn list_aliases_for_dek<R>(
 where
     R: DataEncryptionKeyRepositoryLike,
 {
-    repo.list_aliases_for_dek(dek_id).await
+    trace!(dek_id = %dek_id, "Listing aliases for DEK");
+    let res = repo.list_aliases_for_dek(dek_id).await;
+    trace!(success = res.is_ok(), "Listing aliases for DEK completed");
+    res
 }

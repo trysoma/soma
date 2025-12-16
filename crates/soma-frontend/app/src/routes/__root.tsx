@@ -19,8 +19,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 						<SubNavigation
 							items={[
 								{
-									label: "Agent 2 Agent",
-									href: LINKS.A2A(),
+									label: "Agents",
+									href: LINKS.AGENTS(),
 								},
 								{
 									label: "Bridge MCP",

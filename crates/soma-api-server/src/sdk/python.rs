@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
-use tokio::process::Command;
-
 use super::interface::{ClientCtx, SdkClient};
+use futures::future;
 
 pub struct Python {}
 
@@ -14,18 +13,6 @@ impl Python {
 
 impl SdkClient for Python {
     async fn start_dev_server(&self, ctx: ClientCtx) -> Result<(), shared::error::CommonError> {
-        // First generate standalone.py, then run it with --watch mode
-        // The --watch mode will start the server and watch for changes
-        let mut cmd = Command::new("uv");
-
-        cmd.arg("run")
-            .arg("python")
-            .arg("-m")
-            .arg("trysoma_sdk.standalone")
-            .arg("--watch")
-            .arg(".")
-            .current_dir(ctx.project_dir.clone());
-
         // Set the SOMA_SERVER_SOCK environment variable and initial secrets/env vars
         let mut env_vars = HashMap::from([
             ("SOMA_SERVER_SOCK".to_string(), ctx.socket_path),
@@ -45,31 +32,46 @@ impl SdkClient for Python {
             env_vars.insert(key, value);
         }
 
-        // Run with clear_env=true to prevent host environment variables from leaking
-        // Only the essential system variables and explicitly provided env vars will be set
-        shared::command::run_child_process_with_env_options(
-            "python-dev-server",
-            cmd,
-            Some(ctx.kill_signal_rx),
-            Some(env_vars),
-            true, // Clear inherited environment, only use provided env vars
-        )
-        .await?;
+        // Use process manager to start the Python dev server
+        ctx.process_manager
+            .start_process(
+                "python-dev-server",
+                shared::process_manager::ProcessConfig {
+                    script: "uv".to_string(),
+                    args: vec![
+                        "run".to_string(),
+                        "python".to_string(),
+                        "-m".to_string(),
+                        "trysoma_sdk.standalone".to_string(),
+                        "--watch".to_string(),
+                        ".".to_string(),
+                    ],
+                    cwd: Some(ctx.project_dir.clone()),
+                    env: env_vars,
+                    health_check: None,
+                    on_terminal_stop: shared::process_manager::OnTerminalStop::TriggerShutdown,
+                    on_stop: shared::process_manager::OnStop::Restart(
+                        shared::process_manager::RestartConfig {
+                            max_restarts: 10,
+                            restart_delay: 2000,
+                        },
+                    ),
+                    shutdown_priority: 7, // Lower than SDK server thread (8) so it shuts down first
+                    follow_logs: false,
+                    on_shutdown_triggered: None,
+                    on_shutdown_complete: None,
+                },
+            )
+            .await?;
+
+        // Wait indefinitely - the process manager will handle shutdown by aborting this thread
+        future::pending::<()>().await;
 
         Ok(())
     }
 
     async fn build(&self, ctx: ClientCtx) -> Result<(), shared::error::CommonError> {
         // For Python, "build" means generating the standalone.py file
-        let mut cmd = Command::new("uv");
-        cmd.arg("run")
-            .arg("python")
-            .arg("-m")
-            .arg("trysoma_sdk.standalone")
-            .arg("--dev")
-            .arg(".")
-            .current_dir(ctx.project_dir.clone());
-
         // Start with initial secrets and environment variables for consistent build environment
         let mut env_vars = HashMap::new();
         for (key, value) in ctx.initial_secrets {
@@ -79,15 +81,32 @@ impl SdkClient for Python {
             env_vars.insert(key, value);
         }
 
-        // Run with clear_env=true for consistent build environment
-        shared::command::run_child_process_with_env_options(
-            "python-build",
-            cmd,
-            None,
-            Some(env_vars),
-            true, // Clear inherited environment
-        )
-        .await?;
+        // Use process manager to run the build process
+        ctx.process_manager
+            .start_process(
+                "python-build",
+                shared::process_manager::ProcessConfig {
+                    script: "uv".to_string(),
+                    args: vec![
+                        "run".to_string(),
+                        "python".to_string(),
+                        "-m".to_string(),
+                        "trysoma_sdk.standalone".to_string(),
+                        "--dev".to_string(),
+                        ".".to_string(),
+                    ],
+                    cwd: Some(ctx.project_dir.clone()),
+                    env: env_vars,
+                    health_check: None,
+                    on_terminal_stop: shared::process_manager::OnTerminalStop::Ignore,
+                    on_stop: shared::process_manager::OnStop::Nothing, // Build is one-shot, don't restart
+                    shutdown_priority: 1,
+                    follow_logs: true,
+                    on_shutdown_triggered: None,
+                    on_shutdown_complete: None,
+                },
+            )
+            .await?;
 
         Ok(())
     }

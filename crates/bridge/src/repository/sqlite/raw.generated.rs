@@ -2,6 +2,493 @@
 
 #[allow(unused)]
 use serde::{Serialize, Deserialize};
+  pub struct create_mcp_server_instance_params<'a> {
+      pub id: &'a 
+          String
+      ,
+      pub name: &'a 
+          String
+      ,
+      pub created_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+      pub updated_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+  }
+
+  pub async fn create_mcp_server_instance(
+    conn: &shared::libsql::Connection
+    ,params: create_mcp_server_instance_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"INSERT INTO mcp_server_instance (id, name, created_at, updated_at)
+VALUES (?, ?, ?, ?)"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.name.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct get_mcp_server_instance_by_id_params<'a> {
+      pub id: &'a 
+          String
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_mcp_server_instance_by_id {
+      pub id:String,
+      pub name:String,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+      pub functions:String,
+  }
+  pub async fn get_mcp_server_instance_by_id(
+      conn: &shared::libsql::Connection
+      ,params: get_mcp_server_instance_by_id_params<'_>
+  ) -> Result<Option<Row_get_mcp_server_instance_by_id>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT
+    msi.id,
+    msi.name,
+    msi.created_at,
+    msi.updated_at,
+    CAST(COALESCE(
+        (SELECT JSON_GROUP_ARRAY(
+            JSON_OBJECT(
+                'mcp_server_instance_id', msif.mcp_server_instance_id,
+                'function_controller_type_id', msif.function_controller_type_id,
+                'provider_controller_type_id', msif.provider_controller_type_id,
+                'provider_instance_id', msif.provider_instance_id,
+                'function_name', msif.function_name,
+                'function_description', msif.function_description,
+                'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', msif.created_at),
+                'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', msif.updated_at)
+            )
+        )
+        FROM mcp_server_instance_function msif
+        WHERE msif.mcp_server_instance_id = msi.id
+        ), JSON('[]')) AS TEXT
+    ) AS functions
+FROM mcp_server_instance msi
+WHERE msi.id = ?"#).await?;
+      let res = stmt.query_row(
+          libsql::params![params.id.clone(),],
+      ).await;
+
+      match res {
+          Ok(row) => Ok(Some(Row_get_mcp_server_instance_by_id {
+                  id: row.get(0)?,
+                  name: row.get(1)?,
+                  created_at: row.get(2)?,
+                  updated_at: row.get(3)?,
+                  functions: row.get(4)?,
+              })),
+          Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
+          Err(e) => Err(e),
+      }
+  }
+  pub struct update_mcp_server_instance_params<'a> {
+      pub name: &'a 
+          String
+      ,
+      pub id: &'a 
+          String
+      ,
+  }
+
+  pub async fn update_mcp_server_instance(
+    conn: &shared::libsql::Connection
+    ,params: update_mcp_server_instance_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"UPDATE mcp_server_instance
+SET name = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.name.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct delete_mcp_server_instance_params<'a> {
+      pub id: &'a 
+          String
+      ,
+  }
+
+  pub async fn delete_mcp_server_instance(
+    conn: &shared::libsql::Connection
+    ,params: delete_mcp_server_instance_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"DELETE FROM mcp_server_instance WHERE id = ?"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct list_mcp_server_instances_params<'a> {
+      pub cursor: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub page_size: &'a 
+          i64
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_list_mcp_server_instances {
+      pub id:String,
+      pub name:String,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+      pub functions:String,
+  }
+  pub async fn list_mcp_server_instances(
+      conn: &shared::libsql::Connection
+      ,params: list_mcp_server_instances_params<'_>
+  ) -> Result<Vec<Row_list_mcp_server_instances>, libsql::Error> {
+      let stmt = conn.prepare(r#"SELECT
+    msi.id,
+    msi.name,
+    msi.created_at,
+    msi.updated_at,
+    CAST(COALESCE(
+        (SELECT JSON_GROUP_ARRAY(
+            JSON_OBJECT(
+                'mcp_server_instance_id', msif.mcp_server_instance_id,
+                'function_controller_type_id', msif.function_controller_type_id,
+                'provider_controller_type_id', msif.provider_controller_type_id,
+                'provider_instance_id', msif.provider_instance_id,
+                'function_name', msif.function_name,
+                'function_description', msif.function_description,
+                'created_at', strftime('%Y-%m-%dT%H:%M:%fZ', msif.created_at),
+                'updated_at', strftime('%Y-%m-%dT%H:%M:%fZ', msif.updated_at)
+            )
+        )
+        FROM mcp_server_instance_function msif
+        WHERE msif.mcp_server_instance_id = msi.id
+        ), JSON('[]')) AS TEXT
+    ) AS functions
+FROM mcp_server_instance msi
+WHERE (msi.created_at < ?1 OR ?1 IS NULL)
+ORDER BY msi.created_at DESC
+LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
+      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
+      let mut mapped = vec![];
+
+      while let Some(row) = rows.next().await? {
+          mapped.push(Row_list_mcp_server_instances {
+              id: row.get(0)?,
+              name: row.get(1)?,
+              created_at: row.get(2)?,
+              updated_at: row.get(3)?,
+              functions: row.get(4)?,
+          });
+      }
+
+      Ok(mapped)
+  }
+  pub struct create_mcp_server_instance_function_params<'a> {
+      pub mcp_server_instance_id: &'a 
+          String
+      ,
+      pub function_controller_type_id: &'a 
+          String
+      ,
+      pub provider_controller_type_id: &'a 
+          String
+      ,
+      pub provider_instance_id: &'a 
+          String
+      ,
+      pub function_name: &'a 
+          String
+      ,
+      pub function_description: &'a Option<
+          String
+      >,
+      pub created_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+      pub updated_at: &'a 
+          shared::primitives::WrappedChronoDateTime
+      ,
+  }
+
+  pub async fn create_mcp_server_instance_function(
+    conn: &shared::libsql::Connection
+    ,params: create_mcp_server_instance_function_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"INSERT INTO mcp_server_instance_function (mcp_server_instance_id, function_controller_type_id, provider_controller_type_id, provider_instance_id, function_name, function_description, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.mcp_server_instance_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.function_controller_type_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.provider_controller_type_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.provider_instance_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.function_name.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              match params.function_description.clone() {
+                Some(value) => {
+                  <String as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.created_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct update_mcp_server_instance_function_params<'a> {
+      pub function_name: &'a 
+          String
+      ,
+      pub function_description: &'a Option<
+          String
+      >,
+      pub mcp_server_instance_id: &'a 
+          String
+      ,
+      pub function_controller_type_id: &'a 
+          String
+      ,
+      pub provider_controller_type_id: &'a 
+          String
+      ,
+      pub provider_instance_id: &'a 
+          String
+      ,
+  }
+
+  pub async fn update_mcp_server_instance_function(
+    conn: &shared::libsql::Connection
+    ,params: update_mcp_server_instance_function_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"UPDATE mcp_server_instance_function
+SET function_name = ?, function_description = ?, updated_at = CURRENT_TIMESTAMP
+WHERE mcp_server_instance_id = ?
+  AND function_controller_type_id = ?
+  AND provider_controller_type_id = ?
+  AND provider_instance_id = ?"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.function_name.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              match params.function_description.clone() {
+                Some(value) => {
+                  <String as TryInto<libsql::Value>>::try_into(value.clone())
+                      .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+                },
+                None => libsql::Value::Null,
+              }
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.mcp_server_instance_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.function_controller_type_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.provider_controller_type_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.provider_instance_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct get_mcp_server_instance_function_by_name_params<'a> {
+      pub mcp_server_instance_id: &'a 
+          String
+      ,
+      pub function_name: &'a 
+          String
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_get_mcp_server_instance_function_by_name {
+      pub mcp_server_instance_id:String,
+      pub function_controller_type_id:String,
+      pub provider_controller_type_id:String,
+      pub provider_instance_id:String,
+      pub function_name:String,
+      pub function_description:Option<String> ,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn get_mcp_server_instance_function_by_name(
+      conn: &shared::libsql::Connection
+      ,params: get_mcp_server_instance_function_by_name_params<'_>
+  ) -> Result<Option<Row_get_mcp_server_instance_function_by_name>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT
+    mcp_server_instance_id,
+    function_controller_type_id,
+    provider_controller_type_id,
+    provider_instance_id,
+    function_name,
+    function_description,
+    created_at,
+    updated_at
+FROM mcp_server_instance_function
+WHERE mcp_server_instance_id = ?
+  AND function_name = ?"#).await?;
+      let res = stmt.query_row(
+          libsql::params![params.mcp_server_instance_id.clone(),params.function_name.clone(),],
+      ).await;
+
+      match res {
+          Ok(row) => Ok(Some(Row_get_mcp_server_instance_function_by_name {
+                  mcp_server_instance_id: row.get(0)?,
+                  function_controller_type_id: row.get(1)?,
+                  provider_controller_type_id: row.get(2)?,
+                  provider_instance_id: row.get(3)?,
+                  function_name: row.get(4)?,
+                  function_description: row.get(5)?,
+                  created_at: row.get(6)?,
+                  updated_at: row.get(7)?,
+              })),
+          Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
+          Err(e) => Err(e),
+      }
+  }
+  pub struct delete_mcp_server_instance_function_params<'a> {
+      pub mcp_server_instance_id: &'a 
+          String
+      ,
+      pub function_controller_type_id: &'a 
+          String
+      ,
+      pub provider_controller_type_id: &'a 
+          String
+      ,
+      pub provider_instance_id: &'a 
+          String
+      ,
+  }
+
+  pub async fn delete_mcp_server_instance_function(
+    conn: &shared::libsql::Connection
+    ,params: delete_mcp_server_instance_function_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"DELETE FROM mcp_server_instance_function
+WHERE mcp_server_instance_id = ?
+  AND function_controller_type_id = ?
+  AND provider_controller_type_id = ?
+  AND provider_instance_id = ?"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.mcp_server_instance_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.function_controller_type_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.provider_controller_type_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.provider_instance_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct delete_all_mcp_server_instance_functions_params<'a> {
+      pub mcp_server_instance_id: &'a 
+          String
+      ,
+  }
+
+  pub async fn delete_all_mcp_server_instance_functions(
+    conn: &shared::libsql::Connection
+    ,params: delete_all_mcp_server_instance_functions_params<'_>
+) -> Result<u64, libsql::Error> {
+    conn.execute(r#"DELETE FROM mcp_server_instance_function WHERE mcp_server_instance_id = ?"#, libsql::params![
+              <String as TryInto<libsql::Value>>::try_into(params.mcp_server_instance_id.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+    ]).await
+}
+  pub struct list_mcp_server_instance_functions_params<'a> {
+      pub mcp_server_instance_id: &'a 
+          String
+      ,
+      pub cursor: &'a Option<
+          shared::primitives::WrappedChronoDateTime
+      >,
+      pub page_size: &'a 
+          i64
+      ,
+  }
+    #[derive(Serialize, Deserialize, Debug)]
+
+  #[allow(non_camel_case_types)]
+  pub struct Row_list_mcp_server_instance_functions {
+      pub mcp_server_instance_id:String,
+      pub function_controller_type_id:String,
+      pub provider_controller_type_id:String,
+      pub provider_instance_id:String,
+      pub function_name:String,
+      pub function_description:Option<String> ,
+      pub created_at:shared::primitives::WrappedChronoDateTime,
+      pub updated_at:shared::primitives::WrappedChronoDateTime,
+  }
+  pub async fn list_mcp_server_instance_functions(
+      conn: &shared::libsql::Connection
+      ,params: list_mcp_server_instance_functions_params<'_>
+  ) -> Result<Vec<Row_list_mcp_server_instance_functions>, libsql::Error> {
+      let stmt = conn.prepare(r#"SELECT
+    mcp_server_instance_id,
+    function_controller_type_id,
+    provider_controller_type_id,
+    provider_instance_id,
+    function_name,
+    function_description,
+    created_at,
+    updated_at
+FROM mcp_server_instance_function
+WHERE mcp_server_instance_id = ?
+  AND (created_at < ?2 OR ?2 IS NULL)
+ORDER BY created_at DESC
+LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
+      let mut rows = stmt.query(libsql::params![params.mcp_server_instance_id.clone(),params.cursor.clone(),params.page_size.clone(),]).await?;
+      let mut mapped = vec![];
+
+      while let Some(row) = rows.next().await? {
+          mapped.push(Row_list_mcp_server_instance_functions {
+              mcp_server_instance_id: row.get(0)?,
+              function_controller_type_id: row.get(1)?,
+              provider_controller_type_id: row.get(2)?,
+              provider_instance_id: row.get(3)?,
+              function_name: row.get(4)?,
+              function_description: row.get(5)?,
+              created_at: row.get(6)?,
+              updated_at: row.get(7)?,
+          });
+      }
+
+      Ok(mapped)
+  }
   pub struct create_resource_server_credential_params<'a> {
       pub id: &'a 
           shared::primitives::WrappedUuidV4

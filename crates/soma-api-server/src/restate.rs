@@ -7,9 +7,9 @@ use shared::error::CommonError;
 use shared::restate::admin_client::AdminClient;
 use shared::restate::invoke::RestateIngressClient;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RestateServerLocalParams {
-    pub project_dir: PathBuf,
+    pub restate_server_data_dir: PathBuf,
     pub ingress_port: u16,
     pub admin_port: u16,
     pub soma_restate_service_port: u16,
@@ -17,7 +17,7 @@ pub struct RestateServerLocalParams {
     pub clean: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RestateServerRemoteParams {
     pub admin_address: Url,
     pub ingress_address: Url,
@@ -28,6 +28,7 @@ pub struct RestateServerRemoteParams {
 
 #[derive(Clone)]
 #[allow(clippy::large_enum_variant)]
+#[derive(Debug)]
 pub enum RestateServerParams {
     Local(RestateServerLocalParams),
     Remote(RestateServerRemoteParams),

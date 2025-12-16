@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 use reqwest;
-use tracing::info;
+use tracing::debug;
 use zip::ZipArchive;
 
 use shared::error::CommonError;
@@ -21,7 +21,7 @@ pub struct InitParams {
 }
 
 pub async fn cmd_init(params: InitParams) -> Result<(), CommonError> {
-    info!(
+    debug!(
         "Initializing new project from template '{}' into '{}'",
         params.template,
         params.directory.display()
@@ -33,7 +33,7 @@ pub async fn cmd_init(params: InitParams) -> Result<(), CommonError> {
 
     // Create the directory recursively if it doesn't exist
     if !target_dir.exists() {
-        info!("Creating directory: {}", target_dir.display());
+        debug!("Creating directory: {}", target_dir.display());
         fs::create_dir_all(&target_dir).map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!(
                 "Failed to create directory {}: {}",
@@ -42,14 +42,14 @@ pub async fn cmd_init(params: InitParams) -> Result<(), CommonError> {
             ))
         })?;
     } else {
-        info!("Directory already exists: {}", target_dir.display());
+        debug!("Directory already exists: {}", target_dir.display());
     }
 
     // Construct the GitHub repo URL and zip download URL
     let repo_name = format!("{}-template", params.template);
     let zip_url = format!("https://github.com/trysoma/{repo_name}/archive/refs/heads/main.zip");
 
-    info!("Downloading template from {}", zip_url);
+    debug!("Downloading template from {}", zip_url);
 
     // Download the zip file
     let response = reqwest::get(&zip_url).await.map_err(|e| {
@@ -73,7 +73,7 @@ pub async fn cmd_init(params: InitParams) -> Result<(), CommonError> {
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to read response bytes: {e}")))?;
 
-    info!("Extracting template...");
+    debug!("Extracting template...");
 
     // Extract the zip file
     let cursor = Cursor::new(zip_bytes);
@@ -162,13 +162,13 @@ pub async fn cmd_init(params: InitParams) -> Result<(), CommonError> {
         }
     }
 
-    info!(
+    println!(
         "✓ Template '{}' successfully initialized in '{}'",
         params.template,
         target_dir.display()
     );
-    info!("To get started, run:");
-    info!("  cd {}", params.directory.display());
+    println!("To get started, run:");
+    println!("  cd {}", params.directory.display());
 
     Ok(())
 }
