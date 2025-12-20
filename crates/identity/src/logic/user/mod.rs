@@ -1,4 +1,4 @@
-use shared::identity::{Group, User};
+pub use shared::identity::{Group, User};
 use shared::primitives::WrappedChronoDateTime;
 use utoipa::ToSchema;
 

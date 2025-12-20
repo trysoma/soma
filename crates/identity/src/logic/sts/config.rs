@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
+use shared::identity::Identity;
 use shared::primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime};
+use shared_macros::{authn, authz_role};
 use utoipa::ToSchema;
 
 use crate::logic::token_mapping::template::{
@@ -44,12 +46,16 @@ pub enum StsTokenConfigType {
 /// 2. Generates an ID if not provided
 /// 3. Stores the configuration in the repository
 /// 4. Optionally broadcasts a config change event
+#[authz_role(Admin, permission = "sts_config:write")]
+#[authn]
 pub async fn create_sts_config<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     on_config_change_tx: &OnConfigChangeTx,
     params: StsTokenConfig,
     publish_on_change_evt: bool,
 ) -> Result<StsTokenConfig, CommonError> {
+    let _ = &identity;
     let now = WrappedChronoDateTime::now();
     let id = match &params {
         StsTokenConfig::JwtTemplate(config) => config.id.clone(),
@@ -100,12 +106,16 @@ pub type DeleteStsConfigResponse = ();
 /// 1. Verifies the configuration exists
 /// 2. Deletes the configuration from the repository
 /// 3. Optionally broadcasts a config change event
+#[authz_role(Admin, permission = "sts_config:delete")]
+#[authn]
 pub async fn delete_sts_config<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     on_config_change_tx: &OnConfigChangeTx,
     params: DeleteStsConfigParams,
     publish_on_change_evt: bool,
 ) -> Result<DeleteStsConfigResponse, CommonError> {
+    let _ = &identity;
     // Verify the config exists
     repository
         .get_sts_configuration_by_id(&params.id)
@@ -139,10 +149,14 @@ pub struct GetStsConfigParams {
 }
 
 /// Get an STS configuration by ID
+#[authz_role(Admin, Maintainer, permission = "sts_config:read")]
+#[authn]
 pub async fn get_sts_config<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     params: GetStsConfigParams,
 ) -> Result<StsTokenConfig, CommonError> {
+    let _ = &identity;
     repository
         .get_sts_configuration_by_id(&params.id)
         .await?
@@ -160,10 +174,14 @@ pub type ListStsConfigResponse = PaginatedResponse<StsTokenConfig>;
 /// List STS configurations
 ///
 /// This function lists all STS configurations with optional filtering by config_type.
+#[authz_role(Admin, Maintainer, permission = "sts_config:list")]
+#[authn]
 pub async fn list_sts_configs<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     pagination: &PaginationRequest,
 ) -> Result<ListStsConfigResponse, CommonError> {
+    let _ = &identity;
     let result = repository.list_sts_configurations(pagination, None).await?;
 
     Ok(ListStsConfigResponse {

@@ -7,16 +7,17 @@ use pkcs1::EncodeRsaPrivateKey;
 use pkcs8::EncodePublicKey;
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
+use shared::identity::Identity;
 use shared::{
     error::CommonError,
     primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime},
 };
+use shared_macros::{authn, authz_role};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::logic::{internal_token_issuance::JwtSigningKey, jwk::cache::JwksCache};
 use crate::repository::UserRepositoryLike;
-
-use utoipa::ToSchema;
 
 /// Default DEK alias used for JWK encryption
 pub const DEFAULT_JWK_DEK_ALIAS: &str = "default";
@@ -152,7 +153,10 @@ where
 // ============================================================================
 
 /// Invalidate a JWT signing key
+#[authz_role(Admin, permission = "jwk:invalidate")]
+#[authn]
 pub async fn invalidate_jwk<R>(
+    _identity: Identity,
     repository: &R,
     jwks_cache: &JwksCache,
     params: InvalidateJwkParams,
@@ -160,19 +164,24 @@ pub async fn invalidate_jwk<R>(
 where
     R: UserRepositoryLike,
 {
+    let _ = &identity;
     repository.invalidate_jwt_signing_key(&params.kid).await?;
     jwks_cache.invalidate_jwk(&params.kid);
     Ok(())
 }
 
 /// List JWT signing keys with pagination
+#[authz_role(Admin, Maintainer, permission = "jwk:list")]
+#[authn]
 pub async fn list_jwks<R>(
+    _identity: Identity,
     repository: &R,
     pagination: &PaginationRequest,
 ) -> Result<ListJwksResponse, CommonError>
 where
     R: UserRepositoryLike,
 {
+    let _ = &identity;
     let result = repository.list_jwt_signing_keys(pagination).await?;
 
     let items: Vec<JwkResponse> = result

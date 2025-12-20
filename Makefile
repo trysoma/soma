@@ -63,6 +63,11 @@ build: ## Build all projects (Rust + JS + Python)
 	$(MAKE) js-build
 	$(MAKE) py-build
 
+js-generate-client: ## Generate JS client
+	@echo "Generating JS client..."
+	npx --yes openapi-typescript@latest openapi.json -o ./crates/soma-frontend/app/src/@types/openapi.d.ts
+	@echo "✓ JS client generated"
+
 js-build: ## Build all JS projects
 	@echo "Building JS projects..."
 	pnpm -r --workspace-concurrency=1 run build

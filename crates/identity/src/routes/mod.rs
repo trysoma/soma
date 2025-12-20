@@ -7,6 +7,7 @@
 
 pub mod scim;
 
+use crate::logic::auth_client::AuthClient;
 use crate::logic::user::GroupMembership;
 use crate::repository::Repository;
 use crate::repository::{GroupMemberWithUser, UpdateUser, UserGroupWithGroup, UserRepositoryLike};
@@ -32,11 +33,15 @@ pub const SERVICE_ROUTE_KEY: &str = "identity";
 
 pub struct IdentityServiceInner {
     pub repository: Repository,
+    pub auth_client: Arc<AuthClient>,
 }
 
 impl IdentityServiceInner {
-    pub fn new(repository: Repository) -> Self {
-        Self { repository }
+    pub fn new(repository: Repository, auth_client: Arc<AuthClient>) -> Self {
+        Self {
+            repository,
+            auth_client,
+        }
     }
 }
 
@@ -44,12 +49,16 @@ impl IdentityServiceInner {
 pub struct IdentityService(pub Arc<IdentityServiceInner>);
 
 impl IdentityService {
-    pub fn new(repository: Repository) -> Self {
-        Self(Arc::new(IdentityServiceInner::new(repository)))
+    pub fn new(repository: Repository, auth_client: Arc<AuthClient>) -> Self {
+        Self(Arc::new(IdentityServiceInner::new(repository, auth_client)))
     }
 
     pub fn repository(&self) -> &Repository {
         &self.0.repository
+    }
+
+    pub fn auth_client(&self) -> Arc<AuthClient> {
+        self.0.auth_client.clone()
     }
 }
 

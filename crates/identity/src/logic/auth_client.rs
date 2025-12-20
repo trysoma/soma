@@ -4,6 +4,7 @@ use shared::error::CommonError;
 use shared::identity::{
     ApiKey, AuthClientLike, Human, Identity, InternalToken, Machine, RawCredentials,
 };
+use tracing::{debug, trace, warn};
 
 use crate::logic::api_key::cache::ApiKeyCache;
 use crate::logic::api_key::hash_api_key;
@@ -53,18 +54,30 @@ impl AuthClient {
     /// 2. Looks up the hash in the API key cache (with repository fallback)
     /// 3. Returns the authenticated identity if found
     async fn authenticate_api_key(&self, api_key: &ApiKey) -> Result<Identity, CommonError> {
+        trace!("Authenticating via API key");
+
         // Hash the incoming API key
         let hashed_value = hash_api_key(&api_key.0);
+        trace!("Hashed API key for lookup");
 
         // Look up in the cache (falls back to repository if not cached)
         let cached_api_key = self
             .api_key_cache
             .get_by_hashed_value(&hashed_value)
             .await?
-            .ok_or_else(|| CommonError::Authentication {
-                msg: "Invalid API key".to_string(),
-                source: None,
+            .ok_or_else(|| {
+                debug!("API key not found in cache");
+                CommonError::Authentication {
+                    msg: "Invalid API key".to_string(),
+                    source: None,
+                }
             })?;
+
+        debug!(
+            user_id = %cached_api_key.user.id,
+            role = %cached_api_key.user.role.as_str(),
+            "API key authenticated"
+        );
 
         Ok(Identity::Machine(Machine {
             sub: cached_api_key.user.id,
@@ -77,25 +90,37 @@ impl AuthClient {
         &self,
         internal_token: &InternalToken,
     ) -> Result<Identity, CommonError> {
+        trace!("Authenticating via internal token");
+
         // 1. Decode the token header to get the kid
-        let header = decode_header(&internal_token.0).map_err(|e| CommonError::Authentication {
-            msg: format!("Failed to decode token header: {e}"),
-            source: None,
+        let header = decode_header(&internal_token.0).map_err(|e| {
+            debug!(error = %e, "Failed to decode token header");
+            CommonError::Authentication {
+                msg: format!("Failed to decode token header: {e}"),
+                source: None,
+            }
         })?;
 
-        let kid = header.kid.ok_or_else(|| CommonError::Authentication {
-            msg: "Token missing 'kid' in header".to_string(),
-            source: None,
+        let kid = header.kid.ok_or_else(|| {
+            debug!("Token missing kid in header");
+            CommonError::Authentication {
+                msg: "Token missing 'kid' in header".to_string(),
+                source: None,
+            }
         })?;
+
+        trace!(kid = %kid, "Extracted kid from token header");
 
         // 2. Get the JWK from our cache
-        let jwk = self
-            .jwks_cache
-            .get_jwk(&kid)
-            .ok_or_else(|| CommonError::Authentication {
+        let jwk = self.jwks_cache.get_jwk(&kid).ok_or_else(|| {
+            warn!(kid = %kid, "Signing key not found in JWKS cache");
+            CommonError::Authentication {
                 msg: format!("Signing key '{kid}' not found"),
                 source: None,
-            })?;
+            }
+        })?;
+
+        trace!(kid = %kid, "Found JWK in cache");
 
         // 3. Create decoding key from the JWK
         let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e).map_err(|e| {
@@ -107,16 +132,22 @@ impl AuthClient {
         validation.set_issuer(&[ISSUER]);
         validation.set_audience(&[AUDIENCE]);
 
+        trace!("Validating token signature and claims");
+
         let token_data = decode::<AccessTokenClaims>(&internal_token.0, &decoding_key, &validation)
-            .map_err(|e| CommonError::Authentication {
-                msg: format!("Token validation failed: {e}"),
-                source: None,
+            .map_err(|e| {
+                debug!(error = %e, "Token validation failed");
+                CommonError::Authentication {
+                    msg: format!("Token validation failed: {e}"),
+                    source: None,
+                }
             })?;
 
         let claims = token_data.claims;
 
         // 5. Verify it's an access token
         if !matches!(claims.token_type, AccessTokenType::Access) {
+            debug!("Invalid token type, expected access token");
             return Err(CommonError::Authentication {
                 msg: "Invalid token type: expected access token".to_string(),
                 source: None,
@@ -125,6 +156,13 @@ impl AuthClient {
 
         // 6. Use the role directly (it's already a Role enum)
         let role = claims.role;
+
+        debug!(
+            sub = %claims.sub,
+            role = %role.as_str(),
+            groups_count = claims.groups.len(),
+            "Internal token authenticated"
+        );
 
         Ok(Identity::Human(Human {
             sub: claims.sub,
@@ -140,11 +178,14 @@ impl AuthClient {
         api_key: &ApiKey,
         internal_token: &InternalToken,
     ) -> Result<Identity, CommonError> {
+        trace!("Authenticating machine on behalf of human");
+
         // First authenticate the API key
         let machine_identity = self.authenticate_api_key(api_key).await?;
         let machine = match machine_identity {
             Identity::Machine(m) => m,
             _ => {
+                debug!("Expected machine identity from API key");
                 return Err(CommonError::Authentication {
                     msg: "Expected machine identity from API key".to_string(),
                     source: None,
@@ -157,12 +198,19 @@ impl AuthClient {
         let human = match human_identity {
             Identity::Human(h) => h,
             _ => {
+                debug!("Expected human identity from internal token");
                 return Err(CommonError::Authentication {
                     msg: "Expected human identity from STS token".to_string(),
                     source: None,
                 });
             }
         };
+
+        debug!(
+            machine_sub = %machine.sub,
+            human_sub = %human.sub,
+            "Machine on behalf of human authenticated"
+        );
 
         Ok(Identity::MachineOnBehalfOfHuman { machine, human })
     }
@@ -178,11 +226,13 @@ impl AuthClient {
                 let auth_str = auth_str.trim();
                 // Handle both "Bearer <token>" and just "<token>"
                 if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                    trace!("Extracted token from Authorization header with Bearer prefix");
                     return Some(token.trim().to_string());
                 } else if let Some(token) = auth_str.strip_prefix("bearer ") {
+                    trace!("Extracted token from Authorization header with bearer prefix");
                     return Some(token.trim().to_string());
                 } else if !auth_str.is_empty() {
-                    // No Bearer prefix, use the whole value
+                    trace!("Extracted token from Authorization header without prefix");
                     return Some(auth_str.to_string());
                 }
             }
@@ -196,6 +246,7 @@ impl AuthClient {
                     let cookie = cookie.trim();
                     if let Some((name, value)) = cookie.split_once('=') {
                         if name.trim() == ACCESS_TOKEN_COOKIE_NAME {
+                            trace!("Extracted token from cookie");
                             return Some(value.trim().to_string());
                         }
                     }
@@ -203,16 +254,25 @@ impl AuthClient {
             }
         }
 
+        trace!("No internal token found in headers");
         None
     }
 
     /// Extract API key from x-api-key header
     fn extract_api_key(&self, headers: &HeaderMap) -> Option<String> {
-        headers
+        let api_key = headers
             .get(API_KEY_HEADER)
             .and_then(|v| v.to_str().ok())
             .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
+            .filter(|s| !s.is_empty());
+
+        if api_key.is_some() {
+            trace!("Extracted API key from x-api-key header");
+        } else {
+            trace!("No API key found in headers");
+        }
+
+        api_key
     }
 }
 
@@ -263,6 +323,8 @@ impl AuthClient {
         &self,
         headers: &HeaderMap,
     ) -> Result<Identity, CommonError> {
+        trace!("Extracting credentials from headers");
+
         // Extract internal token from Authorization header or cookie
         let internal_token = self.extract_internal_token(headers);
 
@@ -270,6 +332,15 @@ impl AuthClient {
         let api_key = self.extract_api_key(headers);
 
         // Authenticate based on what credentials we found
+        let has_token = internal_token.is_some();
+        let has_api_key = api_key.is_some();
+
+        debug!(
+            has_internal_token = has_token,
+            has_api_key = has_api_key,
+            "Credentials extracted from headers"
+        );
+
         match (internal_token, api_key) {
             (Some(token), Some(key)) => {
                 // Both present - machine on behalf of human
@@ -287,6 +358,7 @@ impl AuthClient {
             }
             (None, None) => {
                 // No credentials found
+                trace!("No credentials found, returning unauthenticated");
                 Ok(Identity::Unauthenticated)
             }
         }

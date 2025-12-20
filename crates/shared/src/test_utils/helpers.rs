@@ -1,4 +1,8 @@
+use http::HeaderMap;
 use std::sync::Once;
+
+use crate::error::CommonError;
+use crate::identity::{AuthClientLike, Human, Identity, Machine, RawCredentials, Role};
 
 pub fn get_workspace_root() -> String {
     let crate_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -12,21 +16,173 @@ pub fn get_workspace_root() -> String {
         .to_string()
 }
 
-#[macro_export]
-macro_rules! setup_sql_fixtures {
-    ($conn:expr, $($file:expr),* $(,)?) => {
-        async {
-            $(
-                let sql = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $file));
-                    $conn.execute(sql, libsql::params!())
-                    .await
-                    .expect(&format!("Failed to execute SQL fixture: {}", $file));
-            )*
-        }
-    };
+// ============================================================================
+// Test Identity Helpers
+// ============================================================================
+
+/// Create a test admin machine identity
+pub fn test_admin_machine() -> Identity {
+    Identity::Machine(Machine {
+        sub: "test-admin-machine".to_string(),
+        role: Role::Admin,
+    })
 }
 
-pub use setup_sql_fixtures;
+/// Create a test maintainer machine identity
+pub fn test_maintainer_machine() -> Identity {
+    Identity::Machine(Machine {
+        sub: "test-maintainer-machine".to_string(),
+        role: Role::Maintainer,
+    })
+}
+
+/// Create a test agent machine identity
+pub fn test_agent_machine() -> Identity {
+    Identity::Machine(Machine {
+        sub: "test-agent-machine".to_string(),
+        role: Role::Agent,
+    })
+}
+
+/// Create a test user machine identity
+pub fn test_user_machine() -> Identity {
+    Identity::Machine(Machine {
+        sub: "test-user-machine".to_string(),
+        role: Role::User,
+    })
+}
+
+/// Create a test admin human identity
+pub fn test_admin_human() -> Identity {
+    Identity::Human(Human {
+        sub: "test-admin-human".to_string(),
+        email: Some("admin@test.com".to_string()),
+        groups: vec!["admins".to_string()],
+        role: Role::Admin,
+    })
+}
+
+/// Create a test maintainer human identity
+pub fn test_maintainer_human() -> Identity {
+    Identity::Human(Human {
+        sub: "test-maintainer-human".to_string(),
+        email: Some("maintainer@test.com".to_string()),
+        groups: vec!["maintainers".to_string()],
+        role: Role::Maintainer,
+    })
+}
+
+/// Create a test agent human identity
+pub fn test_agent_human() -> Identity {
+    Identity::Human(Human {
+        sub: "test-agent-human".to_string(),
+        email: Some("agent@test.com".to_string()),
+        groups: vec!["agents".to_string()],
+        role: Role::Agent,
+    })
+}
+
+/// Create a test user human identity
+pub fn test_user_human() -> Identity {
+    Identity::Human(Human {
+        sub: "test-user-human".to_string(),
+        email: Some("user@test.com".to_string()),
+        groups: vec!["users".to_string()],
+        role: Role::User,
+    })
+}
+
+/// Create a test human identity with specific groups
+pub fn test_human_with_groups(groups: Vec<String>) -> Identity {
+    Identity::Human(Human {
+        sub: "test-human".to_string(),
+        email: Some("test@test.com".to_string()),
+        groups,
+        role: Role::User,
+    })
+}
+
+/// Create a test human identity with specific role and groups
+pub fn test_human_with_role_and_groups(role: Role, groups: Vec<String>) -> Identity {
+    Identity::Human(Human {
+        sub: format!("test-{}-human", role.as_str()),
+        email: Some(format!("{}@test.com", role.as_str())),
+        groups,
+        role,
+    })
+}
+
+/// Create a test machine on behalf of human identity
+pub fn test_machine_on_behalf_of_human(machine_role: Role, human_role: Role) -> Identity {
+    Identity::MachineOnBehalfOfHuman {
+        machine: Machine {
+            sub: format!("test-{}-machine", machine_role.as_str()),
+            role: machine_role,
+        },
+        human: Human {
+            sub: format!("test-{}-human", human_role.as_str()),
+            email: Some(format!("{}@test.com", human_role.as_str())),
+            groups: vec![],
+            role: human_role,
+        },
+    }
+}
+
+// ============================================================================
+// Mock Auth Client for Testing
+// ============================================================================
+
+/// A mock auth client that always returns a configured identity.
+/// Useful for testing logic functions that require authentication.
+#[derive(Clone)]
+pub struct MockAuthClient {
+    identity: Identity,
+}
+
+impl MockAuthClient {
+    /// Create a new mock auth client that returns the given identity
+    pub fn new(identity: Identity) -> Self {
+        Self { identity }
+    }
+
+    /// Create a mock auth client that returns an admin identity
+    pub fn admin() -> Self {
+        Self::new(test_admin_machine())
+    }
+
+    /// Create a mock auth client that returns a maintainer identity
+    pub fn maintainer() -> Self {
+        Self::new(test_maintainer_machine())
+    }
+
+    /// Create a mock auth client that returns an agent identity
+    pub fn agent() -> Self {
+        Self::new(test_agent_machine())
+    }
+
+    /// Create a mock auth client that returns a user identity
+    pub fn user() -> Self {
+        Self::new(test_user_machine())
+    }
+
+    /// Create a mock auth client that returns unauthenticated
+    pub fn unauthenticated() -> Self {
+        Self::new(Identity::Unauthenticated)
+    }
+}
+
+impl AuthClientLike for MockAuthClient {
+    async fn authenticate(&self, _credentials: RawCredentials) -> Result<Identity, CommonError> {
+        Ok(self.identity.clone())
+    }
+
+    async fn authenticate_from_headers(
+        &self,
+        _headers: &HeaderMap,
+    ) -> Result<Identity, CommonError> {
+        Ok(self.identity.clone())
+    }
+}
 
 pub struct TestContext {
     pub workspace_root: String,

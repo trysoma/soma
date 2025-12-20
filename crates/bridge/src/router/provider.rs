@@ -1,5 +1,7 @@
 //! Provider and function management routes
 
+use http::HeaderMap;
+use shared::identity::Identity;
 use tracing::trace;
 
 use super::{API_VERSION_1, BridgeService, PATH_PREFIX, SERVICE_ROUTE_KEY};
@@ -56,14 +58,23 @@ use utoipa::{IntoParams, ToSchema};
     operation_id = "list-available-providers",
 )]
 pub async fn route_list_available_providers(
-    State(_ctx): State<BridgeService>,
+    State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListAvailableProvidersResponse, CommonError> {
     trace!(
         page_size = pagination.page_size,
         "Listing available providers"
     );
-    let res = list_available_providers(pagination).await;
+    // Note: identity parameter is a placeholder that gets shadowed by the #[authn] macro
+    let identity_placeholder = Identity::Unauthenticated;
+    let res = list_available_providers(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
+        pagination,
+    )
+    .await;
     trace!(
         success = res.is_ok(),
         "Listing available providers completed"
@@ -87,6 +98,7 @@ pub async fn route_list_available_providers(
 )]
 pub async fn route_create_provider_instance(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
     Json(params): Json<CreateProviderInstanceParamsInner>,
 ) -> JsonResponse<CreateProviderInstanceResponse, CommonError> {
@@ -96,7 +108,11 @@ pub async fn route_create_provider_instance(
         display_name = %params.display_name,
         "Creating provider instance"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = create_provider_instance(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.on_config_change_tx(),
         ctx.repository(),
         WithProviderControllerTypeId {
@@ -135,6 +151,7 @@ pub async fn route_create_provider_instance(
 )]
 pub async fn route_update_provider_instance(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path(provider_instance_id): Path<String>,
     Json(params): Json<UpdateProviderInstanceParamsInner>,
 ) -> JsonResponse<UpdateProviderInstanceResponse, CommonError> {
@@ -143,7 +160,11 @@ pub async fn route_update_provider_instance(
         display_name = %params.display_name,
         "Updating provider instance"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = update_provider_instance(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.on_config_change_tx(),
         ctx.repository(),
         WithProviderInstanceId {
@@ -178,10 +199,15 @@ pub async fn route_update_provider_instance(
 )]
 pub async fn route_get_provider_instance(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path(provider_instance_id): Path<String>,
 ) -> JsonResponse<GetProviderInstanceResponse, CommonError> {
     trace!(provider_instance_id = %provider_instance_id, "Getting provider instance");
+    let identity_placeholder = Identity::Unauthenticated;
     let res = get_provider_instance(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.repository(),
         WithProviderInstanceId {
             provider_instance_id: provider_instance_id.clone(),
@@ -217,6 +243,7 @@ pub async fn route_get_provider_instance(
 )]
 pub async fn route_encrypt_resource_server_configuration(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
     Json(params): Json<EncryptCredentialConfigurationParamsInner>,
 ) -> JsonResponse<EncryptedCredentialConfigurationResponse, CommonError> {
@@ -225,7 +252,11 @@ pub async fn route_encrypt_resource_server_configuration(
         credential_type = %credential_controller_type_id,
         "Encrypting resource server configuration"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = encrypt_resource_server_configuration(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.encryption_service(),
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
@@ -263,6 +294,7 @@ pub async fn route_encrypt_resource_server_configuration(
 )]
 pub async fn route_encrypt_user_credential_configuration(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
     Json(params): Json<EncryptCredentialConfigurationParamsInner>,
 ) -> JsonResponse<EncryptedCredentialConfigurationResponse, CommonError> {
@@ -271,7 +303,11 @@ pub async fn route_encrypt_user_credential_configuration(
         credential_type = %credential_controller_type_id,
         "Encrypting user credential configuration"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = encrypt_user_credential_configuration(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.encryption_service(),
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
@@ -313,6 +349,7 @@ pub async fn route_encrypt_user_credential_configuration(
 )]
 pub async fn route_create_resource_server_credential(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
     Json(params): Json<CreateResourceServerCredentialParamsInner>,
 ) -> JsonResponse<CreateResourceServerCredentialResponse, CommonError> {
@@ -321,7 +358,11 @@ pub async fn route_create_resource_server_credential(
         credential_type = %credential_controller_type_id,
         "Creating resource server credential"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = create_resource_server_credential(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.repository(),
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
@@ -363,6 +404,7 @@ pub async fn route_create_resource_server_credential(
 )]
 pub async fn route_create_user_credential(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
     Json(params): Json<CreateUserCredentialParamsInner>,
 ) -> JsonResponse<CreateUserCredentialResponse, CommonError> {
@@ -371,7 +413,11 @@ pub async fn route_create_user_credential(
         credential_type = %credential_controller_type_id,
         "Creating user credential"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = create_user_credential(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.repository(),
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
@@ -449,6 +495,7 @@ fn handle_user_credential_brokering_response(
 )]
 pub async fn route_start_user_credential_brokering(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path((provider_controller_type_id, credential_controller_type_id)): Path<(String, String)>,
     Json(params): Json<StartUserCredentialBrokeringParamsInner>,
 ) -> JsonResponse<UserCredentialBrokeringResponse, CommonError> {
@@ -457,7 +504,11 @@ pub async fn route_start_user_credential_brokering(
         credential_type = %credential_controller_type_id,
         "Starting user credential brokering"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = start_user_credential_brokering(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.on_config_change_tx(),
         ctx.repository(),
         WithProviderControllerTypeId {
@@ -596,10 +647,15 @@ pub async fn generic_oauth_callback(
 )]
 pub async fn route_delete_provider_instance(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path(provider_instance_id): Path<String>,
 ) -> JsonResponse<(), CommonError> {
     trace!(provider_instance_id = %provider_instance_id, "Deleting provider instance");
+    let identity_placeholder = Identity::Unauthenticated;
     let res = delete_provider_instance(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.on_config_change_tx(),
         ctx.repository(),
         WithProviderInstanceId {
@@ -636,6 +692,7 @@ pub async fn route_delete_provider_instance(
 )]
 pub async fn route_enable_function(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path((provider_instance_id, function_controller_type_id)): Path<(String, String)>,
     Json(params): Json<EnableFunctionParamsInner>,
 ) -> JsonResponse<EnableFunctionResponse, CommonError> {
@@ -644,7 +701,11 @@ pub async fn route_enable_function(
         function_type = %function_controller_type_id,
         "Enabling function"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = enable_function(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.on_config_change_tx(),
         ctx.repository(),
         WithProviderInstanceId {
@@ -681,6 +742,7 @@ pub async fn route_enable_function(
 )]
 pub async fn route_disable_function(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path((provider_instance_id, function_controller_type_id)): Path<(String, String)>,
 ) -> JsonResponse<DisableFunctionResponse, CommonError> {
     trace!(
@@ -688,7 +750,11 @@ pub async fn route_disable_function(
         function_type = %function_controller_type_id,
         "Disabling function"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = disable_function(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.on_config_change_tx(),
         ctx.repository(),
         WithProviderInstanceId {
@@ -726,6 +792,7 @@ pub async fn route_disable_function(
 )]
 pub async fn route_invoke_function(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path((provider_instance_id, function_controller_type_id)): Path<(String, String)>,
     Json(params): Json<InvokeFunctionParamsInner>,
 ) -> JsonResponse<InvokeFunctionResponse, CommonError> {
@@ -734,7 +801,11 @@ pub async fn route_invoke_function(
         function_type = %function_controller_type_id,
         "Invoking function"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = invoke_function(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.repository(),
         ctx.encryption_service(),
         WithProviderInstanceId {
@@ -778,6 +849,7 @@ pub struct ListProviderInstancesQuery {
 )]
 pub async fn route_list_provider_instances(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Query(query): Query<ListProviderInstancesQuery>,
 ) -> JsonResponse<ListProviderInstancesResponse, CommonError> {
     trace!(
@@ -786,7 +858,11 @@ pub async fn route_list_provider_instances(
         provider_type = ?query.provider_controller_type_id,
         "Listing provider instances"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = list_provider_instances(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.repository(),
         ListProviderInstancesParams {
             pagination: PaginationRequest {
@@ -823,10 +899,19 @@ pub async fn route_list_provider_instances(
 )]
 pub async fn route_list_provider_instances_grouped_by_function(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Query(query): Query<ListProviderInstancesGroupedByFunctionParams>,
 ) -> JsonResponse<ListProviderInstancesGroupedByFunctionResponse, CommonError> {
     trace!("Listing provider instances grouped by function");
-    let res = list_provider_instances_grouped_by_function(ctx.repository(), query).await;
+    let identity_placeholder = Identity::Unauthenticated;
+    let res = list_provider_instances_grouped_by_function(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        query,
+    )
+    .await;
     trace!(
         success = res.is_ok(),
         "Listing provider instances grouped by function completed"
@@ -860,6 +945,7 @@ pub struct ListFunctionInstancesQuery {
 )]
 pub async fn route_list_function_instances(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Query(query): Query<ListFunctionInstancesQuery>,
 ) -> JsonResponse<ListFunctionInstancesResponse, CommonError> {
     trace!(
@@ -867,7 +953,11 @@ pub async fn route_list_function_instances(
         provider_instance_id = ?query.provider_instance_id,
         "Listing function instances"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = list_function_instances(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.repository(),
         ListFunctionInstancesParams {
             pagination: PaginationRequest {
@@ -900,9 +990,17 @@ pub async fn route_list_function_instances(
 )]
 pub async fn route_get_function_instances_openapi_spec(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
 ) -> JsonResponse<OpenApi, CommonError> {
     trace!("Getting function instances OpenAPI spec");
-    let res = get_function_instances_openapi_spec(ctx.repository()).await;
+    let identity_placeholder = Identity::Unauthenticated;
+    let res = get_function_instances_openapi_spec(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+    )
+    .await;
     trace!(
         success = res.is_ok(),
         "Getting function instances OpenAPI spec completed"

@@ -1,7 +1,9 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
+use shared::identity::Identity;
 use shared::primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime};
+use shared_macros::{authn, authz_role};
 use tracing::trace;
 use utoipa::{IntoParams, ToSchema};
 
@@ -106,8 +108,8 @@ pub type RemoveMcpServerInstanceFunctionResponse = McpServerInstanceSerializedWi
 // Logic functions
 // ============================================================================
 
-/// Creates a new MCP server instance
-pub async fn create_mcp_server_instance<R: ProviderRepositoryLike>(
+/// Creates a new MCP server instance (internal implementation)
+pub async fn create_mcp_server_instance_internal<R: ProviderRepositoryLike>(
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     request: CreateMcpServerInstanceRequest,
@@ -148,8 +150,28 @@ pub async fn create_mcp_server_instance<R: ProviderRepositoryLike>(
     Ok(instance)
 }
 
-/// Gets an MCP server instance by ID
-pub async fn get_mcp_server_instance<R: ProviderRepositoryLike>(
+/// Creates a new MCP server instance
+#[authz_role(Admin, Maintainer, permission = "mcp:write")]
+#[authn]
+pub async fn create_mcp_server_instance<R: ProviderRepositoryLike>(
+    _identity: Identity,
+    on_config_change_tx: &OnConfigChangeTx,
+    repository: &R,
+    request: CreateMcpServerInstanceRequest,
+    publish_on_change_evt: bool,
+) -> Result<CreateMcpServerInstanceResponse, CommonError> {
+    let _ = &identity;
+    create_mcp_server_instance_internal(
+        on_config_change_tx,
+        repository,
+        request,
+        publish_on_change_evt,
+    )
+    .await
+}
+
+/// Gets an MCP server instance by ID (internal implementation)
+pub async fn get_mcp_server_instance_internal<R: ProviderRepositoryLike>(
     repository: &R,
     id: &str,
 ) -> Result<GetMcpServerInstanceResponse, CommonError> {
@@ -164,8 +186,20 @@ pub async fn get_mcp_server_instance<R: ProviderRepositoryLike>(
     Ok(instance)
 }
 
-/// Updates an MCP server instance name
-pub async fn update_mcp_server_instance<R: ProviderRepositoryLike>(
+/// Gets an MCP server instance by ID
+#[authz_role(Admin, Maintainer, Agent, permission = "mcp:read")]
+#[authn]
+pub async fn get_mcp_server_instance<R: ProviderRepositoryLike>(
+    _identity: Identity,
+    repository: &R,
+    id: &str,
+) -> Result<GetMcpServerInstanceResponse, CommonError> {
+    let _ = &identity;
+    get_mcp_server_instance_internal(repository, id).await
+}
+
+/// Updates an MCP server instance name (internal implementation)
+pub async fn update_mcp_server_instance_internal<R: ProviderRepositoryLike>(
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     id: &str,
@@ -208,8 +242,31 @@ pub async fn update_mcp_server_instance<R: ProviderRepositoryLike>(
     Ok(instance)
 }
 
-/// Deletes an MCP server instance
-pub async fn delete_mcp_server_instance<R: ProviderRepositoryLike>(
+/// Updates an MCP server instance name
+#[authz_role(Admin, Maintainer, permission = "mcp:write")]
+#[authn]
+#[allow(clippy::too_many_arguments)]
+pub async fn update_mcp_server_instance<R: ProviderRepositoryLike>(
+    _identity: Identity,
+    on_config_change_tx: &OnConfigChangeTx,
+    repository: &R,
+    id: &str,
+    request: UpdateMcpServerInstanceRequest,
+    publish_on_change_evt: bool,
+) -> Result<UpdateMcpServerInstanceResponse, CommonError> {
+    let _ = &identity;
+    update_mcp_server_instance_internal(
+        on_config_change_tx,
+        repository,
+        id,
+        request,
+        publish_on_change_evt,
+    )
+    .await
+}
+
+/// Deletes an MCP server instance (internal implementation)
+pub async fn delete_mcp_server_instance_internal<R: ProviderRepositoryLike>(
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     id: &str,
@@ -237,8 +294,23 @@ pub async fn delete_mcp_server_instance<R: ProviderRepositoryLike>(
     Ok(())
 }
 
-/// Lists all MCP server instances with pagination
-pub async fn list_mcp_server_instances<R: ProviderRepositoryLike>(
+/// Deletes an MCP server instance
+#[authz_role(Admin, Maintainer, permission = "mcp:write")]
+#[authn]
+pub async fn delete_mcp_server_instance<R: ProviderRepositoryLike>(
+    _identity: Identity,
+    on_config_change_tx: &OnConfigChangeTx,
+    repository: &R,
+    id: &str,
+    publish_on_change_evt: bool,
+) -> Result<(), CommonError> {
+    let _ = &identity;
+    delete_mcp_server_instance_internal(on_config_change_tx, repository, id, publish_on_change_evt)
+        .await
+}
+
+/// Lists all MCP server instances with pagination (internal implementation)
+pub async fn list_mcp_server_instances_internal<R: ProviderRepositoryLike>(
     repository: &R,
     params: ListMcpServerInstancesParams,
 ) -> Result<ListMcpServerInstancesResponse, CommonError> {
@@ -253,8 +325,20 @@ pub async fn list_mcp_server_instances<R: ProviderRepositoryLike>(
     Ok(result)
 }
 
-/// Adds a function to an MCP server instance
-pub async fn add_mcp_server_instance_function<R: ProviderRepositoryLike>(
+/// Lists all MCP server instances with pagination
+#[authz_role(Admin, Maintainer, Agent, permission = "mcp:list")]
+#[authn]
+pub async fn list_mcp_server_instances<R: ProviderRepositoryLike>(
+    _identity: Identity,
+    repository: &R,
+    params: ListMcpServerInstancesParams,
+) -> Result<ListMcpServerInstancesResponse, CommonError> {
+    let _ = &identity;
+    list_mcp_server_instances_internal(repository, params).await
+}
+
+/// Adds a function to an MCP server instance (internal implementation)
+pub async fn add_mcp_server_instance_function_internal<R: ProviderRepositoryLike>(
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     mcp_server_instance_id: &str,
@@ -361,9 +445,32 @@ pub async fn add_mcp_server_instance_function<R: ProviderRepositoryLike>(
     Ok(instance)
 }
 
-/// Updates a function in an MCP server instance (only function_name and function_description)
+/// Adds a function to an MCP server instance
+#[authz_role(Admin, Maintainer, permission = "mcp:write")]
+#[authn]
 #[allow(clippy::too_many_arguments)]
-pub async fn update_mcp_server_instance_function<R: ProviderRepositoryLike>(
+pub async fn add_mcp_server_instance_function<R: ProviderRepositoryLike>(
+    _identity: Identity,
+    on_config_change_tx: &OnConfigChangeTx,
+    repository: &R,
+    mcp_server_instance_id: &str,
+    request: AddMcpServerInstanceFunctionRequest,
+    publish_on_change_evt: bool,
+) -> Result<AddMcpServerInstanceFunctionResponse, CommonError> {
+    let _ = &identity;
+    add_mcp_server_instance_function_internal(
+        on_config_change_tx,
+        repository,
+        mcp_server_instance_id,
+        request,
+        publish_on_change_evt,
+    )
+    .await
+}
+
+/// Updates a function in an MCP server instance (internal implementation)
+#[allow(clippy::too_many_arguments)]
+pub async fn update_mcp_server_instance_function_internal<R: ProviderRepositoryLike>(
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     mcp_server_instance_id: &str,
@@ -473,8 +580,37 @@ pub async fn update_mcp_server_instance_function<R: ProviderRepositoryLike>(
     Ok(instance)
 }
 
-/// Removes a function from an MCP server instance
-pub async fn remove_mcp_server_instance_function<R: ProviderRepositoryLike>(
+/// Updates a function in an MCP server instance (only function_name and function_description)
+#[allow(clippy::too_many_arguments)]
+#[authz_role(Admin, Maintainer, permission = "mcp:write")]
+#[authn]
+pub async fn update_mcp_server_instance_function<R: ProviderRepositoryLike>(
+    _identity: Identity,
+    on_config_change_tx: &OnConfigChangeTx,
+    repository: &R,
+    mcp_server_instance_id: &str,
+    function_controller_type_id: &str,
+    provider_controller_type_id: &str,
+    provider_instance_id: &str,
+    request: UpdateMcpServerInstanceFunctionRequest,
+    publish_on_change_evt: bool,
+) -> Result<UpdateMcpServerInstanceFunctionResponse, CommonError> {
+    let _ = &identity;
+    update_mcp_server_instance_function_internal(
+        on_config_change_tx,
+        repository,
+        mcp_server_instance_id,
+        function_controller_type_id,
+        provider_controller_type_id,
+        provider_instance_id,
+        request,
+        publish_on_change_evt,
+    )
+    .await
+}
+
+/// Removes a function from an MCP server instance (internal implementation)
+pub async fn remove_mcp_server_instance_function_internal<R: ProviderRepositoryLike>(
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     mcp_server_instance_id: &str,
@@ -546,6 +682,33 @@ pub async fn remove_mcp_server_instance_function<R: ProviderRepositoryLike>(
         })?;
 
     Ok(instance)
+}
+
+/// Removes a function from an MCP server instance
+#[allow(clippy::too_many_arguments)]
+#[authz_role(Admin, Maintainer, permission = "mcp:write")]
+#[authn]
+pub async fn remove_mcp_server_instance_function<R: ProviderRepositoryLike>(
+    _identity: Identity,
+    on_config_change_tx: &OnConfigChangeTx,
+    repository: &R,
+    mcp_server_instance_id: &str,
+    function_controller_type_id: &str,
+    provider_controller_type_id: &str,
+    provider_instance_id: &str,
+    publish_on_change_evt: bool,
+) -> Result<RemoveMcpServerInstanceFunctionResponse, CommonError> {
+    let _ = &identity;
+    remove_mcp_server_instance_function_internal(
+        on_config_change_tx,
+        repository,
+        mcp_server_instance_id,
+        function_controller_type_id,
+        provider_controller_type_id,
+        provider_instance_id,
+        publish_on_change_evt,
+    )
+    .await
 }
 
 #[cfg(all(test, feature = "unit_test"))]
@@ -667,7 +830,7 @@ mod unit_test {
             name: "Test MCP Instance".to_string(),
         };
 
-        let result = create_mcp_server_instance(&tx, &repo, request.clone(), false).await;
+        let result = create_mcp_server_instance_internal(&tx, &repo, request.clone(), false).await;
         assert!(result.is_ok(), "Expected Ok, got {result:?}");
 
         let instance = result.unwrap();
@@ -692,12 +855,12 @@ mod unit_test {
             id: "test-get-instance".to_string(),
             name: "Test Get Instance".to_string(),
         };
-        create_mcp_server_instance(&tx, &repo, create_request.clone(), false)
+        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
             .await
             .unwrap();
 
         // Retrieve it
-        let result = get_mcp_server_instance(&repo, &create_request.id).await;
+        let result = get_mcp_server_instance_internal(&repo, &create_request.id).await;
         assert!(result.is_ok());
 
         let instance = result.unwrap();
@@ -715,7 +878,7 @@ mod unit_test {
                 .unwrap();
         let repo = crate::repository::Repository::new(conn);
 
-        let result = get_mcp_server_instance(&repo, "non-existent-id").await;
+        let result = get_mcp_server_instance_internal(&repo, "non-existent-id").await;
         assert!(result.is_err());
     }
 
@@ -735,7 +898,7 @@ mod unit_test {
             id: "test-update-instance".to_string(),
             name: "Original Name".to_string(),
         };
-        create_mcp_server_instance(&tx, &repo, create_request.clone(), false)
+        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
             .await
             .unwrap();
 
@@ -743,7 +906,7 @@ mod unit_test {
         let update_request = UpdateMcpServerInstanceRequest {
             name: "Updated Name".to_string(),
         };
-        let result = update_mcp_server_instance(
+        let result = update_mcp_server_instance_internal(
             &tx,
             &repo,
             &create_request.id,
@@ -771,8 +934,14 @@ mod unit_test {
         let update_request = UpdateMcpServerInstanceRequest {
             name: "Updated Name".to_string(),
         };
-        let result =
-            update_mcp_server_instance(&tx, &repo, "non-existent-id", update_request, false).await;
+        let result = update_mcp_server_instance_internal(
+            &tx,
+            &repo,
+            "non-existent-id",
+            update_request,
+            false,
+        )
+        .await;
         assert!(result.is_err());
     }
 
@@ -792,16 +961,17 @@ mod unit_test {
             id: "test-delete-instance".to_string(),
             name: "Test Delete Instance".to_string(),
         };
-        create_mcp_server_instance(&tx, &repo, create_request.clone(), false)
+        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
             .await
             .unwrap();
 
         // Delete it
-        let result = delete_mcp_server_instance(&tx, &repo, &create_request.id, false).await;
+        let result =
+            delete_mcp_server_instance_internal(&tx, &repo, &create_request.id, false).await;
         assert!(result.is_ok());
 
         // Verify it's gone
-        let get_result = get_mcp_server_instance(&repo, &create_request.id).await;
+        let get_result = get_mcp_server_instance_internal(&repo, &create_request.id).await;
         assert!(get_result.is_err());
     }
 
@@ -816,7 +986,8 @@ mod unit_test {
         let repo = crate::repository::Repository::new(conn);
         let tx = create_test_channel();
 
-        let result = delete_mcp_server_instance(&tx, &repo, "non-existent-id", false).await;
+        let result =
+            delete_mcp_server_instance_internal(&tx, &repo, "non-existent-id", false).await;
         assert!(result.is_err());
     }
 
@@ -835,7 +1006,7 @@ mod unit_test {
             next_page_token: None,
         };
 
-        let result = list_mcp_server_instances(&repo, params).await;
+        let result = list_mcp_server_instances_internal(&repo, params).await;
         assert!(result.is_ok());
 
         let response = result.unwrap();
@@ -860,7 +1031,7 @@ mod unit_test {
                 id: format!("test-list-instance-{i}"),
                 name: format!("Test Instance {i}"),
             };
-            create_mcp_server_instance(&tx, &repo, request, false)
+            create_mcp_server_instance_internal(&tx, &repo, request, false)
                 .await
                 .unwrap();
         }
@@ -870,7 +1041,7 @@ mod unit_test {
             next_page_token: None,
         };
 
-        let result = list_mcp_server_instances(&repo, params).await;
+        let result = list_mcp_server_instances_internal(&repo, params).await;
         assert!(result.is_ok());
 
         let response = result.unwrap();
@@ -894,7 +1065,7 @@ mod unit_test {
                 id: format!("test-pagination-instance-{i}"),
                 name: format!("Test Instance {i}"),
             };
-            create_mcp_server_instance(&tx, &repo, request, false)
+            create_mcp_server_instance_internal(&tx, &repo, request, false)
                 .await
                 .unwrap();
         }
@@ -905,7 +1076,7 @@ mod unit_test {
             next_page_token: None,
         };
 
-        let result = list_mcp_server_instances(&repo, params).await;
+        let result = list_mcp_server_instances_internal(&repo, params).await;
         assert!(result.is_ok());
 
         let response = result.unwrap();
@@ -918,7 +1089,7 @@ mod unit_test {
             next_page_token: response.next_page_token,
         };
 
-        let result = list_mcp_server_instances(&repo, params).await;
+        let result = list_mcp_server_instances_internal(&repo, params).await;
         assert!(result.is_ok());
 
         let response = result.unwrap();
@@ -945,7 +1116,7 @@ mod unit_test {
             id: "test-add-function-instance".to_string(),
             name: "Test Add Function Instance".to_string(),
         };
-        create_mcp_server_instance(&tx, &repo, create_request.clone(), false)
+        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
             .await
             .unwrap();
 
@@ -958,7 +1129,7 @@ mod unit_test {
             function_description: Some("A custom function".to_string()),
         };
 
-        let result = add_mcp_server_instance_function(
+        let result = add_mcp_server_instance_function_internal(
             &tx,
             &repo,
             &create_request.id,
@@ -997,7 +1168,7 @@ mod unit_test {
             id: "test-duplicate-function-name".to_string(),
             name: "Test Duplicate Function Name".to_string(),
         };
-        create_mcp_server_instance(&tx, &repo, create_request.clone(), false)
+        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
             .await
             .unwrap();
 
@@ -1010,7 +1181,7 @@ mod unit_test {
             function_description: None,
         };
 
-        add_mcp_server_instance_function(
+        add_mcp_server_instance_function_internal(
             &tx,
             &repo,
             &create_request.id,
@@ -1042,9 +1213,14 @@ mod unit_test {
             function_description: None,
         };
 
-        let result =
-            add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request2, false)
-                .await;
+        let result = add_mcp_server_instance_function_internal(
+            &tx,
+            &repo,
+            &create_request.id,
+            add_request2,
+            false,
+        )
+        .await;
         assert!(result.is_err());
 
         // Check that it's an InvalidRequest error
@@ -1072,7 +1248,7 @@ mod unit_test {
             id: "test-function-not-found".to_string(),
             name: "Test Function Not Found".to_string(),
         };
-        create_mcp_server_instance(&tx, &repo, create_request.clone(), false)
+        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
             .await
             .unwrap();
 
@@ -1085,9 +1261,14 @@ mod unit_test {
             function_description: None,
         };
 
-        let result =
-            add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request, false)
-                .await;
+        let result = add_mcp_server_instance_function_internal(
+            &tx,
+            &repo,
+            &create_request.id,
+            add_request,
+            false,
+        )
+        .await;
         assert!(result.is_err());
     }
 
@@ -1111,7 +1292,7 @@ mod unit_test {
             id: "test-update-function".to_string(),
             name: "Test Update Function".to_string(),
         };
-        create_mcp_server_instance(&tx, &repo, create_request.clone(), false)
+        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
             .await
             .unwrap();
 
@@ -1123,9 +1304,15 @@ mod unit_test {
             function_name: "original_name".to_string(),
             function_description: None,
         };
-        add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request, false)
-            .await
-            .unwrap();
+        add_mcp_server_instance_function_internal(
+            &tx,
+            &repo,
+            &create_request.id,
+            add_request,
+            false,
+        )
+        .await
+        .unwrap();
 
         // Update function
         let update_request = UpdateMcpServerInstanceFunctionRequest {
@@ -1133,7 +1320,7 @@ mod unit_test {
             function_description: Some("Updated description".to_string()),
         };
 
-        let result = update_mcp_server_instance_function(
+        let result = update_mcp_server_instance_function_internal(
             &tx,
             &repo,
             &create_request.id,
@@ -1187,7 +1374,7 @@ mod unit_test {
             id: "test-update-conflict".to_string(),
             name: "Test Update Conflict".to_string(),
         };
-        create_mcp_server_instance(&tx, &repo, create_request.clone(), false)
+        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
             .await
             .unwrap();
 
@@ -1199,9 +1386,15 @@ mod unit_test {
             function_name: "first_function".to_string(),
             function_description: None,
         };
-        add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request1, false)
-            .await
-            .unwrap();
+        add_mcp_server_instance_function_internal(
+            &tx,
+            &repo,
+            &create_request.id,
+            add_request1,
+            false,
+        )
+        .await
+        .unwrap();
 
         // Add second function
         let add_request2 = AddMcpServerInstanceFunctionRequest {
@@ -1211,9 +1404,15 @@ mod unit_test {
             function_name: "second_function".to_string(),
             function_description: None,
         };
-        add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request2, false)
-            .await
-            .unwrap();
+        add_mcp_server_instance_function_internal(
+            &tx,
+            &repo,
+            &create_request.id,
+            add_request2,
+            false,
+        )
+        .await
+        .unwrap();
 
         // Try to update second function to have the same name as first - should fail
         let update_request = UpdateMcpServerInstanceFunctionRequest {
@@ -1221,7 +1420,7 @@ mod unit_test {
             function_description: None,
         };
 
-        let result = update_mcp_server_instance_function(
+        let result = update_mcp_server_instance_function_internal(
             &tx,
             &repo,
             &create_request.id,
@@ -1262,7 +1461,7 @@ mod unit_test {
             id: "test-update-same-name".to_string(),
             name: "Test Update Same Name".to_string(),
         };
-        create_mcp_server_instance(&tx, &repo, create_request.clone(), false)
+        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
             .await
             .unwrap();
 
@@ -1274,9 +1473,15 @@ mod unit_test {
             function_name: "my_function".to_string(),
             function_description: None,
         };
-        add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request, false)
-            .await
-            .unwrap();
+        add_mcp_server_instance_function_internal(
+            &tx,
+            &repo,
+            &create_request.id,
+            add_request,
+            false,
+        )
+        .await
+        .unwrap();
 
         // Update function to have the same name (just updating description) - should work
         let update_request = UpdateMcpServerInstanceFunctionRequest {
@@ -1284,7 +1489,7 @@ mod unit_test {
             function_description: Some("New description".to_string()),
         };
 
-        let result = update_mcp_server_instance_function(
+        let result = update_mcp_server_instance_function_internal(
             &tx,
             &repo,
             &create_request.id,
@@ -1325,7 +1530,7 @@ mod unit_test {
             id: "test-remove-function".to_string(),
             name: "Test Remove Function".to_string(),
         };
-        create_mcp_server_instance(&tx, &repo, create_request.clone(), false)
+        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
             .await
             .unwrap();
 
@@ -1337,12 +1542,18 @@ mod unit_test {
             function_name: "to_be_removed".to_string(),
             function_description: None,
         };
-        add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request, false)
-            .await
-            .unwrap();
+        add_mcp_server_instance_function_internal(
+            &tx,
+            &repo,
+            &create_request.id,
+            add_request,
+            false,
+        )
+        .await
+        .unwrap();
 
         // Remove function
-        let result = remove_mcp_server_instance_function(
+        let result = remove_mcp_server_instance_function_internal(
             &tx,
             &repo,
             &create_request.id,
@@ -1374,12 +1585,12 @@ mod unit_test {
             id: "test-remove-not-found".to_string(),
             name: "Test Remove Not Found".to_string(),
         };
-        create_mcp_server_instance(&tx, &repo, create_request.clone(), false)
+        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
             .await
             .unwrap();
 
         // Try to remove non-existent function
-        let result = remove_mcp_server_instance_function(
+        let result = remove_mcp_server_instance_function_internal(
             &tx,
             &repo,
             &create_request.id,
@@ -1412,7 +1623,7 @@ mod unit_test {
             id: "test-cascade-delete".to_string(),
             name: "Test Cascade Delete".to_string(),
         };
-        create_mcp_server_instance(&tx, &repo, create_request.clone(), false)
+        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
             .await
             .unwrap();
 
@@ -1424,23 +1635,29 @@ mod unit_test {
             function_name: "will_be_cascaded".to_string(),
             function_description: None,
         };
-        add_mcp_server_instance_function(&tx, &repo, &create_request.id, add_request, false)
-            .await
-            .unwrap();
+        add_mcp_server_instance_function_internal(
+            &tx,
+            &repo,
+            &create_request.id,
+            add_request,
+            false,
+        )
+        .await
+        .unwrap();
 
         // Verify function exists
-        let instance = get_mcp_server_instance(&repo, &create_request.id)
+        let instance = get_mcp_server_instance_internal(&repo, &create_request.id)
             .await
             .unwrap();
         assert_eq!(instance.functions.len(), 1);
 
         // Delete instance - functions should be cascade deleted
-        delete_mcp_server_instance(&tx, &repo, &create_request.id, false)
+        delete_mcp_server_instance_internal(&tx, &repo, &create_request.id, false)
             .await
             .unwrap();
 
         // Verify instance is gone
-        let result = get_mcp_server_instance(&repo, &create_request.id).await;
+        let result = get_mcp_server_instance_internal(&repo, &create_request.id).await;
         assert!(result.is_err());
     }
 }

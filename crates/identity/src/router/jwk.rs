@@ -1,4 +1,6 @@
 use axum::extract::{Path, Query, State};
+use http::HeaderMap;
+use shared::identity::Identity;
 use shared::primitives::PaginationRequest;
 use shared::{
     adapters::openapi::{API_VERSION_TAG, JsonResponse},
@@ -37,11 +39,16 @@ pub fn create_jwk_routes() -> OpenApiRouter<IdentityService> {
 )]
 async fn route_invalidate_jwk(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Path(kid): Path<String>,
 ) -> JsonResponse<InvalidateJwkResponse, CommonError> {
     trace!(kid = %kid, "Invalidating JWK");
+    let identity_placeholder = Identity::Unauthenticated;
     let params = InvalidateJwkParams { kid };
     let result = invalidate_jwk(
+        service.auth_client.clone(),
+        headers,
+        identity_placeholder,
         service.repository.as_ref(),
         &service.internal_jwks_cache,
         params,
@@ -65,10 +72,19 @@ async fn route_invalidate_jwk(
 )]
 async fn route_list_jwks(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Query(query): Query<PaginationRequest>,
 ) -> JsonResponse<ListJwksResponse, CommonError> {
     trace!(page_size = query.page_size, "Listing JWKs");
-    let result = list_jwks(service.repository.as_ref(), &query).await;
+    let identity_placeholder = Identity::Unauthenticated;
+    let result = list_jwks(
+        service.auth_client.clone(),
+        headers,
+        identity_placeholder,
+        service.repository.as_ref(),
+        &query,
+    )
+    .await;
     trace!(success = result.is_ok(), "Listing JWKs completed");
     JsonResponse::from(result)
 }

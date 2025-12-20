@@ -15,19 +15,20 @@ use shared::{
 use crate::{
     logic::{
         FunctionControllerLike, InvokeFunctionParams, InvokeFunctionParamsInner, InvokeResult,
-        PROVIDER_REGISTRY, ProviderControllerLike, WithFunctionInstanceId, invoke_function,
+        PROVIDER_REGISTRY, ProviderControllerLike, WithFunctionInstanceId,
+        invoke_function_internal,
     },
     repository::{ProviderRepositoryLike, Repository},
 };
 
 /// Extracts the mcp_server_instance_id from the HTTP request path.
-/// Expected path format: /api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp
+/// Expected path format: /api/bridge/v1/mcp-server/{mcp_server_instance_id}/mcp
 fn extract_mcp_server_instance_id_from_path(path: &str) -> Option<String> {
-    // Path format: /api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp
+    // Path format: /api/bridge/v1/mcp-server/{mcp_server_instance_id}/mcp
     let segments: Vec<&str> = path.split('/').collect();
-    // Find "mcp-instance" and get the next segment
+    // Find "mcp-server" and get the next segment
     for (i, part) in segments.iter().enumerate() {
-        if *part == "mcp-instance" && i + 1 < segments.len() {
+        if *part == "mcp-server" && i + 1 < segments.len() {
             let instance_id = segments[i + 1];
             // Make sure it's not "mcp" (the endpoint suffix)
             if !instance_id.is_empty() && instance_id != "mcp" {
@@ -206,7 +207,7 @@ impl ServerHandler for BridgeMcpService {
             })?;
 
         // Now we have the function_controller_type_id and provider_instance_id to invoke the function
-        let function_instance = invoke_function(
+        let function_instance = invoke_function_internal(
             &self.repository,
             &self.encryption_service,
             InvokeFunctionParams {

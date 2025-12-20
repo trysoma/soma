@@ -4,11 +4,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shared::{
     error::CommonError,
+    identity::Identity,
     primitives::{
         PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
         WrappedUuidV4,
     },
 };
+use shared_macros::{authn, authz_role};
 use tracing::trace;
 use utoipa::{
     IntoParams, ToSchema,
@@ -244,7 +246,8 @@ pub struct ListProviderInstancesParams {
 
 pub type ListProviderInstancesResponse = PaginatedResponse<ProviderInstanceListItem>;
 
-pub async fn list_provider_instances(
+/// List all provider instances with optional filtering (internal implementation)
+pub async fn list_provider_instances_internal(
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListProviderInstancesParams,
 ) -> Result<ListProviderInstancesResponse, CommonError> {
@@ -301,6 +304,18 @@ pub async fn list_provider_instances(
     })
 }
 
+/// List all provider instances with optional filtering
+#[authz_role(Admin, Maintainer, Agent, permission = "provider:list")]
+#[authn]
+pub async fn list_provider_instances(
+    _identity: Identity,
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: ListProviderInstancesParams,
+) -> Result<ListProviderInstancesResponse, CommonError> {
+    let _ = &identity;
+    list_provider_instances_internal(repo, params).await
+}
+
 #[derive(Debug, Clone)]
 pub struct ListFunctionInstancesParams {
     pub pagination: PaginationRequest,
@@ -309,7 +324,8 @@ pub struct ListFunctionInstancesParams {
 
 pub type ListFunctionInstancesResponse = PaginatedResponse<FunctionInstanceSerialized>;
 
-pub async fn list_function_instances(
+/// List all function instances with optional filtering (internal implementation)
+pub async fn list_function_instances_internal(
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListFunctionInstancesParams,
 ) -> Result<ListFunctionInstancesResponse, CommonError> {
@@ -324,6 +340,18 @@ pub async fn list_function_instances(
     Ok(function_instances)
 }
 
+/// List all function instances with optional filtering
+#[authz_role(Admin, Maintainer, Agent, permission = "function:list")]
+#[authn]
+pub async fn list_function_instances(
+    _identity: Identity,
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: ListFunctionInstancesParams,
+) -> Result<ListFunctionInstancesResponse, CommonError> {
+    let _ = &identity;
+    list_function_instances_internal(repo, params).await
+}
+
 /// Represents a function instance with all associated metadata needed for code generation
 #[derive(Clone)]
 pub struct FunctionInstanceWithMetadata {
@@ -335,7 +363,20 @@ pub struct FunctionInstanceWithMetadata {
 
 /// Returns all function instances with their associated controllers and metadata.
 /// This is the core data structure that can be used for client code generation.
+#[authz_role(Admin, Maintainer, Agent, permission = "function:list")]
+#[authn]
 pub async fn get_function_instances(
+    _identity: Identity,
+    repo: &impl crate::repository::ProviderRepositoryLike,
+) -> Result<Vec<FunctionInstanceWithMetadata>, CommonError> {
+    let _ = &identity;
+    get_function_instances_internal(repo).await
+}
+
+/// Internal function to get function instances (no auth check).
+/// Used by `get_function_instances` and `get_function_instances_openapi_spec`.
+/// Also exposed for internal calls from soma-api-server codegen.
+pub async fn get_function_instances_internal(
     repo: &impl crate::repository::ProviderRepositoryLike,
 ) -> Result<Vec<FunctionInstanceWithMetadata>, CommonError> {
     let mut result = Vec::new();
@@ -406,9 +447,14 @@ pub async fn get_function_instances(
     Ok(result)
 }
 
+/// Returns an OpenAPI spec for all function instances
+#[authz_role(Admin, Maintainer, Agent, permission = "function:list")]
+#[authn]
 pub async fn get_function_instances_openapi_spec(
+    _identity: Identity,
     repo: &impl crate::repository::ProviderRepositoryLike,
 ) -> Result<OpenApi, CommonError> {
+    let _ = &identity;
     fn get_openapi_path(
         provider_instance_id: &String,
         function_controller_type_id: &String,
@@ -418,8 +464,8 @@ pub async fn get_function_instances_openapi_spec(
         )
     }
 
-    // Get all function instances using the new core function
-    let function_instances = get_function_instances(repo).await?;
+    // Get all function instances using the internal function (already auth'd at this point)
+    let function_instances = get_function_instances_internal(repo).await?;
 
     let mut paths = Paths::new();
     let mut components = Components::builder().schema(
@@ -629,12 +675,17 @@ pub type CreateProviderInstanceParams =
     WithProviderControllerTypeId<WithCredentialControllerTypeId<CreateProviderInstanceParamsInner>>;
 pub type CreateProviderInstanceResponse = ProviderInstanceSerialized;
 
+/// Create a new provider instance
+#[authz_role(Admin, Maintainer, permission = "provider:write")]
+#[authn]
 pub async fn create_provider_instance(
+    _identity: Identity,
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateProviderInstanceParams,
     publish_on_change_evt: bool,
 ) -> Result<CreateProviderInstanceResponse, CommonError> {
+    let _ = &identity;
     trace!(
         provider_type = %params.provider_controller_type_id,
         credential_type = %params.inner.credential_controller_type_id,
@@ -728,12 +779,17 @@ pub struct UpdateProviderInstanceParamsInner {
 
 pub type UpdateProviderInstanceResponse = ();
 
+/// Update an existing provider instance
+#[authz_role(Admin, Maintainer, permission = "provider:write")]
+#[authn]
 pub async fn update_provider_instance(
+    _identity: Identity,
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: UpdateProviderInstanceParams,
     publish_on_change_evt: bool,
 ) -> Result<UpdateProviderInstanceResponse, CommonError> {
+    let _ = &identity;
     trace!(
         provider_instance_id = %params.provider_instance_id,
         display_name = %params.inner.display_name,
@@ -796,12 +852,17 @@ pub async fn update_provider_instance(
 pub type DeleteProviderInstanceParams = WithProviderInstanceId<()>;
 pub type DeleteProviderInstanceResponse = ();
 
+/// Delete a provider instance
+#[authz_role(Admin, Maintainer, permission = "provider:write")]
+#[authn]
 pub async fn delete_provider_instance(
+    _identity: Identity,
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: DeleteProviderInstanceParams,
     publish_on_change_evt: bool,
 ) -> Result<DeleteProviderInstanceResponse, CommonError> {
+    let _ = &identity;
     trace!(provider_instance_id = %params.provider_instance_id, "Deleting provider instance");
     repo.delete_provider_instance(&params.provider_instance_id)
         .await?;
@@ -834,10 +895,15 @@ pub struct ListProviderInstancesGroupedByFunctionParams {
 }
 pub type ListProviderInstancesGroupedByFunctionResponse = PaginatedResponse<FunctionInstanceConfig>;
 
+/// List provider instances grouped by function type
+#[authz_role(Admin, Maintainer, Agent, permission = "function:list")]
+#[authn]
 pub async fn list_provider_instances_grouped_by_function(
+    _identity: Identity,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListProviderInstancesGroupedByFunctionParams,
 ) -> Result<ListProviderInstancesGroupedByFunctionResponse, CommonError> {
+    let _ = &identity;
     trace!(
         page_size = params.page_size,
         provider_type = ?params.provider_controller_type_id,
@@ -977,10 +1043,15 @@ pub async fn list_provider_instances_grouped_by_function(
 pub type GetProviderInstanceParams = WithProviderInstanceId<()>;
 pub type GetProviderInstanceResponse = ProviderInstanceSerializedWithEverything;
 
+/// Get a provider instance by ID
+#[authz_role(Admin, Maintainer, Agent, permission = "provider:read")]
+#[authn]
 pub async fn get_provider_instance(
+    _identity: Identity,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: GetProviderInstanceParams,
 ) -> Result<GetProviderInstanceResponse, CommonError> {
+    let _ = &identity;
     trace!(provider_instance_id = %params.provider_instance_id, "Getting provider instance");
     let provider_instance = repo
         .get_provider_instance_by_id(&params.provider_instance_id)
@@ -1031,12 +1102,17 @@ pub type EnableFunctionParams =
     WithProviderInstanceId<WithFunctionControllerTypeId<EnableFunctionParamsInner>>;
 pub type EnableFunctionResponse = FunctionInstanceSerialized;
 
+/// Enable a function on a provider instance
+#[authz_role(Admin, Maintainer, permission = "function:write")]
+#[authn]
 pub async fn enable_function(
+    _identity: Identity,
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: EnableFunctionParams,
     publish_on_change_evt: bool,
 ) -> Result<EnableFunctionResponse, CommonError> {
+    let _ = &identity;
     trace!(
         provider_instance_id = %params.provider_instance_id,
         function_type = %params.inner.function_controller_type_id,
@@ -1099,7 +1175,22 @@ pub type InvokeFunctionParams =
     WithProviderInstanceId<WithFunctionInstanceId<InvokeFunctionParamsInner>>;
 pub type InvokeFunctionResponse = InvokeResult;
 
+/// Invoke a function on a provider instance
+#[authz_role(Admin, Maintainer, Agent, permission = "function:invoke")]
+#[authn]
 pub async fn invoke_function(
+    _identity: Identity,
+    repo: &crate::repository::Repository,
+    encryption_service: &CryptoCache,
+    params: InvokeFunctionParams,
+) -> Result<InvokeFunctionResponse, CommonError> {
+    let _ = &identity;
+    invoke_function_internal(repo, encryption_service, params).await
+}
+
+/// Internal function to invoke a function (no auth check).
+/// Used by `invoke_function` and internal helpers like MCP bridge.
+pub(crate) async fn invoke_function_internal(
     repo: &crate::repository::Repository,
     encryption_service: &CryptoCache,
     params: InvokeFunctionParams,
@@ -1179,12 +1270,17 @@ pub type DisableFunctionParams =
     WithProviderInstanceId<WithFunctionControllerTypeId<DisableFunctionParamsInner>>;
 pub type DisableFunctionResponse = ();
 
+/// Disable a function on a provider instance
+#[authz_role(Admin, Maintainer, permission = "function:write")]
+#[authn]
 pub async fn disable_function(
+    _identity: Identity,
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: DisableFunctionParams,
     publish_on_change_evt: bool,
 ) -> Result<DisableFunctionResponse, CommonError> {
+    let _ = &identity;
     trace!(
         provider_instance_id = %params.provider_instance_id,
         function_type = %params.inner.function_controller_type_id,
@@ -1252,7 +1348,7 @@ mod unit_test {
             next_page_token: None,
         };
 
-        let result = list_provider_instances(
+        let result = list_provider_instances_internal(
             &repo,
             ListProviderInstancesParams {
                 pagination,
@@ -1286,7 +1382,7 @@ mod unit_test {
             next_page_token: None,
         };
 
-        let result = list_function_instances(
+        let result = list_function_instances_internal(
             &repo,
             ListFunctionInstancesParams {
                 pagination,

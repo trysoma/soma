@@ -20,16 +20,16 @@ fn main() {
     let openapi_json_path = workspace_dir.join("openapi.json");
     let typescript_client_path = app_dir.join("src/@types/openapi.d.ts");
 
+    let spec = soma_api_server::router::generate_openapi_spec();
+    let openapi_client_json =
+        serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
+    fs::write(&openapi_json_path, openapi_client_json).expect("Failed to write openapi.json");
+
     if cfg!(debug_assertions) || (openapi_json_path.exists() && typescript_client_path.exists()) {
         println!(
             "cargo:warning=Debug build or frontend already built, skipping openapi spec generation and client generation"
         );
     } else {
-        let spec = soma_api_server::router::generate_openapi_spec();
-        let openapi_client_json =
-            serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
-        fs::write(&openapi_json_path, openapi_client_json).expect("Failed to write openapi.json");
-
         // Step 2: Generate TypeScript client
         println!("cargo:warning=Generating typescript client");
 

@@ -1,5 +1,7 @@
 //! MCP server instance management and protocol routes
 
+use http::HeaderMap;
+use shared::identity::Identity;
 use tracing::trace;
 
 use super::{API_VERSION_1, BridgeService, PATH_PREFIX, SERVICE_ROUTE_KEY};
@@ -24,7 +26,7 @@ use shared::error::CommonError;
 
 #[utoipa::path(
     post,
-    path = format!("{}/{}/{}/mcp-instance", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/mcp-server", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = CreateMcpServerInstanceRequest,
     responses(
@@ -38,6 +40,7 @@ use shared::error::CommonError;
 )]
 pub async fn route_create_mcp_server_instance(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Json(request): Json<CreateMcpServerInstanceRequest>,
 ) -> JsonResponse<CreateMcpServerInstanceResponse, CommonError> {
     trace!(
@@ -45,7 +48,11 @@ pub async fn route_create_mcp_server_instance(
         name = %request.name,
         "Creating MCP server instance"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = create_mcp_server_instance(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.on_config_change_tx(),
         ctx.repository(),
         request,
@@ -61,7 +68,7 @@ pub async fn route_create_mcp_server_instance(
 
 #[utoipa::path(
     get,
-    path = format!("{}/{}/{}/mcp-instance/{{mcp_server_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/mcp-server/{{mcp_server_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("mcp_server_instance_id" = String, Path, description = "MCP server instance ID"),
@@ -77,10 +84,19 @@ pub async fn route_create_mcp_server_instance(
 )]
 pub async fn route_get_mcp_server_instance(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path(mcp_server_instance_id): Path<String>,
 ) -> JsonResponse<GetMcpServerInstanceResponse, CommonError> {
     trace!(instance_id = %mcp_server_instance_id, "Getting MCP server instance");
-    let res = get_mcp_server_instance(ctx.repository(), &mcp_server_instance_id).await;
+    let identity_placeholder = Identity::Unauthenticated;
+    let res = get_mcp_server_instance(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        &mcp_server_instance_id,
+    )
+    .await;
     trace!(
         success = res.is_ok(),
         "Getting MCP server instance completed"
@@ -90,7 +106,7 @@ pub async fn route_get_mcp_server_instance(
 
 #[utoipa::path(
     patch,
-    path = format!("{}/{}/{}/mcp-instance/{{mcp_server_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/mcp-server/{{mcp_server_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("mcp_server_instance_id" = String, Path, description = "MCP server instance ID"),
@@ -107,6 +123,7 @@ pub async fn route_get_mcp_server_instance(
 )]
 pub async fn route_update_mcp_server_instance(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path(mcp_server_instance_id): Path<String>,
     Json(request): Json<UpdateMcpServerInstanceRequest>,
 ) -> JsonResponse<UpdateMcpServerInstanceResponse, CommonError> {
@@ -115,7 +132,11 @@ pub async fn route_update_mcp_server_instance(
         name = ?request.name,
         "Updating MCP server instance"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = update_mcp_server_instance(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,
@@ -132,7 +153,7 @@ pub async fn route_update_mcp_server_instance(
 
 #[utoipa::path(
     delete,
-    path = format!("{}/{}/{}/mcp-instance/{{mcp_server_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/mcp-server/{{mcp_server_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("mcp_server_instance_id" = String, Path, description = "MCP server instance ID"),
@@ -148,10 +169,15 @@ pub async fn route_update_mcp_server_instance(
 )]
 pub async fn route_delete_mcp_server_instance(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path(mcp_server_instance_id): Path<String>,
 ) -> JsonResponse<(), CommonError> {
     trace!(instance_id = %mcp_server_instance_id, "Deleting MCP server instance");
+    let identity_placeholder = Identity::Unauthenticated;
     let res = delete_mcp_server_instance(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,
@@ -167,7 +193,7 @@ pub async fn route_delete_mcp_server_instance(
 
 #[utoipa::path(
     get,
-    path = format!("{}/{}/{}/mcp-instance", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/mcp-server", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ListMcpServerInstancesParams
@@ -182,10 +208,19 @@ pub async fn route_delete_mcp_server_instance(
 )]
 pub async fn route_list_mcp_server_instances(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Query(params): Query<ListMcpServerInstancesParams>,
 ) -> JsonResponse<ListMcpServerInstancesResponse, CommonError> {
     trace!(page_size = params.page_size, "Listing MCP server instances");
-    let res = list_mcp_server_instances(ctx.repository(), params).await;
+    let identity_placeholder = Identity::Unauthenticated;
+    let res = list_mcp_server_instances(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        params,
+    )
+    .await;
     trace!(
         success = res.is_ok(),
         "Listing MCP server instances completed"
@@ -199,7 +234,7 @@ pub async fn route_list_mcp_server_instances(
 
 #[utoipa::path(
     post,
-    path = format!("{}/{}/{}/mcp-instance/{{mcp_server_instance_id}}/function", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/mcp-server/{{mcp_server_instance_id}}/function", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("mcp_server_instance_id" = String, Path, description = "MCP server instance ID"),
@@ -218,6 +253,7 @@ pub async fn route_list_mcp_server_instances(
 )]
 pub async fn route_add_mcp_server_instance_function(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path(mcp_server_instance_id): Path<String>,
     Json(request): Json<AddMcpServerInstanceFunctionRequest>,
 ) -> JsonResponse<AddMcpServerInstanceFunctionResponse, CommonError> {
@@ -226,7 +262,11 @@ pub async fn route_add_mcp_server_instance_function(
         function_name = %request.function_name,
         "Adding function to MCP server instance"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = add_mcp_server_instance_function(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,
@@ -243,7 +283,7 @@ pub async fn route_add_mcp_server_instance_function(
 
 #[utoipa::path(
     patch,
-    path = format!("{}/{}/{}/mcp-instance/{{mcp_server_instance_id}}/function/{{function_controller_type_id}}/{{provider_controller_type_id}}/{{provider_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/mcp-server/{{mcp_server_instance_id}}/function/{{function_controller_type_id}}/{{provider_controller_type_id}}/{{provider_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("mcp_server_instance_id" = String, Path, description = "MCP server instance ID"),
@@ -264,6 +304,7 @@ pub async fn route_add_mcp_server_instance_function(
 )]
 pub async fn route_update_mcp_server_instance_function(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path((
         mcp_server_instance_id,
         function_controller_type_id,
@@ -279,7 +320,11 @@ pub async fn route_update_mcp_server_instance_function(
         provider_instance_id = %provider_instance_id,
         "Updating MCP server instance function"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = update_mcp_server_instance_function(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,
@@ -299,7 +344,7 @@ pub async fn route_update_mcp_server_instance_function(
 
 #[utoipa::path(
     delete,
-    path = format!("{}/{}/{}/mcp-instance/{{mcp_server_instance_id}}/function/{{function_controller_type_id}}/{{provider_controller_type_id}}/{{provider_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/mcp-server/{{mcp_server_instance_id}}/function/{{function_controller_type_id}}/{{provider_controller_type_id}}/{{provider_instance_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("mcp_server_instance_id" = String, Path, description = "MCP server instance ID"),
@@ -318,6 +363,7 @@ pub async fn route_update_mcp_server_instance_function(
 )]
 pub async fn route_remove_mcp_server_instance_function(
     State(ctx): State<BridgeService>,
+    headers: HeaderMap,
     Path((
         mcp_server_instance_id,
         function_controller_type_id,
@@ -332,7 +378,11 @@ pub async fn route_remove_mcp_server_instance_function(
         provider_instance_id = %provider_instance_id,
         "Removing function from MCP server instance"
     );
+    let identity_placeholder = Identity::Unauthenticated;
     let res = remove_mcp_server_instance_function(
+        ctx.auth_client().clone(),
+        headers,
+        identity_placeholder,
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,

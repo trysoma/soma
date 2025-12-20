@@ -4,8 +4,10 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use shared::{
     error::CommonError,
+    identity::Identity,
     primitives::{PaginatedResponse, PaginationRequest, WrappedSchema},
 };
+use shared_macros::{authn, authz_role};
 use std::sync::RwLock;
 use utoipa::ToSchema;
 
@@ -151,9 +153,16 @@ pub static PROVIDER_REGISTRY: Lazy<RwLock<Vec<Arc<dyn ProviderControllerLike>>>>
 
 pub type ListAvailableProvidersParams = PaginationRequest;
 pub type ListAvailableProvidersResponse = PaginatedResponse<ProviderControllerSerialized>;
+
+/// List all available provider types
+#[authz_role(Admin, Maintainer, permission = "provider:list")]
+#[authn]
 pub async fn list_available_providers(
+    _identity: Identity,
     pagination: ListAvailableProvidersParams,
 ) -> Result<ListAvailableProvidersResponse, CommonError> {
+    // `identity` is available from the #[authn] macro (shadows the parameter)
+    let _ = &identity;
     let providers = PROVIDER_REGISTRY
         .read()
         .map_err(|_e| CommonError::Unknown(anyhow::anyhow!("Poison error")))?
@@ -300,18 +309,25 @@ pub struct WithCredentialControllerTypeId<T> {
 #[cfg(all(test, feature = "unit_test"))]
 mod unit_test {
     use super::*;
+    use http::HeaderMap;
     use shared::primitives::PaginationRequest;
+    use shared::test_utils::helpers::MockAuthClient;
 
     #[tokio::test]
     async fn test_list_available_providers() {
         shared::setup_test!();
 
+        let auth_client = MockAuthClient::admin();
+        let headers = HeaderMap::new();
+        // Note: identity parameter is a placeholder that gets shadowed by the #[authn] macro
+        let identity_placeholder = Identity::Unauthenticated;
         let pagination = PaginationRequest {
             page_size: 10,
             next_page_token: None,
         };
 
-        let result = list_available_providers(pagination).await;
+        let result =
+            list_available_providers(auth_client, headers, identity_placeholder, pagination).await;
         assert!(result.is_ok());
 
         let _response = result.unwrap();

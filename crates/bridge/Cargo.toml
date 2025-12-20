@@ -52,4 +52,3 @@ optional = true
 
 [dependencies.identity]
 path = "../identity"
-optional = true

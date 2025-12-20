@@ -1,5 +1,7 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
+use http::HeaderMap;
+use shared::identity::Identity;
 use shared::primitives::PaginationRequest;
 use shared::{
     adapters::openapi::{API_VERSION_TAG, JsonResponse},
@@ -39,10 +41,15 @@ pub fn create_sts_config_routes() -> OpenApiRouter<IdentityService> {
 )]
 async fn route_create_sts_config(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Json(params): Json<StsTokenConfig>,
 ) -> JsonResponse<StsTokenConfig, CommonError> {
     trace!("Creating STS configuration");
+    let identity_placeholder = Identity::Unauthenticated;
     let result = create_sts_config(
+        service.auth_client.clone(),
+        headers,
+        identity_placeholder,
         service.repository.as_ref(),
         &service.on_config_change_tx,
         params,
@@ -73,11 +80,20 @@ async fn route_create_sts_config(
 )]
 async fn route_get_sts_config(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Path(id): Path<String>,
 ) -> JsonResponse<StsTokenConfig, CommonError> {
     trace!(config_id = %id, "Getting STS configuration");
+    let identity_placeholder = Identity::Unauthenticated;
     let params = GetStsConfigParams { id };
-    let result = get_sts_config(service.repository.as_ref(), params).await;
+    let result = get_sts_config(
+        service.auth_client.clone(),
+        headers,
+        identity_placeholder,
+        service.repository.as_ref(),
+        params,
+    )
+    .await;
     trace!(
         success = result.is_ok(),
         "Getting STS configuration completed"
@@ -102,11 +118,16 @@ async fn route_get_sts_config(
 )]
 async fn route_delete_sts_config(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Path(id): Path<String>,
 ) -> JsonResponse<DeleteStsConfigResponse, CommonError> {
     trace!(config_id = %id, "Deleting STS configuration");
+    let identity_placeholder = Identity::Unauthenticated;
     let params = DeleteStsConfigParams { id };
     let result = delete_sts_config(
+        service.auth_client.clone(),
+        headers,
+        identity_placeholder,
         service.repository.as_ref(),
         &service.on_config_change_tx,
         params,
@@ -136,10 +157,19 @@ async fn route_delete_sts_config(
 )]
 async fn route_list_sts_configs(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Query(query): Query<PaginationRequest>,
 ) -> JsonResponse<ListStsConfigResponse, CommonError> {
     trace!(page_size = query.page_size, "Listing STS configurations");
-    let result = list_sts_configs(service.repository.as_ref(), &query).await;
+    let identity_placeholder = Identity::Unauthenticated;
+    let result = list_sts_configs(
+        service.auth_client.clone(),
+        headers,
+        identity_placeholder,
+        service.repository.as_ref(),
+        &query,
+    )
+    .await;
     trace!(
         success = result.is_ok(),
         "Listing STS configurations completed"

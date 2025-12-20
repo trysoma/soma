@@ -10,10 +10,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use shared::{
     error::CommonError,
+    identity::Identity,
     primitives::{
         PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedSchema, WrappedUuidV4,
     },
 };
+use shared_macros::{authn, authz_role};
 use tracing::trace;
 use utoipa::ToSchema;
 
@@ -216,10 +218,15 @@ pub type CreateResourceServerCredentialParams = WithProviderControllerTypeId<
 >;
 pub type CreateResourceServerCredentialResponse = ResourceServerCredentialSerialized;
 
+/// Create a new resource server credential
+#[authz_role(Admin, Maintainer, permission = "credential:write")]
+#[authn]
 pub async fn create_resource_server_credential(
+    _identity: Identity,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateResourceServerCredentialParams,
 ) -> Result<CreateResourceServerCredentialResponse, CommonError> {
+    let _ = &identity;
     trace!(
         provider_type = %params.provider_controller_type_id,
         credential_type = %params.inner.credential_controller_type_id,
@@ -307,7 +314,21 @@ pub type CreateUserCredentialParams =
     WithProviderControllerTypeId<WithCredentialControllerTypeId<CreateUserCredentialParamsInner>>;
 pub type CreateUserCredentialResponse = UserCredentialSerialized;
 
+/// Create a new user credential
+#[authz_role(Admin, Maintainer, permission = "credential:write")]
+#[authn]
 pub async fn create_user_credential(
+    _identity: Identity,
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: CreateUserCredentialParams,
+) -> Result<CreateUserCredentialResponse, CommonError> {
+    let _ = &identity;
+    create_user_credential_internal(repo, params).await
+}
+
+/// Internal function to create a user credential (no auth check).
+/// Used by `create_user_credential` and internal helpers like `process_broker_outcome`.
+async fn create_user_credential_internal(
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateUserCredentialParams,
 ) -> Result<CreateUserCredentialResponse, CommonError> {
@@ -389,7 +410,7 @@ async fn process_broker_outcome(
                 }
             };
             let dek_alias = resource_server_cred.dek_alias;
-            let user_credential = create_user_credential(
+            let user_credential = create_user_credential_internal(
                 repo,
                 CreateUserCredentialParams {
                     provider_controller_type_id: provider_controller.type_id().to_string(),
@@ -503,11 +524,17 @@ pub enum UserCredentialBrokeringResponse {
     UserCredential(UserCredentialSerialized),
     Redirect(String),
 }
+
+/// Start user credential brokering process
+#[authz_role(Admin, Maintainer, permission = "credential:write")]
+#[authn]
 pub async fn start_user_credential_brokering(
+    _identity: Identity,
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: StartUserCredentialBrokeringParams,
 ) -> Result<UserCredentialBrokeringResponse, CommonError> {
+    let _ = &identity;
     let provider_controller = get_provider_controller(&params.provider_controller_type_id)?;
     let credential_controller = get_credential_controller(
         &provider_controller,

@@ -7,10 +7,13 @@
 mod mcp_server_instance;
 mod provider;
 
+use std::sync::Arc;
+
 use crate::logic::mcp::BridgeMcpService;
 use crate::logic::{OnConfigChangeTx, process_credential_rotations_with_window};
 use crate::repository::Repository;
 use encryption::logic::crypto_services::CryptoCache;
+use identity::logic::auth_client::AuthClient;
 use rmcp::transport::streamable_http_server::StreamableHttpService;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use shared::error::CommonError;
@@ -82,6 +85,7 @@ pub struct BridgeService {
     pub on_config_change_tx: OnConfigChangeTx,
     pub encryption_service: CryptoCache,
     pub mcp_service: StreamableHttpService<BridgeMcpService, LocalSessionManager>,
+    pub auth_client: Arc<AuthClient>,
 }
 
 impl BridgeService {
@@ -90,6 +94,7 @@ impl BridgeService {
         on_config_change_tx: OnConfigChangeTx,
         encryption_service: CryptoCache,
         mcp_service: StreamableHttpService<BridgeMcpService, LocalSessionManager>,
+        auth_client: Arc<AuthClient>,
     ) -> Result<Self, CommonError> {
         // Run initial credential rotation check for expired and soon-to-expire credentials (30 min window)
         debug!("Running initial credential rotation check");
@@ -107,6 +112,7 @@ impl BridgeService {
             on_config_change_tx,
             encryption_service,
             mcp_service,
+            auth_client,
         })
     }
 
@@ -124,5 +130,10 @@ impl BridgeService {
 
     pub fn mcp_service(&self) -> &StreamableHttpService<BridgeMcpService, LocalSessionManager> {
         &self.mcp_service
+    }
+
+    /// Get a reference to the auth client (cheap to clone since it only contains Arcs)
+    pub fn auth_client(&self) -> &AuthClient {
+        &self.auth_client
     }
 }

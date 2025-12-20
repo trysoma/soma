@@ -10,7 +10,9 @@ use chrono::Utc;
 use encryption::logic::CryptoCache;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
+use shared::identity::Identity;
 use shared::primitives::{PaginationRequest, WrappedChronoDateTime};
+use shared_macros::{authn, authz_role};
 use utoipa::ToSchema;
 
 use crate::logic::internal_token_issuance::NormalizedTokenIssuanceResult;
@@ -107,13 +109,18 @@ pub type ImportUserAuthFlowConfigResponse = ();
 /// 1. Encrypts the configuration using the default DEK
 /// 2. Stores it in the database
 /// 3. Optionally broadcasts a config change event
+#[allow(clippy::too_many_arguments)]
+#[authz_role(Admin, permission = "user_auth_flow_config:write")]
+#[authn]
 pub async fn create_user_auth_flow_config<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     crypto_cache: &CryptoCache,
     on_config_change_tx: &OnConfigChangeTx,
     params: CreateUserAuthFlowConfigParams,
     publish_on_change_evt: bool,
 ) -> Result<CreateUserAuthFlowConfigResponse, CommonError> {
+    let _ = &identity;
     let id = params.config.id().to_string();
 
     // Validate the ID
@@ -163,10 +170,14 @@ pub async fn create_user_auth_flow_config<R: UserRepositoryLike>(
 }
 
 /// Get a user auth flow configuration by ID.
+#[authz_role(Admin, Maintainer, permission = "user_auth_flow_config:read")]
+#[authn]
 pub async fn get_user_auth_flow_config<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     params: GetUserAuthFlowConfigParams,
 ) -> Result<GetUserAuthFlowConfigResponse, CommonError> {
+    let _ = &identity;
     let db_entry = repository
         .get_user_auth_flow_config_by_id(&params.id)
         .await?
@@ -189,12 +200,16 @@ pub async fn get_user_auth_flow_config<R: UserRepositoryLike>(
 /// 1. Verifies the configuration exists
 /// 2. Deletes it from the database
 /// 3. Optionally broadcasts a config change event
+#[authz_role(Admin, permission = "user_auth_flow_config:delete")]
+#[authn]
 pub async fn delete_user_auth_flow_config<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     on_config_change_tx: &OnConfigChangeTx,
     params: DeleteUserAuthFlowConfigParams,
     publish_on_change_evt: bool,
 ) -> Result<DeleteUserAuthFlowConfigResponse, CommonError> {
+    let _ = &identity;
     // Verify the configuration exists
     let _ = repository
         .get_user_auth_flow_config_by_id(&params.id)
@@ -221,10 +236,14 @@ pub async fn delete_user_auth_flow_config<R: UserRepositoryLike>(
 }
 
 /// List user auth flow configurations.
+#[authz_role(Admin, Maintainer, permission = "user_auth_flow_config:list")]
+#[authn]
 pub async fn list_user_auth_flow_configs<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     params: ListUserAuthFlowConfigParams,
 ) -> Result<ListUserAuthFlowConfigResponse, CommonError> {
+    let _ = &identity;
     let result = repository
         .list_user_auth_flow_configs(&params.pagination, params.config_type.as_deref())
         .await?;
@@ -250,10 +269,14 @@ pub async fn list_user_auth_flow_configs<R: UserRepositoryLike>(
 /// This function imports an already encrypted configuration into the database.
 /// It's idempotent - if a config with the same ID exists, it's skipped.
 /// This is used for syncing configurations from soma.yaml.
+#[authz_role(Admin, permission = "user_auth_flow_config:import")]
+#[authn]
 pub async fn import_user_auth_flow_config<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     params: ImportUserAuthFlowConfigParams,
 ) -> Result<ImportUserAuthFlowConfigResponse, CommonError> {
+    let _ = &identity;
     let id = params.config.id().to_string();
 
     // Check if configuration already exists

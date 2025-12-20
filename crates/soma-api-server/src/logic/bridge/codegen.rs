@@ -1,4 +1,4 @@
-use bridge::logic::{FunctionInstanceWithMetadata, get_function_instances};
+use bridge::logic::{FunctionInstanceWithMetadata, get_function_instances_internal};
 use bridge::repository::ProviderRepositoryLike;
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use shared::error::CommonError;
@@ -15,8 +15,8 @@ pub async fn trigger_bridge_client_generation(
 ) -> Result<(), CommonError> {
     trace!("Triggering bridge client generation");
 
-    // Get function instances from bridge
-    let function_instances = get_function_instances(bridge_repo).await?;
+    // Get function instances from bridge (internal version, no auth needed for internal calls)
+    let function_instances = get_function_instances_internal(bridge_repo).await?;
 
     // Convert to proto messages
     let proto_function_instances: Vec<sdk_proto::FunctionInstanceData> = function_instances

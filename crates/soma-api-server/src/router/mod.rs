@@ -47,10 +47,10 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
     let bridge_router = bridge_router.with_state(api_service.bridge_service.clone());
     router = router.merge(bridge_router);
 
-    // MCP Streamable HTTP service - nested under /api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp
+    // MCP Streamable HTTP service - nested under /api/bridge/v1/mcp-server/{mcp_server_instance_id}/mcp
     let mcp_service = api_service.bridge_service.mcp_service().clone();
     router = router.nest_service(
-        "/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp",
+        "/api/bridge/v1/mcp-server/{mcp_server_instance_id}/mcp",
         mcp_service,
     );
 

@@ -69,7 +69,7 @@ export const invalidateMcpInstancesData = (queryClient: QueryClient) => {
 				queryKey.some(
 					(key) =>
 						typeof key === "string" &&
-						key.includes("/api/bridge/v1/mcp-instance"),
+						key.includes("/api/bridge/v1/mcp-server"),
 				)
 			);
 		},

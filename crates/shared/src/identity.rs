@@ -136,6 +136,18 @@ pub enum RawCredentials {
     Identity(Identity),
 }
 
+impl From<HeaderMap> for RawCredentials {
+    fn from(headers: HeaderMap) -> Self {
+        RawCredentials::HeaderMap(headers)
+    }
+}
+
+impl From<Identity> for RawCredentials {
+    fn from(identity: Identity) -> Self {
+        RawCredentials::Identity(identity)
+    }
+}
+
 /// Authenticated machine identity
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Machine {
@@ -202,5 +214,22 @@ pub trait AuthClientLike {
     ///
     /// Extracts credentials from HTTP headers and authenticates them.
     /// Returns `Identity::Unauthenticated` if no credentials are found.
-    async fn authenticate_from_headers(&self, headers: &HeaderMap) -> Result<Identity, CommonError>;
+    async fn authenticate_from_headers(&self, headers: &HeaderMap)
+    -> Result<Identity, CommonError>;
+}
+
+/// Blanket implementation for Arc<T> where T implements AuthClientLike
+///
+/// This allows passing Arc<AuthClient> directly to functions expecting impl AuthClientLike
+impl<T: AuthClientLike + Send + Sync> AuthClientLike for std::sync::Arc<T> {
+    async fn authenticate(&self, credentials: RawCredentials) -> Result<Identity, CommonError> {
+        (**self).authenticate(credentials).await
+    }
+
+    async fn authenticate_from_headers(
+        &self,
+        headers: &HeaderMap,
+    ) -> Result<Identity, CommonError> {
+        (**self).authenticate_from_headers(headers).await
+    }
 }

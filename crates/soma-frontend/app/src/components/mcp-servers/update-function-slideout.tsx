@@ -75,7 +75,7 @@ export function UpdateFunctionSlideout({
 	// Update function mutation
 	const updateFunction = $api.useMutation(
 		"patch",
-		"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}",
+		"/api/bridge/v1/mcp-server/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}",
 	);
 
 	// Get metadata helpers

@@ -70,7 +70,7 @@ export function AddFunctionSlideout({
 	// Query current MCP server instance to get already added functions
 	const { data: mcpInstance } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}",
+		"/api/bridge/v1/mcp-server/{mcp_server_instance_id}",
 		{
 			params: {
 				path: {
@@ -86,7 +86,7 @@ export function AddFunctionSlideout({
 	// Add function mutation
 	const addFunction = $api.useMutation(
 		"post",
-		"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function",
+		"/api/bridge/v1/mcp-server/{mcp_server_instance_id}/function",
 	);
 
 	// Transform function instance data into enabled functions

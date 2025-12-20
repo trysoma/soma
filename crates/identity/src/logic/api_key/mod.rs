@@ -6,15 +6,15 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use shared::error::CommonError;
+use shared::identity::{Identity, Role, User, UserType};
 use shared::primitives::{PaginationRequest, WrappedChronoDateTime};
+use shared_macros::{authn, authz_role};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::logic::api_key::cache::ApiKeyCache;
 use crate::logic::{DEFAULT_DEK_ALIAS, OnConfigChangeEvt, OnConfigChangeTx, validate_id};
 use crate::repository::UserRepositoryLike;
-
-use shared::identity::{Role, User, UserType};
 
 /// Parameters for creating an API key
 #[derive(Debug, Deserialize, ToSchema)]
@@ -128,7 +128,11 @@ pub fn hash_api_key(api_key: &str) -> String {
 /// 4. Stores the API key in the repository
 /// 5. Optionally updates the API key cache
 /// 6. Optionally broadcasts a config change event with encrypted hashed value
+#[allow(clippy::too_many_arguments)]
+#[authz_role(Admin, permission = "api_key:write")]
+#[authn]
 pub async fn create_api_key<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     crypto_cache: &CryptoCache,
     on_config_change_tx: &OnConfigChangeTx,
@@ -136,6 +140,7 @@ pub async fn create_api_key<R: UserRepositoryLike>(
     params: CreateApiKeyParams,
     publish_on_change_evt: bool,
 ) -> Result<CreateApiKeyResponse, CommonError> {
+    let _ = &identity;
     // Validate the ID
     validate_id(&params.id, "API key")?;
 
@@ -232,13 +237,18 @@ pub async fn create_api_key<R: UserRepositoryLike>(
 /// 3. Optionally deletes the associated user
 /// 4. Optionally removes from the API key cache
 /// 5. Optionally broadcasts a config change event
+#[allow(clippy::too_many_arguments)]
+#[authz_role(Admin, permission = "api_key:delete")]
+#[authn]
 pub async fn delete_api_key<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     on_config_change_tx: &OnConfigChangeTx,
     api_key_cache: Option<&ApiKeyCache>,
     params: DeleteApiKeyParams,
     publish_on_change_evt: bool,
 ) -> Result<DeleteApiKeyResponse, CommonError> {
+    let _ = &identity;
     // Verify the API key exists
     let api_key_with_user = repository
         .get_api_key_by_id(&params.id)
@@ -279,10 +289,14 @@ pub async fn delete_api_key<R: UserRepositoryLike>(
 ///
 /// This function lists all API keys.
 /// Note: The raw API key values are never returned, only the hashed values.
+#[authz_role(Admin, Maintainer, permission = "api_key:list")]
+#[authn]
 pub async fn list_api_keys<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     params: PaginationRequest,
 ) -> Result<ListApiKeysResponse, CommonError> {
+    let _ = &identity;
     let result = repository.list_api_keys(&params, None).await?;
 
     Ok(ListApiKeysResponse {
@@ -302,12 +316,16 @@ pub async fn list_api_keys<R: UserRepositoryLike>(
 /// 2. Creates an associated user for the API key (if it doesn't exist)
 /// 3. Stores the API key in the repository (if it doesn't exist)
 /// 4. Optionally updates the API key cache
+#[authz_role(Admin, permission = "api_key:import")]
+#[authn]
 pub async fn import_api_key<R: UserRepositoryLike>(
+    _identity: Identity,
     repository: &R,
     crypto_cache: &CryptoCache,
     api_key_cache: Option<&ApiKeyCache>,
     params: EncryptedApiKeyConfig,
 ) -> Result<ImportApiKeyResponse, CommonError> {
+    let _ = &identity;
     // Get decryption service for the specified DEK alias
     let decryption_service = crypto_cache
         .get_decryption_service(&params.dek_alias)

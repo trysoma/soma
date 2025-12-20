@@ -35,7 +35,7 @@ function McpServersLayout() {
 		data: mcpInstancesData,
 		isLoading,
 		refetch,
-	} = $api.useQuery("get", "/api/bridge/v1/mcp-instance", {
+	} = $api.useQuery("get", "/api/bridge/v1/mcp-server", {
 		params: {
 			query: {
 				page_size: 1000,

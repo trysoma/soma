@@ -5,6 +5,7 @@
 
 use crate::error::CommonError;
 use crate::identity::{Identity, Role};
+use tracing::{debug, trace};
 
 /// Entity that can be accessed with group-based permissions
 pub trait AuthzEntity {
@@ -49,15 +50,18 @@ impl AuthzResult {
 ///    - If empty, allow (no group restriction)
 ///    - If non-empty, check if identity belongs to at least one allowed group
 /// 3. Otherwise deny
-pub fn check_rebac(
-    identity: &Identity,
-    action: &str,
-    entity: &impl AuthzEntity,
-) -> AuthzResult {
+pub fn check_rebac(identity: &Identity, action: &str, entity: &impl AuthzEntity) -> AuthzResult {
+    trace!(
+        action = %action,
+        entity_id = %entity.entity_id(),
+        "Checking ReBAC authorization"
+    );
+
     // Get identity role and groups
     let identity_role = match identity.role() {
         Some(role) => role,
         None => {
+            debug!(action = %action, entity_id = %entity.entity_id(), "Authorization denied: no role");
             return AuthzResult::denied("No role found for identity");
         }
     };
@@ -67,6 +71,7 @@ pub fn check_rebac(
         Identity::MachineOnBehalfOfHuman { human, .. } => &human.groups,
         Identity::Machine(_) => &vec![] as &Vec<String>,
         Identity::Unauthenticated => {
+            debug!(action = %action, entity_id = %entity.entity_id(), "Authorization denied: unauthenticated");
             return AuthzResult::denied("Unauthenticated identity");
         }
     };
@@ -74,8 +79,22 @@ pub fn check_rebac(
     let allowed_roles = entity.allowed_roles();
     let allowed_groups = entity.allowed_groups();
 
+    trace!(
+        role = %identity_role.as_str(),
+        groups_count = identity_groups.len(),
+        allowed_roles_count = allowed_roles.len(),
+        allowed_groups_count = allowed_groups.len(),
+        "Evaluating authorization constraints"
+    );
+
     // Check role-based access
     if !allowed_roles.is_empty() && allowed_roles.contains(identity_role) {
+        debug!(
+            role = %identity_role.as_str(),
+            action = %action,
+            entity_id = %entity.entity_id(),
+            "Authorization granted via role"
+        );
         return AuthzResult::allowed(format!(
             "Role '{}' is allowed for action '{}' on entity '{}'",
             identity_role.as_str(),
@@ -88,6 +107,11 @@ pub fn check_rebac(
     if allowed_groups.is_empty() {
         // No group restriction - allow if role check passed or no role restriction
         if allowed_roles.is_empty() {
+            debug!(
+                action = %action,
+                entity_id = %entity.entity_id(),
+                "Authorization granted: no restrictions"
+            );
             return AuthzResult::allowed(format!(
                 "No restrictions on entity '{}' for action '{}'",
                 entity.entity_id(),
@@ -98,6 +122,12 @@ pub fn check_rebac(
         // Check if identity belongs to at least one allowed group
         for group in identity_groups {
             if allowed_groups.contains(group) {
+                debug!(
+                    group = %group,
+                    action = %action,
+                    entity_id = %entity.entity_id(),
+                    "Authorization granted via group"
+                );
                 return AuthzResult::allowed(format!(
                     "Group '{}' is allowed for action '{}' on entity '{}'",
                     group,
@@ -109,6 +139,12 @@ pub fn check_rebac(
     }
 
     // Default deny
+    debug!(
+        action = %action,
+        entity_id = %entity.entity_id(),
+        role = %identity_role.as_str(),
+        "Authorization denied: no matching role or group"
+    );
     AuthzResult::denied(format!(
         "Access denied for action '{}' on entity '{}'. Required groups: {:?}, identity groups: {:?}",
         action,
@@ -208,89 +244,72 @@ macro_rules! authz_rebac {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::identity::{Human, Machine};
+    use crate::test_utils::helpers::{
+        test_admin_machine, test_human_with_groups, test_user_human, test_user_machine,
+    };
 
     #[test]
     fn test_rebac_role_allowed() {
-        let identity = Identity::Machine(Machine {
-            sub: "machine-1".to_string(),
-            role: Role::Admin,
-        });
-
+        let identity = test_admin_machine();
         let entity = SimpleEntity::new("entity-1").with_roles(vec![Role::Admin, Role::Agent]);
 
-        let result = check_rebac(&identity, "read", &entity);
+        let result = check_rebac(&identity, "user:read", &entity);
         assert!(result.allowed);
     }
 
     #[test]
     fn test_rebac_role_denied() {
-        let identity = Identity::Machine(Machine {
-            sub: "machine-1".to_string(),
-            role: Role::User,
-        });
-
+        let identity = test_user_machine();
         let entity = SimpleEntity::new("entity-1").with_roles(vec![Role::Admin]);
 
-        let result = check_rebac(&identity, "read", &entity);
+        let result = check_rebac(&identity, "user:write", &entity);
         assert!(!result.allowed);
     }
 
     #[test]
     fn test_rebac_group_allowed() {
-        let identity = Identity::Human(Human {
-            sub: "user-1".to_string(),
-            email: Some("user@example.com".to_string()),
-            groups: vec!["finance".to_string(), "hr".to_string()],
-            role: Role::User,
-        });
-
+        let identity = test_human_with_groups(vec!["finance".to_string(), "hr".to_string()]);
         let entity = SimpleEntity::new("entity-1").with_groups(vec!["finance".to_string()]);
 
-        let result = check_rebac(&identity, "read", &entity);
+        let result = check_rebac(&identity, "report:read", &entity);
         assert!(result.allowed);
     }
 
     #[test]
     fn test_rebac_group_denied() {
-        let identity = Identity::Human(Human {
-            sub: "user-1".to_string(),
-            email: Some("user@example.com".to_string()),
-            groups: vec!["engineering".to_string()],
-            role: Role::User,
-        });
-
+        let identity = test_human_with_groups(vec!["engineering".to_string()]);
         let entity = SimpleEntity::new("entity-1").with_groups(vec!["finance".to_string()]);
 
-        let result = check_rebac(&identity, "read", &entity);
+        let result = check_rebac(&identity, "report:read", &entity);
         assert!(!result.allowed);
     }
 
     #[test]
     fn test_rebac_no_restrictions() {
-        let identity = Identity::Human(Human {
-            sub: "user-1".to_string(),
-            email: Some("user@example.com".to_string()),
-            groups: vec![],
-            role: Role::User,
-        });
-
+        let identity = test_user_human();
         let entity = SimpleEntity::new("entity-1");
 
-        let result = check_rebac(&identity, "read", &entity);
+        let result = check_rebac(&identity, "public:read", &entity);
         assert!(result.allowed);
     }
 
     #[test]
     fn test_authz_rebac_macro() {
-        let identity = Identity::Machine(Machine {
-            sub: "machine-1".to_string(),
-            role: Role::Admin,
-        });
-
+        let identity = test_admin_machine();
         let entity = SimpleEntity::new("entity-1").with_roles(vec![Role::Admin]);
 
-        let result = authz_rebac!(&identity, "read", &entity);
+        let result = authz_rebac!(&identity, "config:write", &entity);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_unauthenticated_denied() {
+        let identity = Identity::Unauthenticated;
+        let entity = SimpleEntity::new("entity-1");
+
+        let result = check_rebac(&identity, "any:action", &entity);
+        assert!(!result.allowed);
+        // Unauthenticated has no role, so the first check fails
+        assert!(result.reason.contains("No role found"));
     }
 }

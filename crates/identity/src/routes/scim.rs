@@ -12,7 +12,8 @@ use crate::logic::scim::{
 };
 use crate::routes::{IdentityService, PATH_PREFIX, SERVICE_ROUTE_KEY};
 use axum::extract::{Json, Path, Query, State};
-use http::StatusCode;
+use http::{HeaderMap, StatusCode};
+use shared::identity::Identity;
 use shared::{adapters::openapi::API_VERSION_TAG, error::CommonError};
 use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -107,11 +108,25 @@ pub type ScimResult<T> = Result<T, ScimErrorResponse>;
 )]
 async fn route_list_users(
     State(ctx): State<IdentityService>,
+    headers: HeaderMap,
     Query(params): Query<ScimListParams>,
 ) -> ScimResult<ScimOkResponse<ScimUserListResponse>> {
-    trace!(start_index = params.start_index, count = params.count, "Listing SCIM users");
+    trace!(
+        start_index = params.start_index,
+        count = params.count,
+        "Listing SCIM users"
+    );
+    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
-    let result = list_users_scim(ctx.repository(), params, &base_url).await;
+    let result = list_users_scim(
+        ctx.auth_client(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        params,
+        &base_url,
+    )
+    .await;
     trace!(success = result.is_ok(), "Listing SCIM users completed");
     match result {
         Ok(users) => Ok(ScimOkResponse(users)),
@@ -136,10 +151,19 @@ async fn route_list_users(
 )]
 async fn route_create_user(
     State(ctx): State<IdentityService>,
+    headers: HeaderMap,
     Json(scim_user): Json<ScimUser>,
 ) -> ScimResult<ScimCreatedResponse<ScimUser>> {
     trace!(user_name = %scim_user.user_name, external_id = ?scim_user.external_id, "Creating SCIM user");
-    let result = create_user_from_scim(ctx.repository(), scim_user).await;
+    let identity_placeholder = Identity::Unauthenticated;
+    let result = create_user_from_scim(
+        ctx.auth_client(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        scim_user,
+    )
+    .await;
     trace!(success = result.is_ok(), "Creating SCIM user completed");
     match result {
         Ok(user) => Ok(ScimCreatedResponse(user)),
@@ -165,11 +189,21 @@ async fn route_create_user(
 )]
 async fn route_get_user(
     State(ctx): State<IdentityService>,
+    headers: HeaderMap,
     Path(user_id): Path<String>,
 ) -> ScimResult<ScimOkResponse<ScimUser>> {
     trace!(user_id = %user_id, "Getting SCIM user");
+    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
-    let result = get_user_scim(ctx.repository(), &user_id, &base_url).await;
+    let result = get_user_scim(
+        ctx.auth_client(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        &user_id,
+        &base_url,
+    )
+    .await;
     trace!(success = result.is_ok(), "Getting SCIM user completed");
     match result {
         Ok(user) => Ok(ScimOkResponse(user)),
@@ -196,12 +230,23 @@ async fn route_get_user(
 )]
 async fn route_replace_user(
     State(ctx): State<IdentityService>,
+    headers: HeaderMap,
     Path(user_id): Path<String>,
     Json(scim_user): Json<ScimUser>,
 ) -> ScimResult<ScimOkResponse<ScimUser>> {
     trace!(user_id = %user_id, "Replacing SCIM user");
+    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
-    let result = replace_user_scim(ctx.repository(), &user_id, scim_user, &base_url).await;
+    let result = replace_user_scim(
+        ctx.auth_client(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        &user_id,
+        scim_user,
+        &base_url,
+    )
+    .await;
     trace!(success = result.is_ok(), "Replacing SCIM user completed");
     match result {
         Ok(user) => Ok(ScimOkResponse(user)),
@@ -228,12 +273,23 @@ async fn route_replace_user(
 )]
 async fn route_patch_user(
     State(ctx): State<IdentityService>,
+    headers: HeaderMap,
     Path(user_id): Path<String>,
     Json(patch_request): Json<ScimPatchRequest>,
 ) -> ScimResult<ScimOkResponse<ScimUser>> {
     trace!(user_id = %user_id, operation_count = patch_request.operations.len(), "Patching SCIM user");
+    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
-    let result = patch_user_scim(ctx.repository(), &user_id, patch_request, &base_url).await;
+    let result = patch_user_scim(
+        ctx.auth_client(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        &user_id,
+        patch_request,
+        &base_url,
+    )
+    .await;
     trace!(success = result.is_ok(), "Patching SCIM user completed");
     match result {
         Ok(user) => Ok(ScimOkResponse(user)),
@@ -259,10 +315,19 @@ async fn route_patch_user(
 )]
 async fn route_delete_user(
     State(ctx): State<IdentityService>,
+    headers: HeaderMap,
     Path(user_id): Path<String>,
 ) -> ScimResult<ScimNoContentResponse> {
     trace!(user_id = %user_id, "Deleting SCIM user");
-    let result = delete_user_scim(ctx.repository(), &user_id).await;
+    let identity_placeholder = Identity::Unauthenticated;
+    let result = delete_user_scim(
+        ctx.auth_client(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        &user_id,
+    )
+    .await;
     trace!(success = result.is_ok(), "Deleting SCIM user completed");
     match result {
         Ok(()) => Ok(ScimNoContentResponse),
@@ -290,11 +355,25 @@ async fn route_delete_user(
 )]
 async fn route_list_groups(
     State(ctx): State<IdentityService>,
+    headers: HeaderMap,
     Query(params): Query<ScimListParams>,
 ) -> ScimResult<ScimOkResponse<ScimGroupListResponse>> {
-    trace!(start_index = params.start_index, count = params.count, "Listing SCIM groups");
+    trace!(
+        start_index = params.start_index,
+        count = params.count,
+        "Listing SCIM groups"
+    );
+    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
-    let result = list_groups_scim(ctx.repository(), params, &base_url).await;
+    let result = list_groups_scim(
+        ctx.auth_client(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        params,
+        &base_url,
+    )
+    .await;
     trace!(success = result.is_ok(), "Listing SCIM groups completed");
     match result {
         Ok(groups) => Ok(ScimOkResponse(groups)),
@@ -319,11 +398,21 @@ async fn route_list_groups(
 )]
 async fn route_create_group(
     State(ctx): State<IdentityService>,
+    headers: HeaderMap,
     Json(scim_group): Json<ScimGroup>,
 ) -> ScimResult<ScimCreatedResponse<ScimGroup>> {
     trace!(display_name = %scim_group.display_name, external_id = ?scim_group.external_id, member_count = scim_group.members.len(), "Creating SCIM group");
+    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
-    let result = create_group_from_scim(ctx.repository(), scim_group, &base_url).await;
+    let result = create_group_from_scim(
+        ctx.auth_client(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        scim_group,
+        &base_url,
+    )
+    .await;
     trace!(success = result.is_ok(), "Creating SCIM group completed");
     match result {
         Ok(group) => Ok(ScimCreatedResponse(group)),
@@ -349,11 +438,21 @@ async fn route_create_group(
 )]
 async fn route_get_group(
     State(ctx): State<IdentityService>,
+    headers: HeaderMap,
     Path(group_id): Path<String>,
 ) -> ScimResult<ScimOkResponse<ScimGroup>> {
     trace!(group_id = %group_id, "Getting SCIM group");
+    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
-    let result = get_group_scim(ctx.repository(), &group_id, &base_url).await;
+    let result = get_group_scim(
+        ctx.auth_client(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        &group_id,
+        &base_url,
+    )
+    .await;
     trace!(success = result.is_ok(), "Getting SCIM group completed");
     match result {
         Ok(group) => Ok(ScimOkResponse(group)),
@@ -380,12 +479,23 @@ async fn route_get_group(
 )]
 async fn route_replace_group(
     State(ctx): State<IdentityService>,
+    headers: HeaderMap,
     Path(group_id): Path<String>,
     Json(scim_group): Json<ScimGroup>,
 ) -> ScimResult<ScimOkResponse<ScimGroup>> {
     trace!(group_id = %group_id, member_count = scim_group.members.len(), "Replacing SCIM group");
+    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
-    let result = replace_group_scim(ctx.repository(), &group_id, scim_group, &base_url).await;
+    let result = replace_group_scim(
+        ctx.auth_client(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        &group_id,
+        scim_group,
+        &base_url,
+    )
+    .await;
     trace!(success = result.is_ok(), "Replacing SCIM group completed");
     match result {
         Ok(group) => Ok(ScimOkResponse(group)),
@@ -412,12 +522,23 @@ async fn route_replace_group(
 )]
 async fn route_patch_group(
     State(ctx): State<IdentityService>,
+    headers: HeaderMap,
     Path(group_id): Path<String>,
     Json(patch_request): Json<ScimPatchRequest>,
 ) -> ScimResult<ScimOkResponse<ScimGroup>> {
     trace!(group_id = %group_id, operation_count = patch_request.operations.len(), "Patching SCIM group");
+    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
-    let result = patch_group_scim(ctx.repository(), &group_id, patch_request, &base_url).await;
+    let result = patch_group_scim(
+        ctx.auth_client(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        &group_id,
+        patch_request,
+        &base_url,
+    )
+    .await;
     trace!(success = result.is_ok(), "Patching SCIM group completed");
     match result {
         Ok(group) => Ok(ScimOkResponse(group)),
@@ -443,10 +564,19 @@ async fn route_patch_group(
 )]
 async fn route_delete_group(
     State(ctx): State<IdentityService>,
+    headers: HeaderMap,
     Path(group_id): Path<String>,
 ) -> ScimResult<ScimNoContentResponse> {
     trace!(group_id = %group_id, "Deleting SCIM group");
-    let result = delete_group_scim(ctx.repository(), &group_id).await;
+    let identity_placeholder = Identity::Unauthenticated;
+    let result = delete_group_scim(
+        ctx.auth_client(),
+        headers,
+        identity_placeholder,
+        ctx.repository(),
+        &group_id,
+    )
+    .await;
     trace!(success = result.is_ok(), "Deleting SCIM group completed");
     match result {
         Ok(()) => Ok(ScimNoContentResponse),

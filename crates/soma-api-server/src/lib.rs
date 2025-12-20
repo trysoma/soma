@@ -4,6 +4,10 @@ use ::bridge::logic::mcp::BridgeMcpService;
 use ::bridge::router::BridgeService;
 use bridge::logic::OnConfigChangeTx;
 use encryption::logic::{EncryptionKeyEventSender, crypto_services::CryptoCache};
+use identity::logic::api_key::cache::ApiKeyCache;
+use identity::logic::auth_client::AuthClient;
+use identity::logic::sts::cache::StsConfigCache;
+use identity::logic::sts::external_jwk_cache::ExternalJwksCache;
 use rmcp::transport::streamable_http_server::{
     StreamableHttpService, session::local::LocalSessionManager,
 };
@@ -94,6 +98,18 @@ impl ApiService {
     pub async fn new(init_params: InitApiServiceParams) -> Result<Self, CommonError> {
         let agent_cache = init_params.agent_cache.clone();
 
+        // Create identity caches that will be shared
+        let identity_repository = Arc::new(init_params.identity_repository);
+        let api_key_cache = ApiKeyCache::new(identity_repository.clone());
+        let sts_config_cache = StsConfigCache::new(identity_repository.clone());
+        let external_jwks_cache = ExternalJwksCache::new();
+
+        // Create the AuthClient - this will be shared across services for authentication
+        let auth_client = Arc::new(AuthClient::new(
+            init_params.internal_jwks_cache.clone(),
+            api_key_cache.clone(),
+        ));
+
         let encryption_service = encryption::router::EncryptionService::new(
             init_params.encryption_repository.clone(),
             init_params.on_encryption_change_tx.clone(),
@@ -118,6 +134,7 @@ impl ApiService {
             init_params.on_bridge_config_change_tx.clone(),
             init_params.crypto_cache.clone(),
             init_params.mcp_service,
+            auth_client.clone(),
         )
         .await?;
 
@@ -144,14 +161,18 @@ impl ApiService {
             init_params.sdk_client.clone(),
         ));
 
-        // Construct identity service
-        let identity_service = identity::service::IdentityService::new(
-            init_params.base_url.clone(),
-            init_params.identity_repository,
-            init_params.encryption_repository.clone(),
-            init_params.local_envelope_encryption_key_path,
-            init_params.internal_jwks_cache.clone(),
-        );
+        // Construct identity service with pre-built caches
+        let identity_service =
+            identity::service::IdentityService::new(identity::service::IdentityServiceParams {
+                base_redirect_uri: init_params.base_url.clone(),
+                repository: identity_repository,
+                crypto_cache: init_params.crypto_cache.clone(),
+                internal_jwks_cache: init_params.internal_jwks_cache.clone(),
+                api_key_cache,
+                sts_config_cache,
+                external_jwks_cache,
+                auth_client,
+            });
 
         Ok(Self {
             agent_service,

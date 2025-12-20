@@ -344,7 +344,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/bridge/v1/mcp-instance": {
+	"/api/bridge/v1/mcp-server": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -368,7 +368,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}": {
+	"/api/bridge/v1/mcp-server/{mcp_server_instance_id}": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -396,7 +396,7 @@ export interface paths {
 		patch: operations["update-mcp-server-instance"];
 		trace?: never;
 	};
-	"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function": {
+	"/api/bridge/v1/mcp-server/{mcp_server_instance_id}/function": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -416,7 +416,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}": {
+	"/api/bridge/v1/mcp-server/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}": {
 		parameters: {
 			query?: never;
 			header?: never;

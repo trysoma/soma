@@ -6,11 +6,12 @@
 use crate::logic::user::GroupMembership;
 use crate::repository::{GroupMemberWithUser, UpdateUser, UserRepositoryLike};
 use serde::{Deserialize, Serialize};
-use shared::identity::{Group, Role, User, UserType};
+use shared::identity::{Group, Identity, Role, User, UserType};
 use shared::{
     error::CommonError,
     primitives::{PaginationRequest, WrappedChronoDateTime},
 };
+use shared_macros::{authn, authz_role};
 use tracing::{debug, info, trace, warn};
 use utoipa::{IntoParams, ToSchema};
 
@@ -399,10 +400,14 @@ pub fn group_to_scim(group: &Group, members: &[GroupMemberWithUser], base_url: &
 // ============================================================================
 
 /// Create a user from a SCIM User payload
+#[authz_role(Admin, permission = "scim_user:write")]
+#[authn]
 pub async fn create_user_from_scim(
+    _identity: Identity,
     repo: &impl UserRepositoryLike,
     scim_user: ScimUser,
 ) -> Result<ScimUser, CommonError> {
+    let _ = &identity;
     let now = WrappedChronoDateTime::now();
 
     // Use external_id if provided, otherwise generate a UUID
@@ -464,7 +469,21 @@ pub async fn create_user_from_scim(
 }
 
 /// Get a user by ID and return as SCIM User
+#[authz_role(Admin, permission = "scim_user:read")]
+#[authn]
 pub async fn get_user_scim(
+    _identity: Identity,
+    repo: &impl UserRepositoryLike,
+    user_id: &str,
+    base_url: &str,
+) -> Result<ScimUser, CommonError> {
+    let _ = &identity;
+    get_user_scim_internal(repo, user_id, base_url).await
+}
+
+/// Internal function to get a user as SCIM without auth check.
+/// Used by other SCIM functions that have already authenticated.
+async fn get_user_scim_internal(
     repo: &impl UserRepositoryLike,
     user_id: &str,
     base_url: &str,
@@ -510,11 +529,15 @@ pub async fn get_user_scim(
 /// Per SCIM 2.0 spec, `totalResults` should reflect the total matching resources.
 /// Since we don't have this information, we return the current page count when
 /// there's no more data, or indicate unknown (-1) when pagination continues.
+#[authz_role(Admin, permission = "scim_user:list")]
+#[authn]
 pub async fn list_users_scim(
+    _identity: Identity,
     repo: &impl UserRepositoryLike,
     params: ScimListParams,
     base_url: &str,
 ) -> Result<ScimUserListResponse, CommonError> {
+    let _ = &identity;
     let pagination = PaginationRequest {
         page_size: params.count,
         next_page_token: None,
@@ -545,12 +568,16 @@ pub async fn list_users_scim(
 }
 
 /// Replace a user (PUT operation)
+#[authz_role(Admin, permission = "scim_user:write")]
+#[authn]
 pub async fn replace_user_scim(
+    _identity: Identity,
     repo: &impl UserRepositoryLike,
     user_id: &str,
     scim_user: ScimUser,
     base_url: &str,
 ) -> Result<ScimUser, CommonError> {
+    let _ = &identity;
     // Check if user exists
     let _existing = repo
         .get_user_by_id(user_id)
@@ -587,16 +614,20 @@ pub async fn replace_user_scim(
 
     debug!(user_id = %user_id, "SCIM user replaced");
     // Return updated user
-    get_user_scim(repo, user_id, base_url).await
+    get_user_scim_internal(repo, user_id, base_url).await
 }
 
 /// Patch a user (PATCH operation)
+#[authz_role(Admin, permission = "scim_user:write")]
+#[authn]
 pub async fn patch_user_scim(
+    _identity: Identity,
     repo: &impl UserRepositoryLike,
     user_id: &str,
     patch_request: ScimPatchRequest,
     base_url: &str,
 ) -> Result<ScimUser, CommonError> {
+    let _ = &identity;
     // Check if user exists
     let existing = repo
         .get_user_by_id(user_id)
@@ -666,14 +697,18 @@ pub async fn patch_user_scim(
     repo.update_user(user_id, &update_user).await?;
 
     debug!(user_id = %user_id, "SCIM user patched");
-    get_user_scim(repo, user_id, base_url).await
+    get_user_scim_internal(repo, user_id, base_url).await
 }
 
 /// Delete a user
+#[authz_role(Admin, permission = "scim_user:delete")]
+#[authn]
 pub async fn delete_user_scim(
+    _identity: Identity,
     repo: &impl UserRepositoryLike,
     user_id: &str,
 ) -> Result<(), CommonError> {
+    let _ = &identity;
     // Check if user exists
     let _existing = repo
         .get_user_by_id(user_id)
@@ -703,11 +738,15 @@ pub async fn delete_user_scim(
 // ============================================================================
 
 /// Create a group from a SCIM Group payload
+#[authz_role(Admin, permission = "scim_group:write")]
+#[authn]
 pub async fn create_group_from_scim(
+    _identity: Identity,
     repo: &impl UserRepositoryLike,
     scim_group: ScimGroup,
     base_url: &str,
 ) -> Result<ScimGroup, CommonError> {
+    let _ = &identity;
     let now = WrappedChronoDateTime::now();
 
     // Use external_id if provided, otherwise generate a UUID
@@ -765,11 +804,25 @@ pub async fn create_group_from_scim(
 
     info!(group_id = %group_id, display_name = %scim_group.display_name, "SCIM group created");
     // Return the created group
-    get_group_scim(repo, &group_id, base_url).await
+    get_group_scim_internal(repo, &group_id, base_url).await
 }
 
 /// Get a group by ID and return as SCIM Group
+#[authz_role(Admin, permission = "scim_group:read")]
+#[authn]
 pub async fn get_group_scim(
+    _identity: Identity,
+    repo: &impl UserRepositoryLike,
+    group_id: &str,
+    base_url: &str,
+) -> Result<ScimGroup, CommonError> {
+    let _ = &identity;
+    get_group_scim_internal(repo, group_id, base_url).await
+}
+
+/// Internal function to get a group as SCIM without auth check.
+/// Used by other SCIM functions that have already authenticated.
+async fn get_group_scim_internal(
     repo: &impl UserRepositoryLike,
     group_id: &str,
     base_url: &str,
@@ -800,11 +853,15 @@ pub async fn get_group_scim(
 /// List groups with SCIM pagination
 ///
 /// Note: See `list_users_scim` for comments on totalResults limitations.
+#[authz_role(Admin, permission = "scim_group:list")]
+#[authn]
 pub async fn list_groups_scim(
+    _identity: Identity,
     repo: &impl UserRepositoryLike,
     params: ScimListParams,
     base_url: &str,
 ) -> Result<ScimGroupListResponse, CommonError> {
+    let _ = &identity;
     let pagination = PaginationRequest {
         page_size: params.count,
         next_page_token: None,
@@ -842,12 +899,16 @@ pub async fn list_groups_scim(
 }
 
 /// Replace a group (PUT operation)
+#[authz_role(Admin, permission = "scim_group:write")]
+#[authn]
 pub async fn replace_group_scim(
+    _identity: Identity,
     repo: &impl UserRepositoryLike,
     group_id: &str,
     scim_group: ScimGroup,
     base_url: &str,
 ) -> Result<ScimGroup, CommonError> {
+    let _ = &identity;
     let now = WrappedChronoDateTime::now();
 
     // Check if group exists
@@ -887,16 +948,20 @@ pub async fn replace_group_scim(
     }
 
     debug!(group_id = %group_id, member_count = added_count, "SCIM group replaced");
-    get_group_scim(repo, group_id, base_url).await
+    get_group_scim_internal(repo, group_id, base_url).await
 }
 
 /// Patch a group (PATCH operation)
+#[authz_role(Admin, permission = "scim_group:write")]
+#[authn]
 pub async fn patch_group_scim(
+    _identity: Identity,
     repo: &impl UserRepositoryLike,
     group_id: &str,
     patch_request: ScimPatchRequest,
     base_url: &str,
 ) -> Result<ScimGroup, CommonError> {
+    let _ = &identity;
     let now = WrappedChronoDateTime::now();
 
     // Check if group exists
@@ -1013,14 +1078,18 @@ pub async fn patch_group_scim(
     }
 
     debug!(group_id = %group_id, "SCIM group patched");
-    get_group_scim(repo, group_id, base_url).await
+    get_group_scim_internal(repo, group_id, base_url).await
 }
 
 /// Delete a group
+#[authz_role(Admin, permission = "scim_group:delete")]
+#[authn]
 pub async fn delete_group_scim(
+    _identity: Identity,
     repo: &impl UserRepositoryLike,
     group_id: &str,
 ) -> Result<(), CommonError> {
+    let _ = &identity;
     // Check if group exists
     let _existing = repo
         .get_group_by_id(group_id)
