@@ -94,7 +94,7 @@ pub async fn cmd_secret_set(
     timeout_secs: u64,
 ) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None ).await?;
 
     // Check if default DEK alias exists
     if !default_dek_alias_exists(&api_config).await? {
@@ -141,7 +141,7 @@ pub async fn cmd_secret_rm(
     timeout_secs: u64,
 ) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     // Check if default DEK alias exists
     if !default_dek_alias_exists(&api_config).await? {
@@ -174,7 +174,7 @@ pub async fn cmd_secret_rm(
 
 pub async fn cmd_secret_list(api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     // Check if default DEK alias exists
     if !default_dek_alias_exists(&api_config).await? {

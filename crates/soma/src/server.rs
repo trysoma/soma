@@ -1,34 +1,24 @@
-use std::future::Future;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use http::header::HeaderName;
 use shared::error::CommonError;
 use shared::port::find_free_port;
-use shared::process_manager::ShutdownCallback;
+use shared::process_manager::{CustomProcessManager, ShutdownCallback};
 use soma_api_server::ApiService;
-use std::pin::Pin;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer, ExposeHeaders};
 
 pub struct StartAxumServerParams {
     pub host: String,
     pub port: u16,
     pub api_service: ApiService,
+    pub process_manager: Arc<CustomProcessManager>,
 }
 
-pub struct StartAxumServerResult {
-    pub server_fut: Pin<Box<dyn Future<Output = Result<(), std::io::Error>> + Send>>,
-    #[allow(dead_code)]
-    pub handle: axum_server::Handle,
-    #[allow(dead_code)]
-    pub addr: SocketAddr,
-    pub on_shutdown_triggered: ShutdownCallback,
-    pub on_shutdown_complete: ShutdownCallback,
-}
-
-/// Starts the Axum server
+/// Starts the Axum server using the process manager
 pub async fn start_axum_server(
     params: StartAxumServerParams,
-) -> Result<StartAxumServerResult, CommonError> {
+) -> Result<(), CommonError> {
     let port = find_free_port(params.port, params.port + 100)?;
     let addr: SocketAddr = format!("{}:{}", params.host, port)
         .parse()
@@ -69,12 +59,6 @@ pub async fn start_axum_server(
 
     tracing::trace!("Router initiated");
 
-    let server_fut = Box::pin(
-        axum_server::bind(addr)
-            .handle(handle.clone())
-            .serve(router.into_make_service()),
-    );
-
     let handle_for_shutdown = handle.clone();
 
     // Create on_shutdown_triggered callback
@@ -90,7 +74,7 @@ pub async fn start_axum_server(
     // Create on_shutdown_complete callback
     #[cfg(debug_assertions)]
     let on_shutdown_complete: ShutdownCallback = {
-        use std::sync::{Arc, Mutex};
+        use std::sync::Mutex;
         let vite_guard = Arc::new(Mutex::new(Some(vite_scope_guard)));
         let vite_guard_clone = vite_guard.clone();
         Box::new(move || {
@@ -122,14 +106,53 @@ pub async fn start_axum_server(
         })
     });
 
-    tracing::trace!("Server bound");
-    Ok(StartAxumServerResult {
-        server_fut,
-        handle,
-        addr,
-        on_shutdown_triggered,
-        on_shutdown_complete,
-    })
+    // Register the server with the process manager
+    let handle_for_spawn = handle.clone();
+    let router_for_spawn = router;
+    let addr_for_spawn = addr;
+
+    params.process_manager
+        .start_thread(
+            "axum_server",
+            shared::process_manager::ThreadConfig {
+                spawn_fn: move || {
+                    let handle = handle_for_spawn.clone();
+                    let router = router_for_spawn.clone();
+                    let addr = addr_for_spawn;
+                    tokio::spawn(async move {
+                        tracing::trace!(address = %addr, "Starting axum server");
+                        let server_fut = axum_server::bind(addr)
+                            .handle(handle)
+                            .serve(router.into_make_service());
+                        
+                        match server_fut.await {
+                            Ok(()) => {
+                                tracing::trace!("Axum server stopped");
+                                Ok(())
+                            }
+                            Err(e) => {
+                                tracing::error!(error = ?e, "Axum server stopped with error");
+                                Err(CommonError::Unknown(anyhow::anyhow!("Axum server error: {e}")))
+                            }
+                        }
+                    })
+                },
+                health_check: None,
+                on_terminal_stop: shared::process_manager::OnTerminalStop::TriggerShutdown,
+                on_stop: shared::process_manager::OnStop::Nothing,
+                shutdown_priority: 9,
+                follow_logs: false,
+                on_shutdown_triggered: Some(on_shutdown_triggered),
+                on_shutdown_complete: Some(on_shutdown_complete),
+            },
+        )
+        .await
+        .inspect_err(|e| {
+            tracing::error!(error = %e, "Failed to register axum server with process manager");
+        })?;
+
+    tracing::trace!("Server bound and registered with process manager");
+    Ok(())
 }
 
 #[cfg(all(test, feature = "unit_test"))]

@@ -134,6 +134,11 @@ fn build_refresh_token_response(jar: CookieJar, tokens: &RefreshTokenResult) -> 
     ),
     summary = "Start authorization",
     description = "Initiates the OAuth/OIDC authorization flow by redirecting to the external IdP",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_start_authorization(
     State(service): State<IdentityService>,
@@ -179,6 +184,11 @@ async fn route_start_authorization(
     ),
     summary = "Authorization callback",
     description = "Handles the OAuth/OIDC callback from the external IdP, exchanges the authorization code for tokens",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_auth_callback(
     State(service): State<IdentityService>,
@@ -261,6 +271,11 @@ async fn route_auth_callback(
     ),
     summary = "Refresh access token",
     description = "Refreshes an access token using a refresh token from the request body or cookie",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_refresh_token(
     State(service): State<IdentityService>,
@@ -317,6 +332,11 @@ async fn route_refresh_token(
     ),
     summary = "Get current identity",
     description = "Returns the current authenticated identity based on the request headers (Authorization header, cookies, or API key)",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_whoami(
     State(service): State<IdentityService>,

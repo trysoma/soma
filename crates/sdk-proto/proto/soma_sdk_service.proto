@@ -8,7 +8,7 @@ service SomaSdkService {
   rpc Metadata(google.protobuf.Empty) returns (MetadataResponse);
   rpc HealthCheck(google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc InvokeFunction(InvokeFunctionRequest) returns (InvokeFunctionResponse);
-  rpc GenerateBridgeClient(GenerateBridgeClientRequest) returns (GenerateBridgeClientResponse);
+  rpc GenerateMcpClient(GenerateMcpClientRequest) returns (GenerateMcpClientResponse);
   rpc SetSecrets(SetSecretsRequest) returns (SetSecretsResponse);
   rpc UnsetSecrets(UnsetSecretRequest) returns (UnsetSecretResponse);
   rpc SetEnvironmentVariables(SetEnvironmentVariablesRequest) returns (SetEnvironmentVariablesResponse);
@@ -35,7 +35,7 @@ message CallbackError {
 }
 
 message MetadataResponse {
-  repeated ProviderController bridge_providers = 1;
+  repeated ProviderController mcp_providers = 1;
   repeated Agent agents = 2;
 }
 
@@ -109,23 +109,23 @@ message FunctionController {
   string output = 4;
 }
 
-message GenerateBridgeClientRequest {
+message GenerateMcpClientRequest {
   repeated FunctionInstanceData function_instances = 1;
   repeated Agent agents = 2;
 }
 
-message GenerateBridgeClientResponse {
+message GenerateMcpClientResponse {
   oneof result {
-    GenerateBridgeClientSuccess success = 1;
-    GenerateBridgeClientError error = 2;
+    GenerateMcpClientSuccess success = 1;
+    GenerateMcpClientError error = 2;
   }
 }
 
-message GenerateBridgeClientSuccess {
+message GenerateMcpClientSuccess {
   string message = 1;
 }
 
-message GenerateBridgeClientError {
+message GenerateMcpClientError {
   string message = 1;
 }
 

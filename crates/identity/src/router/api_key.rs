@@ -37,6 +37,10 @@ pub fn create_api_key_routes() -> OpenApiRouter<IdentityService> {
         (status = 400, description = "Invalid request", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_create_api_key(
     State(service): State<IdentityService>,
@@ -73,6 +77,10 @@ async fn route_create_api_key(
         (status = 404, description = "API key not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_delete_api_key(
     State(service): State<IdentityService>,
@@ -108,6 +116,10 @@ async fn route_delete_api_key(
         (status = 200, description = "List of API keys", body = ListApiKeysResponse),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_api_keys(
     State(service): State<IdentityService>,
@@ -138,6 +150,10 @@ async fn route_list_api_keys(
         (status = 400, description = "Invalid request", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_import_api_key(
     State(service): State<IdentityService>,

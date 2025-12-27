@@ -27,7 +27,7 @@ function RouteComponent() {
 	// Query available providers
 	const { data: availableProviders } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/available-providers",
+		"/api/mcp/v1/available-providers",
 		{
 			params: {
 				query: {
@@ -53,7 +53,7 @@ function RouteComponent() {
 	// Query existing provider instances for this provider type (status=active)
 	const { data: providerInstancesData } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/provider",
+		"/api/mcp/v1/provider",
 		{
 			params: {
 				query: {

@@ -1,5 +1,5 @@
 pub mod agent;
-pub mod bridge;
+pub mod mcp;
 pub mod environment_variable;
 pub mod environment_variable_sync;
 pub mod identity;

@@ -220,7 +220,7 @@ function EnableFunctionsPage() {
 		isFetching: isFetchingFunctions,
 	} = $api.useQuery(
 		"get",
-		"/api/bridge/v1/provider/grouped-by-function",
+		"/api/mcp/v1/provider/grouped-by-function",
 		{
 			params: {
 				query: {
@@ -243,7 +243,7 @@ function EnableFunctionsPage() {
 	// Query available providers to get the list for filter dropdown
 	const { data: availableProvidersData } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/available-providers",
+		"/api/mcp/v1/available-providers",
 		{
 			params: {
 				query: {

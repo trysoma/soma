@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 a2a-rs.workspace = true
-bridge.workspace = true
+mcp.workspace = true
 encryption.workspace = true
 anyhow.workspace = true
 axum.workspace = true

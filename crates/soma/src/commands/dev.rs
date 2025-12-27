@@ -17,10 +17,9 @@ use shared::error::CommonError;
 use shared::port::find_free_port;
 use shared::soma_agent_definition::{SomaAgentDefinitionLike, YamlSomaAgentDefinition};
 
-use crate::bridge::run_bridge_sync_to_yaml_loop;
-use crate::server::{StartAxumServerParams, start_axum_server};
-use crate::utils::wait_for_soma_api_health_check;
-use crate::utils::{CliConfig, construct_cwd_absolute};
+use crate::mcp::run_mcp_sync_to_yaml_loop;
+use crate::server::start_axum_server;
+use crate::utils::{CliConfig, construct_cwd_absolute, create_and_wait_for_api_client};
 use shared::process_manager::CustomProcessManager;
 use soma_api_server::factory::{CreateApiServiceParams, create_api_service};
 use soma_api_server::restate::{
@@ -108,30 +107,39 @@ pub async fn cmd_dev(params: DevParams, cli_config: &mut CliConfig) -> Result<()
     });
 
     // Wait for one of: Ctrl+C, cmd_dev_inner to complete/error, or shutdown notification
+    let cmd_result: Result<(), CommonError>;
+
     let shutdown_reason = tokio::select! {
-        biased;  // Check ctrl_c first
+        biased;
 
         _ = tokio::signal::ctrl_c() => {
             debug!("Shutdown signal received (Ctrl+C)");
+            cmd_result = Ok(());
             "ctrl_c"
         }
+
         _ = &mut shutdown_notifier_rx => {
             debug!("Process manager triggered shutdown");
+            cmd_result = Ok(());
             "notifier"
         }
+
         result = &mut cmd_dev_inner_handle => {
             match result {
                 Ok(Ok(())) => {
                     debug!("cmd_dev_inner completed successfully");
-                    return Ok(());
+                    cmd_result = Ok(());
+                    "cmd_completed"
                 }
                 Ok(Err(e)) => {
                     debug!(error = ?e, "cmd_dev_inner returned error");
-                    return Err(e);
+                    cmd_result = Err(e);
+                    "cmd_error"
                 }
                 Err(e) => {
                     debug!(error = ?e, "cmd_dev_inner panicked");
-                    return Err(CommonError::Unknown(anyhow::anyhow!("{e:?}")));
+                    cmd_result = Err(CommonError::Unknown(anyhow::anyhow!("{e:?}")));
+                    "cmd_panic"
                 }
             }
         }
@@ -139,18 +147,19 @@ pub async fn cmd_dev(params: DevParams, cli_config: &mut CliConfig) -> Result<()
 
     debug!(reason = shutdown_reason, "Initiating shutdown sequence");
 
-    // Abort the cmd_dev_inner task since it's waiting on pending()
-    cmd_dev_inner_handle.abort();
-    let _ = cmd_dev_inner_handle.await;
+    if !matches!(shutdown_reason, "cmd_completed" | "cmd_error" | "cmd_panic") {
+        cmd_dev_inner_handle.abort();
+        let _ = cmd_dev_inner_handle.await;
+    }
 
-    // Trigger process manager shutdown
     process_manager_arc_for_shutdown.trigger_shutdown().await?;
     process_manager_arc_for_shutdown
         .on_shutdown_complete()
         .await?;
 
     debug!("Shutdown complete");
-    Ok(())
+
+    cmd_result
 }
 
 /// Inner implementation of the dev command
@@ -300,21 +309,21 @@ async fn cmd_dev_inner(
     bar.finish_and_clear();
     trace!("API server started");
 
-    // Start bridge config change listener (uses unified change channel from factory)
-    trace!("Starting bridge config change listener...");
-    let soma_definition_for_bridge = soma_definition.clone();
-    let project_dir_for_bridge = project_dir.clone();
+    // Start MCP config change listener (uses unified change channel from factory)
+    trace!("Starting MCP config change listener...");
+    let soma_definition_for_mcp = soma_definition.clone();
+    let project_dir_for_mcp = project_dir.clone();
     let soma_change_rx = api_service_bundle.soma_change_tx.subscribe();
     process_manager
         .start_thread(
-            "bridge_sync_to_yaml",
+            "mcp_sync_to_yaml",
             shared::process_manager::ThreadConfig {
                 spawn_fn: move || {
-                    let soma_definition = soma_definition_for_bridge.clone();
-                    let project_dir = project_dir_for_bridge.clone();
+                    let soma_definition = soma_definition_for_mcp.clone();
+                    let project_dir = project_dir_for_mcp.clone();
                     let soma_change_rx = soma_change_rx.resubscribe();
                     tokio::spawn(async move {
-                        run_bridge_sync_to_yaml_loop(soma_definition, project_dir, soma_change_rx)
+                        run_mcp_sync_to_yaml_loop(soma_definition, project_dir, soma_change_rx)
                             .await
                     })
                 },
@@ -328,87 +337,30 @@ async fn cmd_dev_inner(
             },
         )
         .await
-        .inspect_err(|e| error!(error = %e, "Failed to start bridge sync to YAML thread"))?;
-    trace!("Bridge config change listener started");
+        .inspect_err(|e| error!(error = %e, "Failed to start MCP sync to YAML thread"))?;
+    trace!("MCP config change listener started");
     let api_service = api_service_bundle.api_service;
 
     // Start Axum server subsystem
-    let api_service_clone = api_service.clone();
-    let host_clone = params.host.clone();
-    let port_clone = params.port;
-
-    let axum_server_result = match start_axum_server(StartAxumServerParams {
-        api_service: api_service_clone,
-        host: host_clone,
-        port: port_clone,
+    start_axum_server(crate::server::StartAxumServerParams {
+        api_service: api_service.clone(),
+        host: params.host.clone(),
+        port: params.port,
+        process_manager: process_manager.clone(),
     })
     .await
-    {
-        Ok(result) => result,
-        Err(e) => {
-            error!("Failed to start Axum server: {:?}", e);
-            return Err(e);
-        }
-    };
+    .inspect_err(|e| {
+        error!("Failed to start Axum server: {:?}", e);
+    })?;
 
-    // Register axum server with process manager
-    let on_shutdown_triggered = axum_server_result.on_shutdown_triggered;
-    let on_shutdown_complete = axum_server_result.on_shutdown_complete;
-
-    // Start the server future in a separate task (not managed by process manager since it's a one-shot)
-    let server_fut = axum_server_result.server_fut;
-    tokio::spawn(async move {
-        let res = server_fut.await;
-        match res {
-            Ok(()) => trace!("Axum server stopped"),
-            Err(e) => error!(error = ?e, "Axum server stopped with error"),
-        }
-    });
-
-    process_manager
-        .start_thread(
-            "axum_server",
-            shared::process_manager::ThreadConfig {
-                spawn_fn: move || {
-                    // This thread just waits forever since the server is running in a separate task
-                    tokio::spawn(async move {
-                        futures::future::pending::<Result<(), CommonError>>().await
-                    })
-                },
-                health_check: None,
-                on_terminal_stop: shared::process_manager::OnTerminalStop::TriggerShutdown,
-                on_stop: shared::process_manager::OnStop::Nothing,
-                shutdown_priority: 9,
-                follow_logs: false,
-                on_shutdown_triggered: Some(on_shutdown_triggered),
-                on_shutdown_complete: Some(on_shutdown_complete),
-            },
-        )
-        .await
-        .inspect_err(
-            |e| error!(error = %e, "Failed to register axum server with process manager"),
-        )?;
-
-    // Create API client configuration for the soma API server
+    // Create API client configuration for the soma API server and exchange STS token
     let api_base_url = format!("http://{}:{}", params.host, params.port);
-    let api_config = crate::utils::create_api_client_config(&api_base_url);
-
-    // Wait for API service to be ready
     bar = ProgressBar::new_spinner();
     bar.enable_steady_tick(Duration::from_millis(100));
     bar.set_message("Synchronizing soma.yaml on server start");
-    trace!("Waiting for API service");
-    wait_for_soma_api_health_check(&api_config, 30, 10).await?;
+    trace!("Waiting for API service and exchanging STS token");
+    let api_config = create_and_wait_for_api_client(&api_base_url, 30, Some(api_service_bundle.bootstrap_api_key)).await?;
     trace!("API service ready");
-    // Sync bridge from soma definition (now all providers should be available)
-    trace!("Syncing bridge from soma.yaml");
-    crate::bridge::sync_yaml_to_api_on_start::sync_bridge_db_from_soma_definition_on_start(
-        &api_config,
-        &soma_definition,
-    )
-    .await?;
-    trace!("Bridge sync completed");
-
     // Enable dev mode STS config for development
     trace!("Enabling dev mode STS configuration");
     let dev_sts_result = enable_dev_mode_sts(&api_config).await;
@@ -416,16 +368,26 @@ async fn cmd_dev_inner(
         Ok(()) => trace!("Dev mode STS configuration enabled"),
         Err(e) => debug!(error = ?e, "Failed to enable dev mode STS configuration, continuing"),
     }
+    // Sync MCP from soma definition (now all providers should be available)
+    trace!("Syncing MCP from soma.yaml");
+    crate::mcp::sync_yaml_to_api_on_start::sync_mcp_db_from_soma_definition_on_start(
+        &api_config,
+        &soma_definition,
+    )
+    .await?;
+    trace!("MCP sync completed");
 
-    // Give SDK server time to fully initialize its gRPC handlers after bridge sync
-    // This ensures that secrets/env vars created during bridge sync can be synced properly
-    trace!("Waiting for SDK server after bridge sync");
+    
+
+    // Give SDK server time to fully initialize its gRPC handlers after mcp sync
+    // This ensures that secrets/env vars created during mcp sync can be synced properly
+    trace!("Waiting for SDK server after mcp sync");
     tokio::time::sleep(Duration::from_millis(1000)).await;
 
     // Reload soma definition (with error handling to avoid crashes on race conditions)
     if let Err(e) = soma_definition.reload().await {
         error!(
-            "Failed to reload soma definition after bridge sync: {:?}. Continuing with cached definition.",
+            "Failed to reload soma definition after mcp sync: {:?}. Continuing with cached definition.",
             e
         );
         // Don't fail the entire process - the cached definition should still be valid
@@ -464,11 +426,10 @@ async fn enable_dev_mode_sts(
 ) -> Result<(), CommonError> {
     use soma_api_client::apis::identity_api;
     use soma_api_client::models;
-
     const DEV_MODE_STS_ID: &str = "dev";
 
     // Check if dev mode STS config already exists
-    let existing_configs = identity_api::route_list_sts_configs(api_config, 100, None)
+    let existing_configs = identity_api::route_list_sts_configs(&api_config, 100, None)
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to list STS configs: {e:?}")))?;
 
@@ -489,7 +450,7 @@ async fn enable_dev_mode_sts(
         },
     });
 
-    identity_api::route_create_sts_config(api_config, params)
+    identity_api::route_create_sts_config(&api_config, params)
         .await
         .map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!(

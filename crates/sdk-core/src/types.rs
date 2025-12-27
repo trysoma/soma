@@ -109,7 +109,7 @@ pub struct InvokeFunctionResponse {
 }
 
 pub struct MetadataResponse {
-    pub bridge_providers: Vec<ProviderController>,
+    pub mcp_providers: Vec<ProviderController>,
     pub agents: Vec<Agent>,
 }
 
@@ -460,8 +460,8 @@ impl From<InvokeFunctionResponse> for sdk_proto::InvokeFunctionResponse {
 impl From<MetadataResponse> for sdk_proto::MetadataResponse {
     fn from(response: MetadataResponse) -> Self {
         Self {
-            bridge_providers: response
-                .bridge_providers
+            mcp_providers: response
+                .mcp_providers
                 .into_iter()
                 .map(Into::into)
                 .collect(),

@@ -82,7 +82,7 @@ pub async fn cmd_api_key_add(
     }
 
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     // Convert role string to enum
     let role_enum = match role.to_lowercase().as_str() {
@@ -123,7 +123,7 @@ pub async fn cmd_api_key_rm(
     timeout_secs: u64,
 ) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     debug!("Deleting API key: {}", id);
     identity_api::route_delete_api_key(&api_config, &id)
@@ -138,7 +138,7 @@ pub async fn cmd_api_key_rm(
 
 pub async fn cmd_api_key_list(api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     // Fetch all API keys with pagination
     let mut all_api_keys: Vec<models::HashedApiKey> = Vec::new();

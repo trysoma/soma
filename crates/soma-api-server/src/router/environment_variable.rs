@@ -56,6 +56,11 @@ pub fn create_router() -> OpenApiRouter<Arc<EnvironmentVariableService>> {
     summary = "Create environment variable",
     description = "Create a new environment variable with the specified key and value",
     operation_id = "create-environment-variable",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_create_environment_variable(
     State(ctx): State<Arc<EnvironmentVariableService>>,
@@ -92,6 +97,11 @@ async fn route_create_environment_variable(
     summary = "Import environment variable",
     description = "Import an existing environment variable into the system",
     operation_id = "import-environment-variable",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_import_environment_variable(
     State(ctx): State<Arc<EnvironmentVariableService>>,
@@ -123,6 +133,11 @@ async fn route_import_environment_variable(
     summary = "List environment variables",
     description = "List all environment variables with pagination",
     operation_id = "list-environment-variables",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_environment_variables(
     State(ctx): State<Arc<EnvironmentVariableService>>,
@@ -158,6 +173,11 @@ async fn route_list_environment_variables(
     summary = "Get environment variable",
     description = "Retrieve an environment variable by its unique identifier",
     operation_id = "get-environment-variable-by-id",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_get_environment_variable_by_id(
     State(ctx): State<Arc<EnvironmentVariableService>>,
@@ -190,6 +210,11 @@ async fn route_get_environment_variable_by_id(
     summary = "Get environment variable by key",
     description = "Retrieve an environment variable by its key name",
     operation_id = "get-environment-variable-by-key",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_get_environment_variable_by_key(
     State(ctx): State<Arc<EnvironmentVariableService>>,
@@ -223,6 +248,11 @@ async fn route_get_environment_variable_by_key(
     summary = "Update environment variable",
     description = "Update an existing environment variable's value",
     operation_id = "update-environment-variable",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_update_environment_variable(
     State(ctx): State<Arc<EnvironmentVariableService>>,
@@ -264,6 +294,11 @@ async fn route_update_environment_variable(
     summary = "Delete environment variable",
     description = "Delete an environment variable by its unique identifier",
     operation_id = "delete-environment-variable",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_delete_environment_variable(
     State(ctx): State<Arc<EnvironmentVariableService>>,

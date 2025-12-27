@@ -1,4 +1,4 @@
-mod bridge;
+mod mcp;
 mod cli;
 mod commands;
 mod restate_server;

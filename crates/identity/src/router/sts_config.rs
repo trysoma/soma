@@ -8,6 +8,7 @@ use shared::{
     error::CommonError,
 };
 use tracing::trace;
+use utoipa::openapi::security::SecurityScheme;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::sts::config::{
@@ -38,6 +39,10 @@ pub fn create_sts_config_routes() -> OpenApiRouter<IdentityService> {
     ),
     summary = "Create STS configuration",
     description = "Create a new STS configuration (e.g., JWT template or dev settings)",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_create_sts_config(
     State(service): State<IdentityService>,
@@ -77,6 +82,10 @@ async fn route_create_sts_config(
     ),
     summary = "Get STS configuration",
     description = "Get an STS configuration by ID",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_get_sts_config(
     State(service): State<IdentityService>,
@@ -115,6 +124,10 @@ async fn route_get_sts_config(
     ),
     summary = "Delete STS configuration",
     description = "Delete an STS configuration by ID",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_delete_sts_config(
     State(service): State<IdentityService>,
@@ -154,6 +167,10 @@ async fn route_delete_sts_config(
     ),
     summary = "List STS configurations",
     description = "List all STS configurations with optional filtering by type",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_sts_configs(
     State(service): State<IdentityService>,

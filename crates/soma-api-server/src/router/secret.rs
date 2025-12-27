@@ -55,6 +55,11 @@ pub fn create_router() -> OpenApiRouter<Arc<SecretService>> {
     summary = "Create secret",
     description = "Create a new encrypted secret with the specified key and value",
     operation_id = "create-secret",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_create_secret(
     State(ctx): State<Arc<SecretService>>,
@@ -89,6 +94,11 @@ async fn route_create_secret(
     summary = "Import secret",
     description = "Import an existing pre-encrypted secret into the system",
     operation_id = "import-secret",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_import_secret(
     State(ctx): State<Arc<SecretService>>,
@@ -117,6 +127,11 @@ async fn route_import_secret(
     summary = "List secrets",
     description = "List all secrets with pagination (values are encrypted)",
     operation_id = "list-secrets",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_secrets(
     State(ctx): State<Arc<SecretService>>,
@@ -145,6 +160,11 @@ async fn route_list_secrets(
     summary = "List decrypted secrets",
     description = "List all secrets with decrypted values (requires decryption access)",
     operation_id = "list-decrypted-secrets",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_decrypted_secrets(
     State(ctx): State<Arc<SecretService>>,
@@ -178,6 +198,11 @@ async fn route_list_decrypted_secrets(
     summary = "Get secret",
     description = "Retrieve a secret by its unique identifier",
     operation_id = "get-secret-by-id",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_get_secret_by_id(
     State(ctx): State<Arc<SecretService>>,
@@ -207,6 +232,11 @@ async fn route_get_secret_by_id(
     summary = "Get secret by key",
     description = "Retrieve a secret by its key name",
     operation_id = "get-secret-by-key",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_get_secret_by_key(
     State(ctx): State<Arc<SecretService>>,
@@ -237,6 +267,11 @@ async fn route_get_secret_by_key(
     summary = "Update secret",
     description = "Update an existing secret's value or metadata",
     operation_id = "update-secret",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_update_secret(
     State(ctx): State<Arc<SecretService>>,
@@ -276,6 +311,11 @@ async fn route_update_secret(
     summary = "Delete secret",
     description = "Delete a secret by its unique identifier",
     operation_id = "delete-secret",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_delete_secret(
     State(ctx): State<Arc<SecretService>>,

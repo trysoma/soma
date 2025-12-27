@@ -6,40 +6,21 @@ encryption:
       deks:
         default:
           encrypted_key: FI0PVbrw/x3+zhrwWY77RI8FFwYttLkVdhL3Ck2jIEhbsBjeZs7/6fm37C6Zahw5IpaGAILI/A2ecaC0
-bridge:
+mcp:
   providers:
-    10becd30-85f9-49cc-837b-2e2550c42536:
-      provider_controller_type_id: stripe
-      credential_controller_type_id: api_key
-      display_name: internal-2
-      resource_server_credential:
-        id: 2f7a8e4b-18c1-4ff7-b18a-afb8d58981b8
-        type_id: resource_server_api_key
-        metadata: {}
-        value:
-          api_key: 1WTkjBmqtQQfTtT6HJdbopoc2Y1fVMRYwFFe8pgYgA==
-          metadata: {}
-        dek_alias: default
-      user_credential:
-        id: b4a51aac-7b14-40d5-a8e6-afc2365b4240
-        type_id: user_api_key
-        metadata: {}
-        value:
-          metadata: {}
-        dek_alias: default
     1b8c7dd2-45a9-4c82-8a9f-69cdb732883e:
       provider_controller_type_id: approve-claim
       credential_controller_type_id: no_auth
       display_name: internal
       resource_server_credential:
-        id: 043cc460-0a24-4e3d-a767-5da0c4f86251
+        id: 8c66af73-5eaa-4de7-8e8c-d87a7011526b
         type_id: resource_server_no_auth
         metadata: {}
         value:
           metadata: {}
         dek_alias: default
       user_credential:
-        id: 4d836401-7a62-490c-ad0b-e44853f2015c
+        id: 0a2f4955-61e7-45f5-9a24-f314f7b93917
         type_id: user_no_auth
         metadata: {}
         value:
@@ -52,14 +33,14 @@ bridge:
       credential_controller_type_id: no_auth
       display_name: internal
       resource_server_credential:
-        id: ff121e38-9b80-41f2-94c6-e6de07a858ac
+        id: 0be234f4-5a7b-472b-bbbc-d5f22f3308fb
         type_id: resource_server_no_auth
         metadata: {}
         value:
           metadata: {}
         dek_alias: default
       user_credential:
-        id: 17f1d1c3-ee07-4aa5-a1d8-bad25f6afcff
+        id: 356778de-9795-4de5-872a-99f075cf63ec
         type_id: user_no_auth
         metadata: {}
         value:
@@ -67,31 +48,7 @@ bridge:
         dek_alias: default
       functions:
       - research-claim
-    da61de4c-3363-467e-bcf9-977a668aeb1d:
-      provider_controller_type_id: stripe
-      credential_controller_type_id: api_key
-      display_name: internal-2
-      resource_server_credential:
-        id: 80aa5e44-4797-49e8-8bbd-2a79c31f0d8c
-        type_id: resource_server_api_key
-        metadata: {}
-        value:
-          api_key: iQlWnMi/17uVCowW8STvMRJrgvRbV8v3tmuRnGmtUQ==
-          metadata: {}
-        dek_alias: default
-      user_credential:
-        id: fb7b50f3-5174-4369-b063-0b96c40c0196
-        type_id: user_api_key
-        metadata: {}
-        value:
-          metadata: {}
-        dek_alias: default
-      functions:
-      - stripe_process_refund
   mcp_servers:
-    test-3:
-      name: test-3
-      functions: []
     test:
       name: test
       functions:
@@ -105,6 +62,9 @@ bridge:
         function_name: research_claim
     test-2:
       name: test-2
+      functions: []
+    test-3:
+      name: test-3
       functions: []
 secrets:
   OPENAI_API_KEY:

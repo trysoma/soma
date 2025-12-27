@@ -17,10 +17,10 @@ impl PythonCodeGenerator {
 
 #[tonic::async_trait]
 impl core_types::SdkCodeGenerator for PythonCodeGenerator {
-    async fn generate_bridge_client(
+    async fn generate_mcp_client(
         &self,
-        request: core_types::GenerateBridgeClientRequest,
-    ) -> Result<core_types::GenerateBridgeClientResponse, CommonError> {
+        request: core_types::GenerateMcpClientRequest,
+    ) -> Result<core_types::GenerateMcpClientResponse, CommonError> {
         tracing::trace!(
             functions = request.function_instances.len(),
             agents = request.agents.len(),
@@ -95,17 +95,17 @@ impl core_types::SdkCodeGenerator for PythonCodeGenerator {
             })?;
         }
 
-        // Generate and write bridge.py
+        // Generate and write mcp.py
         let python_code = codegen::generate_python_code_from_api_data(&function_instances)
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to generate Python code: {e}"))
             })?;
 
-        let bridge_path = soma_dir.join("bridge.py");
-        std::fs::write(&bridge_path, python_code).map_err(|e| {
-            CommonError::Unknown(anyhow::anyhow!("Failed to write bridge client file: {e}"))
+        let mcp_path = soma_dir.join("mcp.py");
+        std::fs::write(&mcp_path, python_code).map_err(|e| {
+            CommonError::Unknown(anyhow::anyhow!("Failed to write mcp client file: {e}"))
         })?;
-        tracing::debug!(path = %bridge_path.display(), "Bridge client generated");
+        tracing::debug!(path = %mcp_path.display(), "MCP client generated");
 
         // Generate and write agents.py (only if there are agents)
         if !agents.is_empty() {
@@ -120,11 +120,11 @@ impl core_types::SdkCodeGenerator for PythonCodeGenerator {
             tracing::debug!(path = %agents_path.display(), "Agents client generated");
         }
 
-        Ok(core_types::GenerateBridgeClientResponse {
-            result: Some(sdk_proto::generate_bridge_client_response::Result::Success(
-                sdk_proto::GenerateBridgeClientSuccess {
+        Ok(core_types::GenerateMcpClientResponse {
+            result: Some(sdk_proto::generate_mcp_client_response::Result::Success(
+                sdk_proto::GenerateMcpClientSuccess {
                     message: format!(
-                        "Python bridge and agents generated successfully at {}",
+                        "Python mcp and agents generated successfully at {}",
                         soma_dir.display()
                     ),
                 },

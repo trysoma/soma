@@ -36,6 +36,10 @@ pub fn create_jwk_routes() -> OpenApiRouter<IdentityService> {
         (status = 404, description = "JWK not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_invalidate_jwk(
     State(service): State<IdentityService>,
@@ -69,6 +73,10 @@ async fn route_invalidate_jwk(
         (status = 200, description = "List of JWKs", body = ListJwksResponse),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_jwks(
     State(service): State<IdentityService>,
@@ -97,6 +105,11 @@ async fn route_list_jwks(
         (status = 200, description = "JWKS (JSON Web Key Set)", body = GetJwksResponse),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_get_jwks(
     State(service): State<IdentityService>,

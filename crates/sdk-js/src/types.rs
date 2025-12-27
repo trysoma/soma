@@ -98,7 +98,7 @@ pub struct InvokeFunctionResponse {
 }
 
 #[napi(object)]
-pub struct GenerateBridgeClientRequest {
+pub struct GenerateMcpClientRequest {
     pub function_instances: Vec<FunctionInstanceData>,
 }
 
@@ -125,18 +125,18 @@ pub struct FunctionControllerData {
 }
 
 #[napi(object)]
-pub struct GenerateBridgeClientResponse {
-    pub success: Option<GenerateBridgeClientSuccess>,
-    pub error: Option<GenerateBridgeClientError>,
+pub struct GenerateMcpClientResponse {
+    pub success: Option<GenerateMcpClientSuccess>,
+    pub error: Option<GenerateMcpClientError>,
 }
 
 #[napi(object)]
-pub struct GenerateBridgeClientSuccess {
+pub struct GenerateMcpClientSuccess {
     pub message: String,
 }
 
 #[napi(object)]
-pub struct GenerateBridgeClientError {
+pub struct GenerateMcpClientError {
     pub message: String,
 }
 

@@ -34,7 +34,7 @@ function RouteComponent() {
 	// Query available providers to get function schema
 	const { data: availableProviders } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/available-providers",
+		"/api/mcp/v1/available-providers",
 		{
 			params: {
 				query: {
@@ -66,7 +66,7 @@ function RouteComponent() {
 	// Query enabled provider instances for this function
 	const { data: enabledInstancesData } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/provider/grouped-by-function",
+		"/api/mcp/v1/provider/grouped-by-function",
 		{
 			params: {
 				query: {
@@ -93,7 +93,7 @@ function RouteComponent() {
 	// Invoke function mutation
 	const invokeMutation = $api.useMutation(
 		"post",
-		"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke",
+		"/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke",
 	);
 
 	// Parse the JSON schema for function parameters

@@ -7,9 +7,9 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
-use soma_api_client::apis::configuration::Configuration as ApiClientConfiguration;
+use soma_api_client::apis::configuration::{ApiKey, Configuration as ApiClientConfiguration};
 use tokio::sync::{Mutex, MutexGuard};
-use tracing::debug;
+use tracing::{debug, info};
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct CliUser {
@@ -142,25 +142,6 @@ pub fn construct_cwd_absolute(cwd: Option<PathBuf>) -> Result<PathBuf, CommonErr
     Ok(cwd)
 }
 
-/// Creates an API client configuration for the given base URL
-///
-/// # Arguments
-/// * `base_url` - The base URL of the API server (e.g., "http://localhost:3000")
-///
-/// # Returns
-/// * API client configuration ready to use with soma_api_client functions
-pub fn create_api_client_config(base_url: &str) -> ApiClientConfiguration {
-    ApiClientConfiguration {
-        base_path: base_url.to_string(),
-        user_agent: Some("soma-cli".to_string()),
-        client: reqwest::Client::new(),
-        basic_auth: None,
-        oauth_access_token: None,
-        bearer_access_token: None,
-        api_key: None,
-    }
-}
-
 /// Creates an API client configuration and waits for the API server to be ready
 ///
 /// # Arguments
@@ -173,8 +154,9 @@ pub fn create_api_client_config(base_url: &str) -> ApiClientConfiguration {
 pub async fn create_and_wait_for_api_client(
     api_url: &str,
     timeout_secs: u64,
+    bootstrap_api_key: Option<String>,
 ) -> Result<ApiClientConfiguration, CommonError> {
-    use soma_api_client::apis::agent_api;
+    use soma_api_client::apis::{internal_api, identity_api};
     use std::time::Duration;
 
     // Create HTTP client
@@ -183,8 +165,9 @@ pub async fn create_and_wait_for_api_client(
         .build()
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create HTTP client: {e}")))?;
 
+   
     // Create API config for health check
-    let api_config = ApiClientConfiguration {
+    let mut api_config = ApiClientConfiguration {
         base_path: api_url.to_string(),
         user_agent: Some("soma-cli".to_string()),
         client: client.clone(),
@@ -201,7 +184,7 @@ pub async fn create_and_wait_for_api_client(
     let mut connected = false;
 
     for attempt in 1..=max_retries {
-        match agent_api::list_agents(&api_config).await {
+        match internal_api::health_check(&api_config).await {
             Ok(_) => {
                 tracing::debug!("Connected to Soma API server");
                 connected = true;
@@ -225,6 +208,22 @@ pub async fn create_and_wait_for_api_client(
         return Err(CommonError::Unknown(anyhow::anyhow!(
             "Failed to connect to Soma API server. Please ensure 'soma dev' is running at {api_url}"
         )));
+    }
+
+    if let Some(bootstrap_api_key) = bootstrap_api_key {
+        api_config.api_key = Some(ApiKey {
+            key: bootstrap_api_key,
+            prefix: None,
+        });
+    }
+    else {
+        let token = identity_api::route_exchange_sts_token(&api_config, "dev") .await
+        .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to exchange STS token: {e:?}")))?;
+        let access_token = token.access_token.clone();
+        debug!("STS token exchanged");
+    
+        api_config.bearer_access_token = Some(access_token);
+    
     }
 
     Ok(api_config)

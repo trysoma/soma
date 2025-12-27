@@ -3,8 +3,8 @@ use shared::error::CommonError;
 use std::collections::HashMap;
 use tera::{Context, Tera};
 
-/// Python bridge template loaded at compile time
-const BRIDGE_TEMPLATE: &str = include_str!("bridge.py.tera");
+/// Python mcp template loaded at compile time
+const MCP_TEMPLATE: &str = include_str!("mcp.py.tera");
 
 /// Python agents template loaded at compile time
 const AGENTS_TEMPLATE: &str = include_str!("agents.py.tera");
@@ -208,14 +208,14 @@ pub fn generate_python_code_from_api_data(
 
     // Create Tera instance and render template
     let mut tera = Tera::default();
-    tera.add_raw_template("bridge", BRIDGE_TEMPLATE)
+    tera.add_raw_template("mcp", MCP_TEMPLATE)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to add template: {e}")))?;
 
     let mut context = Context::new();
     context.insert("providers", &providers);
 
     let rendered = tera
-        .render("bridge", &context)
+        .render("mcp", &context)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to render template: {e}")))?;
 
     Ok(rendered)

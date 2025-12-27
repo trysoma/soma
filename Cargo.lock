@@ -1052,49 +1052,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
 
 [[package]]
-name = "bridge"
-version = "0.0.6"
-dependencies = [
- "anyhow",
- "arc-swap",
- "async-trait",
- "axum 0.8.7",
- "base64 0.22.1",
- "chrono",
- "ctor",
- "encryption",
- "enum_dispatch",
- "futures",
- "http 1.4.0",
- "identity",
- "jsonwebtoken",
- "libsql",
- "once_cell",
- "paste",
- "rand 0.8.5",
- "reqwest",
- "rmcp",
- "schemars 1.1.0",
- "serde",
- "serde_json",
- "sha2",
- "shared",
- "shared-macros",
- "tempfile",
- "thiserror 2.0.17",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tower-http 0.6.7",
- "tracing",
- "urlencoding",
- "utoipa",
- "utoipa-axum",
- "uuid",
- "workspace-hack",
-]
-
-[[package]]
 name = "bstr"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3874,6 +3831,49 @@ name = "matchit"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
+
+[[package]]
+name = "mcp"
+version = "0.0.6"
+dependencies = [
+ "anyhow",
+ "arc-swap",
+ "async-trait",
+ "axum 0.8.7",
+ "base64 0.22.1",
+ "chrono",
+ "ctor",
+ "encryption",
+ "enum_dispatch",
+ "futures",
+ "http 1.4.0",
+ "identity",
+ "jsonwebtoken",
+ "libsql",
+ "once_cell",
+ "paste",
+ "rand 0.8.5",
+ "reqwest",
+ "rmcp",
+ "schemars 1.1.0",
+ "serde",
+ "serde_json",
+ "sha2",
+ "shared",
+ "shared-macros",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tower-http 0.6.7",
+ "tracing",
+ "urlencoding",
+ "utoipa",
+ "utoipa-axum",
+ "uuid",
+ "workspace-hack",
+]
 
 [[package]]
 name = "memchr"
@@ -6836,7 +6836,6 @@ dependencies = [
  "axum 0.8.7",
  "axum-server",
  "base64 0.22.1",
- "bridge",
  "chrono",
  "clap",
  "clap_complete",
@@ -6855,6 +6854,7 @@ dependencies = [
  "indicatif",
  "inquire",
  "libsql",
+ "mcp",
  "notify 8.2.0",
  "notify-debouncer-full 0.6.0",
  "pmdaemon",
@@ -6914,7 +6914,6 @@ dependencies = [
  "axum 0.8.7",
  "axum-server",
  "base64 0.22.1",
- "bridge",
  "chrono",
  "clap",
  "clap_complete",
@@ -6929,6 +6928,7 @@ dependencies = [
  "hyper-util",
  "identity",
  "libsql",
+ "mcp",
  "notify 8.2.0",
  "notify-debouncer-full 0.6.0",
  "rand 0.8.5",

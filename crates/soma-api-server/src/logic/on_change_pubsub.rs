@@ -1,4 +1,4 @@
-use bridge::logic::OnConfigChangeEvt as BridgeOnConfigChangeEvt;
+use mcp::logic::OnConfigChangeEvt as McpOnConfigChangeEvt;
 use encryption::logic::EncryptionKeyEvent;
 use identity::logic::OnConfigChangeEvt as IdentityOnConfigChangeEvt;
 use tokio::sync::broadcast;
@@ -7,8 +7,8 @@ use tracing::{debug, warn};
 use crate::logic::environment_variable::EnvironmentVariable;
 use crate::logic::secret::Secret;
 
-/// Re-export bridge events as BridgeEvt
-pub type BridgeEvt = BridgeOnConfigChangeEvt;
+/// Re-export mcp events as McpEvt
+pub type McpEvt = McpOnConfigChangeEvt;
 
 /// Re-export encryption events as EncryptionEvt
 pub type EncryptionEvt = EncryptionKeyEvent;
@@ -56,7 +56,7 @@ pub fn create_environment_variable_change_channel(
 #[derive(Clone, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum SomaChangeEvt {
-    Bridge(BridgeEvt),
+    Mcp(McpEvt),
     Encryption(EncryptionEvt),
     Secret(SecretChangeEvt),
     EnvironmentVariable(EnvironmentVariableChangeEvt),
@@ -72,11 +72,11 @@ pub fn create_soma_change_channel(capacity: usize) -> (SomaChangeTx, SomaChangeR
     broadcast::channel(capacity)
 }
 
-/// Starts the unified change pubsub system that forwards bridge, encryption, secret, environment variable, and identity events to the unified channel.
+/// Starts the unified change pubsub system that forwards mcp, encryption, secret, environment variable, and identity events to the unified channel.
 /// This function runs indefinitely until aborted by the process manager.
 pub async fn run_change_pubsub(
     soma_change_tx: SomaChangeTx,
-    mut bridge_change_rx: bridge::logic::OnConfigChangeRx,
+    mut mcp_change_rx: mcp::logic::OnConfigChangeRx,
     mut encryption_change_rx: encryption::logic::EncryptionKeyEventReceiver,
     mut secret_change_rx: SecretChangeRx,
     mut environment_variable_change_rx: EnvironmentVariableChangeRx,
@@ -86,21 +86,21 @@ pub async fn run_change_pubsub(
 
     loop {
         tokio::select! {
-            // Forward bridge events
-            event = bridge_change_rx.recv() => {
+            // Forward mcp events
+            event = mcp_change_rx.recv() => {
                 match event {
-                    Ok(bridge_evt) => {
-                        let soma_evt = SomaChangeEvt::Bridge(bridge_evt);
+                    Ok(mcp_evt) => {
+                        let soma_evt = SomaChangeEvt::Mcp(mcp_evt);
                         if let Err(e) = soma_change_tx.send(soma_evt) {
-                            tracing::trace!("No receivers for bridge event: {:?}", e);
+                            tracing::trace!("No receivers for mcp event: {:?}", e);
                         }
                     }
                     Err(broadcast::error::RecvError::Closed) => {
-                        debug!("Bridge change channel closed");
+                        debug!("MCP change channel closed");
                         break;
                     }
                     Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!(skipped, "Bridge change channel lagged");
+                        warn!(skipped, "MCP change channel lagged");
                     }
                 }
             }

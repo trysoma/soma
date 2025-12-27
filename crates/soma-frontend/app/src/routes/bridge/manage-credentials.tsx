@@ -108,7 +108,7 @@ function ManageCredentialsPage() {
 
 	// Query provider instances
 	const { data: providerInstancesData, isLoading: isLoadingInstances } =
-		$api.useQuery("get", "/api/bridge/v1/provider", {
+		$api.useQuery("get", "/api/mcp/v1/provider", {
 			params: {
 				query: {
 					page_size: 1000,
@@ -119,7 +119,7 @@ function ManageCredentialsPage() {
 	// Query available providers to get metadata
 	const { data: availableProvidersData } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/available-providers",
+		"/api/mcp/v1/available-providers",
 		{
 			params: {
 				query: {

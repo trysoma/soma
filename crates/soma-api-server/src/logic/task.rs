@@ -752,7 +752,7 @@ mod unit_test {
     async fn setup_test_repo() -> Repository {
         let (_db, conn) = setup_in_memory_database(vec![
             Repository::load_sql_migrations(),
-            bridge::repository::Repository::load_sql_migrations(),
+            mcp::repository::Repository::load_sql_migrations(),
         ])
         .await
         .unwrap();

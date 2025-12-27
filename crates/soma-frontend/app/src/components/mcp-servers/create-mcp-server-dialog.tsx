@@ -32,7 +32,7 @@ export function CreateMcpServerDialog({
 	const [name, setName] = useState("");
 	const [error, setError] = useState<string | null>(null);
 
-	const createMutation = $api.useMutation("post", "/api/bridge/v1/mcp-server");
+	const createMutation = $api.useMutation("post", "/api/mcp/v1/mcp-server");
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();

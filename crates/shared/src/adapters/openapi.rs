@@ -89,3 +89,11 @@ impl<E: Serialize + ToOwned + IntoResponse + Debug> From<Result<Redirect, E>>
         }
     }
 }
+
+
+pub const API_KEY_OPENAPI_NAME: &str = "api_key";
+// pub const API_KEY_SECURITY_SCHEME: SecurityScheme = SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue {
+//     name: API_KEY_OPENAPI_NAME, 
+//     description: Some("API key for authentication"),
+//     extensions: None,
+// }));

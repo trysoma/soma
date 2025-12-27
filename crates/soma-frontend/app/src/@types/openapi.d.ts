@@ -144,430 +144,6 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/bridge/v1/available-providers": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List providers
-		 * @description List all available provider types that can be instantiated
-		 */
-		get: operations["list-available-providers"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Create provider
-		 * @description Create a new provider instance with the specified configuration
-		 */
-		post: operations["create-provider-instance"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Create resource server credential
-		 * @description Create a new resource server credential
-		 */
-		post: operations["create-resource-server-credential"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Encrypt resource server config
-		 * @description Encrypt a resource server credential configuration before storage
-		 */
-		post: operations["encrypt-resource-server-configuration"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Create user credential
-		 * @description Create a new user credential
-		 */
-		post: operations["create-user-credential"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Start credential brokering
-		 * @description Start the OAuth flow for user credential brokering
-		 */
-		post: operations["start-user-credential-brokering"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Encrypt user credential config
-		 * @description Encrypt a user credential configuration before storage
-		 */
-		post: operations["encrypt-user-credential-configuration"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/function-instances": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List function instances
-		 * @description List all function instances with optional filtering by provider instance
-		 */
-		get: operations["list-function-instances"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/function-instances/openapi.json": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get function OpenAPI spec
-		 * @description Get the OpenAPI specification for all function instances
-		 */
-		get: operations["get-function-instances-openapi-spec"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/generic-oauth-callback": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * OAuth callback
-		 * @description Handle OAuth callback to complete user credential brokering flow
-		 */
-		get: operations["resume-user-credential-brokering"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/mcp-server": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List MCP server instances
-		 * @description List all MCP server instances with pagination
-		 */
-		get: operations["list-mcp-server-instances"];
-		put?: never;
-		/**
-		 * Create MCP server instance
-		 * @description Create a new MCP server instance with a user-provided ID
-		 */
-		post: operations["create-mcp-server-instance"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/mcp-server/{mcp_server_instance_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get MCP server instance
-		 * @description Retrieve an MCP server instance by its ID
-		 */
-		get: operations["get-mcp-server-instance"];
-		put?: never;
-		post?: never;
-		/**
-		 * Delete MCP server instance
-		 * @description Delete an MCP server instance and all its function mappings
-		 */
-		delete: operations["delete-mcp-server-instance"];
-		options?: never;
-		head?: never;
-		/**
-		 * Update MCP server instance
-		 * @description Update an MCP server instance name
-		 */
-		patch: operations["update-mcp-server-instance"];
-		trace?: never;
-	};
-	"/api/bridge/v1/mcp-server/{mcp_server_instance_id}/function": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Add function to MCP server instance
-		 * @description Add a function mapping to an MCP server instance with a custom name
-		 */
-		post: operations["add-mcp-server-instance-function"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/mcp-server/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		post?: never;
-		/**
-		 * Remove function from MCP server instance
-		 * @description Remove a function mapping from an MCP server instance
-		 */
-		delete: operations["remove-mcp-server-instance-function"];
-		options?: never;
-		head?: never;
-		/**
-		 * Update function in MCP server instance
-		 * @description Update the function name and description for a function mapping
-		 */
-		patch: operations["update-mcp-server-instance-function"];
-		trace?: never;
-	};
-	"/api/bridge/v1/provider": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List provider instances
-		 * @description List all provider instances with optional filtering by status and provider type
-		 */
-		get: operations["list-provider-instances"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/provider/grouped-by-function": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List providers by function
-		 * @description List provider instances grouped by their associated functions
-		 */
-		get: operations["list-provider-instances-grouped-by-function"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/provider/{provider_instance_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get provider
-		 * @description Retrieve a provider instance by its unique identifier
-		 */
-		get: operations["get-provider-instance"];
-		put?: never;
-		post?: never;
-		/**
-		 * Delete provider
-		 * @description Delete a provider instance by its unique identifier
-		 */
-		delete: operations["delete-provider-instance"];
-		options?: never;
-		head?: never;
-		/**
-		 * Update provider
-		 * @description Update an existing provider instance configuration
-		 */
-		patch: operations["update-provider-instance"];
-		trace?: never;
-	};
-	"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Disable function
-		 * @description Disable a function for a provider instance
-		 */
-		post: operations["disable-function"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Enable function
-		 * @description Enable a function for a provider instance
-		 */
-		post: operations["enable-function"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Invoke function
-		 * @description Invoke a function on a provider instance
-		 */
-		post: operations["invoke-function"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
 	"/api/encryption/v1/dek/alias": {
 		parameters: {
 			query?: never;
@@ -816,6 +392,118 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	"/api/identity/scim/v2/Groups": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List SCIM Groups
+		 * @description List all groups with SCIM pagination. Supports filtering by various attributes.
+		 */
+		get: operations["scim-list-groups"];
+		put?: never;
+		/**
+		 * Create SCIM Group
+		 * @description Create a new group from a SCIM Group payload. Members can be specified during creation.
+		 */
+		post: operations["scim-create-group"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/scim/v2/Groups/{group_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get SCIM Group
+		 * @description Retrieve a group by its unique identifier in SCIM format, including its members.
+		 */
+		get: operations["scim-get-group"];
+		/**
+		 * Replace SCIM Group
+		 * @description Replace a group's attributes and members with the provided SCIM Group payload (PUT operation).
+		 */
+		put: operations["scim-replace-group"];
+		post?: never;
+		/**
+		 * Delete SCIM Group
+		 * @description Delete a group by its unique identifier. This also removes all group memberships.
+		 */
+		delete: operations["scim-delete-group"];
+		options?: never;
+		head?: never;
+		/**
+		 * Patch SCIM Group
+		 * @description Partially update a group's attributes or members using SCIM PATCH operations (add, remove, replace).
+		 */
+		patch: operations["scim-patch-group"];
+		trace?: never;
+	};
+	"/api/identity/scim/v2/Users": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List SCIM Users
+		 * @description List all users with SCIM pagination. Supports filtering by various attributes.
+		 */
+		get: operations["scim-list-users"];
+		put?: never;
+		/**
+		 * Create SCIM User
+		 * @description Create a new user from a SCIM User payload. The user will be created as a federated_user type.
+		 */
+		post: operations["scim-create-user"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/scim/v2/Users/{user_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get SCIM User
+		 * @description Retrieve a user by their unique identifier in SCIM format.
+		 */
+		get: operations["scim-get-user"];
+		/**
+		 * Replace SCIM User
+		 * @description Replace a user's attributes with the provided SCIM User payload (PUT operation).
+		 */
+		put: operations["scim-replace-user"];
+		post?: never;
+		/**
+		 * Delete SCIM User
+		 * @description Delete a user by their unique identifier. This also removes the user from all groups.
+		 */
+		delete: operations["scim-delete-user"];
+		options?: never;
+		head?: never;
+		/**
+		 * Patch SCIM User
+		 * @description Partially update a user's attributes using SCIM PATCH operations (add, remove, replace).
+		 */
+		patch: operations["scim-patch-user"];
+		trace?: never;
+	};
 	"/api/identity/v1/.well-known/jwks.json": {
 		parameters: {
 			query?: never;
@@ -955,6 +643,102 @@ export interface paths {
 		put?: never;
 		post?: never;
 		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/groups": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List groups
+		 * @description List all groups with pagination
+		 */
+		get: operations["list-groups"];
+		put?: never;
+		/**
+		 * Create group
+		 * @description Create a new group with the specified name
+		 */
+		post: operations["create-group"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/groups/{group_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get group
+		 * @description Retrieve a group by its unique identifier
+		 */
+		get: operations["get-group"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete group
+		 * @description Delete a group by its unique identifier
+		 */
+		delete: operations["delete-group"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update group
+		 * @description Update a group's name
+		 */
+		patch: operations["update-group"];
+		trace?: never;
+	};
+	"/api/identity/v1/groups/{group_id}/members": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List group members
+		 * @description List all members of a group
+		 */
+		get: operations["list-group-members"];
+		put?: never;
+		/**
+		 * Add group member
+		 * @description Add a user to a group
+		 */
+		post: operations["add-group-member"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/groups/{group_id}/members/{user_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/**
+		 * Remove group member
+		 * @description Remove a user from a group
+		 */
+		delete: operations["remove-group-member"];
 		options?: never;
 		head?: never;
 		patch?: never;
@@ -1123,6 +907,502 @@ export interface paths {
 		 * @description Delete a user auth flow configuration by ID
 		 */
 		delete: operations["route_delete_user_auth_flow_config"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/users": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List users
+		 * @description List all users with pagination and optional filtering
+		 */
+		get: operations["list-users"];
+		put?: never;
+		/**
+		 * Create user
+		 * @description Create a new user with the specified attributes
+		 */
+		post: operations["create-user"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/users/{user_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get user
+		 * @description Retrieve a user by their unique identifier
+		 */
+		get: operations["get-user"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete user
+		 * @description Delete a user by their unique identifier
+		 */
+		delete: operations["delete-user"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update user
+		 * @description Update a user's attributes
+		 */
+		patch: operations["update-user"];
+		trace?: never;
+	};
+	"/api/identity/v1/users/{user_id}/groups": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List user groups
+		 * @description List all groups that a user belongs to
+		 */
+		get: operations["list-user-groups"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List providers
+		 * @description List all available provider types that can be instantiated
+		 */
+		get: operations["list-available-providers"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Create provider
+		 * @description Create a new provider instance with the specified configuration
+		 */
+		post: operations["create-provider-instance"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Create resource server credential
+		 * @description Create a new resource server credential
+		 */
+		post: operations["create-resource-server-credential"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Encrypt resource server config
+		 * @description Encrypt a resource server credential configuration before storage
+		 */
+		post: operations["encrypt-resource-server-configuration"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Create user credential
+		 * @description Create a new user credential
+		 */
+		post: operations["create-user-credential"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Start credential brokering
+		 * @description Start the OAuth flow for user credential brokering
+		 */
+		post: operations["start-user-credential-brokering"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Encrypt user credential config
+		 * @description Encrypt a user credential configuration before storage
+		 */
+		post: operations["encrypt-user-credential-configuration"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/function-instances": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List function instances
+		 * @description List all function instances with optional filtering by provider instance
+		 */
+		get: operations["list-function-instances"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/function-instances/openapi.json": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get function OpenAPI spec
+		 * @description Get the OpenAPI specification for all function instances
+		 */
+		get: operations["get-function-instances-openapi-spec"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/generic-oauth-callback": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * OAuth callback
+		 * @description Handle OAuth callback to complete user credential brokering flow
+		 */
+		get: operations["resume-user-credential-brokering"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/mcp-server": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List MCP server instances
+		 * @description List all MCP server instances with pagination
+		 */
+		get: operations["list-mcp-server-instances"];
+		put?: never;
+		/**
+		 * Create MCP server instance
+		 * @description Create a new MCP server instance with a user-provided ID
+		 */
+		post: operations["create-mcp-server-instance"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/mcp-server/{mcp_server_instance_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get MCP server instance
+		 * @description Retrieve an MCP server instance by its ID
+		 */
+		get: operations["get-mcp-server-instance"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete MCP server instance
+		 * @description Delete an MCP server instance and all its function mappings
+		 */
+		delete: operations["delete-mcp-server-instance"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update MCP server instance
+		 * @description Update an MCP server instance name
+		 */
+		patch: operations["update-mcp-server-instance"];
+		trace?: never;
+	};
+	"/api/mcp/v1/mcp-server/{mcp_server_instance_id}/function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Add function to MCP server instance
+		 * @description Add a function mapping to an MCP server instance with a custom name
+		 */
+		post: operations["add-mcp-server-instance-function"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/mcp-server/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/**
+		 * Remove function from MCP server instance
+		 * @description Remove a function mapping from an MCP server instance
+		 */
+		delete: operations["remove-mcp-server-instance-function"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update function in MCP server instance
+		 * @description Update the function name and description for a function mapping
+		 */
+		patch: operations["update-mcp-server-instance-function"];
+		trace?: never;
+	};
+	"/api/mcp/v1/provider": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List provider instances
+		 * @description List all provider instances with optional filtering by status and provider type
+		 */
+		get: operations["list-provider-instances"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/provider/grouped-by-function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List providers by function
+		 * @description List provider instances grouped by their associated functions
+		 */
+		get: operations["list-provider-instances-grouped-by-function"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/provider/{provider_instance_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get provider
+		 * @description Retrieve a provider instance by its unique identifier
+		 */
+		get: operations["get-provider-instance"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete provider
+		 * @description Delete a provider instance by its unique identifier
+		 */
+		delete: operations["delete-provider-instance"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update provider
+		 * @description Update an existing provider instance configuration
+		 */
+		patch: operations["update-provider-instance"];
+		trace?: never;
+	};
+	"/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Disable function
+		 * @description Disable a function for a provider instance
+		 */
+		post: operations["disable-function"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Enable function
+		 * @description Enable a function for a provider instance
+		 */
+		post: operations["enable-function"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Invoke function
+		 * @description Invoke a function on a provider instance
+		 */
+		post: operations["invoke-function"];
+		delete?: never;
 		options?: never;
 		head?: never;
 		patch?: never;
@@ -1368,6 +1648,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
+		AddGroupMemberRequest: {
+			/** @description User ID to add to the group */
+			user_id: string;
+		};
 		AddMcpServerInstanceFunctionRequest: {
 			function_controller_type_id: string;
 			function_description?: string | null;
@@ -1442,6 +1726,12 @@ export interface components {
 			key: string;
 			value: string;
 		};
+		CreateGroupRequest: {
+			/** @description Group ID (if not provided, a UUID will be generated) */
+			id?: string | null;
+			/** @description Group name */
+			name: string;
+		};
 		CreateMcpServerInstanceRequest: {
 			id: string;
 			name: string;
@@ -1489,6 +1779,16 @@ export interface components {
 			dek_alias: string;
 			metadata?: null | components["schemas"]["Metadata"];
 			user_credential_configuration: components["schemas"]["WrappedJsonValue"];
+		};
+		CreateUserRequest: {
+			/** @description User's email address */
+			email?: string | null;
+			/** @description User ID (if not provided, a UUID will be generated) */
+			id?: string | null;
+			/** @description User's role */
+			role: string;
+			/** @description User type: "service_principal" or "federated_user" */
+			user_type: string;
 		};
 		DataEncryptionKey: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
@@ -1665,6 +1965,30 @@ export interface components {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			/** @description When the configuration was last updated */
 			updated_at: components["schemas"]["WrappedChronoDateTime"];
+		};
+		Group: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			id: string;
+			name: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+		};
+		GroupMemberWithUser: {
+			membership: components["schemas"]["GroupMembership"];
+			user: components["schemas"]["User"];
+		};
+		GroupMemberWithUserPaginatedResponse: {
+			items: components["schemas"]["GroupMemberWithUser"][];
+			next_page_token?: string;
+		};
+		GroupMembership: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			group_id: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+			user_id: string;
+		};
+		GroupPaginatedResponse: {
+			items: components["schemas"]["Group"][];
+			next_page_token?: string;
 		};
 		GroupToRoleMapping: {
 			group: string;
@@ -2019,6 +2343,116 @@ export interface components {
 		 */
 		Role: "admin" | "maintainer" | "agent" | "user";
 		RuntimeConfigResponse: Record<string, never>;
+		/** @description SCIM 2.0 Email object for multi-valued email addresses */
+		ScimEmail: {
+			primary?: boolean;
+			type?: string | null;
+			value: string;
+		};
+		/** @description SCIM 2.0 Group resource */
+		ScimGroup: {
+			/** @description Display name for the group */
+			displayName: string;
+			/** @description External identifier from the IDP */
+			externalId?: string | null;
+			/** @description Unique identifier (our internal ID) */
+			id?: string | null;
+			/** @description Group members */
+			members?: components["schemas"]["ScimGroupMember"][];
+			meta?: null | components["schemas"]["ScimMeta"];
+			/** @description SCIM schema URIs */
+			schemas?: string[];
+		};
+		/** @description SCIM 2.0 Group member reference */
+		ScimGroupMember: {
+			$ref?: string | null;
+			display?: string | null;
+			type?: string | null;
+			value: string;
+		};
+		/** @description SCIM 2.0 ListResponse for paginated results */
+		ScimListResponse: {
+			/** @description The resources */
+			Resources: components["schemas"]["ScimGroup"][];
+			/**
+			 * Format: int64
+			 * @description Number of items per page
+			 */
+			itemsPerPage: number;
+			/** @description SCIM schema URIs */
+			schemas: string[];
+			/**
+			 * Format: int64
+			 * @description Start index (1-based)
+			 */
+			startIndex: number;
+			/**
+			 * Format: int64
+			 * @description Total number of results
+			 */
+			totalResults: number;
+		};
+		/** @description SCIM 2.0 Meta object containing resource metadata */
+		ScimMeta: {
+			created?: string | null;
+			lastModified?: string | null;
+			location?: string | null;
+			resourceType: string;
+			version?: string | null;
+		};
+		/** @description SCIM 2.0 Name object for user's name components */
+		ScimName: {
+			familyName?: string | null;
+			formatted?: string | null;
+			givenName?: string | null;
+			honorificPrefix?: string | null;
+			honorificSuffix?: string | null;
+			middleName?: string | null;
+		};
+		/**
+		 * @description SCIM 2.0 PATCH operation type
+		 * @enum {string}
+		 */
+		ScimPatchOp: "add" | "remove" | "replace";
+		/** @description SCIM 2.0 PATCH operation */
+		ScimPatchOperation: {
+			op: components["schemas"]["ScimPatchOp"];
+			path?: string | null;
+			value?: unknown;
+		};
+		/** @description SCIM 2.0 PATCH request */
+		ScimPatchRequest: {
+			Operations: components["schemas"]["ScimPatchOperation"][];
+			schemas: string[];
+		};
+		/** @description SCIM 2.0 User resource */
+		ScimUser: {
+			/** @description Whether the user is active */
+			active?: boolean;
+			/** @description Display name */
+			displayName?: string | null;
+			/** @description Email addresses */
+			emails?: components["schemas"]["ScimEmail"][];
+			/** @description External identifier from the IDP */
+			externalId?: string | null;
+			/** @description Groups the user belongs to (read-only) */
+			groups?: components["schemas"]["ScimUserGroup"][];
+			/** @description Unique identifier (our internal ID) */
+			id?: string | null;
+			meta?: null | components["schemas"]["ScimMeta"];
+			name?: null | components["schemas"]["ScimName"];
+			/** @description SCIM schema URIs */
+			schemas?: string[];
+			/** @description Username (unique identifier for the user) */
+			userName: string;
+		};
+		/** @description SCIM 2.0 User group reference (for user's group membership) */
+		ScimUserGroup: {
+			$ref?: string | null;
+			display?: string | null;
+			type?: string | null;
+			value: string;
+		};
 		ScopeToGroupMapping: {
 			group: string;
 			scope: string;
@@ -2143,6 +2577,10 @@ export interface components {
 		UpdateEnvironmentVariableRequest: {
 			value: string;
 		};
+		UpdateGroupRequest: {
+			/** @description Group name */
+			name: string;
+		};
 		UpdateMcpServerInstanceFunctionRequest: {
 			function_description?: string | null;
 			function_name: string;
@@ -2159,6 +2597,21 @@ export interface components {
 		UpdateTaskStatusRequest: {
 			message?: null | components["schemas"]["CreateMessageRequest"];
 			status: components["schemas"]["TaskStatus"];
+		};
+		UpdateUserRequest: {
+			/** @description User's email address */
+			email?: string | null;
+			/** @description User's role */
+			role?: string | null;
+		};
+		User: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			description?: string | null;
+			email?: string | null;
+			id: string;
+			role: components["schemas"]["Role"];
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+			user_type: components["schemas"]["UserType"];
 		};
 		/** @description The four supported IdP configuration types */
 		UserAuthFlowConfig:
@@ -2207,6 +2660,20 @@ export interface components {
 			updated_at: components["schemas"]["WrappedChronoDateTime"];
 			value: components["schemas"]["WrappedJsonValue"];
 		};
+		UserGroupWithGroup: {
+			group: components["schemas"]["Group"];
+			membership: components["schemas"]["GroupMembership"];
+		};
+		UserGroupWithGroupPaginatedResponse: {
+			items: components["schemas"]["UserGroupWithGroup"][];
+			next_page_token?: string;
+		};
+		UserPaginatedResponse: {
+			items: components["schemas"]["User"][];
+			next_page_token?: string;
+		};
+		/** @enum {string} */
+		UserType: "machine" | "human";
 		/** Format: date-time */
 		WrappedChronoDateTime: string;
 		WrappedJsonValue: unknown;
@@ -2419,1164 +2886,6 @@ export interface operations {
 				};
 				content: {
 					"application/json": components["schemas"]["AgentCard"];
-				};
-			};
-		};
-	};
-	"list-available-providers": {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List available providers */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ProviderControllerSerializedPaginatedResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"create-provider-instance": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				provider_controller_type_id: string;
-				credential_controller_type_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["CreateProviderInstanceParamsInner"];
-			};
-		};
-		responses: {
-			/** @description Create provider instance */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ProviderInstanceSerialized"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"create-resource-server-credential": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider controller type ID */
-				provider_controller_type_id: string;
-				/** @description Credential controller type ID */
-				credential_controller_type_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["CreateResourceServerCredentialParamsInner"];
-			};
-		};
-		responses: {
-			/** @description Create resource server credential */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ResourceServerCredentialSerialized"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"encrypt-resource-server-configuration": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider controller type ID */
-				provider_controller_type_id: string;
-				/** @description Credential controller type ID */
-				credential_controller_type_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["EncryptCredentialConfigurationParamsInner"];
-			};
-		};
-		responses: {
-			/** @description Encrypt resource server configuration */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["WrappedJsonValue"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"create-user-credential": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider controller type ID */
-				provider_controller_type_id: string;
-				/** @description Credential controller type ID */
-				credential_controller_type_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["CreateUserCredentialParamsInner"];
-			};
-		};
-		responses: {
-			/** @description Create user credential */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["UserCredentialSerialized"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"start-user-credential-brokering": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider controller type ID */
-				provider_controller_type_id: string;
-				/** @description Credential controller type ID */
-				credential_controller_type_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["StartUserCredentialBrokeringParamsInner"];
-			};
-		};
-		responses: {
-			/** @description Start user credential brokering */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["UserCredentialBrokeringResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"encrypt-user-credential-configuration": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider controller type ID */
-				provider_controller_type_id: string;
-				/** @description Credential controller type ID */
-				credential_controller_type_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["EncryptCredentialConfigurationParamsInner"];
-			};
-		};
-		responses: {
-			/** @description Encrypt user credential configuration */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["WrappedJsonValue"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"list-function-instances": {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-				provider_instance_id?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List function instances */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["FunctionInstanceSerializedPaginatedResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"get-function-instances-openapi-spec": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Get function instances openapi spec */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"text/plain": string;
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"resume-user-credential-brokering": {
-		parameters: {
-			query?: {
-				/** @description OAuth state parameter */
-				state?: string;
-				/** @description OAuth authorization code */
-				code?: string;
-				/** @description OAuth error code */
-				error?: string;
-				/** @description OAuth error description */
-				error_description?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Generic OAuth callback */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["UserCredentialBrokeringResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"list-mcp-server-instances": {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List MCP server instances */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctionsPaginatedResponse"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"create-mcp-server-instance": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["CreateMcpServerInstanceRequest"];
-			};
-		};
-		responses: {
-			/** @description Create MCP server instance */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"get-mcp-server-instance": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description MCP server instance ID */
-				mcp_server_instance_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Get MCP server instance */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"delete-mcp-server-instance": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description MCP server instance ID */
-				mcp_server_instance_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Delete MCP server instance */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"update-mcp-server-instance": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description MCP server instance ID */
-				mcp_server_instance_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["UpdateMcpServerInstanceRequest"];
-			};
-		};
-		responses: {
-			/** @description Update MCP server instance */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"add-mcp-server-instance-function": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description MCP server instance ID */
-				mcp_server_instance_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["AddMcpServerInstanceFunctionRequest"];
-			};
-		};
-		responses: {
-			/** @description Add function to MCP server instance */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Conflict (function name already exists) */
-			409: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"remove-mcp-server-instance-function": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description MCP server instance ID */
-				mcp_server_instance_id: string;
-				/** @description Function controller type ID */
-				function_controller_type_id: string;
-				/** @description Provider controller type ID */
-				provider_controller_type_id: string;
-				/** @description Provider instance ID */
-				provider_instance_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Remove function from MCP server instance */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"update-mcp-server-instance-function": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description MCP server instance ID */
-				mcp_server_instance_id: string;
-				/** @description Function controller type ID */
-				function_controller_type_id: string;
-				/** @description Provider controller type ID */
-				provider_controller_type_id: string;
-				/** @description Provider instance ID */
-				provider_instance_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["UpdateMcpServerInstanceFunctionRequest"];
-			};
-		};
-		responses: {
-			/** @description Update function in MCP server instance */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Conflict (function name already exists) */
-			409: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"list-provider-instances": {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-				status?: string;
-				provider_controller_type_id?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List provider instances */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ProviderInstanceListItemPaginatedResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"list-provider-instances-grouped-by-function": {
-		parameters: {
-			query: {
-				next_page_token?: string | null;
-				page_size: number;
-				provider_controller_type_id?: string | null;
-				function_category?: string | null;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List provider instances grouped by function */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["FunctionInstanceConfigPaginatedResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"get-provider-instance": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider instance ID */
-				provider_instance_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Get provider instance */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ProviderInstanceSerializedWithEverything"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"delete-provider-instance": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider instance ID */
-				provider_instance_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Delete provider instance */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": unknown;
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"update-provider-instance": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider instance ID */
-				provider_instance_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["UpdateProviderInstanceParamsInner"];
-			};
-		};
-		responses: {
-			/** @description Update provider instance */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["TupleUnit"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"disable-function": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider instance ID */
-				provider_instance_id: string;
-				/** @description Function controller type ID */
-				function_controller_type_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Disable function */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["TupleUnit"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"enable-function": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider instance ID */
-				provider_instance_id: string;
-				/** @description Function controller type ID */
-				function_controller_type_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["EnableFunctionParamsInner"];
-			};
-		};
-		responses: {
-			/** @description Enable function */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["FunctionInstanceSerialized"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"invoke-function": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider instance ID */
-				provider_instance_id: string;
-				/** @description Function controller type ID */
-				function_controller_type_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["InvokeFunctionParamsInner"];
-			};
-		};
-		responses: {
-			/** @description Invoke function */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["InvokeResult"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
 				};
 			};
 		};
@@ -4886,6 +4195,546 @@ export interface operations {
 			};
 		};
 	};
+	"scim-list-groups": {
+		parameters: {
+			query?: {
+				/** @description Filter expression (e.g., userName eq "john") */
+				filter?: string;
+				/** @description Attribute(s) to sort by */
+				sortBy?: string;
+				/** @description Sort order (ascending or descending) */
+				sortOrder?: string;
+				/** @description 1-based index of the first result */
+				startIndex?: number;
+				/** @description Number of results per page */
+				count?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of groups */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimListResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-create-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ScimGroup"];
+			};
+		};
+		responses: {
+			/** @description Group created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimGroup"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Conflict - Group already exists */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-get-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Group found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimGroup"];
+				};
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-replace-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ScimGroup"];
+			};
+		};
+		responses: {
+			/** @description Group replaced */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimGroup"];
+				};
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-delete-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Group deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-patch-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ScimPatchRequest"];
+			};
+		};
+		responses: {
+			/** @description Group patched */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimGroup"];
+				};
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-list-users": {
+		parameters: {
+			query?: {
+				/** @description Filter expression (e.g., userName eq "john") */
+				filter?: string;
+				/** @description Attribute(s) to sort by */
+				sortBy?: string;
+				/** @description Sort order (ascending or descending) */
+				sortOrder?: string;
+				/** @description 1-based index of the first result */
+				startIndex?: number;
+				/** @description Number of results per page */
+				count?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of users */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimListResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-create-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ScimUser"];
+			};
+		};
+		responses: {
+			/** @description User created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimUser"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Conflict - User already exists */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-get-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description User found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimUser"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-replace-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ScimUser"];
+			};
+		};
+		responses: {
+			/** @description User replaced */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimUser"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-delete-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description User deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-patch-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ScimPatchRequest"];
+			};
+		};
+		responses: {
+			/** @description User patched */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimUser"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
 	route_get_jwks: {
 		parameters: {
 			query?: never;
@@ -5254,6 +5103,342 @@ export interface operations {
 				};
 			};
 			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-groups": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of groups */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["GroupPaginatedResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateGroupRequest"];
+			};
+		};
+		responses: {
+			/** @description Group created */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Group"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Group found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Group"];
+				};
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"delete-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Group deleted */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateGroupRequest"];
+			};
+		};
+		responses: {
+			/** @description Group updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Group"];
+				};
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-group-members": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of group members */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["GroupMemberWithUserPaginatedResponse"];
+				};
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"add-group-member": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["AddGroupMemberRequest"];
+			};
+		};
+		responses: {
+			/** @description Member added */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Group or user not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"remove-group-member": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Member removed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Group, user, or membership not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
 			500: {
 				headers: {
 					[name: string]: unknown;
@@ -5736,6 +5921,1418 @@ export interface operations {
 				};
 			};
 			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-users": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+				user_type?: string;
+				role?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of users */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["UserPaginatedResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateUserRequest"];
+			};
+		};
+		responses: {
+			/** @description User created */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["User"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description User found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["User"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"delete-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description User deleted */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateUserRequest"];
+			};
+		};
+		responses: {
+			/** @description User updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["User"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-user-groups": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of user's groups */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["UserGroupWithGroupPaginatedResponse"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-available-providers": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List available providers */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ProviderControllerSerializedPaginatedResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-provider-instance": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				provider_controller_type_id: string;
+				credential_controller_type_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateProviderInstanceParamsInner"];
+			};
+		};
+		responses: {
+			/** @description Create provider instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ProviderInstanceSerialized"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-resource-server-credential": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider controller type ID */
+				provider_controller_type_id: string;
+				/** @description Credential controller type ID */
+				credential_controller_type_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateResourceServerCredentialParamsInner"];
+			};
+		};
+		responses: {
+			/** @description Create resource server credential */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ResourceServerCredentialSerialized"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"encrypt-resource-server-configuration": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider controller type ID */
+				provider_controller_type_id: string;
+				/** @description Credential controller type ID */
+				credential_controller_type_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["EncryptCredentialConfigurationParamsInner"];
+			};
+		};
+		responses: {
+			/** @description Encrypt resource server configuration */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["WrappedJsonValue"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-user-credential": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider controller type ID */
+				provider_controller_type_id: string;
+				/** @description Credential controller type ID */
+				credential_controller_type_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateUserCredentialParamsInner"];
+			};
+		};
+		responses: {
+			/** @description Create user credential */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["UserCredentialSerialized"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"start-user-credential-brokering": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider controller type ID */
+				provider_controller_type_id: string;
+				/** @description Credential controller type ID */
+				credential_controller_type_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["StartUserCredentialBrokeringParamsInner"];
+			};
+		};
+		responses: {
+			/** @description Start user credential brokering */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["UserCredentialBrokeringResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"encrypt-user-credential-configuration": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider controller type ID */
+				provider_controller_type_id: string;
+				/** @description Credential controller type ID */
+				credential_controller_type_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["EncryptCredentialConfigurationParamsInner"];
+			};
+		};
+		responses: {
+			/** @description Encrypt user credential configuration */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["WrappedJsonValue"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-function-instances": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+				provider_instance_id?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List function instances */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["FunctionInstanceSerializedPaginatedResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-function-instances-openapi-spec": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get function instances openapi spec */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"text/plain": string;
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"resume-user-credential-brokering": {
+		parameters: {
+			query?: {
+				/** @description OAuth state parameter */
+				state?: string;
+				/** @description OAuth authorization code */
+				code?: string;
+				/** @description OAuth error code */
+				error?: string;
+				/** @description OAuth error description */
+				error_description?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Generic OAuth callback */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["UserCredentialBrokeringResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-mcp-server-instances": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List MCP server instances */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctionsPaginatedResponse"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-mcp-server-instance": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateMcpServerInstanceRequest"];
+			};
+		};
+		responses: {
+			/** @description Create MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-mcp-server-instance": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"delete-mcp-server-instance": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Delete MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-mcp-server-instance": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateMcpServerInstanceRequest"];
+			};
+		};
+		responses: {
+			/** @description Update MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"add-mcp-server-instance-function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["AddMcpServerInstanceFunctionRequest"];
+			};
+		};
+		responses: {
+			/** @description Add function to MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Conflict (function name already exists) */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"remove-mcp-server-instance-function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+				/** @description Function controller type ID */
+				function_controller_type_id: string;
+				/** @description Provider controller type ID */
+				provider_controller_type_id: string;
+				/** @description Provider instance ID */
+				provider_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Remove function from MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-mcp-server-instance-function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description MCP server instance ID */
+				mcp_server_instance_id: string;
+				/** @description Function controller type ID */
+				function_controller_type_id: string;
+				/** @description Provider controller type ID */
+				provider_controller_type_id: string;
+				/** @description Provider instance ID */
+				provider_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateMcpServerInstanceFunctionRequest"];
+			};
+		};
+		responses: {
+			/** @description Update function in MCP server instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["McpServerInstanceSerializedWithFunctions"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Conflict (function name already exists) */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-provider-instances": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+				status?: string;
+				provider_controller_type_id?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List provider instances */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ProviderInstanceListItemPaginatedResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-provider-instances-grouped-by-function": {
+		parameters: {
+			query: {
+				next_page_token?: string | null;
+				page_size: number;
+				provider_controller_type_id?: string | null;
+				function_category?: string | null;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List provider instances grouped by function */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["FunctionInstanceConfigPaginatedResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-provider-instance": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider instance ID */
+				provider_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get provider instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ProviderInstanceSerializedWithEverything"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"delete-provider-instance": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider instance ID */
+				provider_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Delete provider instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": unknown;
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-provider-instance": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider instance ID */
+				provider_instance_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateProviderInstanceParamsInner"];
+			};
+		};
+		responses: {
+			/** @description Update provider instance */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TupleUnit"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"disable-function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider instance ID */
+				provider_instance_id: string;
+				/** @description Function controller type ID */
+				function_controller_type_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Disable function */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TupleUnit"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"enable-function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider instance ID */
+				provider_instance_id: string;
+				/** @description Function controller type ID */
+				function_controller_type_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["EnableFunctionParamsInner"];
+			};
+		};
+		responses: {
+			/** @description Enable function */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["FunctionInstanceSerialized"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"invoke-function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider instance ID */
+				provider_instance_id: string;
+				/** @description Function controller type ID */
+				function_controller_type_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["InvokeFunctionParamsInner"];
+			};
+		};
+		responses: {
+			/** @description Invoke function */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["InvokeResult"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
 			500: {
 				headers: {
 					[name: string]: unknown;

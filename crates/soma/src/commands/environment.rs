@@ -78,7 +78,7 @@ pub async fn cmd_env_set(
     timeout_secs: u64,
 ) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     // Check if environment variable already exists
     let existing_env_var = get_env_var_by_key(&api_config, &key).await?;
@@ -121,7 +121,7 @@ pub async fn cmd_env_set(
 
 pub async fn cmd_env_rm(key: String, api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     // Check if environment variable exists
     let existing_env_var = get_env_var_by_key(&api_config, &key).await?;
@@ -152,7 +152,7 @@ pub async fn cmd_env_rm(key: String, api_url: &str, timeout_secs: u64) -> Result
 
 pub async fn cmd_env_list(api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     // Fetch all environment variables with pagination
     let mut all_env_vars: Vec<models::EnvironmentVariable> = Vec::new();

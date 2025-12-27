@@ -1,8 +1,8 @@
 use std::{path::PathBuf, sync::Arc};
 
-use ::bridge::logic::mcp::BridgeMcpService;
-use ::bridge::router::BridgeService;
-use bridge::logic::OnConfigChangeTx;
+use ::mcp::logic::mcp::McpServerService;
+use ::mcp::router::McpService;
+use mcp::logic::OnConfigChangeTx;
 use encryption::logic::{EncryptionKeyEventSender, crypto_services::CryptoCache};
 use identity::logic::api_key::cache::ApiKeyCache;
 use identity::logic::auth_client::AuthClient;
@@ -45,7 +45,7 @@ pub mod test;
 pub struct ApiService {
     pub agent_service: Arc<AgentService>,
     pub task_service: Arc<TaskService>,
-    pub bridge_service: BridgeService,
+    pub mcp_service: McpService,
     pub internal_service: Arc<internal::InternalService>,
     pub encryption_service: encryption::router::EncryptionService,
     pub secret_service: Arc<SecretService>,
@@ -69,18 +69,18 @@ pub struct InitApiServiceParams {
     pub soma_restate_service_port: u16,
     pub connection_manager: ConnectionManager,
     pub repository: Repository,
-    pub mcp_service: StreamableHttpService<BridgeMcpService, LocalSessionManager>,
+    pub mcp_service: StreamableHttpService<McpServerService, LocalSessionManager>,
     pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub restate_ingress_client: RestateIngressClient,
     pub restate_admin_client: AdminClient,
     pub restate_params: crate::restate::RestateServerParams,
-    pub on_bridge_config_change_tx: OnConfigChangeTx,
+    pub on_mcp_config_change_tx: OnConfigChangeTx,
     pub on_encryption_change_tx: EncryptionKeyEventSender,
     pub on_secret_change_tx: SecretChangeTx,
     pub on_environment_variable_change_tx: EnvironmentVariableChangeTx,
     pub encryption_repository: encryption::repository::Repository,
     pub crypto_cache: CryptoCache,
-    pub bridge_repository: ::bridge::repository::Repository,
+    pub mcp_repository: ::mcp::repository::Repository,
     pub identity_repository: identity::repository::Repository,
     pub internal_jwks_cache: identity::logic::jwk::cache::JwksCache,
     pub sdk_client: Arc<
@@ -129,9 +129,9 @@ impl ApiService {
             init_params.connection_manager.clone(),
             init_params.repository.clone(),
         ));
-        let bridge_service = BridgeService::new(
-            init_params.bridge_repository.clone(),
-            init_params.on_bridge_config_change_tx.clone(),
+        let mcp_service = McpService::new(
+            init_params.mcp_repository.clone(),
+            init_params.on_mcp_config_change_tx.clone(),
             init_params.crypto_cache.clone(),
             init_params.mcp_service,
             auth_client.clone(),
@@ -139,7 +139,7 @@ impl ApiService {
         .await?;
 
         let internal_service = Arc::new(internal::InternalService::new(
-            bridge_service.clone(),
+            mcp_service.clone(),
             init_params.sdk_client.clone(),
             std::sync::Arc::new(init_params.repository.clone()),
             init_params.crypto_cache.clone(),
@@ -177,7 +177,7 @@ impl ApiService {
         Ok(Self {
             agent_service,
             task_service,
-            bridge_service,
+            mcp_service,
             internal_service,
             encryption_service,
             secret_service,

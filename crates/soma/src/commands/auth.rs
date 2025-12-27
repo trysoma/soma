@@ -122,7 +122,7 @@ async fn cmd_auth_add_oauth(
     };
 
     // Wait for API server and create config
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     let params = models::CreateUserAuthFlowConfigParams { config };
 
@@ -237,7 +237,7 @@ async fn cmd_auth_add_oidc(
     };
 
     // Wait for API server and create config
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     let params = models::CreateUserAuthFlowConfigParams { config };
 
@@ -258,7 +258,7 @@ async fn cmd_auth_add_oidc(
 }
 
 async fn cmd_auth_remove(id: String, api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     identity_api::route_delete_user_auth_flow_config(&api_config, &id)
         .await
@@ -284,7 +284,7 @@ async fn cmd_auth_remove(id: String, api_url: &str, timeout_secs: u64) -> Result
 }
 
 async fn cmd_auth_list(api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     let result = identity_api::route_list_user_auth_flow_configs(&api_config, None, None, None)
         .await

@@ -2,8 +2,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bridge::logic::mcp::BridgeMcpService;
-use bridge::logic::{OnConfigChangeTx, register_all_bridge_providers};
+use mcp::logic::mcp::McpServerService;
+use mcp::logic::{OnConfigChangeTx, register_all_mcp_providers};
 use encryption::logic::crypto_services::CryptoCache;
 use rmcp::transport::streamable_http_server::{
     StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
@@ -41,8 +41,10 @@ pub struct CreateApiServiceParams {
 
 pub struct ApiServiceBundle {
     pub api_service: ApiService,
-    /// Unified change channel for external listeners to subscribe to bridge and encryption events
+    /// Unified change channel for external listeners to subscribe to mcp and encryption events
     pub soma_change_tx: SomaChangeTx,
+    /// Bootstrap API key for initial sync and other basic config tasks. 
+    pub bootstrap_api_key: String,
 }
 
 /// Creates the API service and starts all subsystems
@@ -79,14 +81,14 @@ pub async fn create_api_service(
     trace!("Setting up database and repositories...");
     let connection_manager = ConnectionManager::new();
     let db_url = url::Url::parse(&db_conn_string)?;
-    let (_db, conn, repository, bridge_repo, encryption_repo) =
+    let (_db, conn, repository, mcp_repo, encryption_repo) =
         setup_repository(&db_url, &db_auth_token).await?;
     trace!("Database and repositories setup");
     // Create identity repository (uses same connection)
     let identity_repo = identity::repository::Repository::new(conn.clone());
 
-    // Create the bridge config change channel
-    let (on_bridge_config_change_tx, _on_bridge_config_change_rx): (OnConfigChangeTx, _) =
+    // Create the mcp config change channel
+    let (on_mcp_config_change_tx, _on_mcp_config_change_rx): (OnConfigChangeTx, _) =
         tokio::sync::broadcast::channel(100);
 
     // Create encryption event channel
@@ -176,7 +178,7 @@ pub async fn create_api_service(
             sdk_provider_sync::sync_providers_from_metadata(&metadata)?;
             trace!("SDK providers synced");
 
-            // Wait for SDK server healthcheck to pass before triggering bridge client generation
+            // Wait for SDK server healthcheck to pass before triggering mcp client generation
             wait_for_sdk_healthcheck(&mut client).await?;
 
             // Perform initial secret sync to SDK (after SDK is fully ready)
@@ -246,21 +248,21 @@ pub async fn create_api_service(
                 }
             }
 
-            // Trigger initial bridge client generation on start
-            trace!("Triggering initial bridge client generation");
-            match crate::logic::bridge::codegen::trigger_bridge_client_generation(
+            // Trigger initial mcp client generation on start
+            trace!("Triggering initial mcp client generation");
+            match crate::logic::mcp::codegen::trigger_mcp_client_generation(
                 &mut client,
-                &bridge_repo,
+                &mcp_repo,
                 &agent_cache,
             )
             .await
             {
                 Ok(()) => {
-                    trace!("Initial bridge client generation complete");
+                    trace!("Initial mcp client generation complete");
                 }
                 Err(e) => {
-                    debug!(error = ?e, "Failed initial bridge client generation");
-                    // Don't fail startup if codegen fails - it will be retried on bridge changes
+                    debug!(error = ?e, "Failed initial mcp client generation");
+                    // Don't fail startup if codegen fails - it will be retried on mcp changes
                 }
             }
 
@@ -273,23 +275,23 @@ pub async fn create_api_service(
         }
     };
 
-    // Subscribe to bridge config change events for bridge client generation listener
+    // Subscribe to mcp config change events for mcp client generation listener
     // Do this AFTER SDK server is ready to avoid processing events before server is ready
     // Broadcast channels support multiple subscribers natively - no wrapper needed!
-    let bridge_client_gen_rx = on_bridge_config_change_tx.subscribe();
+    let mcp_client_gen_rx = on_mcp_config_change_tx.subscribe();
 
     // Create MCP cancellation token for graceful shutdown
     let mcp_ct = CancellationToken::new();
 
     // Create the StreamableHttpService for MCP
-    // Note: BridgeMcpService is created fresh for each request by the service factory
+    // Note: McpServerService is created fresh for each request by the service factory
     // Clone values for use in the service factory closure
-    let bridge_repo_for_mcp = bridge_repo.clone();
+    let mcp_repo_for_mcp = mcp_repo.clone();
     let crypto_cache_for_mcp = crypto_cache.clone();
     let mcp_service = StreamableHttpService::new(
         move || {
-            Ok(BridgeMcpService {
-                repository: bridge_repo_for_mcp.clone(),
+            Ok(McpServerService {
+                repository: mcp_repo_for_mcp.clone(),
                 encryption_service: crypto_cache_for_mcp.clone(),
             })
         },
@@ -305,9 +307,9 @@ pub async fn create_api_service(
         },
     );
 
-    // Register built-in bridge providers (google_mail, stripe, etc.) BEFORE creating API service
-    trace!("Registering built-in bridge providers");
-    register_all_bridge_providers().await?;
+    // Register built-in mcp providers (google_mail, stripe, etc.) BEFORE creating API service
+    trace!("Registering built-in mcp providers");
+    register_all_mcp_providers().await?;
     trace!("Built-in providers registered");
 
     // Initialize API service
@@ -326,9 +328,9 @@ pub async fn create_api_service(
         restate_ingress_client: restate_params.get_ingress_client()?,
         restate_admin_client: restate_admin_client.clone(),
         restate_params: restate_params.clone(),
-        on_bridge_config_change_tx: on_bridge_config_change_tx.clone(),
+        on_mcp_config_change_tx: on_mcp_config_change_tx.clone(),
         crypto_cache: crypto_cache.clone(),
-        bridge_repository: bridge_repo.clone(),
+        mcp_repository: mcp_repo.clone(),
         identity_repository: identity_repo.clone(),
         sdk_client: sdk_client.clone(),
         on_encryption_change_tx: encryption_change_tx.clone(),
@@ -345,7 +347,7 @@ pub async fn create_api_service(
     trace!("Starting unified change pubsub");
     let soma_change_tx_for_pubsub = soma_change_tx.clone();
     let identity_change_tx_for_pubsub = api_service.identity_service.on_config_change_tx.clone();
-    let on_bridge_config_change_tx_for_pubsub = on_bridge_config_change_tx.clone();
+    let on_mcp_config_change_tx_for_pubsub = on_mcp_config_change_tx.clone();
     let encryption_change_tx_for_pubsub = encryption_change_tx.clone();
     let secret_change_tx_for_pubsub = secret_change_tx.clone();
     let environment_variable_change_tx_for_pubsub = environment_variable_change_tx.clone();
@@ -356,7 +358,7 @@ pub async fn create_api_service(
                 spawn_fn: {
                     let soma_change_tx = soma_change_tx_for_pubsub.clone();
                     let identity_change_tx = identity_change_tx_for_pubsub.clone();
-                    let on_bridge_config_change_tx = on_bridge_config_change_tx_for_pubsub.clone();
+                    let on_mcp_config_change_tx = on_mcp_config_change_tx_for_pubsub.clone();
                     let encryption_change_tx = encryption_change_tx_for_pubsub.clone();
                     let secret_change_tx = secret_change_tx_for_pubsub.clone();
                     let environment_variable_change_tx =
@@ -364,14 +366,14 @@ pub async fn create_api_service(
                     move || {
                         let soma_change_tx = soma_change_tx.clone();
                         let identity_change_tx = identity_change_tx.clone();
-                        let on_bridge_config_change_tx = on_bridge_config_change_tx.clone();
+                        let on_mcp_config_change_tx = on_mcp_config_change_tx.clone();
                         let encryption_change_tx = encryption_change_tx.clone();
                         let secret_change_tx = secret_change_tx.clone();
                         let environment_variable_change_tx = environment_variable_change_tx.clone();
                         tokio::spawn(async move {
                             run_change_pubsub(
                                 soma_change_tx,
-                                on_bridge_config_change_tx.subscribe(),
+                                on_mcp_config_change_tx.subscribe(),
                                 encryption_change_tx.subscribe(),
                                 secret_change_tx.subscribe(),
                                 environment_variable_change_tx.subscribe(),
@@ -407,35 +409,35 @@ pub async fn create_api_service(
     // Start credential rotation
     trace!("Starting credential rotation");
     start_credential_rotation_subsystem(
-        bridge_repo.clone(),
+        mcp_repo.clone(),
         crypto_cache.clone(),
-        on_bridge_config_change_tx.clone(),
+        on_mcp_config_change_tx.clone(),
         process_manager.clone(),
     )
     .await?;
 
-    // Start bridge client generation listener
-    trace!("Starting bridge client generation listener");
+    // Start mcp client generation listener
+    trace!("Starting mcp client generation listener");
     {
-        let bridge_repo_clone = bridge_repo.clone();
+        let mcp_repo_clone = mcp_repo.clone();
         let sdk_client_clone = sdk_client.clone();
         let agent_cache_clone = agent_cache.clone();
-        let bridge_client_gen_rx_clone = bridge_client_gen_rx.resubscribe();
+        let mcp_client_gen_rx_clone = mcp_client_gen_rx.resubscribe();
         process_manager
             .start_thread(
-                "bridge_client_generation",
+                "mcp_client_generation",
                 ThreadConfig {
                     spawn_fn: move || {
-                        let bridge_repo = bridge_repo_clone.clone();
+                        let mcp_repo = mcp_repo_clone.clone();
                         let sdk_client = sdk_client_clone.clone();
                         let agent_cache = agent_cache_clone.clone();
-                        let on_bridge_config_change_rx = bridge_client_gen_rx_clone.resubscribe();
+                        let on_mcp_config_change_rx = mcp_client_gen_rx_clone.resubscribe();
                         tokio::spawn(async move {
-                            crate::logic::bridge::run_bridge_client_generation_loop(
-                                bridge_repo,
+                            crate::logic::mcp::run_mcp_client_generation_loop(
+                                mcp_repo,
                                 sdk_client,
                                 agent_cache,
-                                on_bridge_config_change_rx,
+                                on_mcp_config_change_rx,
                             )
                             .await;
                             Ok(())
@@ -452,7 +454,7 @@ pub async fn create_api_service(
             )
             .await
             .inspect_err(
-                |e| error!(error = %e, "Failed to start bridge client generation thread"),
+                |e| error!(error = %e, "Failed to start mcp client generation thread"),
             )?;
     }
 
@@ -577,13 +579,15 @@ pub async fn create_api_service(
             .inspect_err(|e| error!(error = %e, "Failed to start JWK init listener thread"))?;
     }
 
-    // Note: Initial sync of secrets and environment variables now happens AFTER SDK server
-    // healthcheck passes (see above, around line 171). This ensures the SDK server's gRPC
-    // handlers are fully registered before we try to sync.
-
+    trace!("Creating bootstrap API key");
+    
+    let bootstrap_api_key = identity::logic::api_key::bootstrap::create_bootstrap_api_key(Some(&api_service.identity_service.api_key_cache)).await?;
+    trace!("Bootstrap API key created");
+    
     Ok(ApiServiceBundle {
         api_service,
         soma_change_tx,
+        bootstrap_api_key: bootstrap_api_key.api_key,
     })
 }
 
@@ -692,9 +696,9 @@ async fn wait_for_sdk_healthcheck(
 }
 
 async fn start_credential_rotation_subsystem(
-    bridge_repo: bridge::repository::Repository,
+    mcp_repo: mcp::repository::Repository,
     crypto_cache: CryptoCache,
-    on_bridge_change_tx: OnConfigChangeTx,
+    on_mcp_change_tx: OnConfigChangeTx,
     process_manager: Arc<CustomProcessManager>,
 ) -> Result<(), CommonError> {
     process_manager
@@ -702,18 +706,18 @@ async fn start_credential_rotation_subsystem(
             "credential_rotation",
             ThreadConfig {
                 spawn_fn: {
-                    let bridge_repo = bridge_repo.clone();
+                    let mcp_repo = mcp_repo.clone();
                     let crypto_cache = crypto_cache.clone();
-                    let on_bridge_change_tx = on_bridge_change_tx.clone();
+                    let on_mcp_change_tx = on_mcp_change_tx.clone();
                     move || {
-                        let bridge_repo = bridge_repo.clone();
+                        let mcp_repo = mcp_repo.clone();
                         let crypto_cache = crypto_cache.clone();
-                        let on_bridge_change_tx = on_bridge_change_tx.clone();
+                        let on_mcp_change_tx = on_mcp_change_tx.clone();
                         tokio::spawn(async move {
-                            bridge::logic::credential_rotation_task(
-                                bridge_repo,
+                            mcp::logic::credential_rotation_task(
+                                mcp_repo,
                                 crypto_cache,
-                                on_bridge_change_tx,
+                                on_mcp_change_tx,
                             )
                             .await;
                             Ok(())

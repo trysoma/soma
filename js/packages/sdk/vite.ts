@@ -704,7 +704,7 @@ async function _invokeBridgeFunction<TParams, TResult>(
 
   const result = await ctx.run(\`fetch-\${providerName}-\${functionName}\`, async () => {
     const response = await fetch(
-      \`\${baseUrl}/api/bridge/v1/provider/\${providerInstanceId}/function/\${functionControllerTypeId}/invoke\`,
+      \`\${baseUrl}/api/mcp/v1/provider/\${providerInstanceId}/function/\${functionControllerTypeId}/invoke\`,
       {
         method: 'POST',
         headers: {

@@ -251,7 +251,7 @@ pub async fn setup_repository(
         libsql::Database,
         shared::libsql::Connection,
         Repository,
-        bridge::repository::Repository,
+        mcp::repository::Repository,
         encryption::repository::Repository,
     ),
     CommonError,
@@ -259,7 +259,7 @@ pub async fn setup_repository(
     debug!("conn_string: {}", conn_string);
     let migrations = merge_nested_migrations(vec![
         Repository::load_sql_migrations(),
-        bridge::repository::Repository::load_sql_migrations(),
+        mcp::repository::Repository::load_sql_migrations(),
         <encryption::repository::Repository as SqlMigrationLoader>::load_sql_migrations(),
         identity::repository::Repository::load_sql_migrations(),
     ]);
@@ -267,7 +267,7 @@ pub async fn setup_repository(
     let (db, conn) = establish_db_connection(&auth_conn_string, Some(migrations)).await?;
 
     let repo = Repository::new(conn.clone());
-    let bridge_repo = bridge::repository::Repository::new(conn.clone());
+    let mcp_repo = mcp::repository::Repository::new(conn.clone());
     let encryption_repo = encryption::repository::Repository::new(conn.clone());
-    Ok((db, conn, repo, bridge_repo, encryption_repo))
+    Ok((db, conn, repo, mcp_repo, encryption_repo))
 }

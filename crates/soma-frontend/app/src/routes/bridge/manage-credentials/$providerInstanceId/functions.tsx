@@ -32,7 +32,7 @@ function RouteComponent() {
 	// Query the specific provider instance with all its details
 	const { data: providerInstanceData } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/provider/{provider_instance_id}",
+		"/api/mcp/v1/provider/{provider_instance_id}",
 		{
 			params: {
 				path: {
@@ -75,7 +75,7 @@ const EnabledFunctionsTab = ({
 		data: functionInstancesData,
 		isLoading: isLoadingFunctionInstances,
 		refetch: refetchFunctionInstances,
-	} = $api.useQuery("get", "/api/bridge/v1/function-instances", {
+	} = $api.useQuery("get", "/api/mcp/v1/function-instances", {
 		params: {
 			query: {
 				page_size: 1000,
@@ -87,13 +87,13 @@ const EnabledFunctionsTab = ({
 	// Enable function mutation (creates a function instance)
 	const enableFunctionMutation = $api.useMutation(
 		"post",
-		"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable",
+		"/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable",
 	);
 
 	// Disable function mutation (deletes a function instance)
 	const disableFunctionMutation = $api.useMutation(
 		"post",
-		"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable",
+		"/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable",
 	);
 
 	const enabledFunctionInstances = functionInstancesData?.items || [];

@@ -41,6 +41,11 @@ pub fn create_router() -> OpenApiRouter<Arc<InternalService>> {
     summary = "Health check",
     description = "Check the health status of the service and SDK server connectivity",
     operation_id = "health-check",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_health(
     State(ctx): State<Arc<InternalService>>,
@@ -61,6 +66,11 @@ async fn route_health(
     summary = "Get runtime config",
     description = "Get the current runtime configuration",
     operation_id = "get-internal-runtime-config",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_runtime_config(
     State(_ctx): State<Arc<InternalService>>,
@@ -86,6 +96,11 @@ async fn route_runtime_config(
     summary = "Trigger codegen",
     description = "Trigger code generation for the SDK",
     operation_id = "trigger-codegen",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_trigger_codegen(
     State(ctx): State<Arc<InternalService>>,
@@ -93,7 +108,7 @@ async fn route_trigger_codegen(
     trace!("Triggering codegen");
     let response = crate::logic::internal::trigger_codegen(
         &ctx.sdk_client,
-        ctx.bridge_service.repository(),
+        ctx.mcp_service.repository(),
         &ctx.agent_cache,
     )
     .await;
@@ -114,6 +129,11 @@ async fn route_trigger_codegen(
     summary = "Resync SDK",
     description = "Resync providers, agents, secrets, and environment variables between API server and SDK",
     operation_id = "resync-sdk",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_resync_sdk(
     State(ctx): State<Arc<InternalService>>,
@@ -125,7 +145,7 @@ async fn route_resync_sdk(
         &ctx.restate_params,
         &ctx.sdk_client,
         &ctx.agent_cache,
-        ctx.bridge_service.repository(),
+        ctx.mcp_service.repository(),
     )
     .await;
     trace!(success = response.is_ok(), "Resyncing SDK completed");
@@ -133,7 +153,7 @@ async fn route_resync_sdk(
 }
 
 pub struct InternalService {
-    bridge_service: bridge::router::BridgeService,
+    mcp_service: mcp::router::McpService,
     sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
     repository: std::sync::Arc<crate::repository::Repository>,
     crypto_cache: CryptoCache,
@@ -143,7 +163,7 @@ pub struct InternalService {
 
 impl InternalService {
     pub fn new(
-        bridge_service: bridge::router::BridgeService,
+        mcp_service: mcp::router::McpService,
         sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
         repository: std::sync::Arc<crate::repository::Repository>,
         crypto_cache: CryptoCache,
@@ -151,7 +171,7 @@ impl InternalService {
         agent_cache: AgentCache,
     ) -> Self {
         Self {
-            bridge_service,
+            mcp_service,
             sdk_client,
             repository,
             crypto_cache,

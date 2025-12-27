@@ -15,7 +15,7 @@ pub struct SomaAgentDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub encryption: Option<EncryptionConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bridge: Option<BridgeConfig>,
+    pub mcp: Option<McpConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub secrets: Option<HashMap<String, SecretConfig>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -390,7 +390,7 @@ impl From<EnvelopeKeyConfig> for EnvelopeEncryptionKey {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct BridgeConfig {
+pub struct McpConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub providers: Option<HashMap<String, ProviderConfig>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -609,8 +609,8 @@ impl YamlSomaAgentDefinition {
         if guard.encryption.is_none() && file_definition.encryption.is_some() {
             guard.encryption = file_definition.encryption.clone();
         }
-        if guard.bridge.is_none() && file_definition.bridge.is_some() {
-            guard.bridge = file_definition.bridge.clone();
+        if guard.mcp.is_none() && file_definition.mcp.is_some() {
+            guard.mcp = file_definition.mcp.clone();
         }
 
         // For secrets, merge: start with file secrets (if any), then apply guard's changes (guard overwrites file for same keys)
@@ -680,9 +680,9 @@ impl YamlSomaAgentDefinition {
         }
     }
 
-    fn ensure_bridge_config(definition: &mut SomaAgentDefinition) {
-        if definition.bridge.is_none() {
-            definition.bridge = Some(BridgeConfig {
+    fn ensure_mcp_config(definition: &mut SomaAgentDefinition) {
+        if definition.mcp.is_none() {
+            definition.mcp = Some(McpConfig {
                 providers: None,
                 mcp_servers: None,
             });
@@ -831,14 +831,14 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
     ) -> Result<(), CommonError> {
         trace!(provider_id = %provider_id, "Adding provider");
         let mut definition = self.cached_definition.lock().await;
-        Self::ensure_bridge_config(&mut definition);
+        Self::ensure_mcp_config(&mut definition);
 
-        let bridge = definition.bridge.as_mut().unwrap();
-        if bridge.providers.is_none() {
-            bridge.providers = Some(HashMap::new());
+        let mcp_cfg = definition.mcp.as_mut().unwrap();
+        if mcp_cfg.providers.is_none() {
+            mcp_cfg.providers = Some(HashMap::new());
         }
 
-        bridge
+        mcp_cfg
             .providers
             .as_mut()
             .unwrap()
@@ -852,8 +852,8 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         trace!(provider_id = %provider_id, "Removing provider");
         let mut definition = self.cached_definition.lock().await;
 
-        if let Some(bridge) = &mut definition.bridge {
-            if let Some(providers) = &mut bridge.providers {
+        if let Some(mcp_cfg) = &mut definition.mcp {
+            if let Some(providers) = &mut mcp_cfg.providers {
                 providers.remove(&provider_id);
                 self.save(definition).await?;
                 trace!(provider_id = %provider_id, "Provider removed");
@@ -869,14 +869,14 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
     ) -> Result<(), CommonError> {
         trace!(provider_id = %provider_id, "Updating provider");
         let mut definition = self.cached_definition.lock().await;
-        Self::ensure_bridge_config(&mut definition);
+        Self::ensure_mcp_config(&mut definition);
 
-        let bridge = definition.bridge.as_mut().unwrap();
-        if bridge.providers.is_none() {
-            bridge.providers = Some(HashMap::new());
+        let mcp_cfg = definition.mcp.as_mut().unwrap();
+        if mcp_cfg.providers.is_none() {
+            mcp_cfg.providers = Some(HashMap::new());
         }
 
-        let providers = bridge.providers.as_mut().unwrap();
+        let providers = mcp_cfg.providers.as_mut().unwrap();
 
         match providers.get_mut(&provider_id) {
             Some(existing_config) => {
@@ -913,15 +913,15 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             "Adding function instance"
         );
         let mut definition = self.cached_definition.lock().await;
-        let bridge = match &mut definition.bridge {
-            Some(bridge) => bridge,
+        let mcp_cfg = match &mut definition.mcp {
+            Some(mcp_cfg) => mcp_cfg,
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "Bridge configuration not found"
+                    "MCP configuration not found"
                 )));
             }
         };
-        let providers = match &mut bridge.providers {
+        let providers = match &mut mcp_cfg.providers {
             Some(providers) => providers,
             None => return Err(CommonError::Unknown(anyhow::anyhow!("Providers not found"))),
         };
@@ -957,11 +957,11 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             "Removing function instance"
         );
         let mut definition = self.cached_definition.lock().await;
-        let bridge = match &mut definition.bridge {
-            Some(bridge) => bridge,
+        let mcp_cfg = match &mut definition.mcp {
+            Some(mcp_cfg) => mcp_cfg,
             None => return Ok(()),
         };
-        let providers = match &mut bridge.providers {
+        let providers = match &mut mcp_cfg.providers {
             Some(providers) => providers,
             None => return Ok(()),
         };
@@ -993,14 +993,14 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
     ) -> Result<(), CommonError> {
         trace!(mcp_server_id = %mcp_server_id, "Adding MCP server");
         let mut definition = self.cached_definition.lock().await;
-        Self::ensure_bridge_config(&mut definition);
+        Self::ensure_mcp_config(&mut definition);
 
-        let bridge = definition.bridge.as_mut().unwrap();
-        if bridge.mcp_servers.is_none() {
-            bridge.mcp_servers = Some(HashMap::new());
+        let mcp_cfg = definition.mcp.as_mut().unwrap();
+        if mcp_cfg.mcp_servers.is_none() {
+            mcp_cfg.mcp_servers = Some(HashMap::new());
         }
 
-        bridge
+        mcp_cfg
             .mcp_servers
             .as_mut()
             .unwrap()
@@ -1017,14 +1017,14 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
     ) -> Result<(), CommonError> {
         trace!(mcp_server_id = %mcp_server_id, "Updating MCP server");
         let mut definition = self.cached_definition.lock().await;
-        Self::ensure_bridge_config(&mut definition);
+        Self::ensure_mcp_config(&mut definition);
 
-        let bridge = definition.bridge.as_mut().unwrap();
-        if bridge.mcp_servers.is_none() {
-            bridge.mcp_servers = Some(HashMap::new());
+        let mcp_cfg = definition.mcp.as_mut().unwrap();
+        if mcp_cfg.mcp_servers.is_none() {
+            mcp_cfg.mcp_servers = Some(HashMap::new());
         }
 
-        let mcp_servers = bridge.mcp_servers.as_mut().unwrap();
+        let mcp_servers = mcp_cfg.mcp_servers.as_mut().unwrap();
         match mcp_servers.get_mut(&mcp_server_id) {
             Some(existing_config) => {
                 // Update name but preserve functions if not provided
@@ -1047,8 +1047,8 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         trace!(mcp_server_id = %mcp_server_id, "Removing MCP server");
         let mut definition = self.cached_definition.lock().await;
 
-        if let Some(bridge) = &mut definition.bridge {
-            if let Some(mcp_servers) = &mut bridge.mcp_servers {
+        if let Some(mcp_cfg) = &mut definition.mcp {
+            if let Some(mcp_servers) = &mut mcp_cfg.mcp_servers {
                 mcp_servers.remove(&mcp_server_id);
                 self.save(definition).await?;
                 trace!(mcp_server_id = %mcp_server_id, "MCP server removed");
@@ -1068,15 +1068,15 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             "Adding MCP server function"
         );
         let mut definition = self.cached_definition.lock().await;
-        let bridge = match &mut definition.bridge {
-            Some(bridge) => bridge,
+        let mcp_cfg = match &mut definition.mcp {
+            Some(mcp_cfg) => mcp_cfg,
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "Bridge configuration not found"
+                    "MCP configuration not found"
                 )));
             }
         };
-        let mcp_servers = match &mut bridge.mcp_servers {
+        let mcp_servers = match &mut mcp_cfg.mcp_servers {
             Some(mcp_servers) => mcp_servers,
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
@@ -1117,15 +1117,15 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             "Updating MCP server function"
         );
         let mut definition = self.cached_definition.lock().await;
-        let bridge = match &mut definition.bridge {
-            Some(bridge) => bridge,
+        let mcp_cfg = match &mut definition.mcp {
+            Some(mcp_cfg) => mcp_cfg,
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "Bridge configuration not found"
+                    "MCP configuration not found"
                 )));
             }
         };
-        let mcp_servers = match &mut bridge.mcp_servers {
+        let mcp_servers = match &mut mcp_cfg.mcp_servers {
             Some(mcp_servers) => mcp_servers,
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
@@ -1184,11 +1184,11 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             "Removing MCP server function"
         );
         let mut definition = self.cached_definition.lock().await;
-        let bridge = match &mut definition.bridge {
-            Some(bridge) => bridge,
+        let mcp_cfg = match &mut definition.mcp {
+            Some(mcp_cfg) => mcp_cfg,
             None => return Ok(()),
         };
-        let mcp_servers = match &mut bridge.mcp_servers {
+        let mcp_servers = match &mut mcp_cfg.mcp_servers {
             Some(mcp_servers) => mcp_servers,
             None => return Ok(()),
         };

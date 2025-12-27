@@ -3,8 +3,8 @@ use shared::error::CommonError;
 use std::collections::HashMap;
 use tera::{Context, Tera};
 
-/// TypeScript bridge template loaded at compile time
-const BRIDGE_TEMPLATE: &str = include_str!("bridge.ts.tera");
+/// TypeScript mcp template loaded at compile time
+const MCP_TEMPLATE: &str = include_str!("mcp.ts.tera");
 
 /// TypeScript agents template loaded at compile time
 const AGENTS_TEMPLATE: &str = include_str!("agents.ts.tera");
@@ -188,14 +188,14 @@ pub fn generate_typescript_code_from_api_data(
 
     // Create Tera instance and render template
     let mut tera = Tera::default();
-    tera.add_raw_template("bridge", BRIDGE_TEMPLATE)
+    tera.add_raw_template("mcp", MCP_TEMPLATE)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to add template: {e}")))?;
 
     let mut context = Context::new();
     context.insert("providers", &providers);
 
     let rendered = tera
-        .render("bridge", &context)
+        .render("mcp", &context)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to render template: {e}")))?;
 
     Ok(rendered)

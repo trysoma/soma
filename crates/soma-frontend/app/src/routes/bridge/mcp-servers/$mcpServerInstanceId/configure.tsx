@@ -56,7 +56,7 @@ function ConfigureMcpServerPage() {
 	// Query MCP server instance
 	const { data: instanceData, isLoading } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/mcp-server/{mcp_server_instance_id}",
+		"/api/mcp/v1/mcp-server/{mcp_server_instance_id}",
 		{
 			params: {
 				path: {
@@ -69,7 +69,7 @@ function ConfigureMcpServerPage() {
 	// Query available providers for metadata
 	const { data: availableProvidersData } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/available-providers",
+		"/api/mcp/v1/available-providers",
 		{
 			params: {
 				query: {
@@ -82,7 +82,7 @@ function ConfigureMcpServerPage() {
 	// Query provider instances for credential info
 	const { data: providerInstancesData } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/provider",
+		"/api/mcp/v1/provider",
 		{
 			params: {
 				query: {
@@ -95,13 +95,13 @@ function ConfigureMcpServerPage() {
 	// Delete function mutation
 	const deleteFunction = $api.useMutation(
 		"delete",
-		"/api/bridge/v1/mcp-server/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}",
+		"/api/mcp/v1/mcp-server/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}",
 	);
 
 	// Delete MCP server mutation
 	const deleteMcpServer = $api.useMutation(
 		"delete",
-		"/api/bridge/v1/mcp-server/{mcp_server_instance_id}",
+		"/api/mcp/v1/mcp-server/{mcp_server_instance_id}",
 	);
 
 	const instance = instanceData;

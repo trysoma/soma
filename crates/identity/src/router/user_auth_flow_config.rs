@@ -56,6 +56,10 @@ pub struct ListUserAuthFlowConfigsQuery {
     ),
     summary = "Create user auth flow configuration",
     description = "Create a new user auth flow configuration for OAuth/OIDC authorization flows. The configuration will be encrypted before storage.",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_create_user_auth_flow_config(
     State(service): State<IdentityService>,
@@ -96,6 +100,10 @@ async fn route_create_user_auth_flow_config(
     ),
     summary = "Get user auth flow configuration",
     description = "Get a user auth flow configuration by ID. Returns the encrypted configuration.",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_get_user_auth_flow_config(
     State(service): State<IdentityService>,
@@ -134,6 +142,10 @@ async fn route_get_user_auth_flow_config(
     ),
     summary = "Delete user auth flow configuration",
     description = "Delete a user auth flow configuration by ID",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_delete_user_auth_flow_config(
     State(service): State<IdentityService>,
@@ -173,6 +185,10 @@ async fn route_delete_user_auth_flow_config(
     ),
     summary = "List user auth flow configurations",
     description = "List all user auth flow configurations with optional filtering by type",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_user_auth_flow_configs(
     State(service): State<IdentityService>,
@@ -216,6 +232,10 @@ async fn route_list_user_auth_flow_configs(
     ),
     summary = "Import user auth flow configuration",
     description = "Import an already encrypted user auth flow configuration (idempotent, used for syncing from soma.yaml)",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_import_user_auth_flow_config(
     State(service): State<IdentityService>,

@@ -41,6 +41,11 @@ fn build_token_response(jar: CookieJar, tokens: &NormalizedTokenIssuanceResult) 
     ),
     summary = "Exchange STS token",
     description = "Exchange an external token for internal access and refresh tokens using an STS configuration",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_exchange_sts_token(
     State(service): State<IdentityService>,
