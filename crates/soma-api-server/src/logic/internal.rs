@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use mcp::repository::ProviderRepositoryLike;
 use encryption::logic::crypto_services::CryptoCache;
+use mcp::repository::ProviderRepositoryLike;
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
@@ -69,12 +69,8 @@ pub async fn trigger_codegen(
         }
     };
 
-    crate::logic::mcp::codegen::trigger_mcp_client_generation(
-        client,
-        mcp_repo,
-        agent_cache,
-    )
-    .await?;
+    crate::logic::mcp::codegen::trigger_mcp_client_generation(client, mcp_repo, agent_cache)
+        .await?;
 
     Ok(TriggerCodegenResponse {})
 }
@@ -199,12 +195,9 @@ pub async fn resync_sdk(
 
     // Trigger mcp client generation (includes agents now that they're synced)
     trace!("Triggering mcp client generation");
-    if let Err(e) = crate::logic::mcp::codegen::trigger_mcp_client_generation(
-        client,
-        mcp_repo,
-        agent_cache,
-    )
-    .await
+    if let Err(e) =
+        crate::logic::mcp::codegen::trigger_mcp_client_generation(client, mcp_repo, agent_cache)
+            .await
     {
         warn!(error = ?e, "Failed to trigger mcp client generation");
     }

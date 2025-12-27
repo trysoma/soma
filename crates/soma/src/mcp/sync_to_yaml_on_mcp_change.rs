@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use mcp::logic::OnConfigChangeEvt;
 use encryption::logic::EncryptionKeyEvent;
 use encryption::logic::envelope::EnvelopeEncryptionKey;
 use identity::logic::OnConfigChangeEvt as IdentityOnConfigChangeEvt;
+use mcp::logic::OnConfigChangeEvt;
 use serde_json::json;
 use tracing::{debug, trace, warn};
 

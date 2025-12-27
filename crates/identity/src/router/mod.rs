@@ -435,9 +435,7 @@ async fn route_delete_user(
             .delete_group_memberships_by_user_id(&user_id)
             .await?;
         // Delete user's API keys
-        ctx.repository
-            .delete_api_keys_by_user_id(&user_id)
-            .await?;
+        ctx.repository.delete_api_keys_by_user_id(&user_id).await?;
         // Delete the user
         ctx.repository.delete_user(&user_id).await?;
 
@@ -531,9 +529,7 @@ async fn route_list_user_groups(
             next_page_token: query.next_page_token,
         };
 
-        ctx.repository
-            .list_user_groups(&user_id, &pagination)
-            .await
+        ctx.repository.list_user_groups(&user_id, &pagination).await
     }
     .await;
 
@@ -844,9 +840,7 @@ async fn route_add_group_member(
             updated_at: now,
         };
 
-        ctx.repository
-            .create_group_membership(&membership)
-            .await?;
+        ctx.repository.create_group_membership(&membership).await?;
 
         Ok(())
     }

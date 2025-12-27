@@ -73,9 +73,7 @@ pub async fn run_mcp_client_generation_loop(
                 }
             }
             Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                info!(
-                    "MCP config change receiver closed, stopping MCP client generation listener"
-                );
+                info!("MCP config change receiver closed, stopping MCP client generation listener");
                 break;
             }
             Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {

@@ -359,7 +359,12 @@ async fn cmd_dev_inner(
     bar.enable_steady_tick(Duration::from_millis(100));
     bar.set_message("Synchronizing soma.yaml on server start");
     trace!("Waiting for API service and exchanging STS token");
-    let api_config = create_and_wait_for_api_client(&api_base_url, 30, Some(api_service_bundle.bootstrap_api_key)).await?;
+    let api_config = create_and_wait_for_api_client(
+        &api_base_url,
+        30,
+        Some(api_service_bundle.bootstrap_api_key),
+    )
+    .await?;
     trace!("API service ready");
     // Enable dev mode STS config for development
     trace!("Enabling dev mode STS configuration");
@@ -376,8 +381,6 @@ async fn cmd_dev_inner(
     )
     .await?;
     trace!("MCP sync completed");
-
-    
 
     // Give SDK server time to fully initialize its gRPC handlers after mcp sync
     // This ensures that secrets/env vars created during mcp sync can be synced properly
@@ -429,7 +432,7 @@ async fn enable_dev_mode_sts(
     const DEV_MODE_STS_ID: &str = "dev";
 
     // Check if dev mode STS config already exists
-    let existing_configs = identity_api::route_list_sts_configs(&api_config, 100, None)
+    let existing_configs = identity_api::route_list_sts_configs(api_config, 100, None)
         .await
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to list STS configs: {e:?}")))?;
 
@@ -450,7 +453,7 @@ async fn enable_dev_mode_sts(
         },
     });
 
-    identity_api::route_create_sts_config(&api_config, params)
+    identity_api::route_create_sts_config(api_config, params)
         .await
         .map_err(|e| {
             CommonError::Unknown(anyhow::anyhow!(

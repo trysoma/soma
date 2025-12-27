@@ -1,6 +1,6 @@
-use mcp::logic::OnConfigChangeEvt as McpOnConfigChangeEvt;
 use encryption::logic::EncryptionKeyEvent;
 use identity::logic::OnConfigChangeEvt as IdentityOnConfigChangeEvt;
+use mcp::logic::OnConfigChangeEvt as McpOnConfigChangeEvt;
 use tokio::sync::broadcast;
 use tracing::{debug, warn};
 

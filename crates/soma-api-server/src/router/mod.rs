@@ -1,14 +1,13 @@
 use axum::{Router, extract::OriginalUri, middleware};
 use shared::adapters::openapi::API_VERSION_TAG;
+use utoipa::openapi::OpenApi as OpenApiDoc;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme};
 use utoipa::{Modify, OpenApi};
-use utoipa::openapi::tag::TagBuilder;
-use utoipa::openapi::{Info, OpenApi as OpenApiDoc, SecurityRequirement};
 
 use crate::ApiService;
-use mcp::router::create_router as create_mcp_router;
 use encryption::router::create_router as create_encryption_router;
 use identity::router::create_router as create_identity_router;
+use mcp::router::create_router as create_mcp_router;
 use shared::error::CommonError;
 
 pub(crate) mod agent;

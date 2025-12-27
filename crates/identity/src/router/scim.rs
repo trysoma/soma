@@ -4,13 +4,13 @@
 //! - /Users - User CRUD operations
 //! - /Groups - Group CRUD operations
 
+use super::{IdentityService, PATH_PREFIX, SERVICE_ROUTE_KEY};
 use crate::logic::scim::{
     ScimGroup, ScimGroupListResponse, ScimListParams, ScimPatchRequest, ScimUser,
     ScimUserListResponse, create_group_from_scim, create_user_from_scim, delete_group_scim,
     delete_user_scim, get_group_scim, get_user_scim, list_groups_scim, list_users_scim,
     patch_group_scim, patch_user_scim, replace_group_scim, replace_user_scim,
 };
-use super::{IdentityService, PATH_PREFIX, SERVICE_ROUTE_KEY};
 use axum::extract::{Json, Path, Query, State};
 use http::{HeaderMap, StatusCode};
 use shared::identity::Identity;

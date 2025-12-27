@@ -79,10 +79,7 @@ pub fn sync_providers_from_metadata(
         }
     }
 
-    debug!(
-        count = metadata.mcp_providers.len(),
-        "Synced SDK providers"
-    );
+    debug!(count = metadata.mcp_providers.len(), "Synced SDK providers");
 
     Ok(())
 }

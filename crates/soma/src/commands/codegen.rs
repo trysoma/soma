@@ -20,7 +20,8 @@ pub async fn cmd_codegen(
     _config: &mut CliConfig,
 ) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(&params.api_url, params.timeout_secs, None).await?;
+    let api_config =
+        create_and_wait_for_api_client(&params.api_url, params.timeout_secs, None).await?;
 
     // Trigger codegen via API
     debug!("Triggering mcp client generation...");

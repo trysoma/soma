@@ -352,24 +352,24 @@ jobs:
             echo "$atlas_output"
           fi
 
-      - name: Run Atlas migrate lint for Bridge database
+      - name: Run Atlas migrate lint for Mcp database
         if: steps.prev-version.outputs.has_prev_version == 'true'
-        id: atlas-bridge
+        id: atlas-mcp
         continue-on-error: true
         run: |
           PREV_VERSION="${{ steps.prev-version.outputs.prev_version }}"
-          echo "Running Atlas migrate lint for Bridge database against $PREV_VERSION"
+          echo "Running Atlas migrate lint for Mcp database against $PREV_VERSION"
           
           # Fetch the previous version tag
           git fetch origin "refs/tags/$PREV_VERSION:refs/tags/$PREV_VERSION" || git fetch origin "$PREV_VERSION" || true
           
           # Use git-base with the tag name (atlas should handle tags)
-          atlas_output=$(atlas migrate lint --env bridge --git-base "$PREV_VERSION" 2>&1) || atlas_exit=$?
+          atlas_output=$(atlas migrate lint --env mcp --git-base "$PREV_VERSION" 2>&1) || atlas_exit=$?
           if [ -z "$atlas_output" ]; then
             atlas_output="SUCCESS: checksums match, no breaking changes"
           fi
           
-          echo "bridge_lint_output<<EOF" >> $GITHUB_OUTPUT
+          echo "mcp_lint_output<<EOF" >> $GITHUB_OUTPUT
           echo "$atlas_output" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
           
@@ -397,19 +397,19 @@ jobs:
             
             # Combine database schema diffs (raw diffs, will be wrapped in backticks when writing to file)
             SOMA_DIFF="${{ steps.atlas-soma.outputs.soma_lint_output }}"
-            BRIDGE_DIFF="${{ steps.atlas-bridge.outputs.bridge_lint_output }}"
+            MCP_DIFF="${{ steps.atlas-mcp.outputs.mcp_lint_output }}"
             ENCRYPTION_DIFF="${{ steps.atlas-encryption.outputs.encryption_lint_output }}"
             
-            if [ -n "$SOMA_DIFF" ] || [ -n "$BRIDGE_DIFF" ] || [ -n "$ENCRYPTION_DIFF" ]; then
+            if [ -n "$SOMA_DIFF" ] || [ -n "$MCP_DIFF" ] || [ -n "$ENCRYPTION_DIFF" ]; then
               DATABASE_SCHEMA_DIFF=""
               if [ -n "$SOMA_DIFF" ]; then
                 DATABASE_SCHEMA_DIFF="### Soma Database"$'\n'"$SOMA_DIFF"
               fi
-              if [ -n "$BRIDGE_DIFF" ]; then
+              if [ -n "$MCP_DIFF" ]; then
                 if [ -n "$DATABASE_SCHEMA_DIFF" ]; then
                   DATABASE_SCHEMA_DIFF="$DATABASE_SCHEMA_DIFF"$'\n\n'
                 fi
-                DATABASE_SCHEMA_DIFF="${DATABASE_SCHEMA_DIFF}### Bridge Database"$'\n'"$BRIDGE_DIFF"
+                DATABASE_SCHEMA_DIFF="${DATABASE_SCHEMA_DIFF}### Mcp Database"$'\n'"$MCP_DIFF"
               fi
               if [ -n "$ENCRYPTION_DIFF" ]; then
                 if [ -n "$DATABASE_SCHEMA_DIFF" ]; then

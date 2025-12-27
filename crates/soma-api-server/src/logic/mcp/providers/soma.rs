@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use encryption::logic::crypto_services::DecryptionService;
 use mcp::logic::FunctionControllerLike;
 use mcp::logic::InvokeError;
 use mcp::logic::InvokeResult;
@@ -13,7 +14,6 @@ use mcp::logic::StaticProviderCredentialControllerLike;
 use mcp::logic::UserCredentialSerialized;
 use mcp::logic::no_auth::NoAuthController;
 use mcp::logic::no_auth::NoAuthStaticCredentialConfiguration;
-use encryption::logic::crypto_services::DecryptionService;
 use schemars::schema_for;
 use shared::primitives::WrappedJsonValue;
 use shared::primitives::WrappedSchema;

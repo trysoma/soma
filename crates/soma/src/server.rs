@@ -16,9 +16,7 @@ pub struct StartAxumServerParams {
 }
 
 /// Starts the Axum server using the process manager
-pub async fn start_axum_server(
-    params: StartAxumServerParams,
-) -> Result<(), CommonError> {
+pub async fn start_axum_server(params: StartAxumServerParams) -> Result<(), CommonError> {
     let port = find_free_port(params.port, params.port + 100)?;
     let addr: SocketAddr = format!("{}:{}", params.host, port)
         .parse()
@@ -111,7 +109,8 @@ pub async fn start_axum_server(
     let router_for_spawn = router;
     let addr_for_spawn = addr;
 
-    params.process_manager
+    params
+        .process_manager
         .start_thread(
             "axum_server",
             shared::process_manager::ThreadConfig {
@@ -124,7 +123,7 @@ pub async fn start_axum_server(
                         let server_fut = axum_server::bind(addr)
                             .handle(handle)
                             .serve(router.into_make_service());
-                        
+
                         match server_fut.await {
                             Ok(()) => {
                                 tracing::trace!("Axum server stopped");
@@ -132,7 +131,9 @@ pub async fn start_axum_server(
                             }
                             Err(e) => {
                                 tracing::error!(error = ?e, "Axum server stopped with error");
-                                Err(CommonError::Unknown(anyhow::anyhow!("Axum server error: {e}")))
+                                Err(CommonError::Unknown(anyhow::anyhow!(
+                                    "Axum server error: {e}"
+                                )))
                             }
                         }
                     })

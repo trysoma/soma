@@ -322,7 +322,7 @@ pub async fn cmd_enc_key_migrate(
     debug!("Migrating all DEKs from '{}' to '{}'", from, to);
 
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None ).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     debug!("Source envelope key: {}", from);
     debug!("Target envelope key: {}", to);

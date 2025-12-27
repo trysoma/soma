@@ -1,14 +1,23 @@
 use std::time::Duration;
 
-use shared::{error::CommonError, identity::{Role, User, UserType}, primitives::WrappedChronoDateTime};
+use shared::{
+    error::CommonError,
+    identity::{Role, User, UserType},
+    primitives::WrappedChronoDateTime,
+};
 use tracing::{trace, warn};
 
-use crate::{logic::api_key::{CreateApiKeyResponse, cache::ApiKeyCache, generate_api_key, hash_api_key}, repository::HashedApiKeyWithUser};
+use crate::{
+    logic::api_key::{CreateApiKeyResponse, cache::ApiKeyCache, generate_api_key, hash_api_key},
+    repository::HashedApiKeyWithUser,
+};
 
 pub async fn create_bootstrap_api_key(
     api_key_cache: Option<&ApiKeyCache>,
 ) -> Result<CreateApiKeyResponse, CommonError> {
-    warn!("Creating bootstrap API key. This should only be done on start up for initial sync. It will expire in 10 minutes.");
+    warn!(
+        "Creating bootstrap API key. This should only be done on start up for initial sync. It will expire in 10 minutes."
+    );
 
     // Generate API key and hash
     let raw_api_key = generate_api_key();
@@ -20,7 +29,6 @@ pub async fn create_bootstrap_api_key(
     // Create user ID for this API key (machine_$generated_id format)
     let user_id = "bootstrap".to_string();
     let now = WrappedChronoDateTime::now();
-
 
     // Create the user for this API key (machine type)
     // The user description is the same as the API key description

@@ -39,13 +39,13 @@ jobs:
           comment-tag: soma-db-quality
           display-name: Soma Database
 
-      - name: Validate Bridge database migrations
+      - name: Validate Mcp database migrations
         uses: ./.github/actions/atlas-migrate-lint
         with:
-          env: bridge
+          env: mcp 
           git-base: main
-          comment-tag: bridge-db-quality
-          display-name: Bridge Database
+          comment-tag: mcp-db-quality
+          display-name: Mcp Database
       
       - name: Validate Encryption database migrations
         uses: ./.github/actions/atlas-migrate-lint

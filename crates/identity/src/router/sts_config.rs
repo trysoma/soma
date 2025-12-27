@@ -8,7 +8,6 @@ use shared::{
     error::CommonError,
 };
 use tracing::trace;
-use utoipa::openapi::security::SecurityScheme;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::sts::config::{

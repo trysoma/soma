@@ -2,9 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use encryption::logic::crypto_services::CryptoCache;
 use mcp::logic::mcp::McpServerService;
 use mcp::logic::{OnConfigChangeTx, register_all_mcp_providers};
-use encryption::logic::crypto_services::CryptoCache;
 use rmcp::transport::streamable_http_server::{
     StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
@@ -43,7 +43,7 @@ pub struct ApiServiceBundle {
     pub api_service: ApiService,
     /// Unified change channel for external listeners to subscribe to mcp and encryption events
     pub soma_change_tx: SomaChangeTx,
-    /// Bootstrap API key for initial sync and other basic config tasks. 
+    /// Bootstrap API key for initial sync and other basic config tasks.
     pub bootstrap_api_key: String,
 }
 
@@ -453,9 +453,7 @@ pub async fn create_api_service(
                 },
             )
             .await
-            .inspect_err(
-                |e| error!(error = %e, "Failed to start mcp client generation thread"),
-            )?;
+            .inspect_err(|e| error!(error = %e, "Failed to start mcp client generation thread"))?;
     }
 
     // Start secret sync subsystem
@@ -580,10 +578,13 @@ pub async fn create_api_service(
     }
 
     trace!("Creating bootstrap API key");
-    
-    let bootstrap_api_key = identity::logic::api_key::bootstrap::create_bootstrap_api_key(Some(&api_service.identity_service.api_key_cache)).await?;
+
+    let bootstrap_api_key = identity::logic::api_key::bootstrap::create_bootstrap_api_key(Some(
+        &api_service.identity_service.api_key_cache,
+    ))
+    .await?;
     trace!("Bootstrap API key created");
-    
+
     Ok(ApiServiceBundle {
         api_service,
         soma_change_tx,

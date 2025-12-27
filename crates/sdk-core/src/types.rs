@@ -460,11 +460,7 @@ impl From<InvokeFunctionResponse> for sdk_proto::InvokeFunctionResponse {
 impl From<MetadataResponse> for sdk_proto::MetadataResponse {
     fn from(response: MetadataResponse) -> Self {
         Self {
-            mcp_providers: response
-                .mcp_providers
-                .into_iter()
-                .map(Into::into)
-                .collect(),
+            mcp_providers: response.mcp_providers.into_iter().map(Into::into).collect(),
             agents: response.agents.into_iter().map(Into::into).collect(),
         }
     }
