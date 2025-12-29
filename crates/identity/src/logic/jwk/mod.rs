@@ -427,8 +427,8 @@ mod unit_test {
     use encryption::logic::envelope::get_or_create_local_envelope_encryption_key;
     use encryption::repository::{EncryptionKeyRepositoryLike, Repository as EncryptionRepository};
     use shared::primitives::{SqlMigrationLoader, WrappedChronoDateTime};
-    use shared::test_utils::repository::setup_in_memory_database;
     use shared::test_utils::helpers::MockAuthClient;
+    use shared::test_utils::repository::setup_in_memory_database;
     use tokio::sync::broadcast;
 
     struct TestContext {
@@ -572,9 +572,16 @@ mod unit_test {
             kid: created.kid.clone(),
         };
         let auth_client = mock_admin_auth_client();
-        invalidate_jwk(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &ctx.identity_repo, &ctx.jwks_cache, params)
-            .await
-            .unwrap();
+        invalidate_jwk(
+            auth_client,
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &ctx.identity_repo,
+            &ctx.jwks_cache,
+            params,
+        )
+        .await
+        .unwrap();
 
         // Verify it's invalidated
         let result = ctx
@@ -612,7 +619,15 @@ mod unit_test {
         };
 
         let auth_client = mock_admin_auth_client();
-        let result = list_jwks(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &ctx.identity_repo, &pagination).await.unwrap();
+        let result = list_jwks(
+            auth_client,
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &ctx.identity_repo,
+            &pagination,
+        )
+        .await
+        .unwrap();
         assert_eq!(result.items.len(), 3);
     }
 

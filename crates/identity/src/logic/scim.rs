@@ -1119,9 +1119,9 @@ pub async fn delete_group_scim(
 mod tests {
     use super::*;
     use crate::repository::Repository;
+    use shared::identity::{Identity, Role};
     use shared::primitives::SqlMigrationLoader;
     use shared::test_utils::helpers::MockAuthClient;
-    use shared::identity::{Identity, Role};
 
     async fn setup_test_repo() -> Repository {
         shared::setup_test!();
@@ -1166,7 +1166,14 @@ mod tests {
         };
 
         let auth_client = mock_admin_auth_client();
-        let result = create_user_from_scim(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_user).await;
+        let result = create_user_from_scim(
+            auth_client,
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_user,
+        )
+        .await;
         assert!(result.is_ok());
 
         let created = result.unwrap();
@@ -1199,11 +1206,25 @@ mod tests {
 
         // Create first user
         let auth_client = mock_admin_auth_client();
-        let result1 = create_user_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_user.clone()).await;
+        let result1 = create_user_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_user.clone(),
+        )
+        .await;
         assert!(result1.is_ok());
 
         // Try to create duplicate
-        let result2 = create_user_from_scim(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_user).await;
+        let result2 = create_user_from_scim(
+            auth_client,
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_user,
+        )
+        .await;
         assert!(result2.is_err());
     }
 
@@ -1230,10 +1251,26 @@ mod tests {
         };
 
         let auth_client = mock_admin_auth_client();
-        create_user_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_user).await.unwrap();
+        create_user_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_user,
+        )
+        .await
+        .unwrap();
 
         // Get the user
-        let result = get_user_scim(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &repo, "get-test-user", "https://example.com/scim/v2").await;
+        let result = get_user_scim(
+            auth_client,
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            "get-test-user",
+            "https://example.com/scim/v2",
+        )
+        .await;
         assert!(result.is_ok());
 
         let user = result.unwrap();
@@ -1253,7 +1290,15 @@ mod tests {
         let repo = setup_test_repo().await;
 
         let auth_client = mock_admin_auth_client();
-        let result = get_user_scim(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &repo, "nonexistent", "https://example.com/scim/v2").await;
+        let result = get_user_scim(
+            auth_client,
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            "nonexistent",
+            "https://example.com/scim/v2",
+        )
+        .await;
         assert!(result.is_err());
     }
 
@@ -1280,7 +1325,15 @@ mod tests {
                 groups: vec![],
                 meta: None,
             };
-            create_user_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_user).await.unwrap();
+            create_user_from_scim(
+                auth_client.clone(),
+                Identity::Unauthenticated,
+                Identity::Unauthenticated,
+                &repo,
+                scim_user,
+            )
+            .await
+            .unwrap();
         }
 
         let result = list_users_scim(
@@ -1322,7 +1375,15 @@ mod tests {
             meta: None,
         };
 
-        create_user_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_user).await.unwrap();
+        create_user_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_user,
+        )
+        .await
+        .unwrap();
 
         // Replace the user
         let updated_user = ScimUser {
@@ -1382,7 +1443,15 @@ mod tests {
             meta: None,
         };
 
-        create_user_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_user).await.unwrap();
+        create_user_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_user,
+        )
+        .await
+        .unwrap();
 
         // Patch the user
         let patch_request = ScimPatchRequest {
@@ -1430,14 +1499,37 @@ mod tests {
             meta: None,
         };
 
-        create_user_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_user).await.unwrap();
+        create_user_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_user,
+        )
+        .await
+        .unwrap();
 
         // Delete the user
-        let result = delete_user_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, "delete-user").await;
+        let result = delete_user_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            "delete-user",
+        )
+        .await;
         assert!(result.is_ok());
 
         // Verify deletion
-        let get_result = get_user_scim(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &repo, "delete-user", "").await;
+        let get_result = get_user_scim(
+            auth_client,
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            "delete-user",
+            "",
+        )
+        .await;
         assert!(get_result.is_err());
     }
 
@@ -1455,7 +1547,15 @@ mod tests {
             meta: None,
         };
 
-        let result = create_group_from_scim(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_group, "https://example.com/scim/v2").await;
+        let result = create_group_from_scim(
+            auth_client,
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_group,
+            "https://example.com/scim/v2",
+        )
+        .await;
         assert!(result.is_ok());
 
         let created = result.unwrap();
@@ -1481,7 +1581,15 @@ mod tests {
             groups: vec![],
             meta: None,
         };
-        create_user_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_user).await.unwrap();
+        create_user_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_user,
+        )
+        .await
+        .unwrap();
 
         // Create group with member
         let scim_group = ScimGroup {
@@ -1498,7 +1606,15 @@ mod tests {
             meta: None,
         };
 
-        let result = create_group_from_scim(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_group, "https://example.com/scim/v2").await;
+        let result = create_group_from_scim(
+            auth_client,
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_group,
+            "https://example.com/scim/v2",
+        )
+        .await;
         assert!(result.is_ok());
 
         let created = result.unwrap();
@@ -1520,10 +1636,27 @@ mod tests {
             members: vec![],
             meta: None,
         };
-        create_group_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_group, "").await.unwrap();
+        create_group_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_group,
+            "",
+        )
+        .await
+        .unwrap();
 
         // Get the group
-        let result = get_group_scim(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &repo, "get-group", "https://example.com/scim/v2").await;
+        let result = get_group_scim(
+            auth_client,
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            "get-group",
+            "https://example.com/scim/v2",
+        )
+        .await;
         assert!(result.is_ok());
 
         let group = result.unwrap();
@@ -1546,7 +1679,16 @@ mod tests {
                 members: vec![],
                 meta: None,
             };
-            create_group_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_group, "").await.unwrap();
+            create_group_from_scim(
+                auth_client.clone(),
+                Identity::Unauthenticated,
+                Identity::Unauthenticated,
+                &repo,
+                scim_group,
+                "",
+            )
+            .await
+            .unwrap();
         }
 
         let result = list_groups_scim(
@@ -1579,7 +1721,16 @@ mod tests {
             members: vec![],
             meta: None,
         };
-        create_group_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_group, "").await.unwrap();
+        create_group_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_group,
+            "",
+        )
+        .await
+        .unwrap();
 
         // Replace the group
         let updated_group = ScimGroup {
@@ -1625,7 +1776,15 @@ mod tests {
             groups: vec![],
             meta: None,
         };
-        create_user_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_user).await.unwrap();
+        create_user_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_user,
+        )
+        .await
+        .unwrap();
 
         // Create a group
         let scim_group = ScimGroup {
@@ -1636,7 +1795,16 @@ mod tests {
             members: vec![],
             meta: None,
         };
-        create_group_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_group, "").await.unwrap();
+        create_group_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_group,
+            "",
+        )
+        .await
+        .unwrap();
 
         // Patch to add member
         let patch_request = ScimPatchRequest {
@@ -1683,7 +1851,15 @@ mod tests {
             groups: vec![],
             meta: None,
         };
-        create_user_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_user).await.unwrap();
+        create_user_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_user,
+        )
+        .await
+        .unwrap();
 
         // Create a group with the member
         let scim_group = ScimGroup {
@@ -1699,7 +1875,16 @@ mod tests {
             }],
             meta: None,
         };
-        create_group_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_group, "").await.unwrap();
+        create_group_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_group,
+            "",
+        )
+        .await
+        .unwrap();
 
         // Patch to remove member
         let patch_request = ScimPatchRequest {
@@ -1741,14 +1926,38 @@ mod tests {
             members: vec![],
             meta: None,
         };
-        create_group_from_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, scim_group, "").await.unwrap();
+        create_group_from_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            scim_group,
+            "",
+        )
+        .await
+        .unwrap();
 
         // Delete the group
-        let result = delete_group_scim(auth_client.clone(), Identity::Unauthenticated, Identity::Unauthenticated, &repo, "delete-group").await;
+        let result = delete_group_scim(
+            auth_client.clone(),
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            "delete-group",
+        )
+        .await;
         assert!(result.is_ok());
 
         // Verify deletion
-        let get_result = get_group_scim(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &repo, "delete-group", "").await;
+        let get_result = get_group_scim(
+            auth_client,
+            Identity::Unauthenticated,
+            Identity::Unauthenticated,
+            &repo,
+            "delete-group",
+            "",
+        )
+        .await;
         assert!(get_result.is_err());
     }
 
