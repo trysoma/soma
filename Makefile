@@ -77,7 +77,9 @@ js-build: ## Build all JS projects
 
 rs-build: ## Build all Rust projects
 	@echo "Building Rust projects..."
-	cargo build
+	cargo build --features unit_test,integration_test
+	@echo "Building Rust tests..."
+	cargo test --features unit_test,integration_test --no-run
 	@echo "✓ Rust projects built"
 
 py-clean-cache: ## Clean Python bytecode cache files
