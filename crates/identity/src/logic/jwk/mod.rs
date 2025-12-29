@@ -428,6 +428,7 @@ mod unit_test {
     use encryption::repository::{EncryptionKeyRepositoryLike, Repository as EncryptionRepository};
     use shared::primitives::{SqlMigrationLoader, WrappedChronoDateTime};
     use shared::test_utils::repository::setup_in_memory_database;
+    use shared::test_utils::helpers::MockAuthClient;
     use tokio::sync::broadcast;
 
     struct TestContext {
@@ -436,6 +437,11 @@ mod unit_test {
         jwks_cache: JwksCache,
         #[allow(dead_code)]
         temp_dir: tempfile::TempDir,
+    }
+
+    /// Create a mock auth client that returns an authenticated admin identity
+    fn mock_admin_auth_client() -> MockAuthClient {
+        MockAuthClient::new(shared::test_utils::helpers::test_admin_machine())
     }
 
     async fn setup_test_context() -> TestContext {
@@ -565,7 +571,8 @@ mod unit_test {
         let params = InvalidateJwkParams {
             kid: created.kid.clone(),
         };
-        invalidate_jwk(&ctx.identity_repo, &ctx.jwks_cache, params)
+        let auth_client = mock_admin_auth_client();
+        invalidate_jwk(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &ctx.identity_repo, &ctx.jwks_cache, params)
             .await
             .unwrap();
 
@@ -604,7 +611,8 @@ mod unit_test {
             next_page_token: None,
         };
 
-        let result = list_jwks(&ctx.identity_repo, &pagination).await.unwrap();
+        let auth_client = mock_admin_auth_client();
+        let result = list_jwks(auth_client, Identity::Unauthenticated, Identity::Unauthenticated, &ctx.identity_repo, &pagination).await.unwrap();
         assert_eq!(result.items.len(), 3);
     }
 
