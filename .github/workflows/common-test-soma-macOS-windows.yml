@@ -115,8 +115,7 @@ jobs:
   
       - name: Run Rust tests (unit tests only)
         run: |
-          # Run with unit_test feature only - integration tests require Docker which isn't available on macOS
           # Integration tests are run on Linux where Docker is available
-          cargo nextest run --target ${{ matrix.settings.target }} --locked --features unit_test
+          cargo nextest run --target ${{ matrix.settings.target }} --locked 
         shell: bash
 
