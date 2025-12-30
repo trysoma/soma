@@ -13,7 +13,7 @@
  */
 
 /**
- *
+ * Request to update an existing secret
  * @export
  * @interface UpdateSecretRequest
  */

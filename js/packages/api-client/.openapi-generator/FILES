@@ -2,12 +2,11 @@
 .npmignore
 src/apis/AgentApi.ts
 src/apis/EncryptionApi.ts
-src/apis/EnvironmentVariableApi.ts
+src/apis/EnvironmentApi.ts
 src/apis/IdentityApi.ts
 src/apis/InternalApi.ts
 src/apis/McpApi.ts
 src/apis/ScimApi.ts
-src/apis/SecretApi.ts
 src/apis/TaskApi.ts
 src/apis/V1Api.ts
 src/apis/index.ts
@@ -26,7 +25,6 @@ src/models/CreateApiKeyParams.ts
 src/models/CreateApiKeyResponse.ts
 src/models/CreateDataEncryptionKeyParamsRoute.ts
 src/models/CreateDekAliasRequest.ts
-src/models/CreateEnvironmentVariableRequest.ts
 src/models/CreateGroupRequest.ts
 src/models/CreateMcpServerInstanceRequest.ts
 src/models/CreateMessageRequest.ts
@@ -38,13 +36,14 @@ src/models/CreateUserAuthFlowConfigParams.ts
 src/models/CreateUserAuthFlowConfigResponse.ts
 src/models/CreateUserCredentialParamsInner.ts
 src/models/CreateUserRequest.ts
+src/models/CreateVariableRequest.ts
 src/models/DataEncryptionKey.ts
 src/models/DataEncryptionKeyAlias.ts
 src/models/DataEncryptionKeyListItem.ts
 src/models/DataEncryptionKeyListItemPaginatedResponse.ts
 src/models/DecryptedSecret.ts
-src/models/DeleteEnvironmentVariableResponse.ts
 src/models/DeleteSecretResponse.ts
+src/models/DeleteVariableResponse.ts
 src/models/DevModeConfig.ts
 src/models/EncryptCredentialConfigurationParamsInner.ts
 src/models/EncryptedApiKeyConfig.ts
@@ -61,7 +60,6 @@ src/models/EnvelopeEncryptionKeyLocal.ts
 src/models/EnvelopeEncryptionKeyOneOf.ts
 src/models/EnvelopeEncryptionKeyOneOf1.ts
 src/models/EnvelopeEncryptionKeyPaginatedResponse.ts
-src/models/EnvironmentVariable.ts
 src/models/FunctionControllerSerialized.ts
 src/models/FunctionInstanceConfig.ts
 src/models/FunctionInstanceConfigPaginatedResponse.ts
@@ -83,9 +81,9 @@ src/models/IdentityOneOf1.ts
 src/models/IdentityOneOf2.ts
 src/models/IdentityOneOf3.ts
 src/models/ImportDataEncryptionKeyParamsRoute.ts
-src/models/ImportEnvironmentVariableRequest.ts
 src/models/ImportSecretRequest.ts
 src/models/ImportUserAuthFlowConfigParams.ts
+src/models/ImportVariableRequest.ts
 src/models/InvokeError.ts
 src/models/InvokeFunctionParamsInner.ts
 src/models/InvokeResult.ts
@@ -102,9 +100,9 @@ src/models/JwtTokenTemplateValidationConfig.ts
 src/models/ListAgentsResponse.ts
 src/models/ListApiKeysResponse.ts
 src/models/ListDecryptedSecretsResponse.ts
-src/models/ListEnvironmentVariablesResponse.ts
 src/models/ListSecretsResponse.ts
 src/models/ListUserAuthFlowConfigResponse.ts
+src/models/ListVariablesResponse.ts
 src/models/Machine.ts
 src/models/MappingSourceString.ts
 src/models/MappingSourceStringOneOf.ts
@@ -172,7 +170,6 @@ src/models/TokenLocationOneOf1.ts
 src/models/TokenMapping.ts
 src/models/TokenResponse.ts
 src/models/UpdateAliasParams.ts
-src/models/UpdateEnvironmentVariableRequest.ts
 src/models/UpdateGroupRequest.ts
 src/models/UpdateMcpServerInstanceFunctionRequest.ts
 src/models/UpdateMcpServerInstanceRequest.ts
@@ -180,6 +177,7 @@ src/models/UpdateProviderInstanceParamsInner.ts
 src/models/UpdateSecretRequest.ts
 src/models/UpdateTaskStatusRequest.ts
 src/models/UpdateUserRequest.ts
+src/models/UpdateVariableRequest.ts
 src/models/User.ts
 src/models/UserAuthFlowConfig.ts
 src/models/UserAuthFlowConfigOneOf.ts
@@ -195,5 +193,6 @@ src/models/UserGroupWithGroup.ts
 src/models/UserGroupWithGroupPaginatedResponse.ts
 src/models/UserPaginatedResponse.ts
 src/models/UserType.ts
+src/models/Variable.ts
 src/models/index.ts
 src/runtime.ts

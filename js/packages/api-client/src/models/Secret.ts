@@ -13,7 +13,7 @@
  */
 
 /**
- *
+ * Domain model for Secret - an encrypted key-value pair
  * @export
  * @interface Secret
  */

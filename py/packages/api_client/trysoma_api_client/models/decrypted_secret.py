@@ -26,7 +26,7 @@ from typing_extensions import Self
 
 class DecryptedSecret(BaseModel):
     """
-    DecryptedSecret
+    Decrypted secret type for list-decrypted endpoint
     """  # noqa: E501
 
     created_at: datetime

@@ -16,7 +16,7 @@ import type { Secret } from "./Secret";
 import { SecretFromJSON, SecretToJSON } from "./Secret";
 
 /**
- *
+ * Response for listing secrets
  * @export
  * @interface ListSecretsResponse
  */

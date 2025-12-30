@@ -49,4 +49,14 @@ env "identity" {
   dev = "sqlite://file?mode=memory"
 }
 
+env "environment" {
+  src = "file://crates/environment/dbs/environment/schema.sql"
 
+  migration {
+    dir = "file://crates/environment/dbs/environment/migrations?format=goose"
+  }
+
+  //we don't actually use atlas to deploy to an env
+  url = "sqlite://file?mode=memory"
+  dev = "sqlite://file?mode=memory"
+}

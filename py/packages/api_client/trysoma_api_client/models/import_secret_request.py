@@ -24,7 +24,7 @@ from typing_extensions import Self
 
 class ImportSecretRequest(BaseModel):
     """
-    ImportSecretRequest
+    Request type for importing pre-encrypted secrets (used by sync_yaml_to_api_on_start)
     """  # noqa: E501
 
     dek_alias: StrictStr

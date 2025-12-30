@@ -15,7 +15,7 @@ use shared::soma_agent_definition::{
     SecretConfig, SomaAgentDefinitionLike, StsConfigYaml, UserAuthFlowYamlConfig,
 };
 use soma_api_server::logic::on_change_pubsub::{
-    EnvironmentVariableChangeEvt, SecretChangeEvt, SomaChangeEvt, SomaChangeRx,
+    SecretChangeEvt, SomaChangeEvt, SomaChangeRx, VariableChangeEvt,
 };
 
 /// Watches for unified soma change events and updates soma.yaml accordingly
@@ -47,8 +47,8 @@ pub async fn sync_on_soma_change(
             SomaChangeEvt::Secret(secret_evt) => {
                 handle_secret_event(secret_evt, &soma_definition).await?;
             }
-            SomaChangeEvt::EnvironmentVariable(env_var_evt) => {
-                handle_environment_variable_event(env_var_evt, &soma_definition).await?;
+            SomaChangeEvt::Variable(var_evt) => {
+                handle_variable_event(var_evt, &soma_definition).await?;
             }
             SomaChangeEvt::Identity(identity_evt) => {
                 handle_identity_event(identity_evt, &soma_definition).await?;
@@ -625,24 +625,24 @@ async fn handle_secret_event(
     Ok(())
 }
 
-async fn handle_environment_variable_event(
-    event: EnvironmentVariableChangeEvt,
+async fn handle_variable_event(
+    event: VariableChangeEvt,
     soma_definition: &Arc<dyn SomaAgentDefinitionLike>,
 ) -> Result<(), CommonError> {
     match event {
-        EnvironmentVariableChangeEvt::Created(env_var) => {
-            debug!("Environment variable created: {:?}", env_var.key);
+        VariableChangeEvt::Created(var) => {
+            debug!("Environment variable created: {:?}", var.key);
             soma_definition
-                .add_environment_variable(env_var.key, env_var.value)
+                .add_environment_variable(var.key, var.value)
                 .await?;
         }
-        EnvironmentVariableChangeEvt::Updated(env_var) => {
-            debug!("Environment variable updated: {:?}", env_var.key);
+        VariableChangeEvt::Updated(var) => {
+            debug!("Environment variable updated: {:?}", var.key);
             soma_definition
-                .update_environment_variable(env_var.key, env_var.value)
+                .update_environment_variable(var.key, var.value)
                 .await?;
         }
-        EnvironmentVariableChangeEvt::Deleted { id: _, key } => {
+        VariableChangeEvt::Deleted { id: _, key } => {
             debug!("Environment variable deleted: {:?}", key);
             soma_definition.remove_environment_variable(key).await?;
         }

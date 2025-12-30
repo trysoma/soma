@@ -1,0 +1,105 @@
+version: "2"
+plugins:
+  - name: sqlc-gen-from-template
+    process:
+      cmd: "sqlc-gen-from-template"
+sql:
+  - engine: "sqlite"
+    schema: "./dbs/environment/schema.sql"
+    queries: "./dbs/environment/queries"
+    codegen:
+      - out: "src/repository/sqlite"
+        plugin: "sqlc-gen-from-template"
+        options:
+          template: "./../../rust_rusqlite.go.tmpl"
+          filename: "raw.generated.rs"
+          cache_statements: true
+          use_serde: true
+          overrides:
+            # secret table
+            - db_type: text
+              column: secret.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: datetime
+              column: secret.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: secret.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_secret_by_id query columns
+            - db_type: text
+              column: get_secret_by_id.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: datetime
+              column: get_secret_by_id.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_secret_by_id.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_secret_by_key query columns
+            - db_type: text
+              column: get_secret_by_key.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: datetime
+              column: get_secret_by_key.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_secret_by_key.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_secrets query columns
+            - db_type: text
+              column: get_secrets.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: datetime
+              column: get_secrets.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_secrets.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # variable table
+            - db_type: text
+              column: variable.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: datetime
+              column: variable.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: variable.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_variable_by_id query columns
+            - db_type: text
+              column: get_variable_by_id.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: datetime
+              column: get_variable_by_id.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_variable_by_id.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_variable_by_key query columns
+            - db_type: text
+              column: get_variable_by_key.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: datetime
+              column: get_variable_by_key.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_variable_by_key.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_variables query columns
+            - db_type: text
+              column: get_variables.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: datetime
+              column: get_variables.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_variables.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"

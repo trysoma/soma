@@ -11,8 +11,6 @@ use shared::{
 pub use sqlite::Repository;
 use tracing::debug;
 
-use crate::logic::environment_variable::EnvironmentVariable;
-use crate::logic::secret::Secret;
 use crate::logic::task::{
     Message, MessagePart, MessageRole, Task, TaskEventUpdateType, TaskStatus, TaskTimelineItem,
     TaskTimelineItemPayload, TaskWithDetails,
@@ -119,25 +117,6 @@ impl TryFrom<Message> for CreateMessage {
     }
 }
 
-// Secret repository parameter structs
-#[derive(Debug)]
-pub struct CreateSecret {
-    pub id: WrappedUuidV4,
-    pub key: String,
-    pub encrypted_secret: String,
-    pub dek_alias: String,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-#[derive(Debug)]
-pub struct UpdateSecret {
-    pub id: WrappedUuidV4,
-    pub encrypted_secret: String,
-    pub dek_alias: String,
-    pub updated_at: WrappedChronoDateTime,
-}
-
 // Repository trait
 #[allow(async_fn_in_trait)]
 pub trait TaskRepositoryLike {
@@ -178,63 +157,6 @@ pub trait TaskRepositoryLike {
     ) -> Result<PaginatedResponse<Message>, CommonError>;
 }
 
-// Secret repository trait
-#[allow(async_fn_in_trait)]
-pub trait SecretRepositoryLike: Send + Sync {
-    async fn create_secret(&self, params: &CreateSecret) -> Result<(), CommonError>;
-    async fn update_secret(&self, params: &UpdateSecret) -> Result<(), CommonError>;
-    async fn delete_secret(&self, id: &WrappedUuidV4) -> Result<(), CommonError>;
-    async fn get_secret_by_id(&self, id: &WrappedUuidV4) -> Result<Option<Secret>, CommonError>;
-    async fn get_secret_by_key(&self, key: &str) -> Result<Option<Secret>, CommonError>;
-    async fn get_secrets(
-        &self,
-        pagination: &PaginationRequest,
-    ) -> Result<PaginatedResponse<Secret>, CommonError>;
-}
-
-// Environment variable repository parameter structs
-#[derive(Debug)]
-pub struct CreateEnvironmentVariable {
-    pub id: WrappedUuidV4,
-    pub key: String,
-    pub value: String,
-    pub created_at: WrappedChronoDateTime,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-#[derive(Debug)]
-pub struct UpdateEnvironmentVariable {
-    pub id: WrappedUuidV4,
-    pub value: String,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-// Environment variable repository trait
-#[allow(async_fn_in_trait)]
-pub trait EnvironmentVariableRepositoryLike {
-    async fn create_environment_variable(
-        &self,
-        params: &CreateEnvironmentVariable,
-    ) -> Result<(), CommonError>;
-    async fn update_environment_variable(
-        &self,
-        params: &UpdateEnvironmentVariable,
-    ) -> Result<(), CommonError>;
-    async fn delete_environment_variable(&self, id: &WrappedUuidV4) -> Result<(), CommonError>;
-    async fn get_environment_variable_by_id(
-        &self,
-        id: &WrappedUuidV4,
-    ) -> Result<Option<EnvironmentVariable>, CommonError>;
-    async fn get_environment_variable_by_key(
-        &self,
-        key: &str,
-    ) -> Result<Option<EnvironmentVariable>, CommonError>;
-    async fn get_environment_variables(
-        &self,
-        pagination: &PaginationRequest,
-    ) -> Result<PaginatedResponse<EnvironmentVariable>, CommonError>;
-}
-
 // Repository setup utilities
 use shared::libsql::{
     establish_db_connection, inject_auth_token_to_db_url, merge_nested_migrations,
@@ -253,6 +175,7 @@ pub async fn setup_repository(
         Repository,
         mcp::repository::Repository,
         encryption::repository::Repository,
+        environment::repository::Repository,
     ),
     CommonError,
 > {
@@ -262,6 +185,7 @@ pub async fn setup_repository(
         mcp::repository::Repository::load_sql_migrations(),
         <encryption::repository::Repository as SqlMigrationLoader>::load_sql_migrations(),
         identity::repository::Repository::load_sql_migrations(),
+        environment::repository::Repository::load_sql_migrations(),
     ]);
     let auth_conn_string = inject_auth_token_to_db_url(conn_string, auth_token)?;
     let (db, conn) = establish_db_connection(&auth_conn_string, Some(migrations)).await?;
@@ -269,5 +193,6 @@ pub async fn setup_repository(
     let repo = Repository::new(conn.clone());
     let mcp_repo = mcp::repository::Repository::new(conn.clone());
     let encryption_repo = encryption::repository::Repository::new(conn.clone());
-    Ok((db, conn, repo, mcp_repo, encryption_repo))
+    let environment_repo = environment::repository::Repository::new(conn.clone());
+    Ok((db, conn, repo, mcp_repo, encryption_repo, environment_repo))
 }

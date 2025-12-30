@@ -33,9 +33,6 @@ from trysoma_api_client.models.create_data_encryption_key_params_route import (
     CreateDataEncryptionKeyParamsRoute,
 )
 from trysoma_api_client.models.create_dek_alias_request import CreateDekAliasRequest
-from trysoma_api_client.models.create_environment_variable_request import (
-    CreateEnvironmentVariableRequest,
-)
 from trysoma_api_client.models.create_group_request import CreateGroupRequest
 from trysoma_api_client.models.create_mcp_server_instance_request import (
     CreateMcpServerInstanceRequest,
@@ -59,6 +56,7 @@ from trysoma_api_client.models.create_user_credential_params_inner import (
     CreateUserCredentialParamsInner,
 )
 from trysoma_api_client.models.create_user_request import CreateUserRequest
+from trysoma_api_client.models.create_variable_request import CreateVariableRequest
 from trysoma_api_client.models.data_encryption_key import DataEncryptionKey
 from trysoma_api_client.models.data_encryption_key_alias import DataEncryptionKeyAlias
 from trysoma_api_client.models.data_encryption_key_list_item import (
@@ -68,10 +66,8 @@ from trysoma_api_client.models.data_encryption_key_list_item_paginated_response 
     DataEncryptionKeyListItemPaginatedResponse,
 )
 from trysoma_api_client.models.decrypted_secret import DecryptedSecret
-from trysoma_api_client.models.delete_environment_variable_response import (
-    DeleteEnvironmentVariableResponse,
-)
 from trysoma_api_client.models.delete_secret_response import DeleteSecretResponse
+from trysoma_api_client.models.delete_variable_response import DeleteVariableResponse
 from trysoma_api_client.models.dev_mode_config import DevModeConfig
 from trysoma_api_client.models.encrypt_credential_configuration_params_inner import (
     EncryptCredentialConfigurationParamsInner,
@@ -110,7 +106,6 @@ from trysoma_api_client.models.envelope_encryption_key_one_of1 import (
 from trysoma_api_client.models.envelope_encryption_key_paginated_response import (
     EnvelopeEncryptionKeyPaginatedResponse,
 )
-from trysoma_api_client.models.environment_variable import EnvironmentVariable
 from trysoma_api_client.models.error import Error
 from trysoma_api_client.models.function_controller_serialized import (
     FunctionControllerSerialized,
@@ -149,13 +144,11 @@ from trysoma_api_client.models.identity_one_of3 import IdentityOneOf3
 from trysoma_api_client.models.import_data_encryption_key_params_route import (
     ImportDataEncryptionKeyParamsRoute,
 )
-from trysoma_api_client.models.import_environment_variable_request import (
-    ImportEnvironmentVariableRequest,
-)
 from trysoma_api_client.models.import_secret_request import ImportSecretRequest
 from trysoma_api_client.models.import_user_auth_flow_config_params import (
     ImportUserAuthFlowConfigParams,
 )
+from trysoma_api_client.models.import_variable_request import ImportVariableRequest
 from trysoma_api_client.models.invoke_error import InvokeError
 from trysoma_api_client.models.invoke_function_params_inner import (
     InvokeFunctionParamsInner,
@@ -180,13 +173,11 @@ from trysoma_api_client.models.list_api_keys_response import ListApiKeysResponse
 from trysoma_api_client.models.list_decrypted_secrets_response import (
     ListDecryptedSecretsResponse,
 )
-from trysoma_api_client.models.list_environment_variables_response import (
-    ListEnvironmentVariablesResponse,
-)
 from trysoma_api_client.models.list_secrets_response import ListSecretsResponse
 from trysoma_api_client.models.list_user_auth_flow_config_response import (
     ListUserAuthFlowConfigResponse,
 )
+from trysoma_api_client.models.list_variables_response import ListVariablesResponse
 from trysoma_api_client.models.machine import Machine
 from trysoma_api_client.models.mapping_source_string import MappingSourceString
 from trysoma_api_client.models.mapping_source_string_one_of import (
@@ -301,9 +292,6 @@ from trysoma_api_client.models.token_location_one_of1 import TokenLocationOneOf1
 from trysoma_api_client.models.token_mapping import TokenMapping
 from trysoma_api_client.models.token_response import TokenResponse
 from trysoma_api_client.models.update_alias_params import UpdateAliasParams
-from trysoma_api_client.models.update_environment_variable_request import (
-    UpdateEnvironmentVariableRequest,
-)
 from trysoma_api_client.models.update_group_request import UpdateGroupRequest
 from trysoma_api_client.models.update_mcp_server_instance_function_request import (
     UpdateMcpServerInstanceFunctionRequest,
@@ -317,6 +305,7 @@ from trysoma_api_client.models.update_provider_instance_params_inner import (
 from trysoma_api_client.models.update_secret_request import UpdateSecretRequest
 from trysoma_api_client.models.update_task_status_request import UpdateTaskStatusRequest
 from trysoma_api_client.models.update_user_request import UpdateUserRequest
+from trysoma_api_client.models.update_variable_request import UpdateVariableRequest
 from trysoma_api_client.models.user import User
 from trysoma_api_client.models.user_auth_flow_config import UserAuthFlowConfig
 from trysoma_api_client.models.user_auth_flow_config_one_of import (
@@ -352,3 +341,4 @@ from trysoma_api_client.models.user_group_with_group_paginated_response import (
 )
 from trysoma_api_client.models.user_paginated_response import UserPaginatedResponse
 from trysoma_api_client.models.user_type import UserType
+from trysoma_api_client.models.variable import Variable

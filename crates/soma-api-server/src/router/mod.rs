@@ -6,14 +6,13 @@ use utoipa::{Modify, OpenApi};
 
 use crate::ApiService;
 use encryption::router::create_router as create_encryption_router;
+use environment::router::create_router as create_environment_router;
 use identity::router::create_router as create_identity_router;
 use mcp::router::create_router as create_mcp_router;
 use shared::error::CommonError;
 
 pub(crate) mod agent;
-pub(crate) mod environment_variable;
 pub(crate) mod internal;
-pub(crate) mod secret;
 pub(crate) mod task;
 
 /// Middleware that stores the original URI in request extensions before nest_service strips the path.
@@ -29,12 +28,8 @@ async fn store_original_uri(
 pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonError> {
     let mut router = Router::new();
 
-    // let (live_connection_changes_tx, mut live_connection_changes_rx) = tokio::sync::mpsc::channel(10);
-
     // agent router
-
     let (agent_router, _) = agent::create_router().split_for_parts();
-
     let agent_router = agent_router.with_state(api_service.agent_service);
     router = router.merge(agent_router);
 
@@ -65,15 +60,10 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
     let encryption_router = encryption_router.with_state(api_service.encryption_service.clone());
     router = router.merge(encryption_router);
 
-    // secret router
-    let (secret_router, _) = secret::create_router().split_for_parts();
-    let secret_router = secret_router.with_state(api_service.secret_service);
-    router = router.merge(secret_router);
-
-    // environment variable router
-    let (env_var_router, _) = environment_variable::create_router().split_for_parts();
-    let env_var_router = env_var_router.with_state(api_service.environment_variable_service);
-    router = router.merge(env_var_router);
+    // environment router (secrets and variables)
+    let (environment_router, _) = create_environment_router().split_for_parts();
+    let environment_router = environment_router.with_state(api_service.environment_service.clone());
+    router = router.merge(environment_router);
 
     // identity router
     let (identity_router, _) = create_identity_router().split_for_parts();
@@ -93,16 +83,14 @@ pub fn generate_openapi_spec() -> OpenApiDoc {
     let (_, mcp_spec) = create_mcp_router().split_for_parts();
     let (_, internal_spec) = internal::create_router().split_for_parts();
     let (_, encryption_spec) = create_encryption_router().split_for_parts();
-    let (_, secret_spec) = secret::create_router().split_for_parts();
-    let (_, env_var_spec) = environment_variable::create_router().split_for_parts();
+    let (_, environment_spec) = create_environment_router().split_for_parts();
     let (_, identity_spec) = create_identity_router().split_for_parts();
     spec.merge(agent_spec);
     spec.merge(task_spec);
     spec.merge(mcp_spec);
     spec.merge(internal_spec);
     spec.merge(encryption_spec);
-    spec.merge(secret_spec);
-    spec.merge(env_var_spec);
+    spec.merge(environment_spec);
     spec.merge(identity_spec);
 
     spec
@@ -120,7 +108,7 @@ pub fn generate_openapi_spec() -> OpenApiDoc {
     tags(
         (name = "task", description = "Task management endpoints for creating, listing, and managing tasks and their messages"),
         (name = "secret", description = "Secret management endpoints for storing and retrieving encrypted secrets"),
-        (name = "environment-variable", description = "Environment variable management endpoints for storing and retrieving environment variables"),
+        (name = "variable", description = "Environment variable management endpoints for storing and retrieving variables"),
         (name = "encryption", description = "Encryption key management endpoints for envelope keys, data encryption keys, and aliases"),
         (name = "mcp", description = "MCP endpoints for managing providers, credentials, functions, and MCP protocol communication"),
         (name = "_internal", description = "Internal endpoints for health checks, runtime configuration, and SDK code generation"),

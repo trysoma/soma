@@ -24,7 +24,7 @@ from typing_extensions import Self
 
 class DeleteSecretResponse(BaseModel):
     """
-    DeleteSecretResponse
+    Response for deleting a secret
     """  # noqa: E501
 
     success: StrictBool

@@ -26,7 +26,7 @@ from typing_extensions import Self
 
 class Secret(BaseModel):
     """
-    Secret
+    Domain model for Secret - an encrypted key-value pair
     """  # noqa: E501
 
     created_at: datetime

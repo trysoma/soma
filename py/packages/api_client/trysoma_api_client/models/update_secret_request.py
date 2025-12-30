@@ -24,7 +24,7 @@ from typing_extensions import Self
 
 class UpdateSecretRequest(BaseModel):
     """
-    UpdateSecretRequest
+    Request to update an existing secret
     """  # noqa: E501
 
     raw_value: StrictStr

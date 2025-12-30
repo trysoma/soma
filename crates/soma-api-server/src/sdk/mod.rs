@@ -11,8 +11,8 @@ use tracing::{debug, trace};
 
 use shared::error::CommonError;
 
-use crate::logic::environment_variable_sync::fetch_all_environment_variables;
 use crate::logic::secret_sync::fetch_and_decrypt_all_secrets;
+use crate::logic::variable_sync::fetch_all_variables;
 use encryption::logic::crypto_services::CryptoCache;
 use interface::{ClientCtx, SdkClient};
 use python::Python;
@@ -83,7 +83,7 @@ pub struct StartDevSdkParams {
     pub project_dir: PathBuf,
     pub sdk_runtime: SdkRuntime,
     pub restate_service_port: u16,
-    pub repository: std::sync::Arc<crate::repository::Repository>,
+    pub environment_repo: std::sync::Arc<environment::repository::Repository>,
     pub crypto_cache: CryptoCache,
     pub process_manager: std::sync::Arc<shared::process_manager::CustomProcessManager>,
 }
@@ -94,7 +94,7 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
     let StartDevSdkParams {
         project_dir,
         restate_service_port,
-        repository,
+        environment_repo,
         crypto_cache,
         process_manager,
         ..
@@ -102,21 +102,21 @@ pub async fn start_dev_sdk(params: StartDevSdkParams) -> Result<(), CommonError>
 
     // Fetch all secrets from the database
     trace!("Fetching initial secrets from database");
-    let decrypted_secrets = fetch_and_decrypt_all_secrets(&repository, &crypto_cache).await?;
+    let decrypted_secrets = fetch_and_decrypt_all_secrets(&environment_repo, &crypto_cache).await?;
     let initial_secrets: std::collections::HashMap<String, String> = decrypted_secrets
         .into_iter()
         .map(|s| (s.key, s.value))
         .collect();
     debug!(count = initial_secrets.len(), "Loaded initial secrets");
 
-    // Fetch all environment variables from the database
-    trace!("Fetching initial environment variables from database");
-    let env_vars = fetch_all_environment_variables(&repository).await?;
+    // Fetch all variables from the database
+    trace!("Fetching initial variables from database");
+    let vars = fetch_all_variables(&environment_repo).await?;
     let initial_environment_variables: std::collections::HashMap<String, String> =
-        env_vars.into_iter().map(|e| (e.key, e.value)).collect();
+        vars.into_iter().map(|e| (e.key, e.value)).collect();
     debug!(
         count = initial_environment_variables.len(),
-        "Loaded initial environment variables"
+        "Loaded initial variables"
     );
 
     let ctx = ClientCtx {

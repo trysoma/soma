@@ -63,6 +63,14 @@ jobs:
           comment-tag: identity-db-quality
           display-name: Identity Database
 
+      - name: Validate Environment database migrations
+        uses: ./.github/actions/atlas-migrate-lint
+        with:
+          env: environment
+          git-base: main
+          comment-tag: environment-db-quality
+          display-name: Environment Database
+
   api-quality:
     name: API quality
     runs-on: ubuntu-latest

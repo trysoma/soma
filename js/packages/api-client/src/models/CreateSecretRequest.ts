@@ -13,7 +13,7 @@
  */
 
 /**
- *
+ * Request to create a new secret
  * @export
  * @interface CreateSecretRequest
  */

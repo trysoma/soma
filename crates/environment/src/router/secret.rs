@@ -1,3 +1,5 @@
+//! Secret HTTP endpoints
+
 use axum::extract::{Json, Path, Query, State};
 use shared::adapters::openapi::API_VERSION_TAG;
 use std::sync::Arc;
@@ -5,30 +7,26 @@ use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
-    logic::on_change_pubsub::SecretChangeTx,
     logic::secret::{
         CreateSecretRequest, CreateSecretResponse, DeleteSecretResponse, GetSecretResponse,
         ImportSecretRequest, ListDecryptedSecretsResponse, ListSecretsResponse, Secret,
         UpdateSecretRequest, UpdateSecretResponse, create_secret, delete_secret, get_secret_by_id,
         get_secret_by_key, import_secret, list_decrypted_secrets, list_secrets, update_secret,
     },
-    repository::Repository,
+    service::EnvironmentService,
 };
-use encryption::logic::crypto_services::CryptoCache;
-use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use shared::{
     adapters::openapi::JsonResponse,
     error::CommonError,
     primitives::{PaginationRequest, WrappedUuidV4},
 };
-use tokio::sync::Mutex;
-use tonic::transport::Channel;
 
 pub const PATH_PREFIX: &str = "/api";
 pub const API_VERSION_1: &str = "v1";
-pub const SERVICE_ROUTE_KEY: &str = "secret";
+pub const SERVICE_ROUTE_KEY: &str = "environment";
 
-pub fn create_router() -> OpenApiRouter<Arc<SecretService>> {
+/// Create the secret router
+pub fn create_router() -> OpenApiRouter<Arc<EnvironmentService>> {
     OpenApiRouter::new()
         .routes(routes!(route_create_secret))
         .routes(routes!(route_import_secret))
@@ -42,7 +40,7 @@ pub fn create_router() -> OpenApiRouter<Arc<SecretService>> {
 
 #[utoipa::path(
     post,
-    path = format!("{}/{}/{}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/secret", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = CreateSecretRequest,
     responses(
@@ -62,15 +60,14 @@ pub fn create_router() -> OpenApiRouter<Arc<SecretService>> {
     )
 )]
 async fn route_create_secret(
-    State(ctx): State<Arc<SecretService>>,
+    State(ctx): State<Arc<EnvironmentService>>,
     Json(request): Json<CreateSecretRequest>,
 ) -> JsonResponse<CreateSecretResponse, CommonError> {
     trace!(key = %request.key, "Creating secret");
     let res = create_secret(
-        &ctx.on_change_tx,
+        &ctx.secret_change_tx,
         &ctx.repository,
         &ctx.crypto_cache,
-        &ctx.sdk_client,
         request,
         true,
     )
@@ -81,7 +78,7 @@ async fn route_create_secret(
 
 #[utoipa::path(
     post,
-    path = format!("{}/{}/{}/import", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/secret/import", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     request_body = ImportSecretRequest,
     responses(
@@ -101,7 +98,7 @@ async fn route_create_secret(
     )
 )]
 async fn route_import_secret(
-    State(ctx): State<Arc<SecretService>>,
+    State(ctx): State<Arc<EnvironmentService>>,
     Json(request): Json<ImportSecretRequest>,
 ) -> JsonResponse<Secret, CommonError> {
     trace!(secret_key = %request.key, "Importing secret");
@@ -112,7 +109,7 @@ async fn route_import_secret(
 
 #[utoipa::path(
     get,
-    path = format!("{}/{}/{}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/secret", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         PaginationRequest
@@ -134,7 +131,7 @@ async fn route_import_secret(
     )
 )]
 async fn route_list_secrets(
-    State(ctx): State<Arc<SecretService>>,
+    State(ctx): State<Arc<EnvironmentService>>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListSecretsResponse, CommonError> {
     trace!(page_size = pagination.page_size, "Listing secrets");
@@ -145,7 +142,7 @@ async fn route_list_secrets(
 
 #[utoipa::path(
     get,
-    path = format!("{}/{}/{}/list-decrypted", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/secret/list-decrypted", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         PaginationRequest
@@ -167,22 +164,21 @@ async fn route_list_secrets(
     )
 )]
 async fn route_list_decrypted_secrets(
-    State(ctx): State<Arc<SecretService>>,
+    State(ctx): State<Arc<EnvironmentService>>,
     Query(pagination): Query<PaginationRequest>,
 ) -> JsonResponse<ListDecryptedSecretsResponse, CommonError> {
     trace!(
         page_size = pagination.page_size,
         "Listing decrypted secrets"
     );
-    let res =
-        list_decrypted_secrets(&ctx.repository, ctx.encryption_service.cache(), pagination).await;
+    let res = list_decrypted_secrets(&ctx.repository, &ctx.crypto_cache, pagination).await;
     trace!(success = res.is_ok(), "Listing decrypted secrets completed");
     JsonResponse::from(res)
 }
 
 #[utoipa::path(
     get,
-    path = format!("{}/{}/{}/{{secret_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/secret/{{secret_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("secret_id" = WrappedUuidV4, Path, description = "Secret ID"),
@@ -205,7 +201,7 @@ async fn route_list_decrypted_secrets(
     )
 )]
 async fn route_get_secret_by_id(
-    State(ctx): State<Arc<SecretService>>,
+    State(ctx): State<Arc<EnvironmentService>>,
     Path(secret_id): Path<WrappedUuidV4>,
 ) -> JsonResponse<GetSecretResponse, CommonError> {
     trace!(secret_id = %secret_id, "Getting secret by ID");
@@ -216,7 +212,7 @@ async fn route_get_secret_by_id(
 
 #[utoipa::path(
     get,
-    path = format!("{}/{}/{}/key/{{key}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/secret/key/{{key}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("key" = String, Path, description = "Secret key"),
@@ -239,7 +235,7 @@ async fn route_get_secret_by_id(
     )
 )]
 async fn route_get_secret_by_key(
-    State(ctx): State<Arc<SecretService>>,
+    State(ctx): State<Arc<EnvironmentService>>,
     Path(key): Path<String>,
 ) -> JsonResponse<GetSecretResponse, CommonError> {
     trace!(key = %key, "Getting secret by key");
@@ -250,7 +246,7 @@ async fn route_get_secret_by_key(
 
 #[utoipa::path(
     put,
-    path = format!("{}/{}/{}/{{secret_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/secret/{{secret_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("secret_id" = WrappedUuidV4, Path, description = "Secret ID"),
@@ -274,16 +270,15 @@ async fn route_get_secret_by_key(
     )
 )]
 async fn route_update_secret(
-    State(ctx): State<Arc<SecretService>>,
+    State(ctx): State<Arc<EnvironmentService>>,
     Path(secret_id): Path<WrappedUuidV4>,
     Json(request): Json<UpdateSecretRequest>,
 ) -> JsonResponse<UpdateSecretResponse, CommonError> {
     trace!(secret_id = %secret_id, "Updating secret");
     let res = update_secret(
-        &ctx.on_change_tx,
+        &ctx.secret_change_tx,
         &ctx.repository,
         &ctx.crypto_cache,
-        &ctx.sdk_client,
         secret_id,
         request,
         true,
@@ -295,7 +290,7 @@ async fn route_update_secret(
 
 #[utoipa::path(
     delete,
-    path = format!("{}/{}/{}/{{secret_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    path = format!("{}/{}/{}/secret/{{secret_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
     tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
     params(
         ("secret_id" = WrappedUuidV4, Path, description = "Secret ID"),
@@ -318,45 +313,11 @@ async fn route_update_secret(
     )
 )]
 async fn route_delete_secret(
-    State(ctx): State<Arc<SecretService>>,
+    State(ctx): State<Arc<EnvironmentService>>,
     Path(secret_id): Path<WrappedUuidV4>,
 ) -> JsonResponse<DeleteSecretResponse, CommonError> {
     trace!(secret_id = %secret_id, "Deleting secret");
-    let res = delete_secret(
-        &ctx.on_change_tx,
-        &ctx.repository,
-        &ctx.sdk_client,
-        &ctx.crypto_cache,
-        secret_id,
-        true,
-    )
-    .await;
+    let res = delete_secret(&ctx.secret_change_tx, &ctx.repository, secret_id, true).await;
     trace!(success = res.is_ok(), "Deleting secret completed");
     JsonResponse::from(res)
-}
-
-pub struct SecretService {
-    repository: Repository,
-    encryption_service: encryption::router::EncryptionService,
-    on_change_tx: SecretChangeTx,
-    sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
-    crypto_cache: CryptoCache,
-}
-
-impl SecretService {
-    pub fn new(
-        repository: Repository,
-        encryption_service: encryption::router::EncryptionService,
-        on_change_tx: SecretChangeTx,
-        sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
-        crypto_cache: CryptoCache,
-    ) -> Self {
-        Self {
-            repository,
-            encryption_service,
-            on_change_tx,
-            sdk_client,
-            crypto_cache,
-        }
-    }
 }

@@ -13,7 +13,7 @@
  */
 
 /**
- *
+ * Decrypted secret type for list-decrypted endpoint
  * @export
  * @interface DecryptedSecret
  */

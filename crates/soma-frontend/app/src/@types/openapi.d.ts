@@ -300,7 +300,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/environment-variable/v1": {
+	"/api/environment/v1/secret": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -308,23 +308,23 @@ export interface paths {
 			cookie?: never;
 		};
 		/**
-		 * List environment variables
-		 * @description List all environment variables with pagination
+		 * List secrets
+		 * @description List all secrets with pagination (values are encrypted)
 		 */
-		get: operations["list-environment-variables"];
+		get: operations["list-secrets"];
 		put?: never;
 		/**
-		 * Create environment variable
-		 * @description Create a new environment variable with the specified key and value
+		 * Create secret
+		 * @description Create a new encrypted secret with the specified key and value
 		 */
-		post: operations["create-environment-variable"];
+		post: operations["create-secret"];
 		delete?: never;
 		options?: never;
 		head?: never;
 		patch?: never;
 		trace?: never;
 	};
-	"/api/environment-variable/v1/import": {
+	"/api/environment/v1/secret/import": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -334,17 +334,17 @@ export interface paths {
 		get?: never;
 		put?: never;
 		/**
-		 * Import environment variable
-		 * @description Import an existing environment variable into the system
+		 * Import secret
+		 * @description Import an existing pre-encrypted secret into the system
 		 */
-		post: operations["import-environment-variable"];
+		post: operations["import-secret"];
 		delete?: never;
 		options?: never;
 		head?: never;
 		patch?: never;
 		trace?: never;
 	};
-	"/api/environment-variable/v1/key/{key}": {
+	"/api/environment/v1/secret/key/{key}": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -352,10 +352,10 @@ export interface paths {
 			cookie?: never;
 		};
 		/**
-		 * Get environment variable by key
-		 * @description Retrieve an environment variable by its key name
+		 * Get secret by key
+		 * @description Retrieve a secret by its key name
 		 */
-		get: operations["get-environment-variable-by-key"];
+		get: operations["get-secret-by-key"];
 		put?: never;
 		post?: never;
 		delete?: never;
@@ -364,7 +364,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/environment-variable/v1/{env_var_id}": {
+	"/api/environment/v1/secret/list-decrypted": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -372,21 +372,133 @@ export interface paths {
 			cookie?: never;
 		};
 		/**
-		 * Get environment variable
-		 * @description Retrieve an environment variable by its unique identifier
+		 * List decrypted secrets
+		 * @description List all secrets with decrypted values (requires decryption access)
 		 */
-		get: operations["get-environment-variable-by-id"];
+		get: operations["list-decrypted-secrets"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/environment/v1/secret/{secret_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
 		/**
-		 * Update environment variable
-		 * @description Update an existing environment variable's value
+		 * Get secret
+		 * @description Retrieve a secret by its unique identifier
 		 */
-		put: operations["update-environment-variable"];
+		get: operations["get-secret-by-id"];
+		/**
+		 * Update secret
+		 * @description Update an existing secret's value or metadata
+		 */
+		put: operations["update-secret"];
 		post?: never;
 		/**
-		 * Delete environment variable
+		 * Delete secret
+		 * @description Delete a secret by its unique identifier
+		 */
+		delete: operations["delete-secret"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/environment/v1/variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List variables
+		 * @description List all environment variables with pagination
+		 */
+		get: operations["list-variables"];
+		put?: never;
+		/**
+		 * Create variable
+		 * @description Create a new environment variable with the specified key and value
+		 */
+		post: operations["create-variable"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/environment/v1/variable/import": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Import variable
+		 * @description Import an existing environment variable into the system
+		 */
+		post: operations["import-variable"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/environment/v1/variable/key/{key}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get variable by key
+		 * @description Retrieve an environment variable by its key name
+		 */
+		get: operations["get-variable-by-key"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/environment/v1/variable/{variable_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get variable
+		 * @description Retrieve an environment variable by its unique identifier
+		 */
+		get: operations["get-variable-by-id"];
+		/**
+		 * Update variable
+		 * @description Update an existing environment variable's value
+		 */
+		put: operations["update-variable"];
+		post?: never;
+		/**
+		 * Delete variable
 		 * @description Delete an environment variable by its unique identifier
 		 */
-		delete: operations["delete-environment-variable"];
+		delete: operations["delete-variable"];
 		options?: never;
 		head?: never;
 		patch?: never;
@@ -1408,118 +1520,6 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/secret/v1": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List secrets
-		 * @description List all secrets with pagination (values are encrypted)
-		 */
-		get: operations["list-secrets"];
-		put?: never;
-		/**
-		 * Create secret
-		 * @description Create a new encrypted secret with the specified key and value
-		 */
-		post: operations["create-secret"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/secret/v1/import": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Import secret
-		 * @description Import an existing pre-encrypted secret into the system
-		 */
-		post: operations["import-secret"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/secret/v1/key/{key}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get secret by key
-		 * @description Retrieve a secret by its key name
-		 */
-		get: operations["get-secret-by-key"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/secret/v1/list-decrypted": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List decrypted secrets
-		 * @description List all secrets with decrypted values (requires decryption access)
-		 */
-		get: operations["list-decrypted-secrets"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/secret/v1/{secret_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get secret
-		 * @description Retrieve a secret by its unique identifier
-		 */
-		get: operations["get-secret-by-id"];
-		/**
-		 * Update secret
-		 * @description Update an existing secret's value or metadata
-		 */
-		put: operations["update-secret"];
-		post?: never;
-		/**
-		 * Delete secret
-		 * @description Delete a secret by its unique identifier
-		 */
-		delete: operations["delete-secret"];
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
 	"/api/task/v1": {
 		parameters: {
 			query?: never;
@@ -1722,10 +1722,6 @@ export interface components {
 			alias: string;
 			dek_id: string;
 		};
-		CreateEnvironmentVariableRequest: {
-			key: string;
-			value: string;
-		};
 		CreateGroupRequest: {
 			/** @description Group ID (if not provided, a UUID will be generated) */
 			id?: string | null;
@@ -1760,6 +1756,7 @@ export interface components {
 			metadata?: null | components["schemas"]["Metadata"];
 			resource_server_configuration: components["schemas"]["WrappedJsonValue"];
 		};
+		/** @description Request to create a new secret */
 		CreateSecretRequest: {
 			dek_alias: string;
 			key: string;
@@ -1790,6 +1787,11 @@ export interface components {
 			/** @description User type: "service_principal" or "federated_user" */
 			user_type: string;
 		};
+		/** @description Request to create a new variable */
+		CreateVariableRequest: {
+			key: string;
+			value: string;
+		};
 		DataEncryptionKey: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			encrypted_data_encryption_key: components["schemas"]["EncryptedDataEncryptionKey"];
@@ -1813,6 +1815,7 @@ export interface components {
 			items: components["schemas"]["DataEncryptionKeyListItem"][];
 			next_page_token?: string;
 		};
+		/** @description Decrypted secret type for list-decrypted endpoint */
 		DecryptedSecret: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			decrypted_value: string;
@@ -1821,10 +1824,12 @@ export interface components {
 			key: string;
 			updated_at: components["schemas"]["WrappedChronoDateTime"];
 		};
-		DeleteEnvironmentVariableResponse: {
+		/** @description Response for deleting a secret */
+		DeleteSecretResponse: {
 			success: boolean;
 		};
-		DeleteSecretResponse: {
+		/** @description Response for deleting a variable */
+		DeleteVariableResponse: {
 			success: boolean;
 		};
 		DevModeConfig: {
@@ -1914,13 +1919,6 @@ export interface components {
 		EnvelopeEncryptionKeyPaginatedResponse: {
 			items: components["schemas"]["EnvelopeEncryptionKey"][];
 			next_page_token?: string;
-		};
-		EnvironmentVariable: {
-			created_at: components["schemas"]["WrappedChronoDateTime"];
-			id: components["schemas"]["WrappedUuidV4"];
-			key: string;
-			updated_at: components["schemas"]["WrappedChronoDateTime"];
-			value: string;
 		};
 		Error: {
 			message: string;
@@ -2033,10 +2031,7 @@ export interface components {
 			encrypted_data_encryption_key: string;
 			id?: string | null;
 		};
-		ImportEnvironmentVariableRequest: {
-			key: string;
-			value: string;
-		};
+		/** @description Request type for importing pre-encrypted secrets (used by sync_yaml_to_api_on_start) */
 		ImportSecretRequest: {
 			dek_alias: string;
 			encrypted_value: string;
@@ -2046,6 +2041,11 @@ export interface components {
 		ImportUserAuthFlowConfigParams: {
 			/** @description The encrypted configuration to import */
 			config: components["schemas"]["EncryptedUserAuthFlowConfig"];
+		};
+		/** @description Request type for importing variables (used by sync_yaml_to_api_on_start) */
+		ImportVariableRequest: {
+			key: string;
+			value: string;
 		};
 		InvokeError: {
 			message: string;
@@ -2127,14 +2127,12 @@ export interface components {
 			items: components["schemas"]["HashedApiKey"][];
 			next_page_token?: string | null;
 		};
+		/** @description Response for listing decrypted secrets */
 		ListDecryptedSecretsResponse: {
 			next_page_token?: string | null;
 			secrets: components["schemas"]["DecryptedSecret"][];
 		};
-		ListEnvironmentVariablesResponse: {
-			environment_variables: components["schemas"]["EnvironmentVariable"][];
-			next_page_token?: string | null;
-		};
+		/** @description Response for listing secrets */
 		ListSecretsResponse: {
 			next_page_token?: string | null;
 			secrets: components["schemas"]["Secret"][];
@@ -2145,6 +2143,11 @@ export interface components {
 			items: components["schemas"]["GetUserAuthFlowConfigResponse"][];
 			/** @description Token for the next page, if any */
 			next_page_token?: string | null;
+		};
+		/** @description Response for listing variables */
+		ListVariablesResponse: {
+			next_page_token?: string | null;
+			variables: components["schemas"]["Variable"][];
 		};
 		/** @description Authenticated machine identity */
 		Machine: {
@@ -2461,6 +2464,7 @@ export interface components {
 			role: components["schemas"]["Role"];
 			scope: string;
 		};
+		/** @description Domain model for Secret - an encrypted key-value pair */
 		Secret: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			dek_alias: string;
@@ -2574,9 +2578,6 @@ export interface components {
 		UpdateAliasParams: {
 			new_dek_id: string;
 		};
-		UpdateEnvironmentVariableRequest: {
-			value: string;
-		};
 		UpdateGroupRequest: {
 			/** @description Group name */
 			name: string;
@@ -2591,6 +2592,7 @@ export interface components {
 		UpdateProviderInstanceParamsInner: {
 			display_name: string;
 		};
+		/** @description Request to update an existing secret */
 		UpdateSecretRequest: {
 			raw_value: string;
 		};
@@ -2603,6 +2605,10 @@ export interface components {
 			email?: string | null;
 			/** @description User's role */
 			role?: string | null;
+		};
+		/** @description Request to update an existing variable */
+		UpdateVariableRequest: {
+			value: string;
 		};
 		User: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
@@ -2674,6 +2680,14 @@ export interface components {
 		};
 		/** @enum {string} */
 		UserType: "machine" | "human";
+		/** @description Domain model for Variable - a plain-text key-value pair */
+		Variable: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			id: components["schemas"]["WrappedUuidV4"];
+			key: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+			value: string;
+		};
 		/** Format: date-time */
 		WrappedChronoDateTime: string;
 		WrappedJsonValue: unknown;
@@ -3740,7 +3754,7 @@ export interface operations {
 			};
 		};
 	};
-	"list-environment-variables": {
+	"list-secrets": {
 		parameters: {
 			query: {
 				page_size: number;
@@ -3752,13 +3766,13 @@ export interface operations {
 		};
 		requestBody?: never;
 		responses: {
-			/** @description List environment variables */
+			/** @description List secrets */
 			200: {
 				headers: {
 					[name: string]: unknown;
 				};
 				content: {
-					"application/json": components["schemas"]["ListEnvironmentVariablesResponse"];
+					"application/json": components["schemas"]["ListSecretsResponse"];
 				};
 			};
 			/** @description Bad Request */
@@ -3799,7 +3813,7 @@ export interface operations {
 			};
 		};
 	};
-	"create-environment-variable": {
+	"create-secret": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -3808,17 +3822,17 @@ export interface operations {
 		};
 		requestBody: {
 			content: {
-				"application/json": components["schemas"]["CreateEnvironmentVariableRequest"];
+				"application/json": components["schemas"]["CreateSecretRequest"];
 			};
 		};
 		responses: {
-			/** @description Create an environment variable */
+			/** @description Create a secret */
 			200: {
 				headers: {
 					[name: string]: unknown;
 				};
 				content: {
-					"application/json": components["schemas"]["EnvironmentVariable"];
+					"application/json": components["schemas"]["Secret"];
 				};
 			};
 			/** @description Bad Request */
@@ -3859,7 +3873,7 @@ export interface operations {
 			};
 		};
 	};
-	"import-environment-variable": {
+	"import-secret": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -3868,17 +3882,17 @@ export interface operations {
 		};
 		requestBody: {
 			content: {
-				"application/json": components["schemas"]["ImportEnvironmentVariableRequest"];
+				"application/json": components["schemas"]["ImportSecretRequest"];
 			};
 		};
 		responses: {
-			/** @description Import an environment variable */
+			/** @description Import a pre-encrypted secret */
 			200: {
 				headers: {
 					[name: string]: unknown;
 				};
 				content: {
-					"application/json": components["schemas"]["EnvironmentVariable"];
+					"application/json": components["schemas"]["Secret"];
 				};
 			};
 			/** @description Bad Request */
@@ -3919,25 +3933,25 @@ export interface operations {
 			};
 		};
 	};
-	"get-environment-variable-by-key": {
+	"get-secret-by-key": {
 		parameters: {
 			query?: never;
 			header?: never;
 			path: {
-				/** @description Environment variable key */
+				/** @description Secret key */
 				key: string;
 			};
 			cookie?: never;
 		};
 		requestBody?: never;
 		responses: {
-			/** @description Get environment variable by key */
+			/** @description Get secret by key */
 			200: {
 				headers: {
 					[name: string]: unknown;
 				};
 				content: {
-					"application/json": components["schemas"]["EnvironmentVariable"];
+					"application/json": components["schemas"]["Secret"];
 				};
 			};
 			/** @description Bad Request */
@@ -3987,25 +4001,84 @@ export interface operations {
 			};
 		};
 	};
-	"get-environment-variable-by-id": {
+	"list-decrypted-secrets": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List secrets with decrypted values */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ListDecryptedSecretsResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-secret-by-id": {
 		parameters: {
 			query?: never;
 			header?: never;
 			path: {
-				/** @description Environment variable ID */
-				env_var_id: components["schemas"]["WrappedUuidV4"];
+				/** @description Secret ID */
+				secret_id: components["schemas"]["WrappedUuidV4"];
 			};
 			cookie?: never;
 		};
 		requestBody?: never;
 		responses: {
-			/** @description Get environment variable by id */
+			/** @description Get secret by id */
 			200: {
 				headers: {
 					[name: string]: unknown;
 				};
 				content: {
-					"application/json": components["schemas"]["EnvironmentVariable"];
+					"application/json": components["schemas"]["Secret"];
 				};
 			};
 			/** @description Bad Request */
@@ -4055,29 +4128,29 @@ export interface operations {
 			};
 		};
 	};
-	"update-environment-variable": {
+	"update-secret": {
 		parameters: {
 			query?: never;
 			header?: never;
 			path: {
-				/** @description Environment variable ID */
-				env_var_id: components["schemas"]["WrappedUuidV4"];
+				/** @description Secret ID */
+				secret_id: components["schemas"]["WrappedUuidV4"];
 			};
 			cookie?: never;
 		};
 		requestBody: {
 			content: {
-				"application/json": components["schemas"]["UpdateEnvironmentVariableRequest"];
+				"application/json": components["schemas"]["UpdateSecretRequest"];
 			};
 		};
 		responses: {
-			/** @description Update environment variable */
+			/** @description Update secret */
 			200: {
 				headers: {
 					[name: string]: unknown;
 				};
 				content: {
-					"application/json": components["schemas"]["EnvironmentVariable"];
+					"application/json": components["schemas"]["Secret"];
 				};
 			};
 			/** @description Bad Request */
@@ -4127,25 +4200,480 @@ export interface operations {
 			};
 		};
 	};
-	"delete-environment-variable": {
+	"delete-secret": {
 		parameters: {
 			query?: never;
 			header?: never;
 			path: {
-				/** @description Environment variable ID */
-				env_var_id: components["schemas"]["WrappedUuidV4"];
+				/** @description Secret ID */
+				secret_id: components["schemas"]["WrappedUuidV4"];
 			};
 			cookie?: never;
 		};
 		requestBody?: never;
 		responses: {
-			/** @description Delete environment variable */
+			/** @description Delete secret */
 			200: {
 				headers: {
 					[name: string]: unknown;
 				};
 				content: {
-					"application/json": components["schemas"]["DeleteEnvironmentVariableResponse"];
+					"application/json": components["schemas"]["DeleteSecretResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-variables": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List variables */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ListVariablesResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateVariableRequest"];
+			};
+		};
+		responses: {
+			/** @description Create a variable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Variable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"import-variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ImportVariableRequest"];
+			};
+		};
+		responses: {
+			/** @description Import a variable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Variable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-variable-by-key": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Variable key */
+				key: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get variable by key */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Variable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-variable-by-id": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Variable ID */
+				variable_id: components["schemas"]["WrappedUuidV4"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get variable by id */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Variable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Variable ID */
+				variable_id: components["schemas"]["WrappedUuidV4"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateVariableRequest"];
+			};
+		};
+		responses: {
+			/** @description Update variable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Variable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"delete-variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Variable ID */
+				variable_id: components["schemas"]["WrappedUuidV4"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Delete variable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DeleteVariableResponse"];
 				};
 			};
 			/** @description Bad Request */
@@ -7325,520 +7853,6 @@ export interface operations {
 			};
 			/** @description Bad Request */
 			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"list-secrets": {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List secrets */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ListSecretsResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"create-secret": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["CreateSecretRequest"];
-			};
-		};
-		responses: {
-			/** @description Create a secret */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Secret"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"import-secret": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["ImportSecretRequest"];
-			};
-		};
-		responses: {
-			/** @description Import a pre-encrypted secret */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Secret"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"get-secret-by-key": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Secret key */
-				key: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Get secret by key */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Secret"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"list-decrypted-secrets": {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List secrets with decrypted values */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ListDecryptedSecretsResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"get-secret-by-id": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Secret ID */
-				secret_id: components["schemas"]["WrappedUuidV4"];
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Get secret by id */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Secret"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"update-secret": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Secret ID */
-				secret_id: components["schemas"]["WrappedUuidV4"];
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["UpdateSecretRequest"];
-			};
-		};
-		responses: {
-			/** @description Update secret */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Secret"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"delete-secret": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Secret ID */
-				secret_id: components["schemas"]["WrappedUuidV4"];
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Delete secret */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["DeleteSecretResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
 				headers: {
 					[name: string]: unknown;
 				};

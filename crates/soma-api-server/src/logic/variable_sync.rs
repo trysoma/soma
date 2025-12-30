@@ -1,19 +1,19 @@
+use environment::repository::VariableRepositoryLike;
 use shared::error::CommonError;
 use shared::primitives::PaginationRequest;
 use tokio::sync::broadcast;
 use tracing::{debug, error, trace, warn};
 
-use crate::logic::on_change_pubsub::EnvironmentVariableChangeRx;
-use crate::repository::EnvironmentVariableRepositoryLike;
+use crate::logic::on_change_pubsub::VariableChangeRx;
 
-/// An environment variable ready to be sent to the SDK
+/// A variable ready to be sent to the SDK
 #[derive(Debug, Clone)]
-pub struct EnvironmentVariableData {
+pub struct VariableData {
     pub key: String,
     pub value: String,
 }
 
-/// Interpolate environment variable value with host environment variables.
+/// Interpolate variable value with host environment variables.
 ///
 /// Rules:
 /// - If value starts with `$`, the rest is treated as an environment variable name
@@ -34,29 +34,26 @@ pub fn interpolate_env_value(value: &str) -> String {
     }
 }
 
-/// Fetch all environment variables from the database
-pub async fn fetch_all_environment_variables(
-    repository: &std::sync::Arc<crate::repository::Repository>,
-) -> Result<Vec<EnvironmentVariableData>, CommonError> {
-    let mut all_env_vars = Vec::new();
+/// Fetch all variables from the database
+pub async fn fetch_all_variables(
+    repository: &std::sync::Arc<environment::repository::Repository>,
+) -> Result<Vec<VariableData>, CommonError> {
+    let mut all_vars = Vec::new();
     let mut page_token = None;
 
-    // Paginate through all environment variables
+    // Paginate through all variables
     loop {
         let pagination = PaginationRequest {
             page_size: 100,
             next_page_token: page_token.clone(),
         };
 
-        let page = repository
-            .as_ref()
-            .get_environment_variables(&pagination)
-            .await?;
+        let page = repository.as_ref().get_variables(&pagination).await?;
 
-        for env_var in page.items {
-            all_env_vars.push(EnvironmentVariableData {
-                key: env_var.key,
-                value: env_var.value,
+        for var in page.items {
+            all_vars.push(VariableData {
+                key: var.key,
+                value: var.value,
             });
         }
 
@@ -66,21 +63,21 @@ pub async fn fetch_all_environment_variables(
         }
     }
 
-    Ok(all_env_vars)
+    Ok(all_vars)
 }
 
-/// Sync environment variables to the SDK via gRPC (for initial sync - sends all env vars)
+/// Sync variables to the SDK via gRPC (for initial sync - sends all vars)
 ///
-/// This function interpolates environment variable values before sending:
+/// This function interpolates variable values before sending:
 /// - Values starting with `$` are replaced with the host environment variable
 /// - Values starting with `$$` become literal `$` + rest of string
-pub async fn sync_environment_variables_to_sdk(
+pub async fn sync_variables_to_sdk(
     sdk_client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
         tonic::transport::Channel,
     >,
-    env_vars: Vec<EnvironmentVariableData>,
+    vars: Vec<VariableData>,
 ) -> Result<(), CommonError> {
-    let proto_env_vars: Vec<sdk_proto::EnvironmentVariable> = env_vars
+    let proto_vars: Vec<sdk_proto::EnvironmentVariable> = vars
         .into_iter()
         .map(|e| sdk_proto::EnvironmentVariable {
             key: e.key,
@@ -89,7 +86,7 @@ pub async fn sync_environment_variables_to_sdk(
         .collect();
 
     let request = tonic::Request::new(sdk_proto::SetEnvironmentVariablesRequest {
-        environment_variables: proto_env_vars,
+        environment_variables: proto_vars,
     });
 
     let response = sdk_client
@@ -105,23 +102,20 @@ pub async fn sync_environment_variables_to_sdk(
 
     match inner.kind {
         Some(sdk_proto::set_environment_variables_response::Kind::Data(_)) => {
-            trace!("Environment variables synced to SDK");
+            trace!("Variables synced to SDK");
             Ok(())
         }
-        Some(sdk_proto::set_environment_variables_response::Kind::Error(error)) => {
-            Err(CommonError::Unknown(anyhow::anyhow!(
-                "SDK rejected environment variables: {}",
-                error.message
-            )))
-        }
+        Some(sdk_proto::set_environment_variables_response::Kind::Error(error)) => Err(
+            CommonError::Unknown(anyhow::anyhow!("SDK rejected variables: {}", error.message)),
+        ),
         None => Err(CommonError::Unknown(anyhow::anyhow!(
-            "SDK rejected environment variables: unknown error"
+            "SDK rejected variables: unknown error"
         ))),
     }
 }
 
-/// Incrementally sync a single environment variable to the SDK via gRPC
-pub async fn sync_environment_variable_to_sdk(
+/// Incrementally sync a single variable to the SDK via gRPC
+pub async fn sync_variable_to_sdk(
     sdk_client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
         tonic::transport::Channel,
     >,
@@ -148,23 +142,20 @@ pub async fn sync_environment_variable_to_sdk(
 
     match inner.kind {
         Some(sdk_proto::set_environment_variables_response::Kind::Data(_)) => {
-            trace!("Environment variable synced to SDK");
+            trace!("Variable synced to SDK");
             Ok(())
         }
-        Some(sdk_proto::set_environment_variables_response::Kind::Error(error)) => {
-            Err(CommonError::Unknown(anyhow::anyhow!(
-                "SDK rejected environment variable: {}",
-                error.message
-            )))
-        }
+        Some(sdk_proto::set_environment_variables_response::Kind::Error(error)) => Err(
+            CommonError::Unknown(anyhow::anyhow!("SDK rejected variable: {}", error.message)),
+        ),
         None => Err(CommonError::Unknown(anyhow::anyhow!(
-            "SDK rejected environment variable: unknown error"
+            "SDK rejected variable: unknown error"
         ))),
     }
 }
 
-/// Unset an environment variable in the SDK via gRPC
-pub async fn unset_environment_variable_in_sdk(
+/// Unset a variable in the SDK via gRPC
+pub async fn unset_variable_in_sdk(
     sdk_client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
         tonic::transport::Channel,
     >,
@@ -185,69 +176,64 @@ pub async fn unset_environment_variable_in_sdk(
 
     match inner.kind {
         Some(sdk_proto::unset_environment_variable_response::Kind::Data(_)) => {
-            trace!("Unset environment variable in SDK");
+            trace!("Unset variable in SDK");
             Ok(())
         }
         Some(sdk_proto::unset_environment_variable_response::Kind::Error(error)) => {
             Err(CommonError::Unknown(anyhow::anyhow!(
-                "SDK rejected unset environment variable: {}",
+                "SDK rejected unset variable: {}",
                 error.message
             )))
         }
         None => Err(CommonError::Unknown(anyhow::anyhow!(
-            "SDK rejected unset environment variable: unknown error"
+            "SDK rejected unset variable: unknown error"
         ))),
     }
 }
 
-pub struct EnvironmentVariableSyncParams {
-    pub repository: std::sync::Arc<crate::repository::Repository>,
+pub struct VariableSyncParams {
+    pub repository: std::sync::Arc<environment::repository::Repository>,
     pub socket_path: String,
-    pub environment_variable_change_rx: EnvironmentVariableChangeRx,
+    pub variable_change_rx: VariableChangeRx,
 }
 
-/// Run the environment variable sync loop - listens for env var changes and syncs to SDK.
+/// Run the variable sync loop - listens for var changes and syncs to SDK.
 /// This function runs indefinitely until aborted by the process manager.
-pub async fn run_environment_variable_sync_loop(
-    params: EnvironmentVariableSyncParams,
-) -> Result<(), CommonError> {
-    let EnvironmentVariableSyncParams {
+pub async fn run_variable_sync_loop(params: VariableSyncParams) -> Result<(), CommonError> {
+    let VariableSyncParams {
         repository,
         socket_path,
-        mut environment_variable_change_rx,
+        mut variable_change_rx,
     } = params;
     let repository = repository.clone();
 
-    debug!("Environment variable sync loop started");
+    debug!("Variable sync loop started");
 
     loop {
-        match environment_variable_change_rx.recv().await {
+        match variable_change_rx.recv().await {
             Ok(evt) => {
-                trace!(event = ?evt, "Environment variable change event");
+                trace!(event = ?evt, "Variable change event");
 
-                // On any env var change, re-sync all env vars
+                // On any var change, re-sync all vars
                 // This is simpler than tracking individual changes and ensures consistency
-                match sync_all_environment_variables(&repository, &socket_path).await {
+                match sync_all_variables(&repository, &socket_path).await {
                     Ok(()) => {
-                        trace!("Environment variables re-synced");
+                        trace!("Variables re-synced");
                     }
                     Err(e) => {
-                        error!(error = ?e, "Failed to re-sync environment variables");
+                        error!(error = ?e, "Failed to re-sync variables");
                     }
                 }
             }
             Err(broadcast::error::RecvError::Closed) => {
-                debug!("Environment variable change channel closed");
+                debug!("Variable change channel closed");
                 break;
             }
             Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                warn!(
-                    skipped,
-                    "Environment variable change channel lagged, re-syncing"
-                );
-                // Re-sync all env vars to ensure we're in a consistent state
-                if let Err(e) = sync_all_environment_variables(&repository, &socket_path).await {
-                    error!(error = ?e, "Failed to re-sync environment variables after lag");
+                warn!(skipped, "Variable change channel lagged, re-syncing");
+                // Re-sync all vars to ensure we're in a consistent state
+                if let Err(e) = sync_all_variables(&repository, &socket_path).await {
+                    error!(error = ?e, "Failed to re-sync variables after lag");
                 }
             }
         }
@@ -256,21 +242,18 @@ pub async fn run_environment_variable_sync_loop(
     Ok(())
 }
 
-/// Helper to sync all environment variables to SDK
-async fn sync_all_environment_variables(
-    repository: &std::sync::Arc<crate::repository::Repository>,
+/// Helper to sync all variables to SDK
+async fn sync_all_variables(
+    repository: &std::sync::Arc<environment::repository::Repository>,
     socket_path: &str,
 ) -> Result<(), CommonError> {
-    // Fetch all environment variables
-    let env_vars = fetch_all_environment_variables(repository).await?;
-    trace!(
-        count = env_vars.len(),
-        "Syncing environment variables to SDK"
-    );
+    // Fetch all variables
+    let vars = fetch_all_variables(repository).await?;
+    trace!(count = vars.len(), "Syncing variables to SDK");
 
     // Connect to SDK and sync
     let mut client = shared::uds::create_soma_unix_socket_client(socket_path).await?;
-    sync_environment_variables_to_sdk(&mut client, env_vars).await
+    sync_variables_to_sdk(&mut client, vars).await
 }
 
 #[cfg(test)]

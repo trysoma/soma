@@ -2154,6 +2154,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "environment"
+version = "0.0.6"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.8.7",
+ "axum-extra 0.10.3",
+ "chrono",
+ "encryption",
+ "libsql",
+ "rand 0.8.5",
+ "schemars 1.1.0",
+ "serde",
+ "serde_json",
+ "shared",
+ "shared-macros",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "utoipa-axum",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6920,6 +6947,7 @@ dependencies = [
  "dashmap",
  "dirs 6.0.0",
  "encryption",
+ "environment",
  "futures",
  "globset",
  "http 1.4.0",

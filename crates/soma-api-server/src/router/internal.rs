@@ -140,7 +140,7 @@ async fn route_resync_sdk(
 ) -> JsonResponse<ResyncSdkResponse, CommonError> {
     trace!("Resyncing SDK");
     let response = crate::logic::internal::resync_sdk(
-        &ctx.repository,
+        &ctx.environment_repository,
         &ctx.crypto_cache,
         &ctx.restate_params,
         &ctx.sdk_client,
@@ -155,7 +155,7 @@ async fn route_resync_sdk(
 pub struct InternalService {
     mcp_service: mcp::router::McpService,
     sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
-    repository: std::sync::Arc<crate::repository::Repository>,
+    environment_repository: std::sync::Arc<environment::repository::Repository>,
     crypto_cache: CryptoCache,
     restate_params: crate::restate::RestateServerParams,
     agent_cache: AgentCache,
@@ -165,7 +165,7 @@ impl InternalService {
     pub fn new(
         mcp_service: mcp::router::McpService,
         sdk_client: Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
-        repository: std::sync::Arc<crate::repository::Repository>,
+        environment_repository: std::sync::Arc<environment::repository::Repository>,
         crypto_cache: CryptoCache,
         restate_params: crate::restate::RestateServerParams,
         agent_cache: AgentCache,
@@ -173,7 +173,7 @@ impl InternalService {
         Self {
             mcp_service,
             sdk_client,
-            repository,
+            environment_repository,
             crypto_cache,
             restate_params,
             agent_cache,

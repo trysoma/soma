@@ -20,7 +20,6 @@ import type {
 	CreateApiKeyResponse,
 	CreateDataEncryptionKeyParamsRoute,
 	CreateDekAliasRequest,
-	CreateEnvironmentVariableRequest,
 	CreateGroupRequest,
 	CreateMcpServerInstanceRequest,
 	CreateMessageRequest,
@@ -32,16 +31,16 @@ import type {
 	CreateUserAuthFlowConfigResponse,
 	CreateUserCredentialParamsInner,
 	CreateUserRequest,
+	CreateVariableRequest,
 	DataEncryptionKey,
 	DataEncryptionKeyAlias,
 	DataEncryptionKeyListItemPaginatedResponse,
-	DeleteEnvironmentVariableResponse,
 	DeleteSecretResponse,
+	DeleteVariableResponse,
 	EncryptCredentialConfigurationParamsInner,
 	EncryptedApiKeyConfig,
 	EnvelopeEncryptionKey,
 	EnvelopeEncryptionKeyPaginatedResponse,
-	EnvironmentVariable,
 	FunctionInstanceConfigPaginatedResponse,
 	FunctionInstanceSerialized,
 	FunctionInstanceSerializedPaginatedResponse,
@@ -51,9 +50,9 @@ import type {
 	GroupPaginatedResponse,
 	Identity,
 	ImportDataEncryptionKeyParamsRoute,
-	ImportEnvironmentVariableRequest,
 	ImportSecretRequest,
 	ImportUserAuthFlowConfigParams,
+	ImportVariableRequest,
 	InvokeFunctionParamsInner,
 	InvokeResult,
 	JwkResponsePaginatedResponse,
@@ -61,9 +60,9 @@ import type {
 	ListAgentsResponse,
 	ListApiKeysResponse,
 	ListDecryptedSecretsResponse,
-	ListEnvironmentVariablesResponse,
 	ListSecretsResponse,
 	ListUserAuthFlowConfigResponse,
+	ListVariablesResponse,
 	McpServerInstanceSerializedWithFunctions,
 	McpServerInstanceSerializedWithFunctionsPaginatedResponse,
 	MigrateAllDataEncryptionKeysParamsRoute,
@@ -88,7 +87,6 @@ import type {
 	TaskWithDetails,
 	TokenResponse,
 	UpdateAliasParams,
-	UpdateEnvironmentVariableRequest,
 	UpdateGroupRequest,
 	UpdateMcpServerInstanceFunctionRequest,
 	UpdateMcpServerInstanceRequest,
@@ -96,11 +94,13 @@ import type {
 	UpdateSecretRequest,
 	UpdateTaskStatusRequest,
 	UpdateUserRequest,
+	UpdateVariableRequest,
 	User,
 	UserCredentialBrokeringResponse,
 	UserCredentialSerialized,
 	UserGroupWithGroupPaginatedResponse,
 	UserPaginatedResponse,
+	Variable,
 } from "../models/index";
 import {
 	AddGroupMemberRequestToJSON,
@@ -110,7 +110,6 @@ import {
 	CreateApiKeyResponseFromJSON,
 	CreateDataEncryptionKeyParamsRouteToJSON,
 	CreateDekAliasRequestToJSON,
-	CreateEnvironmentVariableRequestToJSON,
 	CreateGroupRequestToJSON,
 	CreateMcpServerInstanceRequestToJSON,
 	CreateMessageRequestToJSON,
@@ -122,17 +121,17 @@ import {
 	CreateUserAuthFlowConfigResponseFromJSON,
 	CreateUserCredentialParamsInnerToJSON,
 	CreateUserRequestToJSON,
+	CreateVariableRequestToJSON,
 	DataEncryptionKeyAliasFromJSON,
 	DataEncryptionKeyFromJSON,
 	DataEncryptionKeyListItemPaginatedResponseFromJSON,
-	DeleteEnvironmentVariableResponseFromJSON,
 	DeleteSecretResponseFromJSON,
+	DeleteVariableResponseFromJSON,
 	EncryptCredentialConfigurationParamsInnerToJSON,
 	EncryptedApiKeyConfigToJSON,
 	EnvelopeEncryptionKeyFromJSON,
 	EnvelopeEncryptionKeyPaginatedResponseFromJSON,
 	EnvelopeEncryptionKeyToJSON,
-	EnvironmentVariableFromJSON,
 	FunctionInstanceConfigPaginatedResponseFromJSON,
 	FunctionInstanceSerializedFromJSON,
 	FunctionInstanceSerializedPaginatedResponseFromJSON,
@@ -142,9 +141,9 @@ import {
 	GroupPaginatedResponseFromJSON,
 	IdentityFromJSON,
 	ImportDataEncryptionKeyParamsRouteToJSON,
-	ImportEnvironmentVariableRequestToJSON,
 	ImportSecretRequestToJSON,
 	ImportUserAuthFlowConfigParamsToJSON,
+	ImportVariableRequestToJSON,
 	InvokeFunctionParamsInnerToJSON,
 	InvokeResultFromJSON,
 	JwkResponsePaginatedResponseFromJSON,
@@ -152,9 +151,9 @@ import {
 	ListAgentsResponseFromJSON,
 	ListApiKeysResponseFromJSON,
 	ListDecryptedSecretsResponseFromJSON,
-	ListEnvironmentVariablesResponseFromJSON,
 	ListSecretsResponseFromJSON,
 	ListUserAuthFlowConfigResponseFromJSON,
+	ListVariablesResponseFromJSON,
 	McpServerInstanceSerializedWithFunctionsFromJSON,
 	McpServerInstanceSerializedWithFunctionsPaginatedResponseFromJSON,
 	MigrateAllDataEncryptionKeysParamsRouteToJSON,
@@ -182,7 +181,6 @@ import {
 	TaskWithDetailsFromJSON,
 	TokenResponseFromJSON,
 	UpdateAliasParamsToJSON,
-	UpdateEnvironmentVariableRequestToJSON,
 	UpdateGroupRequestToJSON,
 	UpdateMcpServerInstanceFunctionRequestToJSON,
 	UpdateMcpServerInstanceRequestToJSON,
@@ -190,11 +188,13 @@ import {
 	UpdateSecretRequestToJSON,
 	UpdateTaskStatusRequestToJSON,
 	UpdateUserRequestToJSON,
+	UpdateVariableRequestToJSON,
 	UserCredentialBrokeringResponseFromJSON,
 	UserCredentialSerializedFromJSON,
 	UserFromJSON,
 	UserGroupWithGroupPaginatedResponseFromJSON,
 	UserPaginatedResponseFromJSON,
+	VariableFromJSON,
 } from "../models/index";
 import * as runtime from "../runtime";
 
@@ -219,10 +219,6 @@ export interface V1ApiCreateDekAliasOperationRequest {
 
 export interface V1ApiCreateEnvelopeEncryptionKeyRequest {
 	envelopeEncryptionKey: EnvelopeEncryptionKey;
-}
-
-export interface V1ApiCreateEnvironmentVariableOperationRequest {
-	createEnvironmentVariableRequest: CreateEnvironmentVariableRequest;
 }
 
 export interface V1ApiCreateGroupOperationRequest {
@@ -259,12 +255,12 @@ export interface V1ApiCreateUserCredentialRequest {
 	createUserCredentialParamsInner: CreateUserCredentialParamsInner;
 }
 
-export interface V1ApiDeleteDekAliasRequest {
-	alias: string;
+export interface V1ApiCreateVariableOperationRequest {
+	createVariableRequest: CreateVariableRequest;
 }
 
-export interface V1ApiDeleteEnvironmentVariableRequest {
-	envVarId: string;
+export interface V1ApiDeleteDekAliasRequest {
+	alias: string;
 }
 
 export interface V1ApiDeleteGroupRequest {
@@ -285,6 +281,10 @@ export interface V1ApiDeleteSecretRequest {
 
 export interface V1ApiDeleteUserRequest {
 	userId: string;
+}
+
+export interface V1ApiDeleteVariableRequest {
+	variableId: string;
 }
 
 export interface V1ApiDisableFunctionRequest {
@@ -319,14 +319,6 @@ export interface V1ApiGetDekByAliasOrIdRequest {
 	alias: string;
 }
 
-export interface V1ApiGetEnvironmentVariableByIdRequest {
-	envVarId: string;
-}
-
-export interface V1ApiGetEnvironmentVariableByKeyRequest {
-	key: string;
-}
-
 export interface V1ApiGetGroupRequest {
 	groupId: string;
 }
@@ -355,6 +347,14 @@ export interface V1ApiGetUserRequest {
 	userId: string;
 }
 
+export interface V1ApiGetVariableByIdRequest {
+	variableId: string;
+}
+
+export interface V1ApiGetVariableByKeyRequest {
+	key: string;
+}
+
 export interface V1ApiHandleA2aJsonrpcRequestRequest {
 	projectId: string;
 	agentId: string;
@@ -366,12 +366,12 @@ export interface V1ApiImportDataEncryptionKeyRequest {
 	importDataEncryptionKeyParamsRoute: ImportDataEncryptionKeyParamsRoute;
 }
 
-export interface V1ApiImportEnvironmentVariableOperationRequest {
-	importEnvironmentVariableRequest: ImportEnvironmentVariableRequest;
-}
-
 export interface V1ApiImportSecretOperationRequest {
 	importSecretRequest: ImportSecretRequest;
+}
+
+export interface V1ApiImportVariableOperationRequest {
+	importVariableRequest: ImportVariableRequest;
 }
 
 export interface V1ApiInvokeFunctionRequest {
@@ -402,11 +402,6 @@ export interface V1ApiListDecryptedSecretsRequest {
 }
 
 export interface V1ApiListEnvelopeEncryptionKeysRequest {
-	pageSize: number;
-	nextPageToken?: string;
-}
-
-export interface V1ApiListEnvironmentVariablesRequest {
 	pageSize: number;
 	nextPageToken?: string;
 }
@@ -474,6 +469,11 @@ export interface V1ApiListUsersRequest {
 	nextPageToken?: string;
 	userType?: string;
 	role?: string;
+}
+
+export interface V1ApiListVariablesRequest {
+	pageSize: number;
+	nextPageToken?: string;
 }
 
 export interface V1ApiMigrateAllDataEncryptionKeysRequest {
@@ -673,11 +673,6 @@ export interface V1ApiUpdateDekAliasRequest {
 	updateAliasParams: UpdateAliasParams;
 }
 
-export interface V1ApiUpdateEnvironmentVariableOperationRequest {
-	envVarId: string;
-	updateEnvironmentVariableRequest: UpdateEnvironmentVariableRequest;
-}
-
 export interface V1ApiUpdateGroupOperationRequest {
 	groupId: string;
 	updateGroupRequest: UpdateGroupRequest;
@@ -714,6 +709,11 @@ export interface V1ApiUpdateTaskStatusOperationRequest {
 export interface V1ApiUpdateUserOperationRequest {
 	userId: string;
 	updateUserRequest: UpdateUserRequest;
+}
+
+export interface V1ApiUpdateVariableOperationRequest {
+	variableId: string;
+	updateVariableRequest: UpdateVariableRequest;
 }
 
 /**
@@ -1093,75 +1093,6 @@ export class V1Api extends runtime.BaseAPI {
 	}
 
 	/**
-	 * Create a new environment variable with the specified key and value
-	 * Create environment variable
-	 */
-	async createEnvironmentVariableRaw(
-		requestParameters: V1ApiCreateEnvironmentVariableOperationRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<EnvironmentVariable>> {
-		if (requestParameters.createEnvironmentVariableRequest == null) {
-			throw new runtime.RequiredError(
-				"createEnvironmentVariableRequest",
-				'Required parameter "createEnvironmentVariableRequest" was null or undefined when calling createEnvironmentVariable().',
-			);
-		}
-
-		const queryParameters: any = {};
-
-		const headerParameters: runtime.HTTPHeaders = {};
-
-		headerParameters["Content-Type"] = "application/json";
-
-		if (this.configuration?.accessToken) {
-			const token = this.configuration.accessToken;
-			const tokenString = await token("bearer_token", []);
-
-			if (tokenString) {
-				headerParameters.Authorization = `Bearer ${tokenString}`;
-			}
-		}
-		if (this.configuration?.apiKey) {
-			headerParameters["X-API-Key"] =
-				await this.configuration.apiKey("X-API-Key"); // api_key authentication
-		}
-
-		const urlPath = `/api/environment-variable/v1`;
-
-		const response = await this.request(
-			{
-				path: urlPath,
-				method: "POST",
-				headers: headerParameters,
-				query: queryParameters,
-				body: CreateEnvironmentVariableRequestToJSON(
-					requestParameters.createEnvironmentVariableRequest,
-				),
-			},
-			initOverrides,
-		);
-
-		return new runtime.JSONApiResponse(response, (jsonValue) =>
-			EnvironmentVariableFromJSON(jsonValue),
-		);
-	}
-
-	/**
-	 * Create a new environment variable with the specified key and value
-	 * Create environment variable
-	 */
-	async createEnvironmentVariable(
-		requestParameters: V1ApiCreateEnvironmentVariableOperationRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<EnvironmentVariable> {
-		const response = await this.createEnvironmentVariableRaw(
-			requestParameters,
-			initOverrides,
-		);
-		return await response.value();
-	}
-
-	/**
 	 * Create a new group with the specified name
 	 * Create group
 	 */
@@ -1513,7 +1444,7 @@ export class V1Api extends runtime.BaseAPI {
 				await this.configuration.apiKey("X-API-Key"); // api_key authentication
 		}
 
-		const urlPath = `/api/secret/v1`;
+		const urlPath = `/api/environment/v1/secret`;
 
 		const response = await this.request(
 			{
@@ -1702,6 +1633,75 @@ export class V1Api extends runtime.BaseAPI {
 	}
 
 	/**
+	 * Create a new environment variable with the specified key and value
+	 * Create variable
+	 */
+	async createVariableRaw(
+		requestParameters: V1ApiCreateVariableOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<Variable>> {
+		if (requestParameters.createVariableRequest == null) {
+			throw new runtime.RequiredError(
+				"createVariableRequest",
+				'Required parameter "createVariableRequest" was null or undefined when calling createVariable().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		if (this.configuration?.accessToken) {
+			const token = this.configuration.accessToken;
+			const tokenString = await token("bearer_token", []);
+
+			if (tokenString) {
+				headerParameters.Authorization = `Bearer ${tokenString}`;
+			}
+		}
+		if (this.configuration?.apiKey) {
+			headerParameters["X-API-Key"] =
+				await this.configuration.apiKey("X-API-Key"); // api_key authentication
+		}
+
+		const urlPath = `/api/environment/v1/variable`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: CreateVariableRequestToJSON(
+					requestParameters.createVariableRequest,
+				),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			VariableFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Create a new environment variable with the specified key and value
+	 * Create variable
+	 */
+	async createVariable(
+		requestParameters: V1ApiCreateVariableOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<Variable> {
+		const response = await this.createVariableRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
 	 * Delete an alias for a data encryption key
 	 * Delete DEK alias
 	 */
@@ -1761,74 +1761,6 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.deleteDekAliasRaw(requestParameters, initOverrides);
-	}
-
-	/**
-	 * Delete an environment variable by its unique identifier
-	 * Delete environment variable
-	 */
-	async deleteEnvironmentVariableRaw(
-		requestParameters: V1ApiDeleteEnvironmentVariableRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<DeleteEnvironmentVariableResponse>> {
-		if (requestParameters.envVarId == null) {
-			throw new runtime.RequiredError(
-				"envVarId",
-				'Required parameter "envVarId" was null or undefined when calling deleteEnvironmentVariable().',
-			);
-		}
-
-		const queryParameters: any = {};
-
-		const headerParameters: runtime.HTTPHeaders = {};
-
-		if (this.configuration?.accessToken) {
-			const token = this.configuration.accessToken;
-			const tokenString = await token("bearer_token", []);
-
-			if (tokenString) {
-				headerParameters.Authorization = `Bearer ${tokenString}`;
-			}
-		}
-		if (this.configuration?.apiKey) {
-			headerParameters["X-API-Key"] =
-				await this.configuration.apiKey("X-API-Key"); // api_key authentication
-		}
-
-		let urlPath = `/api/environment-variable/v1/{env_var_id}`;
-		urlPath = urlPath.replace(
-			`{${"env_var_id"}}`,
-			encodeURIComponent(String(requestParameters.envVarId)),
-		);
-
-		const response = await this.request(
-			{
-				path: urlPath,
-				method: "DELETE",
-				headers: headerParameters,
-				query: queryParameters,
-			},
-			initOverrides,
-		);
-
-		return new runtime.JSONApiResponse(response, (jsonValue) =>
-			DeleteEnvironmentVariableResponseFromJSON(jsonValue),
-		);
-	}
-
-	/**
-	 * Delete an environment variable by its unique identifier
-	 * Delete environment variable
-	 */
-	async deleteEnvironmentVariable(
-		requestParameters: V1ApiDeleteEnvironmentVariableRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<DeleteEnvironmentVariableResponse> {
-		const response = await this.deleteEnvironmentVariableRaw(
-			requestParameters,
-			initOverrides,
-		);
-		return await response.value();
 	}
 
 	/**
@@ -2057,7 +1989,7 @@ export class V1Api extends runtime.BaseAPI {
 				await this.configuration.apiKey("X-API-Key"); // api_key authentication
 		}
 
-		let urlPath = `/api/secret/v1/{secret_id}`;
+		let urlPath = `/api/environment/v1/secret/{secret_id}`;
 		urlPath = urlPath.replace(
 			`{${"secret_id"}}`,
 			encodeURIComponent(String(requestParameters.secretId)),
@@ -2153,6 +2085,74 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<void> {
 		await this.deleteUserRaw(requestParameters, initOverrides);
+	}
+
+	/**
+	 * Delete an environment variable by its unique identifier
+	 * Delete variable
+	 */
+	async deleteVariableRaw(
+		requestParameters: V1ApiDeleteVariableRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<DeleteVariableResponse>> {
+		if (requestParameters.variableId == null) {
+			throw new runtime.RequiredError(
+				"variableId",
+				'Required parameter "variableId" was null or undefined when calling deleteVariable().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		if (this.configuration?.accessToken) {
+			const token = this.configuration.accessToken;
+			const tokenString = await token("bearer_token", []);
+
+			if (tokenString) {
+				headerParameters.Authorization = `Bearer ${tokenString}`;
+			}
+		}
+		if (this.configuration?.apiKey) {
+			headerParameters["X-API-Key"] =
+				await this.configuration.apiKey("X-API-Key"); // api_key authentication
+		}
+
+		let urlPath = `/api/environment/v1/variable/{variable_id}`;
+		urlPath = urlPath.replace(
+			`{${"variable_id"}}`,
+			encodeURIComponent(String(requestParameters.variableId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "DELETE",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			DeleteVariableResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Delete an environment variable by its unique identifier
+	 * Delete variable
+	 */
+	async deleteVariable(
+		requestParameters: V1ApiDeleteVariableRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<DeleteVariableResponse> {
+		const response = await this.deleteVariableRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
 	}
 
 	/**
@@ -2657,142 +2657,6 @@ export class V1Api extends runtime.BaseAPI {
 	}
 
 	/**
-	 * Retrieve an environment variable by its unique identifier
-	 * Get environment variable
-	 */
-	async getEnvironmentVariableByIdRaw(
-		requestParameters: V1ApiGetEnvironmentVariableByIdRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<EnvironmentVariable>> {
-		if (requestParameters.envVarId == null) {
-			throw new runtime.RequiredError(
-				"envVarId",
-				'Required parameter "envVarId" was null or undefined when calling getEnvironmentVariableById().',
-			);
-		}
-
-		const queryParameters: any = {};
-
-		const headerParameters: runtime.HTTPHeaders = {};
-
-		if (this.configuration?.accessToken) {
-			const token = this.configuration.accessToken;
-			const tokenString = await token("bearer_token", []);
-
-			if (tokenString) {
-				headerParameters.Authorization = `Bearer ${tokenString}`;
-			}
-		}
-		if (this.configuration?.apiKey) {
-			headerParameters["X-API-Key"] =
-				await this.configuration.apiKey("X-API-Key"); // api_key authentication
-		}
-
-		let urlPath = `/api/environment-variable/v1/{env_var_id}`;
-		urlPath = urlPath.replace(
-			`{${"env_var_id"}}`,
-			encodeURIComponent(String(requestParameters.envVarId)),
-		);
-
-		const response = await this.request(
-			{
-				path: urlPath,
-				method: "GET",
-				headers: headerParameters,
-				query: queryParameters,
-			},
-			initOverrides,
-		);
-
-		return new runtime.JSONApiResponse(response, (jsonValue) =>
-			EnvironmentVariableFromJSON(jsonValue),
-		);
-	}
-
-	/**
-	 * Retrieve an environment variable by its unique identifier
-	 * Get environment variable
-	 */
-	async getEnvironmentVariableById(
-		requestParameters: V1ApiGetEnvironmentVariableByIdRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<EnvironmentVariable> {
-		const response = await this.getEnvironmentVariableByIdRaw(
-			requestParameters,
-			initOverrides,
-		);
-		return await response.value();
-	}
-
-	/**
-	 * Retrieve an environment variable by its key name
-	 * Get environment variable by key
-	 */
-	async getEnvironmentVariableByKeyRaw(
-		requestParameters: V1ApiGetEnvironmentVariableByKeyRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<EnvironmentVariable>> {
-		if (requestParameters.key == null) {
-			throw new runtime.RequiredError(
-				"key",
-				'Required parameter "key" was null or undefined when calling getEnvironmentVariableByKey().',
-			);
-		}
-
-		const queryParameters: any = {};
-
-		const headerParameters: runtime.HTTPHeaders = {};
-
-		if (this.configuration?.accessToken) {
-			const token = this.configuration.accessToken;
-			const tokenString = await token("bearer_token", []);
-
-			if (tokenString) {
-				headerParameters.Authorization = `Bearer ${tokenString}`;
-			}
-		}
-		if (this.configuration?.apiKey) {
-			headerParameters["X-API-Key"] =
-				await this.configuration.apiKey("X-API-Key"); // api_key authentication
-		}
-
-		let urlPath = `/api/environment-variable/v1/key/{key}`;
-		urlPath = urlPath.replace(
-			`{${"key"}}`,
-			encodeURIComponent(String(requestParameters.key)),
-		);
-
-		const response = await this.request(
-			{
-				path: urlPath,
-				method: "GET",
-				headers: headerParameters,
-				query: queryParameters,
-			},
-			initOverrides,
-		);
-
-		return new runtime.JSONApiResponse(response, (jsonValue) =>
-			EnvironmentVariableFromJSON(jsonValue),
-		);
-	}
-
-	/**
-	 * Retrieve an environment variable by its key name
-	 * Get environment variable by key
-	 */
-	async getEnvironmentVariableByKey(
-		requestParameters: V1ApiGetEnvironmentVariableByKeyRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<EnvironmentVariable> {
-		const response = await this.getEnvironmentVariableByKeyRaw(
-			requestParameters,
-			initOverrides,
-		);
-		return await response.value();
-	}
-
-	/**
 	 * Get the OpenAPI specification for all function instances
 	 * Get function OpenAPI spec
 	 */
@@ -3130,7 +2994,7 @@ export class V1Api extends runtime.BaseAPI {
 				await this.configuration.apiKey("X-API-Key"); // api_key authentication
 		}
 
-		let urlPath = `/api/secret/v1/{secret_id}`;
+		let urlPath = `/api/environment/v1/secret/{secret_id}`;
 		urlPath = urlPath.replace(
 			`{${"secret_id"}}`,
 			encodeURIComponent(String(requestParameters.secretId)),
@@ -3198,7 +3062,7 @@ export class V1Api extends runtime.BaseAPI {
 				await this.configuration.apiKey("X-API-Key"); // api_key authentication
 		}
 
-		let urlPath = `/api/secret/v1/key/{key}`;
+		let urlPath = `/api/environment/v1/secret/key/{key}`;
 		urlPath = urlPath.replace(
 			`{${"key"}}`,
 			encodeURIComponent(String(requestParameters.key)),
@@ -3364,6 +3228,142 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<User> {
 		const response = await this.getUserRaw(requestParameters, initOverrides);
+		return await response.value();
+	}
+
+	/**
+	 * Retrieve an environment variable by its unique identifier
+	 * Get variable
+	 */
+	async getVariableByIdRaw(
+		requestParameters: V1ApiGetVariableByIdRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<Variable>> {
+		if (requestParameters.variableId == null) {
+			throw new runtime.RequiredError(
+				"variableId",
+				'Required parameter "variableId" was null or undefined when calling getVariableById().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		if (this.configuration?.accessToken) {
+			const token = this.configuration.accessToken;
+			const tokenString = await token("bearer_token", []);
+
+			if (tokenString) {
+				headerParameters.Authorization = `Bearer ${tokenString}`;
+			}
+		}
+		if (this.configuration?.apiKey) {
+			headerParameters["X-API-Key"] =
+				await this.configuration.apiKey("X-API-Key"); // api_key authentication
+		}
+
+		let urlPath = `/api/environment/v1/variable/{variable_id}`;
+		urlPath = urlPath.replace(
+			`{${"variable_id"}}`,
+			encodeURIComponent(String(requestParameters.variableId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			VariableFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Retrieve an environment variable by its unique identifier
+	 * Get variable
+	 */
+	async getVariableById(
+		requestParameters: V1ApiGetVariableByIdRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<Variable> {
+		const response = await this.getVariableByIdRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Retrieve an environment variable by its key name
+	 * Get variable by key
+	 */
+	async getVariableByKeyRaw(
+		requestParameters: V1ApiGetVariableByKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<Variable>> {
+		if (requestParameters.key == null) {
+			throw new runtime.RequiredError(
+				"key",
+				'Required parameter "key" was null or undefined when calling getVariableByKey().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		if (this.configuration?.accessToken) {
+			const token = this.configuration.accessToken;
+			const tokenString = await token("bearer_token", []);
+
+			if (tokenString) {
+				headerParameters.Authorization = `Bearer ${tokenString}`;
+			}
+		}
+		if (this.configuration?.apiKey) {
+			headerParameters["X-API-Key"] =
+				await this.configuration.apiKey("X-API-Key"); // api_key authentication
+		}
+
+		let urlPath = `/api/environment/v1/variable/key/{key}`;
+		urlPath = urlPath.replace(
+			`{${"key"}}`,
+			encodeURIComponent(String(requestParameters.key)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			VariableFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Retrieve an environment variable by its key name
+	 * Get variable by key
+	 */
+	async getVariableByKey(
+		requestParameters: V1ApiGetVariableByKeyRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<Variable> {
+		const response = await this.getVariableByKeyRaw(
+			requestParameters,
+			initOverrides,
+		);
 		return await response.value();
 	}
 
@@ -3581,75 +3581,6 @@ export class V1Api extends runtime.BaseAPI {
 	}
 
 	/**
-	 * Import an existing environment variable into the system
-	 * Import environment variable
-	 */
-	async importEnvironmentVariableRaw(
-		requestParameters: V1ApiImportEnvironmentVariableOperationRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<EnvironmentVariable>> {
-		if (requestParameters.importEnvironmentVariableRequest == null) {
-			throw new runtime.RequiredError(
-				"importEnvironmentVariableRequest",
-				'Required parameter "importEnvironmentVariableRequest" was null or undefined when calling importEnvironmentVariable().',
-			);
-		}
-
-		const queryParameters: any = {};
-
-		const headerParameters: runtime.HTTPHeaders = {};
-
-		headerParameters["Content-Type"] = "application/json";
-
-		if (this.configuration?.accessToken) {
-			const token = this.configuration.accessToken;
-			const tokenString = await token("bearer_token", []);
-
-			if (tokenString) {
-				headerParameters.Authorization = `Bearer ${tokenString}`;
-			}
-		}
-		if (this.configuration?.apiKey) {
-			headerParameters["X-API-Key"] =
-				await this.configuration.apiKey("X-API-Key"); // api_key authentication
-		}
-
-		const urlPath = `/api/environment-variable/v1/import`;
-
-		const response = await this.request(
-			{
-				path: urlPath,
-				method: "POST",
-				headers: headerParameters,
-				query: queryParameters,
-				body: ImportEnvironmentVariableRequestToJSON(
-					requestParameters.importEnvironmentVariableRequest,
-				),
-			},
-			initOverrides,
-		);
-
-		return new runtime.JSONApiResponse(response, (jsonValue) =>
-			EnvironmentVariableFromJSON(jsonValue),
-		);
-	}
-
-	/**
-	 * Import an existing environment variable into the system
-	 * Import environment variable
-	 */
-	async importEnvironmentVariable(
-		requestParameters: V1ApiImportEnvironmentVariableOperationRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<EnvironmentVariable> {
-		const response = await this.importEnvironmentVariableRaw(
-			requestParameters,
-			initOverrides,
-		);
-		return await response.value();
-	}
-
-	/**
 	 * Import an existing pre-encrypted secret into the system
 	 * Import secret
 	 */
@@ -3683,7 +3614,7 @@ export class V1Api extends runtime.BaseAPI {
 				await this.configuration.apiKey("X-API-Key"); // api_key authentication
 		}
 
-		const urlPath = `/api/secret/v1/import`;
+		const urlPath = `/api/environment/v1/secret/import`;
 
 		const response = await this.request(
 			{
@@ -3710,6 +3641,75 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<Secret> {
 		const response = await this.importSecretRaw(
+			requestParameters,
+			initOverrides,
+		);
+		return await response.value();
+	}
+
+	/**
+	 * Import an existing environment variable into the system
+	 * Import variable
+	 */
+	async importVariableRaw(
+		requestParameters: V1ApiImportVariableOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<Variable>> {
+		if (requestParameters.importVariableRequest == null) {
+			throw new runtime.RequiredError(
+				"importVariableRequest",
+				'Required parameter "importVariableRequest" was null or undefined when calling importVariable().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		if (this.configuration?.accessToken) {
+			const token = this.configuration.accessToken;
+			const tokenString = await token("bearer_token", []);
+
+			if (tokenString) {
+				headerParameters.Authorization = `Bearer ${tokenString}`;
+			}
+		}
+		if (this.configuration?.apiKey) {
+			headerParameters["X-API-Key"] =
+				await this.configuration.apiKey("X-API-Key"); // api_key authentication
+		}
+
+		const urlPath = `/api/environment/v1/variable/import`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "POST",
+				headers: headerParameters,
+				query: queryParameters,
+				body: ImportVariableRequestToJSON(
+					requestParameters.importVariableRequest,
+				),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			VariableFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Import an existing environment variable into the system
+	 * Import variable
+	 */
+	async importVariable(
+		requestParameters: V1ApiImportVariableOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<Variable> {
+		const response = await this.importVariableRaw(
 			requestParameters,
 			initOverrides,
 		);
@@ -4128,7 +4128,7 @@ export class V1Api extends runtime.BaseAPI {
 				await this.configuration.apiKey("X-API-Key"); // api_key authentication
 		}
 
-		const urlPath = `/api/secret/v1/list-decrypted`;
+		const urlPath = `/api/environment/v1/secret/list-decrypted`;
 
 		const response = await this.request(
 			{
@@ -4226,78 +4226,6 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<EnvelopeEncryptionKeyPaginatedResponse> {
 		const response = await this.listEnvelopeEncryptionKeysRaw(
-			requestParameters,
-			initOverrides,
-		);
-		return await response.value();
-	}
-
-	/**
-	 * List all environment variables with pagination
-	 * List environment variables
-	 */
-	async listEnvironmentVariablesRaw(
-		requestParameters: V1ApiListEnvironmentVariablesRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<ListEnvironmentVariablesResponse>> {
-		if (requestParameters.pageSize == null) {
-			throw new runtime.RequiredError(
-				"pageSize",
-				'Required parameter "pageSize" was null or undefined when calling listEnvironmentVariables().',
-			);
-		}
-
-		const queryParameters: any = {};
-
-		if (requestParameters.pageSize != null) {
-			queryParameters.page_size = requestParameters.pageSize;
-		}
-
-		if (requestParameters.nextPageToken != null) {
-			queryParameters.next_page_token = requestParameters.nextPageToken;
-		}
-
-		const headerParameters: runtime.HTTPHeaders = {};
-
-		if (this.configuration?.accessToken) {
-			const token = this.configuration.accessToken;
-			const tokenString = await token("bearer_token", []);
-
-			if (tokenString) {
-				headerParameters.Authorization = `Bearer ${tokenString}`;
-			}
-		}
-		if (this.configuration?.apiKey) {
-			headerParameters["X-API-Key"] =
-				await this.configuration.apiKey("X-API-Key"); // api_key authentication
-		}
-
-		const urlPath = `/api/environment-variable/v1`;
-
-		const response = await this.request(
-			{
-				path: urlPath,
-				method: "GET",
-				headers: headerParameters,
-				query: queryParameters,
-			},
-			initOverrides,
-		);
-
-		return new runtime.JSONApiResponse(response, (jsonValue) =>
-			ListEnvironmentVariablesResponseFromJSON(jsonValue),
-		);
-	}
-
-	/**
-	 * List all environment variables with pagination
-	 * List environment variables
-	 */
-	async listEnvironmentVariables(
-		requestParameters: V1ApiListEnvironmentVariablesRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<ListEnvironmentVariablesResponse> {
-		const response = await this.listEnvironmentVariablesRaw(
 			requestParameters,
 			initOverrides,
 		);
@@ -4811,7 +4739,7 @@ export class V1Api extends runtime.BaseAPI {
 				await this.configuration.apiKey("X-API-Key"); // api_key authentication
 		}
 
-		const urlPath = `/api/secret/v1`;
+		const urlPath = `/api/environment/v1/secret`;
 
 		const response = await this.request(
 			{
@@ -5152,6 +5080,78 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<UserPaginatedResponse> {
 		const response = await this.listUsersRaw(requestParameters, initOverrides);
+		return await response.value();
+	}
+
+	/**
+	 * List all environment variables with pagination
+	 * List variables
+	 */
+	async listVariablesRaw(
+		requestParameters: V1ApiListVariablesRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<ListVariablesResponse>> {
+		if (requestParameters.pageSize == null) {
+			throw new runtime.RequiredError(
+				"pageSize",
+				'Required parameter "pageSize" was null or undefined when calling listVariables().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		if (requestParameters.pageSize != null) {
+			queryParameters.page_size = requestParameters.pageSize;
+		}
+
+		if (requestParameters.nextPageToken != null) {
+			queryParameters.next_page_token = requestParameters.nextPageToken;
+		}
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		if (this.configuration?.accessToken) {
+			const token = this.configuration.accessToken;
+			const tokenString = await token("bearer_token", []);
+
+			if (tokenString) {
+				headerParameters.Authorization = `Bearer ${tokenString}`;
+			}
+		}
+		if (this.configuration?.apiKey) {
+			headerParameters["X-API-Key"] =
+				await this.configuration.apiKey("X-API-Key"); // api_key authentication
+		}
+
+		const urlPath = `/api/environment/v1/variable`;
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "GET",
+				headers: headerParameters,
+				query: queryParameters,
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			ListVariablesResponseFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * List all environment variables with pagination
+	 * List variables
+	 */
+	async listVariables(
+		requestParameters: V1ApiListVariablesRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<ListVariablesResponse> {
+		const response = await this.listVariablesRaw(
+			requestParameters,
+			initOverrides,
+		);
 		return await response.value();
 	}
 
@@ -8233,86 +8233,6 @@ export class V1Api extends runtime.BaseAPI {
 	}
 
 	/**
-	 * Update an existing environment variable\'s value
-	 * Update environment variable
-	 */
-	async updateEnvironmentVariableRaw(
-		requestParameters: V1ApiUpdateEnvironmentVariableOperationRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<runtime.ApiResponse<EnvironmentVariable>> {
-		if (requestParameters.envVarId == null) {
-			throw new runtime.RequiredError(
-				"envVarId",
-				'Required parameter "envVarId" was null or undefined when calling updateEnvironmentVariable().',
-			);
-		}
-
-		if (requestParameters.updateEnvironmentVariableRequest == null) {
-			throw new runtime.RequiredError(
-				"updateEnvironmentVariableRequest",
-				'Required parameter "updateEnvironmentVariableRequest" was null or undefined when calling updateEnvironmentVariable().',
-			);
-		}
-
-		const queryParameters: any = {};
-
-		const headerParameters: runtime.HTTPHeaders = {};
-
-		headerParameters["Content-Type"] = "application/json";
-
-		if (this.configuration?.accessToken) {
-			const token = this.configuration.accessToken;
-			const tokenString = await token("bearer_token", []);
-
-			if (tokenString) {
-				headerParameters.Authorization = `Bearer ${tokenString}`;
-			}
-		}
-		if (this.configuration?.apiKey) {
-			headerParameters["X-API-Key"] =
-				await this.configuration.apiKey("X-API-Key"); // api_key authentication
-		}
-
-		let urlPath = `/api/environment-variable/v1/{env_var_id}`;
-		urlPath = urlPath.replace(
-			`{${"env_var_id"}}`,
-			encodeURIComponent(String(requestParameters.envVarId)),
-		);
-
-		const response = await this.request(
-			{
-				path: urlPath,
-				method: "PUT",
-				headers: headerParameters,
-				query: queryParameters,
-				body: UpdateEnvironmentVariableRequestToJSON(
-					requestParameters.updateEnvironmentVariableRequest,
-				),
-			},
-			initOverrides,
-		);
-
-		return new runtime.JSONApiResponse(response, (jsonValue) =>
-			EnvironmentVariableFromJSON(jsonValue),
-		);
-	}
-
-	/**
-	 * Update an existing environment variable\'s value
-	 * Update environment variable
-	 */
-	async updateEnvironmentVariable(
-		requestParameters: V1ApiUpdateEnvironmentVariableOperationRequest,
-		initOverrides?: RequestInit | runtime.InitOverrideFunction,
-	): Promise<EnvironmentVariable> {
-		const response = await this.updateEnvironmentVariableRaw(
-			requestParameters,
-			initOverrides,
-		);
-		return await response.value();
-	}
-
-	/**
 	 * Update a group\'s name
 	 * Update group
 	 */
@@ -8706,7 +8626,7 @@ export class V1Api extends runtime.BaseAPI {
 				await this.configuration.apiKey("X-API-Key"); // api_key authentication
 		}
 
-		let urlPath = `/api/secret/v1/{secret_id}`;
+		let urlPath = `/api/environment/v1/secret/{secret_id}`;
 		urlPath = urlPath.replace(
 			`{${"secret_id"}}`,
 			encodeURIComponent(String(requestParameters.secretId)),
@@ -8897,6 +8817,86 @@ export class V1Api extends runtime.BaseAPI {
 		initOverrides?: RequestInit | runtime.InitOverrideFunction,
 	): Promise<User> {
 		const response = await this.updateUserRaw(requestParameters, initOverrides);
+		return await response.value();
+	}
+
+	/**
+	 * Update an existing environment variable\'s value
+	 * Update variable
+	 */
+	async updateVariableRaw(
+		requestParameters: V1ApiUpdateVariableOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<runtime.ApiResponse<Variable>> {
+		if (requestParameters.variableId == null) {
+			throw new runtime.RequiredError(
+				"variableId",
+				'Required parameter "variableId" was null or undefined when calling updateVariable().',
+			);
+		}
+
+		if (requestParameters.updateVariableRequest == null) {
+			throw new runtime.RequiredError(
+				"updateVariableRequest",
+				'Required parameter "updateVariableRequest" was null or undefined when calling updateVariable().',
+			);
+		}
+
+		const queryParameters: any = {};
+
+		const headerParameters: runtime.HTTPHeaders = {};
+
+		headerParameters["Content-Type"] = "application/json";
+
+		if (this.configuration?.accessToken) {
+			const token = this.configuration.accessToken;
+			const tokenString = await token("bearer_token", []);
+
+			if (tokenString) {
+				headerParameters.Authorization = `Bearer ${tokenString}`;
+			}
+		}
+		if (this.configuration?.apiKey) {
+			headerParameters["X-API-Key"] =
+				await this.configuration.apiKey("X-API-Key"); // api_key authentication
+		}
+
+		let urlPath = `/api/environment/v1/variable/{variable_id}`;
+		urlPath = urlPath.replace(
+			`{${"variable_id"}}`,
+			encodeURIComponent(String(requestParameters.variableId)),
+		);
+
+		const response = await this.request(
+			{
+				path: urlPath,
+				method: "PUT",
+				headers: headerParameters,
+				query: queryParameters,
+				body: UpdateVariableRequestToJSON(
+					requestParameters.updateVariableRequest,
+				),
+			},
+			initOverrides,
+		);
+
+		return new runtime.JSONApiResponse(response, (jsonValue) =>
+			VariableFromJSON(jsonValue),
+		);
+	}
+
+	/**
+	 * Update an existing environment variable\'s value
+	 * Update variable
+	 */
+	async updateVariable(
+		requestParameters: V1ApiUpdateVariableOperationRequest,
+		initOverrides?: RequestInit | runtime.InitOverrideFunction,
+	): Promise<Variable> {
+		const response = await this.updateVariableRaw(
+			requestParameters,
+			initOverrides,
+		);
 		return await response.value();
 	}
 }

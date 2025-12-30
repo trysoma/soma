@@ -19,14 +19,12 @@ use shared::{
 use url::Url;
 
 use crate::{
-    logic::on_change_pubsub::{EnvironmentVariableChangeTx, SecretChangeTx},
+    logic::on_change_pubsub::{SecretChangeTx, VariableChangeTx},
     logic::task::ConnectionManager,
     repository::Repository,
     router::{
         agent::{AgentService, AgentServiceParams},
-        environment_variable::EnvironmentVariableService,
         internal,
-        secret::SecretService,
         task::TaskService,
     },
     sdk::sdk_agent_sync::AgentCache,
@@ -48,8 +46,7 @@ pub struct ApiService {
     pub mcp_service: McpService,
     pub internal_service: Arc<internal::InternalService>,
     pub encryption_service: encryption::router::EncryptionService,
-    pub secret_service: Arc<SecretService>,
-    pub environment_variable_service: Arc<EnvironmentVariableService>,
+    pub environment_service: Arc<environment::service::EnvironmentService>,
     pub identity_service: identity::service::IdentityService,
     pub sdk_client: Arc<
         tokio::sync::Mutex<
@@ -69,6 +66,7 @@ pub struct InitApiServiceParams {
     pub soma_restate_service_port: u16,
     pub connection_manager: ConnectionManager,
     pub repository: Repository,
+    pub environment_repository: environment::repository::Repository,
     pub mcp_service: StreamableHttpService<McpServerService, LocalSessionManager>,
     pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub restate_ingress_client: RestateIngressClient,
@@ -77,7 +75,7 @@ pub struct InitApiServiceParams {
     pub on_mcp_config_change_tx: OnConfigChangeTx,
     pub on_encryption_change_tx: EncryptionKeyEventSender,
     pub on_secret_change_tx: SecretChangeTx,
-    pub on_environment_variable_change_tx: EnvironmentVariableChangeTx,
+    pub on_variable_change_tx: VariableChangeTx,
     pub encryption_repository: encryption::repository::Repository,
     pub crypto_cache: CryptoCache,
     pub mcp_repository: ::mcp::repository::Repository,
@@ -141,24 +139,20 @@ impl ApiService {
         let internal_service = Arc::new(internal::InternalService::new(
             mcp_service.clone(),
             init_params.sdk_client.clone(),
-            std::sync::Arc::new(init_params.repository.clone()),
+            std::sync::Arc::new(init_params.environment_repository.clone()),
             init_params.crypto_cache.clone(),
             init_params.restate_params.clone(),
             agent_cache.clone(),
         ));
 
-        let secret_service = Arc::new(SecretService::new(
-            init_params.repository.clone(),
-            encryption_service.clone(),
-            init_params.on_secret_change_tx.clone(),
-            init_params.sdk_client.clone(),
-            init_params.crypto_cache.clone(),
-        ));
-
-        let environment_variable_service = Arc::new(EnvironmentVariableService::new(
-            init_params.repository.clone(),
-            init_params.on_environment_variable_change_tx.clone(),
-            init_params.sdk_client.clone(),
+        // Create environment service
+        let environment_service = Arc::new(environment::service::EnvironmentService::new(
+            environment::service::EnvironmentServiceParams {
+                repository: init_params.environment_repository.clone(),
+                crypto_cache: init_params.crypto_cache.clone(),
+                secret_change_tx: init_params.on_secret_change_tx.clone(),
+                variable_change_tx: init_params.on_variable_change_tx.clone(),
+            },
         ));
 
         // Construct identity service with pre-built caches
@@ -180,8 +174,7 @@ impl ApiService {
             mcp_service,
             internal_service,
             encryption_service,
-            secret_service,
-            environment_variable_service,
+            environment_service,
             identity_service,
             sdk_client: init_params.sdk_client,
             agent_cache,

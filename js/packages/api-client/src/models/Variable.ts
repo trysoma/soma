@@ -13,49 +13,47 @@
  */
 
 /**
- *
+ * Domain model for Variable - a plain-text key-value pair
  * @export
- * @interface EnvironmentVariable
+ * @interface Variable
  */
-export interface EnvironmentVariable {
+export interface Variable {
 	/**
 	 *
 	 * @type {Date}
-	 * @memberof EnvironmentVariable
+	 * @memberof Variable
 	 */
 	createdAt: Date;
 	/**
 	 *
 	 * @type {string}
-	 * @memberof EnvironmentVariable
+	 * @memberof Variable
 	 */
 	id: string;
 	/**
 	 *
 	 * @type {string}
-	 * @memberof EnvironmentVariable
+	 * @memberof Variable
 	 */
 	key: string;
 	/**
 	 *
 	 * @type {Date}
-	 * @memberof EnvironmentVariable
+	 * @memberof Variable
 	 */
 	updatedAt: Date;
 	/**
 	 *
 	 * @type {string}
-	 * @memberof EnvironmentVariable
+	 * @memberof Variable
 	 */
 	value: string;
 }
 
 /**
- * Check if a given object implements the EnvironmentVariable interface.
+ * Check if a given object implements the Variable interface.
  */
-export function instanceOfEnvironmentVariable(
-	value: object,
-): value is EnvironmentVariable {
+export function instanceOfVariable(value: object): value is Variable {
 	if (!("createdAt" in value) || value.createdAt === undefined) return false;
 	if (!("id" in value) || value.id === undefined) return false;
 	if (!("key" in value) || value.key === undefined) return false;
@@ -64,14 +62,14 @@ export function instanceOfEnvironmentVariable(
 	return true;
 }
 
-export function EnvironmentVariableFromJSON(json: any): EnvironmentVariable {
-	return EnvironmentVariableFromJSONTyped(json, false);
+export function VariableFromJSON(json: any): Variable {
+	return VariableFromJSONTyped(json, false);
 }
 
-export function EnvironmentVariableFromJSONTyped(
+export function VariableFromJSONTyped(
 	json: any,
 	_ignoreDiscriminator: boolean,
-): EnvironmentVariable {
+): Variable {
 	if (json == null) {
 		return json;
 	}
@@ -84,12 +82,12 @@ export function EnvironmentVariableFromJSONTyped(
 	};
 }
 
-export function EnvironmentVariableToJSON(json: any): EnvironmentVariable {
-	return EnvironmentVariableToJSONTyped(json, false);
+export function VariableToJSON(json: any): Variable {
+	return VariableToJSONTyped(json, false);
 }
 
-export function EnvironmentVariableToJSONTyped(
-	value?: EnvironmentVariable | null,
+export function VariableToJSONTyped(
+	value?: Variable | null,
 	_ignoreDiscriminator: boolean = false,
 ): any {
 	if (value == null) {

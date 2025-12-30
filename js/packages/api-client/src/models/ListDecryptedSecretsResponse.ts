@@ -19,7 +19,7 @@ import {
 } from "./DecryptedSecret";
 
 /**
- *
+ * Response for listing decrypted secrets
  * @export
  * @interface ListDecryptedSecretsResponse
  */

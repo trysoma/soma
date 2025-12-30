@@ -25,7 +25,7 @@ from typing_extensions import Self
 
 class ListSecretsResponse(BaseModel):
     """
-    ListSecretsResponse
+    Response for listing secrets
     """  # noqa: E501
 
     next_page_token: Optional[StrictStr] = None

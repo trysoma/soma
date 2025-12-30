@@ -11,10 +11,8 @@ use tonic::{Request, transport::Channel};
 use tracing::{debug, error, trace, warn};
 use utoipa::ToSchema;
 
-use crate::logic::environment_variable_sync::{
-    fetch_all_environment_variables, sync_environment_variables_to_sdk,
-};
 use crate::logic::secret_sync::{fetch_and_decrypt_all_secrets, sync_secrets_to_sdk};
+use crate::logic::variable_sync::{fetch_all_variables, sync_variables_to_sdk};
 use crate::sdk::{sdk_agent_sync, sdk_provider_sync};
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
@@ -89,7 +87,7 @@ pub struct ResyncSdkResponse {}
 /// Resync SDK: fetches metadata from SDK, syncs providers/agents to mcp registry,
 /// registers Restate deployments, syncs secrets/env vars to SDK, and triggers codegen
 pub async fn resync_sdk(
-    repository: &std::sync::Arc<crate::repository::Repository>,
+    environment_repo: &std::sync::Arc<environment::repository::Repository>,
     crypto_cache: &CryptoCache,
     restate_params: &crate::restate::RestateServerParams,
     sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
@@ -167,29 +165,26 @@ pub async fn resync_sdk(
     }
 
     // Sync secrets to SDK
-    let secrets = fetch_and_decrypt_all_secrets(repository, crypto_cache).await?;
+    let secrets = fetch_and_decrypt_all_secrets(environment_repo, crypto_cache).await?;
     let secrets_count = secrets.len();
     if !secrets.is_empty() {
         trace!(count = secrets_count, "Syncing secrets to SDK");
         sync_secrets_to_sdk(client, secrets).await?;
     }
 
-    // Sync environment variables to SDK
-    let env_vars = fetch_all_environment_variables(repository).await?;
-    let env_vars_count = env_vars.len();
-    if !env_vars.is_empty() {
-        trace!(
-            count = env_vars_count,
-            "Syncing environment variables to SDK"
-        );
-        sync_environment_variables_to_sdk(client, env_vars).await?;
+    // Sync variables to SDK
+    let vars = fetch_all_variables(environment_repo).await?;
+    let vars_count = vars.len();
+    if !vars.is_empty() {
+        trace!(count = vars_count, "Syncing variables to SDK");
+        sync_variables_to_sdk(client, vars).await?;
     }
 
     debug!(
         providers = providers_synced,
         agents = agents_synced,
         secrets = secrets_count,
-        env_vars = env_vars_count,
+        vars = vars_count,
         "SDK resync complete"
     );
 

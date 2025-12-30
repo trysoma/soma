@@ -13,7 +13,7 @@
  */
 
 /**
- *
+ * Request type for importing pre-encrypted secrets (used by sync_yaml_to_api_on_start)
  * @export
  * @interface ImportSecretRequest
  */

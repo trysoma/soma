@@ -5,6 +5,7 @@
 	db-generate-rs-models \
 	db-mcp-generate-migration db-mcp-generate-hash \
 	db-encryption-generate-migration db-encryption-generate-hash \
+	db-environment-generate-migration db-environment-generate-hash \
 	db-identity-generate-migration db-identity-generate-hash \
 	db-soma-generate-migration db-soma-generate-hash \
 	_db-generate-migration _db-generate-hash _install-sqlc-gen-from-template
@@ -282,6 +283,12 @@ lint-db: ## Run database linters
 	else \
 		echo "$$identity_output"; \
 	fi
+	@environment_output=$$(atlas migrate lint --env environment --git-base main 2>&1); \
+	if [ -z "$$environment_output" ]; then \
+		echo "Environment DB: SUCCESS: checksums match, no breaking changes"; \
+	else \
+		echo "$$environment_output"; \
+	fi
 	@echo "✓ Database linters passed"
 
 lint-fix: lint-fix-rs lint-fix-js lint-fix-py ## Run all linters with auto-fix (Rust + JS + Python)
@@ -355,6 +362,9 @@ db-generate-rs-models: ## Generate Rust models from SQL queries using sqlc
 	@echo "Generating Rust models for identity..."
 	cd crates/identity && sqlc generate
 	@echo "✓ Identity models generated"
+	@echo "Generating Rust models for environment..."
+	cd crates/environment && sqlc generate
+	@echo "✓ Environment models generated"
 
 db-mcp-generate-migration: ## Create a new mcp database migration using Atlas (usage: make db-mcp-generate-migration NAME=migration_name)
 	$(MAKE) _db-generate-migration ENV=mcp FILE_PATH=crates/mcp/dbs/mcp/schema.sql NAME=$(NAME)
@@ -379,6 +389,12 @@ db-soma-generate-migration: ## Create a new soma database migration using Atlas 
 
 db-soma-generate-hash: ## Update soma database migration hash
 	$(MAKE) _db-generate-hash ENV=soma
+
+db-environment-generate-migration: ## Create a new environment database migration using Atlas (usage: make db-environment-generate-migration NAME=migration_name)
+	$(MAKE) _db-generate-migration ENV=environment FILE_PATH=crates/environment/dbs/environment/schema.sql NAME=$(NAME)
+
+db-environment-generate-hash: ## Update environment database migration hash
+	$(MAKE) _db-generate-hash ENV=environment
 
 generate-licenses: ## Generate third-party license files for Rust, JS, and Python dependencies
 	@echo "Generating Rust licenses..."

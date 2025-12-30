@@ -13,7 +13,7 @@
  */
 
 /**
- *
+ * Response for deleting a secret
  * @export
  * @interface DeleteSecretResponse
  */

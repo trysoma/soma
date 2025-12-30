@@ -24,7 +24,7 @@ from typing_extensions import Self
 
 class CreateSecretRequest(BaseModel):
     """
-    CreateSecretRequest
+    Request to create a new secret
     """  # noqa: E501
 
     dek_alias: StrictStr

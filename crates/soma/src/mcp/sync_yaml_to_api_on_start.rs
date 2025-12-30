@@ -5,10 +5,7 @@ use shared::{
     soma_agent_definition::{EnvelopeKeyConfig, SomaAgentDefinitionLike},
 };
 use soma_api_client::{
-    apis::{
-        configuration::Configuration, encryption_api, environment_variable_api, identity_api,
-        mcp_api, secret_api,
-    },
+    apis::{configuration::Configuration, encryption_api, environment_api, identity_api, mcp_api},
     models,
 };
 use tracing::debug;
@@ -388,7 +385,7 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
             let mut next_page_token: Option<String> = None;
             loop {
                 let response =
-                    secret_api::list_secrets(api_config, 100, next_page_token.as_deref())
+                    environment_api::list_secrets(api_config, 100, next_page_token.as_deref())
                         .await
                         .map_err(|e| {
                             CommonError::Unknown(anyhow::anyhow!("Failed to list secrets: {e:?}"))
@@ -417,7 +414,7 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                     encrypted_value: secret_config.value.clone(),
                     dek_alias: secret_config.dek_alias.clone(),
                 };
-                secret_api::import_secret(api_config, import_req)
+                environment_api::import_secret(api_config, import_req)
                     .await
                     .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(
@@ -440,19 +437,16 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
             let mut keys = HashSet::new();
             let mut next_page_token: Option<String> = None;
             loop {
-                let response = environment_variable_api::list_environment_variables(
-                    api_config,
-                    100,
-                    next_page_token.as_deref(),
-                )
-                .await
-                .map_err(|e| {
-                    CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to list environment variables: {e:?}"
-                    ))
-                })?;
+                let response =
+                    environment_api::list_variables(api_config, 100, next_page_token.as_deref())
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to list environment variables: {e:?}"
+                            ))
+                        })?;
 
-                for env_var in response.environment_variables {
+                for env_var in response.variables {
                     keys.insert(env_var.key);
                 }
                 // Handle doubly wrapped Option<Option<String>> from generated API client
@@ -469,11 +463,11 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
         // Create or update environment variables from yaml
         for (key, value) in env_vars {
             if !existing_env_vars.contains(key) {
-                let create_req = models::CreateEnvironmentVariableRequest {
+                let create_req = models::CreateVariableRequest {
                     key: key.clone(),
                     value: value.clone(),
                 };
-                environment_variable_api::create_environment_variable(api_config, create_req)
+                environment_api::create_variable(api_config, create_req)
                     .await
                     .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(
