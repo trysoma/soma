@@ -156,73 +156,75 @@ pub async fn start_axum_server(params: StartAxumServerParams) -> Result<(), Comm
     Ok(())
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use shared::port::find_free_port_with_bind;
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use shared::port::find_free_port_with_bind;
 
-    use super::*;
-    use std::{
-        io::{Error, ErrorKind},
-        net::TcpListener,
-    };
-
-    #[test]
-    fn test_find_free_port_success() {
-        // Mock bind function that succeeds on port 3002
-        let bind_fn = |addr: SocketAddr| {
-            if addr.port() == 3002 {
-                Ok(TcpListener::bind("127.0.0.1:0").unwrap())
-            } else {
-                Err(Error::new(ErrorKind::AddrInUse, "Port in use"))
-            }
+        use super::super::*;
+        use std::{
+            io::{Error, ErrorKind},
+            net::TcpListener,
         };
 
-        let port = find_free_port_with_bind(3000, 3010, bind_fn).unwrap();
-        assert_eq!(port, 3002);
-    }
+        #[test]
+        fn test_find_free_port_success() {
+            // Mock bind function that succeeds on port 3002
+            let bind_fn = |addr: SocketAddr| {
+                if addr.port() == 3002 {
+                    Ok(TcpListener::bind("127.0.0.1:0").unwrap())
+                } else {
+                    Err(Error::new(ErrorKind::AddrInUse, "Port in use"))
+                }
+            };
 
-    #[test]
-    fn test_find_free_port_no_ports_available() {
-        // Mock bind function that always fails
-        let bind_fn = |_: SocketAddr| Err(Error::new(ErrorKind::AddrInUse, "Port in use"));
+            let port = find_free_port_with_bind(3000, 3010, bind_fn).unwrap();
+            assert_eq!(port, 3002);
+        }
 
-        let result = find_free_port_with_bind(3000, 3010, bind_fn);
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().kind(), ErrorKind::AddrNotAvailable);
-    }
+        #[test]
+        fn test_find_free_port_no_ports_available() {
+            // Mock bind function that always fails
+            let bind_fn = |_: SocketAddr| Err(Error::new(ErrorKind::AddrInUse, "Port in use"));
 
-    #[test]
-    fn test_find_free_port_first_port_available() {
-        // Mock bind function that always succeeds
-        let bind_fn = |_: SocketAddr| Ok(TcpListener::bind("127.0.0.1:0").unwrap());
+            let result = find_free_port_with_bind(3000, 3010, bind_fn);
+            assert!(result.is_err());
+            assert_eq!(result.unwrap_err().kind(), ErrorKind::AddrNotAvailable);
+        }
 
-        let port = find_free_port_with_bind(5000, 5100, bind_fn).unwrap();
-        assert_eq!(port, 5000);
-    }
+        #[test]
+        fn test_find_free_port_first_port_available() {
+            // Mock bind function that always succeeds
+            let bind_fn = |_: SocketAddr| Ok(TcpListener::bind("127.0.0.1:0").unwrap());
 
-    #[test]
-    fn test_find_free_port_last_port_available() {
-        // Mock bind function that only succeeds on the last port
-        let bind_fn = |addr: SocketAddr| {
-            if addr.port() == 6010 {
-                Ok(TcpListener::bind("127.0.0.1:0").unwrap())
-            } else {
-                Err(Error::new(ErrorKind::AddrInUse, "Port in use"))
-            }
-        };
+            let port = find_free_port_with_bind(5000, 5100, bind_fn).unwrap();
+            assert_eq!(port, 5000);
+        }
 
-        let port = find_free_port_with_bind(6000, 6010, bind_fn).unwrap();
-        assert_eq!(port, 6010);
-    }
+        #[test]
+        fn test_find_free_port_last_port_available() {
+            // Mock bind function that only succeeds on the last port
+            let bind_fn = |addr: SocketAddr| {
+                if addr.port() == 6010 {
+                    Ok(TcpListener::bind("127.0.0.1:0").unwrap())
+                } else {
+                    Err(Error::new(ErrorKind::AddrInUse, "Port in use"))
+                }
+            };
 
-    #[test]
-    fn test_find_free_port_integration() {
-        // This is an integration test that actually binds to a port
-        let port = find_free_port(50000, 50100).unwrap();
-        assert!((50000..=50100).contains(&port));
+            let port = find_free_port_with_bind(6000, 6010, bind_fn).unwrap();
+            assert_eq!(port, 6010);
+        }
 
-        // Verify we can actually bind to the port
-        let listener = TcpListener::bind(format!("127.0.0.1:{port}"));
-        assert!(listener.is_ok());
+        #[test]
+        fn test_find_free_port_integration() {
+            // This is an integration test that actually binds to a port
+            let port = find_free_port(50000, 50100).unwrap();
+            assert!((50000..=50100).contains(&port));
+
+            // Verify we can actually bind to the port
+            let listener = TcpListener::bind(format!("127.0.0.1:{port}"));
+            assert!(listener.is_ok());
+        }
     }
 }

@@ -306,33 +306,36 @@ pub struct WithCredentialControllerTypeId<T> {
     pub inner: T,
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
-    use http::HeaderMap;
-    use shared::primitives::PaginationRequest;
-    use shared::test_utils::helpers::MockAuthClient;
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
+        use http::HeaderMap;
+        use shared::primitives::PaginationRequest;
+        use shared::test_utils::helpers::MockAuthClient;
 
-    #[tokio::test]
-    async fn test_list_available_providers() {
-        shared::setup_test!();
+        #[tokio::test]
+        async fn test_list_available_providers() {
+            shared::setup_test!();
 
-        let auth_client = MockAuthClient::admin();
-        let headers = HeaderMap::new();
-        // Note: identity parameter is a placeholder that gets shadowed by the #[authn] macro
-        let identity_placeholder = Identity::Unauthenticated;
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
+            let auth_client = MockAuthClient::admin();
+            let headers = HeaderMap::new();
+            // Note: identity parameter is a placeholder that gets shadowed by the #[authn] macro
+            let identity_placeholder = Identity::Unauthenticated;
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
 
-        let result =
-            list_available_providers(auth_client, headers, identity_placeholder, pagination).await;
-        assert!(result.is_ok());
+            let result =
+                list_available_providers(auth_client, headers, identity_placeholder, pagination)
+                    .await;
+            assert!(result.is_ok());
 
-        let _response = result.unwrap();
-        // Should have at least the registered providers
-        // Should return a valid paginated response (may be empty during isolated tests)
-        // Just verify the structure is correct
+            let _response = result.unwrap();
+            // Should have at least the registered providers
+            // Should return a valid paginated response (may be empty during isolated tests)
+            // Just verify the structure is correct
+        }
     }
 }

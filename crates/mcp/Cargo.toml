@@ -3,10 +3,6 @@ name = "mcp"
 version.workspace = true
 edition.workspace = true
 
-[features]
-unit_test = ["tempfile"]
-integration_test = ["tempfile", "identity/integration_test"]
-
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
@@ -42,13 +38,8 @@ tokio-stream.workspace = true
 tokio-util.workspace = true
 futures.workspace = true
 arc-swap.workspace = true
+identity.workspace = true
 
 [dev-dependencies]
 rand.workspace = true
-
-[dependencies.tempfile]
-workspace = true
-optional = true
-
-[dependencies.identity]
-path = "../identity"
+tempfile.workspace = true

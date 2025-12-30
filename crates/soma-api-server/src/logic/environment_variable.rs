@@ -323,242 +323,75 @@ pub async fn import_environment_variable<R: EnvironmentVariableRepositoryLike>(
     Ok(environment_variable)
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
-    use crate::repository::Repository;
-    use shared::primitives::SqlMigrationLoader;
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
+        use crate::repository::Repository;
+        use shared::primitives::SqlMigrationLoader;
 
-    fn create_test_sdk_client() -> Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>> {
-        Arc::new(Mutex::new(None::<SomaSdkServiceClient<Channel>>))
-    }
-
-    async fn setup_test_repository() -> Repository {
-        let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
-            <Repository as SqlMigrationLoader>::load_sql_migrations(),
-        ])
-        .await
-        .expect("Failed to setup test database");
-        Repository::new(conn)
-    }
-
-    #[tokio::test]
-    async fn test_create_environment_variable() {
-        let repository = setup_test_repository().await;
-        let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
-
-        let request = CreateEnvironmentVariableRequest {
-            key: "MY_ENV_VAR".to_string(),
-            value: "my-value".to_string(),
-        };
-
-        let sdk_client = create_test_sdk_client();
-        let result = create_environment_variable(
-            &on_change_tx,
-            &repository,
-            &sdk_client,
-            request.clone(),
-            true,
-        )
-        .await;
-
-        assert!(result.is_ok());
-        let env_var = result.unwrap();
-        assert_eq!(env_var.key, "MY_ENV_VAR");
-        assert_eq!(env_var.value, "my-value");
-
-        // Check event was published
-        let event = on_change_rx.try_recv();
-        assert!(event.is_ok());
-        match event.unwrap() {
-            EnvironmentVariableChangeEvt::Created(e) => {
-                assert_eq!(e.key, "MY_ENV_VAR");
-            }
-            _ => panic!("Expected Created event"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_update_environment_variable() {
-        let repository = setup_test_repository().await;
-        let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
-        let sdk_client = create_test_sdk_client();
-
-        // Create an environment variable first
-        let create_request = CreateEnvironmentVariableRequest {
-            key: "MY_ENV_VAR".to_string(),
-            value: "original-value".to_string(),
-        };
-
-        let created = create_environment_variable(
-            &on_change_tx,
-            &repository,
-            &sdk_client,
-            create_request,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Update the environment variable
-        let update_request = UpdateEnvironmentVariableRequest {
-            value: "updated-value".to_string(),
-        };
-
-        let result = update_environment_variable(
-            &on_change_tx,
-            &repository,
-            &sdk_client,
-            created.id.clone(),
-            update_request,
-            true,
-        )
-        .await;
-
-        assert!(result.is_ok());
-        let updated = result.unwrap();
-        assert_eq!(updated.key, "MY_ENV_VAR");
-        assert_eq!(updated.value, "updated-value");
-
-        // Check event was published
-        let event = on_change_rx.try_recv();
-        assert!(event.is_ok());
-        match event.unwrap() {
-            EnvironmentVariableChangeEvt::Updated(e) => {
-                assert_eq!(e.key, "MY_ENV_VAR");
-            }
-            _ => panic!("Expected Updated event"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_delete_environment_variable() {
-        let repository = setup_test_repository().await;
-        let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
-        let sdk_client = create_test_sdk_client();
-
-        // Create an environment variable first
-        let create_request = CreateEnvironmentVariableRequest {
-            key: "MY_ENV_VAR".to_string(),
-            value: "my-value".to_string(),
-        };
-
-        let created = create_environment_variable(
-            &on_change_tx,
-            &repository,
-            &sdk_client,
-            create_request,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Delete the environment variable
-        let result = delete_environment_variable(
-            &on_change_tx,
-            &repository,
-            &sdk_client,
-            created.id.clone(),
-            true,
-        )
-        .await;
-
-        assert!(result.is_ok());
-        let response = result.unwrap();
-        assert!(response.success);
-
-        // Check event was published
-        let event = on_change_rx.try_recv();
-        assert!(event.is_ok());
-        match event.unwrap() {
-            EnvironmentVariableChangeEvt::Deleted { id, key } => {
-                assert_eq!(id, created.id.to_string());
-                assert_eq!(key, "MY_ENV_VAR");
-            }
-            _ => panic!("Expected Deleted event"),
+        fn create_test_sdk_client() -> Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>> {
+            Arc::new(Mutex::new(None::<SomaSdkServiceClient<Channel>>))
         }
 
-        // Verify it's deleted
-        let get_result = get_environment_variable_by_id(&repository, created.id).await;
-        assert!(get_result.is_err());
-    }
+        async fn setup_test_repository() -> Repository {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                <Repository as SqlMigrationLoader>::load_sql_migrations(),
+            ])
+            .await
+            .expect("Failed to setup test database");
+            Repository::new(conn)
+        }
 
-    #[tokio::test]
-    async fn test_get_environment_variable_by_id() {
-        let repository = setup_test_repository().await;
-        let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+        #[tokio::test]
+        async fn test_create_environment_variable() {
+            let repository = setup_test_repository().await;
+            let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
 
-        // Create an environment variable first
-        let create_request = CreateEnvironmentVariableRequest {
-            key: "MY_ENV_VAR".to_string(),
-            value: "my-value".to_string(),
-        };
-
-        let sdk_client = create_test_sdk_client();
-        let created = create_environment_variable(
-            &on_change_tx,
-            &repository,
-            &sdk_client,
-            create_request,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Get by id
-        let result = get_environment_variable_by_id(&repository, created.id.clone()).await;
-
-        assert!(result.is_ok());
-        let env_var = result.unwrap();
-        assert_eq!(env_var.key, "MY_ENV_VAR");
-        assert_eq!(env_var.id, created.id);
-    }
-
-    #[tokio::test]
-    async fn test_get_environment_variable_by_key() {
-        let repository = setup_test_repository().await;
-        let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
-
-        // Create an environment variable first
-        let create_request = CreateEnvironmentVariableRequest {
-            key: "MY_ENV_VAR".to_string(),
-            value: "my-value".to_string(),
-        };
-
-        let sdk_client = create_test_sdk_client();
-        let created = create_environment_variable(
-            &on_change_tx,
-            &repository,
-            &sdk_client,
-            create_request,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Get by key
-        let result = get_environment_variable_by_key(&repository, "MY_ENV_VAR".to_string()).await;
-
-        assert!(result.is_ok());
-        let env_var = result.unwrap();
-        assert_eq!(env_var.id, created.id);
-        assert_eq!(env_var.key, "MY_ENV_VAR");
-    }
-
-    #[tokio::test]
-    async fn test_list_environment_variables() {
-        let repository = setup_test_repository().await;
-        let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
-
-        // Create multiple environment variables
-        for i in 0..3 {
-            let create_request = CreateEnvironmentVariableRequest {
-                key: format!("ENV_VAR_{i}"),
-                value: format!("value-{i}"),
+            let request = CreateEnvironmentVariableRequest {
+                key: "MY_ENV_VAR".to_string(),
+                value: "my-value".to_string(),
             };
 
             let sdk_client = create_test_sdk_client();
-            create_environment_variable(
+            let result = create_environment_variable(
+                &on_change_tx,
+                &repository,
+                &sdk_client,
+                request.clone(),
+                true,
+            )
+            .await;
+
+            assert!(result.is_ok());
+            let env_var = result.unwrap();
+            assert_eq!(env_var.key, "MY_ENV_VAR");
+            assert_eq!(env_var.value, "my-value");
+
+            // Check event was published
+            let event = on_change_rx.try_recv();
+            assert!(event.is_ok());
+            match event.unwrap() {
+                EnvironmentVariableChangeEvt::Created(e) => {
+                    assert_eq!(e.key, "MY_ENV_VAR");
+                }
+                _ => panic!("Expected Created event"),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_update_environment_variable() {
+            let repository = setup_test_repository().await;
+            let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+            let sdk_client = create_test_sdk_client();
+
+            // Create an environment variable first
+            let create_request = CreateEnvironmentVariableRequest {
+                key: "MY_ENV_VAR".to_string(),
+                value: "original-value".to_string(),
+            };
+
+            let created = create_environment_variable(
                 &on_change_tx,
                 &repository,
                 &sdk_client,
@@ -567,163 +400,51 @@ mod unit_test {
             )
             .await
             .unwrap();
-        }
 
-        // List environment variables
-        let result = list_environment_variables(
-            &repository,
-            PaginationRequest {
-                page_size: 10,
-                next_page_token: None,
-            },
-        )
-        .await;
-
-        assert!(result.is_ok());
-        let response = result.unwrap();
-        assert_eq!(response.environment_variables.len(), 3);
-    }
-
-    #[tokio::test]
-    async fn test_get_environment_variable_not_found() {
-        let repository = setup_test_repository().await;
-
-        let result = get_environment_variable_by_id(&repository, WrappedUuidV4::new()).await;
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            CommonError::NotFound { .. } => {}
-            e => panic!("Expected NotFound error, got: {e:?}"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_create_environment_variable_no_publish() {
-        let repository = setup_test_repository().await;
-        let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
-        let sdk_client = create_test_sdk_client();
-
-        let request = CreateEnvironmentVariableRequest {
-            key: "MY_ENV_VAR".to_string(),
-            value: "my-value".to_string(),
-        };
-
-        let result = create_environment_variable(
-            &on_change_tx,
-            &repository,
-            &sdk_client,
-            request,
-            false, // Don't publish
-        )
-        .await;
-
-        assert!(result.is_ok());
-
-        // Should be no event
-        let event = on_change_rx.try_recv();
-        assert!(event.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_import_environment_variable() {
-        let repository = setup_test_repository().await;
-
-        let request = ImportEnvironmentVariableRequest {
-            key: "IMPORTED_VAR".to_string(),
-            value: "imported-value".to_string(),
-        };
-
-        let result = import_environment_variable(&repository, request).await;
-
-        assert!(result.is_ok());
-        let env_var = result.unwrap();
-        assert_eq!(env_var.key, "IMPORTED_VAR");
-        assert_eq!(env_var.value, "imported-value");
-
-        // Verify it was actually saved
-        let fetched =
-            get_environment_variable_by_key(&repository, "IMPORTED_VAR".to_string()).await;
-        assert!(fetched.is_ok());
-        assert_eq!(fetched.unwrap().id, env_var.id);
-    }
-
-    #[tokio::test]
-    async fn test_update_environment_variable_not_found() {
-        let repository = setup_test_repository().await;
-        let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
-
-        let update_request = UpdateEnvironmentVariableRequest {
-            value: "updated-value".to_string(),
-        };
-
-        let sdk_client = create_test_sdk_client();
-        let result = update_environment_variable(
-            &on_change_tx,
-            &repository,
-            &sdk_client,
-            WrappedUuidV4::new(),
-            update_request,
-            true,
-        )
-        .await;
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            CommonError::NotFound { .. } => {}
-            e => panic!("Expected NotFound error, got: {e:?}"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_delete_environment_variable_not_found() {
-        let repository = setup_test_repository().await;
-        let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
-
-        let sdk_client = create_test_sdk_client();
-        let result = delete_environment_variable(
-            &on_change_tx,
-            &repository,
-            &sdk_client,
-            WrappedUuidV4::new(),
-            true,
-        )
-        .await;
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            CommonError::NotFound { .. } => {}
-            e => panic!("Expected NotFound error, got: {e:?}"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_get_environment_variable_by_key_not_found() {
-        let repository = setup_test_repository().await;
-
-        let result =
-            get_environment_variable_by_key(&repository, "NON_EXISTENT_KEY".to_string()).await;
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            CommonError::NotFound { .. } => {}
-            e => panic!("Expected NotFound error, got: {e:?}"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_list_environment_variables_pagination() {
-        let repository = setup_test_repository().await;
-        let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
-
-        // Create 5 environment variables
-        for i in 0..5 {
-            let create_request = CreateEnvironmentVariableRequest {
-                key: format!("ENV_VAR_{i}"),
-                value: format!("value-{i}"),
+            // Update the environment variable
+            let update_request = UpdateEnvironmentVariableRequest {
+                value: "updated-value".to_string(),
             };
 
+            let result = update_environment_variable(
+                &on_change_tx,
+                &repository,
+                &sdk_client,
+                created.id.clone(),
+                update_request,
+                true,
+            )
+            .await;
+
+            assert!(result.is_ok());
+            let updated = result.unwrap();
+            assert_eq!(updated.key, "MY_ENV_VAR");
+            assert_eq!(updated.value, "updated-value");
+
+            // Check event was published
+            let event = on_change_rx.try_recv();
+            assert!(event.is_ok());
+            match event.unwrap() {
+                EnvironmentVariableChangeEvt::Updated(e) => {
+                    assert_eq!(e.key, "MY_ENV_VAR");
+                }
+                _ => panic!("Expected Updated event"),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_delete_environment_variable() {
+            let repository = setup_test_repository().await;
+            let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
             let sdk_client = create_test_sdk_client();
-            create_environment_variable(
+
+            // Create an environment variable first
+            let create_request = CreateEnvironmentVariableRequest {
+                key: "MY_ENV_VAR".to_string(),
+                value: "my-value".to_string(),
+            };
+
+            let created = create_environment_variable(
                 &on_change_tx,
                 &repository,
                 &sdk_client,
@@ -732,35 +453,317 @@ mod unit_test {
             )
             .await
             .unwrap();
+
+            // Delete the environment variable
+            let result = delete_environment_variable(
+                &on_change_tx,
+                &repository,
+                &sdk_client,
+                created.id.clone(),
+                true,
+            )
+            .await;
+
+            assert!(result.is_ok());
+            let response = result.unwrap();
+            assert!(response.success);
+
+            // Check event was published
+            let event = on_change_rx.try_recv();
+            assert!(event.is_ok());
+            match event.unwrap() {
+                EnvironmentVariableChangeEvt::Deleted { id, key } => {
+                    assert_eq!(id, created.id.to_string());
+                    assert_eq!(key, "MY_ENV_VAR");
+                }
+                _ => panic!("Expected Deleted event"),
+            }
+
+            // Verify it's deleted
+            let get_result = get_environment_variable_by_id(&repository, created.id).await;
+            assert!(get_result.is_err());
         }
 
-        // First page
-        let result = list_environment_variables(
-            &repository,
-            PaginationRequest {
-                page_size: 3,
-                next_page_token: None,
-            },
-        )
-        .await;
+        #[tokio::test]
+        async fn test_get_environment_variable_by_id() {
+            let repository = setup_test_repository().await;
+            let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
 
-        assert!(result.is_ok());
-        let response = result.unwrap();
-        assert_eq!(response.environment_variables.len(), 3);
-        assert!(response.next_page_token.is_some());
+            // Create an environment variable first
+            let create_request = CreateEnvironmentVariableRequest {
+                key: "MY_ENV_VAR".to_string(),
+                value: "my-value".to_string(),
+            };
 
-        // Second page
-        let result = list_environment_variables(
-            &repository,
-            PaginationRequest {
-                page_size: 3,
-                next_page_token: response.next_page_token,
-            },
-        )
-        .await;
+            let sdk_client = create_test_sdk_client();
+            let created = create_environment_variable(
+                &on_change_tx,
+                &repository,
+                &sdk_client,
+                create_request,
+                false,
+            )
+            .await
+            .unwrap();
 
-        assert!(result.is_ok());
-        let response = result.unwrap();
-        assert_eq!(response.environment_variables.len(), 2);
+            // Get by id
+            let result = get_environment_variable_by_id(&repository, created.id.clone()).await;
+
+            assert!(result.is_ok());
+            let env_var = result.unwrap();
+            assert_eq!(env_var.key, "MY_ENV_VAR");
+            assert_eq!(env_var.id, created.id);
+        }
+
+        #[tokio::test]
+        async fn test_get_environment_variable_by_key() {
+            let repository = setup_test_repository().await;
+            let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+
+            // Create an environment variable first
+            let create_request = CreateEnvironmentVariableRequest {
+                key: "MY_ENV_VAR".to_string(),
+                value: "my-value".to_string(),
+            };
+
+            let sdk_client = create_test_sdk_client();
+            let created = create_environment_variable(
+                &on_change_tx,
+                &repository,
+                &sdk_client,
+                create_request,
+                false,
+            )
+            .await
+            .unwrap();
+
+            // Get by key
+            let result =
+                get_environment_variable_by_key(&repository, "MY_ENV_VAR".to_string()).await;
+
+            assert!(result.is_ok());
+            let env_var = result.unwrap();
+            assert_eq!(env_var.id, created.id);
+            assert_eq!(env_var.key, "MY_ENV_VAR");
+        }
+
+        #[tokio::test]
+        async fn test_list_environment_variables() {
+            let repository = setup_test_repository().await;
+            let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+
+            // Create multiple environment variables
+            for i in 0..3 {
+                let create_request = CreateEnvironmentVariableRequest {
+                    key: format!("ENV_VAR_{i}"),
+                    value: format!("value-{i}"),
+                };
+
+                let sdk_client = create_test_sdk_client();
+                create_environment_variable(
+                    &on_change_tx,
+                    &repository,
+                    &sdk_client,
+                    create_request,
+                    false,
+                )
+                .await
+                .unwrap();
+            }
+
+            // List environment variables
+            let result = list_environment_variables(
+                &repository,
+                PaginationRequest {
+                    page_size: 10,
+                    next_page_token: None,
+                },
+            )
+            .await;
+
+            assert!(result.is_ok());
+            let response = result.unwrap();
+            assert_eq!(response.environment_variables.len(), 3);
+        }
+
+        #[tokio::test]
+        async fn test_get_environment_variable_not_found() {
+            let repository = setup_test_repository().await;
+
+            let result = get_environment_variable_by_id(&repository, WrappedUuidV4::new()).await;
+
+            assert!(result.is_err());
+            match result.unwrap_err() {
+                CommonError::NotFound { .. } => {}
+                e => panic!("Expected NotFound error, got: {e:?}"),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_create_environment_variable_no_publish() {
+            let repository = setup_test_repository().await;
+            let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+            let sdk_client = create_test_sdk_client();
+
+            let request = CreateEnvironmentVariableRequest {
+                key: "MY_ENV_VAR".to_string(),
+                value: "my-value".to_string(),
+            };
+
+            let result = create_environment_variable(
+                &on_change_tx,
+                &repository,
+                &sdk_client,
+                request,
+                false, // Don't publish
+            )
+            .await;
+
+            assert!(result.is_ok());
+
+            // Should be no event
+            let event = on_change_rx.try_recv();
+            assert!(event.is_err());
+        }
+
+        #[tokio::test]
+        async fn test_import_environment_variable() {
+            let repository = setup_test_repository().await;
+
+            let request = ImportEnvironmentVariableRequest {
+                key: "IMPORTED_VAR".to_string(),
+                value: "imported-value".to_string(),
+            };
+
+            let result = import_environment_variable(&repository, request).await;
+
+            assert!(result.is_ok());
+            let env_var = result.unwrap();
+            assert_eq!(env_var.key, "IMPORTED_VAR");
+            assert_eq!(env_var.value, "imported-value");
+
+            // Verify it was actually saved
+            let fetched =
+                get_environment_variable_by_key(&repository, "IMPORTED_VAR".to_string()).await;
+            assert!(fetched.is_ok());
+            assert_eq!(fetched.unwrap().id, env_var.id);
+        }
+
+        #[tokio::test]
+        async fn test_update_environment_variable_not_found() {
+            let repository = setup_test_repository().await;
+            let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+
+            let update_request = UpdateEnvironmentVariableRequest {
+                value: "updated-value".to_string(),
+            };
+
+            let sdk_client = create_test_sdk_client();
+            let result = update_environment_variable(
+                &on_change_tx,
+                &repository,
+                &sdk_client,
+                WrappedUuidV4::new(),
+                update_request,
+                true,
+            )
+            .await;
+
+            assert!(result.is_err());
+            match result.unwrap_err() {
+                CommonError::NotFound { .. } => {}
+                e => panic!("Expected NotFound error, got: {e:?}"),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_delete_environment_variable_not_found() {
+            let repository = setup_test_repository().await;
+            let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+
+            let sdk_client = create_test_sdk_client();
+            let result = delete_environment_variable(
+                &on_change_tx,
+                &repository,
+                &sdk_client,
+                WrappedUuidV4::new(),
+                true,
+            )
+            .await;
+
+            assert!(result.is_err());
+            match result.unwrap_err() {
+                CommonError::NotFound { .. } => {}
+                e => panic!("Expected NotFound error, got: {e:?}"),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_get_environment_variable_by_key_not_found() {
+            let repository = setup_test_repository().await;
+
+            let result =
+                get_environment_variable_by_key(&repository, "NON_EXISTENT_KEY".to_string()).await;
+
+            assert!(result.is_err());
+            match result.unwrap_err() {
+                CommonError::NotFound { .. } => {}
+                e => panic!("Expected NotFound error, got: {e:?}"),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_list_environment_variables_pagination() {
+            let repository = setup_test_repository().await;
+            let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+
+            // Create 5 environment variables
+            for i in 0..5 {
+                let create_request = CreateEnvironmentVariableRequest {
+                    key: format!("ENV_VAR_{i}"),
+                    value: format!("value-{i}"),
+                };
+
+                let sdk_client = create_test_sdk_client();
+                create_environment_variable(
+                    &on_change_tx,
+                    &repository,
+                    &sdk_client,
+                    create_request,
+                    false,
+                )
+                .await
+                .unwrap();
+            }
+
+            // First page
+            let result = list_environment_variables(
+                &repository,
+                PaginationRequest {
+                    page_size: 3,
+                    next_page_token: None,
+                },
+            )
+            .await;
+
+            assert!(result.is_ok());
+            let response = result.unwrap();
+            assert_eq!(response.environment_variables.len(), 3);
+            assert!(response.next_page_token.is_some());
+
+            // Second page
+            let result = list_environment_variables(
+                &repository,
+                PaginationRequest {
+                    page_size: 3,
+                    next_page_token: response.next_page_token,
+                },
+            )
+            .await;
+
+            assert!(result.is_ok());
+            let response = result.unwrap();
+            assert_eq!(response.environment_variables.len(), 2);
+        }
     }
 }

@@ -413,265 +413,84 @@ pub async fn import_secret<R: SecretRepositoryLike>(
     Ok(secret)
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
-    use crate::repository::Repository;
-    use crate::test::encryption_service::setup_test_encryption;
-    use shared::primitives::SqlMigrationLoader;
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
+        use crate::repository::Repository;
+        use crate::test::encryption_service::setup_test_encryption;
+        use shared::primitives::SqlMigrationLoader;
 
-    fn create_test_sdk_client() -> Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>> {
-        Arc::new(Mutex::new(None::<SomaSdkServiceClient<Channel>>))
-    }
-
-    async fn setup_test_repository() -> Repository {
-        let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
-            <Repository as SqlMigrationLoader>::load_sql_migrations(),
-        ])
-        .await
-        .expect("Failed to setup test database");
-        Repository::new(conn)
-    }
-
-    #[tokio::test]
-    async fn test_create_secret() {
-        let encryption_setup = setup_test_encryption("test-alias").await;
-        let repository = setup_test_repository().await;
-        let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
-        let sdk_client = create_test_sdk_client();
-
-        let request = CreateSecretRequest {
-            key: "my-secret-key".to_string(),
-            raw_value: "my-secret-value".to_string(),
-            dek_alias: encryption_setup.dek_alias.clone(),
-        };
-
-        let result = create_secret(
-            &on_change_tx,
-            &repository,
-            &encryption_setup.crypto_cache,
-            &sdk_client,
-            request.clone(),
-            true,
-        )
-        .await;
-
-        assert!(result.is_ok());
-        let secret = result.unwrap();
-        assert_eq!(secret.key, "my-secret-key");
-        assert_eq!(secret.dek_alias, encryption_setup.dek_alias);
-        assert!(!secret.encrypted_secret.is_empty());
-        // Encrypted value should be different from raw value
-        assert_ne!(secret.encrypted_secret, "my-secret-value");
-
-        // Check event was published
-        let event = on_change_rx.try_recv();
-        assert!(event.is_ok());
-        match event.unwrap() {
-            SecretChangeEvt::Created(s) => {
-                assert_eq!(s.key, "my-secret-key");
-            }
-            _ => panic!("Expected Created event"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_update_secret() {
-        let encryption_setup = setup_test_encryption("test-alias").await;
-        let repository = setup_test_repository().await;
-        let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
-        let sdk_client = create_test_sdk_client();
-
-        // Create a secret first
-        let create_request = CreateSecretRequest {
-            key: "my-secret-key".to_string(),
-            raw_value: "original-value".to_string(),
-            dek_alias: encryption_setup.dek_alias.clone(),
-        };
-
-        let created = create_secret(
-            &on_change_tx,
-            &repository,
-            &encryption_setup.crypto_cache,
-            &sdk_client,
-            create_request,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Update the secret
-        let update_request = UpdateSecretRequest {
-            raw_value: "updated-value".to_string(),
-        };
-
-        let result = update_secret(
-            &on_change_tx,
-            &repository,
-            &encryption_setup.crypto_cache,
-            &sdk_client,
-            created.id.clone(),
-            update_request,
-            true,
-        )
-        .await;
-
-        assert!(result.is_ok());
-        let updated = result.unwrap();
-        assert_eq!(updated.key, "my-secret-key");
-        assert_ne!(updated.encrypted_secret, created.encrypted_secret);
-
-        // Check event was published
-        let event = on_change_rx.try_recv();
-        assert!(event.is_ok());
-        match event.unwrap() {
-            SecretChangeEvt::Updated(s) => {
-                assert_eq!(s.key, "my-secret-key");
-            }
-            _ => panic!("Expected Updated event"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_delete_secret() {
-        let encryption_setup = setup_test_encryption("test-alias").await;
-        let repository = setup_test_repository().await;
-        let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
-        let sdk_client = create_test_sdk_client();
-
-        // Create a secret first
-        let create_request = CreateSecretRequest {
-            key: "my-secret-key".to_string(),
-            raw_value: "my-secret-value".to_string(),
-            dek_alias: encryption_setup.dek_alias.clone(),
-        };
-
-        let created = create_secret(
-            &on_change_tx,
-            &repository,
-            &encryption_setup.crypto_cache,
-            &sdk_client,
-            create_request,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Delete the secret
-        let result = delete_secret(
-            &on_change_tx,
-            &repository,
-            &sdk_client,
-            &encryption_setup.crypto_cache,
-            created.id.clone(),
-            true,
-        )
-        .await;
-
-        assert!(result.is_ok());
-        let response = result.unwrap();
-        assert!(response.success);
-
-        // Check event was published
-        let event = on_change_rx.try_recv();
-        assert!(event.is_ok());
-        match event.unwrap() {
-            SecretChangeEvt::Deleted { id, key } => {
-                assert_eq!(id, created.id.to_string());
-                assert_eq!(key, "my-secret-key");
-            }
-            _ => panic!("Expected Deleted event"),
+        fn create_test_sdk_client() -> Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>> {
+            Arc::new(Mutex::new(None::<SomaSdkServiceClient<Channel>>))
         }
 
-        // Verify it's deleted
-        let get_result = get_secret_by_id(&repository, created.id).await;
-        assert!(get_result.is_err());
-    }
+        async fn setup_test_repository() -> Repository {
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                <Repository as SqlMigrationLoader>::load_sql_migrations(),
+            ])
+            .await
+            .expect("Failed to setup test database");
+            Repository::new(conn)
+        }
 
-    #[tokio::test]
-    async fn test_get_secret_by_id() {
-        let encryption_setup = setup_test_encryption("test-alias").await;
-        let repository = setup_test_repository().await;
-        let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
-        let sdk_client = create_test_sdk_client();
+        #[tokio::test]
+        async fn test_create_secret() {
+            let encryption_setup = setup_test_encryption("test-alias").await;
+            let repository = setup_test_repository().await;
+            let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+            let sdk_client = create_test_sdk_client();
 
-        // Create a secret first
-        let create_request = CreateSecretRequest {
-            key: "my-secret-key".to_string(),
-            raw_value: "my-secret-value".to_string(),
-            dek_alias: encryption_setup.dek_alias.clone(),
-        };
-
-        let created = create_secret(
-            &on_change_tx,
-            &repository,
-            &encryption_setup.crypto_cache,
-            &sdk_client,
-            create_request,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Get by id
-        let result = get_secret_by_id(&repository, created.id.clone()).await;
-
-        assert!(result.is_ok());
-        let secret = result.unwrap();
-        assert_eq!(secret.key, "my-secret-key");
-        assert_eq!(secret.id, created.id);
-    }
-
-    #[tokio::test]
-    async fn test_get_secret_by_key() {
-        let encryption_setup = setup_test_encryption("test-alias").await;
-        let repository = setup_test_repository().await;
-        let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
-        let sdk_client = create_test_sdk_client();
-
-        // Create a secret first
-        let create_request = CreateSecretRequest {
-            key: "my-secret-key".to_string(),
-            raw_value: "my-secret-value".to_string(),
-            dek_alias: encryption_setup.dek_alias.clone(),
-        };
-
-        let created = create_secret(
-            &on_change_tx,
-            &repository,
-            &encryption_setup.crypto_cache,
-            &sdk_client,
-            create_request,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Get by key
-        let result = get_secret_by_key(&repository, "my-secret-key".to_string()).await;
-
-        assert!(result.is_ok());
-        let secret = result.unwrap();
-        assert_eq!(secret.id, created.id);
-        assert_eq!(secret.key, "my-secret-key");
-    }
-
-    #[tokio::test]
-    async fn test_list_secrets() {
-        let encryption_setup = setup_test_encryption("test-alias").await;
-        let repository = setup_test_repository().await;
-        let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
-
-        // Create multiple secrets
-        let sdk_client = create_test_sdk_client();
-        for i in 0..3 {
-            let create_request = CreateSecretRequest {
-                key: format!("secret-key-{i}"),
-                raw_value: format!("secret-value-{i}"),
+            let request = CreateSecretRequest {
+                key: "my-secret-key".to_string(),
+                raw_value: "my-secret-value".to_string(),
                 dek_alias: encryption_setup.dek_alias.clone(),
             };
 
-            create_secret(
+            let result = create_secret(
+                &on_change_tx,
+                &repository,
+                &encryption_setup.crypto_cache,
+                &sdk_client,
+                request.clone(),
+                true,
+            )
+            .await;
+
+            assert!(result.is_ok());
+            let secret = result.unwrap();
+            assert_eq!(secret.key, "my-secret-key");
+            assert_eq!(secret.dek_alias, encryption_setup.dek_alias);
+            assert!(!secret.encrypted_secret.is_empty());
+            // Encrypted value should be different from raw value
+            assert_ne!(secret.encrypted_secret, "my-secret-value");
+
+            // Check event was published
+            let event = on_change_rx.try_recv();
+            assert!(event.is_ok());
+            match event.unwrap() {
+                SecretChangeEvt::Created(s) => {
+                    assert_eq!(s.key, "my-secret-key");
+                }
+                _ => panic!("Expected Created event"),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_update_secret() {
+            let encryption_setup = setup_test_encryption("test-alias").await;
+            let repository = setup_test_repository().await;
+            let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+            let sdk_client = create_test_sdk_client();
+
+            // Create a secret first
+            let create_request = CreateSecretRequest {
+                key: "my-secret-key".to_string(),
+                raw_value: "original-value".to_string(),
+                dek_alias: encryption_setup.dek_alias.clone(),
+            };
+
+            let created = create_secret(
                 &on_change_tx,
                 &repository,
                 &encryption_setup.crypto_cache,
@@ -681,63 +500,246 @@ mod unit_test {
             )
             .await
             .unwrap();
+
+            // Update the secret
+            let update_request = UpdateSecretRequest {
+                raw_value: "updated-value".to_string(),
+            };
+
+            let result = update_secret(
+                &on_change_tx,
+                &repository,
+                &encryption_setup.crypto_cache,
+                &sdk_client,
+                created.id.clone(),
+                update_request,
+                true,
+            )
+            .await;
+
+            assert!(result.is_ok());
+            let updated = result.unwrap();
+            assert_eq!(updated.key, "my-secret-key");
+            assert_ne!(updated.encrypted_secret, created.encrypted_secret);
+
+            // Check event was published
+            let event = on_change_rx.try_recv();
+            assert!(event.is_ok());
+            match event.unwrap() {
+                SecretChangeEvt::Updated(s) => {
+                    assert_eq!(s.key, "my-secret-key");
+                }
+                _ => panic!("Expected Updated event"),
+            }
         }
 
-        // List secrets
-        let result = list_secrets(
-            &repository,
-            PaginationRequest {
-                page_size: 10,
-                next_page_token: None,
-            },
-        )
-        .await;
+        #[tokio::test]
+        async fn test_delete_secret() {
+            let encryption_setup = setup_test_encryption("test-alias").await;
+            let repository = setup_test_repository().await;
+            let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+            let sdk_client = create_test_sdk_client();
 
-        assert!(result.is_ok());
-        let response = result.unwrap();
-        assert_eq!(response.secrets.len(), 3);
-    }
+            // Create a secret first
+            let create_request = CreateSecretRequest {
+                key: "my-secret-key".to_string(),
+                raw_value: "my-secret-value".to_string(),
+                dek_alias: encryption_setup.dek_alias.clone(),
+            };
 
-    #[tokio::test]
-    async fn test_get_secret_not_found() {
-        let repository = setup_test_repository().await;
+            let created = create_secret(
+                &on_change_tx,
+                &repository,
+                &encryption_setup.crypto_cache,
+                &sdk_client,
+                create_request,
+                false,
+            )
+            .await
+            .unwrap();
 
-        let result = get_secret_by_id(&repository, WrappedUuidV4::new()).await;
+            // Delete the secret
+            let result = delete_secret(
+                &on_change_tx,
+                &repository,
+                &sdk_client,
+                &encryption_setup.crypto_cache,
+                created.id.clone(),
+                true,
+            )
+            .await;
 
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            CommonError::NotFound { .. } => {}
-            e => panic!("Expected NotFound error, got: {e:?}"),
+            assert!(result.is_ok());
+            let response = result.unwrap();
+            assert!(response.success);
+
+            // Check event was published
+            let event = on_change_rx.try_recv();
+            assert!(event.is_ok());
+            match event.unwrap() {
+                SecretChangeEvt::Deleted { id, key } => {
+                    assert_eq!(id, created.id.to_string());
+                    assert_eq!(key, "my-secret-key");
+                }
+                _ => panic!("Expected Deleted event"),
+            }
+
+            // Verify it's deleted
+            let get_result = get_secret_by_id(&repository, created.id).await;
+            assert!(get_result.is_err());
         }
-    }
 
-    #[tokio::test]
-    async fn test_create_secret_no_publish() {
-        let encryption_setup = setup_test_encryption("test-alias").await;
-        let repository = setup_test_repository().await;
-        let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
-        let sdk_client = create_test_sdk_client();
+        #[tokio::test]
+        async fn test_get_secret_by_id() {
+            let encryption_setup = setup_test_encryption("test-alias").await;
+            let repository = setup_test_repository().await;
+            let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+            let sdk_client = create_test_sdk_client();
 
-        let request = CreateSecretRequest {
-            key: "my-secret-key".to_string(),
-            raw_value: "my-secret-value".to_string(),
-            dek_alias: encryption_setup.dek_alias.clone(),
-        };
+            // Create a secret first
+            let create_request = CreateSecretRequest {
+                key: "my-secret-key".to_string(),
+                raw_value: "my-secret-value".to_string(),
+                dek_alias: encryption_setup.dek_alias.clone(),
+            };
 
-        let result = create_secret(
-            &on_change_tx,
-            &repository,
-            &encryption_setup.crypto_cache,
-            &sdk_client,
-            request,
-            false, // Don't publish
-        )
-        .await;
+            let created = create_secret(
+                &on_change_tx,
+                &repository,
+                &encryption_setup.crypto_cache,
+                &sdk_client,
+                create_request,
+                false,
+            )
+            .await
+            .unwrap();
 
-        assert!(result.is_ok());
+            // Get by id
+            let result = get_secret_by_id(&repository, created.id.clone()).await;
 
-        // Should be no event
-        let event = on_change_rx.try_recv();
-        assert!(event.is_err());
+            assert!(result.is_ok());
+            let secret = result.unwrap();
+            assert_eq!(secret.key, "my-secret-key");
+            assert_eq!(secret.id, created.id);
+        }
+
+        #[tokio::test]
+        async fn test_get_secret_by_key() {
+            let encryption_setup = setup_test_encryption("test-alias").await;
+            let repository = setup_test_repository().await;
+            let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+            let sdk_client = create_test_sdk_client();
+
+            // Create a secret first
+            let create_request = CreateSecretRequest {
+                key: "my-secret-key".to_string(),
+                raw_value: "my-secret-value".to_string(),
+                dek_alias: encryption_setup.dek_alias.clone(),
+            };
+
+            let created = create_secret(
+                &on_change_tx,
+                &repository,
+                &encryption_setup.crypto_cache,
+                &sdk_client,
+                create_request,
+                false,
+            )
+            .await
+            .unwrap();
+
+            // Get by key
+            let result = get_secret_by_key(&repository, "my-secret-key".to_string()).await;
+
+            assert!(result.is_ok());
+            let secret = result.unwrap();
+            assert_eq!(secret.id, created.id);
+            assert_eq!(secret.key, "my-secret-key");
+        }
+
+        #[tokio::test]
+        async fn test_list_secrets() {
+            let encryption_setup = setup_test_encryption("test-alias").await;
+            let repository = setup_test_repository().await;
+            let (on_change_tx, _on_change_rx) = tokio::sync::broadcast::channel(10);
+
+            // Create multiple secrets
+            let sdk_client = create_test_sdk_client();
+            for i in 0..3 {
+                let create_request = CreateSecretRequest {
+                    key: format!("secret-key-{i}"),
+                    raw_value: format!("secret-value-{i}"),
+                    dek_alias: encryption_setup.dek_alias.clone(),
+                };
+
+                create_secret(
+                    &on_change_tx,
+                    &repository,
+                    &encryption_setup.crypto_cache,
+                    &sdk_client,
+                    create_request,
+                    false,
+                )
+                .await
+                .unwrap();
+            }
+
+            // List secrets
+            let result = list_secrets(
+                &repository,
+                PaginationRequest {
+                    page_size: 10,
+                    next_page_token: None,
+                },
+            )
+            .await;
+
+            assert!(result.is_ok());
+            let response = result.unwrap();
+            assert_eq!(response.secrets.len(), 3);
+        }
+
+        #[tokio::test]
+        async fn test_get_secret_not_found() {
+            let repository = setup_test_repository().await;
+
+            let result = get_secret_by_id(&repository, WrappedUuidV4::new()).await;
+
+            assert!(result.is_err());
+            match result.unwrap_err() {
+                CommonError::NotFound { .. } => {}
+                e => panic!("Expected NotFound error, got: {e:?}"),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_create_secret_no_publish() {
+            let encryption_setup = setup_test_encryption("test-alias").await;
+            let repository = setup_test_repository().await;
+            let (on_change_tx, mut on_change_rx) = tokio::sync::broadcast::channel(10);
+            let sdk_client = create_test_sdk_client();
+
+            let request = CreateSecretRequest {
+                key: "my-secret-key".to_string(),
+                raw_value: "my-secret-value".to_string(),
+                dek_alias: encryption_setup.dek_alias.clone(),
+            };
+
+            let result = create_secret(
+                &on_change_tx,
+                &repository,
+                &encryption_setup.crypto_cache,
+                &sdk_client,
+                request,
+                false, // Don't publish
+            )
+            .await;
+
+            assert!(result.is_ok());
+
+            // Should be no event
+            let event = on_change_rx.try_recv();
+            assert!(event.is_err());
+        }
     }
 }

@@ -3,9 +3,6 @@ name = "soma-api-server"
 version.workspace = true
 edition.workspace = true
 
-[features]
-unit_test = []
-
 [dependencies]
 a2a-rs.workspace = true
 mcp.workspace = true

@@ -273,90 +273,92 @@ async fn sync_all_environment_variables(
     sync_environment_variables_to_sdk(&mut client, env_vars).await
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
 
-    #[test]
-    fn test_interpolate_env_value_passthrough() {
-        // Set a test environment variable
-        // SAFETY: This is a test that runs in isolation
-        unsafe {
-            std::env::set_var("TEST_PASSTHROUGH_VAR", "hello_from_host");
+        #[test]
+        fn test_interpolate_env_value_passthrough() {
+            // Set a test environment variable
+            // SAFETY: This is a test that runs in isolation
+            unsafe {
+                std::env::set_var("TEST_PASSTHROUGH_VAR", "hello_from_host");
+            }
+
+            // Value starting with $ should be interpolated from host env
+            let result = interpolate_env_value("$TEST_PASSTHROUGH_VAR");
+            assert_eq!(result, "hello_from_host");
+
+            // Clean up
+            // SAFETY: This is a test that runs in isolation
+            unsafe {
+                std::env::remove_var("TEST_PASSTHROUGH_VAR");
+            }
         }
 
-        // Value starting with $ should be interpolated from host env
-        let result = interpolate_env_value("$TEST_PASSTHROUGH_VAR");
-        assert_eq!(result, "hello_from_host");
+        #[test]
+        fn test_interpolate_env_value_passthrough_missing_var() {
+            // Ensure the variable doesn't exist
+            // SAFETY: This is a test that runs in isolation
+            unsafe {
+                std::env::remove_var("NON_EXISTENT_TEST_VAR");
+            }
 
-        // Clean up
-        // SAFETY: This is a test that runs in isolation
-        unsafe {
-            std::env::remove_var("TEST_PASSTHROUGH_VAR");
-        }
-    }
-
-    #[test]
-    fn test_interpolate_env_value_passthrough_missing_var() {
-        // Ensure the variable doesn't exist
-        // SAFETY: This is a test that runs in isolation
-        unsafe {
-            std::env::remove_var("NON_EXISTENT_TEST_VAR");
+            // Missing env var should return empty string
+            let result = interpolate_env_value("$NON_EXISTENT_TEST_VAR");
+            assert_eq!(result, "");
         }
 
-        // Missing env var should return empty string
-        let result = interpolate_env_value("$NON_EXISTENT_TEST_VAR");
-        assert_eq!(result, "");
-    }
+        #[test]
+        fn test_interpolate_env_value_escaped_dollar() {
+            // Value starting with $$ should become literal $
+            let result = interpolate_env_value("$$MY_VAR");
+            assert_eq!(result, "$MY_VAR");
+        }
 
-    #[test]
-    fn test_interpolate_env_value_escaped_dollar() {
-        // Value starting with $$ should become literal $
-        let result = interpolate_env_value("$$MY_VAR");
-        assert_eq!(result, "$MY_VAR");
-    }
+        #[test]
+        fn test_interpolate_env_value_escaped_empty() {
+            // Just $$ should become just $
+            let result = interpolate_env_value("$$");
+            assert_eq!(result, "$");
+        }
 
-    #[test]
-    fn test_interpolate_env_value_escaped_empty() {
-        // Just $$ should become just $
-        let result = interpolate_env_value("$$");
-        assert_eq!(result, "$");
-    }
+        #[test]
+        fn test_interpolate_env_value_literal() {
+            // Regular value without $ prefix should remain unchanged
+            let result = interpolate_env_value("regular_value");
+            assert_eq!(result, "regular_value");
+        }
 
-    #[test]
-    fn test_interpolate_env_value_literal() {
-        // Regular value without $ prefix should remain unchanged
-        let result = interpolate_env_value("regular_value");
-        assert_eq!(result, "regular_value");
-    }
+        #[test]
+        fn test_interpolate_env_value_empty() {
+            // Empty string should remain empty
+            let result = interpolate_env_value("");
+            assert_eq!(result, "");
+        }
 
-    #[test]
-    fn test_interpolate_env_value_empty() {
-        // Empty string should remain empty
-        let result = interpolate_env_value("");
-        assert_eq!(result, "");
-    }
+        #[test]
+        fn test_interpolate_env_value_dollar_in_middle() {
+            // Dollar sign in middle of string should not be interpolated
+            let result = interpolate_env_value("prefix$VAR");
+            assert_eq!(result, "prefix$VAR");
+        }
 
-    #[test]
-    fn test_interpolate_env_value_dollar_in_middle() {
-        // Dollar sign in middle of string should not be interpolated
-        let result = interpolate_env_value("prefix$VAR");
-        assert_eq!(result, "prefix$VAR");
-    }
+        #[test]
+        fn test_interpolate_env_value_triple_dollar() {
+            // $$$ should become $$ (escape first two, third remains)
+            // Actually: $$ -> $, then the third $ is part of the result
+            let result = interpolate_env_value("$$$VAR");
+            assert_eq!(result, "$$VAR");
+        }
 
-    #[test]
-    fn test_interpolate_env_value_triple_dollar() {
-        // $$$ should become $$ (escape first two, third remains)
-        // Actually: $$ -> $, then the third $ is part of the result
-        let result = interpolate_env_value("$$$VAR");
-        assert_eq!(result, "$$VAR");
-    }
-
-    #[test]
-    fn test_interpolate_env_value_just_dollar() {
-        // Just $ alone - var name is empty, should return empty string
-        let result = interpolate_env_value("$");
-        // std::env::var("") returns Err, so unwrap_or_default returns ""
-        assert_eq!(result, "");
+        #[test]
+        fn test_interpolate_env_value_just_dollar() {
+            // Just $ alone - var name is empty, should return empty string
+            let result = interpolate_env_value("$");
+            // std::env::var("") returns Err, so unwrap_or_default returns ""
+            assert_eq!(result, "");
+        }
     }
 }

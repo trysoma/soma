@@ -38,7 +38,7 @@ pub mod restate;
 pub mod router;
 pub mod sdk;
 
-#[cfg(all(test, feature = "unit_test"))]
+#[cfg(test)]
 pub mod test;
 
 #[derive(Clone)]

@@ -1,6 +1,7 @@
 extern crate proc_macro;
 
 mod auth;
+mod integration_test;
 
 use std::{fs, path::Path};
 
@@ -62,6 +63,37 @@ pub fn authn(attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn authz_role(attr: TokenStream, item: TokenStream) -> TokenStream {
     auth::authz_role_impl(attr, item)
+}
+
+/// Marks a test as an integration test that requires external services.
+///
+/// When the `CI` environment variable is NOT set, the test runs normally.
+/// When `CI` is set, the test is skipped with a message indicating it requires
+/// external services.
+///
+/// This allows integration tests to be written alongside unit tests without
+/// feature flags, while still being skippable in CI environments that don't
+/// have external services configured.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// #[cfg(test)]
+/// mod tests {
+///     mod integration {
+///         use super::*;
+///         use shared_macros::integration_test;
+///
+///         #[integration_test]
+///         async fn test_with_external_service() {
+///             // This test will be skipped when CI env var is set
+///         }
+///     }
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn integration_test(attr: TokenStream, item: TokenStream) -> TokenStream {
+    integration_test::integration_test_impl(attr, item)
 }
 
 #[proc_macro]

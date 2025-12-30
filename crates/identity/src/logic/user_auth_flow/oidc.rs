@@ -323,176 +323,181 @@ async fn extract_oidc_claims(
     apply_token_mapping(&config.mapping, &sources)
 }
 
-#[cfg(all(test, feature = "integration_test"))]
-mod integration_test {
-    use super::*;
-    use crate::logic::token_mapping::TokenMapping;
-    use crate::logic::token_mapping::template::{JwtTokenMappingConfig, MappingSource};
-    use crate::logic::user_auth_flow::config::OauthConfig;
-    use crate::logic::user_auth_flow::oauth::{BaseTokenExchangeParams, exchange_code_for_tokens};
-    use crate::test::dex::{
-        DEX_AUTH_MOCK_ENDPOINT, DEX_CLIENT_ID, DEX_CLIENT_SECRET, DEX_JWKS_ENDPOINT,
-        DEX_OIDC_SCOPES, DEX_REDIRECT_URI, DEX_TOKEN_ENDPOINT, DEX_USERINFO_ENDPOINT,
-    };
+#[cfg(test)]
+mod tests {
+    mod integration {
+        use super::super::*;
+        use crate::logic::token_mapping::TokenMapping;
+        use crate::logic::token_mapping::template::{JwtTokenMappingConfig, MappingSource};
+        use crate::logic::user_auth_flow::config::OauthConfig;
+        use crate::logic::user_auth_flow::oauth::{
+            BaseTokenExchangeParams, exchange_code_for_tokens,
+        };
+        use crate::test::dex::{
+            DEX_AUTH_MOCK_ENDPOINT, DEX_CLIENT_ID, DEX_CLIENT_SECRET, DEX_JWKS_ENDPOINT,
+            DEX_OIDC_SCOPES, DEX_REDIRECT_URI, DEX_TOKEN_ENDPOINT, DEX_USERINFO_ENDPOINT,
+        };
+        use shared_macros::integration_test;
 
-    /// Create a test OIDC config using Dex endpoints.
-    fn create_test_oidc_config() -> OidcConfig {
-        OidcConfig {
-            id: "test-oidc".to_string(),
-            base_config: OauthConfig {
+        /// Create a test OIDC config using Dex endpoints.
+        fn create_test_oidc_config() -> OidcConfig {
+            OidcConfig {
                 id: "test-oidc".to_string(),
-                authorization_endpoint: DEX_AUTH_MOCK_ENDPOINT.to_string(),
-                token_endpoint: DEX_TOKEN_ENDPOINT.to_string(),
-                client_id: DEX_CLIENT_ID.to_string(),
-                client_secret: DEX_CLIENT_SECRET.to_string(),
-                scopes: DEX_OIDC_SCOPES.iter().map(|s| s.to_string()).collect(),
-                jwks_endpoint: DEX_JWKS_ENDPOINT.to_string(),
+                base_config: OauthConfig {
+                    id: "test-oidc".to_string(),
+                    authorization_endpoint: DEX_AUTH_MOCK_ENDPOINT.to_string(),
+                    token_endpoint: DEX_TOKEN_ENDPOINT.to_string(),
+                    client_id: DEX_CLIENT_ID.to_string(),
+                    client_secret: DEX_CLIENT_SECRET.to_string(),
+                    scopes: DEX_OIDC_SCOPES.iter().map(|s| s.to_string()).collect(),
+                    jwks_endpoint: DEX_JWKS_ENDPOINT.to_string(),
+                    introspect_url: None,
+                    mapping: create_test_mapping(),
+                },
+                discovery_endpoint: None,
+                userinfo_endpoint: Some(DEX_USERINFO_ENDPOINT.to_string()),
                 introspect_url: None,
                 mapping: create_test_mapping(),
-            },
-            discovery_endpoint: None,
-            userinfo_endpoint: Some(DEX_USERINFO_ENDPOINT.to_string()),
-            introspect_url: None,
-            mapping: create_test_mapping(),
+            }
         }
-    }
 
-    /// Create a minimal token mapping config for tests.
-    fn create_test_mapping() -> TokenMapping {
-        TokenMapping::JwtTemplate(JwtTokenMappingConfig {
-            issuer_field: MappingSource::IdToken("iss".to_string()),
-            audience_field: MappingSource::IdToken("aud".to_string()),
-            scopes_field: None,
-            sub_field: MappingSource::IdToken("sub".to_string()),
-            email_field: Some(MappingSource::IdToken("email".to_string())),
-            groups_field: None,
-            group_to_role_mappings: vec![],
-            scope_to_role_mappings: vec![],
-            scope_to_group_mappings: vec![],
-        })
-    }
+        /// Create a minimal token mapping config for tests.
+        fn create_test_mapping() -> TokenMapping {
+            TokenMapping::JwtTemplate(JwtTokenMappingConfig {
+                issuer_field: MappingSource::IdToken("iss".to_string()),
+                audience_field: MappingSource::IdToken("aud".to_string()),
+                scopes_field: None,
+                sub_field: MappingSource::IdToken("sub".to_string()),
+                email_field: Some(MappingSource::IdToken("email".to_string())),
+                groups_field: None,
+                group_to_role_mappings: vec![],
+                scope_to_role_mappings: vec![],
+                scope_to_group_mappings: vec![],
+            })
+        }
 
-    #[tokio::test]
-    async fn test_dex_jwks_endpoint_reachable() {
-        // Fetch JWKS from Dex
-        let response = reqwest::get(DEX_JWKS_ENDPOINT)
-            .await
-            .expect("Failed to reach Dex JWKS endpoint");
+        #[integration_test]
+        async fn test_dex_jwks_endpoint_reachable() {
+            // Fetch JWKS from Dex
+            let response = reqwest::get(DEX_JWKS_ENDPOINT)
+                .await
+                .expect("Failed to reach Dex JWKS endpoint");
 
-        assert!(response.status().is_success());
+            assert!(response.status().is_success());
 
-        let jwks: serde_json::Value = response.json().await.expect("Failed to parse JWKS");
-        assert!(jwks.get("keys").is_some());
+            let jwks: serde_json::Value = response.json().await.expect("Failed to parse JWKS");
+            assert!(jwks.get("keys").is_some());
 
-        let keys = jwks["keys"].as_array().expect("keys should be an array");
-        assert!(!keys.is_empty(), "JWKS should have at least one key");
+            let keys = jwks["keys"].as_array().expect("keys should be an array");
+            assert!(!keys.is_empty(), "JWKS should have at least one key");
 
-        // Verify key structure
-        let key = &keys[0];
-        assert_eq!(key["kty"].as_str().unwrap(), "RSA");
-        assert!(key["kid"].as_str().is_some());
-        assert!(key["n"].as_str().is_some());
-        assert!(key["e"].as_str().is_some());
-    }
+            // Verify key structure
+            let key = &keys[0];
+            assert_eq!(key["kty"].as_str().unwrap(), "RSA");
+            assert!(key["kid"].as_str().is_some());
+            assert!(key["n"].as_str().is_some());
+            assert!(key["e"].as_str().is_some());
+        }
 
-    #[tokio::test]
-    async fn test_external_jwks_cache_fetch_dex_keys() {
-        let external_jwks_cache = ExternalJwksCache::new();
+        #[integration_test]
+        async fn test_external_jwks_cache_fetch_dex_keys() {
+            let external_jwks_cache = ExternalJwksCache::new();
 
-        // Fetch JWKS from Dex
-        external_jwks_cache
-            .fetch_jwks(DEX_JWKS_ENDPOINT)
-            .await
-            .expect("Failed to fetch JWKS from Dex");
+            // Fetch JWKS from Dex
+            external_jwks_cache
+                .fetch_jwks(DEX_JWKS_ENDPOINT)
+                .await
+                .expect("Failed to fetch JWKS from Dex");
 
-        // Get the raw JWKS to find a key ID
-        let response = reqwest::get(DEX_JWKS_ENDPOINT)
-            .await
-            .expect("Failed to fetch JWKS");
-        let jwks: serde_json::Value = response.json().await.expect("Failed to parse JWKS");
-        let kid = jwks["keys"][0]["kid"]
-            .as_str()
-            .expect("Missing kid in JWKS");
+            // Get the raw JWKS to find a key ID
+            let response = reqwest::get(DEX_JWKS_ENDPOINT)
+                .await
+                .expect("Failed to fetch JWKS");
+            let jwks: serde_json::Value = response.json().await.expect("Failed to parse JWKS");
+            let kid = jwks["keys"][0]["kid"]
+                .as_str()
+                .expect("Missing kid in JWKS");
 
-        // Verify we can retrieve the key from cache
-        let key = external_jwks_cache.get_key(DEX_JWKS_ENDPOINT, kid);
-        assert!(key.is_some(), "Key should be cached after fetch");
-    }
+            // Verify we can retrieve the key from cache
+            let key = external_jwks_cache.get_key(DEX_JWKS_ENDPOINT, kid);
+            assert!(key.is_some(), "Key should be cached after fetch");
+        }
 
-    #[tokio::test]
-    async fn test_dex_userinfo_endpoint_requires_auth() {
-        // Userinfo endpoint should require authentication
-        let response = reqwest::get(DEX_USERINFO_ENDPOINT)
-            .await
-            .expect("Failed to reach userinfo endpoint");
+        #[integration_test]
+        async fn test_dex_userinfo_endpoint_requires_auth() {
+            // Userinfo endpoint should require authentication
+            let response = reqwest::get(DEX_USERINFO_ENDPOINT)
+                .await
+                .expect("Failed to reach userinfo endpoint");
 
-        // Should return 401 without a valid token
-        assert_eq!(
-            response.status().as_u16(),
-            401,
-            "Userinfo should require authentication"
-        );
-    }
+            // Should return 401 without a valid token
+            assert_eq!(
+                response.status().as_u16(),
+                401,
+                "Userinfo should require authentication"
+            );
+        }
 
-    #[tokio::test]
-    async fn test_token_exchange_with_invalid_code() {
-        let params = BaseTokenExchangeParams {
-            token_endpoint: DEX_TOKEN_ENDPOINT,
-            client_id: DEX_CLIENT_ID,
-            client_secret: DEX_CLIENT_SECRET,
-            redirect_uri: DEX_REDIRECT_URI,
-            code: "invalid_authorization_code",
-            code_verifier: None,
-        };
+        #[integration_test]
+        async fn test_token_exchange_with_invalid_code() {
+            let params = BaseTokenExchangeParams {
+                token_endpoint: DEX_TOKEN_ENDPOINT,
+                client_id: DEX_CLIENT_ID,
+                client_secret: DEX_CLIENT_SECRET,
+                redirect_uri: DEX_REDIRECT_URI,
+                code: "invalid_authorization_code",
+                code_verifier: None,
+            };
 
-        let result = exchange_code_for_tokens(params).await;
+            let result = exchange_code_for_tokens(params).await;
 
-        // Should fail with invalid code
-        assert!(
-            result.is_err(),
-            "Token exchange should fail with invalid code"
-        );
-    }
+            // Should fail with invalid code
+            assert!(
+                result.is_err(),
+                "Token exchange should fail with invalid code"
+            );
+        }
 
-    #[tokio::test]
-    async fn test_token_exchange_with_wrong_client_secret() {
-        let params = BaseTokenExchangeParams {
-            token_endpoint: DEX_TOKEN_ENDPOINT,
-            client_id: DEX_CLIENT_ID,
-            client_secret: "wrong-secret",
-            redirect_uri: DEX_REDIRECT_URI,
-            code: "some_code",
-            code_verifier: None,
-        };
+        #[integration_test]
+        async fn test_token_exchange_with_wrong_client_secret() {
+            let params = BaseTokenExchangeParams {
+                token_endpoint: DEX_TOKEN_ENDPOINT,
+                client_id: DEX_CLIENT_ID,
+                client_secret: "wrong-secret",
+                redirect_uri: DEX_REDIRECT_URI,
+                code: "some_code",
+                code_verifier: None,
+            };
 
-        let result = exchange_code_for_tokens(params).await;
+            let result = exchange_code_for_tokens(params).await;
 
-        // Should fail with wrong client secret
-        assert!(
-            result.is_err(),
-            "Token exchange should fail with wrong client secret"
-        );
-    }
+            // Should fail with wrong client secret
+            assert!(
+                result.is_err(),
+                "Token exchange should fail with wrong client secret"
+            );
+        }
 
-    #[tokio::test]
-    async fn test_oidc_config_validation() {
-        let config = create_test_oidc_config();
+        #[integration_test]
+        async fn test_oidc_config_validation() {
+            let config = create_test_oidc_config();
 
-        // Verify config has expected values
-        assert_eq!(config.base_config.client_id, DEX_CLIENT_ID);
-        assert_eq!(config.base_config.token_endpoint, DEX_TOKEN_ENDPOINT);
-        assert_eq!(config.base_config.jwks_endpoint, DEX_JWKS_ENDPOINT);
-        assert!(config.userinfo_endpoint.is_some());
-        assert!(config.base_config.scopes.contains(&"openid".to_string()));
-    }
+            // Verify config has expected values
+            assert_eq!(config.base_config.client_id, DEX_CLIENT_ID);
+            assert_eq!(config.base_config.token_endpoint, DEX_TOKEN_ENDPOINT);
+            assert_eq!(config.base_config.jwks_endpoint, DEX_JWKS_ENDPOINT);
+            assert!(config.userinfo_endpoint.is_some());
+            assert!(config.base_config.scopes.contains(&"openid".to_string()));
+        }
 
-    #[tokio::test]
-    async fn test_fetch_userinfo_with_invalid_token() {
-        use crate::logic::fetch_userinfo;
+        #[integration_test]
+        async fn test_fetch_userinfo_with_invalid_token() {
+            use crate::logic::fetch_userinfo;
 
-        let result = fetch_userinfo(DEX_USERINFO_ENDPOINT, "invalid_access_token").await;
+            let result = fetch_userinfo(DEX_USERINFO_ENDPOINT, "invalid_access_token").await;
 
-        // Should fail with invalid token
-        assert!(result.is_err(), "Userinfo should fail with invalid token");
+            // Should fail with invalid token
+            assert!(result.is_err(), "Userinfo should fail with invalid token");
+        }
     }
 }

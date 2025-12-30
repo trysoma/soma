@@ -711,953 +711,996 @@ pub async fn remove_mcp_server_instance_function<R: ProviderRepositoryLike>(
     .await
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
-    use crate::logic::Metadata;
-    use crate::logic::credential::{ResourceServerCredentialSerialized, UserCredentialSerialized};
-    use crate::logic::instance::{FunctionInstanceSerialized, ProviderInstanceSerialized};
-    use crate::repository::{
-        CreateFunctionInstance, CreateProviderInstance, CreateResourceServerCredential,
-        CreateUserCredential, ProviderRepositoryLike,
-    };
-    use shared::primitives::{SqlMigrationLoader, WrappedJsonValue, WrappedUuidV4};
-    use shared::test_utils::repository::setup_in_memory_database;
-
-    /// Helper to create a test DEK alias for tests.
-    fn create_test_dek_alias() -> String {
-        format!("test-dek-{}", uuid::Uuid::new_v4())
-    }
-
-    /// Helper to create a broadcast channel for tests.
-    fn create_test_channel() -> OnConfigChangeTx {
-        let (tx, _rx) = tokio::sync::broadcast::channel(100);
-        tx
-    }
-
-    /// Helper to create the necessary provider instance and function instance
-    /// for MCP server instance function tests.
-    async fn setup_function_instance(
-        repo: &crate::repository::Repository,
-    ) -> (String, String, String) {
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create resource server credential
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
+        use crate::logic::Metadata;
+        use crate::logic::credential::{
+            ResourceServerCredentialSerialized, UserCredentialSerialized,
         };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
-
-        // Create user credential
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
+        use crate::logic::instance::{FunctionInstanceSerialized, ProviderInstanceSerialized};
+        use crate::repository::{
+            CreateFunctionInstance, CreateProviderInstance, CreateResourceServerCredential,
+            CreateUserCredential, ProviderRepositoryLike,
         };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
-            .await
-            .unwrap();
+        use shared::primitives::{SqlMigrationLoader, WrappedJsonValue, WrappedUuidV4};
+        use shared::test_utils::repository::setup_in_memory_database;
 
-        // Create provider instance
-        let provider_instance_id = uuid::Uuid::new_v4().to_string();
-        let provider_controller_type_id = "google_mail".to_string();
-        let provider_instance = ProviderInstanceSerialized {
-            id: provider_instance_id.clone(),
-            display_name: "Test Provider".to_string(),
-            resource_server_credential_id: resource_server_cred.id.clone(),
-            user_credential_id: Some(user_cred.id.clone()),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
-            .await
-            .unwrap();
+        /// Helper to create a test DEK alias for tests.
+        fn create_test_dek_alias() -> String {
+            format!("test-dek-{}", uuid::Uuid::new_v4())
+        }
 
-        // Create function instance
-        let function_controller_type_id = "send_email".to_string();
-        let function_instance = FunctionInstanceSerialized {
-            function_controller_type_id: function_controller_type_id.clone(),
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance))
-            .await
-            .unwrap();
+        /// Helper to create a broadcast channel for tests.
+        fn create_test_channel() -> OnConfigChangeTx {
+            let (tx, _rx) = tokio::sync::broadcast::channel(100);
+            tx
+        }
 
-        (
-            function_controller_type_id,
-            provider_controller_type_id,
-            provider_instance_id,
-        )
-    }
+        /// Helper to create the necessary provider instance and function instance
+        /// for MCP server instance function tests.
+        async fn setup_function_instance(
+            repo: &crate::repository::Repository,
+        ) -> (String, String, String) {
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
 
-    #[tokio::test]
-    async fn test_create_mcp_server_instance() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
-                .await
-                .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
-
-        let request = CreateMcpServerInstanceRequest {
-            id: "test-mcp-instance".to_string(),
-            name: "Test MCP Instance".to_string(),
-        };
-
-        let result = create_mcp_server_instance_internal(&tx, &repo, request.clone(), false).await;
-        assert!(result.is_ok(), "Expected Ok, got {result:?}");
-
-        let instance = result.unwrap();
-        assert_eq!(instance.id, request.id);
-        assert_eq!(instance.name, request.name);
-        assert!(instance.functions.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_get_mcp_server_instance() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
-                .await
-                .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
-
-        // Create an instance first
-        let create_request = CreateMcpServerInstanceRequest {
-            id: "test-get-instance".to_string(),
-            name: "Test Get Instance".to_string(),
-        };
-        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
-            .await
-            .unwrap();
-
-        // Retrieve it
-        let result = get_mcp_server_instance_internal(&repo, &create_request.id).await;
-        assert!(result.is_ok());
-
-        let instance = result.unwrap();
-        assert_eq!(instance.id, create_request.id);
-        assert_eq!(instance.name, create_request.name);
-    }
-
-    #[tokio::test]
-    async fn test_get_mcp_server_instance_not_found() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
-                .await
-                .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-
-        let result = get_mcp_server_instance_internal(&repo, "non-existent-id").await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_update_mcp_server_instance() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
-                .await
-                .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
-
-        // Create an instance
-        let create_request = CreateMcpServerInstanceRequest {
-            id: "test-update-instance".to_string(),
-            name: "Original Name".to_string(),
-        };
-        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
-            .await
-            .unwrap();
-
-        // Update it
-        let update_request = UpdateMcpServerInstanceRequest {
-            name: "Updated Name".to_string(),
-        };
-        let result = update_mcp_server_instance_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            update_request.clone(),
-            false,
-        )
-        .await;
-        assert!(result.is_ok());
-
-        let instance = result.unwrap();
-        assert_eq!(instance.name, update_request.name);
-    }
-
-    #[tokio::test]
-    async fn test_update_mcp_server_instance_not_found() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
-                .await
-                .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
-
-        let update_request = UpdateMcpServerInstanceRequest {
-            name: "Updated Name".to_string(),
-        };
-        let result = update_mcp_server_instance_internal(
-            &tx,
-            &repo,
-            "non-existent-id",
-            update_request,
-            false,
-        )
-        .await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_delete_mcp_server_instance() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
-                .await
-                .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
-
-        // Create an instance
-        let create_request = CreateMcpServerInstanceRequest {
-            id: "test-delete-instance".to_string(),
-            name: "Test Delete Instance".to_string(),
-        };
-        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
-            .await
-            .unwrap();
-
-        // Delete it
-        let result =
-            delete_mcp_server_instance_internal(&tx, &repo, &create_request.id, false).await;
-        assert!(result.is_ok());
-
-        // Verify it's gone
-        let get_result = get_mcp_server_instance_internal(&repo, &create_request.id).await;
-        assert!(get_result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_delete_mcp_server_instance_not_found() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
-                .await
-                .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
-
-        let result =
-            delete_mcp_server_instance_internal(&tx, &repo, "non-existent-id", false).await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_list_mcp_server_instances_empty() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
-                .await
-                .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-
-        let params = ListMcpServerInstancesParams {
-            page_size: 10,
-            next_page_token: None,
-        };
-
-        let result = list_mcp_server_instances_internal(&repo, params).await;
-        assert!(result.is_ok());
-
-        let response = result.unwrap();
-        assert_eq!(response.items.len(), 0);
-        assert!(response.next_page_token.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_list_mcp_server_instances_with_items() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
-                .await
-                .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
-
-        // Create some instances
-        for i in 0..3 {
-            let request = CreateMcpServerInstanceRequest {
-                id: format!("test-list-instance-{i}"),
-                name: format!("Test Instance {i}"),
+            // Create resource server credential
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
             };
-            create_mcp_server_instance_internal(&tx, &repo, request, false)
-                .await
-                .unwrap();
-        }
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
+            .await
+            .unwrap();
 
-        let params = ListMcpServerInstancesParams {
-            page_size: 10,
-            next_page_token: None,
-        };
-
-        let result = list_mcp_server_instances_internal(&repo, params).await;
-        assert!(result.is_ok());
-
-        let response = result.unwrap();
-        assert_eq!(response.items.len(), 3);
-    }
-
-    #[tokio::test]
-    async fn test_list_mcp_server_instances_pagination() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
-                .await
-                .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
-
-        // Create 5 instances
-        for i in 0..5 {
-            let request = CreateMcpServerInstanceRequest {
-                id: format!("test-pagination-instance-{i}"),
-                name: format!("Test Instance {i}"),
+            // Create user credential
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
             };
-            create_mcp_server_instance_internal(&tx, &repo, request, false)
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
                 .await
                 .unwrap();
+
+            // Create provider instance
+            let provider_instance_id = uuid::Uuid::new_v4().to_string();
+            let provider_controller_type_id = "google_mail".to_string();
+            let provider_instance = ProviderInstanceSerialized {
+                id: provider_instance_id.clone(),
+                display_name: "Test Provider".to_string(),
+                resource_server_credential_id: resource_server_cred.id.clone(),
+                user_credential_id: Some(user_cred.id.clone()),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: provider_controller_type_id.clone(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
+                .await
+                .unwrap();
+
+            // Create function instance
+            let function_controller_type_id = "send_email".to_string();
+            let function_instance = FunctionInstanceSerialized {
+                function_controller_type_id: function_controller_type_id.clone(),
+                provider_controller_type_id: provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(function_instance))
+                .await
+                .unwrap();
+
+            (
+                function_controller_type_id,
+                provider_controller_type_id,
+                provider_instance_id,
+            )
         }
 
-        // First page
-        let params = ListMcpServerInstancesParams {
-            page_size: 2,
-            next_page_token: None,
-        };
+        #[tokio::test]
+        async fn test_create_mcp_server_instance() {
+            shared::setup_test!();
 
-        let result = list_mcp_server_instances_internal(&repo, params).await;
-        assert!(result.is_ok());
-
-        let response = result.unwrap();
-        assert_eq!(response.items.len(), 2);
-        assert!(response.next_page_token.is_some());
-
-        // Second page
-        let params = ListMcpServerInstancesParams {
-            page_size: 2,
-            next_page_token: response.next_page_token,
-        };
-
-        let result = list_mcp_server_instances_internal(&repo, params).await;
-        assert!(result.is_ok());
-
-        let response = result.unwrap();
-        assert_eq!(response.items.len(), 2);
-    }
-
-    #[tokio::test]
-    async fn test_add_mcp_server_instance_function() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
                 .await
                 .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
 
-        // Setup function instance
-        let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
-            setup_function_instance(&repo).await;
+            let request = CreateMcpServerInstanceRequest {
+                id: "test-mcp-instance".to_string(),
+                name: "Test MCP Instance".to_string(),
+            };
 
-        // Create MCP instance
-        let create_request = CreateMcpServerInstanceRequest {
-            id: "test-add-function-instance".to_string(),
-            name: "Test Add Function Instance".to_string(),
-        };
-        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
-            .await
-            .unwrap();
+            let result =
+                create_mcp_server_instance_internal(&tx, &repo, request.clone(), false).await;
+            assert!(result.is_ok(), "Expected Ok, got {result:?}");
 
-        // Add function
-        let add_request = AddMcpServerInstanceFunctionRequest {
-            function_controller_type_id: function_controller_type_id.clone(),
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "my_custom_function".to_string(),
-            function_description: Some("A custom function".to_string()),
-        };
+            let instance = result.unwrap();
+            assert_eq!(instance.id, request.id);
+            assert_eq!(instance.name, request.name);
+            assert!(instance.functions.is_empty());
+        }
 
-        let result = add_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            add_request.clone(),
-            false,
-        )
-        .await;
-        assert!(result.is_ok(), "Expected Ok, got {result:?}");
+        #[tokio::test]
+        async fn test_get_mcp_server_instance() {
+            shared::setup_test!();
 
-        let instance = result.unwrap();
-        assert_eq!(instance.functions.len(), 1);
-        assert_eq!(instance.functions[0].function_name, "my_custom_function");
-        assert_eq!(
-            instance.functions[0].function_description,
-            Some("A custom function".to_string())
-        );
-    }
-
-    #[tokio::test]
-    async fn test_add_mcp_server_instance_function_duplicate_name() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
                 .await
                 .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
 
-        // Setup function instance
-        let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
-            setup_function_instance(&repo).await;
+            // Create an instance first
+            let create_request = CreateMcpServerInstanceRequest {
+                id: "test-get-instance".to_string(),
+                name: "Test Get Instance".to_string(),
+            };
+            create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
+                .await
+                .unwrap();
 
-        // Create MCP instance
-        let create_request = CreateMcpServerInstanceRequest {
-            id: "test-duplicate-function-name".to_string(),
-            name: "Test Duplicate Function Name".to_string(),
-        };
-        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
-            .await
-            .unwrap();
+            // Retrieve it
+            let result = get_mcp_server_instance_internal(&repo, &create_request.id).await;
+            assert!(result.is_ok());
 
-        // Add first function
-        let add_request = AddMcpServerInstanceFunctionRequest {
-            function_controller_type_id: function_controller_type_id.clone(),
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "duplicate_name".to_string(),
-            function_description: None,
-        };
+            let instance = result.unwrap();
+            assert_eq!(instance.id, create_request.id);
+            assert_eq!(instance.name, create_request.name);
+        }
 
-        add_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            add_request.clone(),
-            false,
-        )
-        .await
-        .unwrap();
+        #[tokio::test]
+        async fn test_get_mcp_server_instance_not_found() {
+            shared::setup_test!();
 
-        // Try to add another function with the same name - should fail
-        // We need another function instance for this test
-        let now = WrappedChronoDateTime::now();
-        let function_instance2 = FunctionInstanceSerialized {
-            function_controller_type_id: "another_function".to_string(),
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance2))
-            .await
-            .unwrap();
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
 
-        let add_request2 = AddMcpServerInstanceFunctionRequest {
-            function_controller_type_id: "another_function".to_string(),
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "duplicate_name".to_string(), // Same name
-            function_description: None,
-        };
+            let result = get_mcp_server_instance_internal(&repo, "non-existent-id").await;
+            assert!(result.is_err());
+        }
 
-        let result = add_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            add_request2,
-            false,
-        )
-        .await;
-        assert!(result.is_err());
+        #[tokio::test]
+        async fn test_update_mcp_server_instance() {
+            shared::setup_test!();
 
-        // Check that it's an InvalidRequest error
-        match result {
-            Err(CommonError::InvalidRequest { msg, .. }) => {
-                assert!(msg.contains("already exists"));
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
+
+            // Create an instance
+            let create_request = CreateMcpServerInstanceRequest {
+                id: "test-update-instance".to_string(),
+                name: "Original Name".to_string(),
+            };
+            create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
+                .await
+                .unwrap();
+
+            // Update it
+            let update_request = UpdateMcpServerInstanceRequest {
+                name: "Updated Name".to_string(),
+            };
+            let result = update_mcp_server_instance_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                update_request.clone(),
+                false,
+            )
+            .await;
+            assert!(result.is_ok());
+
+            let instance = result.unwrap();
+            assert_eq!(instance.name, update_request.name);
+        }
+
+        #[tokio::test]
+        async fn test_update_mcp_server_instance_not_found() {
+            shared::setup_test!();
+
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
+
+            let update_request = UpdateMcpServerInstanceRequest {
+                name: "Updated Name".to_string(),
+            };
+            let result = update_mcp_server_instance_internal(
+                &tx,
+                &repo,
+                "non-existent-id",
+                update_request,
+                false,
+            )
+            .await;
+            assert!(result.is_err());
+        }
+
+        #[tokio::test]
+        async fn test_delete_mcp_server_instance() {
+            shared::setup_test!();
+
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
+
+            // Create an instance
+            let create_request = CreateMcpServerInstanceRequest {
+                id: "test-delete-instance".to_string(),
+                name: "Test Delete Instance".to_string(),
+            };
+            create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
+                .await
+                .unwrap();
+
+            // Delete it
+            let result =
+                delete_mcp_server_instance_internal(&tx, &repo, &create_request.id, false).await;
+            assert!(result.is_ok());
+
+            // Verify it's gone
+            let get_result = get_mcp_server_instance_internal(&repo, &create_request.id).await;
+            assert!(get_result.is_err());
+        }
+
+        #[tokio::test]
+        async fn test_delete_mcp_server_instance_not_found() {
+            shared::setup_test!();
+
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
+
+            let result =
+                delete_mcp_server_instance_internal(&tx, &repo, "non-existent-id", false).await;
+            assert!(result.is_err());
+        }
+
+        #[tokio::test]
+        async fn test_list_mcp_server_instances_empty() {
+            shared::setup_test!();
+
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+
+            let params = ListMcpServerInstancesParams {
+                page_size: 10,
+                next_page_token: None,
+            };
+
+            let result = list_mcp_server_instances_internal(&repo, params).await;
+            assert!(result.is_ok());
+
+            let response = result.unwrap();
+            assert_eq!(response.items.len(), 0);
+            assert!(response.next_page_token.is_none());
+        }
+
+        #[tokio::test]
+        async fn test_list_mcp_server_instances_with_items() {
+            shared::setup_test!();
+
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
+
+            // Create some instances
+            for i in 0..3 {
+                let request = CreateMcpServerInstanceRequest {
+                    id: format!("test-list-instance-{i}"),
+                    name: format!("Test Instance {i}"),
+                };
+                create_mcp_server_instance_internal(&tx, &repo, request, false)
+                    .await
+                    .unwrap();
             }
-            other => panic!("Expected InvalidRequest error, got {other:?}"),
+
+            let params = ListMcpServerInstancesParams {
+                page_size: 10,
+                next_page_token: None,
+            };
+
+            let result = list_mcp_server_instances_internal(&repo, params).await;
+            assert!(result.is_ok());
+
+            let response = result.unwrap();
+            assert_eq!(response.items.len(), 3);
         }
-    }
 
-    #[tokio::test]
-    async fn test_add_mcp_server_instance_function_instance_not_found() {
-        shared::setup_test!();
+        #[tokio::test]
+        async fn test_list_mcp_server_instances_pagination() {
+            shared::setup_test!();
 
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
                 .await
                 .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
 
-        // Create MCP instance without setting up function instance
-        let create_request = CreateMcpServerInstanceRequest {
-            id: "test-function-not-found".to_string(),
-            name: "Test Function Not Found".to_string(),
-        };
-        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
-            .await
-            .unwrap();
-
-        // Try to add function that doesn't exist
-        let add_request = AddMcpServerInstanceFunctionRequest {
-            function_controller_type_id: "nonexistent".to_string(),
-            provider_controller_type_id: "nonexistent".to_string(),
-            provider_instance_id: "nonexistent".to_string(),
-            function_name: "my_function".to_string(),
-            function_description: None,
-        };
-
-        let result = add_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            add_request,
-            false,
-        )
-        .await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_update_mcp_server_instance_function() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
-                .await
-                .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
-
-        // Setup function instance
-        let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
-            setup_function_instance(&repo).await;
-
-        // Create MCP instance
-        let create_request = CreateMcpServerInstanceRequest {
-            id: "test-update-function".to_string(),
-            name: "Test Update Function".to_string(),
-        };
-        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
-            .await
-            .unwrap();
-
-        // Add function
-        let add_request = AddMcpServerInstanceFunctionRequest {
-            function_controller_type_id: function_controller_type_id.clone(),
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "original_name".to_string(),
-            function_description: None,
-        };
-        add_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            add_request,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Update function
-        let update_request = UpdateMcpServerInstanceFunctionRequest {
-            function_name: "updated_name".to_string(),
-            function_description: Some("Updated description".to_string()),
-        };
-
-        let result = update_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            &function_controller_type_id,
-            &provider_controller_type_id,
-            &provider_instance_id,
-            update_request,
-            false,
-        )
-        .await;
-        assert!(result.is_ok());
-
-        let instance = result.unwrap();
-        assert_eq!(instance.functions[0].function_name, "updated_name");
-        assert_eq!(
-            instance.functions[0].function_description,
-            Some("Updated description".to_string())
-        );
-    }
-
-    #[tokio::test]
-    async fn test_update_mcp_server_instance_function_name_conflict() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
-                .await
-                .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
-
-        // Setup function instances
-        let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
-            setup_function_instance(&repo).await;
-
-        // Create another function instance
-        let now = WrappedChronoDateTime::now();
-        let function_instance2 = FunctionInstanceSerialized {
-            function_controller_type_id: "another_function".to_string(),
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance2))
-            .await
-            .unwrap();
-
-        // Create MCP instance
-        let create_request = CreateMcpServerInstanceRequest {
-            id: "test-update-conflict".to_string(),
-            name: "Test Update Conflict".to_string(),
-        };
-        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
-            .await
-            .unwrap();
-
-        // Add first function
-        let add_request1 = AddMcpServerInstanceFunctionRequest {
-            function_controller_type_id: function_controller_type_id.clone(),
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "first_function".to_string(),
-            function_description: None,
-        };
-        add_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            add_request1,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Add second function
-        let add_request2 = AddMcpServerInstanceFunctionRequest {
-            function_controller_type_id: "another_function".to_string(),
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "second_function".to_string(),
-            function_description: None,
-        };
-        add_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            add_request2,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Try to update second function to have the same name as first - should fail
-        let update_request = UpdateMcpServerInstanceFunctionRequest {
-            function_name: "first_function".to_string(), // Conflict!
-            function_description: None,
-        };
-
-        let result = update_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            "another_function",
-            &provider_controller_type_id,
-            &provider_instance_id,
-            update_request,
-            false,
-        )
-        .await;
-        assert!(result.is_err());
-
-        match result {
-            Err(CommonError::InvalidRequest { msg, .. }) => {
-                assert!(msg.contains("already exists"));
+            // Create 5 instances
+            for i in 0..5 {
+                let request = CreateMcpServerInstanceRequest {
+                    id: format!("test-pagination-instance-{i}"),
+                    name: format!("Test Instance {i}"),
+                };
+                create_mcp_server_instance_internal(&tx, &repo, request, false)
+                    .await
+                    .unwrap();
             }
-            other => panic!("Expected InvalidRequest error, got {other:?}"),
+
+            // First page
+            let params = ListMcpServerInstancesParams {
+                page_size: 2,
+                next_page_token: None,
+            };
+
+            let result = list_mcp_server_instances_internal(&repo, params).await;
+            assert!(result.is_ok());
+
+            let response = result.unwrap();
+            assert_eq!(response.items.len(), 2);
+            assert!(response.next_page_token.is_some());
+
+            // Second page
+            let params = ListMcpServerInstancesParams {
+                page_size: 2,
+                next_page_token: response.next_page_token,
+            };
+
+            let result = list_mcp_server_instances_internal(&repo, params).await;
+            assert!(result.is_ok());
+
+            let response = result.unwrap();
+            assert_eq!(response.items.len(), 2);
         }
-    }
 
-    #[tokio::test]
-    async fn test_update_mcp_server_instance_function_same_name_allowed() {
-        shared::setup_test!();
+        #[tokio::test]
+        async fn test_add_mcp_server_instance_function() {
+            shared::setup_test!();
 
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
                 .await
                 .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
 
-        // Setup function instance
-        let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
-            setup_function_instance(&repo).await;
+            // Setup function instance
+            let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
+                setup_function_instance(&repo).await;
 
-        // Create MCP instance
-        let create_request = CreateMcpServerInstanceRequest {
-            id: "test-update-same-name".to_string(),
-            name: "Test Update Same Name".to_string(),
-        };
-        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
-            .await
-            .unwrap();
-
-        // Add function
-        let add_request = AddMcpServerInstanceFunctionRequest {
-            function_controller_type_id: function_controller_type_id.clone(),
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "my_function".to_string(),
-            function_description: None,
-        };
-        add_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            add_request,
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Update function to have the same name (just updating description) - should work
-        let update_request = UpdateMcpServerInstanceFunctionRequest {
-            function_name: "my_function".to_string(), // Same name
-            function_description: Some("New description".to_string()),
-        };
-
-        let result = update_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            &function_controller_type_id,
-            &provider_controller_type_id,
-            &provider_instance_id,
-            update_request,
-            false,
-        )
-        .await;
-        assert!(result.is_ok());
-
-        let instance = result.unwrap();
-        assert_eq!(instance.functions[0].function_name, "my_function");
-        assert_eq!(
-            instance.functions[0].function_description,
-            Some("New description".to_string())
-        );
-    }
-
-    #[tokio::test]
-    async fn test_remove_mcp_server_instance_function() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
+            // Create MCP instance
+            let create_request = CreateMcpServerInstanceRequest {
+                id: "test-add-function-instance".to_string(),
+                name: "Test Add Function Instance".to_string(),
+            };
+            create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
                 .await
                 .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
 
-        // Setup function instance
-        let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
-            setup_function_instance(&repo).await;
+            // Add function
+            let add_request = AddMcpServerInstanceFunctionRequest {
+                function_controller_type_id: function_controller_type_id.clone(),
+                provider_controller_type_id: provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "my_custom_function".to_string(),
+                function_description: Some("A custom function".to_string()),
+            };
 
-        // Create MCP instance
-        let create_request = CreateMcpServerInstanceRequest {
-            id: "test-remove-function".to_string(),
-            name: "Test Remove Function".to_string(),
-        };
-        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
-            .await
-            .unwrap();
+            let result = add_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                add_request.clone(),
+                false,
+            )
+            .await;
+            assert!(result.is_ok(), "Expected Ok, got {result:?}");
 
-        // Add function
-        let add_request = AddMcpServerInstanceFunctionRequest {
-            function_controller_type_id: function_controller_type_id.clone(),
-            provider_controller_type_id: provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "to_be_removed".to_string(),
-            function_description: None,
-        };
-        add_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            add_request,
-            false,
-        )
-        .await
-        .unwrap();
+            let instance = result.unwrap();
+            assert_eq!(instance.functions.len(), 1);
+            assert_eq!(instance.functions[0].function_name, "my_custom_function");
+            assert_eq!(
+                instance.functions[0].function_description,
+                Some("A custom function".to_string())
+            );
+        }
 
-        // Remove function
-        let result = remove_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            &function_controller_type_id,
-            &provider_controller_type_id,
-            &provider_instance_id,
-            false,
-        )
-        .await;
-        assert!(result.is_ok());
+        #[tokio::test]
+        async fn test_add_mcp_server_instance_function_duplicate_name() {
+            shared::setup_test!();
 
-        let instance = result.unwrap();
-        assert!(instance.functions.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_remove_mcp_server_instance_function_not_found() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
                 .await
                 .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
 
-        // Create MCP instance without any functions
-        let create_request = CreateMcpServerInstanceRequest {
-            id: "test-remove-not-found".to_string(),
-            name: "Test Remove Not Found".to_string(),
-        };
-        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
-            .await
-            .unwrap();
+            // Setup function instance
+            let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
+                setup_function_instance(&repo).await;
 
-        // Try to remove non-existent function
-        let result = remove_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            "nonexistent",
-            "nonexistent",
-            "nonexistent",
-            false,
-        )
-        .await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_delete_mcp_server_instance_cascades_functions() {
-        shared::setup_test!();
-
-        let (_db, conn) =
-            setup_in_memory_database(vec![crate::repository::Repository::load_sql_migrations()])
+            // Create MCP instance
+            let create_request = CreateMcpServerInstanceRequest {
+                id: "test-duplicate-function-name".to_string(),
+                name: "Test Duplicate Function Name".to_string(),
+            };
+            create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
                 .await
                 .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-        let tx = create_test_channel();
 
-        // Setup function instance
-        let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
-            setup_function_instance(&repo).await;
+            // Add first function
+            let add_request = AddMcpServerInstanceFunctionRequest {
+                function_controller_type_id: function_controller_type_id.clone(),
+                provider_controller_type_id: provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "duplicate_name".to_string(),
+                function_description: None,
+            };
 
-        // Create MCP instance
-        let create_request = CreateMcpServerInstanceRequest {
-            id: "test-cascade-delete".to_string(),
-            name: "Test Cascade Delete".to_string(),
-        };
-        create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
+            add_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                add_request.clone(),
+                false,
+            )
             .await
             .unwrap();
 
-        // Add function
-        let add_request = AddMcpServerInstanceFunctionRequest {
-            function_controller_type_id,
-            provider_controller_type_id,
-            provider_instance_id,
-            function_name: "will_be_cascaded".to_string(),
-            function_description: None,
-        };
-        add_mcp_server_instance_function_internal(
-            &tx,
-            &repo,
-            &create_request.id,
-            add_request,
-            false,
-        )
-        .await
-        .unwrap();
+            // Try to add another function with the same name - should fail
+            // We need another function instance for this test
+            let now = WrappedChronoDateTime::now();
+            let function_instance2 = FunctionInstanceSerialized {
+                function_controller_type_id: "another_function".to_string(),
+                provider_controller_type_id: provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(function_instance2))
+                .await
+                .unwrap();
 
-        // Verify function exists
-        let instance = get_mcp_server_instance_internal(&repo, &create_request.id)
+            let add_request2 = AddMcpServerInstanceFunctionRequest {
+                function_controller_type_id: "another_function".to_string(),
+                provider_controller_type_id: provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "duplicate_name".to_string(), // Same name
+                function_description: None,
+            };
+
+            let result = add_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                add_request2,
+                false,
+            )
+            .await;
+            assert!(result.is_err());
+
+            // Check that it's an InvalidRequest error
+            match result {
+                Err(CommonError::InvalidRequest { msg, .. }) => {
+                    assert!(msg.contains("already exists"));
+                }
+                other => panic!("Expected InvalidRequest error, got {other:?}"),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_add_mcp_server_instance_function_instance_not_found() {
+            shared::setup_test!();
+
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
+
+            // Create MCP instance without setting up function instance
+            let create_request = CreateMcpServerInstanceRequest {
+                id: "test-function-not-found".to_string(),
+                name: "Test Function Not Found".to_string(),
+            };
+            create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
+                .await
+                .unwrap();
+
+            // Try to add function that doesn't exist
+            let add_request = AddMcpServerInstanceFunctionRequest {
+                function_controller_type_id: "nonexistent".to_string(),
+                provider_controller_type_id: "nonexistent".to_string(),
+                provider_instance_id: "nonexistent".to_string(),
+                function_name: "my_function".to_string(),
+                function_description: None,
+            };
+
+            let result = add_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                add_request,
+                false,
+            )
+            .await;
+            assert!(result.is_err());
+        }
+
+        #[tokio::test]
+        async fn test_update_mcp_server_instance_function() {
+            shared::setup_test!();
+
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
+
+            // Setup function instance
+            let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
+                setup_function_instance(&repo).await;
+
+            // Create MCP instance
+            let create_request = CreateMcpServerInstanceRequest {
+                id: "test-update-function".to_string(),
+                name: "Test Update Function".to_string(),
+            };
+            create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
+                .await
+                .unwrap();
+
+            // Add function
+            let add_request = AddMcpServerInstanceFunctionRequest {
+                function_controller_type_id: function_controller_type_id.clone(),
+                provider_controller_type_id: provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "original_name".to_string(),
+                function_description: None,
+            };
+            add_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                add_request,
+                false,
+            )
             .await
             .unwrap();
-        assert_eq!(instance.functions.len(), 1);
 
-        // Delete instance - functions should be cascade deleted
-        delete_mcp_server_instance_internal(&tx, &repo, &create_request.id, false)
+            // Update function
+            let update_request = UpdateMcpServerInstanceFunctionRequest {
+                function_name: "updated_name".to_string(),
+                function_description: Some("Updated description".to_string()),
+            };
+
+            let result = update_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                &function_controller_type_id,
+                &provider_controller_type_id,
+                &provider_instance_id,
+                update_request,
+                false,
+            )
+            .await;
+            assert!(result.is_ok());
+
+            let instance = result.unwrap();
+            assert_eq!(instance.functions[0].function_name, "updated_name");
+            assert_eq!(
+                instance.functions[0].function_description,
+                Some("Updated description".to_string())
+            );
+        }
+
+        #[tokio::test]
+        async fn test_update_mcp_server_instance_function_name_conflict() {
+            shared::setup_test!();
+
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
+
+            // Setup function instances
+            let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
+                setup_function_instance(&repo).await;
+
+            // Create another function instance
+            let now = WrappedChronoDateTime::now();
+            let function_instance2 = FunctionInstanceSerialized {
+                function_controller_type_id: "another_function".to_string(),
+                provider_controller_type_id: provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(function_instance2))
+                .await
+                .unwrap();
+
+            // Create MCP instance
+            let create_request = CreateMcpServerInstanceRequest {
+                id: "test-update-conflict".to_string(),
+                name: "Test Update Conflict".to_string(),
+            };
+            create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
+                .await
+                .unwrap();
+
+            // Add first function
+            let add_request1 = AddMcpServerInstanceFunctionRequest {
+                function_controller_type_id: function_controller_type_id.clone(),
+                provider_controller_type_id: provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "first_function".to_string(),
+                function_description: None,
+            };
+            add_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                add_request1,
+                false,
+            )
             .await
             .unwrap();
 
-        // Verify instance is gone
-        let result = get_mcp_server_instance_internal(&repo, &create_request.id).await;
-        assert!(result.is_err());
+            // Add second function
+            let add_request2 = AddMcpServerInstanceFunctionRequest {
+                function_controller_type_id: "another_function".to_string(),
+                provider_controller_type_id: provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "second_function".to_string(),
+                function_description: None,
+            };
+            add_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                add_request2,
+                false,
+            )
+            .await
+            .unwrap();
+
+            // Try to update second function to have the same name as first - should fail
+            let update_request = UpdateMcpServerInstanceFunctionRequest {
+                function_name: "first_function".to_string(), // Conflict!
+                function_description: None,
+            };
+
+            let result = update_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                "another_function",
+                &provider_controller_type_id,
+                &provider_instance_id,
+                update_request,
+                false,
+            )
+            .await;
+            assert!(result.is_err());
+
+            match result {
+                Err(CommonError::InvalidRequest { msg, .. }) => {
+                    assert!(msg.contains("already exists"));
+                }
+                other => panic!("Expected InvalidRequest error, got {other:?}"),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_update_mcp_server_instance_function_same_name_allowed() {
+            shared::setup_test!();
+
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
+
+            // Setup function instance
+            let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
+                setup_function_instance(&repo).await;
+
+            // Create MCP instance
+            let create_request = CreateMcpServerInstanceRequest {
+                id: "test-update-same-name".to_string(),
+                name: "Test Update Same Name".to_string(),
+            };
+            create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
+                .await
+                .unwrap();
+
+            // Add function
+            let add_request = AddMcpServerInstanceFunctionRequest {
+                function_controller_type_id: function_controller_type_id.clone(),
+                provider_controller_type_id: provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "my_function".to_string(),
+                function_description: None,
+            };
+            add_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                add_request,
+                false,
+            )
+            .await
+            .unwrap();
+
+            // Update function to have the same name (just updating description) - should work
+            let update_request = UpdateMcpServerInstanceFunctionRequest {
+                function_name: "my_function".to_string(), // Same name
+                function_description: Some("New description".to_string()),
+            };
+
+            let result = update_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                &function_controller_type_id,
+                &provider_controller_type_id,
+                &provider_instance_id,
+                update_request,
+                false,
+            )
+            .await;
+            assert!(result.is_ok());
+
+            let instance = result.unwrap();
+            assert_eq!(instance.functions[0].function_name, "my_function");
+            assert_eq!(
+                instance.functions[0].function_description,
+                Some("New description".to_string())
+            );
+        }
+
+        #[tokio::test]
+        async fn test_remove_mcp_server_instance_function() {
+            shared::setup_test!();
+
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
+
+            // Setup function instance
+            let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
+                setup_function_instance(&repo).await;
+
+            // Create MCP instance
+            let create_request = CreateMcpServerInstanceRequest {
+                id: "test-remove-function".to_string(),
+                name: "Test Remove Function".to_string(),
+            };
+            create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
+                .await
+                .unwrap();
+
+            // Add function
+            let add_request = AddMcpServerInstanceFunctionRequest {
+                function_controller_type_id: function_controller_type_id.clone(),
+                provider_controller_type_id: provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "to_be_removed".to_string(),
+                function_description: None,
+            };
+            add_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                add_request,
+                false,
+            )
+            .await
+            .unwrap();
+
+            // Remove function
+            let result = remove_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                &function_controller_type_id,
+                &provider_controller_type_id,
+                &provider_instance_id,
+                false,
+            )
+            .await;
+            assert!(result.is_ok());
+
+            let instance = result.unwrap();
+            assert!(instance.functions.is_empty());
+        }
+
+        #[tokio::test]
+        async fn test_remove_mcp_server_instance_function_not_found() {
+            shared::setup_test!();
+
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
+
+            // Create MCP instance without any functions
+            let create_request = CreateMcpServerInstanceRequest {
+                id: "test-remove-not-found".to_string(),
+                name: "Test Remove Not Found".to_string(),
+            };
+            create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
+                .await
+                .unwrap();
+
+            // Try to remove non-existent function
+            let result = remove_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                "nonexistent",
+                "nonexistent",
+                "nonexistent",
+                false,
+            )
+            .await;
+            assert!(result.is_err());
+        }
+
+        #[tokio::test]
+        async fn test_delete_mcp_server_instance_cascades_functions() {
+            shared::setup_test!();
+
+            let (_db, conn) =
+                setup_in_memory_database(
+                    vec![crate::repository::Repository::load_sql_migrations()],
+                )
+                .await
+                .unwrap();
+            let repo = crate::repository::Repository::new(conn);
+            let tx = create_test_channel();
+
+            // Setup function instance
+            let (function_controller_type_id, provider_controller_type_id, provider_instance_id) =
+                setup_function_instance(&repo).await;
+
+            // Create MCP instance
+            let create_request = CreateMcpServerInstanceRequest {
+                id: "test-cascade-delete".to_string(),
+                name: "Test Cascade Delete".to_string(),
+            };
+            create_mcp_server_instance_internal(&tx, &repo, create_request.clone(), false)
+                .await
+                .unwrap();
+
+            // Add function
+            let add_request = AddMcpServerInstanceFunctionRequest {
+                function_controller_type_id,
+                provider_controller_type_id,
+                provider_instance_id,
+                function_name: "will_be_cascaded".to_string(),
+                function_description: None,
+            };
+            add_mcp_server_instance_function_internal(
+                &tx,
+                &repo,
+                &create_request.id,
+                add_request,
+                false,
+            )
+            .await
+            .unwrap();
+
+            // Verify function exists
+            let instance = get_mcp_server_instance_internal(&repo, &create_request.id)
+                .await
+                .unwrap();
+            assert_eq!(instance.functions.len(), 1);
+
+            // Delete instance - functions should be cascade deleted
+            delete_mcp_server_instance_internal(&tx, &repo, &create_request.id, false)
+                .await
+                .unwrap();
+
+            // Verify instance is gone
+            let result = get_mcp_server_instance_internal(&repo, &create_request.id).await;
+            assert!(result.is_err());
+        }
     }
 }

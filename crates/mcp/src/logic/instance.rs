@@ -1327,193 +1327,196 @@ pub struct WithFunctionInstanceId<T> {
     pub inner: T,
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
-    use shared::primitives::{PaginationRequest, SqlMigrationLoader};
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
+        use shared::primitives::{PaginationRequest, SqlMigrationLoader};
 
-    #[tokio::test]
-    async fn test_list_provider_instances_empty() {
-        shared::setup_test!();
+        #[tokio::test]
+        async fn test_list_provider_instances_empty() {
+            shared::setup_test!();
 
-        let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
-            crate::repository::Repository::load_sql_migrations(),
-        ])
-        .await
-        .unwrap();
-        let repo = crate::repository::Repository::new(conn);
-
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-
-        let result = list_provider_instances_internal(
-            &repo,
-            ListProviderInstancesParams {
-                pagination,
-                status: None,
-                provider_controller_type_id: None,
-            },
-        )
-        .await;
-        assert!(result.is_ok());
-
-        let response = result.unwrap();
-        assert_eq!(response.items.len(), 0);
-        assert!(response.next_page_token.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_list_function_instances_empty() {
-        shared::setup_test!();
-
-        let repo = {
             let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
                 crate::repository::Repository::load_sql_migrations(),
             ])
             .await
             .unwrap();
-            crate::repository::Repository::new(conn)
-        };
+            let repo = crate::repository::Repository::new(conn);
 
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
 
-        let result = list_function_instances_internal(
-            &repo,
-            ListFunctionInstancesParams {
-                pagination,
-                provider_instance_id: None,
-            },
-        )
-        .await;
-        assert!(result.is_ok());
+            let result = list_provider_instances_internal(
+                &repo,
+                ListProviderInstancesParams {
+                    pagination,
+                    status: None,
+                    provider_controller_type_id: None,
+                },
+            )
+            .await;
+            assert!(result.is_ok());
 
-        let response = result.unwrap();
-        assert_eq!(response.items.len(), 0);
-        assert!(response.next_page_token.is_none());
-    }
+            let response = result.unwrap();
+            assert_eq!(response.items.len(), 0);
+            assert!(response.next_page_token.is_none());
+        }
 
-    #[test]
-    fn test_sanitize_display_name() {
-        // Test basic alphanumeric and dash characters
-        assert_eq!(sanitize_display_name("my-provider-123"), "my-provider-123");
+        #[tokio::test]
+        async fn test_list_function_instances_empty() {
+            shared::setup_test!();
 
-        // Test whitespace replacement
-        assert_eq!(sanitize_display_name("my provider"), "my-provider");
-        assert_eq!(sanitize_display_name("my  provider"), "my--provider");
+            let repo = {
+                let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                    crate::repository::Repository::load_sql_migrations(),
+                ])
+                .await
+                .unwrap();
+                crate::repository::Repository::new(conn)
+            };
 
-        // Test special character removal
-        assert_eq!(sanitize_display_name("my@provider!"), "myprovider");
-        assert_eq!(sanitize_display_name("provider#1"), "provider1");
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
 
-        // Test mixed characters
-        assert_eq!(sanitize_display_name("My Provider #1!"), "My-Provider-1");
-        assert_eq!(
-            sanitize_display_name("provider_name@2024"),
-            "providername2024"
-        );
+            let result = list_function_instances_internal(
+                &repo,
+                ListFunctionInstancesParams {
+                    pagination,
+                    provider_instance_id: None,
+                },
+            )
+            .await;
+            assert!(result.is_ok());
 
-        // Test edge cases
-        assert_eq!(sanitize_display_name(""), "");
-        assert_eq!(sanitize_display_name("---"), "---");
-        assert_eq!(sanitize_display_name("ABC123"), "ABC123");
-    }
+            let response = result.unwrap();
+            assert_eq!(response.items.len(), 0);
+            assert!(response.next_page_token.is_none());
+        }
 
-    #[test]
-    fn test_convert_jsonschema_to_openapi() {
-        // Test simple schema without $defs
-        let simple_schema = serde_json::json!({
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "type": "object",
-            "title": "SimpleSchema",
-            "properties": {
-                "name": {"type": "string"}
-            }
-        });
+        #[test]
+        fn test_sanitize_display_name() {
+            // Test basic alphanumeric and dash characters
+            assert_eq!(sanitize_display_name("my-provider-123"), "my-provider-123");
 
-        let (converted, defs) = convert_jsonschema_to_openapi(&simple_schema, "Test").unwrap();
-        assert!(defs.is_empty());
-        assert_eq!(converted.get("$schema"), None); // Should be removed
-        assert_eq!(converted.get("title"), None); // Should be removed
-        assert_eq!(
-            converted.get("type").and_then(|v| v.as_str()),
-            Some("object")
-        );
+            // Test whitespace replacement
+            assert_eq!(sanitize_display_name("my provider"), "my-provider");
+            assert_eq!(sanitize_display_name("my  provider"), "my--provider");
 
-        // Test schema with $defs
-        let schema_with_defs = serde_json::json!({
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "type": "object",
-            "$defs": {
-                "Person": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"}
-                    }
+            // Test special character removal
+            assert_eq!(sanitize_display_name("my@provider!"), "myprovider");
+            assert_eq!(sanitize_display_name("provider#1"), "provider1");
+
+            // Test mixed characters
+            assert_eq!(sanitize_display_name("My Provider #1!"), "My-Provider-1");
+            assert_eq!(
+                sanitize_display_name("provider_name@2024"),
+                "providername2024"
+            );
+
+            // Test edge cases
+            assert_eq!(sanitize_display_name(""), "");
+            assert_eq!(sanitize_display_name("---"), "---");
+            assert_eq!(sanitize_display_name("ABC123"), "ABC123");
+        }
+
+        #[test]
+        fn test_convert_jsonschema_to_openapi() {
+            // Test simple schema without $defs
+            let simple_schema = serde_json::json!({
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "title": "SimpleSchema",
+                "properties": {
+                    "name": {"type": "string"}
                 }
-            },
-            "properties": {
-                "person": {"$ref": "#/$defs/Person"}
-            }
-        });
+            });
 
-        let (converted, defs) = convert_jsonschema_to_openapi(&schema_with_defs, "Test").unwrap();
-        assert_eq!(defs.len(), 1);
-        assert_eq!(defs[0].0, "Test_Person");
+            let (converted, defs) = convert_jsonschema_to_openapi(&simple_schema, "Test").unwrap();
+            assert!(defs.is_empty());
+            assert_eq!(converted.get("$schema"), None); // Should be removed
+            assert_eq!(converted.get("title"), None); // Should be removed
+            assert_eq!(
+                converted.get("type").and_then(|v| v.as_str()),
+                Some("object")
+            );
 
-        // Check that $ref was updated in main schema
-        let person_ref = converted
-            .get("properties")
-            .and_then(|p| p.get("person"))
-            .and_then(|p| p.get("$ref"))
-            .and_then(|r| r.as_str());
-        assert_eq!(person_ref, Some("#/components/schemas/Test_Person"));
-
-        // Test schema with nested $defs (definitions referencing other definitions)
-        let schema_with_nested_defs = serde_json::json!({
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "type": "object",
-            "$defs": {
-                "Address": {
-                    "type": "object",
-                    "properties": {
-                        "street": {"type": "string"}
+            // Test schema with $defs
+            let schema_with_defs = serde_json::json!({
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "$defs": {
+                    "Person": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"}
+                        }
                     }
                 },
-                "Person": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"},
-                        "address": {"$ref": "#/$defs/Address"}
-                    }
+                "properties": {
+                    "person": {"$ref": "#/$defs/Person"}
                 }
-            },
-            "properties": {
-                "person": {"$ref": "#/$defs/Person"}
-            }
-        });
+            });
 
-        let (_converted, defs) =
-            convert_jsonschema_to_openapi(&schema_with_nested_defs, "Nested").unwrap();
-        assert_eq!(defs.len(), 2);
+            let (converted, defs) =
+                convert_jsonschema_to_openapi(&schema_with_defs, "Test").unwrap();
+            assert_eq!(defs.len(), 1);
+            assert_eq!(defs[0].0, "Test_Person");
 
-        // Find the Person definition
-        let person_def = defs
-            .iter()
-            .find(|(name, _)| name == "Nested_Person")
-            .unwrap();
+            // Check that $ref was updated in main schema
+            let person_ref = converted
+                .get("properties")
+                .and_then(|p| p.get("person"))
+                .and_then(|p| p.get("$ref"))
+                .and_then(|r| r.as_str());
+            assert_eq!(person_ref, Some("#/components/schemas/Test_Person"));
 
-        // Check that the nested reference in Person was updated
-        let address_ref = person_def
-            .1
-            .get("properties")
-            .and_then(|p| p.get("address"))
-            .and_then(|a| a.get("$ref"))
-            .and_then(|r| r.as_str());
-        assert_eq!(address_ref, Some("#/components/schemas/Nested_Address"));
+            // Test schema with nested $defs (definitions referencing other definitions)
+            let schema_with_nested_defs = serde_json::json!({
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "$defs": {
+                    "Address": {
+                        "type": "object",
+                        "properties": {
+                            "street": {"type": "string"}
+                        }
+                    },
+                    "Person": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "address": {"$ref": "#/$defs/Address"}
+                        }
+                    }
+                },
+                "properties": {
+                    "person": {"$ref": "#/$defs/Person"}
+                }
+            });
+
+            let (_converted, defs) =
+                convert_jsonschema_to_openapi(&schema_with_nested_defs, "Nested").unwrap();
+            assert_eq!(defs.len(), 2);
+
+            // Find the Person definition
+            let person_def = defs
+                .iter()
+                .find(|(name, _)| name == "Nested_Person")
+                .unwrap();
+
+            // Check that the nested reference in Person was updated
+            let address_ref = person_def
+                .1
+                .get("properties")
+                .and_then(|p| p.get("address"))
+                .and_then(|a| a.get("$ref"))
+                .and_then(|r| r.as_str());
+            assert_eq!(address_ref, Some("#/components/schemas/Nested_Address"));
+        }
     }
 }

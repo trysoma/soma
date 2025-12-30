@@ -986,265 +986,268 @@ where
     Ok(rotated_credential)
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
-    use crate::logic::credential::oauth::{
-        Oauth2AuthorizationCodeFlowResourceServerCredential,
-        Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
-        Oauth2AuthorizationCodeFlowUserCredential, OauthAuthFlowController,
-    };
-
-    use shared::primitives::SqlMigrationLoader;
-
-    #[tokio::test]
-    async fn test_create_resource_server_credential() {
-        shared::setup_test!();
-
-        let _repo = {
-            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
-                crate::repository::Repository::load_sql_migrations(),
-            ])
-            .await
-            .unwrap();
-            crate::repository::Repository::new(conn)
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
+        use crate::logic::credential::oauth::{
+            Oauth2AuthorizationCodeFlowResourceServerCredential,
+            Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
+            Oauth2AuthorizationCodeFlowUserCredential, OauthAuthFlowController,
         };
 
-        // Use the test helper to set up encryption services
-        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
-        let encryption_service = setup
-            .crypto_cache
-            .get_encryption_service(&setup.dek_alias)
-            .await
-            .unwrap();
+        use shared::primitives::SqlMigrationLoader;
 
-        // Create encrypted resource server configuration
-        let controller = OauthAuthFlowController {
-            static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
-                auth_uri: "https://example.com/auth".to_string(),
-                token_uri: "https://example.com/token".to_string(),
-                userinfo_uri: "https://example.com/userinfo".to_string(),
-                jwks_uri: "https://example.com/jwks".to_string(),
-                issuer: "https://example.com".to_string(),
-                scopes: vec!["scope1".to_string()],
+        #[tokio::test]
+        async fn test_create_resource_server_credential() {
+            shared::setup_test!();
+
+            let _repo = {
+                let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                    crate::repository::Repository::load_sql_migrations(),
+                ])
+                .await
+                .unwrap();
+                crate::repository::Repository::new(conn)
+            };
+
+            // Use the test helper to set up encryption services
+            let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+            let encryption_service = setup
+                .crypto_cache
+                .get_encryption_service(&setup.dek_alias)
+                .await
+                .unwrap();
+
+            // Create encrypted resource server configuration
+            let controller = OauthAuthFlowController {
+                static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+                    auth_uri: "https://example.com/auth".to_string(),
+                    token_uri: "https://example.com/token".to_string(),
+                    userinfo_uri: "https://example.com/userinfo".to_string(),
+                    jwks_uri: "https://example.com/jwks".to_string(),
+                    issuer: "https://example.com".to_string(),
+                    scopes: vec!["scope1".to_string()],
+                    metadata: Metadata::new(),
+                },
+            };
+
+            let raw_config = WrappedJsonValue::new(serde_json::json!({
+                "client_id": "test-client-id",
+                "client_secret": "plain-text-secret",
+                "redirect_uri": "https://example.com/callback",
+                "metadata": {"key": "value"}
+            }));
+
+            let encrypted_cred = controller
+                .encrypt_resource_server_configuration(&encryption_service, raw_config)
+                .await
+                .unwrap();
+
+            // Note: We cannot test create_resource_server_credential directly without registering
+            // a provider in the provider registry. Instead, test that the encryption works correctly.
+            let config = encrypted_cred.value();
+            let deserialized: Oauth2AuthorizationCodeFlowResourceServerCredential =
+                serde_json::from_value(config.into()).unwrap();
+
+            // Verify the client_id is preserved
+            assert_eq!(deserialized.client_id, "test-client-id");
+
+            // Verify the client_secret is encrypted
+            assert_ne!(deserialized.client_secret.0, "plain-text-secret");
+
+            // Verify it's base64 encoded
+            assert!(
+                base64::Engine::decode(
+                    &base64::engine::general_purpose::STANDARD,
+                    &deserialized.client_secret.0
+                )
+                .is_ok()
+            );
+        }
+
+        #[tokio::test]
+        async fn test_create_user_credential() {
+            shared::setup_test!();
+
+            let _repo = {
+                let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                    crate::repository::Repository::load_sql_migrations(),
+                ])
+                .await
+                .unwrap();
+                crate::repository::Repository::new(conn)
+            };
+
+            // Use the test helper to set up encryption services
+            let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+            let encryption_service = setup
+                .crypto_cache
+                .get_encryption_service(&setup.dek_alias)
+                .await
+                .unwrap();
+
+            let controller = OauthAuthFlowController {
+                static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+                    auth_uri: "https://example.com/auth".to_string(),
+                    token_uri: "https://example.com/token".to_string(),
+                    userinfo_uri: "https://example.com/userinfo".to_string(),
+                    jwks_uri: "https://example.com/jwks".to_string(),
+                    issuer: "https://example.com".to_string(),
+                    scopes: vec!["scope1".to_string()],
+                    metadata: Metadata::new(),
+                },
+            };
+
+            let expiry = WrappedChronoDateTime::new(
+                WrappedChronoDateTime::now()
+                    .get_inner()
+                    .checked_add_signed(chrono::Duration::hours(1))
+                    .unwrap(),
+            );
+
+            let raw_config = WrappedJsonValue::new(serde_json::json!({
+                "code": "plain-code",
+                "access_token": "plain-access-token",
+                "refresh_token": "plain-refresh-token",
+                "expiry_time": expiry,
+                "sub": "test-user",
+                "scopes": ["scope1", "scope2"],
+                "metadata": {"key": "value"}
+            }));
+
+            let encrypted_cred = controller
+                .encrypt_user_credential_configuration(&encryption_service, raw_config)
+                .await
+                .unwrap();
+
+            // Note: We cannot test create_user_credential directly without registering
+            // a provider in the provider registry. Instead, test that the encryption and
+            // rotation time calculation work correctly.
+            let config = encrypted_cred.value();
+            let deserialized: Oauth2AuthorizationCodeFlowUserCredential =
+                serde_json::from_value(config.into()).unwrap();
+
+            // Verify non-sensitive fields are preserved
+            assert_eq!(deserialized.sub, "test-user");
+            assert_eq!(deserialized.scopes, vec!["scope1", "scope2"]);
+
+            // Verify all sensitive fields are encrypted
+            assert_ne!(deserialized.code.0, "plain-code");
+            assert_ne!(deserialized.access_token.0, "plain-access-token");
+            assert_ne!(deserialized.refresh_token.0, "plain-refresh-token");
+
+            // Test rotation time calculation
+            let next_rotation = deserialized.next_rotation_time();
+            let expected_rotation = WrappedChronoDateTime::new(
+                expiry
+                    .get_inner()
+                    .checked_sub_signed(chrono::Duration::minutes(5))
+                    .unwrap(),
+            );
+            assert_eq!(next_rotation.get_inner(), expected_rotation.get_inner());
+        }
+
+        #[tokio::test]
+        async fn test_process_credential_rotations_no_credentials() {
+            shared::setup_test!();
+
+            let repo = {
+                let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                    crate::repository::Repository::load_sql_migrations(),
+                ])
+                .await
+                .unwrap();
+                crate::repository::Repository::new(conn)
+            };
+            let (tx, _rx): (crate::logic::OnConfigChangeTx, _) =
+                tokio::sync::broadcast::channel(100);
+
+            // Use the test helper to set up encryption services
+            let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+
+            // Test with no provider instances
+            let result =
+                process_credential_rotations_with_window(&repo, &tx, &setup.crypto_cache, 20).await;
+
+            // Should succeed even with no credentials
+            assert!(result.is_ok());
+        }
+
+        #[tokio::test]
+        async fn test_broker_state_serialization() {
+            shared::setup_test!();
+
+            let broker_state = BrokerState {
+                id: "test-id".to_string(),
+                created_at: WrappedChronoDateTime::now(),
+                updated_at: WrappedChronoDateTime::now(),
+                provider_instance_id: "test-instance".to_string(),
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "oauth_auth_flow".to_string(),
                 metadata: Metadata::new(),
-            },
-        };
+                action: BrokerAction::Redirect(BrokerActionRedirect {
+                    url: "https://example.com/auth".to_string(),
+                }),
+            };
 
-        let raw_config = WrappedJsonValue::new(serde_json::json!({
-            "client_id": "test-client-id",
-            "client_secret": "plain-text-secret",
-            "redirect_uri": "https://example.com/callback",
-            "metadata": {"key": "value"}
-        }));
+            // Test serialization
+            let json = serde_json::to_string(&broker_state).unwrap();
+            let deserialized: BrokerState = serde_json::from_str(&json).unwrap();
 
-        let encrypted_cred = controller
-            .encrypt_resource_server_configuration(&encryption_service, raw_config)
-            .await
-            .unwrap();
+            assert_eq!(broker_state.id, deserialized.id);
+            assert_eq!(
+                broker_state.provider_instance_id,
+                deserialized.provider_instance_id
+            );
+        }
 
-        // Note: We cannot test create_resource_server_credential directly without registering
-        // a provider in the provider registry. Instead, test that the encryption works correctly.
-        let config = encrypted_cred.value();
-        let deserialized: Oauth2AuthorizationCodeFlowResourceServerCredential =
-            serde_json::from_value(config.into()).unwrap();
+        #[tokio::test]
+        async fn test_credential_rotation_time_calculation() {
+            shared::setup_test!();
 
-        // Verify the client_id is preserved
-        assert_eq!(deserialized.client_id, "test-client-id");
+            let now = WrappedChronoDateTime::now();
 
-        // Verify the client_secret is encrypted
-        assert_ne!(deserialized.client_secret.0, "plain-text-secret");
+            // Test rotation window calculation
+            let rotation_window_end = WrappedChronoDateTime::new(
+                now.get_inner()
+                    .checked_add_signed(chrono::Duration::minutes(20))
+                    .unwrap(),
+            );
 
-        // Verify it's base64 encoded
-        assert!(
-            base64::Engine::decode(
-                &base64::engine::general_purpose::STANDARD,
-                &deserialized.client_secret.0
-            )
-            .is_ok()
-        );
-    }
+            // Verify that credentials expiring soon would be caught
+            let expiry_in_10_minutes = WrappedChronoDateTime::new(
+                now.get_inner()
+                    .checked_add_signed(chrono::Duration::minutes(10))
+                    .unwrap(),
+            );
 
-    #[tokio::test]
-    async fn test_create_user_credential() {
-        shared::setup_test!();
+            let rotation_time = WrappedChronoDateTime::new(
+                expiry_in_10_minutes
+                    .get_inner()
+                    .checked_sub_signed(chrono::Duration::minutes(5))
+                    .unwrap(),
+            );
 
-        let _repo = {
-            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
-                crate::repository::Repository::load_sql_migrations(),
-            ])
-            .await
-            .unwrap();
-            crate::repository::Repository::new(conn)
-        };
+            // This credential should be rotated (rotation time is within window)
+            assert!(rotation_time.get_inner() <= rotation_window_end.get_inner());
 
-        // Use the test helper to set up encryption services
-        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
-        let encryption_service = setup
-            .crypto_cache
-            .get_encryption_service(&setup.dek_alias)
-            .await
-            .unwrap();
+            // Test credential that doesn't need rotation yet
+            let expiry_in_2_hours = WrappedChronoDateTime::new(
+                now.get_inner()
+                    .checked_add_signed(chrono::Duration::hours(2))
+                    .unwrap(),
+            );
 
-        let controller = OauthAuthFlowController {
-            static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
-                auth_uri: "https://example.com/auth".to_string(),
-                token_uri: "https://example.com/token".to_string(),
-                userinfo_uri: "https://example.com/userinfo".to_string(),
-                jwks_uri: "https://example.com/jwks".to_string(),
-                issuer: "https://example.com".to_string(),
-                scopes: vec!["scope1".to_string()],
-                metadata: Metadata::new(),
-            },
-        };
+            let rotation_time_later = WrappedChronoDateTime::new(
+                expiry_in_2_hours
+                    .get_inner()
+                    .checked_sub_signed(chrono::Duration::minutes(5))
+                    .unwrap(),
+            );
 
-        let expiry = WrappedChronoDateTime::new(
-            WrappedChronoDateTime::now()
-                .get_inner()
-                .checked_add_signed(chrono::Duration::hours(1))
-                .unwrap(),
-        );
-
-        let raw_config = WrappedJsonValue::new(serde_json::json!({
-            "code": "plain-code",
-            "access_token": "plain-access-token",
-            "refresh_token": "plain-refresh-token",
-            "expiry_time": expiry,
-            "sub": "test-user",
-            "scopes": ["scope1", "scope2"],
-            "metadata": {"key": "value"}
-        }));
-
-        let encrypted_cred = controller
-            .encrypt_user_credential_configuration(&encryption_service, raw_config)
-            .await
-            .unwrap();
-
-        // Note: We cannot test create_user_credential directly without registering
-        // a provider in the provider registry. Instead, test that the encryption and
-        // rotation time calculation work correctly.
-        let config = encrypted_cred.value();
-        let deserialized: Oauth2AuthorizationCodeFlowUserCredential =
-            serde_json::from_value(config.into()).unwrap();
-
-        // Verify non-sensitive fields are preserved
-        assert_eq!(deserialized.sub, "test-user");
-        assert_eq!(deserialized.scopes, vec!["scope1", "scope2"]);
-
-        // Verify all sensitive fields are encrypted
-        assert_ne!(deserialized.code.0, "plain-code");
-        assert_ne!(deserialized.access_token.0, "plain-access-token");
-        assert_ne!(deserialized.refresh_token.0, "plain-refresh-token");
-
-        // Test rotation time calculation
-        let next_rotation = deserialized.next_rotation_time();
-        let expected_rotation = WrappedChronoDateTime::new(
-            expiry
-                .get_inner()
-                .checked_sub_signed(chrono::Duration::minutes(5))
-                .unwrap(),
-        );
-        assert_eq!(next_rotation.get_inner(), expected_rotation.get_inner());
-    }
-
-    #[tokio::test]
-    async fn test_process_credential_rotations_no_credentials() {
-        shared::setup_test!();
-
-        let repo = {
-            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
-                crate::repository::Repository::load_sql_migrations(),
-            ])
-            .await
-            .unwrap();
-            crate::repository::Repository::new(conn)
-        };
-        let (tx, _rx): (crate::logic::OnConfigChangeTx, _) = tokio::sync::broadcast::channel(100);
-
-        // Use the test helper to set up encryption services
-        let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
-
-        // Test with no provider instances
-        let result =
-            process_credential_rotations_with_window(&repo, &tx, &setup.crypto_cache, 20).await;
-
-        // Should succeed even with no credentials
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_broker_state_serialization() {
-        shared::setup_test!();
-
-        let broker_state = BrokerState {
-            id: "test-id".to_string(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-            provider_instance_id: "test-instance".to_string(),
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "oauth_auth_flow".to_string(),
-            metadata: Metadata::new(),
-            action: BrokerAction::Redirect(BrokerActionRedirect {
-                url: "https://example.com/auth".to_string(),
-            }),
-        };
-
-        // Test serialization
-        let json = serde_json::to_string(&broker_state).unwrap();
-        let deserialized: BrokerState = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(broker_state.id, deserialized.id);
-        assert_eq!(
-            broker_state.provider_instance_id,
-            deserialized.provider_instance_id
-        );
-    }
-
-    #[tokio::test]
-    async fn test_credential_rotation_time_calculation() {
-        shared::setup_test!();
-
-        let now = WrappedChronoDateTime::now();
-
-        // Test rotation window calculation
-        let rotation_window_end = WrappedChronoDateTime::new(
-            now.get_inner()
-                .checked_add_signed(chrono::Duration::minutes(20))
-                .unwrap(),
-        );
-
-        // Verify that credentials expiring soon would be caught
-        let expiry_in_10_minutes = WrappedChronoDateTime::new(
-            now.get_inner()
-                .checked_add_signed(chrono::Duration::minutes(10))
-                .unwrap(),
-        );
-
-        let rotation_time = WrappedChronoDateTime::new(
-            expiry_in_10_minutes
-                .get_inner()
-                .checked_sub_signed(chrono::Duration::minutes(5))
-                .unwrap(),
-        );
-
-        // This credential should be rotated (rotation time is within window)
-        assert!(rotation_time.get_inner() <= rotation_window_end.get_inner());
-
-        // Test credential that doesn't need rotation yet
-        let expiry_in_2_hours = WrappedChronoDateTime::new(
-            now.get_inner()
-                .checked_add_signed(chrono::Duration::hours(2))
-                .unwrap(),
-        );
-
-        let rotation_time_later = WrappedChronoDateTime::new(
-            expiry_in_2_hours
-                .get_inner()
-                .checked_sub_signed(chrono::Duration::minutes(5))
-                .unwrap(),
-        );
-
-        // This credential should NOT be rotated yet
-        assert!(rotation_time_later.get_inner() > rotation_window_end.get_inner());
+            // This credential should NOT be rotated yet
+            assert!(rotation_time_later.get_inner() > rotation_window_end.get_inner());
+        }
     }
 }

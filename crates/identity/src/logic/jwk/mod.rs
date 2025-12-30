@@ -417,188 +417,230 @@ fn pem_to_jwk(pem: &str, kid: &str) -> Result<Jwk, CommonError> {
     })
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
-    use crate::repository::Repository;
-    use encryption::logic::crypto_services::{CryptoCache, init_crypto_cache};
-    use encryption::logic::dek::{CreateDekInnerParams, CreateDekParams};
-    use encryption::logic::dek_alias::{CreateAliasInnerParams, CreateAliasParams};
-    use encryption::logic::envelope::get_or_create_local_envelope_encryption_key;
-    use encryption::repository::{EncryptionKeyRepositoryLike, Repository as EncryptionRepository};
-    use shared::primitives::{SqlMigrationLoader, WrappedChronoDateTime};
-    use shared::test_utils::helpers::MockAuthClient;
-    use shared::test_utils::repository::setup_in_memory_database;
-    use tokio::sync::broadcast;
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
+        use crate::repository::Repository;
+        use encryption::logic::crypto_services::{CryptoCache, init_crypto_cache};
+        use encryption::logic::dek::{CreateDekInnerParams, CreateDekParams};
+        use encryption::logic::dek_alias::{CreateAliasInnerParams, CreateAliasParams};
+        use encryption::logic::envelope::get_or_create_local_envelope_encryption_key;
+        use encryption::repository::{
+            EncryptionKeyRepositoryLike, Repository as EncryptionRepository,
+        };
+        use shared::primitives::{SqlMigrationLoader, WrappedChronoDateTime};
+        use shared::test_utils::helpers::MockAuthClient;
+        use shared::test_utils::repository::setup_in_memory_database;
+        use tokio::sync::broadcast;
 
-    struct TestContext {
-        identity_repo: Repository,
-        crypto_cache: CryptoCache,
-        jwks_cache: JwksCache,
-        #[allow(dead_code)]
-        temp_dir: tempfile::TempDir,
-    }
+        struct TestContext {
+            identity_repo: Repository,
+            crypto_cache: CryptoCache,
+            jwks_cache: JwksCache,
+            #[allow(dead_code)]
+            temp_dir: tempfile::TempDir,
+        }
 
-    /// Create a mock auth client that returns an authenticated admin identity
-    fn mock_admin_auth_client() -> MockAuthClient {
-        MockAuthClient::new(shared::test_utils::helpers::test_admin_machine())
-    }
+        /// Create a mock auth client that returns an authenticated admin identity
+        fn mock_admin_auth_client() -> MockAuthClient {
+            MockAuthClient::new(shared::test_utils::helpers::test_admin_machine())
+        }
 
-    async fn setup_test_context() -> TestContext {
-        shared::setup_test!();
+        async fn setup_test_context() -> TestContext {
+            shared::setup_test!();
 
-        // Setup identity database
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let identity_repo = Repository::new(conn);
-
-        // Setup encryption database
-        let (_encryption_db, encryption_conn) =
-            setup_in_memory_database(vec![EncryptionRepository::load_sql_migrations()])
+            // Setup identity database
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
                 .await
                 .unwrap();
-        let encryption_repo = EncryptionRepository::new(encryption_conn);
+            let identity_repo = Repository::new(conn);
 
-        // Create temp dir for local keys
-        let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
-        let key_path = temp_dir.path().join("test-key");
+            // Setup encryption database
+            let (_encryption_db, encryption_conn) =
+                setup_in_memory_database(vec![EncryptionRepository::load_sql_migrations()])
+                    .await
+                    .unwrap();
+            let encryption_repo = EncryptionRepository::new(encryption_conn);
 
-        // Create envelope key
-        let envelope_key_contents = get_or_create_local_envelope_encryption_key(&key_path).unwrap();
-        let envelope_key =
-            encryption::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents);
-        let create_params = encryption::repository::CreateEnvelopeEncryptionKey::from((
-            envelope_key.clone(),
-            WrappedChronoDateTime::now(),
-        ));
-        EncryptionKeyRepositoryLike::create_envelope_encryption_key(
-            &encryption_repo,
-            &create_params,
-        )
-        .await
-        .unwrap();
+            // Create temp dir for local keys
+            let temp_dir = tempfile::TempDir::new().expect("Failed to create temp dir");
+            let key_path = temp_dir.path().join("test-key");
 
-        // Create DEK
-        let (tx, _rx) = broadcast::channel(100);
-        let dek = encryption::logic::dek::create_data_encryption_key(
-            &tx,
-            &encryption_repo,
-            CreateDekParams {
-                envelope_encryption_key_id: envelope_key.id(),
-                inner: CreateDekInnerParams {
-                    id: Some("test-dek".to_string()),
-                    encrypted_dek: None,
-                },
-            },
-            temp_dir.path(),
-            false,
-        )
-        .await
-        .unwrap();
-
-        // Create CryptoCache
-        let crypto_cache = CryptoCache::new(encryption_repo.clone(), temp_dir.path().to_path_buf());
-        init_crypto_cache(&crypto_cache).await.unwrap();
-
-        // Create alias for the DEK
-        encryption::logic::dek_alias::create_alias(
-            &tx,
-            &encryption_repo,
-            &crypto_cache,
-            CreateAliasParams {
-                dek_id: dek.id.clone(),
-                inner: CreateAliasInnerParams {
-                    alias: "test-dek-alias".to_string(),
-                },
-            },
-        )
-        .await
-        .unwrap();
-
-        let jwks_cache = JwksCache::new(identity_repo.clone());
-
-        TestContext {
-            identity_repo,
-            crypto_cache,
-            jwks_cache,
-            temp_dir,
-        }
-    }
-
-    #[tokio::test]
-    async fn test_create_jwk() {
-        let ctx = setup_test_context().await;
-
-        let request = CreateJwkRequest {
-            dek_alias: "test-dek-alias".to_string(),
-            expires_in_days: 30,
-        };
-
-        let result = create_jwk(
-            &ctx.identity_repo,
-            &ctx.crypto_cache,
-            &ctx.jwks_cache,
-            request,
-        )
-        .await
-        .unwrap();
-
-        assert!(!result.kid.is_empty());
-        assert!(result.public_key.contains("BEGIN PUBLIC KEY"));
-        assert!(result.public_key.contains("END PUBLIC KEY"));
-    }
-
-    #[tokio::test]
-    async fn test_delete_jwk() {
-        let ctx = setup_test_context().await;
-
-        let request = CreateJwkRequest {
-            dek_alias: "test-dek-alias".to_string(),
-            expires_in_days: 30,
-        };
-
-        let created = create_jwk(
-            &ctx.identity_repo,
-            &ctx.crypto_cache,
-            &ctx.jwks_cache,
-            request,
-        )
-        .await
-        .unwrap();
-
-        // Invalidate the key
-        let params = InvalidateJwkParams {
-            kid: created.kid.clone(),
-        };
-        let auth_client = mock_admin_auth_client();
-        invalidate_jwk(
-            auth_client,
-            Identity::Unauthenticated,
-            Identity::Unauthenticated,
-            &ctx.identity_repo,
-            &ctx.jwks_cache,
-            params,
-        )
-        .await
-        .unwrap();
-
-        // Verify it's invalidated
-        let result = ctx
-            .identity_repo
-            .get_jwt_signing_key_by_kid(&created.kid)
+            // Create envelope key
+            let envelope_key_contents =
+                get_or_create_local_envelope_encryption_key(&key_path).unwrap();
+            let envelope_key =
+                encryption::logic::envelope::EnvelopeEncryptionKey::from(envelope_key_contents);
+            let create_params = encryption::repository::CreateEnvelopeEncryptionKey::from((
+                envelope_key.clone(),
+                WrappedChronoDateTime::now(),
+            ));
+            EncryptionKeyRepositoryLike::create_envelope_encryption_key(
+                &encryption_repo,
+                &create_params,
+            )
             .await
             .unwrap();
-        assert!(result.is_some());
-        assert!(result.unwrap().invalidated);
-    }
 
-    #[tokio::test]
-    async fn test_list_jwks() {
-        let ctx = setup_test_context().await;
+            // Create DEK
+            let (tx, _rx) = broadcast::channel(100);
+            let dek = encryption::logic::dek::create_data_encryption_key(
+                &tx,
+                &encryption_repo,
+                CreateDekParams {
+                    envelope_encryption_key_id: envelope_key.id(),
+                    inner: CreateDekInnerParams {
+                        id: Some("test-dek".to_string()),
+                        encrypted_dek: None,
+                    },
+                },
+                temp_dir.path(),
+                false,
+            )
+            .await
+            .unwrap();
 
-        // Create multiple keys
-        for _ in 0..3 {
+            // Create CryptoCache
+            let crypto_cache =
+                CryptoCache::new(encryption_repo.clone(), temp_dir.path().to_path_buf());
+            init_crypto_cache(&crypto_cache).await.unwrap();
+
+            // Create alias for the DEK
+            encryption::logic::dek_alias::create_alias(
+                &tx,
+                &encryption_repo,
+                &crypto_cache,
+                CreateAliasParams {
+                    dek_id: dek.id.clone(),
+                    inner: CreateAliasInnerParams {
+                        alias: "test-dek-alias".to_string(),
+                    },
+                },
+            )
+            .await
+            .unwrap();
+
+            let jwks_cache = JwksCache::new(identity_repo.clone());
+
+            TestContext {
+                identity_repo,
+                crypto_cache,
+                jwks_cache,
+                temp_dir,
+            }
+        }
+
+        #[tokio::test]
+        async fn test_create_jwk() {
+            let ctx = setup_test_context().await;
+
+            let request = CreateJwkRequest {
+                dek_alias: "test-dek-alias".to_string(),
+                expires_in_days: 30,
+            };
+
+            let result = create_jwk(
+                &ctx.identity_repo,
+                &ctx.crypto_cache,
+                &ctx.jwks_cache,
+                request,
+            )
+            .await
+            .unwrap();
+
+            assert!(!result.kid.is_empty());
+            assert!(result.public_key.contains("BEGIN PUBLIC KEY"));
+            assert!(result.public_key.contains("END PUBLIC KEY"));
+        }
+
+        #[tokio::test]
+        async fn test_delete_jwk() {
+            let ctx = setup_test_context().await;
+
+            let request = CreateJwkRequest {
+                dek_alias: "test-dek-alias".to_string(),
+                expires_in_days: 30,
+            };
+
+            let created = create_jwk(
+                &ctx.identity_repo,
+                &ctx.crypto_cache,
+                &ctx.jwks_cache,
+                request,
+            )
+            .await
+            .unwrap();
+
+            // Invalidate the key
+            let params = InvalidateJwkParams {
+                kid: created.kid.clone(),
+            };
+            let auth_client = mock_admin_auth_client();
+            invalidate_jwk(
+                auth_client,
+                Identity::Unauthenticated,
+                Identity::Unauthenticated,
+                &ctx.identity_repo,
+                &ctx.jwks_cache,
+                params,
+            )
+            .await
+            .unwrap();
+
+            // Verify it's invalidated
+            let result = ctx
+                .identity_repo
+                .get_jwt_signing_key_by_kid(&created.kid)
+                .await
+                .unwrap();
+            assert!(result.is_some());
+            assert!(result.unwrap().invalidated);
+        }
+
+        #[tokio::test]
+        async fn test_list_jwks() {
+            let ctx = setup_test_context().await;
+
+            // Create multiple keys
+            for _ in 0..3 {
+                let request = CreateJwkRequest {
+                    dek_alias: "test-dek-alias".to_string(),
+                    expires_in_days: 30,
+                };
+                create_jwk(
+                    &ctx.identity_repo,
+                    &ctx.crypto_cache,
+                    &ctx.jwks_cache,
+                    request,
+                )
+                .await
+                .unwrap();
+            }
+
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+
+            let auth_client = mock_admin_auth_client();
+            let result = list_jwks(
+                auth_client,
+                Identity::Unauthenticated,
+                Identity::Unauthenticated,
+                &ctx.identity_repo,
+                &pagination,
+            )
+            .await
+            .unwrap();
+            assert_eq!(result.items.len(), 3);
+        }
+
+        #[tokio::test]
+        async fn test_get_jwks() {
+            let ctx = setup_test_context().await;
+
+            // Create a key
             let request = CreateJwkRequest {
                 dek_alias: "test-dek-alias".to_string(),
                 expires_in_days: 30,
@@ -611,58 +653,21 @@ mod unit_test {
             )
             .await
             .unwrap();
+
+            let jwks = get_jwks(&ctx.identity_repo, &ctx.jwks_cache).await.unwrap();
+            assert_eq!(jwks.keys.len(), 1);
+            assert_eq!(jwks.keys[0].kty, "RSA");
+            assert_eq!(jwks.keys[0].use_, "sig");
+            assert_eq!(jwks.keys[0].alg, "RS256");
+            assert!(!jwks.keys[0].kid.is_empty());
+            assert!(!jwks.keys[0].n.is_empty());
+            assert!(!jwks.keys[0].e.is_empty());
         }
 
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-
-        let auth_client = mock_admin_auth_client();
-        let result = list_jwks(
-            auth_client,
-            Identity::Unauthenticated,
-            Identity::Unauthenticated,
-            &ctx.identity_repo,
-            &pagination,
-        )
-        .await
-        .unwrap();
-        assert_eq!(result.items.len(), 3);
-    }
-
-    #[tokio::test]
-    async fn test_get_jwks() {
-        let ctx = setup_test_context().await;
-
-        // Create a key
-        let request = CreateJwkRequest {
-            dek_alias: "test-dek-alias".to_string(),
-            expires_in_days: 30,
-        };
-        create_jwk(
-            &ctx.identity_repo,
-            &ctx.crypto_cache,
-            &ctx.jwks_cache,
-            request,
-        )
-        .await
-        .unwrap();
-
-        let jwks = get_jwks(&ctx.identity_repo, &ctx.jwks_cache).await.unwrap();
-        assert_eq!(jwks.keys.len(), 1);
-        assert_eq!(jwks.keys[0].kty, "RSA");
-        assert_eq!(jwks.keys[0].use_, "sig");
-        assert_eq!(jwks.keys[0].alg, "RS256");
-        assert!(!jwks.keys[0].kid.is_empty());
-        assert!(!jwks.keys[0].n.is_empty());
-        assert!(!jwks.keys[0].e.is_empty());
-    }
-
-    #[test]
-    fn test_pem_to_jwk() {
-        // Test with a sample RSA public key PEM
-        let pem = r#"-----BEGIN PUBLIC KEY-----
+        #[test]
+        fn test_pem_to_jwk() {
+            // Test with a sample RSA public key PEM
+            let pem = r#"-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1234567890abcdefghijklmnopqrstuvwxyz
 ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRST
 UVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abc
@@ -679,211 +684,212 @@ ghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwx
 QAB
 -----END PUBLIC KEY-----"#;
 
-        // This test will fail with invalid PEM, but tests the function structure
-        // In real usage, valid PEM keys will be used
-        let result = pem_to_jwk(pem, "test-kid");
-        // We expect this to fail with invalid PEM, but the function should handle it gracefully
-        assert!(result.is_err());
-    }
+            // This test will fail with invalid PEM, but tests the function structure
+            // In real usage, valid PEM keys will be used
+            let result = pem_to_jwk(pem, "test-kid");
+            // We expect this to fail with invalid PEM, but the function should handle it gracefully
+            assert!(result.is_err());
+        }
 
-    #[tokio::test]
-    async fn test_check_jwks_exists_on_start_no_keys() {
-        let ctx = setup_test_context().await;
+        #[tokio::test]
+        async fn test_check_jwks_exists_on_start_no_keys() {
+            let ctx = setup_test_context().await;
 
-        // Initially no keys should exist
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-        let initial_keys = ctx
-            .identity_repo
-            .list_jwt_signing_keys(&pagination)
+            // Initially no keys should exist
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+            let initial_keys = ctx
+                .identity_repo
+                .list_jwt_signing_keys(&pagination)
+                .await
+                .unwrap();
+            assert_eq!(initial_keys.items.len(), 0);
+
+            // Call check_jwks_exists_on_start
+            check_jwks_exists_on_start(
+                &ctx.identity_repo,
+                &ctx.crypto_cache,
+                &ctx.jwks_cache,
+                "test-dek-alias",
+            )
             .await
             .unwrap();
-        assert_eq!(initial_keys.items.len(), 0);
 
-        // Call check_jwks_exists_on_start
-        check_jwks_exists_on_start(
-            &ctx.identity_repo,
-            &ctx.crypto_cache,
-            &ctx.jwks_cache,
-            "test-dek-alias",
-        )
-        .await
-        .unwrap();
+            // Now a key should exist
+            let after_keys = ctx
+                .identity_repo
+                .list_jwt_signing_keys(&pagination)
+                .await
+                .unwrap();
+            assert_eq!(after_keys.items.len(), 1);
+        }
 
-        // Now a key should exist
-        let after_keys = ctx
-            .identity_repo
-            .list_jwt_signing_keys(&pagination)
+        #[tokio::test]
+        async fn test_check_jwks_exists_on_start_with_keys() {
+            let ctx = setup_test_context().await;
+
+            // Create a key first
+            let request = CreateJwkRequest {
+                dek_alias: "test-dek-alias".to_string(),
+                expires_in_days: 30,
+            };
+            create_jwk(
+                &ctx.identity_repo,
+                &ctx.crypto_cache,
+                &ctx.jwks_cache,
+                request,
+            )
             .await
             .unwrap();
-        assert_eq!(after_keys.items.len(), 1);
-    }
 
-    #[tokio::test]
-    async fn test_check_jwks_exists_on_start_with_keys() {
-        let ctx = setup_test_context().await;
+            // Count keys before
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+            let before_keys = ctx
+                .identity_repo
+                .list_jwt_signing_keys(&pagination)
+                .await
+                .unwrap();
+            let before_count = before_keys.items.len();
 
-        // Create a key first
-        let request = CreateJwkRequest {
-            dek_alias: "test-dek-alias".to_string(),
-            expires_in_days: 30,
-        };
-        create_jwk(
-            &ctx.identity_repo,
-            &ctx.crypto_cache,
-            &ctx.jwks_cache,
-            request,
-        )
-        .await
-        .unwrap();
-
-        // Count keys before
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-        let before_keys = ctx
-            .identity_repo
-            .list_jwt_signing_keys(&pagination)
+            // Call check_jwks_exists_on_start - should not create another
+            check_jwks_exists_on_start(
+                &ctx.identity_repo,
+                &ctx.crypto_cache,
+                &ctx.jwks_cache,
+                "test-dek-alias",
+            )
             .await
             .unwrap();
-        let before_count = before_keys.items.len();
 
-        // Call check_jwks_exists_on_start - should not create another
-        check_jwks_exists_on_start(
-            &ctx.identity_repo,
-            &ctx.crypto_cache,
-            &ctx.jwks_cache,
-            "test-dek-alias",
-        )
-        .await
-        .unwrap();
+            // Count should be the same
+            let after_keys = ctx
+                .identity_repo
+                .list_jwt_signing_keys(&pagination)
+                .await
+                .unwrap();
+            assert_eq!(after_keys.items.len(), before_count);
+        }
 
-        // Count should be the same
-        let after_keys = ctx
-            .identity_repo
-            .list_jwt_signing_keys(&pagination)
+        #[tokio::test]
+        async fn test_process_jwk_rotation_no_valid_keys() {
+            let ctx = setup_test_context().await;
+
+            // Create a key that expires in 2 days (less than 5 days threshold)
+            let request = CreateJwkRequest {
+                dek_alias: "test-dek-alias".to_string(),
+                expires_in_days: 2,
+            };
+            create_jwk(
+                &ctx.identity_repo,
+                &ctx.crypto_cache,
+                &ctx.jwks_cache,
+                request,
+            )
             .await
             .unwrap();
-        assert_eq!(after_keys.items.len(), before_count);
-    }
 
-    #[tokio::test]
-    async fn test_process_jwk_rotation_no_valid_keys() {
-        let ctx = setup_test_context().await;
-
-        // Create a key that expires in 2 days (less than 5 days threshold)
-        let request = CreateJwkRequest {
-            dek_alias: "test-dek-alias".to_string(),
-            expires_in_days: 2,
-        };
-        create_jwk(
-            &ctx.identity_repo,
-            &ctx.crypto_cache,
-            &ctx.jwks_cache,
-            request,
-        )
-        .await
-        .unwrap();
-
-        // Process rotation - should create a new key
-        process_jwk_rotation(
-            &ctx.identity_repo,
-            &ctx.crypto_cache,
-            &ctx.jwks_cache,
-            "test-dek-alias",
-        )
-        .await
-        .unwrap();
-
-        // Should have 2 keys now
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-        let keys = ctx
-            .identity_repo
-            .list_jwt_signing_keys(&pagination)
+            // Process rotation - should create a new key
+            process_jwk_rotation(
+                &ctx.identity_repo,
+                &ctx.crypto_cache,
+                &ctx.jwks_cache,
+                "test-dek-alias",
+            )
             .await
             .unwrap();
-        assert_eq!(keys.items.len(), 2);
-    }
 
-    #[tokio::test]
-    async fn test_process_jwk_rotation_with_valid_keys() {
-        let ctx = setup_test_context().await;
+            // Should have 2 keys now
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+            let keys = ctx
+                .identity_repo
+                .list_jwt_signing_keys(&pagination)
+                .await
+                .unwrap();
+            assert_eq!(keys.items.len(), 2);
+        }
 
-        // Create a key that expires in 10 days (more than 5 days threshold)
-        let request = CreateJwkRequest {
-            dek_alias: "test-dek-alias".to_string(),
-            expires_in_days: 10,
-        };
-        create_jwk(
-            &ctx.identity_repo,
-            &ctx.crypto_cache,
-            &ctx.jwks_cache,
-            request,
-        )
-        .await
-        .unwrap();
+        #[tokio::test]
+        async fn test_process_jwk_rotation_with_valid_keys() {
+            let ctx = setup_test_context().await;
 
-        // Count keys before
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-        let before_keys = ctx
-            .identity_repo
-            .list_jwt_signing_keys(&pagination)
+            // Create a key that expires in 10 days (more than 5 days threshold)
+            let request = CreateJwkRequest {
+                dek_alias: "test-dek-alias".to_string(),
+                expires_in_days: 10,
+            };
+            create_jwk(
+                &ctx.identity_repo,
+                &ctx.crypto_cache,
+                &ctx.jwks_cache,
+                request,
+            )
             .await
             .unwrap();
-        let before_count = before_keys.items.len();
 
-        // Process rotation - should NOT create a new key
-        process_jwk_rotation(
-            &ctx.identity_repo,
-            &ctx.crypto_cache,
-            &ctx.jwks_cache,
-            "test-dek-alias",
-        )
-        .await
-        .unwrap();
+            // Count keys before
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+            let before_keys = ctx
+                .identity_repo
+                .list_jwt_signing_keys(&pagination)
+                .await
+                .unwrap();
+            let before_count = before_keys.items.len();
 
-        // Count should be the same
-        let after_keys = ctx
-            .identity_repo
-            .list_jwt_signing_keys(&pagination)
+            // Process rotation - should NOT create a new key
+            process_jwk_rotation(
+                &ctx.identity_repo,
+                &ctx.crypto_cache,
+                &ctx.jwks_cache,
+                "test-dek-alias",
+            )
             .await
             .unwrap();
-        assert_eq!(after_keys.items.len(), before_count);
-    }
 
-    #[tokio::test]
-    async fn test_process_jwk_rotation_no_keys() {
-        let ctx = setup_test_context().await;
+            // Count should be the same
+            let after_keys = ctx
+                .identity_repo
+                .list_jwt_signing_keys(&pagination)
+                .await
+                .unwrap();
+            assert_eq!(after_keys.items.len(), before_count);
+        }
 
-        // Process rotation with no keys - should create one
-        process_jwk_rotation(
-            &ctx.identity_repo,
-            &ctx.crypto_cache,
-            &ctx.jwks_cache,
-            "test-dek-alias",
-        )
-        .await
-        .unwrap();
+        #[tokio::test]
+        async fn test_process_jwk_rotation_no_keys() {
+            let ctx = setup_test_context().await;
 
-        // Should have 1 key now
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-        let keys = ctx
-            .identity_repo
-            .list_jwt_signing_keys(&pagination)
+            // Process rotation with no keys - should create one
+            process_jwk_rotation(
+                &ctx.identity_repo,
+                &ctx.crypto_cache,
+                &ctx.jwks_cache,
+                "test-dek-alias",
+            )
             .await
             .unwrap();
-        assert_eq!(keys.items.len(), 1);
+
+            // Should have 1 key now
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+            let keys = ctx
+                .identity_repo
+                .list_jwt_signing_keys(&pagination)
+                .await
+                .unwrap();
+            assert_eq!(keys.items.len(), 1);
+        }
     }
 }

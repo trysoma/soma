@@ -77,9 +77,9 @@ js-build: ## Build all JS projects
 
 rs-build: ## Build all Rust projects
 	@echo "Building Rust projects..."
-	cargo build --features unit_test,integration_test
+	cargo build
 	@echo "Building Rust tests..."
-	cargo test --features unit_test,integration_test --no-run
+	cargo test --no-run
 	@echo "✓ Rust projects built"
 
 py-clean-cache: ## Clean Python bytecode cache files
@@ -174,28 +174,10 @@ clean: ## Clean build artifacts and cache files
 	find . -type d -name "coverage" -not -path "./node_modules/*" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✓ Clean completed"
 
-test: test-unit ## Run unit tests only (Rust + JS + Python) - alias for test-unit
-
-test-unit: ## Run unit tests only (Rust + JS + Python) - excludes AWS integration tests
-	@echo "Running Rust unit tests..."
-	cargo nextest run --features unit_test
-	@echo "Running JS tests..."
-	pnpm -r --workspace-concurrency=1 --filter '!@trysoma/api-client' run test
-	@echo "Running Python tests..."
-	uv run pytest py/packages/sdk/tests --tb=short -q || echo "⚠ No Python tests or tests skipped"
-	@echo "✓ Unit tests passed"
-
-test-integration: ## Run integration tests only (requires AWS credentials)
-	@echo "Running Rust integration tests (requires AWS credentials)..."
-	cd test && docker compose up -d && cd ../
-	cargo nextest run --features integration_test
-	cd test && docker compose down && cd ../
-	@echo "✓ Integration tests passed"
-
-test-all: ## Run all tests including integration tests (Rust + JS)
+test: 
 	@echo "Running all Rust tests (unit + integration)..."
 	cd test && docker compose up -d && cd ../
-	cargo nextest run --features unit_test,integration_test
+	cargo nextest run
 	@echo "Running JS tests..."
 	pnpm -r --workspace-concurrency=1 --filter '!@trysoma/api-client' run test
 	@echo "Running Python tests..."
@@ -219,7 +201,7 @@ test-coverage: ## Run tests with coverage and generate merged report
 	@mkdir -p .coverage-tmp coverage
 	@echo "Running Rust tests with coverage..."
 	cd test && docker compose up -d && cd ../
-	cargo llvm-cov nextest --features unit_test,integration_test --workspace --lcov --output-path .coverage-tmp/rust.lcov
+	cargo llvm-cov nextest --workspace --lcov --output-path .coverage-tmp/rust.lcov
 	@echo "✓ Rust coverage generated"
 	@echo "Running JS tests with coverage..."
 	pnpm -r --workspace-concurrency=1 --filter './js/packages/*' --filter './crates/sdk-js' run test:coverage

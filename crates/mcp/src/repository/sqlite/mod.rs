@@ -1225,2730 +1225,2758 @@ impl SqlMigrationLoader for Repository {
     }
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
-    use crate::logic::{
-        Metadata, ProviderInstanceSerialized,
-        credential::{BrokerAction, BrokerActionRedirect},
-        instance::FunctionInstanceSerialized,
-    };
-    use crate::repository::{
-        BrokerState, CreateBrokerState, CreateFunctionInstance, CreateProviderInstance,
-        CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
-        ResourceServerCredentialSerialized, UserCredentialSerialized,
-    };
-    use shared::primitives::{
-        SqlMigrationLoader, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4,
-    };
-    use shared::test_utils::repository::setup_in_memory_database;
-
-    /// Helper to create a test DEK alias for tests.
-    /// Since mcp repository no longer manages DEKs, we just return a test alias string.
-    fn create_test_dek_alias() -> String {
-        format!("test-dek-{}", uuid::Uuid::new_v4())
-    }
-
-    #[tokio::test]
-    async fn test_create_and_get_resource_server_credential() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        let credential = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_oauth2_authorization_code_flow".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({
-                "client_id": "test_client",
-                "client_secret": "test_secret",
-                "redirect_uri": "https://example.com/callback"
-            })),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias,
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
+        use crate::logic::{
+            Metadata, ProviderInstanceSerialized,
+            credential::{BrokerAction, BrokerActionRedirect},
+            instance::FunctionInstanceSerialized,
         };
-
-        let create_params = CreateResourceServerCredential::from(credential.clone());
-        repo.create_resource_server_credential(&create_params)
-            .await
-            .unwrap();
-
-        // Verify it was created
-        let retrieved = repo
-            .get_resource_server_credential_by_id(&credential.id)
-            .await
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(retrieved.id, credential.id);
-        assert_eq!(retrieved.type_id, credential.type_id);
-    }
-
-    #[tokio::test]
-    async fn test_create_and_get_user_credential() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        let credential = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "oauth2_authorization_code_flow".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({
-                "code": "test_code",
-                "access_token": "test_access_token",
-                "refresh_token": "test_refresh_token",
-                "expiry_time": now.to_string(),
-                "sub": "test_sub"
-            })),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: Some(now),
-            dek_alias,
+        use crate::repository::{
+            BrokerState, CreateBrokerState, CreateFunctionInstance, CreateProviderInstance,
+            CreateResourceServerCredential, CreateUserCredential, ProviderRepositoryLike,
+            ResourceServerCredentialSerialized, UserCredentialSerialized,
         };
-
-        let create_params = CreateUserCredential::from(credential.clone());
-        repo.create_user_credential(&create_params).await.unwrap();
-
-        // Verify it was created
-        let retrieved = repo
-            .get_user_credential_by_id(&credential.id)
-            .await
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(retrieved.id, credential.id);
-        assert_eq!(retrieved.type_id, credential.type_id);
-    }
-
-    #[tokio::test]
-    async fn test_create_and_get_provider_instance() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create resource server credential
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
+        use shared::primitives::{
+            SqlMigrationLoader, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4,
         };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
+        use shared::test_utils::repository::setup_in_memory_database;
 
-        // Create user credential
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
-            .await
-            .unwrap();
-
-        // Create provider instance
-        let provider_instance = ProviderInstanceSerialized {
-            id: uuid::Uuid::new_v4().to_string(),
-            display_name: "Test Provider".to_string(),
-            resource_server_credential_id: resource_server_cred.id.clone(),
-            user_credential_id: Some(user_cred.id.clone()),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
-            .await
-            .unwrap();
-
-        // Verify it was created
-        let retrieved = repo
-            .get_provider_instance_by_id(&provider_instance.id)
-            .await
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(retrieved.provider_instance.id, provider_instance.id);
-        assert_eq!(
-            retrieved.provider_instance.display_name,
-            provider_instance.display_name
-        );
-        assert_eq!(
-            retrieved.provider_instance.provider_controller_type_id,
-            provider_instance.provider_controller_type_id
-        );
-    }
-
-    #[tokio::test]
-    async fn test_update_provider_instance() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create resource server credential
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
-
-        // Create user credential
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
-            .await
-            .unwrap();
-
-        // Create provider instance
-        let provider_instance = ProviderInstanceSerialized {
-            id: uuid::Uuid::new_v4().to_string(),
-            display_name: "Original Name".to_string(),
-            resource_server_credential_id: resource_server_cred.id.clone(),
-            user_credential_id: Some(user_cred.id.clone()),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
-            .await
-            .unwrap();
-
-        // Verify it was created with original name
-        let retrieved = repo
-            .get_provider_instance_by_id(&provider_instance.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(retrieved.provider_instance.display_name, "Original Name");
-
-        // Store the original updated_at timestamp
-        let original_updated_at = retrieved.provider_instance.updated_at;
-
-        // Sleep 1 second to ensure different timestamp (SQLite CURRENT_TIMESTAMP has second precision)
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
-        // Update the display name
-        repo.update_provider_instance(&provider_instance.id, "Updated Name")
-            .await
-            .unwrap();
-
-        // Verify it was updated
-        let updated = repo
-            .get_provider_instance_by_id(&provider_instance.id)
-            .await
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(updated.provider_instance.id, provider_instance.id);
-        assert_eq!(updated.provider_instance.display_name, "Updated Name");
-        // Verify updated_at was changed (should be greater than the original)
-        assert!(updated.provider_instance.updated_at.get_inner() > original_updated_at.get_inner());
-    }
-
-    #[tokio::test]
-    async fn test_delete_provider_instance() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create resource server credential
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
-
-        // Create user credential
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
-            .await
-            .unwrap();
-
-        // Create provider instance
-        let provider_instance = ProviderInstanceSerialized {
-            id: uuid::Uuid::new_v4().to_string(),
-            display_name: "Test Provider Delete".to_string(),
-            resource_server_credential_id: resource_server_cred.id.clone(),
-            user_credential_id: Some(user_cred.id.clone()),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
-            .await
-            .unwrap();
-
-        // Verify it was created
-        let retrieved = repo
-            .get_provider_instance_by_id(&provider_instance.id)
-            .await
-            .unwrap();
-        assert!(retrieved.is_some());
-
-        // Delete the provider instance
-        repo.delete_provider_instance(&provider_instance.id)
-            .await
-            .unwrap();
-
-        // Verify it was deleted
-        let deleted = repo
-            .get_provider_instance_by_id(&provider_instance.id)
-            .await
-            .unwrap();
-
-        assert!(deleted.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_delete_provider_instance_with_cascade() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create resource server credential
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
-
-        // Create user credential
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
-            .await
-            .unwrap();
-
-        // Create provider instance
-        let provider_instance = ProviderInstanceSerialized {
-            id: uuid::Uuid::new_v4().to_string(),
-            display_name: "Test Provider Cascade".to_string(),
-            resource_server_credential_id: resource_server_cred.id,
-            user_credential_id: Some(user_cred.id),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
-            .await
-            .unwrap();
-
-        // Create a function instance that depends on the provider instance
-        let function_instance = FunctionInstanceSerialized {
-            function_controller_type_id: "send_email".to_string(),
-            provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance.id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
-            .await
-            .unwrap();
-
-        // Verify function instance was created
-        let retrieved_function = repo
-            .get_function_instance_by_id(
-                &function_instance.function_controller_type_id,
-                &function_instance.provider_controller_type_id,
-                &function_instance.provider_instance_id,
-            )
-            .await
-            .unwrap();
-        assert!(retrieved_function.is_some());
-
-        // Delete the provider instance - should cascade delete function instances
-        repo.delete_provider_instance(&provider_instance.id)
-            .await
-            .unwrap();
-
-        // Verify provider instance was deleted
-        let deleted_provider = repo
-            .get_provider_instance_by_id(&provider_instance.id)
-            .await
-            .unwrap();
-        assert!(deleted_provider.is_none());
-
-        // Verify function instance was also cascade deleted
-        let deleted_function = repo
-            .get_function_instance_by_id(
-                &function_instance.function_controller_type_id,
-                &function_instance.provider_controller_type_id,
-                &function_instance.provider_instance_id,
-            )
-            .await
-            .unwrap();
-        assert!(deleted_function.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_create_get_and_delete_function_instance() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Setup credentials and provider instance
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
-
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
-            .await
-            .unwrap();
-
-        let provider_instance = ProviderInstanceSerialized {
-            id: uuid::Uuid::new_v4().to_string(),
-            display_name: "Test Provider Function".to_string(),
-            resource_server_credential_id: resource_server_cred.id,
-            user_credential_id: Some(user_cred.id),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
-            .await
-            .unwrap();
-
-        // Create function instance
-        let function_instance = FunctionInstanceSerialized {
-            function_controller_type_id: "send_email".to_string(),
-            provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance.id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
-            .await
-            .unwrap();
-
-        // Verify it was created
-        let retrieved = repo
-            .get_function_instance_by_id(
-                &function_instance.function_controller_type_id,
-                &function_instance.provider_controller_type_id,
-                &function_instance.provider_instance_id,
-            )
-            .await
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(
-            retrieved.function_controller_type_id,
-            function_instance.function_controller_type_id
-        );
-        assert_eq!(
-            retrieved.provider_controller_type_id,
-            function_instance.provider_controller_type_id
-        );
-        assert_eq!(
-            retrieved.provider_instance_id,
-            function_instance.provider_instance_id
-        );
-
-        // Delete the function instance
-        repo.delete_function_instance(
-            &function_instance.function_controller_type_id,
-            &function_instance.provider_controller_type_id,
-            &function_instance.provider_instance_id,
-        )
-        .await
-        .unwrap();
-
-        // Verify it was deleted
-        let deleted = repo
-            .get_function_instance_by_id(
-                &function_instance.function_controller_type_id,
-                &function_instance.provider_controller_type_id,
-                &function_instance.provider_instance_id,
-            )
-            .await
-            .unwrap();
-
-        assert!(deleted.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_create_and_get_broker_state() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create resource server credential for broker state
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_oauth2_authorization_code_flow".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias,
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
-
-        let provider_instance = ProviderInstanceSerialized {
-            id: uuid::Uuid::new_v4().to_string(),
-            display_name: "Test Provider Function".to_string(),
-            resource_server_credential_id: resource_server_cred.id,
-            user_credential_id: None,
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
-            .await
-            .unwrap();
-
-        let broker_state = BrokerState {
-            id: uuid::Uuid::new_v4().to_string(),
-            created_at: now,
-            updated_at: now,
-            provider_instance_id: provider_instance.id,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "oauth2_authorization_code_flow".to_string(),
-            metadata: Metadata::new(),
-            action: BrokerAction::Redirect(BrokerActionRedirect {
-                url: "https://example.com/oauth/authorize".to_string(),
-            }),
-        };
-
-        repo.create_broker_state(&CreateBrokerState::from(broker_state.clone()))
-            .await
-            .unwrap();
-
-        // Verify it was created
-        let retrieved = repo
-            .get_broker_state_by_id(&broker_state.id)
-            .await
-            .unwrap()
-            .unwrap();
-
-        assert_eq!(retrieved.id, broker_state.id);
-        assert_eq!(
-            retrieved.provider_controller_type_id,
-            broker_state.provider_controller_type_id
-        );
-        match retrieved.action {
-            BrokerAction::Redirect(redirect) => {
-                assert_eq!(redirect.url, "https://example.com/oauth/authorize")
-            }
-            _ => panic!("Expected Redirect action"),
+        /// Helper to create a test DEK alias for tests.
+        /// Since mcp repository no longer manages DEKs, we just return a test alias string.
+        fn create_test_dek_alias() -> String {
+            format!("test-dek-{}", uuid::Uuid::new_v4())
         }
-    }
 
-    #[tokio::test]
-    async fn test_delete_broker_state() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
+        #[tokio::test]
+        async fn test_create_and_get_resource_server_credential() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
 
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
 
-        // Create resource server credential
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias,
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
+            let credential = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_oauth2_authorization_code_flow".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({
+                    "client_id": "test_client",
+                    "client_secret": "test_secret",
+                    "redirect_uri": "https://example.com/callback"
+                })),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias,
+            };
 
-        let provider_instance = ProviderInstanceSerialized {
-            id: uuid::Uuid::new_v4().to_string(),
-            display_name: "Test Provider Function".to_string(),
-            resource_server_credential_id: resource_server_cred.id,
-            user_credential_id: None,
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
-            .await
-            .unwrap();
+            let create_params = CreateResourceServerCredential::from(credential.clone());
+            repo.create_resource_server_credential(&create_params)
+                .await
+                .unwrap();
 
-        let broker_state = BrokerState {
-            id: uuid::Uuid::new_v4().to_string(),
-            created_at: now,
-            updated_at: now,
-            provider_instance_id: provider_instance.id,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            metadata: Metadata::new(),
-            action: BrokerAction::None,
-        };
+            // Verify it was created
+            let retrieved = repo
+                .get_resource_server_credential_by_id(&credential.id)
+                .await
+                .unwrap()
+                .unwrap();
 
-        repo.create_broker_state(&CreateBrokerState::from(broker_state.clone()))
-            .await
-            .unwrap();
+            assert_eq!(retrieved.id, credential.id);
+            assert_eq!(retrieved.type_id, credential.type_id);
+        }
 
-        // Delete the broker state
-        repo.delete_broker_state(&broker_state.id).await.unwrap();
+        #[tokio::test]
+        async fn test_create_and_get_user_credential() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
 
-        // Verify it was deleted
-        let deleted = repo.get_broker_state_by_id(&broker_state.id).await.unwrap();
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
 
-        assert!(deleted.is_none());
-    }
+            let credential = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "oauth2_authorization_code_flow".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({
+                    "code": "test_code",
+                    "access_token": "test_access_token",
+                    "refresh_token": "test_refresh_token",
+                    "expiry_time": now.to_string(),
+                    "sub": "test_sub"
+                })),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: Some(now),
+                dek_alias,
+            };
 
-    #[tokio::test]
-    async fn test_get_nonexistent_records() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
+            let create_params = CreateUserCredential::from(credential.clone());
+            repo.create_user_credential(&create_params).await.unwrap();
 
-        // Test getting nonexistent resource server credential
-        let result = repo
-            .get_resource_server_credential_by_id(&WrappedUuidV4::new())
-            .await
-            .unwrap();
-        assert!(result.is_none());
+            // Verify it was created
+            let retrieved = repo
+                .get_user_credential_by_id(&credential.id)
+                .await
+                .unwrap()
+                .unwrap();
 
-        // Test getting nonexistent user credential
-        let result = repo
-            .get_user_credential_by_id(&WrappedUuidV4::new())
-            .await
-            .unwrap();
-        assert!(result.is_none());
+            assert_eq!(retrieved.id, credential.id);
+            assert_eq!(retrieved.type_id, credential.type_id);
+        }
 
-        // Test getting nonexistent provider instance
-        let result = repo
-            .get_provider_instance_by_id(&uuid::Uuid::new_v4().to_string())
-            .await
-            .unwrap();
-        assert!(result.is_none());
+        #[tokio::test]
+        async fn test_create_and_get_provider_instance() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
 
-        // Test getting nonexistent function instance
-        let result = repo
-            .get_function_instance_by_id(
-                "nonexistent_function",
-                "nonexistent_provider",
-                &uuid::Uuid::new_v4().to_string(),
-            )
-            .await
-            .unwrap();
-        assert!(result.is_none());
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
 
-        // Test getting nonexistent broker state
-        let result = repo
-            .get_broker_state_by_id(&uuid::Uuid::new_v4().to_string())
-            .await
-            .unwrap();
-        assert!(result.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_list_provider_instances_json_deserialization() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create resource server credential with JSON fields
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_oauth2".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({
-                "client_id": "test_client",
-                "client_secret": "test_secret"
-            })),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
-
-        // Create user credential with JSON fields
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "oauth2_token".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({
-                "access_token": "test_token",
-                "refresh_token": "test_refresh"
-            })),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+            // Create resource server credential
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
             .await
             .unwrap();
 
-        // Create provider instance
-        let provider_instance = ProviderInstanceSerialized {
-            id: uuid::Uuid::new_v4().to_string(),
-            display_name: "Test Provider JSON".to_string(),
-            resource_server_credential_id: resource_server_cred.id.clone(),
-            user_credential_id: Some(user_cred.id.clone()),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "oauth2".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
-            .await
-            .unwrap();
+            // Create user credential
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+                .await
+                .unwrap();
 
-        // Create a function instance
-        let function_instance = FunctionInstanceSerialized {
-            function_controller_type_id: "send_email".to_string(),
-            provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance.id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
-            .await
-            .unwrap();
+            // Create provider instance
+            let provider_instance = ProviderInstanceSerialized {
+                id: uuid::Uuid::new_v4().to_string(),
+                display_name: "Test Provider".to_string(),
+                resource_server_credential_id: resource_server_cred.id.clone(),
+                user_credential_id: Some(user_cred.id.clone()),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
 
-        // List provider instances - this will test JSON deserialization
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+                .await
+                .unwrap();
 
-        let result = repo
-            .list_provider_instances(&pagination, None, None)
-            .await
-            .unwrap();
+            // Verify it was created
+            let retrieved = repo
+                .get_provider_instance_by_id(&provider_instance.id)
+                .await
+                .unwrap()
+                .unwrap();
 
-        assert_eq!(result.items.len(), 1);
-        let item = &result.items[0];
-
-        // Verify provider instance
-        assert_eq!(item.provider_instance.id, provider_instance.id);
-        assert_eq!(
-            item.provider_instance.display_name,
-            provider_instance.display_name
-        );
-
-        // Verify resource server credential was deserialized correctly
-        assert_eq!(item.resource_server_credential.id, resource_server_cred.id);
-        assert_eq!(
-            item.resource_server_credential.type_id,
-            resource_server_cred.type_id
-        );
-        // Verify the JSON value was properly deserialized (not double-encoded)
-        let rsc_value = item.resource_server_credential.value.get_inner();
-        assert_eq!(rsc_value.get("client_id").unwrap(), "test_client");
-        assert_eq!(rsc_value.get("client_secret").unwrap(), "test_secret");
-
-        // Verify user credential was deserialized correctly
-        assert!(item.user_credential.is_some());
-        let uc = item.user_credential.as_ref().unwrap();
-        assert_eq!(uc.id, user_cred.id);
-        assert_eq!(uc.type_id, user_cred.type_id);
-        // Verify the JSON value was properly deserialized (not double-encoded)
-        let uc_value = uc.value.get_inner();
-        assert_eq!(uc_value.get("access_token").unwrap(), "test_token");
-        assert_eq!(uc_value.get("refresh_token").unwrap(), "test_refresh");
-
-        // Verify functions were deserialized correctly
-        assert_eq!(item.functions.len(), 1);
-        assert_eq!(
-            item.functions[0].function_controller_type_id,
-            function_instance.function_controller_type_id
-        );
-        assert_eq!(
-            item.functions[0].provider_controller_type_id,
-            function_instance.provider_controller_type_id
-        );
-        assert_eq!(
-            item.functions[0].provider_instance_id,
-            function_instance.provider_instance_id
-        );
-    }
-
-    #[tokio::test]
-    async fn test_get_provider_instance_by_id_json_deserialization() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create resource server credential with JSON fields
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_oauth2".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({
-                "client_id": "test_client_123",
-                "client_secret": "test_secret_456"
-            })),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
-
-        // Create user credential with JSON fields
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "oauth2_token".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({
-                "access_token": "test_access_token_789",
-                "refresh_token": "test_refresh_token_000"
-            })),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
-            .await
-            .unwrap();
-
-        // Create provider instance
-        let provider_instance = ProviderInstanceSerialized {
-            id: uuid::Uuid::new_v4().to_string(),
-            display_name: "Test Provider By ID".to_string(),
-            resource_server_credential_id: resource_server_cred.id.clone(),
-            user_credential_id: Some(user_cred.id.clone()),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "github".to_string(),
-            credential_controller_type_id: "oauth2".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
-            .await
-            .unwrap();
-
-        // Create multiple function instances
-        let function_instance_1 = FunctionInstanceSerialized {
-            function_controller_type_id: "create_repo".to_string(),
-            provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance.id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance_1.clone()))
-            .await
-            .unwrap();
-
-        let function_instance_2 = FunctionInstanceSerialized {
-            function_controller_type_id: "create_issue".to_string(),
-            provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance.id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance_2.clone()))
-            .await
-            .unwrap();
-
-        // Get provider instance by ID - this will test JSON deserialization
-        let result = repo
-            .get_provider_instance_by_id(&provider_instance.id)
-            .await
-            .unwrap()
-            .unwrap();
-
-        // Verify provider instance
-        assert_eq!(result.provider_instance.id, provider_instance.id);
-        assert_eq!(result.provider_instance.display_name, "Test Provider By ID");
-        assert_eq!(
-            result.provider_instance.provider_controller_type_id,
-            "github"
-        );
-
-        // Verify resource server credential was deserialized correctly
-        assert_eq!(
-            result.resource_server_credential.id,
-            resource_server_cred.id
-        );
-        assert_eq!(
-            result.resource_server_credential.type_id,
-            resource_server_cred.type_id
-        );
-        // Verify the JSON value was properly deserialized (not double-encoded)
-        let rsc_value = result.resource_server_credential.value.get_inner();
-        assert_eq!(rsc_value.get("client_id").unwrap(), "test_client_123");
-        assert_eq!(rsc_value.get("client_secret").unwrap(), "test_secret_456");
-
-        // Verify user credential was deserialized correctly
-        assert!(result.user_credential.is_some());
-        let uc = result.user_credential.as_ref().unwrap();
-        assert_eq!(uc.id, user_cred.id);
-        assert_eq!(uc.type_id, user_cred.type_id);
-        // Verify the JSON value was properly deserialized (not double-encoded)
-        let uc_value = uc.value.get_inner();
-        assert_eq!(
-            uc_value.get("access_token").unwrap(),
-            "test_access_token_789"
-        );
-        assert_eq!(
-            uc_value.get("refresh_token").unwrap(),
-            "test_refresh_token_000"
-        );
-
-        // Verify functions were deserialized correctly
-        assert_eq!(result.functions.len(), 2);
-        // Functions are ordered, so verify both are present
-        let func_types: Vec<String> = result
-            .functions
-            .iter()
-            .map(|f| f.function_controller_type_id.clone())
-            .collect();
-        assert!(func_types.contains(&"create_repo".to_string()));
-        assert!(func_types.contains(&"create_issue".to_string()));
-
-        // Verify all functions have the correct provider_controller_type_id and provider_instance_id
-        for func in &result.functions {
+            assert_eq!(retrieved.provider_instance.id, provider_instance.id);
             assert_eq!(
-                func.provider_controller_type_id,
+                retrieved.provider_instance.display_name,
+                provider_instance.display_name
+            );
+            assert_eq!(
+                retrieved.provider_instance.provider_controller_type_id,
                 provider_instance.provider_controller_type_id
             );
-            assert_eq!(func.provider_instance_id, provider_instance.id);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_list_provider_instances_filter_by_status() {
-        shared::setup_test!();
-
-        let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
-            Repository::load_sql_migrations(),
-        ])
-        .await
-        .unwrap();
-        let repo = Repository::new(conn);
-
-        // No need to create DEK - mcp repository doesn't manage encryption keys
-        let now = shared::primitives::WrappedChronoDateTime::now();
-
-        // Create resource server credentials
-        let rsc_id_1 = shared::primitives::WrappedUuidV4::new();
-        let rsc_params_1 = CreateResourceServerCredential {
-            id: rsc_id_1.clone(),
-            type_id: "test_type".to_string(),
-            metadata: crate::logic::Metadata::new(),
-            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({"test": "value"})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: "test-dek".to_string(),
-        };
-        repo.create_resource_server_credential(&rsc_params_1)
-            .await
-            .unwrap();
-
-        let rsc_id_2 = shared::primitives::WrappedUuidV4::new();
-        let rsc_params_2 = CreateResourceServerCredential {
-            id: rsc_id_2.clone(),
-            type_id: "test_type".to_string(),
-            metadata: crate::logic::Metadata::new(),
-            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({"test": "value"})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: "test-dek".to_string(),
-        };
-        repo.create_resource_server_credential(&rsc_params_2)
-            .await
-            .unwrap();
-
-        // Create provider instances with different statuses
-        let pi_params_1 = CreateProviderInstance {
-            id: "pi-active".to_string(),
-            display_name: "Active Provider".to_string(),
-            resource_server_credential_id: rsc_id_1,
-            user_credential_id: None,
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "test_provider".to_string(),
-            credential_controller_type_id: "test_credential".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&pi_params_1).await.unwrap();
-
-        let pi_params_2 = CreateProviderInstance {
-            id: "pi-disabled".to_string(),
-            display_name: "Disabled Provider".to_string(),
-            resource_server_credential_id: rsc_id_2,
-            user_credential_id: None,
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "test_provider".to_string(),
-            credential_controller_type_id: "test_credential".to_string(),
-            status: "disabled".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&pi_params_2).await.unwrap();
-
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-
-        // Test with status=None (should return all)
-        let result_all = repo
-            .list_provider_instances(&pagination, None, None)
-            .await
-            .unwrap();
-        assert_eq!(result_all.items.len(), 2);
-
-        // Test with status="active" (should return only active)
-        let result_active = repo
-            .list_provider_instances(&pagination, Some("active"), None)
-            .await
-            .unwrap();
-        assert_eq!(result_active.items.len(), 1);
-        assert_eq!(result_active.items[0].provider_instance.status, "active");
-
-        // Test with status="disabled" (should return only disabled)
-        let result_disabled = repo
-            .list_provider_instances(&pagination, Some("disabled"), None)
-            .await
-            .unwrap();
-        assert_eq!(result_disabled.items.len(), 1);
-        assert_eq!(
-            result_disabled.items[0].provider_instance.status,
-            "disabled"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_list_function_instances_filter_by_provider_instance() {
-        shared::setup_test!();
-
-        let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
-            Repository::load_sql_migrations(),
-        ])
-        .await
-        .unwrap();
-        let repo = Repository::new(conn);
-
-        // No need to create DEK - mcp repository doesn't manage encryption keys
-        let now = shared::primitives::WrappedChronoDateTime::now();
-
-        // Create resource server credentials
-        let rsc_id_1 = shared::primitives::WrappedUuidV4::new();
-        let rsc_params_1 = CreateResourceServerCredential {
-            id: rsc_id_1.clone(),
-            type_id: "test_type".to_string(),
-            metadata: crate::logic::Metadata::new(),
-            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({"test": "value"})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: "test-dek".to_string(),
-        };
-        repo.create_resource_server_credential(&rsc_params_1)
-            .await
-            .unwrap();
-
-        let rsc_id_2 = shared::primitives::WrappedUuidV4::new();
-        let rsc_params_2 = CreateResourceServerCredential {
-            id: rsc_id_2.clone(),
-            type_id: "test_type".to_string(),
-            metadata: crate::logic::Metadata::new(),
-            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({"test": "value"})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: "test-dek".to_string(),
-        };
-        repo.create_resource_server_credential(&rsc_params_2)
-            .await
-            .unwrap();
-
-        // Create provider instances
-        let pi_params_1 = CreateProviderInstance {
-            id: "pi-1".to_string(),
-            display_name: "Provider 1".to_string(),
-            resource_server_credential_id: rsc_id_1,
-            user_credential_id: None,
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "test_provider".to_string(),
-            credential_controller_type_id: "test_credential".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&pi_params_1).await.unwrap();
-
-        let pi_params_2 = CreateProviderInstance {
-            id: "pi-2".to_string(),
-            display_name: "Provider 2".to_string(),
-            resource_server_credential_id: rsc_id_2,
-            user_credential_id: None,
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "test_provider".to_string(),
-            credential_controller_type_id: "test_credential".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&pi_params_2).await.unwrap();
-
-        // Create function instances for different provider instances
-        let fi_params_1 = CreateFunctionInstance {
-            function_controller_type_id: "test_function_1".to_string(),
-            provider_controller_type_id: "test_provider".to_string(),
-            provider_instance_id: "pi-1".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&fi_params_1).await.unwrap();
-
-        let fi_params_2 = CreateFunctionInstance {
-            function_controller_type_id: "test_function_2".to_string(),
-            provider_controller_type_id: "test_provider".to_string(),
-            provider_instance_id: "pi-1".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&fi_params_2).await.unwrap();
-
-        let fi_params_3 = CreateFunctionInstance {
-            function_controller_type_id: "test_function_3".to_string(),
-            provider_controller_type_id: "test_provider".to_string(),
-            provider_instance_id: "pi-2".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&fi_params_3).await.unwrap();
-
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-
-        // Test with provider_instance_id=None (should return all)
-        let result_all = repo
-            .list_function_instances(&pagination, None)
-            .await
-            .unwrap();
-        assert_eq!(result_all.items.len(), 3);
-
-        // Test with provider_instance_id="pi-1" (should return only pi-1 functions)
-        let result_pi1 = repo
-            .list_function_instances(&pagination, Some("pi-1"))
-            .await
-            .unwrap();
-        assert_eq!(result_pi1.items.len(), 2);
-        assert!(
-            result_pi1
-                .items
-                .iter()
-                .all(|item| item.provider_instance_id == "pi-1")
-        );
-
-        // Test with provider_instance_id="pi-2" (should return only pi-2 functions)
-        let result_pi2 = repo
-            .list_function_instances(&pagination, Some("pi-2"))
-            .await
-            .unwrap();
-        assert_eq!(result_pi2.items.len(), 1);
-        assert_eq!(result_pi2.items[0].provider_instance_id, "pi-2");
-    }
-
-    #[tokio::test]
-    async fn test_list_provider_instances_filter_by_provider_controller_type_id() {
-        shared::setup_test!();
-
-        let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
-            Repository::load_sql_migrations(),
-        ])
-        .await
-        .unwrap();
-        let repo = Repository::new(conn);
-
-        // No need to create DEK - mcp repository doesn't manage encryption keys
-        let now = shared::primitives::WrappedChronoDateTime::now();
-
-        // Create resource server credentials for provider instances
-        let rsc_id_1 = shared::primitives::WrappedUuidV4::new();
-        let rsc_params_1 = CreateResourceServerCredential {
-            id: rsc_id_1.clone(),
-            type_id: "test_type".to_string(),
-            metadata: crate::logic::Metadata::new(),
-            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: "test-dek".to_string(),
-        };
-        repo.create_resource_server_credential(&rsc_params_1)
-            .await
-            .unwrap();
-
-        let rsc_id_2 = shared::primitives::WrappedUuidV4::new();
-        let rsc_params_2 = CreateResourceServerCredential {
-            id: rsc_id_2.clone(),
-            type_id: "test_type".to_string(),
-            metadata: crate::logic::Metadata::new(),
-            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: "test-dek".to_string(),
-        };
-        repo.create_resource_server_credential(&rsc_params_2)
-            .await
-            .unwrap();
-
-        let rsc_id_3 = shared::primitives::WrappedUuidV4::new();
-        let rsc_params_3 = CreateResourceServerCredential {
-            id: rsc_id_3.clone(),
-            type_id: "test_type".to_string(),
-            metadata: crate::logic::Metadata::new(),
-            value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: "test-dek".to_string(),
-        };
-        repo.create_resource_server_credential(&rsc_params_3)
-            .await
-            .unwrap();
-
-        // Create three provider instances with different provider_controller_type_ids
-        let pi_params_1 = CreateProviderInstance {
-            id: "pi-1".to_string(),
-            display_name: "Provider 1".to_string(),
-            resource_server_credential_id: rsc_id_1.clone(),
-            user_credential_id: None,
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "github".to_string(),
-            credential_controller_type_id: "test_cred".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&pi_params_1).await.unwrap();
-
-        let pi_params_2 = CreateProviderInstance {
-            id: "pi-2".to_string(),
-            display_name: "Provider 2".to_string(),
-            resource_server_credential_id: rsc_id_2.clone(),
-            user_credential_id: None,
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "gitlab".to_string(),
-            credential_controller_type_id: "test_cred".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&pi_params_2).await.unwrap();
-
-        let pi_params_3 = CreateProviderInstance {
-            id: "pi-3".to_string(),
-            display_name: "Provider 3".to_string(),
-            resource_server_credential_id: rsc_id_3.clone(),
-            user_credential_id: None,
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "github".to_string(),
-            credential_controller_type_id: "test_cred".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&pi_params_3).await.unwrap();
-
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-
-        // Test with provider_controller_type_id=None (should return all 3)
-        let result_all = repo
-            .list_provider_instances(&pagination, None, None)
-            .await
-            .unwrap();
-        assert_eq!(result_all.items.len(), 3);
-
-        // Test with provider_controller_type_id="github" (should return 2)
-        let result_github = repo
-            .list_provider_instances(&pagination, None, Some("github"))
-            .await
-            .unwrap();
-        assert_eq!(result_github.items.len(), 2);
-        assert!(
-            result_github
-                .items
-                .iter()
-                .all(|item| item.provider_instance.provider_controller_type_id == "github")
-        );
-
-        // Test with provider_controller_type_id="gitlab" (should return 1)
-        let result_gitlab = repo
-            .list_provider_instances(&pagination, None, Some("gitlab"))
-            .await
-            .unwrap();
-        assert_eq!(result_gitlab.items.len(), 1);
-        assert_eq!(
-            result_gitlab.items[0]
-                .provider_instance
-                .provider_controller_type_id,
-            "gitlab"
-        );
-
-        // Test with combined filters: status="active" AND provider_controller_type_id="github" (should return 2)
-        let result_combined = repo
-            .list_provider_instances(&pagination, Some("active"), Some("github"))
-            .await
-            .unwrap();
-        assert_eq!(result_combined.items.len(), 2);
-        assert!(
-            result_combined
-                .items
-                .iter()
-                .all(|item| item.provider_instance.status == "active"
-                    && item.provider_instance.provider_controller_type_id == "github")
-        );
-    }
-
-    #[tokio::test]
-    async fn test_get_provider_instances_grouped_by_function_controller_type_id() {
-        shared::setup_test!();
-
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create resource server credentials
-        let rsc1 = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "oauth2".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({"client_id": "test1"})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(rsc1.clone()))
-            .await
-            .unwrap();
-
-        let rsc2 = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "oauth2".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({"client_id": "test2"})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(rsc2.clone()))
-            .await
-            .unwrap();
-
-        // Create provider instances
-        let pi1 = ProviderInstanceSerialized {
-            id: "provider-1".to_string(),
-            display_name: "Provider 1".to_string(),
-            resource_server_credential_id: rsc1.id.clone(),
-            user_credential_id: None,
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "oauth2".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(pi1.clone()))
-            .await
-            .unwrap();
-
-        let pi2 = ProviderInstanceSerialized {
-            id: "provider-2".to_string(),
-            display_name: "Provider 2".to_string(),
-            resource_server_credential_id: rsc2.id.clone(),
-            user_credential_id: None,
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "oauth2".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(pi2.clone()))
-            .await
-            .unwrap();
-
-        // Create function instances
-        let fi1 = FunctionInstanceSerialized {
-            function_controller_type_id: "send_email".to_string(),
-            provider_controller_type_id: "google_mail".to_string(),
-            provider_instance_id: "provider-1".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(fi1.clone()))
-            .await
-            .unwrap();
-
-        let fi2 = FunctionInstanceSerialized {
-            function_controller_type_id: "send_email".to_string(),
-            provider_controller_type_id: "google_mail".to_string(),
-            provider_instance_id: "provider-2".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(fi2.clone()))
-            .await
-            .unwrap();
-
-        let fi3 = FunctionInstanceSerialized {
-            function_controller_type_id: "read_email".to_string(),
-            provider_controller_type_id: "google_mail".to_string(),
-            provider_instance_id: "provider-1".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(fi3.clone()))
-            .await
-            .unwrap();
-
-        // Test: Get grouped provider instances for specific function types
-        let function_ids = vec!["send_email".to_string(), "read_email".to_string()];
-        let result = repo
-            .get_provider_instances_grouped_by_function_controller_type_id(&function_ids)
-            .await
-            .unwrap();
-
-        // Should have 2 groups (one for send_email, one for read_email)
-        assert_eq!(result.len(), 2);
-
-        // Find the send_email group
-        let send_email_group = result
-            .iter()
-            .find(|g| g.function_controller_type_id == "send_email")
-            .expect("send_email group not found");
-
-        // Should have 2 provider instances for send_email
-        assert_eq!(send_email_group.provider_instances.len(), 2);
-
-        // Verify provider instances have credentials
-        for pi in &send_email_group.provider_instances {
-            assert!(!pi.provider_instance.id.is_empty());
-            assert!(!pi.resource_server_credential.id.to_string().is_empty());
         }
 
-        // Find the read_email group
-        let read_email_group = result
-            .iter()
-            .find(|g| g.function_controller_type_id == "read_email")
-            .expect("read_email group not found");
+        #[tokio::test]
+        async fn test_update_provider_instance() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
 
-        // Should have 1 provider instance for read_email
-        assert_eq!(read_email_group.provider_instances.len(), 1);
-        assert_eq!(
-            read_email_group.provider_instances[0].provider_instance.id,
-            "provider-1"
-        );
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
 
-        // Test with empty function_ids
-        let result_empty = repo
-            .get_provider_instances_grouped_by_function_controller_type_id(&[])
-            .await
-            .unwrap();
-        assert_eq!(result_empty.len(), 0);
-    }
-
-    #[tokio::test]
-    async fn test_update_resource_server_credential() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create initial resource server credential
-        let initial_value = WrappedJsonValue::new(serde_json::json!({
-            "client_id": "initial-client-id",
-            "client_secret": "initial-secret"
-        }));
-        let initial_metadata = Metadata::new();
-        let initial_rotation_time = WrappedChronoDateTime::now();
-
-        let rsc_id = WrappedUuidV4::new();
-        let rsc = ResourceServerCredentialSerialized {
-            id: rsc_id.clone(),
-            type_id: "oauth2_client_credentials".to_string(),
-            metadata: initial_metadata.clone(),
-            value: initial_value.clone(),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: Some(initial_rotation_time),
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(rsc.clone()))
+            // Create resource server credential
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
             .await
             .unwrap();
 
-        // Test 1: Update only value, other fields should remain unchanged
-        let new_value = WrappedJsonValue::new(serde_json::json!({
-            "client_id": "updated-client-id",
-            "client_secret": "updated-secret"
-        }));
-        repo.update_resource_server_credential(&rsc_id, Some(&new_value), None, None, None)
+            // Create user credential
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+                .await
+                .unwrap();
+
+            // Create provider instance
+            let provider_instance = ProviderInstanceSerialized {
+                id: uuid::Uuid::new_v4().to_string(),
+                display_name: "Original Name".to_string(),
+                resource_server_credential_id: resource_server_cred.id.clone(),
+                user_credential_id: Some(user_cred.id.clone()),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+                .await
+                .unwrap();
+
+            // Verify it was created with original name
+            let retrieved = repo
+                .get_provider_instance_by_id(&provider_instance.id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(retrieved.provider_instance.display_name, "Original Name");
+
+            // Store the original updated_at timestamp
+            let original_updated_at = retrieved.provider_instance.updated_at;
+
+            // Sleep 1 second to ensure different timestamp (SQLite CURRENT_TIMESTAMP has second precision)
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+            // Update the display name
+            repo.update_provider_instance(&provider_instance.id, "Updated Name")
+                .await
+                .unwrap();
+
+            // Verify it was updated
+            let updated = repo
+                .get_provider_instance_by_id(&provider_instance.id)
+                .await
+                .unwrap()
+                .unwrap();
+
+            assert_eq!(updated.provider_instance.id, provider_instance.id);
+            assert_eq!(updated.provider_instance.display_name, "Updated Name");
+            // Verify updated_at was changed (should be greater than the original)
+            assert!(
+                updated.provider_instance.updated_at.get_inner() > original_updated_at.get_inner()
+            );
+        }
+
+        #[tokio::test]
+        async fn test_delete_provider_instance() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
+
+            // Create resource server credential
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
             .await
             .unwrap();
 
-        let updated = repo
-            .get_resource_server_credential_by_id(&rsc_id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(updated.value, new_value, "Value should be updated");
-        assert_eq!(
-            updated.metadata.0, initial_metadata.0,
-            "Metadata should remain unchanged when None is passed"
-        );
-        assert_eq!(
-            updated.next_rotation_time,
-            Some(initial_rotation_time),
-            "Rotation time should remain unchanged when None is passed"
-        );
+            // Create user credential
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+                .await
+                .unwrap();
 
-        // Test 2: Update only metadata, other fields should remain unchanged
-        let mut new_metadata_map = serde_json::Map::new();
-        new_metadata_map.insert("key".to_string(), serde_json::json!("value"));
-        let new_metadata = Metadata(new_metadata_map);
+            // Create provider instance
+            let provider_instance = ProviderInstanceSerialized {
+                id: uuid::Uuid::new_v4().to_string(),
+                display_name: "Test Provider Delete".to_string(),
+                resource_server_credential_id: resource_server_cred.id.clone(),
+                user_credential_id: Some(user_cred.id.clone()),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
 
-        repo.update_resource_server_credential(&rsc_id, None, Some(&new_metadata), None, None)
-            .await
-            .unwrap();
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+                .await
+                .unwrap();
 
-        let updated = repo
-            .get_resource_server_credential_by_id(&rsc_id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(
-            updated.value, new_value,
-            "Value should remain unchanged when None is passed"
-        );
-        assert_eq!(
-            updated.metadata.0, new_metadata.0,
-            "Metadata should be updated"
-        );
-        assert_eq!(
-            updated.next_rotation_time,
-            Some(initial_rotation_time),
-            "Rotation time should remain unchanged when None is passed"
-        );
+            // Verify it was created
+            let retrieved = repo
+                .get_provider_instance_by_id(&provider_instance.id)
+                .await
+                .unwrap();
+            assert!(retrieved.is_some());
 
-        // Test 3: Update only next_rotation_time, other fields should remain unchanged
-        let new_rotation_time = WrappedChronoDateTime::now();
-        repo.update_resource_server_credential(&rsc_id, None, None, Some(&new_rotation_time), None)
-            .await
-            .unwrap();
+            // Delete the provider instance
+            repo.delete_provider_instance(&provider_instance.id)
+                .await
+                .unwrap();
 
-        let updated = repo
-            .get_resource_server_credential_by_id(&rsc_id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(
-            updated.value, new_value,
-            "Value should remain unchanged when None is passed"
-        );
-        assert_eq!(
-            updated.metadata.0, new_metadata.0,
-            "Metadata should remain unchanged when None is passed"
-        );
-        assert!(
-            updated.next_rotation_time.is_some(),
-            "Rotation time should be updated"
-        );
+            // Verify it was deleted
+            let deleted = repo
+                .get_provider_instance_by_id(&provider_instance.id)
+                .await
+                .unwrap();
 
-        // Test 4: Pass None for all optional fields, all should remain unchanged
-        let before_none_update = repo
-            .get_resource_server_credential_by_id(&rsc_id)
-            .await
-            .unwrap()
-            .unwrap();
+            assert!(deleted.is_none());
+        }
 
-        repo.update_resource_server_credential(&rsc_id, None, None, None, None)
-            .await
-            .unwrap();
+        #[tokio::test]
+        async fn test_delete_provider_instance_with_cascade() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
 
-        let after_none_update = repo
-            .get_resource_server_credential_by_id(&rsc_id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(
-            after_none_update.value, before_none_update.value,
-            "Value should remain unchanged when None is passed"
-        );
-        assert_eq!(
-            after_none_update.metadata.0, before_none_update.metadata.0,
-            "Metadata should remain unchanged when None is passed"
-        );
-        assert_eq!(
-            after_none_update.next_rotation_time, before_none_update.next_rotation_time,
-            "Rotation time should remain unchanged when None is passed"
-        );
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
 
-        // Test 5: Update all fields at once
-        let final_value = WrappedJsonValue::new(serde_json::json!({
-            "client_id": "final-client-id",
-            "client_secret": "final-secret"
-        }));
-        let mut final_metadata_map = serde_json::Map::new();
-        final_metadata_map.insert("final".to_string(), serde_json::json!(true));
-        let final_metadata = Metadata(final_metadata_map);
-        let final_rotation_time = WrappedChronoDateTime::now();
-
-        repo.update_resource_server_credential(
-            &rsc_id,
-            Some(&final_value),
-            Some(&final_metadata),
-            Some(&final_rotation_time),
-            None,
-        )
-        .await
-        .unwrap();
-
-        let updated = repo
-            .get_resource_server_credential_by_id(&rsc_id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(updated.value, final_value, "All fields should be updated");
-        assert_eq!(
-            updated.metadata.0, final_metadata.0,
-            "All fields should be updated"
-        );
-        assert!(
-            updated.next_rotation_time.is_some(),
-            "All fields should be updated"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_update_user_credential() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create initial user credential
-        let initial_value = WrappedJsonValue::new(serde_json::json!({
-            "access_token": "initial-token",
-            "refresh_token": "initial-refresh"
-        }));
-        let mut initial_metadata_map = serde_json::Map::new();
-        initial_metadata_map.insert(
-            "initial_key".to_string(),
-            serde_json::json!("initial_value"),
-        );
-        let initial_metadata = Metadata(initial_metadata_map);
-        let initial_rotation_time = WrappedChronoDateTime::now();
-
-        let uc_id = WrappedUuidV4::new();
-        let uc = UserCredentialSerialized {
-            id: uc_id.clone(),
-            type_id: "oauth2_authorization_code".to_string(),
-            metadata: initial_metadata.clone(),
-            value: initial_value.clone(),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: Some(initial_rotation_time),
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(uc.clone()))
+            // Create resource server credential
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
             .await
             .unwrap();
 
-        // Test 1: Update only value, other fields should remain unchanged
-        let new_value = WrappedJsonValue::new(serde_json::json!({
-            "access_token": "updated-token",
-            "refresh_token": "updated-refresh"
-        }));
-        repo.update_user_credential(&uc_id, Some(&new_value), None, None, None)
-            .await
-            .unwrap();
+            // Create user credential
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+                .await
+                .unwrap();
 
-        let updated = repo
-            .get_user_credential_by_id(&uc_id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(updated.value, new_value, "Value should be updated");
-        assert_eq!(
-            updated.metadata.0, initial_metadata.0,
-            "Metadata should remain unchanged when None is passed"
-        );
-        assert_eq!(
-            updated.next_rotation_time,
-            Some(initial_rotation_time),
-            "Rotation time should remain unchanged when None is passed"
-        );
+            // Create provider instance
+            let provider_instance = ProviderInstanceSerialized {
+                id: uuid::Uuid::new_v4().to_string(),
+                display_name: "Test Provider Cascade".to_string(),
+                resource_server_credential_id: resource_server_cred.id,
+                user_credential_id: Some(user_cred.id),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+                .await
+                .unwrap();
 
-        // Test 2: Update only metadata, other fields should remain unchanged
-        let mut new_metadata_map = serde_json::Map::new();
-        new_metadata_map.insert("new_key".to_string(), serde_json::json!("new_value"));
-        let new_metadata = Metadata(new_metadata_map);
-
-        repo.update_user_credential(&uc_id, None, Some(&new_metadata), None, None)
-            .await
-            .unwrap();
-
-        let updated = repo
-            .get_user_credential_by_id(&uc_id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(
-            updated.value, new_value,
-            "Value should remain unchanged when None is passed"
-        );
-        assert_eq!(
-            updated.metadata.0, new_metadata.0,
-            "Metadata should be updated"
-        );
-        assert_eq!(
-            updated.next_rotation_time,
-            Some(initial_rotation_time),
-            "Rotation time should remain unchanged when None is passed"
-        );
-
-        // Test 3: Update only next_rotation_time, other fields should remain unchanged
-        let new_rotation_time = WrappedChronoDateTime::now();
-        repo.update_user_credential(&uc_id, None, None, Some(&new_rotation_time), None)
-            .await
-            .unwrap();
-
-        let updated = repo
-            .get_user_credential_by_id(&uc_id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(
-            updated.value, new_value,
-            "Value should remain unchanged when None is passed"
-        );
-        assert_eq!(
-            updated.metadata.0, new_metadata.0,
-            "Metadata should remain unchanged when None is passed"
-        );
-        assert!(
-            updated.next_rotation_time.is_some(),
-            "Rotation time should be updated"
-        );
-
-        // Test 4: Update with None values (all should remain unchanged)
-        let before_none_update = repo
-            .get_user_credential_by_id(&uc_id)
-            .await
-            .unwrap()
-            .unwrap();
-
-        repo.update_user_credential(&uc_id, None, None, None, None)
-            .await
-            .unwrap();
-
-        let after_none_update = repo
-            .get_user_credential_by_id(&uc_id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(
-            after_none_update.value, before_none_update.value,
-            "Value should remain unchanged when None is passed"
-        );
-        assert_eq!(
-            after_none_update.metadata.0, before_none_update.metadata.0,
-            "Metadata should remain unchanged when None is passed"
-        );
-        assert_eq!(
-            after_none_update.next_rotation_time, before_none_update.next_rotation_time,
-            "Rotation time should remain unchanged when None is passed"
-        );
-
-        // Test 5: Update all fields at once
-        let final_value = WrappedJsonValue::new(serde_json::json!({
-            "access_token": "final-token",
-            "refresh_token": "final-refresh"
-        }));
-        let mut final_metadata_map = serde_json::Map::new();
-        final_metadata_map.insert("final_key".to_string(), serde_json::json!("final_value"));
-        let final_metadata = Metadata(final_metadata_map);
-        let final_rotation_time = WrappedChronoDateTime::now();
-
-        repo.update_user_credential(
-            &uc_id,
-            Some(&final_value),
-            Some(&final_metadata),
-            Some(&final_rotation_time),
-            None,
-        )
-        .await
-        .unwrap();
-
-        let updated = repo
-            .get_user_credential_by_id(&uc_id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(updated.value, final_value, "All fields should be updated");
-        assert_eq!(
-            updated.metadata.0, final_metadata.0,
-            "All fields should be updated"
-        );
-        assert!(
-            updated.next_rotation_time.is_some(),
-            "All fields should be updated"
-        );
-    }
-
-    // ============================================================================
-    // MCP Server Instance Repository Tests
-    // ============================================================================
-
-    #[tokio::test]
-    async fn test_create_and_get_mcp_server_instance() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let params = crate::repository::CreateMcpServerInstance {
-            id: "test-mcp-instance".to_string(),
-            name: "Test MCP Instance".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-
-        repo.create_mcp_server_instance(&params).await.unwrap();
-
-        let retrieved = repo
-            .get_mcp_server_instance_by_id(&params.id)
-            .await
-            .unwrap();
-        assert!(retrieved.is_some());
-
-        let instance = retrieved.unwrap();
-        assert_eq!(instance.id, params.id);
-        assert_eq!(instance.name, params.name);
-        assert!(instance.functions.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_update_mcp_server_instance_name() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let params = crate::repository::CreateMcpServerInstance {
-            id: "test-update-name".to_string(),
-            name: "Original Name".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-
-        repo.create_mcp_server_instance(&params).await.unwrap();
-
-        // Update the name
-        repo.update_mcp_server_instance(&params.id, "Updated Name")
-            .await
-            .unwrap();
-
-        let updated = repo
-            .get_mcp_server_instance_by_id(&params.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(updated.name, "Updated Name");
-    }
-
-    #[tokio::test]
-    async fn test_delete_mcp_server_instance() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let params = crate::repository::CreateMcpServerInstance {
-            id: "test-delete-mcp".to_string(),
-            name: "To Be Deleted".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-
-        repo.create_mcp_server_instance(&params).await.unwrap();
-
-        // Verify it exists
-        let exists = repo
-            .get_mcp_server_instance_by_id(&params.id)
-            .await
-            .unwrap();
-        assert!(exists.is_some());
-
-        // Delete it
-        repo.delete_mcp_server_instance(&params.id).await.unwrap();
-
-        // Verify it's gone
-        let deleted = repo
-            .get_mcp_server_instance_by_id(&params.id)
-            .await
-            .unwrap();
-        assert!(deleted.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_list_mcp_server_instances_empty() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let pagination = shared::primitives::PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-
-        let result = repo.list_mcp_server_instances(&pagination).await.unwrap();
-        assert_eq!(result.items.len(), 0);
-        assert!(result.next_page_token.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_list_mcp_server_instances_with_items() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-
-        // Create multiple instances
-        for i in 0..3 {
-            let params = crate::repository::CreateMcpServerInstance {
-                id: format!("test-list-{i}"),
-                name: format!("Test Instance {i}"),
+            // Create a function instance that depends on the provider instance
+            let function_instance = FunctionInstanceSerialized {
+                function_controller_type_id: "send_email".to_string(),
+                provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance.id.clone(),
                 created_at: now,
                 updated_at: now,
             };
-            repo.create_mcp_server_instance(&params).await.unwrap();
+            repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+                .await
+                .unwrap();
+
+            // Verify function instance was created
+            let retrieved_function = repo
+                .get_function_instance_by_id(
+                    &function_instance.function_controller_type_id,
+                    &function_instance.provider_controller_type_id,
+                    &function_instance.provider_instance_id,
+                )
+                .await
+                .unwrap();
+            assert!(retrieved_function.is_some());
+
+            // Delete the provider instance - should cascade delete function instances
+            repo.delete_provider_instance(&provider_instance.id)
+                .await
+                .unwrap();
+
+            // Verify provider instance was deleted
+            let deleted_provider = repo
+                .get_provider_instance_by_id(&provider_instance.id)
+                .await
+                .unwrap();
+            assert!(deleted_provider.is_none());
+
+            // Verify function instance was also cascade deleted
+            let deleted_function = repo
+                .get_function_instance_by_id(
+                    &function_instance.function_controller_type_id,
+                    &function_instance.provider_controller_type_id,
+                    &function_instance.provider_instance_id,
+                )
+                .await
+                .unwrap();
+            assert!(deleted_function.is_none());
         }
 
-        let pagination = shared::primitives::PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
+        #[tokio::test]
+        async fn test_create_get_and_delete_function_instance() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
 
-        let result = repo.list_mcp_server_instances(&pagination).await.unwrap();
-        assert_eq!(result.items.len(), 3);
-    }
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
 
-    #[tokio::test]
-    async fn test_list_mcp_server_instances_pagination() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        // Create 5 instances with different timestamps for proper cursor-based pagination
-        for i in 0..5 {
-            // Create timestamps with 1 second intervals to ensure distinct ordering
-            let timestamp = WrappedChronoDateTime::new(
-                chrono::Utc::now() - chrono::Duration::seconds((5 - i) as i64),
-            );
-            let params = crate::repository::CreateMcpServerInstance {
-                id: format!("test-pagination-{i}"),
-                name: format!("Test Instance {i}"),
-                created_at: timestamp,
-                updated_at: timestamp,
+            // Setup credentials and provider instance
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
             };
-            repo.create_mcp_server_instance(&params).await.unwrap();
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
+            .await
+            .unwrap();
+
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+                .await
+                .unwrap();
+
+            let provider_instance = ProviderInstanceSerialized {
+                id: uuid::Uuid::new_v4().to_string(),
+                display_name: "Test Provider Function".to_string(),
+                resource_server_credential_id: resource_server_cred.id,
+                user_credential_id: Some(user_cred.id),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+                .await
+                .unwrap();
+
+            // Create function instance
+            let function_instance = FunctionInstanceSerialized {
+                function_controller_type_id: "send_email".to_string(),
+                provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance.id.clone(),
+                created_at: now,
+                updated_at: now,
+            };
+
+            repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+                .await
+                .unwrap();
+
+            // Verify it was created
+            let retrieved = repo
+                .get_function_instance_by_id(
+                    &function_instance.function_controller_type_id,
+                    &function_instance.provider_controller_type_id,
+                    &function_instance.provider_instance_id,
+                )
+                .await
+                .unwrap()
+                .unwrap();
+
+            assert_eq!(
+                retrieved.function_controller_type_id,
+                function_instance.function_controller_type_id
+            );
+            assert_eq!(
+                retrieved.provider_controller_type_id,
+                function_instance.provider_controller_type_id
+            );
+            assert_eq!(
+                retrieved.provider_instance_id,
+                function_instance.provider_instance_id
+            );
+
+            // Delete the function instance
+            repo.delete_function_instance(
+                &function_instance.function_controller_type_id,
+                &function_instance.provider_controller_type_id,
+                &function_instance.provider_instance_id,
+            )
+            .await
+            .unwrap();
+
+            // Verify it was deleted
+            let deleted = repo
+                .get_function_instance_by_id(
+                    &function_instance.function_controller_type_id,
+                    &function_instance.provider_controller_type_id,
+                    &function_instance.provider_instance_id,
+                )
+                .await
+                .unwrap();
+
+            assert!(deleted.is_none());
         }
 
-        // First page (should return the 2 most recent, i.e., instances 4 and 3)
-        let pagination = shared::primitives::PaginationRequest {
-            page_size: 2,
-            next_page_token: None,
-        };
+        #[tokio::test]
+        async fn test_create_and_get_broker_state() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
 
-        let first_page = repo.list_mcp_server_instances(&pagination).await.unwrap();
-        assert_eq!(first_page.items.len(), 2);
-        assert!(first_page.next_page_token.is_some());
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
 
-        // Second page (should return instances 2 and 1)
-        let pagination = shared::primitives::PaginationRequest {
-            page_size: 2,
-            next_page_token: first_page.next_page_token,
-        };
-
-        let second_page = repo.list_mcp_server_instances(&pagination).await.unwrap();
-        assert_eq!(second_page.items.len(), 2);
-    }
-
-    #[tokio::test]
-    async fn test_create_mcp_server_instance_function() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create MCP instance
-        let mcp_params = crate::repository::CreateMcpServerInstance {
-            id: "test-function-mcp".to_string(),
-            name: "Test Function MCP".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_mcp_server_instance(&mcp_params).await.unwrap();
-
-        // Create necessary dependencies (resource server credential, user credential, provider instance, function instance)
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
-
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+            // Create resource server credential for broker state
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_oauth2_authorization_code_flow".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias,
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
             .await
             .unwrap();
 
-        let provider_instance_id = uuid::Uuid::new_v4().to_string();
-        let provider_instance = ProviderInstanceSerialized {
-            id: provider_instance_id.clone(),
-            display_name: "Test Provider".to_string(),
-            resource_server_credential_id: resource_server_cred.id,
-            user_credential_id: Some(user_cred.id),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+            let provider_instance = ProviderInstanceSerialized {
+                id: uuid::Uuid::new_v4().to_string(),
+                display_name: "Test Provider Function".to_string(),
+                resource_server_credential_id: resource_server_cred.id,
+                user_credential_id: None,
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+                .await
+                .unwrap();
+
+            let broker_state = BrokerState {
+                id: uuid::Uuid::new_v4().to_string(),
+                created_at: now,
+                updated_at: now,
+                provider_instance_id: provider_instance.id,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "oauth2_authorization_code_flow".to_string(),
+                metadata: Metadata::new(),
+                action: BrokerAction::Redirect(BrokerActionRedirect {
+                    url: "https://example.com/oauth/authorize".to_string(),
+                }),
+            };
+
+            repo.create_broker_state(&CreateBrokerState::from(broker_state.clone()))
+                .await
+                .unwrap();
+
+            // Verify it was created
+            let retrieved = repo
+                .get_broker_state_by_id(&broker_state.id)
+                .await
+                .unwrap()
+                .unwrap();
+
+            assert_eq!(retrieved.id, broker_state.id);
+            assert_eq!(
+                retrieved.provider_controller_type_id,
+                broker_state.provider_controller_type_id
+            );
+            match retrieved.action {
+                BrokerAction::Redirect(redirect) => {
+                    assert_eq!(redirect.url, "https://example.com/oauth/authorize")
+                }
+                _ => panic!("Expected Redirect action"),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_delete_broker_state() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
+
+            // Create resource server credential
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias,
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
             .await
             .unwrap();
 
-        let function_instance = FunctionInstanceSerialized {
-            function_controller_type_id: "send_email".to_string(),
-            provider_controller_type_id: "google_mail".to_string(),
-            provider_instance_id: provider_instance_id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+            let provider_instance = ProviderInstanceSerialized {
+                id: uuid::Uuid::new_v4().to_string(),
+                display_name: "Test Provider Function".to_string(),
+                resource_server_credential_id: resource_server_cred.id,
+                user_credential_id: None,
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+                .await
+                .unwrap();
+
+            let broker_state = BrokerState {
+                id: uuid::Uuid::new_v4().to_string(),
+                created_at: now,
+                updated_at: now,
+                provider_instance_id: provider_instance.id,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                metadata: Metadata::new(),
+                action: BrokerAction::None,
+            };
+
+            repo.create_broker_state(&CreateBrokerState::from(broker_state.clone()))
+                .await
+                .unwrap();
+
+            // Delete the broker state
+            repo.delete_broker_state(&broker_state.id).await.unwrap();
+
+            // Verify it was deleted
+            let deleted = repo.get_broker_state_by_id(&broker_state.id).await.unwrap();
+
+            assert!(deleted.is_none());
+        }
+
+        #[tokio::test]
+        async fn test_get_nonexistent_records() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+
+            // Test getting nonexistent resource server credential
+            let result = repo
+                .get_resource_server_credential_by_id(&WrappedUuidV4::new())
+                .await
+                .unwrap();
+            assert!(result.is_none());
+
+            // Test getting nonexistent user credential
+            let result = repo
+                .get_user_credential_by_id(&WrappedUuidV4::new())
+                .await
+                .unwrap();
+            assert!(result.is_none());
+
+            // Test getting nonexistent provider instance
+            let result = repo
+                .get_provider_instance_by_id(&uuid::Uuid::new_v4().to_string())
+                .await
+                .unwrap();
+            assert!(result.is_none());
+
+            // Test getting nonexistent function instance
+            let result = repo
+                .get_function_instance_by_id(
+                    "nonexistent_function",
+                    "nonexistent_provider",
+                    &uuid::Uuid::new_v4().to_string(),
+                )
+                .await
+                .unwrap();
+            assert!(result.is_none());
+
+            // Test getting nonexistent broker state
+            let result = repo
+                .get_broker_state_by_id(&uuid::Uuid::new_v4().to_string())
+                .await
+                .unwrap();
+            assert!(result.is_none());
+        }
+
+        #[tokio::test]
+        async fn test_list_provider_instances_json_deserialization() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
+
+            // Create resource server credential with JSON fields
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_oauth2".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({
+                    "client_id": "test_client",
+                    "client_secret": "test_secret"
+                })),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
             .await
             .unwrap();
 
-        // Now create the MCP server instance function
-        let function_params = crate::repository::CreateMcpServerInstanceFunction {
-            mcp_server_instance_id: mcp_params.id.clone(),
-            function_controller_type_id: function_instance.function_controller_type_id.clone(),
-            provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "custom_function_name".to_string(),
-            function_description: Some("A custom function".to_string()),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_mcp_server_instance_function(&function_params)
+            // Create user credential with JSON fields
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "oauth2_token".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({
+                    "access_token": "test_token",
+                    "refresh_token": "test_refresh"
+                })),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+                .await
+                .unwrap();
+
+            // Create provider instance
+            let provider_instance = ProviderInstanceSerialized {
+                id: uuid::Uuid::new_v4().to_string(),
+                display_name: "Test Provider JSON".to_string(),
+                resource_server_credential_id: resource_server_cred.id.clone(),
+                user_credential_id: Some(user_cred.id.clone()),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "oauth2".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+                .await
+                .unwrap();
+
+            // Create a function instance
+            let function_instance = FunctionInstanceSerialized {
+                function_controller_type_id: "send_email".to_string(),
+                provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance.id.clone(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+                .await
+                .unwrap();
+
+            // List provider instances - this will test JSON deserialization
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+
+            let result = repo
+                .list_provider_instances(&pagination, None, None)
+                .await
+                .unwrap();
+
+            assert_eq!(result.items.len(), 1);
+            let item = &result.items[0];
+
+            // Verify provider instance
+            assert_eq!(item.provider_instance.id, provider_instance.id);
+            assert_eq!(
+                item.provider_instance.display_name,
+                provider_instance.display_name
+            );
+
+            // Verify resource server credential was deserialized correctly
+            assert_eq!(item.resource_server_credential.id, resource_server_cred.id);
+            assert_eq!(
+                item.resource_server_credential.type_id,
+                resource_server_cred.type_id
+            );
+            // Verify the JSON value was properly deserialized (not double-encoded)
+            let rsc_value = item.resource_server_credential.value.get_inner();
+            assert_eq!(rsc_value.get("client_id").unwrap(), "test_client");
+            assert_eq!(rsc_value.get("client_secret").unwrap(), "test_secret");
+
+            // Verify user credential was deserialized correctly
+            assert!(item.user_credential.is_some());
+            let uc = item.user_credential.as_ref().unwrap();
+            assert_eq!(uc.id, user_cred.id);
+            assert_eq!(uc.type_id, user_cred.type_id);
+            // Verify the JSON value was properly deserialized (not double-encoded)
+            let uc_value = uc.value.get_inner();
+            assert_eq!(uc_value.get("access_token").unwrap(), "test_token");
+            assert_eq!(uc_value.get("refresh_token").unwrap(), "test_refresh");
+
+            // Verify functions were deserialized correctly
+            assert_eq!(item.functions.len(), 1);
+            assert_eq!(
+                item.functions[0].function_controller_type_id,
+                function_instance.function_controller_type_id
+            );
+            assert_eq!(
+                item.functions[0].provider_controller_type_id,
+                function_instance.provider_controller_type_id
+            );
+            assert_eq!(
+                item.functions[0].provider_instance_id,
+                function_instance.provider_instance_id
+            );
+        }
+
+        #[tokio::test]
+        async fn test_get_provider_instance_by_id_json_deserialization() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
+
+            // Create resource server credential with JSON fields
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_oauth2".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({
+                    "client_id": "test_client_123",
+                    "client_secret": "test_secret_456"
+                })),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
             .await
             .unwrap();
 
-        // Verify the MCP instance now has the function
-        let instance = repo
-            .get_mcp_server_instance_by_id(&mcp_params.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(instance.functions.len(), 1);
-        assert_eq!(instance.functions[0].function_name, "custom_function_name");
-        assert_eq!(
-            instance.functions[0].function_description,
-            Some("A custom function".to_string())
-        );
-    }
+            // Create user credential with JSON fields
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "oauth2_token".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({
+                    "access_token": "test_access_token_789",
+                    "refresh_token": "test_refresh_token_000"
+                })),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+                .await
+                .unwrap();
 
-    #[tokio::test]
-    async fn test_update_mcp_server_instance_function() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
+            // Create provider instance
+            let provider_instance = ProviderInstanceSerialized {
+                id: uuid::Uuid::new_v4().to_string(),
+                display_name: "Test Provider By ID".to_string(),
+                resource_server_credential_id: resource_server_cred.id.clone(),
+                user_credential_id: Some(user_cred.id.clone()),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "github".to_string(),
+                credential_controller_type_id: "oauth2".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+                .await
+                .unwrap();
 
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
-
-        // Create MCP instance
-        let mcp_params = crate::repository::CreateMcpServerInstance {
-            id: "test-update-function-mcp".to_string(),
-            name: "Test Update Function MCP".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_mcp_server_instance(&mcp_params).await.unwrap();
-
-        // Create dependencies
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
-
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+            // Create multiple function instances
+            let function_instance_1 = FunctionInstanceSerialized {
+                function_controller_type_id: "create_repo".to_string(),
+                provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance.id.clone(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(
+                function_instance_1.clone(),
+            ))
             .await
             .unwrap();
 
-        let provider_instance_id = uuid::Uuid::new_v4().to_string();
-        let provider_instance = ProviderInstanceSerialized {
-            id: provider_instance_id.clone(),
-            display_name: "Test Provider".to_string(),
-            resource_server_credential_id: resource_server_cred.id,
-            user_credential_id: Some(user_cred.id),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
+            let function_instance_2 = FunctionInstanceSerialized {
+                function_controller_type_id: "create_issue".to_string(),
+                provider_controller_type_id: provider_instance.provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance.id.clone(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(
+                function_instance_2.clone(),
+            ))
             .await
             .unwrap();
 
-        let function_instance = FunctionInstanceSerialized {
-            function_controller_type_id: "send_email".to_string(),
-            provider_controller_type_id: "google_mail".to_string(),
-            provider_instance_id: provider_instance_id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+            // Get provider instance by ID - this will test JSON deserialization
+            let result = repo
+                .get_provider_instance_by_id(&provider_instance.id)
+                .await
+                .unwrap()
+                .unwrap();
+
+            // Verify provider instance
+            assert_eq!(result.provider_instance.id, provider_instance.id);
+            assert_eq!(result.provider_instance.display_name, "Test Provider By ID");
+            assert_eq!(
+                result.provider_instance.provider_controller_type_id,
+                "github"
+            );
+
+            // Verify resource server credential was deserialized correctly
+            assert_eq!(
+                result.resource_server_credential.id,
+                resource_server_cred.id
+            );
+            assert_eq!(
+                result.resource_server_credential.type_id,
+                resource_server_cred.type_id
+            );
+            // Verify the JSON value was properly deserialized (not double-encoded)
+            let rsc_value = result.resource_server_credential.value.get_inner();
+            assert_eq!(rsc_value.get("client_id").unwrap(), "test_client_123");
+            assert_eq!(rsc_value.get("client_secret").unwrap(), "test_secret_456");
+
+            // Verify user credential was deserialized correctly
+            assert!(result.user_credential.is_some());
+            let uc = result.user_credential.as_ref().unwrap();
+            assert_eq!(uc.id, user_cred.id);
+            assert_eq!(uc.type_id, user_cred.type_id);
+            // Verify the JSON value was properly deserialized (not double-encoded)
+            let uc_value = uc.value.get_inner();
+            assert_eq!(
+                uc_value.get("access_token").unwrap(),
+                "test_access_token_789"
+            );
+            assert_eq!(
+                uc_value.get("refresh_token").unwrap(),
+                "test_refresh_token_000"
+            );
+
+            // Verify functions were deserialized correctly
+            assert_eq!(result.functions.len(), 2);
+            // Functions are ordered, so verify both are present
+            let func_types: Vec<String> = result
+                .functions
+                .iter()
+                .map(|f| f.function_controller_type_id.clone())
+                .collect();
+            assert!(func_types.contains(&"create_repo".to_string()));
+            assert!(func_types.contains(&"create_issue".to_string()));
+
+            // Verify all functions have the correct provider_controller_type_id and provider_instance_id
+            for func in &result.functions {
+                assert_eq!(
+                    func.provider_controller_type_id,
+                    provider_instance.provider_controller_type_id
+                );
+                assert_eq!(func.provider_instance_id, provider_instance.id);
+            }
+        }
+
+        #[tokio::test]
+        async fn test_list_provider_instances_filter_by_status() {
+            shared::setup_test!();
+
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            let repo = Repository::new(conn);
+
+            // No need to create DEK - mcp repository doesn't manage encryption keys
+            let now = shared::primitives::WrappedChronoDateTime::now();
+
+            // Create resource server credentials
+            let rsc_id_1 = shared::primitives::WrappedUuidV4::new();
+            let rsc_params_1 = CreateResourceServerCredential {
+                id: rsc_id_1.clone(),
+                type_id: "test_type".to_string(),
+                metadata: crate::logic::Metadata::new(),
+                value: shared::primitives::WrappedJsonValue::new(
+                    serde_json::json!({"test": "value"}),
+                ),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: "test-dek".to_string(),
+            };
+            repo.create_resource_server_credential(&rsc_params_1)
+                .await
+                .unwrap();
+
+            let rsc_id_2 = shared::primitives::WrappedUuidV4::new();
+            let rsc_params_2 = CreateResourceServerCredential {
+                id: rsc_id_2.clone(),
+                type_id: "test_type".to_string(),
+                metadata: crate::logic::Metadata::new(),
+                value: shared::primitives::WrappedJsonValue::new(
+                    serde_json::json!({"test": "value"}),
+                ),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: "test-dek".to_string(),
+            };
+            repo.create_resource_server_credential(&rsc_params_2)
+                .await
+                .unwrap();
+
+            // Create provider instances with different statuses
+            let pi_params_1 = CreateProviderInstance {
+                id: "pi-active".to_string(),
+                display_name: "Active Provider".to_string(),
+                resource_server_credential_id: rsc_id_1,
+                user_credential_id: None,
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "test_provider".to_string(),
+                credential_controller_type_id: "test_credential".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&pi_params_1).await.unwrap();
+
+            let pi_params_2 = CreateProviderInstance {
+                id: "pi-disabled".to_string(),
+                display_name: "Disabled Provider".to_string(),
+                resource_server_credential_id: rsc_id_2,
+                user_credential_id: None,
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "test_provider".to_string(),
+                credential_controller_type_id: "test_credential".to_string(),
+                status: "disabled".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&pi_params_2).await.unwrap();
+
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+
+            // Test with status=None (should return all)
+            let result_all = repo
+                .list_provider_instances(&pagination, None, None)
+                .await
+                .unwrap();
+            assert_eq!(result_all.items.len(), 2);
+
+            // Test with status="active" (should return only active)
+            let result_active = repo
+                .list_provider_instances(&pagination, Some("active"), None)
+                .await
+                .unwrap();
+            assert_eq!(result_active.items.len(), 1);
+            assert_eq!(result_active.items[0].provider_instance.status, "active");
+
+            // Test with status="disabled" (should return only disabled)
+            let result_disabled = repo
+                .list_provider_instances(&pagination, Some("disabled"), None)
+                .await
+                .unwrap();
+            assert_eq!(result_disabled.items.len(), 1);
+            assert_eq!(
+                result_disabled.items[0].provider_instance.status,
+                "disabled"
+            );
+        }
+
+        #[tokio::test]
+        async fn test_list_function_instances_filter_by_provider_instance() {
+            shared::setup_test!();
+
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            let repo = Repository::new(conn);
+
+            // No need to create DEK - mcp repository doesn't manage encryption keys
+            let now = shared::primitives::WrappedChronoDateTime::now();
+
+            // Create resource server credentials
+            let rsc_id_1 = shared::primitives::WrappedUuidV4::new();
+            let rsc_params_1 = CreateResourceServerCredential {
+                id: rsc_id_1.clone(),
+                type_id: "test_type".to_string(),
+                metadata: crate::logic::Metadata::new(),
+                value: shared::primitives::WrappedJsonValue::new(
+                    serde_json::json!({"test": "value"}),
+                ),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: "test-dek".to_string(),
+            };
+            repo.create_resource_server_credential(&rsc_params_1)
+                .await
+                .unwrap();
+
+            let rsc_id_2 = shared::primitives::WrappedUuidV4::new();
+            let rsc_params_2 = CreateResourceServerCredential {
+                id: rsc_id_2.clone(),
+                type_id: "test_type".to_string(),
+                metadata: crate::logic::Metadata::new(),
+                value: shared::primitives::WrappedJsonValue::new(
+                    serde_json::json!({"test": "value"}),
+                ),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: "test-dek".to_string(),
+            };
+            repo.create_resource_server_credential(&rsc_params_2)
+                .await
+                .unwrap();
+
+            // Create provider instances
+            let pi_params_1 = CreateProviderInstance {
+                id: "pi-1".to_string(),
+                display_name: "Provider 1".to_string(),
+                resource_server_credential_id: rsc_id_1,
+                user_credential_id: None,
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "test_provider".to_string(),
+                credential_controller_type_id: "test_credential".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&pi_params_1).await.unwrap();
+
+            let pi_params_2 = CreateProviderInstance {
+                id: "pi-2".to_string(),
+                display_name: "Provider 2".to_string(),
+                resource_server_credential_id: rsc_id_2,
+                user_credential_id: None,
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "test_provider".to_string(),
+                credential_controller_type_id: "test_credential".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&pi_params_2).await.unwrap();
+
+            // Create function instances for different provider instances
+            let fi_params_1 = CreateFunctionInstance {
+                function_controller_type_id: "test_function_1".to_string(),
+                provider_controller_type_id: "test_provider".to_string(),
+                provider_instance_id: "pi-1".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&fi_params_1).await.unwrap();
+
+            let fi_params_2 = CreateFunctionInstance {
+                function_controller_type_id: "test_function_2".to_string(),
+                provider_controller_type_id: "test_provider".to_string(),
+                provider_instance_id: "pi-1".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&fi_params_2).await.unwrap();
+
+            let fi_params_3 = CreateFunctionInstance {
+                function_controller_type_id: "test_function_3".to_string(),
+                provider_controller_type_id: "test_provider".to_string(),
+                provider_instance_id: "pi-2".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&fi_params_3).await.unwrap();
+
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+
+            // Test with provider_instance_id=None (should return all)
+            let result_all = repo
+                .list_function_instances(&pagination, None)
+                .await
+                .unwrap();
+            assert_eq!(result_all.items.len(), 3);
+
+            // Test with provider_instance_id="pi-1" (should return only pi-1 functions)
+            let result_pi1 = repo
+                .list_function_instances(&pagination, Some("pi-1"))
+                .await
+                .unwrap();
+            assert_eq!(result_pi1.items.len(), 2);
+            assert!(
+                result_pi1
+                    .items
+                    .iter()
+                    .all(|item| item.provider_instance_id == "pi-1")
+            );
+
+            // Test with provider_instance_id="pi-2" (should return only pi-2 functions)
+            let result_pi2 = repo
+                .list_function_instances(&pagination, Some("pi-2"))
+                .await
+                .unwrap();
+            assert_eq!(result_pi2.items.len(), 1);
+            assert_eq!(result_pi2.items[0].provider_instance_id, "pi-2");
+        }
+
+        #[tokio::test]
+        async fn test_list_provider_instances_filter_by_provider_controller_type_id() {
+            shared::setup_test!();
+
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            let repo = Repository::new(conn);
+
+            // No need to create DEK - mcp repository doesn't manage encryption keys
+            let now = shared::primitives::WrappedChronoDateTime::now();
+
+            // Create resource server credentials for provider instances
+            let rsc_id_1 = shared::primitives::WrappedUuidV4::new();
+            let rsc_params_1 = CreateResourceServerCredential {
+                id: rsc_id_1.clone(),
+                type_id: "test_type".to_string(),
+                metadata: crate::logic::Metadata::new(),
+                value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: "test-dek".to_string(),
+            };
+            repo.create_resource_server_credential(&rsc_params_1)
+                .await
+                .unwrap();
+
+            let rsc_id_2 = shared::primitives::WrappedUuidV4::new();
+            let rsc_params_2 = CreateResourceServerCredential {
+                id: rsc_id_2.clone(),
+                type_id: "test_type".to_string(),
+                metadata: crate::logic::Metadata::new(),
+                value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: "test-dek".to_string(),
+            };
+            repo.create_resource_server_credential(&rsc_params_2)
+                .await
+                .unwrap();
+
+            let rsc_id_3 = shared::primitives::WrappedUuidV4::new();
+            let rsc_params_3 = CreateResourceServerCredential {
+                id: rsc_id_3.clone(),
+                type_id: "test_type".to_string(),
+                metadata: crate::logic::Metadata::new(),
+                value: shared::primitives::WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: "test-dek".to_string(),
+            };
+            repo.create_resource_server_credential(&rsc_params_3)
+                .await
+                .unwrap();
+
+            // Create three provider instances with different provider_controller_type_ids
+            let pi_params_1 = CreateProviderInstance {
+                id: "pi-1".to_string(),
+                display_name: "Provider 1".to_string(),
+                resource_server_credential_id: rsc_id_1.clone(),
+                user_credential_id: None,
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "github".to_string(),
+                credential_controller_type_id: "test_cred".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&pi_params_1).await.unwrap();
+
+            let pi_params_2 = CreateProviderInstance {
+                id: "pi-2".to_string(),
+                display_name: "Provider 2".to_string(),
+                resource_server_credential_id: rsc_id_2.clone(),
+                user_credential_id: None,
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "gitlab".to_string(),
+                credential_controller_type_id: "test_cred".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&pi_params_2).await.unwrap();
+
+            let pi_params_3 = CreateProviderInstance {
+                id: "pi-3".to_string(),
+                display_name: "Provider 3".to_string(),
+                resource_server_credential_id: rsc_id_3.clone(),
+                user_credential_id: None,
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "github".to_string(),
+                credential_controller_type_id: "test_cred".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&pi_params_3).await.unwrap();
+
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+
+            // Test with provider_controller_type_id=None (should return all 3)
+            let result_all = repo
+                .list_provider_instances(&pagination, None, None)
+                .await
+                .unwrap();
+            assert_eq!(result_all.items.len(), 3);
+
+            // Test with provider_controller_type_id="github" (should return 2)
+            let result_github = repo
+                .list_provider_instances(&pagination, None, Some("github"))
+                .await
+                .unwrap();
+            assert_eq!(result_github.items.len(), 2);
+            assert!(
+                result_github
+                    .items
+                    .iter()
+                    .all(|item| item.provider_instance.provider_controller_type_id == "github")
+            );
+
+            // Test with provider_controller_type_id="gitlab" (should return 1)
+            let result_gitlab = repo
+                .list_provider_instances(&pagination, None, Some("gitlab"))
+                .await
+                .unwrap();
+            assert_eq!(result_gitlab.items.len(), 1);
+            assert_eq!(
+                result_gitlab.items[0]
+                    .provider_instance
+                    .provider_controller_type_id,
+                "gitlab"
+            );
+
+            // Test with combined filters: status="active" AND provider_controller_type_id="github" (should return 2)
+            let result_combined = repo
+                .list_provider_instances(&pagination, Some("active"), Some("github"))
+                .await
+                .unwrap();
+            assert_eq!(result_combined.items.len(), 2);
+            assert!(
+                result_combined
+                    .items
+                    .iter()
+                    .all(|item| item.provider_instance.status == "active"
+                        && item.provider_instance.provider_controller_type_id == "github")
+            );
+        }
+
+        #[tokio::test]
+        async fn test_get_provider_instances_grouped_by_function_controller_type_id() {
+            shared::setup_test!();
+
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
+
+            // Create resource server credentials
+            let rsc1 = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "oauth2".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({"client_id": "test1"})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                rsc1.clone(),
+            ))
             .await
             .unwrap();
 
-        // Create MCP server instance function
-        let function_params = crate::repository::CreateMcpServerInstanceFunction {
-            mcp_server_instance_id: mcp_params.id.clone(),
-            function_controller_type_id: function_instance.function_controller_type_id.clone(),
-            provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "original_name".to_string(),
-            function_description: None,
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_mcp_server_instance_function(&function_params)
+            let rsc2 = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "oauth2".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({"client_id": "test2"})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                rsc2.clone(),
+            ))
             .await
             .unwrap();
 
-        // Update the function
-        let update_params = crate::repository::UpdateMcpServerInstanceFunction {
-            mcp_server_instance_id: mcp_params.id.clone(),
-            function_controller_type_id: function_instance.function_controller_type_id.clone(),
-            provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "updated_name".to_string(),
-            function_description: Some("Updated description".to_string()),
-        };
-        repo.update_mcp_server_instance_function(&update_params)
+            // Create provider instances
+            let pi1 = ProviderInstanceSerialized {
+                id: "provider-1".to_string(),
+                display_name: "Provider 1".to_string(),
+                resource_server_credential_id: rsc1.id.clone(),
+                user_credential_id: None,
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "oauth2".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(pi1.clone()))
+                .await
+                .unwrap();
+
+            let pi2 = ProviderInstanceSerialized {
+                id: "provider-2".to_string(),
+                display_name: "Provider 2".to_string(),
+                resource_server_credential_id: rsc2.id.clone(),
+                user_credential_id: None,
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "oauth2".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(pi2.clone()))
+                .await
+                .unwrap();
+
+            // Create function instances
+            let fi1 = FunctionInstanceSerialized {
+                function_controller_type_id: "send_email".to_string(),
+                provider_controller_type_id: "google_mail".to_string(),
+                provider_instance_id: "provider-1".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(fi1.clone()))
+                .await
+                .unwrap();
+
+            let fi2 = FunctionInstanceSerialized {
+                function_controller_type_id: "send_email".to_string(),
+                provider_controller_type_id: "google_mail".to_string(),
+                provider_instance_id: "provider-2".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(fi2.clone()))
+                .await
+                .unwrap();
+
+            let fi3 = FunctionInstanceSerialized {
+                function_controller_type_id: "read_email".to_string(),
+                provider_controller_type_id: "google_mail".to_string(),
+                provider_instance_id: "provider-1".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(fi3.clone()))
+                .await
+                .unwrap();
+
+            // Test: Get grouped provider instances for specific function types
+            let function_ids = vec!["send_email".to_string(), "read_email".to_string()];
+            let result = repo
+                .get_provider_instances_grouped_by_function_controller_type_id(&function_ids)
+                .await
+                .unwrap();
+
+            // Should have 2 groups (one for send_email, one for read_email)
+            assert_eq!(result.len(), 2);
+
+            // Find the send_email group
+            let send_email_group = result
+                .iter()
+                .find(|g| g.function_controller_type_id == "send_email")
+                .expect("send_email group not found");
+
+            // Should have 2 provider instances for send_email
+            assert_eq!(send_email_group.provider_instances.len(), 2);
+
+            // Verify provider instances have credentials
+            for pi in &send_email_group.provider_instances {
+                assert!(!pi.provider_instance.id.is_empty());
+                assert!(!pi.resource_server_credential.id.to_string().is_empty());
+            }
+
+            // Find the read_email group
+            let read_email_group = result
+                .iter()
+                .find(|g| g.function_controller_type_id == "read_email")
+                .expect("read_email group not found");
+
+            // Should have 1 provider instance for read_email
+            assert_eq!(read_email_group.provider_instances.len(), 1);
+            assert_eq!(
+                read_email_group.provider_instances[0].provider_instance.id,
+                "provider-1"
+            );
+
+            // Test with empty function_ids
+            let result_empty = repo
+                .get_provider_instances_grouped_by_function_controller_type_id(&[])
+                .await
+                .unwrap();
+            assert_eq!(result_empty.len(), 0);
+        }
+
+        #[tokio::test]
+        async fn test_update_resource_server_credential() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
+
+            // Create initial resource server credential
+            let initial_value = WrappedJsonValue::new(serde_json::json!({
+                "client_id": "initial-client-id",
+                "client_secret": "initial-secret"
+            }));
+            let initial_metadata = Metadata::new();
+            let initial_rotation_time = WrappedChronoDateTime::now();
+
+            let rsc_id = WrappedUuidV4::new();
+            let rsc = ResourceServerCredentialSerialized {
+                id: rsc_id.clone(),
+                type_id: "oauth2_client_credentials".to_string(),
+                metadata: initial_metadata.clone(),
+                value: initial_value.clone(),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: Some(initial_rotation_time),
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                rsc.clone(),
+            ))
             .await
             .unwrap();
 
-        // Verify the update
-        let instance = repo
-            .get_mcp_server_instance_by_id(&mcp_params.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(instance.functions[0].function_name, "updated_name");
-        assert_eq!(
-            instance.functions[0].function_description,
-            Some("Updated description".to_string())
-        );
-    }
+            // Test 1: Update only value, other fields should remain unchanged
+            let new_value = WrappedJsonValue::new(serde_json::json!({
+                "client_id": "updated-client-id",
+                "client_secret": "updated-secret"
+            }));
+            repo.update_resource_server_credential(&rsc_id, Some(&new_value), None, None, None)
+                .await
+                .unwrap();
 
-    #[tokio::test]
-    async fn test_delete_mcp_server_instance_function() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
+            let updated = repo
+                .get_resource_server_credential_by_id(&rsc_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(updated.value, new_value, "Value should be updated");
+            assert_eq!(
+                updated.metadata.0, initial_metadata.0,
+                "Metadata should remain unchanged when None is passed"
+            );
+            assert_eq!(
+                updated.next_rotation_time,
+                Some(initial_rotation_time),
+                "Rotation time should remain unchanged when None is passed"
+            );
 
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
+            // Test 2: Update only metadata, other fields should remain unchanged
+            let mut new_metadata_map = serde_json::Map::new();
+            new_metadata_map.insert("key".to_string(), serde_json::json!("value"));
+            let new_metadata = Metadata(new_metadata_map);
 
-        // Create MCP instance
-        let mcp_params = crate::repository::CreateMcpServerInstance {
-            id: "test-delete-function-mcp".to_string(),
-            name: "Test Delete Function MCP".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+            repo.update_resource_server_credential(&rsc_id, None, Some(&new_metadata), None, None)
+                .await
+                .unwrap();
 
-        // Create dependencies
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
+            let updated = repo
+                .get_resource_server_credential_by_id(&rsc_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                updated.value, new_value,
+                "Value should remain unchanged when None is passed"
+            );
+            assert_eq!(
+                updated.metadata.0, new_metadata.0,
+                "Metadata should be updated"
+            );
+            assert_eq!(
+                updated.next_rotation_time,
+                Some(initial_rotation_time),
+                "Rotation time should remain unchanged when None is passed"
+            );
 
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
-            .await
-            .unwrap();
-
-        let provider_instance_id = uuid::Uuid::new_v4().to_string();
-        let provider_instance = ProviderInstanceSerialized {
-            id: provider_instance_id.clone(),
-            display_name: "Test Provider".to_string(),
-            resource_server_credential_id: resource_server_cred.id,
-            user_credential_id: Some(user_cred.id),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
+            // Test 3: Update only next_rotation_time, other fields should remain unchanged
+            let new_rotation_time = WrappedChronoDateTime::now();
+            repo.update_resource_server_credential(
+                &rsc_id,
+                None,
+                None,
+                Some(&new_rotation_time),
+                None,
+            )
             .await
             .unwrap();
 
-        let function_instance = FunctionInstanceSerialized {
-            function_controller_type_id: "send_email".to_string(),
-            provider_controller_type_id: "google_mail".to_string(),
-            provider_instance_id: provider_instance_id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+            let updated = repo
+                .get_resource_server_credential_by_id(&rsc_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                updated.value, new_value,
+                "Value should remain unchanged when None is passed"
+            );
+            assert_eq!(
+                updated.metadata.0, new_metadata.0,
+                "Metadata should remain unchanged when None is passed"
+            );
+            assert!(
+                updated.next_rotation_time.is_some(),
+                "Rotation time should be updated"
+            );
+
+            // Test 4: Pass None for all optional fields, all should remain unchanged
+            let before_none_update = repo
+                .get_resource_server_credential_by_id(&rsc_id)
+                .await
+                .unwrap()
+                .unwrap();
+
+            repo.update_resource_server_credential(&rsc_id, None, None, None, None)
+                .await
+                .unwrap();
+
+            let after_none_update = repo
+                .get_resource_server_credential_by_id(&rsc_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                after_none_update.value, before_none_update.value,
+                "Value should remain unchanged when None is passed"
+            );
+            assert_eq!(
+                after_none_update.metadata.0, before_none_update.metadata.0,
+                "Metadata should remain unchanged when None is passed"
+            );
+            assert_eq!(
+                after_none_update.next_rotation_time, before_none_update.next_rotation_time,
+                "Rotation time should remain unchanged when None is passed"
+            );
+
+            // Test 5: Update all fields at once
+            let final_value = WrappedJsonValue::new(serde_json::json!({
+                "client_id": "final-client-id",
+                "client_secret": "final-secret"
+            }));
+            let mut final_metadata_map = serde_json::Map::new();
+            final_metadata_map.insert("final".to_string(), serde_json::json!(true));
+            let final_metadata = Metadata(final_metadata_map);
+            let final_rotation_time = WrappedChronoDateTime::now();
+
+            repo.update_resource_server_credential(
+                &rsc_id,
+                Some(&final_value),
+                Some(&final_metadata),
+                Some(&final_rotation_time),
+                None,
+            )
             .await
             .unwrap();
 
-        // Create MCP server instance function
-        let function_params = crate::repository::CreateMcpServerInstanceFunction {
-            mcp_server_instance_id: mcp_params.id.clone(),
-            function_controller_type_id: function_instance.function_controller_type_id.clone(),
-            provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "to_be_deleted".to_string(),
-            function_description: None,
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_mcp_server_instance_function(&function_params)
+            let updated = repo
+                .get_resource_server_credential_by_id(&rsc_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(updated.value, final_value, "All fields should be updated");
+            assert_eq!(
+                updated.metadata.0, final_metadata.0,
+                "All fields should be updated"
+            );
+            assert!(
+                updated.next_rotation_time.is_some(),
+                "All fields should be updated"
+            );
+        }
+
+        #[tokio::test]
+        async fn test_update_user_credential() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
+
+            // Create initial user credential
+            let initial_value = WrappedJsonValue::new(serde_json::json!({
+                "access_token": "initial-token",
+                "refresh_token": "initial-refresh"
+            }));
+            let mut initial_metadata_map = serde_json::Map::new();
+            initial_metadata_map.insert(
+                "initial_key".to_string(),
+                serde_json::json!("initial_value"),
+            );
+            let initial_metadata = Metadata(initial_metadata_map);
+            let initial_rotation_time = WrappedChronoDateTime::now();
+
+            let uc_id = WrappedUuidV4::new();
+            let uc = UserCredentialSerialized {
+                id: uc_id.clone(),
+                type_id: "oauth2_authorization_code".to_string(),
+                metadata: initial_metadata.clone(),
+                value: initial_value.clone(),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: Some(initial_rotation_time),
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(uc.clone()))
+                .await
+                .unwrap();
+
+            // Test 1: Update only value, other fields should remain unchanged
+            let new_value = WrappedJsonValue::new(serde_json::json!({
+                "access_token": "updated-token",
+                "refresh_token": "updated-refresh"
+            }));
+            repo.update_user_credential(&uc_id, Some(&new_value), None, None, None)
+                .await
+                .unwrap();
+
+            let updated = repo
+                .get_user_credential_by_id(&uc_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(updated.value, new_value, "Value should be updated");
+            assert_eq!(
+                updated.metadata.0, initial_metadata.0,
+                "Metadata should remain unchanged when None is passed"
+            );
+            assert_eq!(
+                updated.next_rotation_time,
+                Some(initial_rotation_time),
+                "Rotation time should remain unchanged when None is passed"
+            );
+
+            // Test 2: Update only metadata, other fields should remain unchanged
+            let mut new_metadata_map = serde_json::Map::new();
+            new_metadata_map.insert("new_key".to_string(), serde_json::json!("new_value"));
+            let new_metadata = Metadata(new_metadata_map);
+
+            repo.update_user_credential(&uc_id, None, Some(&new_metadata), None, None)
+                .await
+                .unwrap();
+
+            let updated = repo
+                .get_user_credential_by_id(&uc_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                updated.value, new_value,
+                "Value should remain unchanged when None is passed"
+            );
+            assert_eq!(
+                updated.metadata.0, new_metadata.0,
+                "Metadata should be updated"
+            );
+            assert_eq!(
+                updated.next_rotation_time,
+                Some(initial_rotation_time),
+                "Rotation time should remain unchanged when None is passed"
+            );
+
+            // Test 3: Update only next_rotation_time, other fields should remain unchanged
+            let new_rotation_time = WrappedChronoDateTime::now();
+            repo.update_user_credential(&uc_id, None, None, Some(&new_rotation_time), None)
+                .await
+                .unwrap();
+
+            let updated = repo
+                .get_user_credential_by_id(&uc_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                updated.value, new_value,
+                "Value should remain unchanged when None is passed"
+            );
+            assert_eq!(
+                updated.metadata.0, new_metadata.0,
+                "Metadata should remain unchanged when None is passed"
+            );
+            assert!(
+                updated.next_rotation_time.is_some(),
+                "Rotation time should be updated"
+            );
+
+            // Test 4: Update with None values (all should remain unchanged)
+            let before_none_update = repo
+                .get_user_credential_by_id(&uc_id)
+                .await
+                .unwrap()
+                .unwrap();
+
+            repo.update_user_credential(&uc_id, None, None, None, None)
+                .await
+                .unwrap();
+
+            let after_none_update = repo
+                .get_user_credential_by_id(&uc_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                after_none_update.value, before_none_update.value,
+                "Value should remain unchanged when None is passed"
+            );
+            assert_eq!(
+                after_none_update.metadata.0, before_none_update.metadata.0,
+                "Metadata should remain unchanged when None is passed"
+            );
+            assert_eq!(
+                after_none_update.next_rotation_time, before_none_update.next_rotation_time,
+                "Rotation time should remain unchanged when None is passed"
+            );
+
+            // Test 5: Update all fields at once
+            let final_value = WrappedJsonValue::new(serde_json::json!({
+                "access_token": "final-token",
+                "refresh_token": "final-refresh"
+            }));
+            let mut final_metadata_map = serde_json::Map::new();
+            final_metadata_map.insert("final_key".to_string(), serde_json::json!("final_value"));
+            let final_metadata = Metadata(final_metadata_map);
+            let final_rotation_time = WrappedChronoDateTime::now();
+
+            repo.update_user_credential(
+                &uc_id,
+                Some(&final_value),
+                Some(&final_metadata),
+                Some(&final_rotation_time),
+                None,
+            )
             .await
             .unwrap();
 
-        // Verify the function exists
-        let instance = repo
-            .get_mcp_server_instance_by_id(&mcp_params.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(instance.functions.len(), 1);
+            let updated = repo
+                .get_user_credential_by_id(&uc_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(updated.value, final_value, "All fields should be updated");
+            assert_eq!(
+                updated.metadata.0, final_metadata.0,
+                "All fields should be updated"
+            );
+            assert!(
+                updated.next_rotation_time.is_some(),
+                "All fields should be updated"
+            );
+        }
 
-        // Delete the function
-        repo.delete_mcp_server_instance_function(
-            &mcp_params.id,
-            &function_instance.function_controller_type_id,
-            &function_instance.provider_controller_type_id,
-            &provider_instance_id,
-        )
-        .await
-        .unwrap();
+        // ============================================================================
+        // MCP Server Instance Repository Tests
+        // ============================================================================
 
-        // Verify the function is gone
-        let instance = repo
-            .get_mcp_server_instance_by_id(&mcp_params.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert!(instance.functions.is_empty());
-    }
+        #[tokio::test]
+        async fn test_create_and_get_mcp_server_instance() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
 
-    #[tokio::test]
-    async fn test_get_mcp_server_instance_function_by_name() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
+            let now = WrappedChronoDateTime::now();
+            let params = crate::repository::CreateMcpServerInstance {
+                id: "test-mcp-instance".to_string(),
+                name: "Test MCP Instance".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
 
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
+            repo.create_mcp_server_instance(&params).await.unwrap();
 
-        // Create MCP instance
-        let mcp_params = crate::repository::CreateMcpServerInstance {
-            id: "test-get-by-name".to_string(),
-            name: "Test Get By Name".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+            let retrieved = repo
+                .get_mcp_server_instance_by_id(&params.id)
+                .await
+                .unwrap();
+            assert!(retrieved.is_some());
 
-        // Create dependencies
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
+            let instance = retrieved.unwrap();
+            assert_eq!(instance.id, params.id);
+            assert_eq!(instance.name, params.name);
+            assert!(instance.functions.is_empty());
+        }
 
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
-            .await
-            .unwrap();
+        #[tokio::test]
+        async fn test_update_mcp_server_instance_name() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
 
-        let provider_instance_id = uuid::Uuid::new_v4().to_string();
-        let provider_instance = ProviderInstanceSerialized {
-            id: provider_instance_id.clone(),
-            display_name: "Test Provider".to_string(),
-            resource_server_credential_id: resource_server_cred.id,
-            user_credential_id: Some(user_cred.id),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
-            .await
-            .unwrap();
+            let now = WrappedChronoDateTime::now();
+            let params = crate::repository::CreateMcpServerInstance {
+                id: "test-update-name".to_string(),
+                name: "Original Name".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
 
-        let function_instance = FunctionInstanceSerialized {
-            function_controller_type_id: "send_email".to_string(),
-            provider_controller_type_id: "google_mail".to_string(),
-            provider_instance_id: provider_instance_id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
-            .await
-            .unwrap();
+            repo.create_mcp_server_instance(&params).await.unwrap();
 
-        // Create MCP server instance function
-        let function_params = crate::repository::CreateMcpServerInstanceFunction {
-            mcp_server_instance_id: mcp_params.id.clone(),
-            function_controller_type_id: function_instance.function_controller_type_id.clone(),
-            provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "unique_function_name".to_string(),
-            function_description: Some("Test description".to_string()),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_mcp_server_instance_function(&function_params)
-            .await
-            .unwrap();
+            // Update the name
+            repo.update_mcp_server_instance(&params.id, "Updated Name")
+                .await
+                .unwrap();
 
-        // Get by name - should find it
-        let found = repo
-            .get_mcp_server_instance_function_by_name(&mcp_params.id, "unique_function_name")
-            .await
-            .unwrap();
-        assert!(found.is_some());
-        let func = found.unwrap();
-        assert_eq!(func.function_name, "unique_function_name");
-        assert_eq!(
-            func.function_description,
-            Some("Test description".to_string())
-        );
+            let updated = repo
+                .get_mcp_server_instance_by_id(&params.id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(updated.name, "Updated Name");
+        }
 
-        // Get by name - should not find non-existent
-        let not_found = repo
-            .get_mcp_server_instance_function_by_name(&mcp_params.id, "nonexistent_name")
-            .await
-            .unwrap();
-        assert!(not_found.is_none());
-    }
+        #[tokio::test]
+        async fn test_delete_mcp_server_instance() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
 
-    #[tokio::test]
-    async fn test_delete_mcp_server_instance_cascades_functions() {
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
+            let now = WrappedChronoDateTime::now();
+            let params = crate::repository::CreateMcpServerInstance {
+                id: "test-delete-mcp".to_string(),
+                name: "To Be Deleted".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
 
-        let now = WrappedChronoDateTime::now();
-        let dek_alias = create_test_dek_alias();
+            repo.create_mcp_server_instance(&params).await.unwrap();
 
-        // Create MCP instance
-        let mcp_params = crate::repository::CreateMcpServerInstance {
-            id: "test-cascade-mcp".to_string(),
-            name: "Test Cascade MCP".to_string(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+            // Verify it exists
+            let exists = repo
+                .get_mcp_server_instance_by_id(&params.id)
+                .await
+                .unwrap();
+            assert!(exists.is_some());
 
-        // Create dependencies
-        let resource_server_cred = ResourceServerCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "resource_server_no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_resource_server_credential(&CreateResourceServerCredential::from(
-            resource_server_cred.clone(),
-        ))
-        .await
-        .unwrap();
+            // Delete it
+            repo.delete_mcp_server_instance(&params.id).await.unwrap();
 
-        let user_cred = UserCredentialSerialized {
-            id: WrappedUuidV4::new(),
-            type_id: "no_auth".to_string(),
-            metadata: Metadata::new(),
-            value: WrappedJsonValue::new(serde_json::json!({})),
-            created_at: now,
-            updated_at: now,
-            next_rotation_time: None,
-            dek_alias: dek_alias.clone(),
-        };
-        repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
-            .await
-            .unwrap();
+            // Verify it's gone
+            let deleted = repo
+                .get_mcp_server_instance_by_id(&params.id)
+                .await
+                .unwrap();
+            assert!(deleted.is_none());
+        }
 
-        let provider_instance_id = uuid::Uuid::new_v4().to_string();
-        let provider_instance = ProviderInstanceSerialized {
-            id: provider_instance_id.clone(),
-            display_name: "Test Provider".to_string(),
-            resource_server_credential_id: resource_server_cred.id,
-            user_credential_id: Some(user_cred.id),
-            created_at: now,
-            updated_at: now,
-            provider_controller_type_id: "google_mail".to_string(),
-            credential_controller_type_id: "no_auth".to_string(),
-            status: "active".to_string(),
-            return_on_successful_brokering: None,
-        };
-        repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
-            .await
-            .unwrap();
+        #[tokio::test]
+        async fn test_list_mcp_server_instances_empty() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
 
-        let function_instance = FunctionInstanceSerialized {
-            function_controller_type_id: "send_email".to_string(),
-            provider_controller_type_id: "google_mail".to_string(),
-            provider_instance_id: provider_instance_id.clone(),
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
-            .await
-            .unwrap();
+            let pagination = shared::primitives::PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
 
-        // Create MCP server instance function
-        let function_params = crate::repository::CreateMcpServerInstanceFunction {
-            mcp_server_instance_id: mcp_params.id.clone(),
-            function_controller_type_id: function_instance.function_controller_type_id.clone(),
-            provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
-            provider_instance_id: provider_instance_id.clone(),
-            function_name: "will_be_cascaded".to_string(),
-            function_description: None,
-            created_at: now,
-            updated_at: now,
-        };
-        repo.create_mcp_server_instance_function(&function_params)
-            .await
-            .unwrap();
+            let result = repo.list_mcp_server_instances(&pagination).await.unwrap();
+            assert_eq!(result.items.len(), 0);
+            assert!(result.next_page_token.is_none());
+        }
 
-        // Verify function exists
-        let instance = repo
-            .get_mcp_server_instance_by_id(&mcp_params.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(instance.functions.len(), 1);
+        #[tokio::test]
+        async fn test_list_mcp_server_instances_with_items() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
 
-        // Delete the MCP instance - should cascade delete functions
-        repo.delete_mcp_server_instance(&mcp_params.id)
+            let now = WrappedChronoDateTime::now();
+
+            // Create multiple instances
+            for i in 0..3 {
+                let params = crate::repository::CreateMcpServerInstance {
+                    id: format!("test-list-{i}"),
+                    name: format!("Test Instance {i}"),
+                    created_at: now,
+                    updated_at: now,
+                };
+                repo.create_mcp_server_instance(&params).await.unwrap();
+            }
+
+            let pagination = shared::primitives::PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+
+            let result = repo.list_mcp_server_instances(&pagination).await.unwrap();
+            assert_eq!(result.items.len(), 3);
+        }
+
+        #[tokio::test]
+        async fn test_list_mcp_server_instances_pagination() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+
+            // Create 5 instances with different timestamps for proper cursor-based pagination
+            for i in 0..5 {
+                // Create timestamps with 1 second intervals to ensure distinct ordering
+                let timestamp = WrappedChronoDateTime::new(
+                    chrono::Utc::now() - chrono::Duration::seconds((5 - i) as i64),
+                );
+                let params = crate::repository::CreateMcpServerInstance {
+                    id: format!("test-pagination-{i}"),
+                    name: format!("Test Instance {i}"),
+                    created_at: timestamp,
+                    updated_at: timestamp,
+                };
+                repo.create_mcp_server_instance(&params).await.unwrap();
+            }
+
+            // First page (should return the 2 most recent, i.e., instances 4 and 3)
+            let pagination = shared::primitives::PaginationRequest {
+                page_size: 2,
+                next_page_token: None,
+            };
+
+            let first_page = repo.list_mcp_server_instances(&pagination).await.unwrap();
+            assert_eq!(first_page.items.len(), 2);
+            assert!(first_page.next_page_token.is_some());
+
+            // Second page (should return instances 2 and 1)
+            let pagination = shared::primitives::PaginationRequest {
+                page_size: 2,
+                next_page_token: first_page.next_page_token,
+            };
+
+            let second_page = repo.list_mcp_server_instances(&pagination).await.unwrap();
+            assert_eq!(second_page.items.len(), 2);
+        }
+
+        #[tokio::test]
+        async fn test_create_mcp_server_instance_function() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
+
+            // Create MCP instance
+            let mcp_params = crate::repository::CreateMcpServerInstance {
+                id: "test-function-mcp".to_string(),
+                name: "Test Function MCP".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+
+            // Create necessary dependencies (resource server credential, user credential, provider instance, function instance)
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
             .await
             .unwrap();
 
-        // Verify instance is gone
-        let deleted = repo
-            .get_mcp_server_instance_by_id(&mcp_params.id)
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+                .await
+                .unwrap();
+
+            let provider_instance_id = uuid::Uuid::new_v4().to_string();
+            let provider_instance = ProviderInstanceSerialized {
+                id: provider_instance_id.clone(),
+                display_name: "Test Provider".to_string(),
+                resource_server_credential_id: resource_server_cred.id,
+                user_credential_id: Some(user_cred.id),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance.clone()))
+                .await
+                .unwrap();
+
+            let function_instance = FunctionInstanceSerialized {
+                function_controller_type_id: "send_email".to_string(),
+                provider_controller_type_id: "google_mail".to_string(),
+                provider_instance_id: provider_instance_id.clone(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+                .await
+                .unwrap();
+
+            // Now create the MCP server instance function
+            let function_params = crate::repository::CreateMcpServerInstanceFunction {
+                mcp_server_instance_id: mcp_params.id.clone(),
+                function_controller_type_id: function_instance.function_controller_type_id.clone(),
+                provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "custom_function_name".to_string(),
+                function_description: Some("A custom function".to_string()),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_mcp_server_instance_function(&function_params)
+                .await
+                .unwrap();
+
+            // Verify the MCP instance now has the function
+            let instance = repo
+                .get_mcp_server_instance_by_id(&mcp_params.id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(instance.functions.len(), 1);
+            assert_eq!(instance.functions[0].function_name, "custom_function_name");
+            assert_eq!(
+                instance.functions[0].function_description,
+                Some("A custom function".to_string())
+            );
+        }
+
+        #[tokio::test]
+        async fn test_update_mcp_server_instance_function() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
+
+            // Create MCP instance
+            let mcp_params = crate::repository::CreateMcpServerInstance {
+                id: "test-update-function-mcp".to_string(),
+                name: "Test Update Function MCP".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+
+            // Create dependencies
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
             .await
             .unwrap();
-        assert!(deleted.is_none());
+
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+                .await
+                .unwrap();
+
+            let provider_instance_id = uuid::Uuid::new_v4().to_string();
+            let provider_instance = ProviderInstanceSerialized {
+                id: provider_instance_id.clone(),
+                display_name: "Test Provider".to_string(),
+                resource_server_credential_id: resource_server_cred.id,
+                user_credential_id: Some(user_cred.id),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
+                .await
+                .unwrap();
+
+            let function_instance = FunctionInstanceSerialized {
+                function_controller_type_id: "send_email".to_string(),
+                provider_controller_type_id: "google_mail".to_string(),
+                provider_instance_id: provider_instance_id.clone(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+                .await
+                .unwrap();
+
+            // Create MCP server instance function
+            let function_params = crate::repository::CreateMcpServerInstanceFunction {
+                mcp_server_instance_id: mcp_params.id.clone(),
+                function_controller_type_id: function_instance.function_controller_type_id.clone(),
+                provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "original_name".to_string(),
+                function_description: None,
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_mcp_server_instance_function(&function_params)
+                .await
+                .unwrap();
+
+            // Update the function
+            let update_params = crate::repository::UpdateMcpServerInstanceFunction {
+                mcp_server_instance_id: mcp_params.id.clone(),
+                function_controller_type_id: function_instance.function_controller_type_id.clone(),
+                provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "updated_name".to_string(),
+                function_description: Some("Updated description".to_string()),
+            };
+            repo.update_mcp_server_instance_function(&update_params)
+                .await
+                .unwrap();
+
+            // Verify the update
+            let instance = repo
+                .get_mcp_server_instance_by_id(&mcp_params.id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(instance.functions[0].function_name, "updated_name");
+            assert_eq!(
+                instance.functions[0].function_description,
+                Some("Updated description".to_string())
+            );
+        }
+
+        #[tokio::test]
+        async fn test_delete_mcp_server_instance_function() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
+
+            // Create MCP instance
+            let mcp_params = crate::repository::CreateMcpServerInstance {
+                id: "test-delete-function-mcp".to_string(),
+                name: "Test Delete Function MCP".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+
+            // Create dependencies
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
+            .await
+            .unwrap();
+
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+                .await
+                .unwrap();
+
+            let provider_instance_id = uuid::Uuid::new_v4().to_string();
+            let provider_instance = ProviderInstanceSerialized {
+                id: provider_instance_id.clone(),
+                display_name: "Test Provider".to_string(),
+                resource_server_credential_id: resource_server_cred.id,
+                user_credential_id: Some(user_cred.id),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
+                .await
+                .unwrap();
+
+            let function_instance = FunctionInstanceSerialized {
+                function_controller_type_id: "send_email".to_string(),
+                provider_controller_type_id: "google_mail".to_string(),
+                provider_instance_id: provider_instance_id.clone(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+                .await
+                .unwrap();
+
+            // Create MCP server instance function
+            let function_params = crate::repository::CreateMcpServerInstanceFunction {
+                mcp_server_instance_id: mcp_params.id.clone(),
+                function_controller_type_id: function_instance.function_controller_type_id.clone(),
+                provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "to_be_deleted".to_string(),
+                function_description: None,
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_mcp_server_instance_function(&function_params)
+                .await
+                .unwrap();
+
+            // Verify the function exists
+            let instance = repo
+                .get_mcp_server_instance_by_id(&mcp_params.id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(instance.functions.len(), 1);
+
+            // Delete the function
+            repo.delete_mcp_server_instance_function(
+                &mcp_params.id,
+                &function_instance.function_controller_type_id,
+                &function_instance.provider_controller_type_id,
+                &provider_instance_id,
+            )
+            .await
+            .unwrap();
+
+            // Verify the function is gone
+            let instance = repo
+                .get_mcp_server_instance_by_id(&mcp_params.id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(instance.functions.is_empty());
+        }
+
+        #[tokio::test]
+        async fn test_get_mcp_server_instance_function_by_name() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
+
+            // Create MCP instance
+            let mcp_params = crate::repository::CreateMcpServerInstance {
+                id: "test-get-by-name".to_string(),
+                name: "Test Get By Name".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+
+            // Create dependencies
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
+            .await
+            .unwrap();
+
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+                .await
+                .unwrap();
+
+            let provider_instance_id = uuid::Uuid::new_v4().to_string();
+            let provider_instance = ProviderInstanceSerialized {
+                id: provider_instance_id.clone(),
+                display_name: "Test Provider".to_string(),
+                resource_server_credential_id: resource_server_cred.id,
+                user_credential_id: Some(user_cred.id),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
+                .await
+                .unwrap();
+
+            let function_instance = FunctionInstanceSerialized {
+                function_controller_type_id: "send_email".to_string(),
+                provider_controller_type_id: "google_mail".to_string(),
+                provider_instance_id: provider_instance_id.clone(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+                .await
+                .unwrap();
+
+            // Create MCP server instance function
+            let function_params = crate::repository::CreateMcpServerInstanceFunction {
+                mcp_server_instance_id: mcp_params.id.clone(),
+                function_controller_type_id: function_instance.function_controller_type_id.clone(),
+                provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "unique_function_name".to_string(),
+                function_description: Some("Test description".to_string()),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_mcp_server_instance_function(&function_params)
+                .await
+                .unwrap();
+
+            // Get by name - should find it
+            let found = repo
+                .get_mcp_server_instance_function_by_name(&mcp_params.id, "unique_function_name")
+                .await
+                .unwrap();
+            assert!(found.is_some());
+            let func = found.unwrap();
+            assert_eq!(func.function_name, "unique_function_name");
+            assert_eq!(
+                func.function_description,
+                Some("Test description".to_string())
+            );
+
+            // Get by name - should not find non-existent
+            let not_found = repo
+                .get_mcp_server_instance_function_by_name(&mcp_params.id, "nonexistent_name")
+                .await
+                .unwrap();
+            assert!(not_found.is_none());
+        }
+
+        #[tokio::test]
+        async fn test_delete_mcp_server_instance_cascades_functions() {
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+
+            let now = WrappedChronoDateTime::now();
+            let dek_alias = create_test_dek_alias();
+
+            // Create MCP instance
+            let mcp_params = crate::repository::CreateMcpServerInstance {
+                id: "test-cascade-mcp".to_string(),
+                name: "Test Cascade MCP".to_string(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_mcp_server_instance(&mcp_params).await.unwrap();
+
+            // Create dependencies
+            let resource_server_cred = ResourceServerCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "resource_server_no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_resource_server_credential(&CreateResourceServerCredential::from(
+                resource_server_cred.clone(),
+            ))
+            .await
+            .unwrap();
+
+            let user_cred = UserCredentialSerialized {
+                id: WrappedUuidV4::new(),
+                type_id: "no_auth".to_string(),
+                metadata: Metadata::new(),
+                value: WrappedJsonValue::new(serde_json::json!({})),
+                created_at: now,
+                updated_at: now,
+                next_rotation_time: None,
+                dek_alias: dek_alias.clone(),
+            };
+            repo.create_user_credential(&CreateUserCredential::from(user_cred.clone()))
+                .await
+                .unwrap();
+
+            let provider_instance_id = uuid::Uuid::new_v4().to_string();
+            let provider_instance = ProviderInstanceSerialized {
+                id: provider_instance_id.clone(),
+                display_name: "Test Provider".to_string(),
+                resource_server_credential_id: resource_server_cred.id,
+                user_credential_id: Some(user_cred.id),
+                created_at: now,
+                updated_at: now,
+                provider_controller_type_id: "google_mail".to_string(),
+                credential_controller_type_id: "no_auth".to_string(),
+                status: "active".to_string(),
+                return_on_successful_brokering: None,
+            };
+            repo.create_provider_instance(&CreateProviderInstance::from(provider_instance))
+                .await
+                .unwrap();
+
+            let function_instance = FunctionInstanceSerialized {
+                function_controller_type_id: "send_email".to_string(),
+                provider_controller_type_id: "google_mail".to_string(),
+                provider_instance_id: provider_instance_id.clone(),
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_function_instance(&CreateFunctionInstance::from(function_instance.clone()))
+                .await
+                .unwrap();
+
+            // Create MCP server instance function
+            let function_params = crate::repository::CreateMcpServerInstanceFunction {
+                mcp_server_instance_id: mcp_params.id.clone(),
+                function_controller_type_id: function_instance.function_controller_type_id.clone(),
+                provider_controller_type_id: function_instance.provider_controller_type_id.clone(),
+                provider_instance_id: provider_instance_id.clone(),
+                function_name: "will_be_cascaded".to_string(),
+                function_description: None,
+                created_at: now,
+                updated_at: now,
+            };
+            repo.create_mcp_server_instance_function(&function_params)
+                .await
+                .unwrap();
+
+            // Verify function exists
+            let instance = repo
+                .get_mcp_server_instance_by_id(&mcp_params.id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(instance.functions.len(), 1);
+
+            // Delete the MCP instance - should cascade delete functions
+            repo.delete_mcp_server_instance(&mcp_params.id)
+                .await
+                .unwrap();
+
+            // Verify instance is gone
+            let deleted = repo
+                .get_mcp_server_instance_by_id(&mcp_params.id)
+                .await
+                .unwrap();
+            assert!(deleted.is_none());
+        }
     }
 }
