@@ -142,7 +142,20 @@ jobs:
       CARGO_PROFILE_TEST_DEBUG: 0
       CARGO_PROFILE_RELEASE_LTO: true
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+      # Reduce disk usage by limiting target directory size
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_DEV_OPT_LEVEL: 0
+      # Use sparse registry to reduce disk usage
+      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+      # Limit number of build jobs to reduce memory/disk usage
+      CARGO_BUILD_JOBS: 2
     steps:
+      - name: Check disk space before build
+        run: |
+          echo "Disk space before build:"
+          df -h
+          echo "Largest directories:"
+          du -h -d 2 . | sort -hr | head -10 || true
       - name: Checkout
         uses: actions/checkout@v5
         with:
@@ -173,8 +186,18 @@ jobs:
         with:
           tool: cargo-llvm-cov,cargo-nextest
 
+      - name: Check disk space after setup
+        run: |
+          echo "Disk space after Rust setup:"
+          df -h
+
       - name: Run cargo clippy
         run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Check disk space after clippy
+        run: |
+          echo "Disk space after clippy:"
+          df -h
 
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
@@ -184,7 +207,11 @@ jobs:
           mkdir -p .coverage-tmp
           # This requires AWS credentials to be configured (done above)
           # Dex is started above for OAuth/OIDC integration tests
+          echo "Disk space before tests:"
+          df -h
           cargo llvm-cov nextest --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov
+          echo "Disk space after tests:"
+          df -h
 
       - name: Upload Rust coverage LCOV
         uses: actions/upload-artifact@v4
@@ -193,7 +220,6 @@ jobs:
           path: .coverage-tmp/rust.lcov
           retention-days: 7
           if-no-files-found: error
-
 
   napi-quality:
     name: NAPI build verification
