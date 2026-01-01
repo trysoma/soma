@@ -149,6 +149,9 @@ jobs:
       CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
       # Limit number of build jobs to reduce memory/disk usage
       CARGO_BUILD_JOBS: 2
+      # SQLite optimizations to reduce temp file creation during tests
+      SQLITE_TMPDIR: /tmp
+      TMPDIR: /tmp
     steps:
       - name: Check disk space before build
         run: |
@@ -190,6 +193,8 @@ jobs:
         run: |
           echo "Disk space after Rust setup:"
           df -h
+          echo "Checking for existing temp files:"
+          find /tmp -name "*.db*" -o -name "*sqlite*" 2>/dev/null | wc -l || echo "No temp files found"
 
       - name: Run cargo clippy
         run: cargo clippy --all-targets --locked -- -D warnings
@@ -202,16 +207,36 @@ jobs:
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
 
+      - name: Run cargo nextest (without coverage first to check disk usage)
+        run: |
+          echo "Disk space before tests (no coverage):"
+          df -h
+          # First run tests without coverage to isolate if coverage is the disk issue
+          # Each test creates in-memory SQLite databases which can still create temp files
+          # --no-fail-fast: continue running even if tests fail
+          # --status-level all: show all test results
+          # --final-status-level slow: show slow tests at the end
+          cargo nextest run --workspace --locked --test-threads=1 --no-fail-fast --status-level all --final-status-level slow
+          echo "Disk space after tests (no coverage):"
+          df -h
+        timeout-minutes: 30
+
       - name: Run cargo nextest with coverage (all tests including integration)
         run: |
           mkdir -p .coverage-tmp
           # This requires AWS credentials to be configured (done above)
           # Dex is started above for OAuth/OIDC integration tests
-          echo "Disk space before tests:"
+          echo "Disk space before coverage tests:"
           df -h
-          cargo llvm-cov nextest --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov
-          echo "Disk space after tests:"
+          # Run tests with reduced parallelism to avoid overwhelming disk I/O
+          # Each test creates in-memory SQLite databases which can still create temp files
+          cargo llvm-cov nextest --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov --test-threads=1
+          echo "Disk space after coverage tests:"
           df -h
+          # Clean up any temporary SQLite files that might have been created
+          find /tmp -name "*.db*" -type f -mtime +1 -delete 2>/dev/null || true
+          find /tmp -name "*sqlite*" -type f -mtime +1 -delete 2>/dev/null || true
+          find . -name "*.db*" -type f -mtime +1 -delete 2>/dev/null || true
 
       - name: Upload Rust coverage LCOV
         uses: actions/upload-artifact@v4

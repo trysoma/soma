@@ -9,18 +9,20 @@ use tempfile::TempDir;
 use tracing::debug;
 use url::Url;
 
+/// Creates a temp directory with migration files and returns the TempDir handle.
+/// The caller must keep the TempDir alive until migrations complete, then it will
+/// be automatically cleaned up when dropped.
 async fn write_migrations_to_temp_dir(
     migrations: &BTreeMap<&str, &str>,
-) -> Result<PathBuf, anyhow::Error> {
+) -> Result<TempDir, anyhow::Error> {
     let temp_dir = TempDir::new()?;
-    let temp_path = temp_dir.keep();
 
     for (filename, contents) in migrations {
-        let file_path = temp_path.join(filename);
+        let file_path = temp_dir.path().join(filename);
         fs::write(file_path, contents)?;
     }
 
-    Ok(temp_path)
+    Ok(temp_dir)
 }
 
 #[derive(Debug, Clone)]
@@ -350,7 +352,8 @@ pub async fn establish_db_connection<'a>(
             .collect::<BTreeMap<&str, &str>>();
 
         let temp_dir = write_migrations_to_temp_dir(&migrations_to_run).await?;
-        libsql_migration::dir::migrate(&conn, temp_dir).await?;
+        libsql_migration::dir::migrate(&conn, temp_dir.path().to_path_buf()).await?;
+        // temp_dir is dropped here, cleaning up the temp directory
     }
 
     Ok((db, Connection(conn)))
