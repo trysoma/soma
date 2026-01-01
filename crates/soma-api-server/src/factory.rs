@@ -23,7 +23,9 @@ use crate::logic::on_change_pubsub::{SomaChangeTx, create_soma_change_channel, r
 use crate::logic::task::ConnectionManager;
 use crate::repository::setup_repository;
 use crate::restate::RestateServerParams;
-use crate::sdk::{SdkRuntime, determine_sdk_runtime, sdk_agent_sync, sdk_provider_sync};
+use crate::sdk::{
+    StartDevSdkParams, determine_sdk_runtime, sdk_agent_sync, sdk_provider_sync, start_dev_sdk,
+};
 use crate::{ApiService, InitApiServiceParams};
 
 pub struct CreateApiServiceParams {
@@ -148,14 +150,15 @@ pub async fn create_api_service(
 
     // Start SDK server subsystem
     debug!("Starting SDK server");
-    start_sdk_server_subsystem(
-        project_dir.clone(),
-        sdk_runtime,
-        soma_restate_service_port,
-        environment_repo.clone(),
-        crypto_cache.clone(),
-        process_manager.clone(),
-    )
+
+    start_dev_sdk(StartDevSdkParams {
+        project_dir: project_dir.clone(),
+        sdk_runtime: sdk_runtime.clone(),
+        restate_service_port: soma_restate_service_port,
+        environment_repo: std::sync::Arc::new(environment_repo.clone()),
+        crypto_cache: crypto_cache.clone(),
+        process_manager: process_manager.clone(),
+    })
     .await?;
 
     // Wait for SDK server and sync providers
@@ -397,22 +400,45 @@ pub async fn create_api_service(
         .await
         .inspect_err(|e| error!(error = %e, "Failed to start change pubsub thread"))?;
 
-    // Note: MCP service is now nested directly in the router as a Tower service.
-    // No separate subsystem is needed.
-
-    // Note: SDK sync is now SDK-initiated. When the SDK server starts (or restarts due to HMR),
-    // it calls the /_internal/v1/resync_sdk endpoint to trigger sync of providers, agents,
-    // secrets, and environment variables. This replaces the old connection-monitoring approach.
-
     // Start credential rotation
     trace!("Starting credential rotation");
-    start_credential_rotation_subsystem(
-        mcp_repo.clone(),
-        crypto_cache.clone(),
-        on_mcp_config_change_tx.clone(),
-        process_manager.clone(),
-    )
-    .await?;
+    process_manager
+        .start_thread(
+            "credential_rotation",
+            ThreadConfig {
+                spawn_fn: {
+                    let mcp_repo = mcp_repo.clone();
+                    let crypto_cache = crypto_cache.clone();
+                    let on_mcp_config_change_tx = on_mcp_config_change_tx.clone();
+                    move || {
+                        let mcp_repo = mcp_repo.clone();
+                        let crypto_cache = crypto_cache.clone();
+                        let on_mcp_config_change_tx = on_mcp_config_change_tx.clone();
+                        tokio::spawn(async move {
+                            mcp::logic::credential_rotation_task(
+                                mcp_repo,
+                                crypto_cache,
+                                on_mcp_config_change_tx,
+                            )
+                            .await;
+                            Ok(())
+                        })
+                    }
+                },
+                health_check: None,
+                on_terminal_stop: OnTerminalStop::Ignore,
+                on_stop: OnStop::Restart(RestartConfig {
+                    max_restarts: 5,
+                    restart_delay: 1000,
+                }),
+                shutdown_priority: 3,
+                follow_logs: false,
+                on_shutdown_triggered: None,
+                on_shutdown_complete: None,
+            },
+        )
+        .await
+        .inspect_err(|e| error!(error = %e, "Failed to start credential rotation thread"))?;
 
     // Start mcp client generation listener
     trace!("Starting mcp client generation listener");
@@ -598,63 +624,6 @@ pub async fn create_api_service(
     })
 }
 
-async fn start_sdk_server_subsystem(
-    project_dir: PathBuf,
-    sdk_runtime: SdkRuntime,
-    restate_service_port: u16,
-    environment_repo: environment::repository::Repository,
-    crypto_cache: CryptoCache,
-    process_manager: Arc<CustomProcessManager>,
-) -> Result<(), CommonError> {
-    use crate::sdk::{StartDevSdkParams, start_dev_sdk};
-
-    process_manager
-        .start_thread(
-            "sdk_server",
-            ThreadConfig {
-                spawn_fn: {
-                    let project_dir = project_dir.clone();
-                    let sdk_runtime = sdk_runtime.clone();
-                    let environment_repo = environment_repo.clone();
-                    let crypto_cache = crypto_cache.clone();
-                    let process_manager_for_thread = process_manager.clone();
-                    move || {
-                        let project_dir = project_dir.clone();
-                        let sdk_runtime = sdk_runtime.clone();
-                        let environment_repo = environment_repo.clone();
-                        let crypto_cache = crypto_cache.clone();
-                        let process_manager = process_manager_for_thread.clone();
-                        tokio::spawn(async move {
-                            start_dev_sdk(StartDevSdkParams {
-                                project_dir,
-                                sdk_runtime,
-                                restate_service_port,
-                                environment_repo: std::sync::Arc::new(environment_repo),
-                                crypto_cache,
-                                process_manager,
-                            })
-                            .await
-                        })
-                    }
-                },
-                health_check: None,
-                on_terminal_stop: OnTerminalStop::TriggerShutdown,
-                on_stop: OnStop::Restart(RestartConfig {
-                    max_restarts: 10,
-                    restart_delay: 2000,
-                }),
-                shutdown_priority: 8,
-                follow_logs: false,
-                on_shutdown_triggered: None,
-                on_shutdown_complete: None,
-            },
-        )
-        .await
-        .inspect_err(|e| error!(error = %e, "Failed to start SDK server thread"))?;
-
-    Ok(())
-}
-
 /// Waits for SDK server healthcheck to pass, retrying up to max_iterations times
 async fn wait_for_sdk_healthcheck(
     client: &mut sdk_proto::soma_sdk_service_client::SomaSdkServiceClient<
@@ -700,51 +669,4 @@ async fn wait_for_sdk_healthcheck(
     Err(CommonError::Unknown(anyhow::anyhow!(
         "SDK server healthcheck failed after {MAX_ITERATIONS} attempts"
     )))
-}
-
-async fn start_credential_rotation_subsystem(
-    mcp_repo: mcp::repository::Repository,
-    crypto_cache: CryptoCache,
-    on_mcp_change_tx: OnConfigChangeTx,
-    process_manager: Arc<CustomProcessManager>,
-) -> Result<(), CommonError> {
-    process_manager
-        .start_thread(
-            "credential_rotation",
-            ThreadConfig {
-                spawn_fn: {
-                    let mcp_repo = mcp_repo.clone();
-                    let crypto_cache = crypto_cache.clone();
-                    let on_mcp_change_tx = on_mcp_change_tx.clone();
-                    move || {
-                        let mcp_repo = mcp_repo.clone();
-                        let crypto_cache = crypto_cache.clone();
-                        let on_mcp_change_tx = on_mcp_change_tx.clone();
-                        tokio::spawn(async move {
-                            mcp::logic::credential_rotation_task(
-                                mcp_repo,
-                                crypto_cache,
-                                on_mcp_change_tx,
-                            )
-                            .await;
-                            Ok(())
-                        })
-                    }
-                },
-                health_check: None,
-                on_terminal_stop: OnTerminalStop::Ignore,
-                on_stop: OnStop::Restart(RestartConfig {
-                    max_restarts: 5,
-                    restart_delay: 1000,
-                }),
-                shutdown_priority: 3,
-                follow_logs: false,
-                on_shutdown_triggered: None,
-                on_shutdown_complete: None,
-            },
-        )
-        .await
-        .inspect_err(|e| error!(error = %e, "Failed to start credential rotation thread"))?;
-
-    Ok(())
 }

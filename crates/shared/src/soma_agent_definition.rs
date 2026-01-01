@@ -17,11 +17,21 @@ pub struct SomaAgentDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mcp: Option<McpConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub secrets: Option<HashMap<String, SecretConfig>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub environment_variables: Option<HashMap<String, String>>,
+    pub environment: Option<EnvironmentYamlConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub identity: Option<IdentityConfig>,
+}
+
+/// Environment configuration for secrets and variables stored in soma.yaml
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, Default)]
+#[serde(rename_all = "snake_case")]
+pub struct EnvironmentYamlConfig {
+    /// Secrets configuration (key is the secret key)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secrets: Option<HashMap<String, SecretConfig>>,
+    /// Variables configuration (key is the variable key)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variables: Option<HashMap<String, String>>,
 }
 
 /// Configuration for a secret stored in soma.yaml
@@ -542,15 +552,10 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
     async fn update_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError>;
     async fn remove_secret(&self, key: String) -> Result<(), CommonError>;
 
-    // Environment variable operations
-    async fn add_environment_variable(&self, key: String, value: String)
-    -> Result<(), CommonError>;
-    async fn update_environment_variable(
-        &self,
-        key: String,
-        value: String,
-    ) -> Result<(), CommonError>;
-    async fn remove_environment_variable(&self, key: String) -> Result<(), CommonError>;
+    // Variable operations
+    async fn add_variable(&self, key: String, value: String) -> Result<(), CommonError>;
+    async fn update_variable(&self, key: String, value: String) -> Result<(), CommonError>;
+    async fn remove_variable(&self, key: String) -> Result<(), CommonError>;
 
     // Identity operations - API keys
     async fn add_api_key(&self, id: String, config: ApiKeyYamlConfig) -> Result<(), CommonError>;
@@ -613,51 +618,45 @@ impl YamlSomaAgentDefinition {
             guard.mcp = file_definition.mcp.clone();
         }
 
-        // For secrets, merge: start with file secrets (if any), then apply guard's changes (guard overwrites file for same keys)
-        match (&file_definition.secrets, &guard.secrets) {
-            (Some(file_secrets), Some(guard_secrets)) => {
-                // Both exist: merge (file first, then guard overwrites)
-                let mut merged = file_secrets.clone();
-                for (key, value) in guard_secrets {
-                    merged.insert(key.clone(), value.clone());
-                }
-                guard.secrets = Some(merged);
-            }
-            (Some(file_secrets), None) => {
-                // Only file has secrets: use file's
-                guard.secrets = Some(file_secrets.clone());
-            }
-            (None, Some(_guard_secrets)) => {
-                // Only guard has secrets: use guard's (already set)
-            }
-            (None, None) => {
-                // Neither has secrets: keep None
-            }
-        }
+        // For environment config, merge secrets and variables separately
+        let file_env = file_definition.environment.as_ref();
+        let guard_env = guard.environment.as_mut();
 
-        // For environment variables, merge similarly
-        match (
-            &file_definition.environment_variables,
-            &guard.environment_variables,
-        ) {
-            (Some(file_env_vars), Some(guard_env_vars)) => {
-                // Both exist: merge (file first, then guard overwrites)
-                let mut merged = file_env_vars.clone();
-                for (key, value) in guard_env_vars {
-                    merged.insert(key.clone(), value.clone());
+        match (file_env, guard_env) {
+            (Some(file_env_config), Some(guard_env_config)) => {
+                // Merge secrets
+                match (&file_env_config.secrets, &guard_env_config.secrets) {
+                    (Some(file_secrets), Some(guard_secrets)) => {
+                        let mut merged = file_secrets.clone();
+                        for (key, value) in guard_secrets {
+                            merged.insert(key.clone(), value.clone());
+                        }
+                        guard_env_config.secrets = Some(merged);
+                    }
+                    (Some(file_secrets), None) => {
+                        guard_env_config.secrets = Some(file_secrets.clone());
+                    }
+                    _ => {}
                 }
-                guard.environment_variables = Some(merged);
+                // Merge variables
+                match (&file_env_config.variables, &guard_env_config.variables) {
+                    (Some(file_vars), Some(guard_vars)) => {
+                        let mut merged = file_vars.clone();
+                        for (key, value) in guard_vars {
+                            merged.insert(key.clone(), value.clone());
+                        }
+                        guard_env_config.variables = Some(merged);
+                    }
+                    (Some(file_vars), None) => {
+                        guard_env_config.variables = Some(file_vars.clone());
+                    }
+                    _ => {}
+                }
             }
-            (Some(file_env_vars), None) => {
-                // Only file has env vars: use file's
-                guard.environment_variables = Some(file_env_vars.clone());
+            (Some(file_env_config), None) => {
+                guard.environment = Some(file_env_config.clone());
             }
-            (None, Some(_guard_env_vars)) => {
-                // Only guard has env vars: use guard's (already set)
-            }
-            (None, None) => {
-                // Neither has env vars: keep None
-            }
+            _ => {}
         }
 
         std::fs::write(
@@ -692,6 +691,12 @@ impl YamlSomaAgentDefinition {
     fn ensure_identity_config(definition: &mut SomaAgentDefinition) {
         if definition.identity.is_none() {
             definition.identity = Some(IdentityConfig::default());
+        }
+    }
+
+    fn ensure_environment_config(definition: &mut SomaAgentDefinition) {
+        if definition.environment.is_none() {
+            definition.environment = Some(EnvironmentYamlConfig::default());
         }
     }
 }
@@ -1221,12 +1226,14 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
     async fn add_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError> {
         trace!(key = %key, "Adding secret");
         let mut definition = self.cached_definition.lock().await;
+        Self::ensure_environment_config(&mut definition);
 
-        if definition.secrets.is_none() {
-            definition.secrets = Some(HashMap::new());
+        let env_config = definition.environment.as_mut().unwrap();
+        if env_config.secrets.is_none() {
+            env_config.secrets = Some(HashMap::new());
         }
 
-        definition
+        env_config
             .secrets
             .as_mut()
             .unwrap()
@@ -1239,12 +1246,14 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
     async fn update_secret(&self, key: String, config: SecretConfig) -> Result<(), CommonError> {
         trace!(key = %key, "Updating secret");
         let mut definition = self.cached_definition.lock().await;
+        Self::ensure_environment_config(&mut definition);
 
-        if definition.secrets.is_none() {
-            definition.secrets = Some(HashMap::new());
+        let env_config = definition.environment.as_mut().unwrap();
+        if env_config.secrets.is_none() {
+            env_config.secrets = Some(HashMap::new());
         }
 
-        definition
+        env_config
             .secrets
             .as_mut()
             .unwrap()
@@ -1258,66 +1267,66 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         trace!(key = %key, "Removing secret");
         let mut definition = self.cached_definition.lock().await;
 
-        if let Some(secrets) = &mut definition.secrets {
-            secrets.remove(&key);
-            self.save(definition).await?;
-            trace!(key = %key, "Secret removed");
+        if let Some(env_config) = &mut definition.environment {
+            if let Some(secrets) = &mut env_config.secrets {
+                secrets.remove(&key);
+                self.save(definition).await?;
+                trace!(key = %key, "Secret removed");
+            }
         }
         Ok(())
     }
 
-    async fn add_environment_variable(
-        &self,
-        key: String,
-        value: String,
-    ) -> Result<(), CommonError> {
-        trace!(key = %key, "Adding environment variable");
+    async fn add_variable(&self, key: String, value: String) -> Result<(), CommonError> {
+        trace!(key = %key, "Adding variable");
         let mut definition = self.cached_definition.lock().await;
+        Self::ensure_environment_config(&mut definition);
 
-        if definition.environment_variables.is_none() {
-            definition.environment_variables = Some(HashMap::new());
+        let env_config = definition.environment.as_mut().unwrap();
+        if env_config.variables.is_none() {
+            env_config.variables = Some(HashMap::new());
         }
 
-        definition
-            .environment_variables
+        env_config
+            .variables
             .as_mut()
             .unwrap()
             .insert(key.clone(), value);
         self.save(definition).await?;
-        trace!(key = %key, "Environment variable added");
+        trace!(key = %key, "Variable added");
         Ok(())
     }
 
-    async fn update_environment_variable(
-        &self,
-        key: String,
-        value: String,
-    ) -> Result<(), CommonError> {
-        trace!(key = %key, "Updating environment variable");
+    async fn update_variable(&self, key: String, value: String) -> Result<(), CommonError> {
+        trace!(key = %key, "Updating variable");
         let mut definition = self.cached_definition.lock().await;
+        Self::ensure_environment_config(&mut definition);
 
-        if definition.environment_variables.is_none() {
-            definition.environment_variables = Some(HashMap::new());
+        let env_config = definition.environment.as_mut().unwrap();
+        if env_config.variables.is_none() {
+            env_config.variables = Some(HashMap::new());
         }
 
-        definition
-            .environment_variables
+        env_config
+            .variables
             .as_mut()
             .unwrap()
             .insert(key.clone(), value);
         self.save(definition).await?;
-        trace!(key = %key, "Environment variable updated");
+        trace!(key = %key, "Variable updated");
         Ok(())
     }
 
-    async fn remove_environment_variable(&self, key: String) -> Result<(), CommonError> {
-        trace!(key = %key, "Removing environment variable");
+    async fn remove_variable(&self, key: String) -> Result<(), CommonError> {
+        trace!(key = %key, "Removing variable");
         let mut definition = self.cached_definition.lock().await;
 
-        if let Some(env_vars) = &mut definition.environment_variables {
-            env_vars.remove(&key);
-            self.save(definition).await?;
-            trace!(key = %key, "Environment variable removed");
+        if let Some(env_config) = &mut definition.environment {
+            if let Some(variables) = &mut env_config.variables {
+                variables.remove(&key);
+                self.save(definition).await?;
+                trace!(key = %key, "Variable removed");
+            }
         }
         Ok(())
     }

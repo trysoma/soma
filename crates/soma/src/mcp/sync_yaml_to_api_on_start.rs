@@ -373,113 +373,119 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
 
     debug!("MCP synced from soma definition");
 
-    // 3. Sync secrets
-    // NOTE: Secrets in soma.yaml are stored with their ENCRYPTED values
-    // We use import_secret (not create_secret) to avoid double-encryption
-    if let Some(secrets) = &soma_definition.secrets {
-        use std::collections::HashSet;
+    // 3. Sync environment configuration (secrets and variables)
+    if let Some(environment_config) = &soma_definition.environment {
+        // 3a. Sync secrets
+        // NOTE: Secrets in soma.yaml are stored with their ENCRYPTED values
+        // We use import_secret (not create_secret) to avoid double-encryption
+        if let Some(secrets) = &environment_config.secrets {
+            use std::collections::HashSet;
 
-        // Get existing secrets
-        let existing_secrets: HashSet<String> = {
-            let mut keys = HashSet::new();
-            let mut next_page_token: Option<String> = None;
-            loop {
-                let response =
-                    environment_api::list_secrets(api_config, 100, next_page_token.as_deref())
-                        .await
-                        .map_err(|e| {
-                            CommonError::Unknown(anyhow::anyhow!("Failed to list secrets: {e:?}"))
-                        })?;
+            // Get existing secrets
+            let existing_secrets: HashSet<String> = {
+                let mut keys = HashSet::new();
+                let mut next_page_token: Option<String> = None;
+                loop {
+                    let response =
+                        environment_api::list_secrets(api_config, 100, next_page_token.as_deref())
+                            .await
+                            .map_err(|e| {
+                                CommonError::Unknown(anyhow::anyhow!(
+                                    "Failed to list secrets: {e:?}"
+                                ))
+                            })?;
 
-                for secret in response.secrets {
-                    keys.insert(secret.key);
-                }
-                // Handle doubly wrapped Option<Option<String>> from generated API client
-                match response.next_page_token.flatten() {
-                    Some(token) if !token.is_empty() => {
-                        next_page_token = Some(token);
+                    for secret in response.secrets {
+                        keys.insert(secret.key);
                     }
-                    _ => break,
+                    // Handle doubly wrapped Option<Option<String>> from generated API client
+                    match response.next_page_token.flatten() {
+                        Some(token) if !token.is_empty() => {
+                            next_page_token = Some(token);
+                        }
+                        _ => break,
+                    }
                 }
-            }
-            keys
-        };
+                keys
+            };
 
-        // Import pre-encrypted secrets from yaml
-        for (key, secret_config) in secrets {
-            if !existing_secrets.contains(key) {
-                // Use import_secret which stores the already-encrypted value as-is
-                let import_req = models::ImportSecretRequest {
-                    key: key.clone(),
-                    encrypted_value: secret_config.value.clone(),
-                    dek_alias: secret_config.dek_alias.clone(),
-                };
-                environment_api::import_secret(api_config, import_req)
-                    .await
-                    .map_err(|e| {
-                        CommonError::Unknown(anyhow::anyhow!(
-                            "Failed to import secret '{key}': {e:?}"
-                        ))
-                    })?;
-                debug!("Imported secret '{}'", key);
-            }
-        }
-    }
-
-    debug!("Secrets synced from soma definition");
-
-    // 4. Sync environment variables
-    if let Some(env_vars) = &soma_definition.environment_variables {
-        use std::collections::HashSet;
-
-        // Get existing environment variables
-        let existing_env_vars: HashSet<String> = {
-            let mut keys = HashSet::new();
-            let mut next_page_token: Option<String> = None;
-            loop {
-                let response =
-                    environment_api::list_variables(api_config, 100, next_page_token.as_deref())
+            // Import pre-encrypted secrets from yaml
+            for (key, secret_config) in secrets {
+                if !existing_secrets.contains(key) {
+                    // Use import_secret which stores the already-encrypted value as-is
+                    let import_req = models::ImportSecretRequest {
+                        key: key.clone(),
+                        encrypted_value: secret_config.value.clone(),
+                        dek_alias: secret_config.dek_alias.clone(),
+                    };
+                    environment_api::import_secret(api_config, import_req)
                         .await
                         .map_err(|e| {
                             CommonError::Unknown(anyhow::anyhow!(
-                                "Failed to list environment variables: {e:?}"
+                                "Failed to import secret '{key}': {e:?}"
                             ))
                         })?;
-
-                for env_var in response.variables {
-                    keys.insert(env_var.key);
+                    debug!("Imported secret '{}'", key);
                 }
-                // Handle doubly wrapped Option<Option<String>> from generated API client
-                match response.next_page_token.flatten() {
-                    Some(token) if !token.is_empty() => {
-                        next_page_token = Some(token);
-                    }
-                    _ => break,
-                }
-            }
-            keys
-        };
-
-        // Create or update environment variables from yaml
-        for (key, value) in env_vars {
-            if !existing_env_vars.contains(key) {
-                let create_req = models::CreateVariableRequest {
-                    key: key.clone(),
-                    value: value.clone(),
-                };
-                environment_api::create_variable(api_config, create_req)
-                    .await
-                    .map_err(|e| {
-                        CommonError::Unknown(anyhow::anyhow!(
-                            "Failed to create environment variable '{key}': {e:?}"
-                        ))
-                    })?;
-                debug!("Created environment variable '{}'", key);
             }
         }
-    }
 
-    debug!("Environment variables synced from soma definition");
+        debug!("Secrets synced from soma definition");
+
+        // 3b. Sync variables
+        if let Some(variables) = &environment_config.variables {
+            use std::collections::HashSet;
+
+            // Get existing variables
+            let existing_variables: HashSet<String> = {
+                let mut keys = HashSet::new();
+                let mut next_page_token: Option<String> = None;
+                loop {
+                    let response = environment_api::list_variables(
+                        api_config,
+                        100,
+                        next_page_token.as_deref(),
+                    )
+                    .await
+                    .map_err(|e| {
+                        CommonError::Unknown(anyhow::anyhow!("Failed to list variables: {e:?}"))
+                    })?;
+
+                    for variable in response.variables {
+                        keys.insert(variable.key);
+                    }
+                    // Handle doubly wrapped Option<Option<String>> from generated API client
+                    match response.next_page_token.flatten() {
+                        Some(token) if !token.is_empty() => {
+                            next_page_token = Some(token);
+                        }
+                        _ => break,
+                    }
+                }
+                keys
+            };
+
+            // Create or update variables from yaml
+            for (key, value) in variables {
+                if !existing_variables.contains(key) {
+                    let create_req = models::CreateVariableRequest {
+                        key: key.clone(),
+                        value: value.clone(),
+                    };
+                    environment_api::create_variable(api_config, create_req)
+                        .await
+                        .map_err(|e| {
+                            CommonError::Unknown(anyhow::anyhow!(
+                                "Failed to create variable '{key}': {e:?}"
+                            ))
+                        })?;
+                    debug!("Created variable '{}'", key);
+                }
+            }
+        }
+
+        debug!("Variables synced from soma definition");
+    }
 
     // 5. Sync MCP server instances
     if let Some(mcp_config) = &soma_definition.mcp {

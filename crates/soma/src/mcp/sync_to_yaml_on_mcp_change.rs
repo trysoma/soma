@@ -590,8 +590,9 @@ async fn handle_secret_event(
             // (encryption produces different ciphertext each time due to random nonces)
             let definition = soma_definition.get_definition().await?;
             let secret_exists_in_yaml = definition
-                .secrets
+                .environment
                 .as_ref()
+                .and_then(|env| env.secrets.as_ref())
                 .map(|secrets| secrets.contains_key(&secret.key))
                 .unwrap_or(false);
 
@@ -631,20 +632,16 @@ async fn handle_variable_event(
 ) -> Result<(), CommonError> {
     match event {
         VariableChangeEvt::Created(var) => {
-            debug!("Environment variable created: {:?}", var.key);
-            soma_definition
-                .add_environment_variable(var.key, var.value)
-                .await?;
+            debug!("Variable created: {:?}", var.key);
+            soma_definition.add_variable(var.key, var.value).await?;
         }
         VariableChangeEvt::Updated(var) => {
-            debug!("Environment variable updated: {:?}", var.key);
-            soma_definition
-                .update_environment_variable(var.key, var.value)
-                .await?;
+            debug!("Variable updated: {:?}", var.key);
+            soma_definition.update_variable(var.key, var.value).await?;
         }
         VariableChangeEvt::Deleted { id: _, key } => {
-            debug!("Environment variable deleted: {:?}", key);
-            soma_definition.remove_environment_variable(key).await?;
+            debug!("Variable deleted: {:?}", key);
+            soma_definition.remove_variable(key).await?;
         }
     }
     Ok(())

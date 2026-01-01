@@ -5,7 +5,7 @@ use shared::{
     identity::{Role, User, UserType},
     primitives::WrappedChronoDateTime,
 };
-use tracing::{trace, warn};
+use tracing::{debug, trace};
 
 use crate::{
     logic::api_key::{CreateApiKeyResponse, cache::ApiKeyCache, generate_api_key, hash_api_key},
@@ -15,7 +15,7 @@ use crate::{
 pub async fn create_bootstrap_api_key(
     api_key_cache: Option<&ApiKeyCache>,
 ) -> Result<CreateApiKeyResponse, CommonError> {
-    warn!(
+    debug!(
         "Creating bootstrap API key. This should only be done on start up for initial sync. It will expire in 10 minutes."
     );
 

@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use super::interface::{ClientCtx, SdkClient};
-use futures::future;
 
 pub struct Typescript {}
 
@@ -58,9 +57,6 @@ impl SdkClient for Typescript {
                 },
             )
             .await?;
-
-        // Wait indefinitely - the process manager will handle shutdown by aborting this thread
-        future::pending::<()>().await;
 
         Ok(())
     }
