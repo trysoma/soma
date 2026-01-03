@@ -54,7 +54,6 @@ pub async fn route_create_mcp_server_instance(
     let res = create_mcp_server_instance(
         ctx.auth_client().clone(),
         headers,
-
         ctx.on_config_change_tx(),
         ctx.repository(),
         request,
@@ -97,7 +96,6 @@ pub async fn route_get_mcp_server_instance(
     let res = get_mcp_server_instance(
         ctx.auth_client().clone(),
         headers,
-
         ctx.repository(),
         &mcp_server_instance_id,
     )
@@ -144,7 +142,6 @@ pub async fn route_update_mcp_server_instance(
     let res = update_mcp_server_instance(
         ctx.auth_client().clone(),
         headers,
-
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,
@@ -188,7 +185,6 @@ pub async fn route_delete_mcp_server_instance(
     let res = delete_mcp_server_instance(
         ctx.auth_client().clone(),
         headers,
-
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,
@@ -227,14 +223,9 @@ pub async fn route_list_mcp_server_instances(
     Query(params): Query<ListMcpServerInstancesParams>,
 ) -> JsonResponse<ListMcpServerInstancesResponse, CommonError> {
     trace!(page_size = params.page_size, "Listing MCP server instances");
-    let res = list_mcp_server_instances(
-        ctx.auth_client().clone(),
-        headers,
-
-        ctx.repository(),
-        params,
-    )
-    .await;
+    let res =
+        list_mcp_server_instances(ctx.auth_client().clone(), headers, ctx.repository(), params)
+            .await;
     trace!(
         success = res.is_ok(),
         "Listing MCP server instances completed"
@@ -283,7 +274,6 @@ pub async fn route_add_mcp_server_instance_function(
     let res = add_mcp_server_instance_function(
         ctx.auth_client().clone(),
         headers,
-
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,
@@ -344,7 +334,6 @@ pub async fn route_update_mcp_server_instance_function(
     let res = update_mcp_server_instance_function(
         ctx.auth_client().clone(),
         headers,
-
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,
@@ -405,7 +394,6 @@ pub async fn route_remove_mcp_server_instance_function(
     let res = remove_mcp_server_instance_function(
         ctx.auth_client().clone(),
         headers,
-
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,

@@ -48,7 +48,6 @@ pub enum StsTokenConfigType {
 #[authz_role(Admin, permission = "sts_config:write")]
 #[authn]
 pub async fn create_sts_config<R: UserRepositoryLike>(
-
     repository: &R,
     on_config_change_tx: &OnConfigChangeTx,
     params: StsTokenConfig,
@@ -107,7 +106,6 @@ pub type DeleteStsConfigResponse = ();
 #[authz_role(Admin, permission = "sts_config:delete")]
 #[authn]
 pub async fn delete_sts_config<R: UserRepositoryLike>(
-
     repository: &R,
     on_config_change_tx: &OnConfigChangeTx,
     params: DeleteStsConfigParams,
@@ -149,7 +147,6 @@ pub struct GetStsConfigParams {
 #[authz_role(Admin, Maintainer, permission = "sts_config:read")]
 #[authn]
 pub async fn get_sts_config<R: UserRepositoryLike>(
-
     repository: &R,
     params: GetStsConfigParams,
 ) -> Result<StsTokenConfig, CommonError> {
@@ -173,7 +170,6 @@ pub type ListStsConfigResponse = PaginatedResponse<StsTokenConfig>;
 #[authz_role(Admin, Maintainer, permission = "sts_config:list")]
 #[authn]
 pub async fn list_sts_configs<R: UserRepositoryLike>(
-
     repository: &R,
     pagination: &PaginationRequest,
 ) -> Result<ListStsConfigResponse, CommonError> {

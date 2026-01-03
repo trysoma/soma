@@ -51,7 +51,6 @@ async fn route_create_sts_config(
     let result = create_sts_config(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         &service.on_config_change_tx,
         params,
@@ -94,7 +93,6 @@ async fn route_get_sts_config(
     let result = get_sts_config(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         params,
     )
@@ -135,7 +133,6 @@ async fn route_delete_sts_config(
     let result = delete_sts_config(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         &service.on_config_change_tx,
         params,
@@ -176,7 +173,6 @@ async fn route_list_sts_configs(
     let result = list_sts_configs(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         &query,
     )

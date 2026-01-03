@@ -69,13 +69,7 @@ pub async fn route_list_available_providers(
         page_size = pagination.page_size,
         "Listing available providers"
     );
-    let res = list_available_providers(
-        ctx.auth_client().clone(),
-        headers,
-
-        pagination,
-    )
-    .await;
+    let res = list_available_providers(ctx.auth_client().clone(), headers, pagination).await;
     trace!(
         success = res.is_ok(),
         "Listing available providers completed"
@@ -116,7 +110,6 @@ pub async fn route_create_provider_instance(
     let res = create_provider_instance(
         ctx.auth_client().clone(),
         headers,
-
         ctx.on_config_change_tx(),
         ctx.repository(),
         WithProviderControllerTypeId {
@@ -171,7 +164,6 @@ pub async fn route_update_provider_instance(
     let res = update_provider_instance(
         ctx.auth_client().clone(),
         headers,
-
         ctx.on_config_change_tx(),
         ctx.repository(),
         WithProviderInstanceId {
@@ -217,7 +209,6 @@ pub async fn route_get_provider_instance(
     let res = get_provider_instance(
         ctx.auth_client().clone(),
         headers,
-
         ctx.repository(),
         WithProviderInstanceId {
             provider_instance_id: provider_instance_id.clone(),
@@ -269,7 +260,6 @@ pub async fn route_encrypt_resource_server_configuration(
     let res = encrypt_resource_server_configuration(
         ctx.auth_client().clone(),
         headers,
-
         ctx.encryption_service(),
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
@@ -323,7 +313,6 @@ pub async fn route_encrypt_user_credential_configuration(
     let res = encrypt_user_credential_configuration(
         ctx.auth_client().clone(),
         headers,
-
         ctx.encryption_service(),
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
@@ -381,7 +370,6 @@ pub async fn route_create_resource_server_credential(
     let res = create_resource_server_credential(
         ctx.auth_client().clone(),
         headers,
-
         ctx.repository(),
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
@@ -439,7 +427,6 @@ pub async fn route_create_user_credential(
     let res = create_user_credential(
         ctx.auth_client().clone(),
         headers,
-
         ctx.repository(),
         WithProviderControllerTypeId {
             provider_controller_type_id: provider_controller_type_id.clone(),
@@ -533,7 +520,6 @@ pub async fn route_start_user_credential_brokering(
     let res = start_user_credential_brokering(
         ctx.auth_client().clone(),
         headers,
-
         ctx.on_config_change_tx(),
         ctx.repository(),
         WithProviderControllerTypeId {
@@ -687,7 +673,6 @@ pub async fn route_delete_provider_instance(
     let res = delete_provider_instance(
         ctx.auth_client().clone(),
         headers,
-
         ctx.on_config_change_tx(),
         ctx.repository(),
         WithProviderInstanceId {
@@ -740,7 +725,6 @@ pub async fn route_enable_function(
     let res = enable_function(
         ctx.auth_client().clone(),
         headers,
-
         ctx.on_config_change_tx(),
         ctx.repository(),
         WithProviderInstanceId {
@@ -792,7 +776,6 @@ pub async fn route_disable_function(
     let res = disable_function(
         ctx.auth_client().clone(),
         headers,
-
         ctx.on_config_change_tx(),
         ctx.repository(),
         WithProviderInstanceId {
@@ -846,7 +829,6 @@ pub async fn route_invoke_function(
     let res = invoke_function(
         ctx.auth_client().clone(),
         headers,
-
         ctx.repository(),
         ctx.encryption_service(),
         WithProviderInstanceId {
@@ -906,7 +888,6 @@ pub async fn route_list_provider_instances(
     let res = list_provider_instances(
         ctx.auth_client().clone(),
         headers,
-
         ctx.repository(),
         ListProviderInstancesParams {
             pagination: PaginationRequest {
@@ -954,7 +935,6 @@ pub async fn route_list_provider_instances_grouped_by_function(
     let res = list_provider_instances_grouped_by_function(
         ctx.auth_client().clone(),
         headers,
-
         ctx.repository(),
         query,
     )
@@ -1007,7 +987,6 @@ pub async fn route_list_function_instances(
     let res = list_function_instances(
         ctx.auth_client().clone(),
         headers,
-
         ctx.repository(),
         ListFunctionInstancesParams {
             pagination: PaginationRequest {
@@ -1047,13 +1026,9 @@ pub async fn route_get_function_instances_openapi_spec(
     headers: HeaderMap,
 ) -> JsonResponse<OpenApi, CommonError> {
     trace!("Getting function instances OpenAPI spec");
-    let res = get_function_instances_openapi_spec(
-        ctx.auth_client().clone(),
-        headers,
-
-        ctx.repository(),
-    )
-    .await;
+    let res =
+        get_function_instances_openapi_spec(ctx.auth_client().clone(), headers, ctx.repository())
+            .await;
     trace!(
         success = res.is_ok(),
         "Getting function instances OpenAPI spec completed"

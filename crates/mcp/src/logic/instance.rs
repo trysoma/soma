@@ -307,7 +307,6 @@ pub async fn list_provider_instances_internal(
 #[authz_role(Admin, Maintainer, Agent, permission = "provider:list")]
 #[authn]
 pub async fn list_provider_instances(
-
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListProviderInstancesParams,
 ) -> Result<ListProviderInstancesResponse, CommonError> {
@@ -342,7 +341,6 @@ pub async fn list_function_instances_internal(
 #[authz_role(Admin, Maintainer, Agent, permission = "function:list")]
 #[authn]
 pub async fn list_function_instances(
-
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListFunctionInstancesParams,
 ) -> Result<ListFunctionInstancesResponse, CommonError> {
@@ -363,7 +361,6 @@ pub struct FunctionInstanceWithMetadata {
 #[authz_role(Admin, Maintainer, Agent, permission = "function:list")]
 #[authn]
 pub async fn get_function_instances(
-
     repo: &impl crate::repository::ProviderRepositoryLike,
 ) -> Result<Vec<FunctionInstanceWithMetadata>, CommonError> {
     get_function_instances_internal(repo).await
@@ -447,7 +444,6 @@ pub async fn get_function_instances_internal(
 #[authz_role(Admin, Maintainer, Agent, permission = "function:list")]
 #[authn]
 pub async fn get_function_instances_openapi_spec(
-
     repo: &impl crate::repository::ProviderRepositoryLike,
 ) -> Result<OpenApi, CommonError> {
     fn get_openapi_path(
@@ -674,7 +670,6 @@ pub type CreateProviderInstanceResponse = ProviderInstanceSerialized;
 #[authz_role(Admin, Maintainer, permission = "provider:write")]
 #[authn]
 pub async fn create_provider_instance(
-
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateProviderInstanceParams,
@@ -777,7 +772,6 @@ pub type UpdateProviderInstanceResponse = ();
 #[authz_role(Admin, Maintainer, permission = "provider:write")]
 #[authn]
 pub async fn update_provider_instance(
-
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: UpdateProviderInstanceParams,
@@ -849,7 +843,6 @@ pub type DeleteProviderInstanceResponse = ();
 #[authz_role(Admin, Maintainer, permission = "provider:write")]
 #[authn]
 pub async fn delete_provider_instance(
-
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: DeleteProviderInstanceParams,
@@ -891,7 +884,6 @@ pub type ListProviderInstancesGroupedByFunctionResponse = PaginatedResponse<Func
 #[authz_role(Admin, Maintainer, Agent, permission = "function:list")]
 #[authn]
 pub async fn list_provider_instances_grouped_by_function(
-
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListProviderInstancesGroupedByFunctionParams,
 ) -> Result<ListProviderInstancesGroupedByFunctionResponse, CommonError> {
@@ -1038,7 +1030,6 @@ pub type GetProviderInstanceResponse = ProviderInstanceSerializedWithEverything;
 #[authz_role(Admin, Maintainer, Agent, permission = "provider:read")]
 #[authn]
 pub async fn get_provider_instance(
-
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: GetProviderInstanceParams,
 ) -> Result<GetProviderInstanceResponse, CommonError> {
@@ -1096,7 +1087,6 @@ pub type EnableFunctionResponse = FunctionInstanceSerialized;
 #[authz_role(Admin, Maintainer, permission = "function:write")]
 #[authn]
 pub async fn enable_function(
-
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: EnableFunctionParams,
@@ -1168,7 +1158,6 @@ pub type InvokeFunctionResponse = InvokeResult;
 #[authz_role(Admin, Maintainer, Agent, permission = "function:invoke")]
 #[authn]
 pub async fn invoke_function(
-
     repo: &crate::repository::Repository,
     encryption_service: &CryptoCache,
     params: InvokeFunctionParams,
@@ -1262,7 +1251,6 @@ pub type DisableFunctionResponse = ();
 #[authz_role(Admin, Maintainer, permission = "function:write")]
 #[authn]
 pub async fn disable_function(
-
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: DisableFunctionParams,

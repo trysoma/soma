@@ -157,7 +157,6 @@ pub type ListAvailableProvidersResponse = PaginatedResponse<ProviderControllerSe
 #[authz_role(Admin, Maintainer, permission = "provider:list")]
 #[authn]
 pub async fn list_available_providers(
-
     pagination: ListAvailableProvidersParams,
 ) -> Result<ListAvailableProvidersResponse, CommonError> {
     // `identity` is available from the #[authn] macro (shadows the parameter)

@@ -69,7 +69,6 @@ async fn route_create_user_auth_flow_config(
     let result = create_user_auth_flow_config(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         &service.crypto_cache,
         &service.on_config_change_tx,
@@ -113,7 +112,6 @@ async fn route_get_user_auth_flow_config(
     let result = get_user_auth_flow_config(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         params,
     )
@@ -154,7 +152,6 @@ async fn route_delete_user_auth_flow_config(
     let result = delete_user_auth_flow_config(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         &service.on_config_change_tx,
         params,
@@ -203,7 +200,6 @@ async fn route_list_user_auth_flow_configs(
     let result = list_user_auth_flow_configs(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         params,
     )
@@ -241,7 +237,6 @@ async fn route_import_user_auth_flow_config(
     let result = import_user_auth_flow_config(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         params,
     )

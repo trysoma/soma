@@ -112,7 +112,6 @@ pub type ImportUserAuthFlowConfigResponse = ();
 #[authz_role(Admin, permission = "user_auth_flow_config:write")]
 #[authn]
 pub async fn create_user_auth_flow_config<R: UserRepositoryLike>(
-
     repository: &R,
     crypto_cache: &CryptoCache,
     on_config_change_tx: &OnConfigChangeTx,
@@ -171,7 +170,6 @@ pub async fn create_user_auth_flow_config<R: UserRepositoryLike>(
 #[authz_role(Admin, Maintainer, permission = "user_auth_flow_config:read")]
 #[authn]
 pub async fn get_user_auth_flow_config<R: UserRepositoryLike>(
-
     repository: &R,
     params: GetUserAuthFlowConfigParams,
 ) -> Result<GetUserAuthFlowConfigResponse, CommonError> {
@@ -200,7 +198,6 @@ pub async fn get_user_auth_flow_config<R: UserRepositoryLike>(
 #[authz_role(Admin, permission = "user_auth_flow_config:delete")]
 #[authn]
 pub async fn delete_user_auth_flow_config<R: UserRepositoryLike>(
-
     repository: &R,
     on_config_change_tx: &OnConfigChangeTx,
     params: DeleteUserAuthFlowConfigParams,
@@ -235,7 +232,6 @@ pub async fn delete_user_auth_flow_config<R: UserRepositoryLike>(
 #[authz_role(Admin, Maintainer, permission = "user_auth_flow_config:list")]
 #[authn]
 pub async fn list_user_auth_flow_configs<R: UserRepositoryLike>(
-
     repository: &R,
     params: ListUserAuthFlowConfigParams,
 ) -> Result<ListUserAuthFlowConfigResponse, CommonError> {
@@ -267,7 +263,6 @@ pub async fn list_user_auth_flow_configs<R: UserRepositoryLike>(
 #[authz_role(Admin, permission = "user_auth_flow_config:import")]
 #[authn]
 pub async fn import_user_auth_flow_config<R: UserRepositoryLike>(
-
     repository: &R,
     params: ImportUserAuthFlowConfigParams,
 ) -> Result<ImportUserAuthFlowConfigResponse, CommonError> {

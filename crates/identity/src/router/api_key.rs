@@ -50,7 +50,6 @@ async fn route_create_api_key(
     let result = create_api_key(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         &service.crypto_cache,
         &service.on_config_change_tx,
@@ -90,7 +89,6 @@ async fn route_delete_api_key(
     let result = delete_api_key(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         &service.on_config_change_tx,
         Some(&service.api_key_cache),
@@ -127,7 +125,6 @@ async fn route_list_api_keys(
     let result = list_api_keys(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         query,
     )
@@ -160,7 +157,6 @@ async fn route_import_api_key(
     let result = import_api_key(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         &service.crypto_cache,
         Some(&service.api_key_cache),

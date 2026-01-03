@@ -237,7 +237,6 @@ pub type CreateResourceServerCredentialResponse = ResourceServerCredentialSerial
 #[authz_role(Admin, Maintainer, permission = "credential:write")]
 #[authn]
 pub async fn create_resource_server_credential(
-
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateResourceServerCredentialParams,
 ) -> Result<CreateResourceServerCredentialResponse, CommonError> {
@@ -332,7 +331,6 @@ pub type CreateUserCredentialResponse = UserCredentialSerialized;
 #[authz_role(Admin, Maintainer, permission = "credential:write")]
 #[authn]
 pub async fn create_user_credential(
-
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateUserCredentialParams,
 ) -> Result<CreateUserCredentialResponse, CommonError> {
@@ -560,7 +558,6 @@ pub enum UserCredentialBrokeringResponse {
 #[authz_role(Admin, Maintainer, permission = "credential:write")]
 #[authn]
 pub async fn start_user_credential_brokering(
-
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: StartUserCredentialBrokeringParams,

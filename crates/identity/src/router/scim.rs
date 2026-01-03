@@ -123,7 +123,6 @@ async fn route_list_users(
     let result = list_users_scim(
         ctx.auth_client.clone(),
         headers,
-
         ctx.repository.as_ref(),
         params,
         &base_url,
@@ -164,7 +163,6 @@ async fn route_create_user(
     let result = create_user_from_scim(
         ctx.auth_client.clone(),
         headers,
-
         ctx.repository.as_ref(),
         scim_user,
     )
@@ -206,7 +204,6 @@ async fn route_get_user(
     let result = get_user_scim(
         ctx.auth_client.clone(),
         headers,
-
         ctx.repository.as_ref(),
         &user_id,
         &base_url,
@@ -251,7 +248,6 @@ async fn route_replace_user(
     let result = replace_user_scim(
         ctx.auth_client.clone(),
         headers,
-
         ctx.repository.as_ref(),
         &user_id,
         scim_user,
@@ -297,7 +293,6 @@ async fn route_patch_user(
     let result = patch_user_scim(
         ctx.auth_client.clone(),
         headers,
-
         ctx.repository.as_ref(),
         &user_id,
         patch_request,
@@ -340,7 +335,6 @@ async fn route_delete_user(
     let result = delete_user_scim(
         ctx.auth_client.clone(),
         headers,
-
         ctx.repository.as_ref(),
         &user_id,
     )
@@ -388,7 +382,6 @@ async fn route_list_groups(
     let result = list_groups_scim(
         ctx.auth_client.clone(),
         headers,
-
         ctx.repository.as_ref(),
         params,
         &base_url,
@@ -430,7 +423,6 @@ async fn route_create_group(
     let result = create_group_from_scim(
         ctx.auth_client.clone(),
         headers,
-
         ctx.repository.as_ref(),
         scim_group,
         &base_url,
@@ -473,7 +465,6 @@ async fn route_get_group(
     let result = get_group_scim(
         ctx.auth_client.clone(),
         headers,
-
         ctx.repository.as_ref(),
         &group_id,
         &base_url,
@@ -518,7 +509,6 @@ async fn route_replace_group(
     let result = replace_group_scim(
         ctx.auth_client.clone(),
         headers,
-
         ctx.repository.as_ref(),
         &group_id,
         scim_group,
@@ -564,7 +554,6 @@ async fn route_patch_group(
     let result = patch_group_scim(
         ctx.auth_client.clone(),
         headers,
-
         ctx.repository.as_ref(),
         &group_id,
         patch_request,
@@ -607,7 +596,6 @@ async fn route_delete_group(
     let result = delete_group_scim(
         ctx.auth_client.clone(),
         headers,
-
         ctx.repository.as_ref(),
         &group_id,
     )

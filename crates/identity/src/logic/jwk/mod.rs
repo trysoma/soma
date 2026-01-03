@@ -155,7 +155,6 @@ where
 #[authz_role(Admin, permission = "jwk:invalidate")]
 #[authn]
 pub async fn invalidate_jwk<R>(
-
     repository: &R,
     jwks_cache: &JwksCache,
     params: InvalidateJwkParams,
@@ -172,7 +171,6 @@ where
 #[authz_role(Admin, Maintainer, permission = "jwk:list")]
 #[authn]
 pub async fn list_jwks<R>(
-
     repository: &R,
     pagination: &PaginationRequest,
 ) -> Result<ListJwksResponse, CommonError>

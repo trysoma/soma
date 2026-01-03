@@ -153,7 +153,6 @@ pub async fn create_mcp_server_instance_internal<R: ProviderRepositoryLike>(
 #[authz_role(Admin, Maintainer, permission = "mcp:write")]
 #[authn]
 pub async fn create_mcp_server_instance<R: ProviderRepositoryLike>(
-
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     request: CreateMcpServerInstanceRequest,
@@ -188,7 +187,6 @@ pub async fn get_mcp_server_instance_internal<R: ProviderRepositoryLike>(
 #[authz_role(Admin, Maintainer, Agent, permission = "mcp:read")]
 #[authn]
 pub async fn get_mcp_server_instance<R: ProviderRepositoryLike>(
-
     repository: &R,
     id: &str,
 ) -> Result<GetMcpServerInstanceResponse, CommonError> {
@@ -244,7 +242,6 @@ pub async fn update_mcp_server_instance_internal<R: ProviderRepositoryLike>(
 #[authn]
 #[allow(clippy::too_many_arguments)]
 pub async fn update_mcp_server_instance<R: ProviderRepositoryLike>(
-
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     id: &str,
@@ -294,7 +291,6 @@ pub async fn delete_mcp_server_instance_internal<R: ProviderRepositoryLike>(
 #[authz_role(Admin, Maintainer, permission = "mcp:write")]
 #[authn]
 pub async fn delete_mcp_server_instance<R: ProviderRepositoryLike>(
-
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     id: &str,
@@ -324,7 +320,6 @@ pub async fn list_mcp_server_instances_internal<R: ProviderRepositoryLike>(
 #[authz_role(Admin, Maintainer, Agent, permission = "mcp:list")]
 #[authn]
 pub async fn list_mcp_server_instances<R: ProviderRepositoryLike>(
-
     repository: &R,
     params: ListMcpServerInstancesParams,
 ) -> Result<ListMcpServerInstancesResponse, CommonError> {
@@ -444,7 +439,6 @@ pub async fn add_mcp_server_instance_function_internal<R: ProviderRepositoryLike
 #[authn]
 #[allow(clippy::too_many_arguments)]
 pub async fn add_mcp_server_instance_function<R: ProviderRepositoryLike>(
-
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     mcp_server_instance_id: &str,
@@ -578,7 +572,6 @@ pub async fn update_mcp_server_instance_function_internal<R: ProviderRepositoryL
 #[authz_role(Admin, Maintainer, permission = "mcp:write")]
 #[authn]
 pub async fn update_mcp_server_instance_function<R: ProviderRepositoryLike>(
-
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     mcp_server_instance_id: &str,
@@ -681,7 +674,6 @@ pub async fn remove_mcp_server_instance_function_internal<R: ProviderRepositoryL
 #[authz_role(Admin, Maintainer, permission = "mcp:write")]
 #[authn]
 pub async fn remove_mcp_server_instance_function<R: ProviderRepositoryLike>(
-
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     mcp_server_instance_id: &str,

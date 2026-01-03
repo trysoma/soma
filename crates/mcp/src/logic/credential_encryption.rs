@@ -34,7 +34,6 @@ pub type EncryptConfigurationParams = WithProviderControllerTypeId<
 #[authz_role(Admin, Maintainer, permission = "credential:write")]
 #[authn]
 pub async fn encrypt_resource_server_configuration(
-
     crypto_cache: &CryptoCache,
     params: EncryptConfigurationParams,
 ) -> Result<EncryptedCredentialConfigurationResponse, CommonError> {
@@ -66,7 +65,6 @@ pub async fn encrypt_resource_server_configuration(
 #[authz_role(Admin, Maintainer, permission = "credential:write")]
 #[authn]
 pub async fn encrypt_user_credential_configuration(
-
     crypto_cache: &CryptoCache,
     params: EncryptConfigurationParams,
 ) -> Result<EncryptedCredentialConfigurationResponse, CommonError> {

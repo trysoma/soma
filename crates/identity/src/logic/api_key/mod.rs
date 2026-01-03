@@ -133,7 +133,6 @@ pub fn hash_api_key(api_key: &str) -> String {
 #[authz_role(Admin, permission = "api_key:write")]
 #[authn]
 pub async fn create_api_key<R: UserRepositoryLike>(
-
     repository: &R,
     crypto_cache: &CryptoCache,
     on_config_change_tx: &OnConfigChangeTx,
@@ -241,7 +240,6 @@ pub async fn create_api_key<R: UserRepositoryLike>(
 #[authz_role(Admin, permission = "api_key:delete")]
 #[authn]
 pub async fn delete_api_key<R: UserRepositoryLike>(
-
     repository: &R,
     on_config_change_tx: &OnConfigChangeTx,
     api_key_cache: Option<&ApiKeyCache>,
@@ -291,7 +289,6 @@ pub async fn delete_api_key<R: UserRepositoryLike>(
 #[authz_role(Admin, Maintainer, permission = "api_key:list")]
 #[authn]
 pub async fn list_api_keys<R: UserRepositoryLike>(
-
     repository: &R,
     params: PaginationRequest,
 ) -> Result<ListApiKeysResponse, CommonError> {
@@ -317,7 +314,6 @@ pub async fn list_api_keys<R: UserRepositoryLike>(
 #[authz_role(Admin, permission = "api_key:import")]
 #[authn]
 pub async fn import_api_key<R: UserRepositoryLike>(
-
     repository: &R,
     crypto_cache: &CryptoCache,
     api_key_cache: Option<&ApiKeyCache>,

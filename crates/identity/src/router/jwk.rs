@@ -50,7 +50,6 @@ async fn route_invalidate_jwk(
     let result = invalidate_jwk(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         &service.internal_jwks_cache,
         params,
@@ -85,7 +84,6 @@ async fn route_list_jwks(
     let result = list_jwks(
         service.auth_client.clone(),
         headers,
-
         service.repository.as_ref(),
         &query,
     )
