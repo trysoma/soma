@@ -1,0 +1,3 @@
+kind: Patch (Other, non-breaking changes)
+body: /api/bridge/v1/mcp-instance → /api/bridge/v1/mcp-server rename
+time: 2026-01-03T12:06:37.72874+02:00

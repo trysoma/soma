@@ -50,6 +50,8 @@ use utoipa::{IntoParams, ToSchema};
     responses(
         (status = 200, description = "List available providers", body = ListAvailableProvidersResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "List providers",
@@ -85,6 +87,8 @@ pub async fn route_list_available_providers(
     responses(
         (status = 200, description = "Create provider instance", body = CreateProviderInstanceResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Create provider",
@@ -140,6 +144,8 @@ pub async fn route_create_provider_instance(
     responses(
         (status = 200, description = "Update provider instance", body = UpdateProviderInstanceResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Update provider",
@@ -190,6 +196,8 @@ pub async fn route_update_provider_instance(
     responses(
         (status = 200, description = "Get provider instance", body = GetProviderInstanceResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Get provider",
@@ -236,6 +244,8 @@ pub async fn route_get_provider_instance(
     responses(
         (status = 200, description = "Encrypt resource server configuration", body = EncryptedCredentialConfigurationResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Encrypt resource server config",
@@ -289,6 +299,8 @@ pub async fn route_encrypt_resource_server_configuration(
     responses(
         (status = 200, description = "Encrypt user credential configuration", body = EncryptedCredentialConfigurationResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Encrypt user credential config",
@@ -346,6 +358,8 @@ pub async fn route_encrypt_user_credential_configuration(
     responses(
         (status = 200, description = "Create resource server credential", body = CreateResourceServerCredentialResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Create resource server credential",
@@ -403,6 +417,8 @@ pub async fn route_create_resource_server_credential(
     responses(
         (status = 200, description = "Create user credential", body = CreateUserCredentialResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Create user credential",
@@ -496,6 +512,8 @@ fn handle_user_credential_brokering_response(
     responses(
         (status = 200, description = "Start user credential brokering", body = UserCredentialBrokeringResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Start credential brokering",
@@ -560,6 +578,8 @@ pub struct GenericOAuthCallbackParams {
     responses(
         (status = 200, description = "Generic OAuth callback", body = UserCredentialBrokeringResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "OAuth callback",
@@ -654,6 +674,8 @@ pub async fn generic_oauth_callback(
     responses(
         (status = 200, description = "Delete provider instance", body = ()),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Delete provider",
@@ -701,6 +723,8 @@ pub async fn route_delete_provider_instance(
     responses(
         (status = 200, description = "Enable function", body = EnableFunctionResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Enable function",
@@ -753,6 +777,8 @@ pub async fn route_enable_function(
     responses(
         (status = 200, description = "Disable function", body = DisableFunctionResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Disable function",
@@ -805,6 +831,8 @@ pub async fn route_disable_function(
     responses(
         (status = 200, description = "Invoke function", body = InvokeFunctionResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Invoke function",
@@ -864,6 +892,8 @@ pub struct ListProviderInstancesQuery {
     responses(
         (status = 200, description = "List provider instances", body = ListProviderInstancesResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "List provider instances",
@@ -916,6 +946,8 @@ pub async fn route_list_provider_instances(
     responses(
         (status = 200, description = "List provider instances grouped by function", body = ListProviderInstancesGroupedByFunctionResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "List providers by function",
@@ -964,6 +996,8 @@ pub struct ListFunctionInstancesQuery {
     responses(
         (status = 200, description = "List function instances", body = ListFunctionInstancesResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "List function instances",
@@ -1011,6 +1045,8 @@ pub async fn route_list_function_instances(
     params(),
     responses(
         (status = 200, description = "Get function instances openapi spec", body = String),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Get function OpenAPI spec",

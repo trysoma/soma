@@ -34,6 +34,8 @@ pub fn create_api_key_routes() -> OpenApiRouter<IdentityService> {
     responses(
         (status = 201, description = "API key created successfully", body = CreateApiKeyResponse),
         (status = 400, description = "Invalid request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     security(
@@ -71,6 +73,8 @@ async fn route_create_api_key(
     ),
     responses(
         (status = 200, description = "API key deleted successfully", body = DeleteApiKeyResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "API key not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
@@ -109,6 +113,8 @@ async fn route_delete_api_key(
     ),
     responses(
         (status = 200, description = "List of API keys", body = ListApiKeysResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     security(
@@ -141,6 +147,8 @@ async fn route_list_api_keys(
     responses(
         (status = 201, description = "API key imported successfully", body = ImportApiKeyResponse),
         (status = 400, description = "Invalid request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     security(

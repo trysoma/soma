@@ -51,6 +51,8 @@ pub struct ListUserAuthFlowConfigsQuery {
     responses(
         (status = 201, description = "User auth flow configuration created successfully", body = CreateUserAuthFlowConfigResponse),
         (status = 400, description = "Invalid request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "Create user auth flow configuration",
@@ -92,6 +94,8 @@ async fn route_create_user_auth_flow_config(
     ),
     responses(
         (status = 200, description = "User auth flow configuration found", body = GetUserAuthFlowConfigResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "User auth flow configuration not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
@@ -132,6 +136,8 @@ async fn route_get_user_auth_flow_config(
     ),
     responses(
         (status = 200, description = "User auth flow configuration deleted successfully", body = DeleteUserAuthFlowConfigResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "User auth flow configuration not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
@@ -174,6 +180,8 @@ async fn route_delete_user_auth_flow_config(
     ),
     responses(
         (status = 200, description = "List of user auth flow configurations", body = ListUserAuthFlowConfigResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "List user auth flow configurations",
@@ -219,6 +227,8 @@ async fn route_list_user_auth_flow_configs(
     responses(
         (status = 201, description = "User auth flow configuration imported successfully", body = ImportUserAuthFlowConfigResponse),
         (status = 400, description = "Invalid request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "Import user auth flow configuration",

@@ -31,6 +31,8 @@ use shared::error::CommonError;
     responses(
         (status = 200, description = "Create MCP server instance", body = CreateMcpServerInstanceResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "Create MCP server instance",
@@ -76,6 +78,8 @@ pub async fn route_create_mcp_server_instance(
     ),
     responses(
         (status = 200, description = "Get MCP server instance", body = GetMcpServerInstanceResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "Not Found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -117,6 +121,8 @@ pub async fn route_get_mcp_server_instance(
     request_body = UpdateMcpServerInstanceRequest,
     responses(
         (status = 200, description = "Update MCP server instance", body = UpdateMcpServerInstanceResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "Not Found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -165,6 +171,8 @@ pub async fn route_update_mcp_server_instance(
     ),
     responses(
         (status = 200, description = "Delete MCP server instance"),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "Not Found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -207,6 +215,8 @@ pub async fn route_delete_mcp_server_instance(
     ),
     responses(
         (status = 200, description = "List MCP server instances", body = ListMcpServerInstancesResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "List MCP server instances",
@@ -248,6 +258,8 @@ pub async fn route_list_mcp_server_instances(
     responses(
         (status = 200, description = "Add function to MCP server instance", body = AddMcpServerInstanceFunctionResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "Not Found", body = CommonError),
         (status = 409, description = "Conflict (function name already exists)", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
@@ -301,6 +313,8 @@ pub async fn route_add_mcp_server_instance_function(
     request_body = UpdateMcpServerInstanceFunctionRequest,
     responses(
         (status = 200, description = "Update function in MCP server instance", body = UpdateMcpServerInstanceFunctionResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "Not Found", body = CommonError),
         (status = 409, description = "Conflict (function name already exists)", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
@@ -363,6 +377,8 @@ pub async fn route_update_mcp_server_instance_function(
     ),
     responses(
         (status = 200, description = "Remove function from MCP server instance", body = RemoveMcpServerInstanceFunctionResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "Not Found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),

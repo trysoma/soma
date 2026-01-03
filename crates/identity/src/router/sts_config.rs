@@ -33,6 +33,8 @@ pub fn create_sts_config_routes() -> OpenApiRouter<IdentityService> {
     responses(
         (status = 201, description = "STS configuration created successfully", body = StsTokenConfig),
         (status = 400, description = "Invalid request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "Create STS configuration",
@@ -73,6 +75,8 @@ async fn route_create_sts_config(
     ),
     responses(
         (status = 200, description = "STS configuration found", body = StsTokenConfig),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "STS configuration not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
@@ -113,6 +117,8 @@ async fn route_get_sts_config(
     ),
     responses(
         (status = 200, description = "STS configuration deleted successfully", body = DeleteStsConfigResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "STS configuration not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
@@ -155,6 +161,8 @@ async fn route_delete_sts_config(
     ),
     responses(
         (status = 200, description = "List of STS configurations", body = ListStsConfigResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "List STS configurations",

@@ -32,6 +32,8 @@ pub fn create_jwk_routes() -> OpenApiRouter<IdentityService> {
     ),
     responses(
         (status = 200, description = "JWK invalidated successfully"),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "JWK not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
@@ -68,6 +70,8 @@ async fn route_invalidate_jwk(
     ),
     responses(
         (status = 200, description = "List of JWKs", body = ListJwksResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     security(

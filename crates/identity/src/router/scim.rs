@@ -99,6 +99,8 @@ pub type ScimResult<T> = Result<T, ScimErrorResponse>;
     responses(
         (status = 200, description = "List of users", body = ScimUserListResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "List SCIM Users",
@@ -143,6 +145,8 @@ async fn route_list_users(
     responses(
         (status = 201, description = "User created", body = ScimUser),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 409, description = "Conflict - User already exists", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -183,6 +187,8 @@ async fn route_create_user(
     ),
     responses(
         (status = 200, description = "User found", body = ScimUser),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "User not found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -226,6 +232,8 @@ async fn route_get_user(
     request_body = ScimUser,
     responses(
         (status = 200, description = "User replaced", body = ScimUser),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "User not found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -271,6 +279,8 @@ async fn route_replace_user(
     request_body = ScimPatchRequest,
     responses(
         (status = 200, description = "User patched", body = ScimUser),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "User not found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -315,6 +325,8 @@ async fn route_patch_user(
     ),
     responses(
         (status = 204, description = "User deleted"),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "User not found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -358,6 +370,8 @@ async fn route_delete_user(
     responses(
         (status = 200, description = "List of groups", body = ScimGroupListResponse),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
     summary = "List SCIM Groups",
@@ -402,6 +416,8 @@ async fn route_list_groups(
     responses(
         (status = 201, description = "Group created", body = ScimGroup),
         (status = 400, description = "Bad Request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 409, description = "Conflict - Group already exists", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -444,6 +460,8 @@ async fn route_create_group(
     ),
     responses(
         (status = 200, description = "Group found", body = ScimGroup),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "Group not found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -487,6 +505,8 @@ async fn route_get_group(
     request_body = ScimGroup,
     responses(
         (status = 200, description = "Group replaced", body = ScimGroup),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "Group not found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -532,6 +552,8 @@ async fn route_replace_group(
     request_body = ScimPatchRequest,
     responses(
         (status = 200, description = "Group patched", body = ScimGroup),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "Group not found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
@@ -576,6 +598,8 @@ async fn route_patch_group(
     ),
     responses(
         (status = 204, description = "Group deleted"),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "Group not found", body = CommonError),
         (status = 500, description = "Internal Server Error", body = CommonError),
     ),
