@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use shared::{
     error::CommonError,
-    identity::Identity,
     primitives::{
         PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedSchema, WrappedUuidV4,
     },
@@ -238,11 +237,10 @@ pub type CreateResourceServerCredentialResponse = ResourceServerCredentialSerial
 #[authz_role(Admin, Maintainer, permission = "credential:write")]
 #[authn]
 pub async fn create_resource_server_credential(
-    _identity: Identity,
+
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateResourceServerCredentialParams,
 ) -> Result<CreateResourceServerCredentialResponse, CommonError> {
-    let _ = &identity;
     trace!(
         provider_type = %params.provider_controller_type_id,
         credential_type = %params.inner.credential_controller_type_id,
@@ -334,11 +332,10 @@ pub type CreateUserCredentialResponse = UserCredentialSerialized;
 #[authz_role(Admin, Maintainer, permission = "credential:write")]
 #[authn]
 pub async fn create_user_credential(
-    _identity: Identity,
+
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateUserCredentialParams,
 ) -> Result<CreateUserCredentialResponse, CommonError> {
-    let _ = &identity;
     create_user_credential_internal(repo, params).await
 }
 
@@ -563,12 +560,11 @@ pub enum UserCredentialBrokeringResponse {
 #[authz_role(Admin, Maintainer, permission = "credential:write")]
 #[authn]
 pub async fn start_user_credential_brokering(
-    _identity: Identity,
+
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: StartUserCredentialBrokeringParams,
 ) -> Result<UserCredentialBrokeringResponse, CommonError> {
-    let _ = &identity;
     let provider_controller = get_provider_controller(&params.provider_controller_type_id)?;
     let credential_controller = get_credential_controller(
         &provider_controller,

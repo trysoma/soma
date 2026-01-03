@@ -1,6 +1,6 @@
 use encryption::logic::crypto_services::CryptoCache;
 use serde::{Deserialize, Serialize};
-use shared::{error::CommonError, identity::Identity, primitives::WrappedJsonValue};
+use shared::{error::CommonError, primitives::WrappedJsonValue};
 use shared_macros::{authn, authz_role};
 use utoipa::ToSchema;
 
@@ -34,11 +34,10 @@ pub type EncryptConfigurationParams = WithProviderControllerTypeId<
 #[authz_role(Admin, Maintainer, permission = "credential:write")]
 #[authn]
 pub async fn encrypt_resource_server_configuration(
-    _identity: Identity,
+
     crypto_cache: &CryptoCache,
     params: EncryptConfigurationParams,
 ) -> Result<EncryptedCredentialConfigurationResponse, CommonError> {
-    let _ = &identity;
     // Resolve the DEK alias to get the encryption service (supports both alias and ID)
     let encryption_service = crypto_cache
         .get_encryption_service(&params.inner.inner.dek_alias)
@@ -67,11 +66,10 @@ pub async fn encrypt_resource_server_configuration(
 #[authz_role(Admin, Maintainer, permission = "credential:write")]
 #[authn]
 pub async fn encrypt_user_credential_configuration(
-    _identity: Identity,
+
     crypto_cache: &CryptoCache,
     params: EncryptConfigurationParams,
 ) -> Result<EncryptedCredentialConfigurationResponse, CommonError> {
-    let _ = &identity;
     // Resolve the DEK alias to get the encryption service (supports both alias and ID)
     let encryption_service = crypto_cache
         .get_encryption_service(&params.inner.inner.dek_alias)

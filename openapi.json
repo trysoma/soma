@@ -9838,6 +9838,7 @@
       },
       "Group": {
         "type": "object",
+        "description": "A group entity for organizing users and managing access control.\n\nGroups allow assigning permissions to multiple users at once.",
         "required": [
           "id",
           "name",
@@ -9846,16 +9847,20 @@
         ],
         "properties": {
           "created_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
+            "$ref": "#/components/schemas/WrappedChronoDateTime",
+            "description": "Timestamp when the group was created (UTC)"
           },
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique identifier (UUID format)"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Human-readable group name"
           },
           "updated_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
+            "$ref": "#/components/schemas/WrappedChronoDateTime",
+            "description": "Timestamp when the group was last modified (UTC)"
           }
         }
       },
@@ -9981,7 +9986,7 @@
       },
       "Human": {
         "type": "object",
-        "description": "Authenticated human identity",
+        "description": "Authenticated human identity.\n\nRepresents a real user that authenticated via STS/OAuth token.",
         "required": [
           "sub",
           "groups",
@@ -9992,19 +9997,23 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Email address of the user (if available from token)"
           },
           "groups": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Group IDs the user belongs to"
           },
           "role": {
-            "$ref": "#/components/schemas/Role"
+            "$ref": "#/components/schemas/Role",
+            "description": "Permission level of this user"
           },
           "sub": {
-            "type": "string"
+            "type": "string",
+            "description": "Subject identifier (user ID) of the human user"
           }
         }
       },
@@ -10058,7 +10067,7 @@
           },
           {
             "type": "object",
-            "description": "Machine acting on behalf of a human",
+            "description": "Machine acting on behalf of a human (both credentials provided)",
             "required": [
               "machine",
               "human",
@@ -10081,7 +10090,7 @@
           },
           {
             "type": "object",
-            "description": "Unauthenticated request",
+            "description": "Unauthenticated request (no valid credentials)",
             "required": [
               "type"
             ],
@@ -10095,7 +10104,7 @@
             }
           }
         ],
-        "description": "Authenticated identity"
+        "description": "Authenticated identity representing the caller of a request.\n\nThis is the result of authentication and is used throughout the system\nfor authorization decisions."
       },
       "ImportDataEncryptionKeyParamsRoute": {
         "type": "object",
@@ -10622,17 +10631,19 @@
       },
       "Machine": {
         "type": "object",
-        "description": "Authenticated machine identity",
+        "description": "Authenticated machine identity.\n\nRepresents an API client or automated service that authenticated via API key.",
         "required": [
           "sub",
           "role"
         ],
         "properties": {
           "role": {
-            "$ref": "#/components/schemas/Role"
+            "$ref": "#/components/schemas/Role",
+            "description": "Permission level of this machine"
           },
           "sub": {
-            "type": "string"
+            "type": "string",
+            "description": "Subject identifier (user ID) of the machine account"
           }
         }
       },
@@ -11360,7 +11371,7 @@
       },
       "Role": {
         "type": "string",
-        "description": "User role in the system",
+        "description": "User role in the system defining permission levels.\n\nRoles are hierarchical with Admin having the highest privileges.",
         "enum": [
           "admin",
           "maintainer",
@@ -12319,6 +12330,7 @@
       },
       "User": {
         "type": "object",
+        "description": "A user entity in the system.\n\nRepresents both human users and machine accounts with their associated metadata.",
         "required": [
           "id",
           "user_type",
@@ -12328,31 +12340,38 @@
         ],
         "properties": {
           "created_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
+            "$ref": "#/components/schemas/WrappedChronoDateTime",
+            "description": "Timestamp when the user was created (UTC)"
           },
           "description": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Optional human-readable description of the user or its purpose"
           },
           "email": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Email address (required for human users, optional for machines)"
           },
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique identifier (UUID format)"
           },
           "role": {
-            "$ref": "#/components/schemas/Role"
+            "$ref": "#/components/schemas/Role",
+            "description": "Permission level assigned to this user"
           },
           "updated_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
+            "$ref": "#/components/schemas/WrappedChronoDateTime",
+            "description": "Timestamp when the user was last modified (UTC)"
           },
           "user_type": {
-            "$ref": "#/components/schemas/UserType"
+            "$ref": "#/components/schemas/UserType",
+            "description": "Whether this is a machine or human user"
           }
         }
       },
@@ -12589,6 +12608,7 @@
       },
       "UserType": {
         "type": "string",
+        "description": "Type of user identity in the system.\n\nDistinguishes between automated services and real users.",
         "enum": [
           "machine",
           "human"

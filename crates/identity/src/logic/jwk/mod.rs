@@ -7,7 +7,6 @@ use pkcs1::EncodeRsaPrivateKey;
 use pkcs8::EncodePublicKey;
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
-use shared::identity::Identity;
 use shared::{
     error::CommonError,
     primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime},
@@ -156,7 +155,7 @@ where
 #[authz_role(Admin, permission = "jwk:invalidate")]
 #[authn]
 pub async fn invalidate_jwk<R>(
-    _identity: Identity,
+
     repository: &R,
     jwks_cache: &JwksCache,
     params: InvalidateJwkParams,
@@ -164,7 +163,6 @@ pub async fn invalidate_jwk<R>(
 where
     R: UserRepositoryLike,
 {
-    let _ = &identity;
     repository.invalidate_jwt_signing_key(&params.kid).await?;
     jwks_cache.invalidate_jwk(&params.kid);
     Ok(())
@@ -174,14 +172,13 @@ where
 #[authz_role(Admin, Maintainer, permission = "jwk:list")]
 #[authn]
 pub async fn list_jwks<R>(
-    _identity: Identity,
+
     repository: &R,
     pagination: &PaginationRequest,
 ) -> Result<ListJwksResponse, CommonError>
 where
     R: UserRepositoryLike,
 {
-    let _ = &identity;
     let result = repository.list_jwt_signing_keys(pagination).await?;
 
     let items: Vec<JwkResponse> = result
@@ -579,8 +576,7 @@ mod tests {
             let auth_client = mock_admin_auth_client();
             invalidate_jwk(
                 auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                http::HeaderMap::new(),
                 &ctx.identity_repo,
                 &ctx.jwks_cache,
                 params,
@@ -626,8 +622,7 @@ mod tests {
             let auth_client = mock_admin_auth_client();
             let result = list_jwks(
                 auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                http::HeaderMap::new(),
                 &ctx.identity_repo,
                 &pagination,
             )

@@ -1,7 +1,6 @@
 //! MCP server instance management and protocol routes
 
 use http::HeaderMap;
-use shared::identity::Identity;
 use tracing::trace;
 
 use super::{API_VERSION_1, McpService, PATH_PREFIX, SERVICE_ROUTE_KEY};
@@ -52,11 +51,10 @@ pub async fn route_create_mcp_server_instance(
         name = %request.name,
         "Creating MCP server instance"
     );
-    let identity_placeholder = Identity::Unauthenticated;
     let res = create_mcp_server_instance(
         ctx.auth_client().clone(),
         headers,
-        identity_placeholder,
+
         ctx.on_config_change_tx(),
         ctx.repository(),
         request,
@@ -96,11 +94,10 @@ pub async fn route_get_mcp_server_instance(
     Path(mcp_server_instance_id): Path<String>,
 ) -> JsonResponse<GetMcpServerInstanceResponse, CommonError> {
     trace!(instance_id = %mcp_server_instance_id, "Getting MCP server instance");
-    let identity_placeholder = Identity::Unauthenticated;
     let res = get_mcp_server_instance(
         ctx.auth_client().clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository(),
         &mcp_server_instance_id,
     )
@@ -144,11 +141,10 @@ pub async fn route_update_mcp_server_instance(
         name = ?request.name,
         "Updating MCP server instance"
     );
-    let identity_placeholder = Identity::Unauthenticated;
     let res = update_mcp_server_instance(
         ctx.auth_client().clone(),
         headers,
-        identity_placeholder,
+
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,
@@ -189,11 +185,10 @@ pub async fn route_delete_mcp_server_instance(
     Path(mcp_server_instance_id): Path<String>,
 ) -> JsonResponse<(), CommonError> {
     trace!(instance_id = %mcp_server_instance_id, "Deleting MCP server instance");
-    let identity_placeholder = Identity::Unauthenticated;
     let res = delete_mcp_server_instance(
         ctx.auth_client().clone(),
         headers,
-        identity_placeholder,
+
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,
@@ -232,11 +227,10 @@ pub async fn route_list_mcp_server_instances(
     Query(params): Query<ListMcpServerInstancesParams>,
 ) -> JsonResponse<ListMcpServerInstancesResponse, CommonError> {
     trace!(page_size = params.page_size, "Listing MCP server instances");
-    let identity_placeholder = Identity::Unauthenticated;
     let res = list_mcp_server_instances(
         ctx.auth_client().clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository(),
         params,
     )
@@ -286,11 +280,10 @@ pub async fn route_add_mcp_server_instance_function(
         function_name = %request.function_name,
         "Adding function to MCP server instance"
     );
-    let identity_placeholder = Identity::Unauthenticated;
     let res = add_mcp_server_instance_function(
         ctx.auth_client().clone(),
         headers,
-        identity_placeholder,
+
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,
@@ -348,11 +341,10 @@ pub async fn route_update_mcp_server_instance_function(
         provider_instance_id = %provider_instance_id,
         "Updating MCP server instance function"
     );
-    let identity_placeholder = Identity::Unauthenticated;
     let res = update_mcp_server_instance_function(
         ctx.auth_client().clone(),
         headers,
-        identity_placeholder,
+
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,
@@ -410,11 +402,10 @@ pub async fn route_remove_mcp_server_instance_function(
         provider_instance_id = %provider_instance_id,
         "Removing function from MCP server instance"
     );
-    let identity_placeholder = Identity::Unauthenticated;
     let res = remove_mcp_server_instance_function(
         ctx.auth_client().clone(),
         headers,
-        identity_placeholder,
+
         ctx.on_config_change_tx(),
         ctx.repository(),
         &mcp_server_instance_id,

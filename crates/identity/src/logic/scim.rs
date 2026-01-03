@@ -6,7 +6,7 @@
 use crate::logic::user::GroupMembership;
 use crate::repository::{GroupMemberWithUser, UpdateUser, UserRepositoryLike};
 use serde::{Deserialize, Serialize};
-use shared::identity::{Group, Identity, Role, User, UserType};
+use shared::identity::{Group, Role, User, UserType};
 use shared::{
     error::CommonError,
     primitives::{PaginationRequest, WrappedChronoDateTime},
@@ -403,11 +403,10 @@ pub fn group_to_scim(group: &Group, members: &[GroupMemberWithUser], base_url: &
 #[authz_role(Admin, permission = "scim_user:write")]
 #[authn]
 pub async fn create_user_from_scim(
-    _identity: Identity,
+
     repo: &impl UserRepositoryLike,
     scim_user: ScimUser,
 ) -> Result<ScimUser, CommonError> {
-    let _ = &identity;
     let now = WrappedChronoDateTime::now();
 
     // Use external_id if provided, otherwise generate a UUID
@@ -472,12 +471,11 @@ pub async fn create_user_from_scim(
 #[authz_role(Admin, permission = "scim_user:read")]
 #[authn]
 pub async fn get_user_scim(
-    _identity: Identity,
+
     repo: &impl UserRepositoryLike,
     user_id: &str,
     base_url: &str,
 ) -> Result<ScimUser, CommonError> {
-    let _ = &identity;
     get_user_scim_internal(repo, user_id, base_url).await
 }
 
@@ -532,12 +530,11 @@ async fn get_user_scim_internal(
 #[authz_role(Admin, permission = "scim_user:list")]
 #[authn]
 pub async fn list_users_scim(
-    _identity: Identity,
+
     repo: &impl UserRepositoryLike,
     params: ScimListParams,
     base_url: &str,
 ) -> Result<ScimUserListResponse, CommonError> {
-    let _ = &identity;
     let pagination = PaginationRequest {
         page_size: params.count,
         next_page_token: None,
@@ -571,13 +568,12 @@ pub async fn list_users_scim(
 #[authz_role(Admin, permission = "scim_user:write")]
 #[authn]
 pub async fn replace_user_scim(
-    _identity: Identity,
+
     repo: &impl UserRepositoryLike,
     user_id: &str,
     scim_user: ScimUser,
     base_url: &str,
 ) -> Result<ScimUser, CommonError> {
-    let _ = &identity;
     // Check if user exists
     let _existing = repo
         .get_user_by_id(user_id)
@@ -621,13 +617,12 @@ pub async fn replace_user_scim(
 #[authz_role(Admin, permission = "scim_user:write")]
 #[authn]
 pub async fn patch_user_scim(
-    _identity: Identity,
+
     repo: &impl UserRepositoryLike,
     user_id: &str,
     patch_request: ScimPatchRequest,
     base_url: &str,
 ) -> Result<ScimUser, CommonError> {
-    let _ = &identity;
     // Check if user exists
     let existing = repo
         .get_user_by_id(user_id)
@@ -704,11 +699,10 @@ pub async fn patch_user_scim(
 #[authz_role(Admin, permission = "scim_user:delete")]
 #[authn]
 pub async fn delete_user_scim(
-    _identity: Identity,
+
     repo: &impl UserRepositoryLike,
     user_id: &str,
 ) -> Result<(), CommonError> {
-    let _ = &identity;
     // Check if user exists
     let _existing = repo
         .get_user_by_id(user_id)
@@ -741,12 +735,11 @@ pub async fn delete_user_scim(
 #[authz_role(Admin, permission = "scim_group:write")]
 #[authn]
 pub async fn create_group_from_scim(
-    _identity: Identity,
+
     repo: &impl UserRepositoryLike,
     scim_group: ScimGroup,
     base_url: &str,
 ) -> Result<ScimGroup, CommonError> {
-    let _ = &identity;
     let now = WrappedChronoDateTime::now();
 
     // Use external_id if provided, otherwise generate a UUID
@@ -811,12 +804,11 @@ pub async fn create_group_from_scim(
 #[authz_role(Admin, permission = "scim_group:read")]
 #[authn]
 pub async fn get_group_scim(
-    _identity: Identity,
+
     repo: &impl UserRepositoryLike,
     group_id: &str,
     base_url: &str,
 ) -> Result<ScimGroup, CommonError> {
-    let _ = &identity;
     get_group_scim_internal(repo, group_id, base_url).await
 }
 
@@ -856,12 +848,11 @@ async fn get_group_scim_internal(
 #[authz_role(Admin, permission = "scim_group:list")]
 #[authn]
 pub async fn list_groups_scim(
-    _identity: Identity,
+
     repo: &impl UserRepositoryLike,
     params: ScimListParams,
     base_url: &str,
 ) -> Result<ScimGroupListResponse, CommonError> {
-    let _ = &identity;
     let pagination = PaginationRequest {
         page_size: params.count,
         next_page_token: None,
@@ -902,13 +893,12 @@ pub async fn list_groups_scim(
 #[authz_role(Admin, permission = "scim_group:write")]
 #[authn]
 pub async fn replace_group_scim(
-    _identity: Identity,
+
     repo: &impl UserRepositoryLike,
     group_id: &str,
     scim_group: ScimGroup,
     base_url: &str,
 ) -> Result<ScimGroup, CommonError> {
-    let _ = &identity;
     let now = WrappedChronoDateTime::now();
 
     // Check if group exists
@@ -955,13 +945,12 @@ pub async fn replace_group_scim(
 #[authz_role(Admin, permission = "scim_group:write")]
 #[authn]
 pub async fn patch_group_scim(
-    _identity: Identity,
+
     repo: &impl UserRepositoryLike,
     group_id: &str,
     patch_request: ScimPatchRequest,
     base_url: &str,
 ) -> Result<ScimGroup, CommonError> {
-    let _ = &identity;
     let now = WrappedChronoDateTime::now();
 
     // Check if group exists
@@ -1085,11 +1074,10 @@ pub async fn patch_group_scim(
 #[authz_role(Admin, permission = "scim_group:delete")]
 #[authn]
 pub async fn delete_group_scim(
-    _identity: Identity,
+
     repo: &impl UserRepositoryLike,
     group_id: &str,
 ) -> Result<(), CommonError> {
-    let _ = &identity;
     // Check if group exists
     let _existing = repo
         .get_group_by_id(group_id)
@@ -1120,7 +1108,7 @@ mod tests {
     mod unit {
         use super::super::*;
         use crate::repository::Repository;
-        use shared::identity::{Identity, Role};
+        use shared::identity::Role;
         use shared::primitives::SqlMigrationLoader;
         use shared::test_utils::helpers::MockAuthClient;
 
@@ -1168,9 +1156,7 @@ mod tests {
 
             let auth_client = mock_admin_auth_client();
             let result = create_user_from_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 scim_user,
             )
@@ -1208,9 +1194,7 @@ mod tests {
             // Create first user
             let auth_client = mock_admin_auth_client();
             let result1 = create_user_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_user.clone(),
             )
@@ -1219,9 +1203,7 @@ mod tests {
 
             // Try to create duplicate
             let result2 = create_user_from_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 scim_user,
             )
@@ -1253,9 +1235,7 @@ mod tests {
 
             let auth_client = mock_admin_auth_client();
             create_user_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_user,
             )
@@ -1264,9 +1244,7 @@ mod tests {
 
             // Get the user
             let result = get_user_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 "get-test-user",
                 "https://example.com/scim/v2",
@@ -1292,9 +1270,7 @@ mod tests {
 
             let auth_client = mock_admin_auth_client();
             let result = get_user_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 "nonexistent",
                 "https://example.com/scim/v2",
@@ -1327,9 +1303,7 @@ mod tests {
                     meta: None,
                 };
                 create_user_from_scim(
-                    auth_client.clone(),
-                    Identity::Unauthenticated,
-                    Identity::Unauthenticated,
+                    auth_client.clone(), http::HeaderMap::new(),
                     &repo,
                     scim_user,
                 )
@@ -1338,9 +1312,7 @@ mod tests {
             }
 
             let result = list_users_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 ScimListParams::default(),
                 "https://example.com/scim/v2",
@@ -1377,9 +1349,7 @@ mod tests {
             };
 
             create_user_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_user,
             )
@@ -1405,9 +1375,7 @@ mod tests {
             };
 
             let result = replace_user_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 "replace-user",
                 updated_user,
@@ -1445,9 +1413,7 @@ mod tests {
             };
 
             create_user_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_user,
             )
@@ -1467,9 +1433,7 @@ mod tests {
             };
 
             let result = patch_user_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 "patch-user",
                 patch_request,
@@ -1503,9 +1467,7 @@ mod tests {
             };
 
             create_user_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_user,
             )
@@ -1514,9 +1476,7 @@ mod tests {
 
             // Delete the user
             let result = delete_user_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 "delete-user",
             )
@@ -1525,9 +1485,7 @@ mod tests {
 
             // Verify deletion
             let get_result = get_user_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 "delete-user",
                 "",
@@ -1551,9 +1509,7 @@ mod tests {
             };
 
             let result = create_group_from_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 scim_group,
                 "https://example.com/scim/v2",
@@ -1585,9 +1541,7 @@ mod tests {
                 meta: None,
             };
             create_user_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_user,
             )
@@ -1610,9 +1564,7 @@ mod tests {
             };
 
             let result = create_group_from_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 scim_group,
                 "https://example.com/scim/v2",
@@ -1640,9 +1592,7 @@ mod tests {
                 meta: None,
             };
             create_group_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_group,
                 "",
@@ -1652,9 +1602,7 @@ mod tests {
 
             // Get the group
             let result = get_group_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 "get-group",
                 "https://example.com/scim/v2",
@@ -1683,9 +1631,7 @@ mod tests {
                     meta: None,
                 };
                 create_group_from_scim(
-                    auth_client.clone(),
-                    Identity::Unauthenticated,
-                    Identity::Unauthenticated,
+                    auth_client.clone(), http::HeaderMap::new(),
                     &repo,
                     scim_group,
                     "",
@@ -1695,9 +1641,7 @@ mod tests {
             }
 
             let result = list_groups_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 ScimListParams::default(),
                 "https://example.com/scim/v2",
@@ -1725,9 +1669,7 @@ mod tests {
                 meta: None,
             };
             create_group_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_group,
                 "",
@@ -1746,9 +1688,7 @@ mod tests {
             };
 
             let result = replace_group_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 "replace-group",
                 updated_group,
@@ -1780,9 +1720,7 @@ mod tests {
                 meta: None,
             };
             create_user_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_user,
             )
@@ -1799,9 +1737,7 @@ mod tests {
                 meta: None,
             };
             create_group_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_group,
                 "",
@@ -1820,9 +1756,7 @@ mod tests {
             };
 
             let result = patch_group_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 "patch-group",
                 patch_request,
@@ -1855,9 +1789,7 @@ mod tests {
                 meta: None,
             };
             create_user_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_user,
             )
@@ -1879,9 +1811,7 @@ mod tests {
                 meta: None,
             };
             create_group_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_group,
                 "",
@@ -1900,9 +1830,7 @@ mod tests {
             };
 
             let result = patch_group_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 "remove-member-group",
                 patch_request,
@@ -1930,9 +1858,7 @@ mod tests {
                 meta: None,
             };
             create_group_from_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 scim_group,
                 "",
@@ -1942,9 +1868,7 @@ mod tests {
 
             // Delete the group
             let result = delete_group_scim(
-                auth_client.clone(),
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client.clone(), http::HeaderMap::new(),
                 &repo,
                 "delete-group",
             )
@@ -1953,9 +1877,7 @@ mod tests {
 
             // Verify deletion
             let get_result = get_group_scim(
-                auth_client,
-                Identity::Unauthenticated,
-                Identity::Unauthenticated,
+                auth_client, http::HeaderMap::new(),
                 &repo,
                 "delete-group",
                 "",

@@ -4,7 +4,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shared::{
     error::CommonError,
-    identity::Identity,
     primitives::{
         PaginatedResponse, PaginationRequest, WrappedChronoDateTime, WrappedJsonValue,
         WrappedUuidV4,
@@ -308,11 +307,10 @@ pub async fn list_provider_instances_internal(
 #[authz_role(Admin, Maintainer, Agent, permission = "provider:list")]
 #[authn]
 pub async fn list_provider_instances(
-    _identity: Identity,
+
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListProviderInstancesParams,
 ) -> Result<ListProviderInstancesResponse, CommonError> {
-    let _ = &identity;
     list_provider_instances_internal(repo, params).await
 }
 
@@ -344,11 +342,10 @@ pub async fn list_function_instances_internal(
 #[authz_role(Admin, Maintainer, Agent, permission = "function:list")]
 #[authn]
 pub async fn list_function_instances(
-    _identity: Identity,
+
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListFunctionInstancesParams,
 ) -> Result<ListFunctionInstancesResponse, CommonError> {
-    let _ = &identity;
     list_function_instances_internal(repo, params).await
 }
 
@@ -366,10 +363,9 @@ pub struct FunctionInstanceWithMetadata {
 #[authz_role(Admin, Maintainer, Agent, permission = "function:list")]
 #[authn]
 pub async fn get_function_instances(
-    _identity: Identity,
+
     repo: &impl crate::repository::ProviderRepositoryLike,
 ) -> Result<Vec<FunctionInstanceWithMetadata>, CommonError> {
-    let _ = &identity;
     get_function_instances_internal(repo).await
 }
 
@@ -451,10 +447,9 @@ pub async fn get_function_instances_internal(
 #[authz_role(Admin, Maintainer, Agent, permission = "function:list")]
 #[authn]
 pub async fn get_function_instances_openapi_spec(
-    _identity: Identity,
+
     repo: &impl crate::repository::ProviderRepositoryLike,
 ) -> Result<OpenApi, CommonError> {
-    let _ = &identity;
     fn get_openapi_path(
         provider_instance_id: &String,
         function_controller_type_id: &String,
@@ -679,13 +674,12 @@ pub type CreateProviderInstanceResponse = ProviderInstanceSerialized;
 #[authz_role(Admin, Maintainer, permission = "provider:write")]
 #[authn]
 pub async fn create_provider_instance(
-    _identity: Identity,
+
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateProviderInstanceParams,
     publish_on_change_evt: bool,
 ) -> Result<CreateProviderInstanceResponse, CommonError> {
-    let _ = &identity;
     trace!(
         provider_type = %params.provider_controller_type_id,
         credential_type = %params.inner.credential_controller_type_id,
@@ -783,13 +777,12 @@ pub type UpdateProviderInstanceResponse = ();
 #[authz_role(Admin, Maintainer, permission = "provider:write")]
 #[authn]
 pub async fn update_provider_instance(
-    _identity: Identity,
+
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: UpdateProviderInstanceParams,
     publish_on_change_evt: bool,
 ) -> Result<UpdateProviderInstanceResponse, CommonError> {
-    let _ = &identity;
     trace!(
         provider_instance_id = %params.provider_instance_id,
         display_name = %params.inner.display_name,
@@ -856,13 +849,12 @@ pub type DeleteProviderInstanceResponse = ();
 #[authz_role(Admin, Maintainer, permission = "provider:write")]
 #[authn]
 pub async fn delete_provider_instance(
-    _identity: Identity,
+
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: DeleteProviderInstanceParams,
     publish_on_change_evt: bool,
 ) -> Result<DeleteProviderInstanceResponse, CommonError> {
-    let _ = &identity;
     trace!(provider_instance_id = %params.provider_instance_id, "Deleting provider instance");
     repo.delete_provider_instance(&params.provider_instance_id)
         .await?;
@@ -899,11 +891,10 @@ pub type ListProviderInstancesGroupedByFunctionResponse = PaginatedResponse<Func
 #[authz_role(Admin, Maintainer, Agent, permission = "function:list")]
 #[authn]
 pub async fn list_provider_instances_grouped_by_function(
-    _identity: Identity,
+
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: ListProviderInstancesGroupedByFunctionParams,
 ) -> Result<ListProviderInstancesGroupedByFunctionResponse, CommonError> {
-    let _ = &identity;
     trace!(
         page_size = params.page_size,
         provider_type = ?params.provider_controller_type_id,
@@ -1047,11 +1038,10 @@ pub type GetProviderInstanceResponse = ProviderInstanceSerializedWithEverything;
 #[authz_role(Admin, Maintainer, Agent, permission = "provider:read")]
 #[authn]
 pub async fn get_provider_instance(
-    _identity: Identity,
+
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: GetProviderInstanceParams,
 ) -> Result<GetProviderInstanceResponse, CommonError> {
-    let _ = &identity;
     trace!(provider_instance_id = %params.provider_instance_id, "Getting provider instance");
     let provider_instance = repo
         .get_provider_instance_by_id(&params.provider_instance_id)
@@ -1106,13 +1096,12 @@ pub type EnableFunctionResponse = FunctionInstanceSerialized;
 #[authz_role(Admin, Maintainer, permission = "function:write")]
 #[authn]
 pub async fn enable_function(
-    _identity: Identity,
+
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: EnableFunctionParams,
     publish_on_change_evt: bool,
 ) -> Result<EnableFunctionResponse, CommonError> {
-    let _ = &identity;
     trace!(
         provider_instance_id = %params.provider_instance_id,
         function_type = %params.inner.function_controller_type_id,
@@ -1179,12 +1168,11 @@ pub type InvokeFunctionResponse = InvokeResult;
 #[authz_role(Admin, Maintainer, Agent, permission = "function:invoke")]
 #[authn]
 pub async fn invoke_function(
-    _identity: Identity,
+
     repo: &crate::repository::Repository,
     encryption_service: &CryptoCache,
     params: InvokeFunctionParams,
 ) -> Result<InvokeFunctionResponse, CommonError> {
-    let _ = &identity;
     invoke_function_internal(repo, encryption_service, params).await
 }
 
@@ -1274,13 +1262,12 @@ pub type DisableFunctionResponse = ();
 #[authz_role(Admin, Maintainer, permission = "function:write")]
 #[authn]
 pub async fn disable_function(
-    _identity: Identity,
+
     on_config_change_tx: &OnConfigChangeTx,
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: DisableFunctionParams,
     publish_on_change_evt: bool,
 ) -> Result<DisableFunctionResponse, CommonError> {
-    let _ = &identity;
     trace!(
         provider_instance_id = %params.provider_instance_id,
         function_type = %params.inner.function_controller_type_id,

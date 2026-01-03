@@ -15,20 +15,18 @@ use syn::{Ident, ItemFn, ReturnType, Token, parse_macro_input};
 /// This macro transforms a function to:
 /// 1. Add `__auth_client: impl AuthClientLike` as the first parameter
 /// 2. Add `__credentials: impl Into<RawCredentials>` as the second parameter
-/// 3. Add `identity: Identity` as the first parameter of the original function signature
-/// 4. Call `__auth_client.authenticate(__credentials.into()).await?` at the start
-/// 5. Check authentication and pass the `Identity` to the function body
+/// 3. Call `__auth_client.authenticate(__credentials.into()).await?` at the start
+/// 4. Create `_identity: Identity` variable for use in the function body
 ///
 /// # Example
 ///
 /// ```rust,ignore
 /// #[authn]
 /// pub async fn create_user(
-///     identity: Identity,  // The macro adds this as the first param
 ///     repo: &impl UserRepositoryLike,
 ///     params: CreateUserParams,
 /// ) -> Result<User, CommonError> {
-///     // `identity` is the authenticated identity
+///     // `_identity` is available as the authenticated identity
 ///     // Function will return early with CommonError::Authentication if not authenticated
 ///     // ...
 /// }
@@ -41,8 +39,6 @@ use syn::{Ident, ItemFn, ReturnType, Token, parse_macro_input};
 /// Callers invoke like:
 /// ```rust,ignore
 /// create_user(auth_client, headers, repo, params).await
-/// // or
-/// create_user(auth_client, existing_identity, repo, params).await
 /// ```
 pub fn authn_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     let _ = attr; // No attributes expected for now
@@ -80,12 +76,13 @@ pub fn authn_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     };
 
-    // Get the original parameters - the first one should be `identity: Identity`
+    // Get the original parameters (business logic parameters only, no identity)
     let original_params = &sig.inputs;
 
     // Generate the authentication check
     // Note: We use __authn_ prefix to avoid conflicts with crates named 'identity'
-    // The __authn_identity is used by authz_role macro, then we bind it to `identity` for the user
+    // The __authn_identity is used by authz_role macro
+    // We also create `_identity` for use in function body if needed
     let auth_check = quote! {
         let __authn_identity = __auth_client.authenticate(__credentials.into()).await?;
         if !__authn_identity.is_authenticated() {
@@ -94,8 +91,10 @@ pub fn authn_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
                 source: None,
             });
         }
-        // Bind to `identity` for use in function body (shadowing the parameter declaration)
-        let identity = __authn_identity.clone();
+        // Create `_identity` for use in function body if needed
+        // Prefixed with _ to suppress unused variable warnings
+        #[allow(unused_variables)]
+        let _identity = __authn_identity.clone();
     };
 
     // Build the expanded function

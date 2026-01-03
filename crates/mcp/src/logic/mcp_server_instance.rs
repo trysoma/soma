@@ -1,7 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
-use shared::identity::Identity;
 use shared::primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime};
 use shared_macros::{authn, authz_role};
 use tracing::trace;
@@ -154,13 +153,12 @@ pub async fn create_mcp_server_instance_internal<R: ProviderRepositoryLike>(
 #[authz_role(Admin, Maintainer, permission = "mcp:write")]
 #[authn]
 pub async fn create_mcp_server_instance<R: ProviderRepositoryLike>(
-    _identity: Identity,
+
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     request: CreateMcpServerInstanceRequest,
     publish_on_change_evt: bool,
 ) -> Result<CreateMcpServerInstanceResponse, CommonError> {
-    let _ = &identity;
     create_mcp_server_instance_internal(
         on_config_change_tx,
         repository,
@@ -190,11 +188,10 @@ pub async fn get_mcp_server_instance_internal<R: ProviderRepositoryLike>(
 #[authz_role(Admin, Maintainer, Agent, permission = "mcp:read")]
 #[authn]
 pub async fn get_mcp_server_instance<R: ProviderRepositoryLike>(
-    _identity: Identity,
+
     repository: &R,
     id: &str,
 ) -> Result<GetMcpServerInstanceResponse, CommonError> {
-    let _ = &identity;
     get_mcp_server_instance_internal(repository, id).await
 }
 
@@ -247,14 +244,13 @@ pub async fn update_mcp_server_instance_internal<R: ProviderRepositoryLike>(
 #[authn]
 #[allow(clippy::too_many_arguments)]
 pub async fn update_mcp_server_instance<R: ProviderRepositoryLike>(
-    _identity: Identity,
+
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     id: &str,
     request: UpdateMcpServerInstanceRequest,
     publish_on_change_evt: bool,
 ) -> Result<UpdateMcpServerInstanceResponse, CommonError> {
-    let _ = &identity;
     update_mcp_server_instance_internal(
         on_config_change_tx,
         repository,
@@ -298,13 +294,12 @@ pub async fn delete_mcp_server_instance_internal<R: ProviderRepositoryLike>(
 #[authz_role(Admin, Maintainer, permission = "mcp:write")]
 #[authn]
 pub async fn delete_mcp_server_instance<R: ProviderRepositoryLike>(
-    _identity: Identity,
+
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     id: &str,
     publish_on_change_evt: bool,
 ) -> Result<(), CommonError> {
-    let _ = &identity;
     delete_mcp_server_instance_internal(on_config_change_tx, repository, id, publish_on_change_evt)
         .await
 }
@@ -329,11 +324,10 @@ pub async fn list_mcp_server_instances_internal<R: ProviderRepositoryLike>(
 #[authz_role(Admin, Maintainer, Agent, permission = "mcp:list")]
 #[authn]
 pub async fn list_mcp_server_instances<R: ProviderRepositoryLike>(
-    _identity: Identity,
+
     repository: &R,
     params: ListMcpServerInstancesParams,
 ) -> Result<ListMcpServerInstancesResponse, CommonError> {
-    let _ = &identity;
     list_mcp_server_instances_internal(repository, params).await
 }
 
@@ -450,14 +444,13 @@ pub async fn add_mcp_server_instance_function_internal<R: ProviderRepositoryLike
 #[authn]
 #[allow(clippy::too_many_arguments)]
 pub async fn add_mcp_server_instance_function<R: ProviderRepositoryLike>(
-    _identity: Identity,
+
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     mcp_server_instance_id: &str,
     request: AddMcpServerInstanceFunctionRequest,
     publish_on_change_evt: bool,
 ) -> Result<AddMcpServerInstanceFunctionResponse, CommonError> {
-    let _ = &identity;
     add_mcp_server_instance_function_internal(
         on_config_change_tx,
         repository,
@@ -585,7 +578,7 @@ pub async fn update_mcp_server_instance_function_internal<R: ProviderRepositoryL
 #[authz_role(Admin, Maintainer, permission = "mcp:write")]
 #[authn]
 pub async fn update_mcp_server_instance_function<R: ProviderRepositoryLike>(
-    _identity: Identity,
+
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     mcp_server_instance_id: &str,
@@ -595,7 +588,6 @@ pub async fn update_mcp_server_instance_function<R: ProviderRepositoryLike>(
     request: UpdateMcpServerInstanceFunctionRequest,
     publish_on_change_evt: bool,
 ) -> Result<UpdateMcpServerInstanceFunctionResponse, CommonError> {
-    let _ = &identity;
     update_mcp_server_instance_function_internal(
         on_config_change_tx,
         repository,
@@ -689,7 +681,7 @@ pub async fn remove_mcp_server_instance_function_internal<R: ProviderRepositoryL
 #[authz_role(Admin, Maintainer, permission = "mcp:write")]
 #[authn]
 pub async fn remove_mcp_server_instance_function<R: ProviderRepositoryLike>(
-    _identity: Identity,
+
     on_config_change_tx: &OnConfigChangeTx,
     repository: &R,
     mcp_server_instance_id: &str,
@@ -698,7 +690,6 @@ pub async fn remove_mcp_server_instance_function<R: ProviderRepositoryLike>(
     provider_instance_id: &str,
     publish_on_change_evt: bool,
 ) -> Result<RemoveMcpServerInstanceFunctionResponse, CommonError> {
-    let _ = &identity;
     remove_mcp_server_instance_function_internal(
         on_config_change_tx,
         repository,

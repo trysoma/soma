@@ -2,7 +2,6 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 use http::HeaderMap;
 use serde::Deserialize;
-use shared::identity::Identity;
 use shared::{
     adapters::openapi::{API_VERSION_TAG, JsonResponse},
     error::CommonError,
@@ -67,11 +66,10 @@ async fn route_create_user_auth_flow_config(
     Json(params): Json<CreateUserAuthFlowConfigParams>,
 ) -> JsonResponse<CreateUserAuthFlowConfigResponse, CommonError> {
     trace!(config_id = %params.config.id(), "Creating user auth flow configuration");
-    let identity_placeholder = Identity::Unauthenticated;
     let result = create_user_auth_flow_config(
         service.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         service.repository.as_ref(),
         &service.crypto_cache,
         &service.on_config_change_tx,
@@ -111,12 +109,11 @@ async fn route_get_user_auth_flow_config(
     Path(id): Path<String>,
 ) -> JsonResponse<GetUserAuthFlowConfigResponse, CommonError> {
     trace!(config_id = %id, "Getting user auth flow configuration");
-    let identity_placeholder = Identity::Unauthenticated;
     let params = GetUserAuthFlowConfigParams { id };
     let result = get_user_auth_flow_config(
         service.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         service.repository.as_ref(),
         params,
     )
@@ -153,12 +150,11 @@ async fn route_delete_user_auth_flow_config(
     Path(id): Path<String>,
 ) -> JsonResponse<DeleteUserAuthFlowConfigResponse, CommonError> {
     trace!(config_id = %id, "Deleting user auth flow configuration");
-    let identity_placeholder = Identity::Unauthenticated;
     let params = DeleteUserAuthFlowConfigParams { id };
     let result = delete_user_auth_flow_config(
         service.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         service.repository.as_ref(),
         &service.on_config_change_tx,
         params,
@@ -204,11 +200,10 @@ async fn route_list_user_auth_flow_configs(
         },
         config_type: query.config_type,
     };
-    let identity_placeholder = Identity::Unauthenticated;
     let result = list_user_auth_flow_configs(
         service.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         service.repository.as_ref(),
         params,
     )
@@ -243,11 +238,10 @@ async fn route_import_user_auth_flow_config(
     Json(params): Json<ImportUserAuthFlowConfigParams>,
 ) -> JsonResponse<ImportUserAuthFlowConfigResponse, CommonError> {
     trace!(config_id = %params.config.id(), "Importing user auth flow configuration");
-    let identity_placeholder = Identity::Unauthenticated;
     let result = import_user_auth_flow_config(
         service.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         service.repository.as_ref(),
         params,
     )

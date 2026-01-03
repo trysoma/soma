@@ -1,7 +1,6 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use http::HeaderMap;
-use shared::identity::Identity;
 use shared::primitives::PaginationRequest;
 use shared::{
     adapters::openapi::{API_VERSION_TAG, JsonResponse},
@@ -48,11 +47,10 @@ async fn route_create_api_key(
     Json(params): Json<CreateApiKeyParams>,
 ) -> JsonResponse<CreateApiKeyResponse, CommonError> {
     trace!(api_key_id = %params.id, "Creating API key");
-    let identity_placeholder = Identity::Unauthenticated;
     let result = create_api_key(
         service.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         service.repository.as_ref(),
         &service.crypto_cache,
         &service.on_config_change_tx,
@@ -88,12 +86,11 @@ async fn route_delete_api_key(
     Path(id): Path<String>,
 ) -> JsonResponse<DeleteApiKeyResponse, CommonError> {
     trace!(api_key_id = %id, "Deleting API key");
-    let identity_placeholder = Identity::Unauthenticated;
     let params = DeleteApiKeyParams { id };
     let result = delete_api_key(
         service.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         service.repository.as_ref(),
         &service.on_config_change_tx,
         Some(&service.api_key_cache),
@@ -127,11 +124,10 @@ async fn route_list_api_keys(
     Query(query): Query<PaginationRequest>,
 ) -> JsonResponse<ListApiKeysResponse, CommonError> {
     trace!(page_size = query.page_size, "Listing API keys");
-    let identity_placeholder = Identity::Unauthenticated;
     let result = list_api_keys(
         service.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         service.repository.as_ref(),
         query,
     )
@@ -161,11 +157,10 @@ async fn route_import_api_key(
     Json(params): Json<EncryptedApiKeyConfig>,
 ) -> JsonResponse<ImportApiKeyResponse, CommonError> {
     trace!(api_key_id = %params.id, "Importing API key");
-    let identity_placeholder = Identity::Unauthenticated;
     let result = import_api_key(
         service.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         service.repository.as_ref(),
         &service.crypto_cache,
         Some(&service.api_key_cache),

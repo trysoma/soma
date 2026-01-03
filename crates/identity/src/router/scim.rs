@@ -13,7 +13,6 @@ use crate::logic::scim::{
 };
 use axum::extract::{Json, Path, Query, State};
 use http::{HeaderMap, StatusCode};
-use shared::identity::Identity;
 use shared::{adapters::openapi::API_VERSION_TAG, error::CommonError};
 use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -120,12 +119,11 @@ async fn route_list_users(
         count = params.count,
         "Listing SCIM users"
     );
-    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
     let result = list_users_scim(
         ctx.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository.as_ref(),
         params,
         &base_url,
@@ -163,11 +161,10 @@ async fn route_create_user(
     Json(scim_user): Json<ScimUser>,
 ) -> ScimResult<ScimCreatedResponse<ScimUser>> {
     trace!(user_name = %scim_user.user_name, external_id = ?scim_user.external_id, "Creating SCIM user");
-    let identity_placeholder = Identity::Unauthenticated;
     let result = create_user_from_scim(
         ctx.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository.as_ref(),
         scim_user,
     )
@@ -205,12 +202,11 @@ async fn route_get_user(
     Path(user_id): Path<String>,
 ) -> ScimResult<ScimOkResponse<ScimUser>> {
     trace!(user_id = %user_id, "Getting SCIM user");
-    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
     let result = get_user_scim(
         ctx.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository.as_ref(),
         &user_id,
         &base_url,
@@ -251,12 +247,11 @@ async fn route_replace_user(
     Json(scim_user): Json<ScimUser>,
 ) -> ScimResult<ScimOkResponse<ScimUser>> {
     trace!(user_id = %user_id, "Replacing SCIM user");
-    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
     let result = replace_user_scim(
         ctx.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository.as_ref(),
         &user_id,
         scim_user,
@@ -298,12 +293,11 @@ async fn route_patch_user(
     Json(patch_request): Json<ScimPatchRequest>,
 ) -> ScimResult<ScimOkResponse<ScimUser>> {
     trace!(user_id = %user_id, operation_count = patch_request.operations.len(), "Patching SCIM user");
-    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
     let result = patch_user_scim(
         ctx.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository.as_ref(),
         &user_id,
         patch_request,
@@ -343,11 +337,10 @@ async fn route_delete_user(
     Path(user_id): Path<String>,
 ) -> ScimResult<ScimNoContentResponse> {
     trace!(user_id = %user_id, "Deleting SCIM user");
-    let identity_placeholder = Identity::Unauthenticated;
     let result = delete_user_scim(
         ctx.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository.as_ref(),
         &user_id,
     )
@@ -391,12 +384,11 @@ async fn route_list_groups(
         count = params.count,
         "Listing SCIM groups"
     );
-    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
     let result = list_groups_scim(
         ctx.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository.as_ref(),
         params,
         &base_url,
@@ -434,12 +426,11 @@ async fn route_create_group(
     Json(scim_group): Json<ScimGroup>,
 ) -> ScimResult<ScimCreatedResponse<ScimGroup>> {
     trace!(display_name = %scim_group.display_name, external_id = ?scim_group.external_id, member_count = scim_group.members.len(), "Creating SCIM group");
-    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
     let result = create_group_from_scim(
         ctx.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository.as_ref(),
         scim_group,
         &base_url,
@@ -478,12 +469,11 @@ async fn route_get_group(
     Path(group_id): Path<String>,
 ) -> ScimResult<ScimOkResponse<ScimGroup>> {
     trace!(group_id = %group_id, "Getting SCIM group");
-    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
     let result = get_group_scim(
         ctx.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository.as_ref(),
         &group_id,
         &base_url,
@@ -524,12 +514,11 @@ async fn route_replace_group(
     Json(scim_group): Json<ScimGroup>,
 ) -> ScimResult<ScimOkResponse<ScimGroup>> {
     trace!(group_id = %group_id, member_count = scim_group.members.len(), "Replacing SCIM group");
-    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
     let result = replace_group_scim(
         ctx.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository.as_ref(),
         &group_id,
         scim_group,
@@ -571,12 +560,11 @@ async fn route_patch_group(
     Json(patch_request): Json<ScimPatchRequest>,
 ) -> ScimResult<ScimOkResponse<ScimGroup>> {
     trace!(group_id = %group_id, operation_count = patch_request.operations.len(), "Patching SCIM group");
-    let identity_placeholder = Identity::Unauthenticated;
     let base_url = get_scim_base_url();
     let result = patch_group_scim(
         ctx.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository.as_ref(),
         &group_id,
         patch_request,
@@ -616,11 +604,10 @@ async fn route_delete_group(
     Path(group_id): Path<String>,
 ) -> ScimResult<ScimNoContentResponse> {
     trace!(group_id = %group_id, "Deleting SCIM group");
-    let identity_placeholder = Identity::Unauthenticated;
     let result = delete_group_scim(
         ctx.auth_client.clone(),
         headers,
-        identity_placeholder,
+
         ctx.repository.as_ref(),
         &group_id,
     )
