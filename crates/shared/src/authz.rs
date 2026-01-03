@@ -19,14 +19,23 @@ pub trait AuthzEntity {
     fn allowed_roles(&self) -> &[Role];
 }
 
-/// Result of a ReBAC authorization check
+/// Result of a ReBAC (Relationship-Based Access Control) authorization check.
+///
+/// Contains the decision and a human-readable explanation of why access
+/// was granted or denied.
 #[derive(Debug)]
 pub struct AuthzResult {
+    /// Whether the action is permitted
     pub allowed: bool,
+    /// Human-readable explanation of the authorization decision
     pub reason: String,
 }
 
 impl AuthzResult {
+    /// Creates an authorization result indicating access is permitted.
+    ///
+    /// # Parameters
+    /// - `reason`: Explanation of why access was granted
     pub fn allowed(reason: impl Into<String>) -> Self {
         Self {
             allowed: true,
@@ -34,6 +43,10 @@ impl AuthzResult {
         }
     }
 
+    /// Creates an authorization result indicating access is denied.
+    ///
+    /// # Parameters
+    /// - `reason`: Explanation of why access was denied
     pub fn denied(reason: impl Into<String>) -> Self {
         Self {
             allowed: false,

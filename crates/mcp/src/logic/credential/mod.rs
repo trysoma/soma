@@ -218,7 +218,23 @@ pub type CreateResourceServerCredentialParams = WithProviderControllerTypeId<
 >;
 pub type CreateResourceServerCredentialResponse = ResourceServerCredentialSerialized;
 
-/// Create a new resource server credential
+/// Creates a new resource server credential for a provider.
+///
+/// Resource server credentials are used for server-to-server authentication
+/// (e.g., client credentials flow) where no user interaction is required.
+///
+/// # Parameters
+/// - `identity`: The authenticated caller (must have Admin or Maintainer role)
+/// - `repo`: Repository for persisting the credential
+/// - `params`: Configuration including provider type, credential type, and encrypted configuration
+///
+/// # Returns
+/// The created credential with its generated ID and metadata.
+///
+/// # Errors
+/// - Returns error if provider or credential controller is not found
+/// - Returns error if configuration deserialization fails
+/// - Returns error if database save fails
 #[authz_role(Admin, Maintainer, permission = "credential:write")]
 #[authn]
 pub async fn create_resource_server_credential(
@@ -326,8 +342,26 @@ pub async fn create_user_credential(
     create_user_credential_internal(repo, params).await
 }
 
-/// Internal function to create a user credential (no auth check).
-/// Used by `create_user_credential` and internal helpers like `process_broker_outcome`.
+/// Internal helper to create a user credential without authentication checks.
+///
+/// This function bypasses authentication and authorization checks and should
+/// only be called from authenticated wrapper functions (e.g., `create_user_credential`)
+/// or trusted internal flows (e.g., `process_broker_outcome` during OAuth callback).
+///
+/// # Parameters
+/// - `repo`: Repository for persisting the credential
+/// - `params`: Configuration including provider type, credential type, and user credential data
+///
+/// # Returns
+/// The created user credential with its generated ID and metadata.
+///
+/// # Errors
+/// - Returns error if provider or credential controller is not found
+/// - Returns error if configuration deserialization fails
+/// - Returns error if database save fails
+///
+/// # Safety
+/// Callers must ensure proper authentication has already been performed.
 async fn create_user_credential_internal(
     repo: &impl crate::repository::ProviderRepositoryLike,
     params: CreateUserCredentialParams,

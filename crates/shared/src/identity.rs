@@ -6,13 +6,19 @@ use utoipa::ToSchema;
 
 use crate::primitives::WrappedChronoDateTime;
 
-/// User role in the system
+/// User role in the system defining permission levels.
+///
+/// Roles are hierarchical with Admin having the highest privileges.
 #[derive(Debug, Clone, PartialEq, Eq, ToSchema, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Role {
+    /// Full system access including user management and configuration
     Admin,
+    /// Can manage resources but not system configuration
     Maintainer,
+    /// Automated service account with limited permissions
     Agent,
+    /// Standard user with basic read/write access
     User,
 }
 
@@ -34,6 +40,7 @@ impl From<Role> for libsql::Value {
 }
 
 impl Role {
+    /// Returns the string representation of the role (e.g., "admin", "user").
     pub fn as_str(&self) -> &'static str {
         match self {
             Role::Admin => "admin",
@@ -43,7 +50,9 @@ impl Role {
         }
     }
 
-    /// Parse a role from string
+    /// Parses a role from its string representation.
+    ///
+    /// Returns `None` if the string doesn't match a valid role.
     pub fn parse(s: &str) -> Option<Role> {
         match s {
             "admin" => Some(Role::Admin),
@@ -55,10 +64,15 @@ impl Role {
     }
 }
 
+/// Type of user identity in the system.
+///
+/// Distinguishes between automated services and real users.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum UserType {
+    /// Automated service or API client (authenticates via API key)
     Machine,
+    /// Real user (authenticates via STS/OAuth tokens)
     Human,
 }
 
@@ -80,6 +94,7 @@ impl From<UserType> for libsql::Value {
 }
 
 impl UserType {
+    /// Returns the string representation of the user type (e.g., "machine", "human").
     pub fn as_str(&self) -> &'static str {
         match self {
             UserType::Machine => "machine",
@@ -87,6 +102,9 @@ impl UserType {
         }
     }
 
+    /// Parses a user type from its string representation.
+    ///
+    /// Returns `None` if the string doesn't match a valid user type.
     pub fn parse(s: &str) -> Option<UserType> {
         match s {
             "machine" => Some(UserType::Machine),
@@ -96,23 +114,39 @@ impl UserType {
     }
 }
 
+/// A user entity in the system.
+///
+/// Represents both human users and machine accounts with their associated metadata.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct User {
+    /// Unique identifier (UUID format)
     pub id: String,
+    /// Whether this is a machine or human user
     pub user_type: UserType,
+    /// Email address (required for human users, optional for machines)
     pub email: Option<String>,
+    /// Permission level assigned to this user
     pub role: Role,
+    /// Optional human-readable description of the user or its purpose
     pub description: Option<String>,
+    /// Timestamp when the user was created (UTC)
     pub created_at: WrappedChronoDateTime,
+    /// Timestamp when the user was last modified (UTC)
     pub updated_at: WrappedChronoDateTime,
 }
 
-// Group types
+/// A group entity for organizing users and managing access control.
+///
+/// Groups allow assigning permissions to multiple users at once.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct Group {
+    /// Unique identifier (UUID format)
     pub id: String,
+    /// Human-readable group name
     pub name: String,
+    /// Timestamp when the group was created (UTC)
     pub created_at: WrappedChronoDateTime,
+    /// Timestamp when the group was last modified (UTC)
     pub updated_at: WrappedChronoDateTime,
 }
 
@@ -148,23 +182,36 @@ impl From<Identity> for RawCredentials {
     }
 }
 
-/// Authenticated machine identity
+/// Authenticated machine identity.
+///
+/// Represents an API client or automated service that authenticated via API key.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Machine {
+    /// Subject identifier (user ID) of the machine account
     pub sub: String,
+    /// Permission level of this machine
     pub role: Role,
 }
 
-/// Authenticated human identity
+/// Authenticated human identity.
+///
+/// Represents a real user that authenticated via STS/OAuth token.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Human {
+    /// Subject identifier (user ID) of the human user
     pub sub: String,
+    /// Email address of the user (if available from token)
     pub email: Option<String>,
+    /// Group IDs the user belongs to
     pub groups: Vec<String>,
+    /// Permission level of this user
     pub role: Role,
 }
 
-/// Authenticated identity
+/// Authenticated identity representing the caller of a request.
+///
+/// This is the result of authentication and is used throughout the system
+/// for authorization decisions.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum Identity {
@@ -172,9 +219,9 @@ pub enum Identity {
     Machine(Machine),
     /// Human identity (STS token authentication)
     Human(Human),
-    /// Machine acting on behalf of a human
+    /// Machine acting on behalf of a human (both credentials provided)
     MachineOnBehalfOfHuman { machine: Machine, human: Human },
-    /// Unauthenticated request
+    /// Unauthenticated request (no valid credentials)
     Unauthenticated,
 }
 

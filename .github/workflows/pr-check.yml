@@ -228,7 +228,7 @@ jobs:
           # --no-fail-fast: continue running even if tests fail
           # --status-level all: show all test results
           # --final-status-level slow: show slow tests at the end
-          cargo llvm-cov nextest --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov --no-fail-fast --status-level all --final-status-level slow
+          RUN_INTEGRATION_TESTS=1 cargo llvm-cov nextest --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov --no-fail-fast --status-level all --final-status-level slow
           echo "Disk space after coverage tests:"
           df -h
         timeout-minutes: 30
