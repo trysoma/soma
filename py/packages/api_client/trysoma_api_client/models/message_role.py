@@ -19,7 +19,7 @@ from typing_extensions import Self
 
 class MessageRole(str, Enum):
     """
-    MessageRole
+    Message role (user or agent)
     """
 
     """

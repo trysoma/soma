@@ -1,5 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
+use a2a::{A2aService, A2aServiceParams};
 use ::mcp::logic::mcp::McpServerService;
 use ::mcp::router::McpService;
 use encryption::logic::{EncryptionKeyEventSender, crypto_services::CryptoCache};
@@ -19,16 +20,10 @@ use shared::{
 
 use url::Url;
 
+use a2a::{AgentCache, ConnectionManager, Repository};
 use crate::{
     logic::on_change_pubsub::{SecretChangeTx, VariableChangeTx},
-    logic::task::ConnectionManager,
-    repository::Repository,
-    router::{
-        agent::{AgentService, AgentServiceParams},
-        internal,
-        task::TaskService,
-    },
-    sdk::sdk_agent_sync::AgentCache,
+    router::internal,
 };
 pub mod factory;
 pub mod logic;
@@ -42,8 +37,8 @@ pub mod test;
 
 #[derive(Clone)]
 pub struct ApiService {
-    pub agent_service: Arc<AgentService>,
-    pub task_service: Arc<TaskService>,
+    /// Unified A2A service for task and agent management
+    pub a2a_service: Arc<A2aService>,
     pub mcp_service: McpService,
     pub internal_service: Arc<internal::InternalService>,
     pub encryption_service: encryption::router::EncryptionService,
@@ -56,8 +51,6 @@ pub struct ApiService {
             >,
         >,
     >,
-    /// Cache for storing agent metadata from SDK
-    pub agent_cache: AgentCache,
 }
 
 pub struct InitApiServiceParams {
@@ -115,7 +108,9 @@ impl ApiService {
             init_params.crypto_cache.clone(),
             init_params.local_envelope_encryption_key_path.clone(),
         );
-        let agent_service = Arc::new(AgentService::new(AgentServiceParams {
+
+        // Create unified A2A service with agent support
+        let a2a_service = Arc::new(A2aService::new_with_agent_support(A2aServiceParams {
             soma_definition: init_params.soma_definition.clone(),
             host: Url::parse(format!("http://{}:{}", init_params.host, init_params.port).as_str())?,
             connection_manager: init_params.connection_manager.clone(),
@@ -124,10 +119,7 @@ impl ApiService {
             restate_admin_client: init_params.restate_admin_client.clone(),
             agent_cache: agent_cache.clone(),
         }));
-        let task_service = Arc::new(TaskService::new(
-            init_params.connection_manager.clone(),
-            init_params.repository.clone(),
-        ));
+
         let mcp_service = McpService::new(
             init_params.mcp_repository.clone(),
             init_params.on_mcp_config_change_tx.clone(),
@@ -170,15 +162,13 @@ impl ApiService {
             });
 
         Ok(Self {
-            agent_service,
-            task_service,
+            a2a_service,
             mcp_service,
             internal_service,
             encryption_service,
             environment_service,
             identity_service,
             sdk_client: init_params.sdk_client,
-            agent_cache,
         })
     }
 }

@@ -60,3 +60,27 @@ env "environment" {
   url = "sqlite://file?mode=memory"
   dev = "sqlite://file?mode=memory"
 }
+
+env "a2a" {
+  src = "file://crates/a2a/dbs/a2a/schema.sql"
+
+  migration {
+    dir = "file://crates/a2a/dbs/a2a/migrations?format=goose"
+  }
+
+  //we don't actually use atlas to deploy to an env
+  url = "sqlite://file?mode=memory"
+  dev = "sqlite://file?mode=memory"
+}
+
+env "inbox" {
+  src = "file://crates/inbox/dbs/inbox/schema.sql"
+
+  migration {
+    dir = "file://crates/inbox/dbs/inbox/migrations?format=goose"
+  }
+
+  //we don't actually use atlas to deploy to an env
+  url = "sqlite://file?mode=memory"
+  dev = "sqlite://file?mode=memory"
+}

@@ -13,7 +13,7 @@
  */
 
 /**
- *
+ * Message role (user or agent)
  * @export
  */
 export const MessageRole = {

@@ -19,7 +19,7 @@ from typing_extensions import Self
 
 class TaskStatus(str, Enum):
     """
-    TaskStatus
+    Task status enum matching A2A protocol states
     """
 
     """

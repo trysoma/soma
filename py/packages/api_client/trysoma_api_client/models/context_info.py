@@ -26,7 +26,7 @@ from typing_extensions import Self
 
 class ContextInfo(BaseModel):
     """
-    ContextInfo
+    Minimal context information for grouping tasks
     """  # noqa: E501
 
     context_id: UUID

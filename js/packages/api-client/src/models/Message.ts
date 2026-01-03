@@ -18,7 +18,7 @@ import type { MessageRole } from "./MessageRole";
 import { MessageRoleFromJSON, MessageRoleToJSON } from "./MessageRole";
 
 /**
- *
+ * Message domain model
  * @export
  * @interface Message
  */

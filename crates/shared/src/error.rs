@@ -1,5 +1,5 @@
 use crate::adapters::mcp::McpErrorMsg;
-use a2a_rs::errors::A2aServerError;
+use a2a_core::errors::A2aServerError;
 use axum::{
     Json,
     response::{IntoResponse, Response},
@@ -158,7 +158,7 @@ pub enum CommonError {
 
 impl From<CommonError> for A2aServerError {
     fn from(e: CommonError) -> Self {
-        A2aServerError::InternalError(a2a_rs::errors::Error {
+        A2aServerError::InternalError(a2a_core::errors::Error {
             message: e.to_string(),
             data: None,
             source: Some(Box::new(e)),

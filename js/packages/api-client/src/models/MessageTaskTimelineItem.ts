@@ -16,7 +16,7 @@ import type { Message } from "./Message";
 import { MessageFromJSON, MessageToJSON } from "./Message";
 
 /**
- *
+ * Message timeline item payload
  * @export
  * @interface MessageTaskTimelineItem
  */

@@ -1,0 +1,327 @@
+version: "2"
+plugins:
+  - name: sqlc-gen-from-template
+    process:
+      cmd: "sqlc-gen-from-template"
+sql:
+  - engine: "sqlite"
+    schema: "./dbs/inbox/schema.sql"
+    queries: "./dbs/inbox/queries"
+    codegen:
+      - out: "src/repository/sqlite"
+        plugin: "sqlc-gen-from-template"
+        options:
+          template: "./../../rust_rusqlite.go.tmpl"
+          filename: "raw.generated.rs"
+          cache_statements: true
+          use_serde: true
+          overrides:
+            # thread table
+            - db_type: text
+              column: thread.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: thread.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: thread.inbox_settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: thread.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: thread.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_thread_by_id query columns
+            - db_type: text
+              column: get_thread_by_id.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: get_thread_by_id.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_thread_by_id.inbox_settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_thread_by_id.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_thread_by_id.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_threads query columns
+            - db_type: text
+              column: get_threads.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: get_threads.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_threads.inbox_settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_threads.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_threads.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # message table
+            - db_type: text
+              column: message.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: message.thread_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: message.role
+              rust_type: "crate::logic::message::MessageRole"
+            - db_type: json
+              column: message.parts
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: message.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: message.inbox_settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: message.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: message.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_message_by_id query columns
+            - db_type: text
+              column: get_message_by_id.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_message_by_id.thread_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_message_by_id.role
+              rust_type: "crate::logic::message::MessageRole"
+            - db_type: json
+              column: get_message_by_id.parts
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_message_by_id.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_message_by_id.inbox_settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_message_by_id.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_message_by_id.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_messages query columns
+            - db_type: text
+              column: get_messages.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_messages.thread_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_messages.role
+              rust_type: "crate::logic::message::MessageRole"
+            - db_type: json
+              column: get_messages.parts
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_messages.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_messages.inbox_settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_messages.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_messages.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_messages_by_thread query columns
+            - db_type: text
+              column: get_messages_by_thread.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_messages_by_thread.thread_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_messages_by_thread.role
+              rust_type: "crate::logic::message::MessageRole"
+            - db_type: json
+              column: get_messages_by_thread.parts
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_messages_by_thread.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_messages_by_thread.inbox_settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_messages_by_thread.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_messages_by_thread.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # event table
+            - db_type: text
+              column: event.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: event.payload
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: event.inbox_settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: event.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_event_by_id query columns
+            - db_type: text
+              column: get_event_by_id.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: get_event_by_id.payload
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_event_by_id.inbox_settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_event_by_id.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_events query columns
+            - db_type: text
+              column: get_events.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: get_events.payload
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_events.inbox_settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_events.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_events_by_inbox query columns
+            - db_type: text
+              column: get_events_by_inbox.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: get_events_by_inbox.payload
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_events_by_inbox.inbox_settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_events_by_inbox.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_events_by_kind query columns
+            - db_type: text
+              column: get_events_by_kind.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: get_events_by_kind.payload
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_events_by_kind.inbox_settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_events_by_kind.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # inbox table
+            - db_type: text
+              column: inbox.status
+              rust_type: "crate::logic::inbox::InboxStatus"
+            - db_type: json
+              column: inbox.configuration
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: inbox.settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: inbox.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: inbox.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_inbox_by_id query columns
+            - db_type: text
+              column: get_inbox_by_id.status
+              rust_type: "crate::logic::inbox::InboxStatus"
+            - db_type: json
+              column: get_inbox_by_id.configuration
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_inbox_by_id.settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_inbox_by_id.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_inbox_by_id.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_inboxes query columns
+            - db_type: text
+              column: get_inboxes.status
+              rust_type: "crate::logic::inbox::InboxStatus"
+            - db_type: json
+              column: get_inboxes.configuration
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_inboxes.settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_inboxes.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_inboxes.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_inboxes_by_provider query columns
+            - db_type: text
+              column: get_inboxes_by_provider.status
+              rust_type: "crate::logic::inbox::InboxStatus"
+            - db_type: json
+              column: get_inboxes_by_provider.configuration
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_inboxes_by_provider.settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_inboxes_by_provider.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_inboxes_by_provider.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_enabled_inboxes query columns
+            - db_type: text
+              column: get_enabled_inboxes.status
+              rust_type: "crate::logic::inbox::InboxStatus"
+            - db_type: json
+              column: get_enabled_inboxes.configuration
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_enabled_inboxes.settings
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_enabled_inboxes.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_enabled_inboxes.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"

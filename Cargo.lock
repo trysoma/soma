@@ -3,7 +3,40 @@
 version = 4
 
 [[package]]
-name = "a2a-rs"
+name = "a2a"
+version = "0.0.6"
+dependencies = [
+ "a2a-core",
+ "anyhow",
+ "async-trait",
+ "axum 0.8.7",
+ "base64 0.22.1",
+ "chrono",
+ "dashmap",
+ "futures",
+ "http 1.4.0",
+ "libsql",
+ "libsql_migration",
+ "reqwest",
+ "schemars 1.1.0",
+ "serde",
+ "serde_json",
+ "shared",
+ "shared-macros",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "url",
+ "utoipa",
+ "utoipa-axum",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
+name = "a2a-core"
 version = "0.0.6"
 dependencies = [
  "async-stream",
@@ -3264,6 +3297,64 @@ dependencies = [
  "same-file",
  "walkdir",
  "winapi-util",
+]
+
+[[package]]
+name = "inbox"
+version = "0.0.6"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.8.7",
+ "axum-extra 0.10.3",
+ "chrono",
+ "dashmap",
+ "libsql",
+ "once_cell",
+ "schemars 1.1.0",
+ "serde",
+ "serde_json",
+ "shared",
+ "shared-macros",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-stream",
+ "tower 0.5.2",
+ "tracing",
+ "utoipa",
+ "utoipa-axum",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
+name = "inbox-a2a"
+version = "0.0.6"
+dependencies = [
+ "a2a",
+ "a2a-core",
+ "anyhow",
+ "async-trait",
+ "axum 0.8.7",
+ "chrono",
+ "dashmap",
+ "futures",
+ "http 1.4.0",
+ "inbox",
+ "reqwest",
+ "schemars 1.1.0",
+ "serde",
+ "serde_json",
+ "shared",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "url",
+ "utoipa",
+ "utoipa-axum",
+ "uuid",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -6666,7 +6757,7 @@ dependencies = [
 name = "shared"
 version = "0.0.6"
 dependencies = [
- "a2a-rs",
+ "a2a-core",
  "anyhow",
  "async-trait",
  "axum 0.8.7",
@@ -6857,7 +6948,7 @@ dependencies = [
 name = "soma"
 version = "0.0.6"
 dependencies = [
- "a2a-rs",
+ "a2a-core",
  "anyhow",
  "async-trait",
  "axum 0.8.7",
@@ -6935,7 +7026,8 @@ dependencies = [
 name = "soma-api-server"
 version = "0.0.6"
 dependencies = [
- "a2a-rs",
+ "a2a",
+ "a2a-core",
  "anyhow",
  "async-trait",
  "axum 0.8.7",
@@ -6955,6 +7047,7 @@ dependencies = [
  "hyper 1.6.0",
  "hyper-util",
  "identity",
+ "inbox-a2a",
  "libsql",
  "mcp",
  "notify 8.2.0",

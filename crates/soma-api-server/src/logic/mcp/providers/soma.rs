@@ -20,10 +20,10 @@ use shared::primitives::WrappedSchema;
 
 use shared::error::CommonError;
 
-use crate::logic::task::GetTaskTimelineItemsRequest;
-use crate::logic::task::GetTaskTimelineItemsResponse;
-use crate::logic::task::get_task_timeline_items;
-use crate::repository::Repository;
+use a2a::logic::task::{
+    GetTaskTimelineItemsRequest, GetTaskTimelineItemsResponse, get_task_timeline_items,
+};
+use a2a::Repository;
 
 /// Soma provider controller that provides soma-specific functions
 pub struct SomaProviderController {

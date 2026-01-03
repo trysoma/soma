@@ -9905,6 +9905,7 @@
       },
       "ContextInfo": {
         "type": "object",
+        "description": "Minimal context information for grouping tasks",
         "required": [
           "context_id",
           "created_at"
@@ -10046,6 +10047,7 @@
       },
       "CreateMessageRequest": {
         "type": "object",
+        "description": "Request to create a message",
         "required": [
           "reference_task_ids",
           "role",
@@ -10075,6 +10077,7 @@
       },
       "CreateMessageResponse": {
         "type": "object",
+        "description": "Response from creating a message",
         "required": [
           "message",
           "timeline_item"
@@ -11861,6 +11864,7 @@
       },
       "Message": {
         "type": "object",
+        "description": "Message domain model",
         "required": [
           "id",
           "task_id",
@@ -11923,10 +11927,12 @@
               }
             ]
           }
-        ]
+        ],
+        "description": "Message part discriminated union"
       },
       "MessageRole": {
         "type": "string",
+        "description": "Message role (user or agent)",
         "enum": [
           "user",
           "agent"
@@ -11934,6 +11940,7 @@
       },
       "MessageTaskTimelineItem": {
         "type": "object",
+        "description": "Message timeline item payload",
         "required": [
           "message"
         ],
@@ -12947,6 +12954,7 @@
       },
       "Task": {
         "type": "object",
+        "description": "Domain model for Task",
         "required": [
           "id",
           "context_id",
@@ -13009,6 +13017,7 @@
       },
       "TaskStatus": {
         "type": "string",
+        "description": "Task status enum matching A2A protocol states",
         "enum": [
           "submitted",
           "working",
@@ -13023,6 +13032,7 @@
       },
       "TaskStatusUpdateTaskTimelineItem": {
         "type": "object",
+        "description": "Task status update timeline item payload",
         "required": [
           "status"
         ],
@@ -13044,6 +13054,7 @@
       },
       "TaskTimelineItem": {
         "type": "object",
+        "description": "Task timeline item for tracking task history",
         "required": [
           "id",
           "task_id",
@@ -13126,10 +13137,12 @@
               }
             ]
           }
-        ]
+        ],
+        "description": "Task timeline item payload discriminated union"
       },
       "TaskWithDetails": {
         "type": "object",
+        "description": "Task with additional details like messages",
         "required": [
           "task",
           "messages"
@@ -13164,6 +13177,7 @@
       },
       "TextPart": {
         "type": "object",
+        "description": "Text part of a message",
         "required": [
           "text",
           "metadata"
@@ -13338,6 +13352,7 @@
       },
       "UpdateTaskStatusRequest": {
         "type": "object",
+        "description": "Request to update task status",
         "required": [
           "status"
         ],

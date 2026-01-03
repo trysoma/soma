@@ -18,7 +18,7 @@ import type { Task } from "./Task";
 import { TaskFromJSON, TaskToJSON } from "./Task";
 
 /**
- *
+ * Task with additional details like messages
  * @export
  * @interface TaskWithDetails
  */

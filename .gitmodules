@@ -1,3 +1,3 @@
-[submodule "crates/a2a-rs/proto/thirdparty/googleapis"]
-	path = crates/a2a-rs/proto/thirdparty/googleapis
+[submodule "crates/a2a-core/proto/thirdparty/googleapis"]
+	path = crates/a2a-core/proto/thirdparty/googleapis
 	url = https://github.com/googleapis/googleapis

@@ -26,7 +26,7 @@ from typing_extensions import Self
 
 class UpdateTaskStatusRequest(BaseModel):
     """
-    UpdateTaskStatusRequest
+    Request to update task status
     """  # noqa: E501
 
     message: Optional[CreateMessageRequest] = None

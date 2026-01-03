@@ -1,0 +1,32 @@
+[package]
+name = "inbox"
+version.workspace = true
+edition.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["test-util", "macros"] }
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+axum.workspace = true
+axum-extra.workspace = true
+chrono.workspace = true
+dashmap.workspace = true
+libsql.workspace = true
+once_cell.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+shared.workspace = true
+shared-macros.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tower.workspace = true
+tracing.workspace = true
+utoipa.workspace = true
+utoipa-axum.workspace = true
+uuid.workspace = true
+workspace-hack = { version = "0.1", path = "../workspace-hack" }

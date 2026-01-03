@@ -1,5 +1,6 @@
 use axum::{Router, extract::OriginalUri, middleware};
 use shared::adapters::openapi::API_VERSION_TAG;
+use std::sync::Arc;
 use utoipa::openapi::OpenApi as OpenApiDoc;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme};
 use utoipa::{Modify, OpenApi};
@@ -8,12 +9,12 @@ use crate::ApiService;
 use encryption::router::create_router as create_encryption_router;
 use environment::router::create_router as create_environment_router;
 use identity::router::create_router as create_identity_router;
+use inbox_a2a::router::create_router as create_inbox_a2a_router;
 use mcp::router::create_router as create_mcp_router;
 use shared::error::CommonError;
 
 pub(crate) mod agent;
 pub(crate) mod internal;
-pub(crate) mod task;
 
 /// Middleware that stores the original URI in request extensions before nest_service strips the path.
 async fn store_original_uri(
@@ -28,15 +29,18 @@ async fn store_original_uri(
 pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonError> {
     let mut router = Router::new();
 
-    // agent router
-    let (agent_router, _) = agent::create_router().split_for_parts();
-    let agent_router = agent_router.with_state(api_service.agent_service);
-    router = router.merge(agent_router);
+    // A2A router (task and agent endpoints) - now from inbox-a2a crate
+    let (a2a_router, _) = create_inbox_a2a_router().split_for_parts();
+    let a2a_router = a2a_router.with_state(api_service.a2a_service.clone());
+    router = router.merge(a2a_router);
 
-    // task router
-    let (task_router, _) = task::create_router().split_for_parts();
-    let task_router = task_router.with_state(api_service.task_service);
-    router = router.merge(task_router);
+    // Agent list route (separate from inbox-a2a)
+    let agent_service = Arc::new(agent::AgentService::new(
+        api_service.a2a_service.agent_cache().clone(),
+    ));
+    let (agent_router, _) = agent::create_router().split_for_parts();
+    let agent_router = agent_router.with_state(agent_service);
+    router = router.merge(agent_router);
 
     // mcp router
     let (mcp_router, _) = create_mcp_router().split_for_parts();
@@ -78,15 +82,15 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
 
 pub fn generate_openapi_spec() -> OpenApiDoc {
     let mut spec = ApiDoc::openapi().clone();
+    let (_, a2a_spec) = create_inbox_a2a_router().split_for_parts();
     let (_, agent_spec) = agent::create_router().split_for_parts();
-    let (_, task_spec) = task::create_router().split_for_parts();
     let (_, mcp_spec) = create_mcp_router().split_for_parts();
     let (_, internal_spec) = internal::create_router().split_for_parts();
     let (_, encryption_spec) = create_encryption_router().split_for_parts();
     let (_, environment_spec) = create_environment_router().split_for_parts();
     let (_, identity_spec) = create_identity_router().split_for_parts();
+    spec.merge(a2a_spec);
     spec.merge(agent_spec);
-    spec.merge(task_spec);
     spec.merge(mcp_spec);
     spec.merge(internal_spec);
     spec.merge(encryption_spec);

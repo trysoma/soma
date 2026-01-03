@@ -13,7 +13,7 @@
  */
 
 /**
- *
+ * Task status enum matching A2A protocol states
  * @export
  */
 export const TaskStatus = {

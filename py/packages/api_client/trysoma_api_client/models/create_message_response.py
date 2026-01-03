@@ -26,7 +26,7 @@ from typing_extensions import Self
 
 class CreateMessageResponse(BaseModel):
     """
-    CreateMessageResponse
+    Response from creating a message
     """  # noqa: E501
 
     message: Message

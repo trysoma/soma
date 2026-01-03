@@ -41,7 +41,7 @@ TASKTIMELINEITEMPAYLOAD_ONE_OF_SCHEMAS = [
 
 class TaskTimelineItemPayload(BaseModel):
     """
-    TaskTimelineItemPayload
+    Task timeline item payload discriminated union
     """
 
     # data type: TaskTimelineItemPayloadOneOf

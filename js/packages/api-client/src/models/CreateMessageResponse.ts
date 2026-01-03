@@ -21,7 +21,7 @@ import {
 } from "./TaskTimelineItem";
 
 /**
- *
+ * Response from creating a message
  * @export
  * @interface CreateMessageResponse
  */

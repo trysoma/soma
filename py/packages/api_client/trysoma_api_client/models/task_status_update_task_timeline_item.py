@@ -26,7 +26,7 @@ from typing_extensions import Self
 
 class TaskStatusUpdateTaskTimelineItem(BaseModel):
     """
-    TaskStatusUpdateTaskTimelineItem
+    Task status update timeline item payload
     """  # noqa: E501
 
     status: TaskStatus
