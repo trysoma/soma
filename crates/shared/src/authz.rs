@@ -173,12 +173,20 @@ pub fn require_rebac(
 
 /// Simple entity wrapper for inline ReBAC checks
 pub struct SimpleEntity {
+    /// Unique identifier for this entity
     pub id: String,
+    /// List of groups allowed to access this entity
     pub allowed_groups: Vec<String>,
+    /// List of roles allowed to access this entity
     pub allowed_roles: Vec<Role>,
 }
 
 impl SimpleEntity {
+    /// Create a new SimpleEntity with no restrictions
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - Unique identifier for the entity
     pub fn new(id: impl Into<String>) -> Self {
         Self {
             id: id.into(),
@@ -187,11 +195,21 @@ impl SimpleEntity {
         }
     }
 
+    /// Set the allowed groups for this entity (builder pattern)
+    ///
+    /// # Arguments
+    ///
+    /// * `groups` - List of group names that can access this entity
     pub fn with_groups(mut self, groups: Vec<String>) -> Self {
         self.allowed_groups = groups;
         self
     }
 
+    /// Set the allowed roles for this entity (builder pattern)
+    ///
+    /// # Arguments
+    ///
+    /// * `roles` - List of roles that can access this entity
     pub fn with_roles(mut self, roles: Vec<Role>) -> Self {
         self.allowed_roles = roles;
         self
