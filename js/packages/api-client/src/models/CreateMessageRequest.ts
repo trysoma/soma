@@ -18,7 +18,7 @@ import type { MessageRole } from "./MessageRole";
 import { MessageRoleFromJSON, MessageRoleToJSON } from "./MessageRole";
 
 /**
- *
+ * Request to create a message
  * @export
  * @interface CreateMessageRequest
  */

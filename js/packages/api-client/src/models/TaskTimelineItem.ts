@@ -19,7 +19,7 @@ import {
 } from "./TaskTimelineItemPayload";
 
 /**
- *
+ * Task timeline item for tracking task history
  * @export
  * @interface TaskTimelineItem
  */

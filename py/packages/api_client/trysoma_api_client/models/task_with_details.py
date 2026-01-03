@@ -26,7 +26,7 @@ from typing_extensions import Self
 
 class TaskWithDetails(BaseModel):
     """
-    TaskWithDetails
+    Task with additional details like messages
     """  # noqa: E501
 
     messages: List[Message]

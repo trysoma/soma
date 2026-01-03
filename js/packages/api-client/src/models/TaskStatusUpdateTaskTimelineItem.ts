@@ -16,7 +16,7 @@ import type { TaskStatus } from "./TaskStatus";
 import { TaskStatusFromJSON, TaskStatusToJSON } from "./TaskStatus";
 
 /**
- *
+ * Task status update timeline item payload
  * @export
  * @interface TaskStatusUpdateTaskTimelineItem
  */

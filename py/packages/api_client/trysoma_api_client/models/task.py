@@ -27,7 +27,7 @@ from typing_extensions import Self
 
 class Task(BaseModel):
     """
-    Task
+    Domain model for Task
     """  # noqa: E501
 
     context_id: UUID

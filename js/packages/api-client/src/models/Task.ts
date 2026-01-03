@@ -16,7 +16,7 @@ import type { TaskStatus } from "./TaskStatus";
 import { TaskStatusFromJSON, TaskStatusToJSON } from "./TaskStatus";
 
 /**
- *
+ * Domain model for Task
  * @export
  * @interface Task
  */

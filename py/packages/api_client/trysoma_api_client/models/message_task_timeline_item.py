@@ -25,7 +25,7 @@ from typing_extensions import Self
 
 class MessageTaskTimelineItem(BaseModel):
     """
-    MessageTaskTimelineItem
+    Message timeline item payload
     """  # noqa: E501
 
     message: Message

@@ -24,7 +24,7 @@ from typing_extensions import Self
 
 class TextPart(BaseModel):
     """
-    TextPart
+    Text part of a message
     """  # noqa: E501
 
     metadata: Dict[str, Any]

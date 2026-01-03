@@ -1,0 +1,209 @@
+version: "2"
+plugins:
+  - name: sqlc-gen-from-template
+    process:
+      cmd: "sqlc-gen-from-template"
+sql:
+  - engine: "sqlite"
+    schema: "./dbs/a2a/schema.sql"
+    queries: "./dbs/a2a/queries"
+    codegen:
+      - out: "src/repository/sqlite"
+        plugin: "sqlc-gen-from-template"
+        options:
+          template: "./../../rust_rusqlite.go.tmpl"
+          filename: "raw.generated.rs"
+          cache_statements: true
+          use_serde: true
+          overrides:
+            # task table
+            - db_type: text
+              column: task.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: task.context_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: task.status
+              rust_type: "crate::logic::task::TaskStatus"
+            - db_type: datetime
+              column: task.status_timestamp
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: task.status_message_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: task.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: task.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: task.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # task_timeline table
+            - db_type: text
+              column: task_timeline.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: task_timeline.task_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: task_timeline.event_update_type
+              rust_type: "crate::logic::task::TaskEventUpdateType"
+            - db_type: json
+              column: task_timeline.event_payload
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: task_timeline.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # message table
+            - db_type: text
+              column: message.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: message.task_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: message.reference_task_ids
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: message.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: message.parts
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: message.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: message.role
+              rust_type: "crate::logic::task::MessageRole"
+
+            # get_tasks query
+            - db_type: text
+              column: get_tasks.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_tasks.context_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_tasks.status
+              rust_type: "crate::logic::task::TaskStatus"
+            - db_type: datetime
+              column: get_tasks.status_timestamp
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: get_tasks.status_message_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: get_tasks.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_tasks.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_tasks.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_unique_contexts query
+            - db_type: text
+              column: get_unique_contexts.context_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: datetime
+              column: get_unique_contexts.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_tasks_by_context_id query
+            - db_type: text
+              column: get_tasks_by_context_id.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_tasks_by_context_id.context_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_tasks_by_context_id.status
+              rust_type: "crate::logic::task::TaskStatus"
+            - db_type: datetime
+              column: get_tasks_by_context_id.status_timestamp
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: get_tasks_by_context_id.status_message_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: get_tasks_by_context_id.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_tasks_by_context_id.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_tasks_by_context_id.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_task_timeline_items query
+            - db_type: text
+              column: get_task_timeline_items.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_task_timeline_items.task_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_task_timeline_items.event_update_type
+              rust_type: "crate::logic::task::TaskEventUpdateType"
+            - db_type: json
+              column: get_task_timeline_items.event_payload
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_task_timeline_items.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_task_by_id query
+            - db_type: text
+              column: get_task_by_id.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_task_by_id.context_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_task_by_id.status
+              rust_type: "crate::logic::task::TaskStatus"
+            - db_type: datetime
+              column: get_task_by_id.status_timestamp
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: get_task_by_id.status_message_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: get_task_by_id.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_task_by_id.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: get_task_by_id.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # get_messages_by_task_id query
+            - db_type: text
+              column: get_messages_by_task_id.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: get_messages_by_task_id.task_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: get_messages_by_task_id.reference_task_ids
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_messages_by_task_id.metadata
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: get_messages_by_task_id.parts
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: get_messages_by_task_id.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: text
+              column: get_messages_by_task_id.role
+              rust_type: "crate::logic::task::MessageRole"

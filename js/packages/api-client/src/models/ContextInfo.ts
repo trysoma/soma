@@ -13,7 +13,7 @@
  */
 
 /**
- *
+ * Minimal context information for grouping tasks
  * @export
  * @interface ContextInfo
  */

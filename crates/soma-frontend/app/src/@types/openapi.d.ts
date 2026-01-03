@@ -1690,6 +1690,7 @@ export interface components {
 			resource_server: components["schemas"]["JsonSchema"];
 			user_credential: components["schemas"]["JsonSchema"];
 		};
+		/** @description Minimal context information for grouping tasks */
 		ContextInfo: {
 			context_id: components["schemas"]["WrappedUuidV4"];
 			created_at: components["schemas"]["WrappedChronoDateTime"];
@@ -1732,12 +1733,14 @@ export interface components {
 			id: string;
 			name: string;
 		};
+		/** @description Request to create a message */
 		CreateMessageRequest: {
 			metadata: components["schemas"]["Metadata"];
 			parts: components["schemas"]["MessagePart"][];
 			reference_task_ids: components["schemas"]["WrappedUuidV4"][];
 			role: components["schemas"]["MessageRole"];
 		};
+		/** @description Response from creating a message */
 		CreateMessageResponse: {
 			message: components["schemas"]["Message"];
 			timeline_item: components["schemas"]["TaskTimelineItem"];
@@ -2197,6 +2200,7 @@ export interface components {
 			items: components["schemas"]["McpServerInstanceSerializedWithFunctions"][];
 			next_page_token?: string;
 		};
+		/** @description Message domain model */
 		Message: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			id: components["schemas"]["WrappedUuidV4"];
@@ -2206,12 +2210,17 @@ export interface components {
 			role: components["schemas"]["MessageRole"];
 			task_id: components["schemas"]["WrappedUuidV4"];
 		};
+		/** @description Message part discriminated union */
 		MessagePart: components["schemas"]["TextPart"] & {
 			/** @enum {string} */
 			type: "text-part";
 		};
-		/** @enum {string} */
+		/**
+		 * @description Message role (user or agent)
+		 * @enum {string}
+		 */
 		MessageRole: "user" | "agent";
+		/** @description Message timeline item payload */
 		MessageTaskTimelineItem: {
 			message: components["schemas"]["Message"];
 		};
@@ -2488,6 +2497,7 @@ export interface components {
 			items: components["schemas"]["StsTokenConfig"][];
 			next_page_token?: string;
 		};
+		/** @description Domain model for Task */
 		Task: {
 			context_id: components["schemas"]["WrappedUuidV4"];
 			created_at: components["schemas"]["WrappedChronoDateTime"];
@@ -2502,7 +2512,10 @@ export interface components {
 			items: components["schemas"]["Task"][];
 			next_page_token?: string;
 		};
-		/** @enum {string} */
+		/**
+		 * @description Task status enum matching A2A protocol states
+		 * @enum {string}
+		 */
 		TaskStatus:
 			| "submitted"
 			| "working"
@@ -2513,10 +2526,12 @@ export interface components {
 			| "rejected"
 			| "auth-required"
 			| "unknown";
+		/** @description Task status update timeline item payload */
 		TaskStatusUpdateTaskTimelineItem: {
 			status: components["schemas"]["TaskStatus"];
 			status_message_id?: null | components["schemas"]["WrappedUuidV4"];
 		};
+		/** @description Task timeline item for tracking task history */
 		TaskTimelineItem: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			event_payload: components["schemas"]["TaskTimelineItemPayload"];
@@ -2527,6 +2542,7 @@ export interface components {
 			items: components["schemas"]["TaskTimelineItem"][];
 			next_page_token?: string;
 		};
+		/** @description Task timeline item payload discriminated union */
 		TaskTimelineItemPayload:
 			| (components["schemas"]["TaskStatusUpdateTaskTimelineItem"] & {
 					/** @enum {string} */
@@ -2536,12 +2552,14 @@ export interface components {
 					/** @enum {string} */
 					type: "message";
 			  });
+		/** @description Task with additional details like messages */
 		TaskWithDetails: {
 			messages: components["schemas"]["Message"][];
 			messages_next_page_token?: string | null;
 			status_message?: null | components["schemas"]["Message"];
 			task: components["schemas"]["Task"];
 		};
+		/** @description Text part of a message */
 		TextPart: {
 			metadata: components["schemas"]["Metadata"];
 			text: string;
@@ -2596,6 +2614,7 @@ export interface components {
 		UpdateSecretRequest: {
 			raw_value: string;
 		};
+		/** @description Request to update task status */
 		UpdateTaskStatusRequest: {
 			message?: null | components["schemas"]["CreateMessageRequest"];
 			status: components["schemas"]["TaskStatus"];

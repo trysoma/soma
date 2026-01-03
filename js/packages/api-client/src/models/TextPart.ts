@@ -13,7 +13,7 @@
  */
 
 /**
- *
+ * Text part of a message
  * @export
  * @interface TextPart
  */

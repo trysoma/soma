@@ -27,7 +27,7 @@ from typing_extensions import Self
 
 class TaskTimelineItem(BaseModel):
     """
-    TaskTimelineItem
+    Task timeline item for tracking task history
     """  # noqa: E501
 
     created_at: datetime

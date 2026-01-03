@@ -21,7 +21,7 @@ import type { TaskStatus } from "./TaskStatus";
 import { TaskStatusFromJSON, TaskStatusToJSON } from "./TaskStatus";
 
 /**
- *
+ * Request to update task status
  * @export
  * @interface UpdateTaskStatusRequest
  */

@@ -27,7 +27,7 @@ from typing_extensions import Self
 
 class CreateMessageRequest(BaseModel):
     """
-    CreateMessageRequest
+    Request to create a message
     """  # noqa: E501
 
     metadata: Dict[str, Any]

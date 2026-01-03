@@ -27,7 +27,7 @@ import {
 
 /**
  * @type TaskTimelineItemPayload
- *
+ * Task timeline item payload discriminated union
  * @export
  */
 export type TaskTimelineItemPayload =

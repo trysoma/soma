@@ -28,7 +28,7 @@ from typing_extensions import Self
 
 class Message(BaseModel):
     """
-    Message
+    Message domain model
     """  # noqa: E501
 
     created_at: datetime
