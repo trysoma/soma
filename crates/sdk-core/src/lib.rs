@@ -12,17 +12,17 @@ use sdk_proto::soma_sdk_service_server::{SomaSdkService, SomaSdkServiceServer};
 use tonic::{Request, Response, Status, transport::Server};
 use tracing::{debug, trace};
 
-pub type GenerateBridgeClientResponse = sdk_proto::GenerateBridgeClientResponse;
-pub type GenerateBridgeClientRequest = sdk_proto::GenerateBridgeClientRequest;
+pub type GenerateMcpClientResponse = sdk_proto::GenerateMcpClientResponse;
+pub type GenerateMcpClientRequest = sdk_proto::GenerateMcpClientRequest;
 
 /// Trait for SDK-specific code generation (TypeScript, Python, etc.)
 #[tonic::async_trait]
 pub trait SdkCodeGenerator: Send + Sync {
-    /// Generate bridge client code from function instance metadata
-    async fn generate_bridge_client(
+    /// Generate mcp client code from function instance metadata
+    async fn generate_mcp_client(
         &self,
-        request: GenerateBridgeClientRequest,
-    ) -> Result<GenerateBridgeClientResponse, CommonError>;
+        request: GenerateMcpClientRequest,
+    ) -> Result<GenerateMcpClientResponse, CommonError>;
 }
 
 pub struct GrpcService<G: SdkCodeGenerator> {
@@ -53,7 +53,7 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         let agent_count = proto_agents.len();
 
         let response = sdk_proto::MetadataResponse {
-            bridge_providers: proto_providers,
+            mcp_providers: proto_providers,
             agents: proto_agents,
         };
 
@@ -121,25 +121,25 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcService<G> {
         Ok(Response::new(result.into()))
     }
 
-    async fn generate_bridge_client(
+    async fn generate_mcp_client(
         &self,
-        request: Request<sdk_proto::GenerateBridgeClientRequest>,
-    ) -> Result<Response<sdk_proto::GenerateBridgeClientResponse>, Status> {
-        trace!("Generating bridge client");
+        request: Request<sdk_proto::GenerateMcpClientRequest>,
+    ) -> Result<Response<sdk_proto::GenerateMcpClientResponse>, Status> {
+        trace!("Generating MCP client");
 
         let req = request.into_inner();
 
-        match self.code_generator.generate_bridge_client(req).await {
+        match self.code_generator.generate_mcp_client(req).await {
             Ok(response) => {
-                trace!("Generating bridge client completed");
+                trace!("Generating MCP client completed");
                 Ok(Response::new(response))
             }
             Err(e) => {
                 debug!(error = %e, "Code generation failed");
-                trace!("Generating bridge client completed (with error)");
-                Ok(Response::new(sdk_proto::GenerateBridgeClientResponse {
-                    result: Some(sdk_proto::generate_bridge_client_response::Result::Error(
-                        sdk_proto::GenerateBridgeClientError {
+                trace!("Generating MCP client completed (with error)");
+                Ok(Response::new(sdk_proto::GenerateMcpClientResponse {
+                    result: Some(sdk_proto::generate_mcp_client_response::Result::Error(
+                        sdk_proto::GenerateMcpClientError {
                             message: e.to_string(),
                         },
                     )),
@@ -527,7 +527,7 @@ impl<G: SdkCodeGenerator + 'static> GrpcService<G> {
 /// # Arguments
 /// * `providers` - Array of ProviderController definitions with function implementations
 /// * `socket_path` - Path to the Unix socket (e.g., "/tmp/soma-sdk.sock")
-/// * `code_generator` - Implementation of SdkCodeGenerator for bridge client generation
+/// * `code_generator` - Implementation of SdkCodeGenerator for mcp client generation
 ///
 /// # Returns
 /// A handle to the GrpcService for dynamic provider/function management
@@ -603,11 +603,11 @@ impl<G: SdkCodeGenerator + 'static> SomaSdkService for GrpcServiceWrapper<G> {
         self.0.invoke_function(request).await
     }
 
-    async fn generate_bridge_client(
+    async fn generate_mcp_client(
         &self,
-        request: Request<sdk_proto::GenerateBridgeClientRequest>,
-    ) -> Result<Response<sdk_proto::GenerateBridgeClientResponse>, Status> {
-        self.0.generate_bridge_client(request).await
+        request: Request<sdk_proto::GenerateMcpClientRequest>,
+    ) -> Result<Response<sdk_proto::GenerateMcpClientResponse>, Status> {
+        self.0.generate_mcp_client(request).await
     }
 
     async fn set_secrets(
@@ -646,7 +646,7 @@ pub struct ResyncSdkResponse {}
 /// Calls the internal resync endpoint on the Soma API server.
 /// This triggers the API server to:
 /// - Fetch metadata from the SDK (providers, agents)
-/// - Sync providers to the bridge registry
+/// - Sync providers to the mcp registry
 /// - Register Restate deployments for agents
 /// - Sync secrets to the SDK
 /// - Sync environment variables to the SDK

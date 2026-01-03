@@ -48,10 +48,21 @@ jobs:
         with:
           tool: cargo-llvm-cov,cargo-nextest
 
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          df -h
+
       - name: Run cargo nextest with coverage
         run: |
           mkdir -p .coverage-tmp
-          cargo llvm-cov nextest --all-features --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov
+          # This requires AWS credentials to be configured (done above)
+          # Dex is started above for OAuth/OIDC integration tests
+          cargo llvm-cov nextest --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov --no-fail-fast --status-level all --final-status-level slow
+        env:
+          NEXTEST_RETRIES: 0
 
       - name: Upload Rust coverage LCOV
         uses: actions/upload-artifact@v4

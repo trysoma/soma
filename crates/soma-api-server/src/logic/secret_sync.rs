@@ -1,11 +1,11 @@
 use encryption::logic::crypto_services::{CryptoCache, EncryptedString};
+use environment::repository::SecretRepositoryLike;
 use shared::error::CommonError;
 use shared::primitives::PaginationRequest;
 use tokio::sync::broadcast;
 use tracing::{debug, error, trace, warn};
 
 use crate::logic::on_change_pubsub::SecretChangeRx;
-use crate::repository::SecretRepositoryLike;
 
 /// A decrypted secret ready to be sent to the SDK
 #[derive(Debug, Clone)]
@@ -16,7 +16,7 @@ pub struct DecryptedSecret {
 
 /// Fetch all secrets from the database and decrypt them
 pub async fn fetch_and_decrypt_all_secrets(
-    repository: &std::sync::Arc<crate::repository::Repository>,
+    repository: &std::sync::Arc<environment::repository::Repository>,
     crypto_cache: &CryptoCache,
 ) -> Result<Vec<DecryptedSecret>, CommonError> {
     let mut all_secrets = Vec::new();
@@ -182,7 +182,7 @@ pub async fn unset_secret_in_sdk(
 }
 
 pub struct SecretSyncParams {
-    pub repository: std::sync::Arc<crate::repository::Repository>,
+    pub repository: std::sync::Arc<environment::repository::Repository>,
     pub crypto_cache: CryptoCache,
     pub socket_path: String,
     pub secret_change_rx: SecretChangeRx,
@@ -236,7 +236,7 @@ pub async fn run_secret_sync_loop(params: SecretSyncParams) -> Result<(), Common
 
 /// Helper to sync all secrets to SDK
 async fn sync_all_secrets(
-    repository: &std::sync::Arc<crate::repository::Repository>,
+    repository: &std::sync::Arc<environment::repository::Repository>,
     crypto_cache: &CryptoCache,
     socket_path: &str,
 ) -> Result<(), CommonError> {

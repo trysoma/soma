@@ -4,7 +4,7 @@ members = ["crates/*"]
 # sdk-js is built with napi, not cargo build directly
 default-members = [
     "crates/a2a-rs",
-    "crates/bridge",
+    "crates/mcp",
     "crates/encryption",
     "crates/sdk-core",
     "crates/sdk-proto",
@@ -198,8 +198,9 @@ soma-api-server = { path = "./crates/soma-api-server" }
 soma-api-client = { path = "./crates/soma-api-client" }
 soma-frontend = { path = "./crates/soma-frontend" }
 soma = { path = "./crates/soma" }
-bridge = { path = "./crates/bridge" }
+mcp = { path = "./crates/mcp" }
 encryption = { path = "./crates/encryption" }
+environment = { path = "./crates/environment" }
 identity = { path = "./crates/identity" }
 sdk-core = { path = "./crates/sdk-core" }
 sdk-proto = { path = "./crates/sdk-proto" }

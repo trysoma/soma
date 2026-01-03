@@ -1,16 +1,41 @@
+//! Router module for the identity service
+//!
+//! This module contains all HTTP route handlers organized into submodules:
+//! - `api_key`: API key management endpoints
+//! - `auth`: Authentication endpoints (login, logout, token refresh)
+//! - `jwk`: JSON Web Key endpoints
+//! - `scim`: SCIM 2.0 user and group provisioning endpoints
+//! - `sts_config`: STS configuration endpoints
+//! - `sts_exchange`: STS token exchange endpoints
+//! - `user_auth_flow_config`: User authentication flow configuration endpoints
+//!
+//! Also includes user and group CRUD endpoints directly in this module.
+
 mod api_key;
 mod auth;
 mod jwk;
+mod scim;
 mod sts_config;
 mod sts_exchange;
 mod user_auth_flow_config;
 
+use axum::extract::{Json, Path, Query, State};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
+use serde::{Deserialize, Serialize};
 use time::Duration;
-use utoipa_axum::router::OpenApiRouter;
+use utoipa::{IntoParams, ToSchema};
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::logic::internal_token_issuance::NormalizedTokenIssuanceResult;
+use crate::logic::user::GroupMembership;
+use crate::repository::{GroupMemberWithUser, UpdateUser, UserGroupWithGroup, UserRepositoryLike};
 use crate::service::IdentityService;
+use shared::identity::{Group, Role, User, UserType};
+use shared::{
+    adapters::openapi::{API_VERSION_TAG, JsonResponse},
+    error::CommonError,
+    primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime},
+};
 
 pub const PATH_PREFIX: &str = "/api";
 pub const API_VERSION_1: &str = "v1";
@@ -24,6 +49,10 @@ pub const REFRESH_TOKEN_COOKIE_NAME: &str = "soma_refresh_token";
 pub const ACCESS_TOKEN_MAX_AGE_SECONDS: i64 = 3600;
 /// Refresh token expiration in seconds (7 days)
 pub const REFRESH_TOKEN_MAX_AGE_SECONDS: i64 = 86400 * 7;
+
+// ============================================================================
+// Cookie Helpers
+// ============================================================================
 
 /// Add access and refresh token cookies to the cookie jar.
 ///
@@ -74,12 +103,850 @@ pub fn add_token_cookies_with_options(
     }
 }
 
+// ============================================================================
+// Request/Response Types for User CRUD
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct CreateUserRequest {
+    /// User ID (if not provided, a UUID will be generated)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// User type: "service_principal" or "federated_user"
+    pub user_type: String,
+    /// User's email address
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    /// User's role
+    pub role: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct UpdateUserRequest {
+    /// User's email address
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    /// User's role
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, IntoParams)]
+#[into_params(style = Form, parameter_in = Query)]
+pub struct ListUsersQuery {
+    pub page_size: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_page_token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
+}
+
+pub type UserResponse = User;
+pub type ListUsersResponse = PaginatedResponse<User>;
+
+// ============================================================================
+// Request/Response Types for Group CRUD
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct CreateGroupRequest {
+    /// Group ID (if not provided, a UUID will be generated)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// Group name
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct UpdateGroupRequest {
+    /// Group name
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, IntoParams)]
+#[into_params(style = Form, parameter_in = Query)]
+pub struct ListGroupsQuery {
+    pub page_size: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_page_token: Option<String>,
+}
+
+pub type GroupResponse = Group;
+pub type ListGroupsResponse = PaginatedResponse<Group>;
+
+// ============================================================================
+// Request/Response Types for Group Membership
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct AddGroupMemberRequest {
+    /// User ID to add to the group
+    pub user_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, IntoParams)]
+#[into_params(style = Form, parameter_in = Query)]
+pub struct ListGroupMembersQuery {
+    pub page_size: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_page_token: Option<String>,
+}
+
+pub type ListGroupMembersResponse = PaginatedResponse<GroupMemberWithUser>;
+pub type ListUserGroupsResponse = PaginatedResponse<UserGroupWithGroup>;
+
+// ============================================================================
+// Router Creation
+// ============================================================================
+
+/// Creates the identity API router with all endpoints
 pub fn create_router() -> OpenApiRouter<IdentityService> {
     OpenApiRouter::new()
+        // User endpoints
+        .routes(routes!(route_create_user))
+        .routes(routes!(route_get_user))
+        .routes(routes!(route_update_user))
+        .routes(routes!(route_delete_user))
+        .routes(routes!(route_list_users))
+        .routes(routes!(route_list_user_groups))
+        // Group endpoints
+        .routes(routes!(route_create_group))
+        .routes(routes!(route_get_group))
+        .routes(routes!(route_update_group))
+        .routes(routes!(route_delete_group))
+        .routes(routes!(route_list_groups))
+        // Group membership endpoints
+        .routes(routes!(route_add_group_member))
+        .routes(routes!(route_remove_group_member))
+        .routes(routes!(route_list_group_members))
+        // Merge other route modules
         .merge(api_key::create_api_key_routes())
         .merge(auth::create_auth_routes())
         .merge(jwk::create_jwk_routes())
+        .merge(scim::create_scim_router())
         .merge(sts_config::create_sts_config_routes())
         .merge(sts_exchange::create_sts_routes())
         .merge(user_auth_flow_config::create_user_auth_flow_config_routes())
+}
+
+// ============================================================================
+// User CRUD Endpoints
+// ============================================================================
+
+#[utoipa::path(
+    post,
+    path = format!("{}/{}/{}/users", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    request_body = CreateUserRequest,
+    responses(
+        (status = 200, description = "User created", body = UserResponse),
+        (status = 400, description = "Bad Request", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Create user",
+    description = "Create a new user with the specified attributes",
+    operation_id = "create-user",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_create_user(
+    State(ctx): State<IdentityService>,
+    Json(req): Json<CreateUserRequest>,
+) -> JsonResponse<UserResponse, CommonError> {
+    let res = async {
+        let now = WrappedChronoDateTime::now();
+        let user_id = req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+        let user_type =
+            UserType::parse(&req.user_type).ok_or_else(|| CommonError::InvalidRequest {
+                msg: format!(
+                    "Invalid user_type: '{}'. Expected 'human' or 'service_principal'",
+                    req.user_type
+                ),
+                source: None,
+            })?;
+        let role = Role::parse(&req.role).ok_or_else(|| CommonError::InvalidRequest {
+            msg: format!("Invalid role: '{}'. Expected 'admin' or 'user'", req.role),
+            source: None,
+        })?;
+
+        let user = User {
+            id: user_id.clone(),
+            user_type,
+            email: req.email,
+            role,
+            description: None,
+            created_at: now,
+            updated_at: now,
+        };
+
+        ctx.repository.create_user(&user).await?;
+        ctx.repository
+            .get_user_by_id(&user_id)
+            .await?
+            .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("Failed to retrieve created user")))
+    }
+    .await;
+
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/users/{{user_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("user_id" = String, Path, description = "User ID"),
+    ),
+    responses(
+        (status = 200, description = "User found", body = UserResponse),
+        (status = 404, description = "User not found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Get user",
+    description = "Retrieve a user by their unique identifier",
+    operation_id = "get-user",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_get_user(
+    State(ctx): State<IdentityService>,
+    Path(user_id): Path<String>,
+) -> JsonResponse<UserResponse, CommonError> {
+    let res = async {
+        ctx.repository
+            .get_user_by_id(&user_id)
+            .await?
+            .ok_or_else(|| CommonError::NotFound {
+                msg: "User not found".to_string(),
+                lookup_id: user_id.clone(),
+                source: None,
+            })
+    }
+    .await;
+
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    patch,
+    path = format!("{}/{}/{}/users/{{user_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("user_id" = String, Path, description = "User ID"),
+    ),
+    request_body = UpdateUserRequest,
+    responses(
+        (status = 200, description = "User updated", body = UserResponse),
+        (status = 404, description = "User not found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Update user",
+    description = "Update a user's attributes",
+    operation_id = "update-user",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_update_user(
+    State(ctx): State<IdentityService>,
+    Path(user_id): Path<String>,
+    Json(req): Json<UpdateUserRequest>,
+) -> JsonResponse<UserResponse, CommonError> {
+    let res = async {
+        // Check if user exists
+        let _existing = ctx
+            .repository
+            .get_user_by_id(&user_id)
+            .await?
+            .ok_or_else(|| CommonError::NotFound {
+                msg: "User not found".to_string(),
+                lookup_id: user_id.clone(),
+                source: None,
+            })?;
+
+        let update_user = UpdateUser {
+            email: req.email,
+            role: req.role.and_then(|r| Role::parse(&r)),
+            description: None,
+        };
+
+        ctx.repository.update_user(&user_id, &update_user).await?;
+
+        ctx.repository
+            .get_user_by_id(&user_id)
+            .await?
+            .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("Failed to retrieve updated user")))
+    }
+    .await;
+
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    delete,
+    path = format!("{}/{}/{}/users/{{user_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("user_id" = String, Path, description = "User ID"),
+    ),
+    responses(
+        (status = 200, description = "User deleted"),
+        (status = 404, description = "User not found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Delete user",
+    description = "Delete a user by their unique identifier",
+    operation_id = "delete-user",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_delete_user(
+    State(ctx): State<IdentityService>,
+    Path(user_id): Path<String>,
+) -> JsonResponse<(), CommonError> {
+    let res = async {
+        // Check if user exists
+        let _existing = ctx
+            .repository
+            .get_user_by_id(&user_id)
+            .await?
+            .ok_or_else(|| CommonError::NotFound {
+                msg: "User not found".to_string(),
+                lookup_id: user_id.clone(),
+                source: None,
+            })?;
+
+        // Delete user's group memberships
+        ctx.repository
+            .delete_group_memberships_by_user_id(&user_id)
+            .await?;
+        // Delete user's API keys
+        ctx.repository.delete_api_keys_by_user_id(&user_id).await?;
+        // Delete the user
+        ctx.repository.delete_user(&user_id).await?;
+
+        Ok(())
+    }
+    .await;
+
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/users", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(ListUsersQuery),
+    responses(
+        (status = 200, description = "List of users", body = ListUsersResponse),
+        (status = 400, description = "Bad Request", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "List users",
+    description = "List all users with pagination and optional filtering",
+    operation_id = "list-users",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_list_users(
+    State(ctx): State<IdentityService>,
+    Query(query): Query<ListUsersQuery>,
+) -> JsonResponse<ListUsersResponse, CommonError> {
+    let pagination = PaginationRequest {
+        page_size: query.page_size,
+        next_page_token: query.next_page_token,
+    };
+
+    let user_type_filter = query.user_type.as_ref().and_then(|s| UserType::parse(s));
+    let role_filter = query.role.as_ref().and_then(|s| Role::parse(s));
+
+    let res = ctx
+        .repository
+        .list_users(&pagination, user_type_filter.as_ref(), role_filter.as_ref())
+        .await;
+
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/users/{{user_id}}/groups", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("user_id" = String, Path, description = "User ID"),
+        ListGroupMembersQuery,
+    ),
+    responses(
+        (status = 200, description = "List of user's groups", body = ListUserGroupsResponse),
+        (status = 404, description = "User not found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "List user groups",
+    description = "List all groups that a user belongs to",
+    operation_id = "list-user-groups",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_list_user_groups(
+    State(ctx): State<IdentityService>,
+    Path(user_id): Path<String>,
+    Query(query): Query<ListGroupMembersQuery>,
+) -> JsonResponse<ListUserGroupsResponse, CommonError> {
+    let res = async {
+        // Check if user exists
+        let _existing = ctx
+            .repository
+            .get_user_by_id(&user_id)
+            .await?
+            .ok_or_else(|| CommonError::NotFound {
+                msg: "User not found".to_string(),
+                lookup_id: user_id.clone(),
+                source: None,
+            })?;
+
+        let pagination = PaginationRequest {
+            page_size: query.page_size,
+            next_page_token: query.next_page_token,
+        };
+
+        ctx.repository.list_user_groups(&user_id, &pagination).await
+    }
+    .await;
+
+    JsonResponse::from(res)
+}
+
+// ============================================================================
+// Group CRUD Endpoints
+// ============================================================================
+
+#[utoipa::path(
+    post,
+    path = format!("{}/{}/{}/groups", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    request_body = CreateGroupRequest,
+    responses(
+        (status = 200, description = "Group created", body = GroupResponse),
+        (status = 400, description = "Bad Request", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Create group",
+    description = "Create a new group with the specified name",
+    operation_id = "create-group",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_create_group(
+    State(ctx): State<IdentityService>,
+    Json(req): Json<CreateGroupRequest>,
+) -> JsonResponse<GroupResponse, CommonError> {
+    let now = WrappedChronoDateTime::now();
+    let group_id = req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+    let group = Group {
+        id: group_id.clone(),
+        name: req.name,
+        created_at: now,
+        updated_at: now,
+    };
+
+    let res = async {
+        ctx.repository.create_group(&group).await?;
+        ctx.repository
+            .get_group_by_id(&group_id)
+            .await?
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to retrieve created group"))
+            })
+    }
+    .await;
+
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/groups/{{group_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("group_id" = String, Path, description = "Group ID"),
+    ),
+    responses(
+        (status = 200, description = "Group found", body = GroupResponse),
+        (status = 404, description = "Group not found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Get group",
+    description = "Retrieve a group by its unique identifier",
+    operation_id = "get-group",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_get_group(
+    State(ctx): State<IdentityService>,
+    Path(group_id): Path<String>,
+) -> JsonResponse<GroupResponse, CommonError> {
+    let res = async {
+        ctx.repository
+            .get_group_by_id(&group_id)
+            .await?
+            .ok_or_else(|| CommonError::NotFound {
+                msg: "Group not found".to_string(),
+                lookup_id: group_id.clone(),
+                source: None,
+            })
+    }
+    .await;
+
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    patch,
+    path = format!("{}/{}/{}/groups/{{group_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("group_id" = String, Path, description = "Group ID"),
+    ),
+    request_body = UpdateGroupRequest,
+    responses(
+        (status = 200, description = "Group updated", body = GroupResponse),
+        (status = 404, description = "Group not found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Update group",
+    description = "Update a group's name",
+    operation_id = "update-group",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_update_group(
+    State(ctx): State<IdentityService>,
+    Path(group_id): Path<String>,
+    Json(req): Json<UpdateGroupRequest>,
+) -> JsonResponse<GroupResponse, CommonError> {
+    let res = async {
+        // Check if group exists
+        let _existing = ctx
+            .repository
+            .get_group_by_id(&group_id)
+            .await?
+            .ok_or_else(|| CommonError::NotFound {
+                msg: "Group not found".to_string(),
+                lookup_id: group_id.clone(),
+                source: None,
+            })?;
+
+        ctx.repository.update_group(&group_id, &req.name).await?;
+
+        ctx.repository
+            .get_group_by_id(&group_id)
+            .await?
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to retrieve updated group"))
+            })
+    }
+    .await;
+
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    delete,
+    path = format!("{}/{}/{}/groups/{{group_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("group_id" = String, Path, description = "Group ID"),
+    ),
+    responses(
+        (status = 200, description = "Group deleted"),
+        (status = 404, description = "Group not found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Delete group",
+    description = "Delete a group by its unique identifier",
+    operation_id = "delete-group",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_delete_group(
+    State(ctx): State<IdentityService>,
+    Path(group_id): Path<String>,
+) -> JsonResponse<(), CommonError> {
+    let res = async {
+        // Check if group exists
+        let _existing = ctx
+            .repository
+            .get_group_by_id(&group_id)
+            .await?
+            .ok_or_else(|| CommonError::NotFound {
+                msg: "Group not found".to_string(),
+                lookup_id: group_id.clone(),
+                source: None,
+            })?;
+
+        // Delete group memberships
+        ctx.repository
+            .delete_group_memberships_by_group_id(&group_id)
+            .await?;
+        // Delete the group
+        ctx.repository.delete_group(&group_id).await?;
+
+        Ok(())
+    }
+    .await;
+
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/groups", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(ListGroupsQuery),
+    responses(
+        (status = 200, description = "List of groups", body = ListGroupsResponse),
+        (status = 400, description = "Bad Request", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "List groups",
+    description = "List all groups with pagination",
+    operation_id = "list-groups",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_list_groups(
+    State(ctx): State<IdentityService>,
+    Query(query): Query<ListGroupsQuery>,
+) -> JsonResponse<ListGroupsResponse, CommonError> {
+    let pagination = PaginationRequest {
+        page_size: query.page_size,
+        next_page_token: query.next_page_token,
+    };
+
+    let res = ctx.repository.list_groups(&pagination).await;
+
+    JsonResponse::from(res)
+}
+
+// ============================================================================
+// Group Membership Endpoints
+// ============================================================================
+
+#[utoipa::path(
+    post,
+    path = format!("{}/{}/{}/groups/{{group_id}}/members", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("group_id" = String, Path, description = "Group ID"),
+    ),
+    request_body = AddGroupMemberRequest,
+    responses(
+        (status = 200, description = "Member added"),
+        (status = 404, description = "Group or user not found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Add group member",
+    description = "Add a user to a group",
+    operation_id = "add-group-member",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_add_group_member(
+    State(ctx): State<IdentityService>,
+    Path(group_id): Path<String>,
+    Json(req): Json<AddGroupMemberRequest>,
+) -> JsonResponse<(), CommonError> {
+    let now = WrappedChronoDateTime::now();
+
+    let res = async {
+        // Check if group exists
+        let _group = ctx
+            .repository
+            .get_group_by_id(&group_id)
+            .await?
+            .ok_or_else(|| CommonError::NotFound {
+                msg: "Group not found".to_string(),
+                lookup_id: group_id.clone(),
+                source: None,
+            })?;
+
+        // Check if user exists
+        let _user = ctx
+            .repository
+            .get_user_by_id(&req.user_id)
+            .await?
+            .ok_or_else(|| CommonError::NotFound {
+                msg: "User not found".to_string(),
+                lookup_id: req.user_id.clone(),
+                source: None,
+            })?;
+
+        // Check if membership already exists
+        if ctx
+            .repository
+            .get_group_membership(&group_id, &req.user_id)
+            .await?
+            .is_some()
+        {
+            return Err(CommonError::InvalidRequest {
+                msg: "User is already a member of this group".to_string(),
+                source: None,
+            });
+        }
+
+        let membership = GroupMembership {
+            group_id: group_id.clone(),
+            user_id: req.user_id,
+            created_at: now,
+            updated_at: now,
+        };
+
+        ctx.repository.create_group_membership(&membership).await?;
+
+        Ok(())
+    }
+    .await;
+
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    delete,
+    path = format!("{}/{}/{}/groups/{{group_id}}/members/{{user_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("group_id" = String, Path, description = "Group ID"),
+        ("user_id" = String, Path, description = "User ID"),
+    ),
+    responses(
+        (status = 200, description = "Member removed"),
+        (status = 404, description = "Group, user, or membership not found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "Remove group member",
+    description = "Remove a user from a group",
+    operation_id = "remove-group-member",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_remove_group_member(
+    State(ctx): State<IdentityService>,
+    Path((group_id, user_id)): Path<(String, String)>,
+) -> JsonResponse<(), CommonError> {
+    let res = async {
+        // Check if membership exists
+        let _membership = ctx
+            .repository
+            .get_group_membership(&group_id, &user_id)
+            .await?
+            .ok_or_else(|| CommonError::NotFound {
+                msg: "Group membership not found".to_string(),
+                lookup_id: format!("{group_id}:{user_id}"),
+                source: None,
+            })?;
+
+        ctx.repository
+            .delete_group_membership(&group_id, &user_id)
+            .await?;
+
+        Ok(())
+    }
+    .await;
+
+    JsonResponse::from(res)
+}
+
+#[utoipa::path(
+    get,
+    path = format!("{}/{}/{}/groups/{{group_id}}/members", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
+    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
+    params(
+        ("group_id" = String, Path, description = "Group ID"),
+        ListGroupMembersQuery,
+    ),
+    responses(
+        (status = 200, description = "List of group members", body = ListGroupMembersResponse),
+        (status = 404, description = "Group not found", body = CommonError),
+        (status = 500, description = "Internal Server Error", body = CommonError),
+    ),
+    summary = "List group members",
+    description = "List all members of a group",
+    operation_id = "list-group-members",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
+)]
+async fn route_list_group_members(
+    State(ctx): State<IdentityService>,
+    Path(group_id): Path<String>,
+    Query(query): Query<ListGroupMembersQuery>,
+) -> JsonResponse<ListGroupMembersResponse, CommonError> {
+    let res = async {
+        // Check if group exists
+        let _group = ctx
+            .repository
+            .get_group_by_id(&group_id)
+            .await?
+            .ok_or_else(|| CommonError::NotFound {
+                msg: "Group not found".to_string(),
+                lookup_id: group_id.clone(),
+                source: None,
+            })?;
+
+        let pagination = PaginationRequest {
+            page_size: query.page_size,
+            next_page_token: query.next_page_token,
+        };
+
+        ctx.repository
+            .list_group_members(&group_id, &pagination)
+            .await
+    }
+    .await;
+
+    JsonResponse::from(res)
 }

@@ -1,3 +1,4 @@
+pub mod bootstrap;
 pub mod cache;
 
 use base64::Engine;
@@ -6,15 +7,15 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use shared::error::CommonError;
+use shared::identity::{Role, User, UserType};
 use shared::primitives::{PaginationRequest, WrappedChronoDateTime};
+use shared_macros::{authn, authz_role};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::logic::api_key::cache::ApiKeyCache;
 use crate::logic::{DEFAULT_DEK_ALIAS, OnConfigChangeEvt, OnConfigChangeTx, validate_id};
 use crate::repository::UserRepositoryLike;
-
-use crate::logic::user::{Role, User, UserType};
 
 /// Parameters for creating an API key
 #[derive(Debug, Deserialize, ToSchema)]
@@ -128,6 +129,9 @@ pub fn hash_api_key(api_key: &str) -> String {
 /// 4. Stores the API key in the repository
 /// 5. Optionally updates the API key cache
 /// 6. Optionally broadcasts a config change event with encrypted hashed value
+#[allow(clippy::too_many_arguments)]
+#[authz_role(Admin, permission = "api_key:write")]
+#[authn]
 pub async fn create_api_key<R: UserRepositoryLike>(
     repository: &R,
     crypto_cache: &CryptoCache,
@@ -232,6 +236,9 @@ pub async fn create_api_key<R: UserRepositoryLike>(
 /// 3. Optionally deletes the associated user
 /// 4. Optionally removes from the API key cache
 /// 5. Optionally broadcasts a config change event
+#[allow(clippy::too_many_arguments)]
+#[authz_role(Admin, permission = "api_key:delete")]
+#[authn]
 pub async fn delete_api_key<R: UserRepositoryLike>(
     repository: &R,
     on_config_change_tx: &OnConfigChangeTx,
@@ -279,6 +286,8 @@ pub async fn delete_api_key<R: UserRepositoryLike>(
 ///
 /// This function lists all API keys.
 /// Note: The raw API key values are never returned, only the hashed values.
+#[authz_role(Admin, Maintainer, permission = "api_key:list")]
+#[authn]
 pub async fn list_api_keys<R: UserRepositoryLike>(
     repository: &R,
     params: PaginationRequest,
@@ -302,6 +311,8 @@ pub async fn list_api_keys<R: UserRepositoryLike>(
 /// 2. Creates an associated user for the API key (if it doesn't exist)
 /// 3. Stores the API key in the repository (if it doesn't exist)
 /// 4. Optionally updates the API key cache
+#[authz_role(Admin, permission = "api_key:import")]
+#[authn]
 pub async fn import_api_key<R: UserRepositoryLike>(
     repository: &R,
     crypto_cache: &CryptoCache,

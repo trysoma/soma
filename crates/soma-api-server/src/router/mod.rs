@@ -1,18 +1,18 @@
 use axum::{Router, extract::OriginalUri, middleware};
 use shared::adapters::openapi::API_VERSION_TAG;
-use utoipa::openapi::tag::TagBuilder;
-use utoipa::openapi::{Info, OpenApi};
+use utoipa::openapi::OpenApi as OpenApiDoc;
+use utoipa::openapi::security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme};
+use utoipa::{Modify, OpenApi};
 
 use crate::ApiService;
-use bridge::router::create_router as create_bridge_router;
 use encryption::router::create_router as create_encryption_router;
+use environment::router::create_router as create_environment_router;
 use identity::router::create_router as create_identity_router;
+use mcp::router::create_router as create_mcp_router;
 use shared::error::CommonError;
 
 pub(crate) mod agent;
-pub(crate) mod environment_variable;
 pub(crate) mod internal;
-pub(crate) mod secret;
 pub(crate) mod task;
 
 /// Middleware that stores the original URI in request extensions before nest_service strips the path.
@@ -28,12 +28,8 @@ async fn store_original_uri(
 pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonError> {
     let mut router = Router::new();
 
-    // let (live_connection_changes_tx, mut live_connection_changes_rx) = tokio::sync::mpsc::channel(10);
-
     // agent router
-
     let (agent_router, _) = agent::create_router().split_for_parts();
-
     let agent_router = agent_router.with_state(api_service.agent_service);
     router = router.merge(agent_router);
 
@@ -42,15 +38,15 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
     let task_router = task_router.with_state(api_service.task_service);
     router = router.merge(task_router);
 
-    // bridge router
-    let (bridge_router, _) = create_bridge_router().split_for_parts();
-    let bridge_router = bridge_router.with_state(api_service.bridge_service.clone());
-    router = router.merge(bridge_router);
+    // mcp router
+    let (mcp_router, _) = create_mcp_router().split_for_parts();
+    let mcp_router = mcp_router.with_state(api_service.mcp_service.clone());
+    router = router.merge(mcp_router);
 
-    // MCP Streamable HTTP service - nested under /api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp
-    let mcp_service = api_service.bridge_service.mcp_service().clone();
+    // MCP Streamable HTTP service - nested under /api/mcp/v1/mcp-server/{mcp_server_instance_id}/mcp
+    let mcp_service = api_service.mcp_service.mcp_service().clone();
     router = router.nest_service(
-        "/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/mcp",
+        "/api/mcp/v1/mcp-server/{mcp_server_instance_id}/mcp",
         mcp_service,
     );
 
@@ -64,15 +60,10 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
     let encryption_router = encryption_router.with_state(api_service.encryption_service.clone());
     router = router.merge(encryption_router);
 
-    // secret router
-    let (secret_router, _) = secret::create_router().split_for_parts();
-    let secret_router = secret_router.with_state(api_service.secret_service);
-    router = router.merge(secret_router);
-
-    // environment variable router
-    let (env_var_router, _) = environment_variable::create_router().split_for_parts();
-    let env_var_router = env_var_router.with_state(api_service.environment_variable_service);
-    router = router.merge(env_var_router);
+    // environment router (secrets and variables)
+    let (environment_router, _) = create_environment_router().split_for_parts();
+    let environment_router = environment_router.with_state(api_service.environment_service.clone());
+    router = router.merge(environment_router);
 
     // identity router
     let (identity_router, _) = create_identity_router().split_for_parts();
@@ -85,67 +76,63 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
     Ok(router)
 }
 
-pub fn generate_openapi_spec() -> OpenApi {
-    let (_, mut spec) = agent::create_router().split_for_parts();
+pub fn generate_openapi_spec() -> OpenApiDoc {
+    let mut spec = ApiDoc::openapi().clone();
+    let (_, agent_spec) = agent::create_router().split_for_parts();
     let (_, task_spec) = task::create_router().split_for_parts();
-    let (_, bridge_spec) = create_bridge_router().split_for_parts();
+    let (_, mcp_spec) = create_mcp_router().split_for_parts();
     let (_, internal_spec) = internal::create_router().split_for_parts();
     let (_, encryption_spec) = create_encryption_router().split_for_parts();
-    let (_, secret_spec) = secret::create_router().split_for_parts();
-    let (_, env_var_spec) = environment_variable::create_router().split_for_parts();
+    let (_, environment_spec) = create_environment_router().split_for_parts();
     let (_, identity_spec) = create_identity_router().split_for_parts();
+    spec.merge(agent_spec);
     spec.merge(task_spec);
-    spec.merge(bridge_spec);
+    spec.merge(mcp_spec);
     spec.merge(internal_spec);
     spec.merge(encryption_spec);
-    spec.merge(secret_spec);
-    spec.merge(env_var_spec);
+    spec.merge(environment_spec);
     spec.merge(identity_spec);
 
-    // Update OpenAPI metadata
-    let mut info = Info::new("soma", "An open source AI agent runtime");
-    info.version = "v1".to_string();
-    spec.info = info;
-
-    // Add tag descriptions
-    spec.tags = Some(vec![
-        TagBuilder::new()
-            .name("task")
-            .description(Some("Task management endpoints for creating, listing, and managing tasks and their messages"))
-            .build(),
-        TagBuilder::new()
-            .name("secret")
-            .description(Some("Secret management endpoints for storing and retrieving encrypted secrets"))
-            .build(),
-        TagBuilder::new()
-            .name("environment-variable")
-            .description(Some("Environment variable management endpoints for storing and retrieving environment variables"))
-            .build(),
-        TagBuilder::new()
-            .name("encryption")
-            .description(Some("Encryption key management endpoints for envelope keys, data encryption keys, and aliases"))
-            .build(),
-        TagBuilder::new()
-            .name("bridge")
-            .description(Some("Bridge endpoints for managing providers, credentials, functions, and MCP protocol communication"))
-            .build(),
-        TagBuilder::new()
-            .name("_internal")
-            .description(Some("Internal endpoints for health checks, runtime configuration, and SDK code generation"))
-            .build(),
-        TagBuilder::new()
-            .name("agent")
-            .description(Some("Agent management and A2A (agent-to-agent) communication endpoints"))
-            .build(),
-        TagBuilder::new()
-            .name("identity")
-            .description(Some("Identity management endpoints for JWKs (JSON Web Keys) and authentication"))
-            .build(),
-        TagBuilder::new()
-            .name(API_VERSION_TAG)
-            .description(Some("API version v1 endpoints"))
-            .build(),
-    ]);
-
     spec
+}
+
+#[derive(OpenApi)]
+#[openapi(
+    modifiers(&SecurityAddon),
+    info(
+        title = "soma",
+        version = "v1",
+        description = "An open source AI agent runtime",
+        license(identifier = "Elastic License 2.0")
+    ),
+    tags(
+        (name = "task", description = "Task management endpoints for creating, listing, and managing tasks and their messages"),
+        (name = "secret", description = "Secret management endpoints for storing and retrieving encrypted secrets"),
+        (name = "variable", description = "Environment variable management endpoints for storing and retrieving variables"),
+        (name = "encryption", description = "Encryption key management endpoints for envelope keys, data encryption keys, and aliases"),
+        (name = "mcp", description = "MCP endpoints for managing providers, credentials, functions, and MCP protocol communication"),
+        (name = "_internal", description = "Internal endpoints for health checks, runtime configuration, and SDK code generation"),
+        (name = "agent", description = "Agent management and A2A (agent-to-agent) communication endpoints"),
+        (name = "identity", description = "Identity management endpoints for JWKs (JSON Web Keys) and authentication"),
+        (name = API_VERSION_TAG, description = "API version v1 endpoints")
+    )
+)]
+struct ApiDoc;
+
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "api_key",
+                SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("X-API-Key"))),
+            );
+
+            components.add_security_scheme(
+                "bearer_token",
+                SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
+            );
+        }
+    }
 }

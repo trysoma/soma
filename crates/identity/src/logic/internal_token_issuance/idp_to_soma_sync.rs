@@ -3,7 +3,9 @@ use shared::{
     primitives::{PaginationRequest, WrappedChronoDateTime},
 };
 
-use crate::repository::{Group, GroupMembership, UserRepositoryLike};
+use crate::repository::GroupMembership;
+use crate::repository::UserRepositoryLike;
+use shared::identity::Group;
 
 /// Sync user's group memberships - add new groups, remove old ones
 pub async fn sync_user_groups<R: UserRepositoryLike>(

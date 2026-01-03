@@ -1,7 +1,7 @@
 use clap::{Args, Subcommand};
 use comfy_table::{Cell, Table};
 use shared::error::CommonError;
-use soma_api_client::apis::{encryption_api, secret_api};
+use soma_api_client::apis::{encryption_api, environment_api};
 use soma_api_client::models;
 use tracing::debug;
 
@@ -76,7 +76,7 @@ async fn get_secret_by_key(
     api_config: &soma_api_client::apis::configuration::Configuration,
     key: &str,
 ) -> Result<Option<models::Secret>, CommonError> {
-    match secret_api::get_secret_by_key(api_config, key).await {
+    match environment_api::get_secret_by_key(api_config, key).await {
         Ok(secret) => Ok(Some(secret)),
         Err(soma_api_client::apis::Error::ResponseError(resp)) if resp.status.as_u16() == 404 => {
             Ok(None)
@@ -94,7 +94,7 @@ pub async fn cmd_secret_set(
     timeout_secs: u64,
 ) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     // Check if default DEK alias exists
     if !default_dek_alias_exists(&api_config).await? {
@@ -110,7 +110,7 @@ pub async fn cmd_secret_set(
         // Update existing secret
         debug!("Updating existing secret: {}", key);
         let update_req = models::UpdateSecretRequest { raw_value: value };
-        secret_api::update_secret(&api_config, &secret.id.to_string(), update_req)
+        environment_api::update_secret(&api_config, &secret.id.to_string(), update_req)
             .await
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to update secret '{key}': {e:?}"))
@@ -124,7 +124,7 @@ pub async fn cmd_secret_set(
             raw_value: value,
             dek_alias: DEFAULT_DEK_ALIAS.to_string(),
         };
-        secret_api::create_secret(&api_config, create_req)
+        environment_api::create_secret(&api_config, create_req)
             .await
             .map_err(|e| {
                 CommonError::Unknown(anyhow::anyhow!("Failed to create secret '{key}': {e:?}"))
@@ -141,7 +141,7 @@ pub async fn cmd_secret_rm(
     timeout_secs: u64,
 ) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     // Check if default DEK alias exists
     if !default_dek_alias_exists(&api_config).await? {
@@ -156,7 +156,7 @@ pub async fn cmd_secret_rm(
     match existing_secret {
         Some(secret) => {
             debug!("Deleting secret: {}", key);
-            secret_api::delete_secret(&api_config, &secret.id.to_string())
+            environment_api::delete_secret(&api_config, &secret.id.to_string())
                 .await
                 .map_err(|e| {
                     CommonError::Unknown(anyhow::anyhow!("Failed to delete secret '{key}': {e:?}"))
@@ -174,7 +174,7 @@ pub async fn cmd_secret_rm(
 
 pub async fn cmd_secret_list(api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     // Check if default DEK alias exists
     if !default_dek_alias_exists(&api_config).await? {
@@ -188,7 +188,7 @@ pub async fn cmd_secret_list(api_url: &str, timeout_secs: u64) -> Result<(), Com
     let mut next_page_token: Option<String> = None;
 
     loop {
-        let response = secret_api::list_decrypted_secrets(
+        let response = environment_api::list_decrypted_secrets(
             &api_config,
             DEFAULT_PAGE_SIZE,
             next_page_token.as_deref(),

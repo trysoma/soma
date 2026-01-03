@@ -34,7 +34,7 @@ export function MCPInspector({ mcpServerInstanceId }: MCPInspectorProps) {
 		clearRequestHistory,
 		clearNotifications,
 	} = useMCPConnection({
-		serverUrl: `http://localhost:3000/api/bridge/v1/mcp-instance/${mcpServerInstanceId}/mcp`,
+		serverUrl: `http://localhost:3000/api/mcp/v1/mcp-server/${mcpServerInstanceId}/mcp`,
 	});
 
 	// Auto-connect on mount (only once)

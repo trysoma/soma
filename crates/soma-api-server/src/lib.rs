@@ -1,9 +1,13 @@
 use std::{path::PathBuf, sync::Arc};
 
-use ::bridge::logic::mcp::BridgeMcpService;
-use ::bridge::router::BridgeService;
-use bridge::logic::OnConfigChangeTx;
+use ::mcp::logic::mcp::McpServerService;
+use ::mcp::router::McpService;
 use encryption::logic::{EncryptionKeyEventSender, crypto_services::CryptoCache};
+use identity::logic::api_key::cache::ApiKeyCache;
+use identity::logic::auth_client::AuthClient;
+use identity::logic::sts::cache::StsConfigCache;
+use identity::logic::sts::external_jwk_cache::ExternalJwksCache;
+use mcp::logic::OnConfigChangeTx;
 use rmcp::transport::streamable_http_server::{
     StreamableHttpService, session::local::LocalSessionManager,
 };
@@ -12,17 +16,16 @@ use shared::{
     restate::{admin_client::AdminClient, invoke::RestateIngressClient},
     soma_agent_definition::SomaAgentDefinitionLike,
 };
+
 use url::Url;
 
 use crate::{
-    logic::on_change_pubsub::{EnvironmentVariableChangeTx, SecretChangeTx},
+    logic::on_change_pubsub::{SecretChangeTx, VariableChangeTx},
     logic::task::ConnectionManager,
     repository::Repository,
     router::{
         agent::{AgentService, AgentServiceParams},
-        environment_variable::EnvironmentVariableService,
         internal,
-        secret::SecretService,
         task::TaskService,
     },
     sdk::sdk_agent_sync::AgentCache,
@@ -34,18 +37,17 @@ pub mod restate;
 pub mod router;
 pub mod sdk;
 
-#[cfg(all(test, feature = "unit_test"))]
+#[cfg(test)]
 pub mod test;
 
 #[derive(Clone)]
 pub struct ApiService {
     pub agent_service: Arc<AgentService>,
     pub task_service: Arc<TaskService>,
-    pub bridge_service: BridgeService,
+    pub mcp_service: McpService,
     pub internal_service: Arc<internal::InternalService>,
     pub encryption_service: encryption::router::EncryptionService,
-    pub secret_service: Arc<SecretService>,
-    pub environment_variable_service: Arc<EnvironmentVariableService>,
+    pub environment_service: Arc<environment::service::EnvironmentService>,
     pub identity_service: identity::service::IdentityService,
     pub sdk_client: Arc<
         tokio::sync::Mutex<
@@ -65,18 +67,19 @@ pub struct InitApiServiceParams {
     pub soma_restate_service_port: u16,
     pub connection_manager: ConnectionManager,
     pub repository: Repository,
-    pub mcp_service: StreamableHttpService<BridgeMcpService, LocalSessionManager>,
+    pub environment_repository: environment::repository::Repository,
+    pub mcp_service: StreamableHttpService<McpServerService, LocalSessionManager>,
     pub soma_definition: Arc<dyn SomaAgentDefinitionLike>,
     pub restate_ingress_client: RestateIngressClient,
     pub restate_admin_client: AdminClient,
     pub restate_params: crate::restate::RestateServerParams,
-    pub on_bridge_config_change_tx: OnConfigChangeTx,
+    pub on_mcp_config_change_tx: OnConfigChangeTx,
     pub on_encryption_change_tx: EncryptionKeyEventSender,
     pub on_secret_change_tx: SecretChangeTx,
-    pub on_environment_variable_change_tx: EnvironmentVariableChangeTx,
+    pub on_variable_change_tx: VariableChangeTx,
     pub encryption_repository: encryption::repository::Repository,
     pub crypto_cache: CryptoCache,
-    pub bridge_repository: ::bridge::repository::Repository,
+    pub mcp_repository: ::mcp::repository::Repository,
     pub identity_repository: identity::repository::Repository,
     pub internal_jwks_cache: identity::logic::jwk::cache::JwksCache,
     pub sdk_client: Arc<
@@ -93,6 +96,18 @@ pub struct InitApiServiceParams {
 impl ApiService {
     pub async fn new(init_params: InitApiServiceParams) -> Result<Self, CommonError> {
         let agent_cache = init_params.agent_cache.clone();
+
+        // Create identity caches that will be shared
+        let identity_repository = Arc::new(init_params.identity_repository);
+        let api_key_cache = ApiKeyCache::new(identity_repository.clone());
+        let sts_config_cache = StsConfigCache::new(identity_repository.clone());
+        let external_jwks_cache = ExternalJwksCache::new();
+
+        // Create the AuthClient - this will be shared across services for authentication
+        let auth_client = Arc::new(AuthClient::new(
+            init_params.internal_jwks_cache.clone(),
+            api_key_cache.clone(),
+        ));
 
         let encryption_service = encryption::router::EncryptionService::new(
             init_params.encryption_repository.clone(),
@@ -113,54 +128,54 @@ impl ApiService {
             init_params.connection_manager.clone(),
             init_params.repository.clone(),
         ));
-        let bridge_service = BridgeService::new(
-            init_params.bridge_repository.clone(),
-            init_params.on_bridge_config_change_tx.clone(),
+        let mcp_service = McpService::new(
+            init_params.mcp_repository.clone(),
+            init_params.on_mcp_config_change_tx.clone(),
             init_params.crypto_cache.clone(),
             init_params.mcp_service,
+            auth_client.clone(),
         )
         .await?;
 
         let internal_service = Arc::new(internal::InternalService::new(
-            bridge_service.clone(),
+            mcp_service.clone(),
             init_params.sdk_client.clone(),
-            std::sync::Arc::new(init_params.repository.clone()),
+            std::sync::Arc::new(init_params.environment_repository.clone()),
             init_params.crypto_cache.clone(),
             init_params.restate_params.clone(),
             agent_cache.clone(),
         ));
 
-        let secret_service = Arc::new(SecretService::new(
-            init_params.repository.clone(),
-            encryption_service.clone(),
-            init_params.on_secret_change_tx.clone(),
-            init_params.sdk_client.clone(),
-            init_params.crypto_cache.clone(),
+        // Create environment service
+        let environment_service = Arc::new(environment::service::EnvironmentService::new(
+            environment::service::EnvironmentServiceParams {
+                repository: init_params.environment_repository.clone(),
+                crypto_cache: init_params.crypto_cache.clone(),
+                secret_change_tx: init_params.on_secret_change_tx.clone(),
+                variable_change_tx: init_params.on_variable_change_tx.clone(),
+            },
         ));
 
-        let environment_variable_service = Arc::new(EnvironmentVariableService::new(
-            init_params.repository.clone(),
-            init_params.on_environment_variable_change_tx.clone(),
-            init_params.sdk_client.clone(),
-        ));
-
-        // Construct identity service
-        let identity_service = identity::service::IdentityService::new(
-            init_params.base_url.clone(),
-            init_params.identity_repository,
-            init_params.encryption_repository.clone(),
-            init_params.local_envelope_encryption_key_path,
-            init_params.internal_jwks_cache.clone(),
-        );
+        // Construct identity service with pre-built caches
+        let identity_service =
+            identity::service::IdentityService::new(identity::service::IdentityServiceParams {
+                base_redirect_uri: init_params.base_url.clone(),
+                repository: identity_repository,
+                crypto_cache: init_params.crypto_cache.clone(),
+                internal_jwks_cache: init_params.internal_jwks_cache.clone(),
+                api_key_cache,
+                sts_config_cache,
+                external_jwks_cache,
+                auth_client,
+            });
 
         Ok(Self {
             agent_service,
             task_service,
-            bridge_service,
+            mcp_service,
             internal_service,
             encryption_service,
-            secret_service,
-            environment_variable_service,
+            environment_service,
             identity_service,
             sdk_client: init_params.sdk_client,
             agent_cache,

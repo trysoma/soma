@@ -1,7 +1,6 @@
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use encryption::logic::crypto_services::CryptoCache;
-use encryption::repository::Repository as EncryptionRepository;
 
 use crate::logic::api_key::cache::ApiKeyCache;
 use crate::logic::auth_client::AuthClient;
@@ -14,6 +13,18 @@ use crate::repository::Repository;
 /// Default broadcast channel capacity
 const BROADCAST_CHANNEL_CAPACITY: usize = 100;
 
+/// Parameters for constructing an IdentityService
+pub struct IdentityServiceParams {
+    pub base_redirect_uri: String,
+    pub repository: Arc<Repository>,
+    pub crypto_cache: CryptoCache,
+    pub internal_jwks_cache: JwksCache,
+    pub api_key_cache: ApiKeyCache,
+    pub sts_config_cache: StsConfigCache,
+    pub external_jwks_cache: ExternalJwksCache,
+    pub auth_client: Arc<AuthClient>,
+}
+
 #[derive(Clone)]
 pub struct IdentityService {
     pub base_redirect_uri: String,
@@ -23,40 +34,31 @@ pub struct IdentityService {
     pub api_key_cache: ApiKeyCache,
     pub sts_config_cache: StsConfigCache,
     pub external_jwks_cache: ExternalJwksCache,
+    pub auth_client: Arc<AuthClient>,
     pub on_config_change_tx: OnConfigChangeTx,
 }
 
 impl IdentityService {
-    pub fn new(
-        base_redirect_uri: String,
-        repository: Repository,
-        encryption_repository: EncryptionRepository,
-        local_envelope_encryption_key_path: PathBuf,
-        internal_jwks_cache: JwksCache,
-    ) -> Self {
-        let repository = Arc::new(repository);
-        let crypto_cache =
-            CryptoCache::new(encryption_repository, local_envelope_encryption_key_path);
-        let api_key_cache = ApiKeyCache::new(repository.clone());
-        let sts_config_cache = StsConfigCache::new(repository.clone());
-        let external_jwks_cache = ExternalJwksCache::new();
+    /// Create a new IdentityService with pre-constructed caches
+    pub fn new(params: IdentityServiceParams) -> Self {
         let (on_config_change_tx, _) =
             tokio::sync::broadcast::channel::<OnConfigChangeEvt>(BROADCAST_CHANNEL_CAPACITY);
 
         Self {
-            base_redirect_uri,
-            repository,
-            crypto_cache,
-            internal_jwks_cache,
-            api_key_cache,
-            sts_config_cache,
-            external_jwks_cache,
+            base_redirect_uri: params.base_redirect_uri,
+            repository: params.repository,
+            crypto_cache: params.crypto_cache,
+            internal_jwks_cache: params.internal_jwks_cache,
+            api_key_cache: params.api_key_cache,
+            sts_config_cache: params.sts_config_cache,
+            external_jwks_cache: params.external_jwks_cache,
+            auth_client: params.auth_client,
             on_config_change_tx,
         }
     }
 
-    /// Create an AuthClient from this service's caches
-    pub fn auth_client(&self) -> AuthClient {
-        AuthClient::new(self.internal_jwks_cache.clone(), self.api_key_cache.clone())
+    /// Get a reference to the auth client
+    pub fn auth_client(&self) -> &Arc<AuthClient> {
+        &self.auth_client
     }
 }

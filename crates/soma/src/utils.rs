@@ -7,7 +7,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
-use soma_api_client::apis::configuration::Configuration as ApiClientConfiguration;
+use soma_api_client::apis::configuration::{ApiKey, Configuration as ApiClientConfiguration};
 use tokio::sync::{Mutex, MutexGuard};
 use tracing::debug;
 
@@ -142,25 +142,6 @@ pub fn construct_cwd_absolute(cwd: Option<PathBuf>) -> Result<PathBuf, CommonErr
     Ok(cwd)
 }
 
-/// Creates an API client configuration for the given base URL
-///
-/// # Arguments
-/// * `base_url` - The base URL of the API server (e.g., "http://localhost:3000")
-///
-/// # Returns
-/// * API client configuration ready to use with soma_api_client functions
-pub fn create_api_client_config(base_url: &str) -> ApiClientConfiguration {
-    ApiClientConfiguration {
-        base_path: base_url.to_string(),
-        user_agent: Some("soma-cli".to_string()),
-        client: reqwest::Client::new(),
-        basic_auth: None,
-        oauth_access_token: None,
-        bearer_access_token: None,
-        api_key: None,
-    }
-}
-
 /// Creates an API client configuration and waits for the API server to be ready
 ///
 /// # Arguments
@@ -173,8 +154,9 @@ pub fn create_api_client_config(base_url: &str) -> ApiClientConfiguration {
 pub async fn create_and_wait_for_api_client(
     api_url: &str,
     timeout_secs: u64,
+    bootstrap_api_key: Option<String>,
 ) -> Result<ApiClientConfiguration, CommonError> {
-    use soma_api_client::apis::agent_api;
+    use soma_api_client::apis::{identity_api, internal_api};
     use std::time::Duration;
 
     // Create HTTP client
@@ -184,7 +166,7 @@ pub async fn create_and_wait_for_api_client(
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to create HTTP client: {e}")))?;
 
     // Create API config for health check
-    let api_config = ApiClientConfiguration {
+    let mut api_config = ApiClientConfiguration {
         base_path: api_url.to_string(),
         user_agent: Some("soma-cli".to_string()),
         client: client.clone(),
@@ -201,7 +183,7 @@ pub async fn create_and_wait_for_api_client(
     let mut connected = false;
 
     for attempt in 1..=max_retries {
-        match agent_api::list_agents(&api_config).await {
+        match internal_api::health_check(&api_config).await {
             Ok(_) => {
                 tracing::debug!("Connected to Soma API server");
                 connected = true;
@@ -227,56 +209,22 @@ pub async fn create_and_wait_for_api_client(
         )));
     }
 
-    Ok(api_config)
-}
+    if let Some(bootstrap_api_key) = bootstrap_api_key {
+        api_config.api_key = Some(ApiKey {
+            key: bootstrap_api_key,
+            prefix: None,
+        });
+    } else {
+        let token = identity_api::route_exchange_sts_token(&api_config, "dev")
+            .await
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to exchange STS token: {e:?}"))
+            })?;
+        let access_token = token.access_token.clone();
+        debug!("STS token exchanged");
 
-/// Polls the health endpoint until it returns a successful response
-///
-/// # Arguments
-/// * `api_config` - The API client configuration
-/// * `timeout_secs` - Maximum time to wait for health check (in seconds)
-/// * `max_retries` - Maximum number of retries
-///
-/// # Returns
-/// * `Ok(())` if the health endpoint responds successfully
-/// * `Err(CommonError)` if the timeout is reached or an error occurs
-pub async fn wait_for_soma_api_health_check(
-    api_config: &ApiClientConfiguration,
-    timeout_secs: u64,
-    max_retries: u64,
-) -> Result<(), CommonError> {
-    let health_url = format!("{}/_internal/v1/health", api_config.base_path);
-    let client = &api_config.client;
-    let start = std::time::Instant::now();
-    let timeout = std::time::Duration::from_secs(timeout_secs);
-
-    for _ in 0..max_retries {
-        if start.elapsed() >= timeout {
-            return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Health check timeout after {timeout_secs} seconds"
-            )));
-        }
-
-        match client.get(&health_url).send().await {
-            Ok(response) if response.status().is_success() => {
-                tracing::trace!(url = %health_url, "Health check passed");
-                return Ok(());
-            }
-            Ok(response) => {
-                tracing::trace!(
-                    status = %response.status(),
-                    "Health check returned non-success, retrying"
-                );
-            }
-            Err(e) => {
-                tracing::trace!(error = %e, "Health check failed, retrying");
-            }
-        }
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        api_config.bearer_access_token = Some(access_token);
     }
 
-    Err(CommonError::Unknown(anyhow::anyhow!(
-        "Health check failed after {max_retries} retries"
-    )))
+    Ok(api_config)
 }

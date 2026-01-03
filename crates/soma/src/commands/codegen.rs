@@ -20,10 +20,11 @@ pub async fn cmd_codegen(
     _config: &mut CliConfig,
 ) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(&params.api_url, params.timeout_secs).await?;
+    let api_config =
+        create_and_wait_for_api_client(&params.api_url, params.timeout_secs, None).await?;
 
     // Trigger codegen via API
-    debug!("Triggering bridge client generation...");
+    debug!("Triggering mcp client generation...");
 
     internal_api::trigger_codegen(&api_config)
         .await
@@ -33,7 +34,7 @@ pub async fn cmd_codegen(
             ))
         })?;
 
-    debug!("Bridge client generation complete!");
+    debug!("MCP client generation complete!");
 
     Ok(())
 }

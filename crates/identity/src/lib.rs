@@ -1,8 +1,7 @@
 pub mod logic;
 pub mod repository;
 pub mod router;
-pub mod routes;
 pub mod service;
 
-#[cfg(any(test, feature = "integration_test"))]
+#[cfg(test)]
 pub mod test;

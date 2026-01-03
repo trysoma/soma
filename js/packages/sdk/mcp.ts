@@ -112,7 +112,7 @@ export function createSomaMcpTransport(
 		"http://localhost:3000";
 
 	const mcpUrl = new URL(
-		`/api/bridge/v1/mcp-instance/${mcpServerInstanceId}/mcp`,
+		`/api/mcp/v1/mcp-instance/${mcpServerInstanceId}/mcp`,
 		baseUrl,
 	);
 

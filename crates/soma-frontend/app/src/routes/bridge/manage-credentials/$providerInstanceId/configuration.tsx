@@ -23,7 +23,7 @@ function RouteComponent() {
 	// Query the specific provider instance with all its details
 	const { data: providerInstanceData } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/provider/{provider_instance_id}",
+		"/api/mcp/v1/provider/{provider_instance_id}",
 		{
 			params: {
 				path: {

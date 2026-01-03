@@ -9,18 +9,20 @@ use tempfile::TempDir;
 use tracing::debug;
 use url::Url;
 
-pub async fn write_migrations_to_temp_dir(
+/// Creates a temp directory with migration files and returns the TempDir handle.
+/// The caller must keep the TempDir alive until migrations complete, then it will
+/// be automatically cleaned up when dropped.
+async fn write_migrations_to_temp_dir(
     migrations: &BTreeMap<&str, &str>,
-) -> Result<PathBuf, anyhow::Error> {
+) -> Result<TempDir, anyhow::Error> {
     let temp_dir = TempDir::new()?;
-    let temp_path = temp_dir.keep();
 
     for (filename, contents) in migrations {
-        let file_path = temp_path.join(filename);
+        let file_path = temp_dir.path().join(filename);
         fs::write(file_path, contents)?;
     }
 
-    Ok(temp_path)
+    Ok(temp_dir)
 }
 
 #[derive(Debug, Clone)]
@@ -143,59 +145,22 @@ impl Connection {
     }
 }
 
-pub fn construct_db_folder_path(node_id: &str, data_dir: &Path) -> PathBuf {
-    let node_id_sanitized = node_id.replace("::", "_");
-    data_dir.join(format!("{node_id_sanitized}/dbs"))
-}
-
-pub fn construct_db_file_path(node_id: &str, data_dir: &Path, database_name: &str) -> PathBuf {
-    construct_db_folder_path(node_id, data_dir).join(format!("{database_name}/local.db"))
-}
-
-pub fn create_db_file_parent_dir(
-    node_id: &str,
-    data_dir: &Path,
-    database_name: &str,
-) -> Result<(), CommonError> {
-    let dbs_path = construct_db_file_path(node_id, data_dir, database_name);
-    std::fs::create_dir_all(dbs_path.parent().unwrap()).map_err(|e| {
-        CommonError::Unknown(anyhow::anyhow!("failed to create dbs directory: {e}"))
-    })?;
-    Ok(())
-}
-
-pub fn construct_db_remote_replica_url(
-    remote_url: &str,
-    db_path: &Path,
-    auth_token: &str,
-) -> Result<String, CommonError> {
-    let mut conn_url = url::Url::parse(remote_url)?;
-
-    conn_url
-        .query_pairs_mut()
-        .append_pair("mode", "remote_replica")
-        .append_pair("path", db_path.to_string_lossy().as_ref())
-        .append_pair("auth", auth_token);
-
-    Ok(conn_url.to_string())
-}
-
-pub struct LocalConnectionParams {
+struct LocalConnectionParams {
     pub path_to_db_file: PathBuf,
 }
 
-pub struct RemoteReplicaConnectionParams {
+struct RemoteReplicaConnectionParams {
     pub path_to_db_file: PathBuf,
     pub remote_url: String,
     pub auth_token: String,
 }
 
-pub struct RemoteConnectionParams {
+struct RemoteConnectionParams {
     pub remote_url: String,
     pub auth_token: String,
 }
 
-pub enum ConnectionType {
+enum ConnectionType {
     Local(LocalConnectionParams),
     RemoteReplica(RemoteReplicaConnectionParams),
     Remote(RemoteConnectionParams),
@@ -295,35 +260,6 @@ impl TryFrom<Url> for ConnectionType {
     }
 }
 
-pub fn construct_db_connection_string(
-    connection_type: ConnectionType,
-) -> Result<String, CommonError> {
-    match connection_type {
-        ConnectionType::Local(params) => {
-            let path = params.path_to_db_file.to_string_lossy();
-            let mut conn_url = url::Url::parse(&format!("libsql://{path}"))?;
-            conn_url.query_pairs_mut().append_pair("mode", "local");
-            Ok(conn_url.to_string())
-        }
-        ConnectionType::RemoteReplica(params) => {
-            let mut conn_url = url::Url::parse(&params.remote_url)?;
-            conn_url
-                .query_pairs_mut()
-                .append_pair("mode", "remote_replica")
-                .append_pair("path", params.path_to_db_file.to_string_lossy().as_ref())
-                .append_pair("auth", &params.auth_token);
-            Ok(conn_url.to_string())
-        }
-        ConnectionType::Remote(params) => {
-            let mut conn_url = url::Url::parse(&params.remote_url)?;
-            conn_url
-                .query_pairs_mut()
-                .append_pair("auth", &params.auth_token);
-            Ok(conn_url.to_string())
-        }
-    }
-}
-
 pub fn inject_auth_token_to_db_url(
     url: &Url,
     auth_token: &Option<String>,
@@ -416,7 +352,8 @@ pub async fn establish_db_connection<'a>(
             .collect::<BTreeMap<&str, &str>>();
 
         let temp_dir = write_migrations_to_temp_dir(&migrations_to_run).await?;
-        libsql_migration::dir::migrate(&conn, temp_dir).await?;
+        libsql_migration::dir::migrate(&conn, temp_dir.path().to_path_buf()).await?;
+        // temp_dir is dropped here, cleaning up the temp directory
     }
 
     Ok((db, Connection(conn)))

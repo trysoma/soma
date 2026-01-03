@@ -738,485 +738,315 @@ pub async fn get_task(
     }
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
-    use crate::repository::{CreateTask, TaskRepositoryLike};
-    use shared::primitives::{
-        PaginationRequest, SqlMigrationLoader, WrappedChronoDateTime, WrappedJsonValue,
-        WrappedUuidV4,
-    };
-    use shared::test_utils::repository::setup_in_memory_database;
-
-    // Test helper to create a test repository
-    async fn setup_test_repo() -> Repository {
-        let (_db, conn) = setup_in_memory_database(vec![
-            Repository::load_sql_migrations(),
-            bridge::repository::Repository::load_sql_migrations(),
-        ])
-        .await
-        .unwrap();
-        Repository::new(conn)
-    }
-
-    // Test helper to create a test task
-    async fn create_test_task(repo: &Repository) -> Task {
-        let task_id = WrappedUuidV4::new();
-        let context_id = WrappedUuidV4::new();
-        let status = TaskStatus::Submitted;
-        let metadata = Metadata::new();
-        let created_at = WrappedChronoDateTime::now();
-        let updated_at = WrappedChronoDateTime::now();
-
-        let create_params = CreateTask {
-            id: task_id.clone(),
-            context_id: context_id.clone(),
-            status: status.clone(),
-            status_timestamp: created_at,
-            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at,
-            updated_at,
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
+        use crate::repository::{CreateTask, TaskRepositoryLike};
+        use shared::primitives::{
+            PaginationRequest, SqlMigrationLoader, WrappedChronoDateTime, WrappedJsonValue,
+            WrappedUuidV4,
         };
-        repo.create_task(&create_params).await.unwrap();
+        use shared::test_utils::repository::setup_in_memory_database;
 
-        Task {
-            id: task_id,
-            context_id,
-            status,
-            status_timestamp: created_at,
-            status_message_id: None,
-            metadata,
-            created_at,
-            updated_at,
+        // Test helper to create a test repository
+        async fn setup_test_repo() -> Repository {
+            let (_db, conn) = setup_in_memory_database(vec![
+                Repository::load_sql_migrations(),
+                mcp::repository::Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
+            Repository::new(conn)
         }
-    }
 
-    #[tokio::test]
-    async fn test_list_tasks_empty() {
-        let repo = setup_test_repo().await;
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
+        // Test helper to create a test task
+        async fn create_test_task(repo: &Repository) -> Task {
+            let task_id = WrappedUuidV4::new();
+            let context_id = WrappedUuidV4::new();
+            let status = TaskStatus::Submitted;
+            let metadata = Metadata::new();
+            let created_at = WrappedChronoDateTime::now();
+            let updated_at = WrappedChronoDateTime::now();
 
-        let result = list_tasks(&repo, pagination).await.unwrap();
+            let create_params = CreateTask {
+                id: task_id.clone(),
+                context_id: context_id.clone(),
+                status: status.clone(),
+                status_timestamp: created_at,
+                metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+                created_at,
+                updated_at,
+            };
+            repo.create_task(&create_params).await.unwrap();
 
-        assert_eq!(result.items.len(), 0);
-        assert!(result.next_page_token.is_none());
-    }
+            Task {
+                id: task_id,
+                context_id,
+                status,
+                status_timestamp: created_at,
+                status_message_id: None,
+                metadata,
+                created_at,
+                updated_at,
+            }
+        }
 
-    #[tokio::test]
-    async fn test_list_tasks_with_data() {
-        let repo = setup_test_repo().await;
+        #[tokio::test]
+        async fn test_list_tasks_empty() {
+            let repo = setup_test_repo().await;
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
 
-        // Create multiple tasks
-        let task1 = create_test_task(&repo).await;
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        let task2 = create_test_task(&repo).await;
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        let task3 = create_test_task(&repo).await;
+            let result = list_tasks(&repo, pagination).await.unwrap();
 
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
+            assert_eq!(result.items.len(), 0);
+            assert!(result.next_page_token.is_none());
+        }
 
-        let result = list_tasks(&repo, pagination).await.unwrap();
+        #[tokio::test]
+        async fn test_list_tasks_with_data() {
+            let repo = setup_test_repo().await;
 
-        assert_eq!(result.items.len(), 3);
-        assert!(result.next_page_token.is_none());
-
-        // Verify task IDs are present
-        let task_ids: Vec<_> = result.items.iter().map(|t| t.id.clone()).collect();
-        assert!(task_ids.contains(&task1.id));
-        assert!(task_ids.contains(&task2.id));
-        assert!(task_ids.contains(&task3.id));
-    }
-
-    #[tokio::test]
-    async fn test_list_tasks_pagination() {
-        let repo = setup_test_repo().await;
-
-        // Create 5 tasks
-        for _ in 0..5 {
-            create_test_task(&repo).await;
+            // Create multiple tasks
+            let task1 = create_test_task(&repo).await;
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            let task2 = create_test_task(&repo).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            let task3 = create_test_task(&repo).await;
+
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+
+            let result = list_tasks(&repo, pagination).await.unwrap();
+
+            assert_eq!(result.items.len(), 3);
+            assert!(result.next_page_token.is_none());
+
+            // Verify task IDs are present
+            let task_ids: Vec<_> = result.items.iter().map(|t| t.id.clone()).collect();
+            assert!(task_ids.contains(&task1.id));
+            assert!(task_ids.contains(&task2.id));
+            assert!(task_ids.contains(&task3.id));
         }
 
-        // Get first page
-        let pagination = PaginationRequest {
-            page_size: 2,
-            next_page_token: None,
-        };
-        let result = list_tasks(&repo, pagination).await.unwrap();
+        #[tokio::test]
+        async fn test_list_tasks_pagination() {
+            let repo = setup_test_repo().await;
 
-        assert_eq!(result.items.len(), 2);
-        assert!(result.next_page_token.is_some());
+            // Create 5 tasks
+            for _ in 0..5 {
+                create_test_task(&repo).await;
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            }
 
-        // Get next page
-        let pagination = PaginationRequest {
-            page_size: 2,
-            next_page_token: result.next_page_token,
-        };
-        let result = list_tasks(&repo, pagination).await.unwrap();
+            // Get first page
+            let pagination = PaginationRequest {
+                page_size: 2,
+                next_page_token: None,
+            };
+            let result = list_tasks(&repo, pagination).await.unwrap();
 
-        assert!(result.items.len() >= 2);
-    }
+            assert_eq!(result.items.len(), 2);
+            assert!(result.next_page_token.is_some());
 
-    #[tokio::test]
-    async fn test_update_task_status_without_message() {
-        let repo = setup_test_repo().await;
-        let connection_manager = ConnectionManager::new();
-        let task = create_test_task(&repo).await;
+            // Get next page
+            let pagination = PaginationRequest {
+                page_size: 2,
+                next_page_token: result.next_page_token,
+            };
+            let result = list_tasks(&repo, pagination).await.unwrap();
 
-        // Update status without message
-        let request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: UpdateTaskStatusRequest {
-                status: TaskStatus::Working,
-                message: None,
-            },
-        };
+            assert!(result.items.len() >= 2);
+        }
 
-        let result = update_task_status(&repo, &connection_manager, None, request).await;
-        assert!(result.is_ok());
+        #[tokio::test]
+        async fn test_update_task_status_without_message() {
+            let repo = setup_test_repo().await;
+            let connection_manager = ConnectionManager::new();
+            let task = create_test_task(&repo).await;
 
-        // Verify status was updated
-        let updated_task = repo.get_task_by_id(&task.id).await.unwrap().unwrap();
-        assert_eq!(updated_task.task.status, TaskStatus::Working);
-        assert!(updated_task.status_message.is_none());
-    }
+            // Update status without message
+            let request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: UpdateTaskStatusRequest {
+                    status: TaskStatus::Working,
+                    message: None,
+                },
+            };
 
-    #[tokio::test]
-    async fn test_update_task_status_with_message() {
-        let repo = setup_test_repo().await;
-        let connection_manager = ConnectionManager::new();
-        let task = create_test_task(&repo).await;
+            let result = update_task_status(&repo, &connection_manager, None, request).await;
+            assert!(result.is_ok());
 
-        // Update status with message
-        let request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: UpdateTaskStatusRequest {
-                status: TaskStatus::Completed,
-                message: Some(CreateMessageRequest {
+            // Verify status was updated
+            let updated_task = repo.get_task_by_id(&task.id).await.unwrap().unwrap();
+            assert_eq!(updated_task.task.status, TaskStatus::Working);
+            assert!(updated_task.status_message.is_none());
+        }
+
+        #[tokio::test]
+        async fn test_update_task_status_with_message() {
+            let repo = setup_test_repo().await;
+            let connection_manager = ConnectionManager::new();
+            let task = create_test_task(&repo).await;
+
+            // Update status with message
+            let request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: UpdateTaskStatusRequest {
+                    status: TaskStatus::Completed,
+                    message: Some(CreateMessageRequest {
+                        reference_task_ids: vec![],
+                        role: MessageRole::Agent,
+                        metadata: Metadata::new(),
+                        parts: vec![MessagePart::TextPart(TextPart {
+                            text: "Task completed successfully".to_string(),
+                            metadata: Metadata::new(),
+                        })],
+                    }),
+                },
+            };
+
+            let result = update_task_status(&repo, &connection_manager, None, request).await;
+            assert!(result.is_ok());
+
+            // Verify status was updated with message
+            let updated_task = repo.get_task_by_id(&task.id).await.unwrap().unwrap();
+            assert_eq!(updated_task.task.status, TaskStatus::Completed);
+            assert!(updated_task.status_message.is_some());
+
+            let status_message = updated_task.status_message.unwrap();
+            assert_eq!(status_message.role, MessageRole::Agent);
+            assert_eq!(status_message.parts.len(), 1);
+        }
+
+        #[tokio::test]
+        async fn test_update_task_status_not_found() {
+            let repo = setup_test_repo().await;
+            let connection_manager = ConnectionManager::new();
+            let non_existent_id = WrappedUuidV4::new();
+
+            let request = WithTaskId {
+                task_id: non_existent_id.clone(),
+                inner: UpdateTaskStatusRequest {
+                    status: TaskStatus::Working,
+                    message: None,
+                },
+            };
+
+            let result = update_task_status(&repo, &connection_manager, None, request).await;
+            assert!(result.is_err());
+
+            match result {
+                Err(CommonError::NotFound { lookup_id, .. }) => {
+                    assert_eq!(lookup_id, non_existent_id.to_string());
+                }
+                _ => panic!("Expected NotFound error"),
+            }
+        }
+
+        #[tokio::test]
+        async fn test_create_message() {
+            let repo = setup_test_repo().await;
+            let connection_manager = ConnectionManager::new();
+            let task = create_test_task(&repo).await;
+
+            let request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: CreateMessageRequest {
                     reference_task_ids: vec![],
+                    role: MessageRole::User,
+                    metadata: Metadata::new(),
+                    parts: vec![MessagePart::TextPart(TextPart {
+                        text: "Hello, agent!".to_string(),
+                        metadata: Metadata::new(),
+                    })],
+                },
+            };
+
+            let result = create_message(&repo, &connection_manager, request, false).await;
+            assert!(result.is_ok());
+
+            let message = result.unwrap();
+            let message = message.message;
+            assert_eq!(message.task_id, task.id);
+            assert_eq!(message.role, MessageRole::User);
+            assert_eq!(message.parts.len(), 1);
+
+            // Verify message was persisted
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+            let messages = repo
+                .get_messages_by_task_id(&task.id, &pagination)
+                .await
+                .unwrap();
+            assert_eq!(messages.items.len(), 1);
+            assert_eq!(messages.items[0].id, message.id);
+        }
+
+        #[tokio::test]
+        async fn test_create_message_with_reference_tasks() {
+            let repo = setup_test_repo().await;
+            let connection_manager = ConnectionManager::new();
+            let task = create_test_task(&repo).await;
+            let ref_task1 = create_test_task(&repo).await;
+            let ref_task2 = create_test_task(&repo).await;
+
+            let request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: CreateMessageRequest {
+                    reference_task_ids: vec![ref_task1.id.clone(), ref_task2.id.clone()],
                     role: MessageRole::Agent,
                     metadata: Metadata::new(),
                     parts: vec![MessagePart::TextPart(TextPart {
-                        text: "Task completed successfully".to_string(),
+                        text: "Referencing other tasks".to_string(),
                         metadata: Metadata::new(),
                     })],
-                }),
-            },
-        };
+                },
+            };
 
-        let result = update_task_status(&repo, &connection_manager, None, request).await;
-        assert!(result.is_ok());
+            let result = create_message(&repo, &connection_manager, request, false).await;
+            assert!(result.is_ok());
 
-        // Verify status was updated with message
-        let updated_task = repo.get_task_by_id(&task.id).await.unwrap().unwrap();
-        assert_eq!(updated_task.task.status, TaskStatus::Completed);
-        assert!(updated_task.status_message.is_some());
-
-        let status_message = updated_task.status_message.unwrap();
-        assert_eq!(status_message.role, MessageRole::Agent);
-        assert_eq!(status_message.parts.len(), 1);
-    }
-
-    #[tokio::test]
-    async fn test_update_task_status_not_found() {
-        let repo = setup_test_repo().await;
-        let connection_manager = ConnectionManager::new();
-        let non_existent_id = WrappedUuidV4::new();
-
-        let request = WithTaskId {
-            task_id: non_existent_id.clone(),
-            inner: UpdateTaskStatusRequest {
-                status: TaskStatus::Working,
-                message: None,
-            },
-        };
-
-        let result = update_task_status(&repo, &connection_manager, None, request).await;
-        assert!(result.is_err());
-
-        match result {
-            Err(CommonError::NotFound { lookup_id, .. }) => {
-                assert_eq!(lookup_id, non_existent_id.to_string());
-            }
-            _ => panic!("Expected NotFound error"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_create_message() {
-        let repo = setup_test_repo().await;
-        let connection_manager = ConnectionManager::new();
-        let task = create_test_task(&repo).await;
-
-        let request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: CreateMessageRequest {
-                reference_task_ids: vec![],
-                role: MessageRole::User,
-                metadata: Metadata::new(),
-                parts: vec![MessagePart::TextPart(TextPart {
-                    text: "Hello, agent!".to_string(),
-                    metadata: Metadata::new(),
-                })],
-            },
-        };
-
-        let result = create_message(&repo, &connection_manager, request, false).await;
-        assert!(result.is_ok());
-
-        let message = result.unwrap();
-        let message = message.message;
-        assert_eq!(message.task_id, task.id);
-        assert_eq!(message.role, MessageRole::User);
-        assert_eq!(message.parts.len(), 1);
-
-        // Verify message was persisted
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-        let messages = repo
-            .get_messages_by_task_id(&task.id, &pagination)
-            .await
-            .unwrap();
-        assert_eq!(messages.items.len(), 1);
-        assert_eq!(messages.items[0].id, message.id);
-    }
-
-    #[tokio::test]
-    async fn test_create_message_with_reference_tasks() {
-        let repo = setup_test_repo().await;
-        let connection_manager = ConnectionManager::new();
-        let task = create_test_task(&repo).await;
-        let ref_task1 = create_test_task(&repo).await;
-        let ref_task2 = create_test_task(&repo).await;
-
-        let request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: CreateMessageRequest {
-                reference_task_ids: vec![ref_task1.id.clone(), ref_task2.id.clone()],
-                role: MessageRole::Agent,
-                metadata: Metadata::new(),
-                parts: vec![MessagePart::TextPart(TextPart {
-                    text: "Referencing other tasks".to_string(),
-                    metadata: Metadata::new(),
-                })],
-            },
-        };
-
-        let result = create_message(&repo, &connection_manager, request, false).await;
-        assert!(result.is_ok());
-
-        let message = result.unwrap();
-        let message = message.message;
-        assert_eq!(message.reference_task_ids.len(), 2);
-        assert!(message.reference_task_ids.contains(&ref_task1.id));
-        assert!(message.reference_task_ids.contains(&ref_task2.id));
-    }
-
-    #[tokio::test]
-    async fn test_get_task_timeline_items_empty() {
-        let repo = setup_test_repo().await;
-        let task = create_test_task(&repo).await;
-
-        let request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: PaginationRequest {
-                page_size: 10,
-                next_page_token: None,
-            },
-        };
-
-        let result = get_task_timeline_items(&repo, request).await.unwrap();
-
-        assert_eq!(result.items.len(), 0);
-        assert!(result.next_page_token.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_get_task_timeline_items_with_messages() {
-        let repo = setup_test_repo().await;
-        let connection_manager = ConnectionManager::new();
-        let task = create_test_task(&repo).await;
-
-        // Create a message (which creates a timeline item)
-        let message_request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: CreateMessageRequest {
-                reference_task_ids: vec![],
-                role: MessageRole::User,
-                metadata: Metadata::new(),
-                parts: vec![MessagePart::TextPart(TextPart {
-                    text: "Test message".to_string(),
-                    metadata: Metadata::new(),
-                })],
-            },
-        };
-        create_message(&repo, &connection_manager, message_request, false)
-            .await
-            .unwrap();
-
-        // Get timeline items
-        let request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: PaginationRequest {
-                page_size: 10,
-                next_page_token: None,
-            },
-        };
-
-        let result = get_task_timeline_items(&repo, request).await.unwrap();
-
-        assert_eq!(result.items.len(), 1);
-        assert!(result.next_page_token.is_none());
-
-        // Verify it's a message timeline item
-        match &result.items[0].event_payload {
-            TaskTimelineItemPayload::Message(_) => {}
-            _ => panic!("Expected Message timeline item"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_get_task_timeline_items_with_status_updates() {
-        let repo = setup_test_repo().await;
-        let connection_manager = ConnectionManager::new();
-        let task = create_test_task(&repo).await;
-
-        // Update status (which creates a timeline item)
-        let status_request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: UpdateTaskStatusRequest {
-                status: TaskStatus::Working,
-                message: None,
-            },
-        };
-        update_task_status(&repo, &connection_manager, None, status_request)
-            .await
-            .unwrap();
-
-        // Get timeline items
-        let request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: PaginationRequest {
-                page_size: 10,
-                next_page_token: None,
-            },
-        };
-
-        let result = get_task_timeline_items(&repo, request).await.unwrap();
-
-        assert_eq!(result.items.len(), 1);
-        assert!(result.next_page_token.is_none());
-
-        // Verify it's a status update timeline item
-        match &result.items[0].event_payload {
-            TaskTimelineItemPayload::TaskStatusUpdate(update) => {
-                assert_eq!(update.status, TaskStatus::Working);
-            }
-            _ => panic!("Expected TaskStatusUpdate timeline item"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_get_task_timeline_items_mixed() {
-        let repo = setup_test_repo().await;
-        let connection_manager = ConnectionManager::new();
-        let task = create_test_task(&repo).await;
-
-        // Create a message
-        let message_request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: CreateMessageRequest {
-                reference_task_ids: vec![],
-                role: MessageRole::User,
-                metadata: Metadata::new(),
-                parts: vec![MessagePart::TextPart(TextPart {
-                    text: "Starting work".to_string(),
-                    metadata: Metadata::new(),
-                })],
-            },
-        };
-        create_message(&repo, &connection_manager, message_request, false)
-            .await
-            .unwrap();
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-
-        // Update status
-        let status_request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: UpdateTaskStatusRequest {
-                status: TaskStatus::Working,
-                message: None,
-            },
-        };
-        update_task_status(&repo, &connection_manager, None, status_request)
-            .await
-            .unwrap();
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-
-        // Create another message
-        let message_request2 = WithTaskId {
-            task_id: task.id.clone(),
-            inner: CreateMessageRequest {
-                reference_task_ids: vec![],
-                role: MessageRole::Agent,
-                metadata: Metadata::new(),
-                parts: vec![MessagePart::TextPart(TextPart {
-                    text: "Working on it".to_string(),
-                    metadata: Metadata::new(),
-                })],
-            },
-        };
-        create_message(&repo, &connection_manager, message_request2, false)
-            .await
-            .unwrap();
-
-        // Get timeline items
-        let request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: PaginationRequest {
-                page_size: 10,
-                next_page_token: None,
-            },
-        };
-
-        let result = get_task_timeline_items(&repo, request).await.unwrap();
-
-        assert_eq!(result.items.len(), 3);
-        assert!(result.next_page_token.is_none());
-
-        // Verify we have mixed types
-        let mut has_message = false;
-        let mut has_status_update = false;
-
-        for item in &result.items {
-            match &item.event_payload {
-                TaskTimelineItemPayload::Message(_) => has_message = true,
-                TaskTimelineItemPayload::TaskStatusUpdate(_) => has_status_update = true,
-            }
+            let message = result.unwrap();
+            let message = message.message;
+            assert_eq!(message.reference_task_ids.len(), 2);
+            assert!(message.reference_task_ids.contains(&ref_task1.id));
+            assert!(message.reference_task_ids.contains(&ref_task2.id));
         }
 
-        assert!(has_message);
-        assert!(has_status_update);
-    }
+        #[tokio::test]
+        async fn test_get_task_timeline_items_empty() {
+            let repo = setup_test_repo().await;
+            let task = create_test_task(&repo).await;
 
-    #[tokio::test]
-    async fn test_get_task_timeline_items_pagination() {
-        let repo = setup_test_repo().await;
-        let connection_manager = ConnectionManager::new();
-        let task = create_test_task(&repo).await;
+            let request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: PaginationRequest {
+                    page_size: 10,
+                    next_page_token: None,
+                },
+            };
 
-        // Create multiple timeline items
-        for i in 0..5 {
+            let result = get_task_timeline_items(&repo, request).await.unwrap();
+
+            assert_eq!(result.items.len(), 0);
+            assert!(result.next_page_token.is_none());
+        }
+
+        #[tokio::test]
+        async fn test_get_task_timeline_items_with_messages() {
+            let repo = setup_test_repo().await;
+            let connection_manager = ConnectionManager::new();
+            let task = create_test_task(&repo).await;
+
+            // Create a message (which creates a timeline item)
             let message_request = WithTaskId {
                 task_id: task.id.clone(),
                 inner: CreateMessageRequest {
@@ -1224,7 +1054,7 @@ mod unit_test {
                     role: MessageRole::User,
                     metadata: Metadata::new(),
                     parts: vec![MessagePart::TextPart(TextPart {
-                        text: format!("Message {i}"),
+                        text: "Test message".to_string(),
                         metadata: Metadata::new(),
                     })],
                 },
@@ -1232,137 +1062,239 @@ mod unit_test {
             create_message(&repo, &connection_manager, message_request, false)
                 .await
                 .unwrap();
-            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+            // Get timeline items
+            let request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: PaginationRequest {
+                    page_size: 10,
+                    next_page_token: None,
+                },
+            };
+
+            let result = get_task_timeline_items(&repo, request).await.unwrap();
+
+            assert_eq!(result.items.len(), 1);
+            assert!(result.next_page_token.is_none());
+
+            // Verify it's a message timeline item
+            match &result.items[0].event_payload {
+                TaskTimelineItemPayload::Message(_) => {}
+                _ => panic!("Expected Message timeline item"),
+            }
         }
 
-        // Get first page
-        let request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: PaginationRequest {
-                page_size: 2,
-                next_page_token: None,
-            },
-        };
+        #[tokio::test]
+        async fn test_get_task_timeline_items_with_status_updates() {
+            let repo = setup_test_repo().await;
+            let connection_manager = ConnectionManager::new();
+            let task = create_test_task(&repo).await;
 
-        let result = get_task_timeline_items(&repo, request).await.unwrap();
+            // Update status (which creates a timeline item)
+            let status_request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: UpdateTaskStatusRequest {
+                    status: TaskStatus::Working,
+                    message: None,
+                },
+            };
+            update_task_status(&repo, &connection_manager, None, status_request)
+                .await
+                .unwrap();
 
-        assert_eq!(result.items.len(), 2);
-        assert!(result.next_page_token.is_some());
+            // Get timeline items
+            let request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: PaginationRequest {
+                    page_size: 10,
+                    next_page_token: None,
+                },
+            };
 
-        // Get next page
-        let request = WithTaskId {
-            task_id: task.id.clone(),
-            inner: PaginationRequest {
-                page_size: 2,
-                next_page_token: result.next_page_token,
-            },
-        };
+            let result = get_task_timeline_items(&repo, request).await.unwrap();
 
-        let result = get_task_timeline_items(&repo, request).await.unwrap();
+            assert_eq!(result.items.len(), 1);
+            assert!(result.next_page_token.is_none());
 
-        assert!(result.items.len() >= 2);
-    }
+            // Verify it's a status update timeline item
+            match &result.items[0].event_payload {
+                TaskTimelineItemPayload::TaskStatusUpdate(update) => {
+                    assert_eq!(update.status, TaskStatus::Working);
+                }
+                _ => panic!("Expected TaskStatusUpdate timeline item"),
+            }
+        }
 
-    #[tokio::test]
-    async fn test_list_unique_contexts() {
-        let repo = setup_test_repo().await;
+        #[tokio::test]
+        async fn test_get_task_timeline_items_mixed() {
+            let repo = setup_test_repo().await;
+            let connection_manager = ConnectionManager::new();
+            let task = create_test_task(&repo).await;
 
-        // Create tasks with 2 different context_ids
-        let context_id_1 = WrappedUuidV4::new();
-        let context_id_2 = WrappedUuidV4::new();
+            // Create a message
+            let message_request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: CreateMessageRequest {
+                    reference_task_ids: vec![],
+                    role: MessageRole::User,
+                    metadata: Metadata::new(),
+                    parts: vec![MessagePart::TextPart(TextPart {
+                        text: "Starting work".to_string(),
+                        metadata: Metadata::new(),
+                    })],
+                },
+            };
+            create_message(&repo, &connection_manager, message_request, false)
+                .await
+                .unwrap();
 
-        // Create 2 tasks with context_id_1
-        for _ in 0..2 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+            // Update status
+            let status_request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: UpdateTaskStatusRequest {
+                    status: TaskStatus::Working,
+                    message: None,
+                },
+            };
+            update_task_status(&repo, &connection_manager, None, status_request)
+                .await
+                .unwrap();
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+            // Create another message
+            let message_request2 = WithTaskId {
+                task_id: task.id.clone(),
+                inner: CreateMessageRequest {
+                    reference_task_ids: vec![],
+                    role: MessageRole::Agent,
+                    metadata: Metadata::new(),
+                    parts: vec![MessagePart::TextPart(TextPart {
+                        text: "Working on it".to_string(),
+                        metadata: Metadata::new(),
+                    })],
+                },
+            };
+            create_message(&repo, &connection_manager, message_request2, false)
+                .await
+                .unwrap();
+
+            // Get timeline items
+            let request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: PaginationRequest {
+                    page_size: 10,
+                    next_page_token: None,
+                },
+            };
+
+            let result = get_task_timeline_items(&repo, request).await.unwrap();
+
+            assert_eq!(result.items.len(), 3);
+            assert!(result.next_page_token.is_none());
+
+            // Verify we have mixed types
+            let mut has_message = false;
+            let mut has_status_update = false;
+
+            for item in &result.items {
+                match &item.event_payload {
+                    TaskTimelineItemPayload::Message(_) => has_message = true,
+                    TaskTimelineItemPayload::TaskStatusUpdate(_) => has_status_update = true,
+                }
+            }
+
+            assert!(has_message);
+            assert!(has_status_update);
+        }
+
+        #[tokio::test]
+        async fn test_get_task_timeline_items_pagination() {
+            let repo = setup_test_repo().await;
+            let connection_manager = ConnectionManager::new();
+            let task = create_test_task(&repo).await;
+
+            // Create multiple timeline items
+            for i in 0..5 {
+                let message_request = WithTaskId {
+                    task_id: task.id.clone(),
+                    inner: CreateMessageRequest {
+                        reference_task_ids: vec![],
+                        role: MessageRole::User,
+                        metadata: Metadata::new(),
+                        parts: vec![MessagePart::TextPart(TextPart {
+                            text: format!("Message {i}"),
+                            metadata: Metadata::new(),
+                        })],
+                    },
+                };
+                create_message(&repo, &connection_manager, message_request, false)
+                    .await
+                    .unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            }
+
+            // Get first page
+            let request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: PaginationRequest {
+                    page_size: 2,
+                    next_page_token: None,
+                },
+            };
+
+            let result = get_task_timeline_items(&repo, request).await.unwrap();
+
+            assert_eq!(result.items.len(), 2);
+            assert!(result.next_page_token.is_some());
+
+            // Get next page
+            let request = WithTaskId {
+                task_id: task.id.clone(),
+                inner: PaginationRequest {
+                    page_size: 2,
+                    next_page_token: result.next_page_token,
+                },
+            };
+
+            let result = get_task_timeline_items(&repo, request).await.unwrap();
+
+            assert!(result.items.len() >= 2);
+        }
+
+        #[tokio::test]
+        async fn test_list_unique_contexts() {
+            let repo = setup_test_repo().await;
+
+            // Create tasks with 2 different context_ids
+            let context_id_1 = WrappedUuidV4::new();
+            let context_id_2 = WrappedUuidV4::new();
+
+            // Create 2 tasks with context_id_1
+            for _ in 0..2 {
+                let task_id = WrappedUuidV4::new();
+                let status = TaskStatus::Working;
+                let metadata = Metadata::new();
+                let created_at = WrappedChronoDateTime::now();
+
+                let create_params = CreateTask {
+                    id: task_id.clone(),
+                    context_id: context_id_1.clone(),
+                    status: status.clone(),
+                    status_timestamp: created_at,
+                    metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+                    created_at,
+                    updated_at: created_at,
+                };
+                repo.create_task(&create_params).await.unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            }
+
+            // Create 1 task with context_id_2
             let task_id = WrappedUuidV4::new();
             let status = TaskStatus::Working;
-            let metadata = Metadata::new();
-            let created_at = WrappedChronoDateTime::now();
-
-            let create_params = CreateTask {
-                id: task_id.clone(),
-                context_id: context_id_1.clone(),
-                status: status.clone(),
-                status_timestamp: created_at,
-                metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-                created_at,
-                updated_at: created_at,
-            };
-            repo.create_task(&create_params).await.unwrap();
-            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        }
-
-        // Create 1 task with context_id_2
-        let task_id = WrappedUuidV4::new();
-        let status = TaskStatus::Working;
-        let metadata = Metadata::new();
-        let created_at = WrappedChronoDateTime::now();
-
-        let create_params = CreateTask {
-            id: task_id.clone(),
-            context_id: context_id_2.clone(),
-            status: status.clone(),
-            status_timestamp: created_at,
-            metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-            created_at,
-            updated_at: created_at,
-        };
-        repo.create_task(&create_params).await.unwrap();
-
-        // Get unique contexts
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-        let result = list_unique_contexts(&repo, pagination).await.unwrap();
-
-        // Should have 3 entries (2 for context_id_1 with different created_at, 1 for context_id_2)
-        // This is because the query does DISTINCT on (context_id, created_at)
-        assert_eq!(result.items.len(), 3);
-
-        // Verify both context_ids are present
-        let context_ids: Vec<_> = result.items.iter().map(|c| c.context_id.clone()).collect();
-        assert!(context_ids.contains(&context_id_1));
-        assert!(context_ids.contains(&context_id_2));
-
-        // Verify all items have created_at
-        for item in &result.items {
-            assert!(item.created_at.get_inner().timestamp() > 0);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_list_tasks_by_context_id() {
-        let repo = setup_test_repo().await;
-
-        let context_id_1 = WrappedUuidV4::new();
-        let context_id_2 = WrappedUuidV4::new();
-
-        // Create 3 tasks with context_id_1
-        let mut task_ids_1 = vec![];
-        for _ in 0..3 {
-            let task_id = WrappedUuidV4::new();
-            task_ids_1.push(task_id.clone());
-            let status = TaskStatus::Working;
-            let metadata = Metadata::new();
-            let created_at = WrappedChronoDateTime::now();
-
-            let create_params = CreateTask {
-                id: task_id.clone(),
-                context_id: context_id_1.clone(),
-                status: status.clone(),
-                status_timestamp: created_at,
-                metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-                created_at,
-                updated_at: created_at,
-            };
-            repo.create_task(&create_params).await.unwrap();
-            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        }
-
-        // Create 2 tasks with context_id_2
-        for _ in 0..2 {
-            let task_id = WrappedUuidV4::new();
-            let status = TaskStatus::Submitted;
             let metadata = Metadata::new();
             let created_at = WrappedChronoDateTime::now();
 
@@ -1376,170 +1308,242 @@ mod unit_test {
                 updated_at: created_at,
             };
             repo.create_task(&create_params).await.unwrap();
-            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        }
 
-        // Get tasks for context_id_1
-        let pagination = PaginationRequest {
-            page_size: 10,
-            next_page_token: None,
-        };
-        let result = list_tasks_by_context_id(
-            &repo,
-            WithContextId {
-                context_id: context_id_1.clone(),
-                inner: pagination,
-            },
-        )
-        .await
-        .unwrap();
-
-        // Should have 3 tasks
-        assert_eq!(result.items.len(), 3);
-
-        // All tasks should belong to context_id_1
-        for task in &result.items {
-            assert_eq!(task.context_id, context_id_1);
-        }
-
-        // Verify all task IDs are present
-        let retrieved_ids: Vec<_> = result.items.iter().map(|t| t.id.clone()).collect();
-        for task_id in &task_ids_1 {
-            assert!(retrieved_ids.contains(task_id));
-        }
-    }
-
-    #[tokio::test]
-    async fn test_list_tasks_by_context_id_pagination() {
-        let repo = setup_test_repo().await;
-
-        let context_id = WrappedUuidV4::new();
-
-        // Create 5 tasks with the same context_id
-        for _ in 0..5 {
-            let task_id = WrappedUuidV4::new();
-            let status = TaskStatus::Working;
-            let metadata = Metadata::new();
-            let created_at = WrappedChronoDateTime::now();
-
-            let create_params = CreateTask {
-                id: task_id.clone(),
-                context_id: context_id.clone(),
-                status: status.clone(),
-                status_timestamp: created_at,
-                metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
-                created_at,
-                updated_at: created_at,
+            // Get unique contexts
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
             };
-            repo.create_task(&create_params).await.unwrap();
-            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            let result = list_unique_contexts(&repo, pagination).await.unwrap();
+
+            // Should have 3 entries (2 for context_id_1 with different created_at, 1 for context_id_2)
+            // This is because the query does DISTINCT on (context_id, created_at)
+            assert_eq!(result.items.len(), 3);
+
+            // Verify both context_ids are present
+            let context_ids: Vec<_> = result.items.iter().map(|c| c.context_id.clone()).collect();
+            assert!(context_ids.contains(&context_id_1));
+            assert!(context_ids.contains(&context_id_2));
+
+            // Verify all items have created_at
+            for item in &result.items {
+                assert!(item.created_at.get_inner().timestamp() > 0);
+            }
         }
 
-        // Test pagination - get first page with smaller page size
-        let pagination = PaginationRequest {
-            page_size: 3,
-            next_page_token: None,
-        };
-        let result = list_tasks_by_context_id(
-            &repo,
-            WithContextId {
-                context_id: context_id.clone(),
-                inner: pagination,
-            },
-        )
-        .await
-        .unwrap();
+        #[tokio::test]
+        async fn test_list_tasks_by_context_id() {
+            let repo = setup_test_repo().await;
 
-        assert_eq!(result.items.len(), 3);
-        assert!(result.next_page_token.is_some());
+            let context_id_1 = WrappedUuidV4::new();
+            let context_id_2 = WrappedUuidV4::new();
 
-        // Get next page
-        let pagination = PaginationRequest {
-            page_size: 3,
-            next_page_token: result.next_page_token,
-        };
-        let result = list_tasks_by_context_id(
-            &repo,
-            WithContextId {
-                context_id: context_id.clone(),
-                inner: pagination,
-            },
-        )
-        .await
-        .unwrap();
-        assert!(result.items.len() >= 2 && result.items.len() <= 3);
-    }
+            // Create 3 tasks with context_id_1
+            let mut task_ids_1 = vec![];
+            for _ in 0..3 {
+                let task_id = WrappedUuidV4::new();
+                task_ids_1.push(task_id.clone());
+                let status = TaskStatus::Working;
+                let metadata = Metadata::new();
+                let created_at = WrappedChronoDateTime::now();
 
-    #[tokio::test]
-    async fn test_connection_manager_add_and_remove() {
-        let connection_manager = ConnectionManager::new();
-        let task_id = WrappedUuidV4::new();
+                let create_params = CreateTask {
+                    id: task_id.clone(),
+                    context_id: context_id_1.clone(),
+                    status: status.clone(),
+                    status_timestamp: created_at,
+                    metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+                    created_at,
+                    updated_at: created_at,
+                };
+                repo.create_task(&create_params).await.unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            }
 
-        // Add connection
-        let result = connection_manager.add_connection(task_id.clone());
-        assert!(result.is_ok());
+            // Create 2 tasks with context_id_2
+            for _ in 0..2 {
+                let task_id = WrappedUuidV4::new();
+                let status = TaskStatus::Submitted;
+                let metadata = Metadata::new();
+                let created_at = WrappedChronoDateTime::now();
 
-        let (connection_id, _receiver) = result.unwrap();
+                let create_params = CreateTask {
+                    id: task_id.clone(),
+                    context_id: context_id_2.clone(),
+                    status: status.clone(),
+                    status_timestamp: created_at,
+                    metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+                    created_at,
+                    updated_at: created_at,
+                };
+                repo.create_task(&create_params).await.unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            }
 
-        // Remove connection
-        let result = connection_manager.remove_connection(task_id.clone(), connection_id.clone());
-        assert!(result.is_ok());
-
-        // Try to remove non-existent connection
-        let result = connection_manager.remove_connection(task_id.clone(), WrappedUuidV4::new());
-        assert!(result.is_ok()); // remove is idempotent
-
-        // Try to remove from non-existent task
-        let result =
-            connection_manager.remove_connection(WrappedUuidV4::new(), connection_id.clone());
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_connection_manager_message_to_connections() {
-        let connection_manager = ConnectionManager::new();
-        let task_id = WrappedUuidV4::new();
-
-        // Add two connections
-        let (_conn_id1, mut receiver1) =
-            connection_manager.add_connection(task_id.clone()).unwrap();
-        let (_conn_id2, mut receiver2) =
-            connection_manager.add_connection(task_id.clone()).unwrap();
-
-        // Send a message
-        let event = a2a_rs::events::Event::Message(a2a_rs::types::Message {
-            message_id: "test-msg-id".to_string(),
-            context_id: None,
-            extensions: vec![],
-            kind: "message".to_string(),
-            metadata: serde_json::Map::new(),
-            parts: vec![],
-            reference_task_ids: vec![],
-            role: a2a_rs::types::MessageRole::User,
-            task_id: Some(task_id.to_string()),
-        });
-
-        connection_manager
-            .message_to_connections(task_id.clone(), event.clone())
+            // Get tasks for context_id_1
+            let pagination = PaginationRequest {
+                page_size: 10,
+                next_page_token: None,
+            };
+            let result = list_tasks_by_context_id(
+                &repo,
+                WithContextId {
+                    context_id: context_id_1.clone(),
+                    inner: pagination,
+                },
+            )
             .await
             .unwrap();
 
-        // Both receivers should get the message
-        tokio::select! {
-            msg = receiver1.recv() => {
-                assert!(msg.is_some());
+            // Should have 3 tasks
+            assert_eq!(result.items.len(), 3);
+
+            // All tasks should belong to context_id_1
+            for task in &result.items {
+                assert_eq!(task.context_id, context_id_1);
             }
-            _ = tokio::time::sleep(tokio::time::Duration::from_millis(100)) => {
-                panic!("Receiver 1 did not receive message");
+
+            // Verify all task IDs are present
+            let retrieved_ids: Vec<_> = result.items.iter().map(|t| t.id.clone()).collect();
+            for task_id in &task_ids_1 {
+                assert!(retrieved_ids.contains(task_id));
             }
         }
 
-        tokio::select! {
-            msg = receiver2.recv() => {
-                assert!(msg.is_some());
+        #[tokio::test]
+        async fn test_list_tasks_by_context_id_pagination() {
+            let repo = setup_test_repo().await;
+
+            let context_id = WrappedUuidV4::new();
+
+            // Create 5 tasks with the same context_id
+            for _ in 0..5 {
+                let task_id = WrappedUuidV4::new();
+                let status = TaskStatus::Working;
+                let metadata = Metadata::new();
+                let created_at = WrappedChronoDateTime::now();
+
+                let create_params = CreateTask {
+                    id: task_id.clone(),
+                    context_id: context_id.clone(),
+                    status: status.clone(),
+                    status_timestamp: created_at,
+                    metadata: WrappedJsonValue::new(serde_json::to_value(&metadata).unwrap()),
+                    created_at,
+                    updated_at: created_at,
+                };
+                repo.create_task(&create_params).await.unwrap();
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
             }
-            _ = tokio::time::sleep(tokio::time::Duration::from_millis(100)) => {
-                panic!("Receiver 2 did not receive message");
+
+            // Test pagination - get first page with smaller page size
+            let pagination = PaginationRequest {
+                page_size: 3,
+                next_page_token: None,
+            };
+            let result = list_tasks_by_context_id(
+                &repo,
+                WithContextId {
+                    context_id: context_id.clone(),
+                    inner: pagination,
+                },
+            )
+            .await
+            .unwrap();
+
+            assert_eq!(result.items.len(), 3);
+            assert!(result.next_page_token.is_some());
+
+            // Get next page
+            let pagination = PaginationRequest {
+                page_size: 3,
+                next_page_token: result.next_page_token,
+            };
+            let result = list_tasks_by_context_id(
+                &repo,
+                WithContextId {
+                    context_id: context_id.clone(),
+                    inner: pagination,
+                },
+            )
+            .await
+            .unwrap();
+            assert!(result.items.len() >= 2 && result.items.len() <= 3);
+        }
+
+        #[tokio::test]
+        async fn test_connection_manager_add_and_remove() {
+            let connection_manager = ConnectionManager::new();
+            let task_id = WrappedUuidV4::new();
+
+            // Add connection
+            let result = connection_manager.add_connection(task_id.clone());
+            assert!(result.is_ok());
+
+            let (connection_id, _receiver) = result.unwrap();
+
+            // Remove connection
+            let result =
+                connection_manager.remove_connection(task_id.clone(), connection_id.clone());
+            assert!(result.is_ok());
+
+            // Try to remove non-existent connection
+            let result =
+                connection_manager.remove_connection(task_id.clone(), WrappedUuidV4::new());
+            assert!(result.is_ok()); // remove is idempotent
+
+            // Try to remove from non-existent task
+            let result =
+                connection_manager.remove_connection(WrappedUuidV4::new(), connection_id.clone());
+            assert!(result.is_err());
+        }
+
+        #[tokio::test]
+        async fn test_connection_manager_message_to_connections() {
+            let connection_manager = ConnectionManager::new();
+            let task_id = WrappedUuidV4::new();
+
+            // Add two connections
+            let (_conn_id1, mut receiver1) =
+                connection_manager.add_connection(task_id.clone()).unwrap();
+            let (_conn_id2, mut receiver2) =
+                connection_manager.add_connection(task_id.clone()).unwrap();
+
+            // Send a message
+            let event = a2a_rs::events::Event::Message(a2a_rs::types::Message {
+                message_id: "test-msg-id".to_string(),
+                context_id: None,
+                extensions: vec![],
+                kind: "message".to_string(),
+                metadata: serde_json::Map::new(),
+                parts: vec![],
+                reference_task_ids: vec![],
+                role: a2a_rs::types::MessageRole::User,
+                task_id: Some(task_id.to_string()),
+            });
+
+            connection_manager
+                .message_to_connections(task_id.clone(), event.clone())
+                .await
+                .unwrap();
+
+            // Both receivers should get the message
+            tokio::select! {
+                msg = receiver1.recv() => {
+                    assert!(msg.is_some());
+                }
+                _ = tokio::time::sleep(tokio::time::Duration::from_millis(100)) => {
+                    panic!("Receiver 1 did not receive message");
+                }
+            }
+
+            tokio::select! {
+                msg = receiver2.recv() => {
+                    assert!(msg.is_some());
+                }
+                _ = tokio::time::sleep(tokio::time::Duration::from_millis(100)) => {
+                    panic!("Receiver 2 did not receive message");
+                }
             }
         }
     }

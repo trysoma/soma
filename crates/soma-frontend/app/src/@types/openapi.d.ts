@@ -144,430 +144,6 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/bridge/v1/available-providers": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List providers
-		 * @description List all available provider types that can be instantiated
-		 */
-		get: operations["list-available-providers"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Create provider
-		 * @description Create a new provider instance with the specified configuration
-		 */
-		post: operations["create-provider-instance"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Create resource server credential
-		 * @description Create a new resource server credential
-		 */
-		post: operations["create-resource-server-credential"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Encrypt resource server config
-		 * @description Encrypt a resource server credential configuration before storage
-		 */
-		post: operations["encrypt-resource-server-configuration"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Create user credential
-		 * @description Create a new user credential
-		 */
-		post: operations["create-user-credential"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Start credential brokering
-		 * @description Start the OAuth flow for user credential brokering
-		 */
-		post: operations["start-user-credential-brokering"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Encrypt user credential config
-		 * @description Encrypt a user credential configuration before storage
-		 */
-		post: operations["encrypt-user-credential-configuration"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/function-instances": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List function instances
-		 * @description List all function instances with optional filtering by provider instance
-		 */
-		get: operations["list-function-instances"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/function-instances/openapi.json": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get function OpenAPI spec
-		 * @description Get the OpenAPI specification for all function instances
-		 */
-		get: operations["get-function-instances-openapi-spec"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/generic-oauth-callback": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * OAuth callback
-		 * @description Handle OAuth callback to complete user credential brokering flow
-		 */
-		get: operations["resume-user-credential-brokering"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/mcp-instance": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List MCP server instances
-		 * @description List all MCP server instances with pagination
-		 */
-		get: operations["list-mcp-server-instances"];
-		put?: never;
-		/**
-		 * Create MCP server instance
-		 * @description Create a new MCP server instance with a user-provided ID
-		 */
-		post: operations["create-mcp-server-instance"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get MCP server instance
-		 * @description Retrieve an MCP server instance by its ID
-		 */
-		get: operations["get-mcp-server-instance"];
-		put?: never;
-		post?: never;
-		/**
-		 * Delete MCP server instance
-		 * @description Delete an MCP server instance and all its function mappings
-		 */
-		delete: operations["delete-mcp-server-instance"];
-		options?: never;
-		head?: never;
-		/**
-		 * Update MCP server instance
-		 * @description Update an MCP server instance name
-		 */
-		patch: operations["update-mcp-server-instance"];
-		trace?: never;
-	};
-	"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Add function to MCP server instance
-		 * @description Add a function mapping to an MCP server instance with a custom name
-		 */
-		post: operations["add-mcp-server-instance-function"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/mcp-instance/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		post?: never;
-		/**
-		 * Remove function from MCP server instance
-		 * @description Remove a function mapping from an MCP server instance
-		 */
-		delete: operations["remove-mcp-server-instance-function"];
-		options?: never;
-		head?: never;
-		/**
-		 * Update function in MCP server instance
-		 * @description Update the function name and description for a function mapping
-		 */
-		patch: operations["update-mcp-server-instance-function"];
-		trace?: never;
-	};
-	"/api/bridge/v1/provider": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List provider instances
-		 * @description List all provider instances with optional filtering by status and provider type
-		 */
-		get: operations["list-provider-instances"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/provider/grouped-by-function": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List providers by function
-		 * @description List provider instances grouped by their associated functions
-		 */
-		get: operations["list-provider-instances-grouped-by-function"];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/provider/{provider_instance_id}": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get provider
-		 * @description Retrieve a provider instance by its unique identifier
-		 */
-		get: operations["get-provider-instance"];
-		put?: never;
-		post?: never;
-		/**
-		 * Delete provider
-		 * @description Delete a provider instance by its unique identifier
-		 */
-		delete: operations["delete-provider-instance"];
-		options?: never;
-		head?: never;
-		/**
-		 * Update provider
-		 * @description Update an existing provider instance configuration
-		 */
-		patch: operations["update-provider-instance"];
-		trace?: never;
-	};
-	"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Disable function
-		 * @description Disable a function for a provider instance
-		 */
-		post: operations["disable-function"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Enable function
-		 * @description Enable a function for a provider instance
-		 */
-		post: operations["enable-function"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Invoke function
-		 * @description Invoke a function on a provider instance
-		 */
-		post: operations["invoke-function"];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
 	"/api/encryption/v1/dek/alias": {
 		parameters: {
 			query?: never;
@@ -724,7 +300,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/environment-variable/v1": {
+	"/api/environment/v1/secret": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -732,23 +308,23 @@ export interface paths {
 			cookie?: never;
 		};
 		/**
-		 * List environment variables
-		 * @description List all environment variables with pagination
+		 * List secrets
+		 * @description List all secrets with pagination (values are encrypted)
 		 */
-		get: operations["list-environment-variables"];
+		get: operations["list-secrets"];
 		put?: never;
 		/**
-		 * Create environment variable
-		 * @description Create a new environment variable with the specified key and value
+		 * Create secret
+		 * @description Create a new encrypted secret with the specified key and value
 		 */
-		post: operations["create-environment-variable"];
+		post: operations["create-secret"];
 		delete?: never;
 		options?: never;
 		head?: never;
 		patch?: never;
 		trace?: never;
 	};
-	"/api/environment-variable/v1/import": {
+	"/api/environment/v1/secret/import": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -758,17 +334,17 @@ export interface paths {
 		get?: never;
 		put?: never;
 		/**
-		 * Import environment variable
-		 * @description Import an existing environment variable into the system
+		 * Import secret
+		 * @description Import an existing pre-encrypted secret into the system
 		 */
-		post: operations["import-environment-variable"];
+		post: operations["import-secret"];
 		delete?: never;
 		options?: never;
 		head?: never;
 		patch?: never;
 		trace?: never;
 	};
-	"/api/environment-variable/v1/key/{key}": {
+	"/api/environment/v1/secret/key/{key}": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -776,10 +352,10 @@ export interface paths {
 			cookie?: never;
 		};
 		/**
-		 * Get environment variable by key
-		 * @description Retrieve an environment variable by its key name
+		 * Get secret by key
+		 * @description Retrieve a secret by its key name
 		 */
-		get: operations["get-environment-variable-by-key"];
+		get: operations["get-secret-by-key"];
 		put?: never;
 		post?: never;
 		delete?: never;
@@ -788,7 +364,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/environment-variable/v1/{env_var_id}": {
+	"/api/environment/v1/secret/list-decrypted": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -796,24 +372,248 @@ export interface paths {
 			cookie?: never;
 		};
 		/**
-		 * Get environment variable
-		 * @description Retrieve an environment variable by its unique identifier
+		 * List decrypted secrets
+		 * @description List all secrets with decrypted values (requires decryption access)
 		 */
-		get: operations["get-environment-variable-by-id"];
-		/**
-		 * Update environment variable
-		 * @description Update an existing environment variable's value
-		 */
-		put: operations["update-environment-variable"];
+		get: operations["list-decrypted-secrets"];
+		put?: never;
 		post?: never;
-		/**
-		 * Delete environment variable
-		 * @description Delete an environment variable by its unique identifier
-		 */
-		delete: operations["delete-environment-variable"];
+		delete?: never;
 		options?: never;
 		head?: never;
 		patch?: never;
+		trace?: never;
+	};
+	"/api/environment/v1/secret/{secret_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get secret
+		 * @description Retrieve a secret by its unique identifier
+		 */
+		get: operations["get-secret-by-id"];
+		/**
+		 * Update secret
+		 * @description Update an existing secret's value or metadata
+		 */
+		put: operations["update-secret"];
+		post?: never;
+		/**
+		 * Delete secret
+		 * @description Delete a secret by its unique identifier
+		 */
+		delete: operations["delete-secret"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/environment/v1/variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List variables
+		 * @description List all environment variables with pagination
+		 */
+		get: operations["list-variables"];
+		put?: never;
+		/**
+		 * Create variable
+		 * @description Create a new environment variable with the specified key and value
+		 */
+		post: operations["create-variable"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/environment/v1/variable/import": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Import variable
+		 * @description Import an existing environment variable into the system
+		 */
+		post: operations["import-variable"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/environment/v1/variable/key/{key}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get variable by key
+		 * @description Retrieve an environment variable by its key name
+		 */
+		get: operations["get-variable-by-key"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/environment/v1/variable/{variable_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get variable
+		 * @description Retrieve an environment variable by its unique identifier
+		 */
+		get: operations["get-variable-by-id"];
+		/**
+		 * Update variable
+		 * @description Update an existing environment variable's value
+		 */
+		put: operations["update-variable"];
+		post?: never;
+		/**
+		 * Delete variable
+		 * @description Delete an environment variable by its unique identifier
+		 */
+		delete: operations["delete-variable"];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/scim/v2/Groups": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List SCIM Groups
+		 * @description List all groups with SCIM pagination. Supports filtering by various attributes.
+		 */
+		get: operations["scim-list-groups"];
+		put?: never;
+		/**
+		 * Create SCIM Group
+		 * @description Create a new group from a SCIM Group payload. Members can be specified during creation.
+		 */
+		post: operations["scim-create-group"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/scim/v2/Groups/{group_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get SCIM Group
+		 * @description Retrieve a group by its unique identifier in SCIM format, including its members.
+		 */
+		get: operations["scim-get-group"];
+		/**
+		 * Replace SCIM Group
+		 * @description Replace a group's attributes and members with the provided SCIM Group payload (PUT operation).
+		 */
+		put: operations["scim-replace-group"];
+		post?: never;
+		/**
+		 * Delete SCIM Group
+		 * @description Delete a group by its unique identifier. This also removes all group memberships.
+		 */
+		delete: operations["scim-delete-group"];
+		options?: never;
+		head?: never;
+		/**
+		 * Patch SCIM Group
+		 * @description Partially update a group's attributes or members using SCIM PATCH operations (add, remove, replace).
+		 */
+		patch: operations["scim-patch-group"];
+		trace?: never;
+	};
+	"/api/identity/scim/v2/Users": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List SCIM Users
+		 * @description List all users with SCIM pagination. Supports filtering by various attributes.
+		 */
+		get: operations["scim-list-users"];
+		put?: never;
+		/**
+		 * Create SCIM User
+		 * @description Create a new user from a SCIM User payload. The user will be created as a federated_user type.
+		 */
+		post: operations["scim-create-user"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/scim/v2/Users/{user_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get SCIM User
+		 * @description Retrieve a user by their unique identifier in SCIM format.
+		 */
+		get: operations["scim-get-user"];
+		/**
+		 * Replace SCIM User
+		 * @description Replace a user's attributes with the provided SCIM User payload (PUT operation).
+		 */
+		put: operations["scim-replace-user"];
+		post?: never;
+		/**
+		 * Delete SCIM User
+		 * @description Delete a user by their unique identifier. This also removes the user from all groups.
+		 */
+		delete: operations["scim-delete-user"];
+		options?: never;
+		head?: never;
+		/**
+		 * Patch SCIM User
+		 * @description Partially update a user's attributes using SCIM PATCH operations (add, remove, replace).
+		 */
+		patch: operations["scim-patch-user"];
 		trace?: never;
 	};
 	"/api/identity/v1/.well-known/jwks.json": {
@@ -955,6 +755,102 @@ export interface paths {
 		put?: never;
 		post?: never;
 		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/groups": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List groups
+		 * @description List all groups with pagination
+		 */
+		get: operations["list-groups"];
+		put?: never;
+		/**
+		 * Create group
+		 * @description Create a new group with the specified name
+		 */
+		post: operations["create-group"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/groups/{group_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get group
+		 * @description Retrieve a group by its unique identifier
+		 */
+		get: operations["get-group"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete group
+		 * @description Delete a group by its unique identifier
+		 */
+		delete: operations["delete-group"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update group
+		 * @description Update a group's name
+		 */
+		patch: operations["update-group"];
+		trace?: never;
+	};
+	"/api/identity/v1/groups/{group_id}/members": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List group members
+		 * @description List all members of a group
+		 */
+		get: operations["list-group-members"];
+		put?: never;
+		/**
+		 * Add group member
+		 * @description Add a user to a group
+		 */
+		post: operations["add-group-member"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/identity/v1/groups/{group_id}/members/{user_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/**
+		 * Remove group member
+		 * @description Remove a user from a group
+		 */
+		delete: operations["remove-group-member"];
 		options?: never;
 		head?: never;
 		patch?: never;
@@ -1128,7 +1024,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/secret/v1": {
+	"/api/identity/v1/users": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -1136,23 +1032,91 @@ export interface paths {
 			cookie?: never;
 		};
 		/**
-		 * List secrets
-		 * @description List all secrets with pagination (values are encrypted)
+		 * List users
+		 * @description List all users with pagination and optional filtering
 		 */
-		get: operations["list-secrets"];
+		get: operations["list-users"];
 		put?: never;
 		/**
-		 * Create secret
-		 * @description Create a new encrypted secret with the specified key and value
+		 * Create user
+		 * @description Create a new user with the specified attributes
 		 */
-		post: operations["create-secret"];
+		post: operations["create-user"];
 		delete?: never;
 		options?: never;
 		head?: never;
 		patch?: never;
 		trace?: never;
 	};
-	"/api/secret/v1/import": {
+	"/api/identity/v1/users/{user_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get user
+		 * @description Retrieve a user by their unique identifier
+		 */
+		get: operations["get-user"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete user
+		 * @description Delete a user by their unique identifier
+		 */
+		delete: operations["delete-user"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update user
+		 * @description Update a user's attributes
+		 */
+		patch: operations["update-user"];
+		trace?: never;
+	};
+	"/api/identity/v1/users/{user_id}/groups": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List user groups
+		 * @description List all groups that a user belongs to
+		 */
+		get: operations["list-user-groups"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List providers
+		 * @description List all available provider types that can be instantiated
+		 */
+		get: operations["list-available-providers"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -1162,17 +1126,117 @@ export interface paths {
 		get?: never;
 		put?: never;
 		/**
-		 * Import secret
-		 * @description Import an existing pre-encrypted secret into the system
+		 * Create provider
+		 * @description Create a new provider instance with the specified configuration
 		 */
-		post: operations["import-secret"];
+		post: operations["create-provider-instance"];
 		delete?: never;
 		options?: never;
 		head?: never;
 		patch?: never;
 		trace?: never;
 	};
-	"/api/secret/v1/key/{key}": {
+	"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Create resource server credential
+		 * @description Create a new resource server credential
+		 */
+		post: operations["create-resource-server-credential"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Encrypt resource server config
+		 * @description Encrypt a resource server credential configuration before storage
+		 */
+		post: operations["encrypt-resource-server-configuration"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Create user credential
+		 * @description Create a new user credential
+		 */
+		post: operations["create-user-credential"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Start credential brokering
+		 * @description Start the OAuth flow for user credential brokering
+		 */
+		post: operations["start-user-credential-brokering"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Encrypt user credential config
+		 * @description Encrypt a user credential configuration before storage
+		 */
+		post: operations["encrypt-user-credential-configuration"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/function-instances": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -1180,10 +1244,10 @@ export interface paths {
 			cookie?: never;
 		};
 		/**
-		 * Get secret by key
-		 * @description Retrieve a secret by its key name
+		 * List function instances
+		 * @description List all function instances with optional filtering by provider instance
 		 */
-		get: operations["get-secret-by-key"];
+		get: operations["list-function-instances"];
 		put?: never;
 		post?: never;
 		delete?: never;
@@ -1192,7 +1256,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/secret/v1/list-decrypted": {
+	"/api/mcp/v1/function-instances/openapi.json": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -1200,10 +1264,10 @@ export interface paths {
 			cookie?: never;
 		};
 		/**
-		 * List decrypted secrets
-		 * @description List all secrets with decrypted values (requires decryption access)
+		 * Get function OpenAPI spec
+		 * @description Get the OpenAPI specification for all function instances
 		 */
-		get: operations["list-decrypted-secrets"];
+		get: operations["get-function-instances-openapi-spec"];
 		put?: never;
 		post?: never;
 		delete?: never;
@@ -1212,7 +1276,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	"/api/secret/v1/{secret_id}": {
+	"/api/mcp/v1/generic-oauth-callback": {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -1220,21 +1284,237 @@ export interface paths {
 			cookie?: never;
 		};
 		/**
-		 * Get secret
-		 * @description Retrieve a secret by its unique identifier
+		 * OAuth callback
+		 * @description Handle OAuth callback to complete user credential brokering flow
 		 */
-		get: operations["get-secret-by-id"];
+		get: operations["resume-user-credential-brokering"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/mcp-server": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
 		/**
-		 * Update secret
-		 * @description Update an existing secret's value or metadata
+		 * List MCP server instances
+		 * @description List all MCP server instances with pagination
 		 */
-		put: operations["update-secret"];
+		get: operations["list-mcp-server-instances"];
+		put?: never;
+		/**
+		 * Create MCP server instance
+		 * @description Create a new MCP server instance with a user-provided ID
+		 */
+		post: operations["create-mcp-server-instance"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/mcp-server/{mcp_server_instance_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get MCP server instance
+		 * @description Retrieve an MCP server instance by its ID
+		 */
+		get: operations["get-mcp-server-instance"];
+		put?: never;
 		post?: never;
 		/**
-		 * Delete secret
-		 * @description Delete a secret by its unique identifier
+		 * Delete MCP server instance
+		 * @description Delete an MCP server instance and all its function mappings
 		 */
-		delete: operations["delete-secret"];
+		delete: operations["delete-mcp-server-instance"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update MCP server instance
+		 * @description Update an MCP server instance name
+		 */
+		patch: operations["update-mcp-server-instance"];
+		trace?: never;
+	};
+	"/api/mcp/v1/mcp-server/{mcp_server_instance_id}/function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Add function to MCP server instance
+		 * @description Add a function mapping to an MCP server instance with a custom name
+		 */
+		post: operations["add-mcp-server-instance-function"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/mcp-server/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/**
+		 * Remove function from MCP server instance
+		 * @description Remove a function mapping from an MCP server instance
+		 */
+		delete: operations["remove-mcp-server-instance-function"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update function in MCP server instance
+		 * @description Update the function name and description for a function mapping
+		 */
+		patch: operations["update-mcp-server-instance-function"];
+		trace?: never;
+	};
+	"/api/mcp/v1/provider": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List provider instances
+		 * @description List all provider instances with optional filtering by status and provider type
+		 */
+		get: operations["list-provider-instances"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/provider/grouped-by-function": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List providers by function
+		 * @description List provider instances grouped by their associated functions
+		 */
+		get: operations["list-provider-instances-grouped-by-function"];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/provider/{provider_instance_id}": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get provider
+		 * @description Retrieve a provider instance by its unique identifier
+		 */
+		get: operations["get-provider-instance"];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete provider
+		 * @description Delete a provider instance by its unique identifier
+		 */
+		delete: operations["delete-provider-instance"];
+		options?: never;
+		head?: never;
+		/**
+		 * Update provider
+		 * @description Update an existing provider instance configuration
+		 */
+		patch: operations["update-provider-instance"];
+		trace?: never;
+	};
+	"/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Disable function
+		 * @description Disable a function for a provider instance
+		 */
+		post: operations["disable-function"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Enable function
+		 * @description Enable a function for a provider instance
+		 */
+		post: operations["enable-function"];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	"/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Invoke function
+		 * @description Invoke a function on a provider instance
+		 */
+		post: operations["invoke-function"];
+		delete?: never;
 		options?: never;
 		head?: never;
 		patch?: never;
@@ -1368,6 +1648,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
+		AddGroupMemberRequest: {
+			/** @description User ID to add to the group */
+			user_id: string;
+		};
 		AddMcpServerInstanceFunctionRequest: {
 			function_controller_type_id: string;
 			function_description?: string | null;
@@ -1438,9 +1722,11 @@ export interface components {
 			alias: string;
 			dek_id: string;
 		};
-		CreateEnvironmentVariableRequest: {
-			key: string;
-			value: string;
+		CreateGroupRequest: {
+			/** @description Group ID (if not provided, a UUID will be generated) */
+			id?: string | null;
+			/** @description Group name */
+			name: string;
 		};
 		CreateMcpServerInstanceRequest: {
 			id: string;
@@ -1470,6 +1756,7 @@ export interface components {
 			metadata?: null | components["schemas"]["Metadata"];
 			resource_server_configuration: components["schemas"]["WrappedJsonValue"];
 		};
+		/** @description Request to create a new secret */
 		CreateSecretRequest: {
 			dek_alias: string;
 			key: string;
@@ -1489,6 +1776,21 @@ export interface components {
 			dek_alias: string;
 			metadata?: null | components["schemas"]["Metadata"];
 			user_credential_configuration: components["schemas"]["WrappedJsonValue"];
+		};
+		CreateUserRequest: {
+			/** @description User's email address */
+			email?: string | null;
+			/** @description User ID (if not provided, a UUID will be generated) */
+			id?: string | null;
+			/** @description User's role */
+			role: string;
+			/** @description User type: "service_principal" or "federated_user" */
+			user_type: string;
+		};
+		/** @description Request to create a new variable */
+		CreateVariableRequest: {
+			key: string;
+			value: string;
 		};
 		DataEncryptionKey: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
@@ -1513,6 +1815,7 @@ export interface components {
 			items: components["schemas"]["DataEncryptionKeyListItem"][];
 			next_page_token?: string;
 		};
+		/** @description Decrypted secret type for list-decrypted endpoint */
 		DecryptedSecret: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			decrypted_value: string;
@@ -1521,10 +1824,12 @@ export interface components {
 			key: string;
 			updated_at: components["schemas"]["WrappedChronoDateTime"];
 		};
-		DeleteEnvironmentVariableResponse: {
+		/** @description Response for deleting a secret */
+		DeleteSecretResponse: {
 			success: boolean;
 		};
-		DeleteSecretResponse: {
+		/** @description Response for deleting a variable */
+		DeleteVariableResponse: {
 			success: boolean;
 		};
 		DevModeConfig: {
@@ -1615,13 +1920,6 @@ export interface components {
 			items: components["schemas"]["EnvelopeEncryptionKey"][];
 			next_page_token?: string;
 		};
-		EnvironmentVariable: {
-			created_at: components["schemas"]["WrappedChronoDateTime"];
-			id: components["schemas"]["WrappedUuidV4"];
-			key: string;
-			updated_at: components["schemas"]["WrappedChronoDateTime"];
-			value: string;
-		};
 		Error: {
 			message: string;
 			name: string;
@@ -1666,6 +1964,30 @@ export interface components {
 			/** @description When the configuration was last updated */
 			updated_at: components["schemas"]["WrappedChronoDateTime"];
 		};
+		Group: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			id: string;
+			name: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+		};
+		GroupMemberWithUser: {
+			membership: components["schemas"]["GroupMembership"];
+			user: components["schemas"]["User"];
+		};
+		GroupMemberWithUserPaginatedResponse: {
+			items: components["schemas"]["GroupMemberWithUser"][];
+			next_page_token?: string;
+		};
+		GroupMembership: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			group_id: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+			user_id: string;
+		};
+		GroupPaginatedResponse: {
+			items: components["schemas"]["Group"][];
+			next_page_token?: string;
+		};
 		GroupToRoleMapping: {
 			group: string;
 			role: components["schemas"]["Role"];
@@ -1709,10 +2031,7 @@ export interface components {
 			encrypted_data_encryption_key: string;
 			id?: string | null;
 		};
-		ImportEnvironmentVariableRequest: {
-			key: string;
-			value: string;
-		};
+		/** @description Request type for importing pre-encrypted secrets (used by sync_yaml_to_api_on_start) */
 		ImportSecretRequest: {
 			dek_alias: string;
 			encrypted_value: string;
@@ -1722,6 +2041,11 @@ export interface components {
 		ImportUserAuthFlowConfigParams: {
 			/** @description The encrypted configuration to import */
 			config: components["schemas"]["EncryptedUserAuthFlowConfig"];
+		};
+		/** @description Request type for importing variables (used by sync_yaml_to_api_on_start) */
+		ImportVariableRequest: {
+			key: string;
+			value: string;
 		};
 		InvokeError: {
 			message: string;
@@ -1803,14 +2127,12 @@ export interface components {
 			items: components["schemas"]["HashedApiKey"][];
 			next_page_token?: string | null;
 		};
+		/** @description Response for listing decrypted secrets */
 		ListDecryptedSecretsResponse: {
 			next_page_token?: string | null;
 			secrets: components["schemas"]["DecryptedSecret"][];
 		};
-		ListEnvironmentVariablesResponse: {
-			environment_variables: components["schemas"]["EnvironmentVariable"][];
-			next_page_token?: string | null;
-		};
+		/** @description Response for listing secrets */
 		ListSecretsResponse: {
 			next_page_token?: string | null;
 			secrets: components["schemas"]["Secret"][];
@@ -1821,6 +2143,11 @@ export interface components {
 			items: components["schemas"]["GetUserAuthFlowConfigResponse"][];
 			/** @description Token for the next page, if any */
 			next_page_token?: string | null;
+		};
+		/** @description Response for listing variables */
+		ListVariablesResponse: {
+			next_page_token?: string | null;
+			variables: components["schemas"]["Variable"][];
 		};
 		/** @description Authenticated machine identity */
 		Machine: {
@@ -2017,8 +2344,118 @@ export interface components {
 		 * @description User role in the system
 		 * @enum {string}
 		 */
-		Role: "admin" | "maintainer" | "read_only_maintainer" | "agent" | "user";
+		Role: "admin" | "maintainer" | "agent" | "user";
 		RuntimeConfigResponse: Record<string, never>;
+		/** @description SCIM 2.0 Email object for multi-valued email addresses */
+		ScimEmail: {
+			primary?: boolean;
+			type?: string | null;
+			value: string;
+		};
+		/** @description SCIM 2.0 Group resource */
+		ScimGroup: {
+			/** @description Display name for the group */
+			displayName: string;
+			/** @description External identifier from the IDP */
+			externalId?: string | null;
+			/** @description Unique identifier (our internal ID) */
+			id?: string | null;
+			/** @description Group members */
+			members?: components["schemas"]["ScimGroupMember"][];
+			meta?: null | components["schemas"]["ScimMeta"];
+			/** @description SCIM schema URIs */
+			schemas?: string[];
+		};
+		/** @description SCIM 2.0 Group member reference */
+		ScimGroupMember: {
+			$ref?: string | null;
+			display?: string | null;
+			type?: string | null;
+			value: string;
+		};
+		/** @description SCIM 2.0 ListResponse for paginated results */
+		ScimListResponse: {
+			/** @description The resources */
+			Resources: components["schemas"]["ScimGroup"][];
+			/**
+			 * Format: int64
+			 * @description Number of items per page
+			 */
+			itemsPerPage: number;
+			/** @description SCIM schema URIs */
+			schemas: string[];
+			/**
+			 * Format: int64
+			 * @description Start index (1-based)
+			 */
+			startIndex: number;
+			/**
+			 * Format: int64
+			 * @description Total number of results
+			 */
+			totalResults: number;
+		};
+		/** @description SCIM 2.0 Meta object containing resource metadata */
+		ScimMeta: {
+			created?: string | null;
+			lastModified?: string | null;
+			location?: string | null;
+			resourceType: string;
+			version?: string | null;
+		};
+		/** @description SCIM 2.0 Name object for user's name components */
+		ScimName: {
+			familyName?: string | null;
+			formatted?: string | null;
+			givenName?: string | null;
+			honorificPrefix?: string | null;
+			honorificSuffix?: string | null;
+			middleName?: string | null;
+		};
+		/**
+		 * @description SCIM 2.0 PATCH operation type
+		 * @enum {string}
+		 */
+		ScimPatchOp: "add" | "remove" | "replace";
+		/** @description SCIM 2.0 PATCH operation */
+		ScimPatchOperation: {
+			op: components["schemas"]["ScimPatchOp"];
+			path?: string | null;
+			value?: unknown;
+		};
+		/** @description SCIM 2.0 PATCH request */
+		ScimPatchRequest: {
+			Operations: components["schemas"]["ScimPatchOperation"][];
+			schemas: string[];
+		};
+		/** @description SCIM 2.0 User resource */
+		ScimUser: {
+			/** @description Whether the user is active */
+			active?: boolean;
+			/** @description Display name */
+			displayName?: string | null;
+			/** @description Email addresses */
+			emails?: components["schemas"]["ScimEmail"][];
+			/** @description External identifier from the IDP */
+			externalId?: string | null;
+			/** @description Groups the user belongs to (read-only) */
+			groups?: components["schemas"]["ScimUserGroup"][];
+			/** @description Unique identifier (our internal ID) */
+			id?: string | null;
+			meta?: null | components["schemas"]["ScimMeta"];
+			name?: null | components["schemas"]["ScimName"];
+			/** @description SCIM schema URIs */
+			schemas?: string[];
+			/** @description Username (unique identifier for the user) */
+			userName: string;
+		};
+		/** @description SCIM 2.0 User group reference (for user's group membership) */
+		ScimUserGroup: {
+			$ref?: string | null;
+			display?: string | null;
+			type?: string | null;
+			value: string;
+		};
 		ScopeToGroupMapping: {
 			group: string;
 			scope: string;
@@ -2027,6 +2464,7 @@ export interface components {
 			role: components["schemas"]["Role"];
 			scope: string;
 		};
+		/** @description Domain model for Secret - an encrypted key-value pair */
 		Secret: {
 			created_at: components["schemas"]["WrappedChronoDateTime"];
 			dek_alias: string;
@@ -2140,8 +2578,9 @@ export interface components {
 		UpdateAliasParams: {
 			new_dek_id: string;
 		};
-		UpdateEnvironmentVariableRequest: {
-			value: string;
+		UpdateGroupRequest: {
+			/** @description Group name */
+			name: string;
 		};
 		UpdateMcpServerInstanceFunctionRequest: {
 			function_description?: string | null;
@@ -2153,12 +2592,32 @@ export interface components {
 		UpdateProviderInstanceParamsInner: {
 			display_name: string;
 		};
+		/** @description Request to update an existing secret */
 		UpdateSecretRequest: {
 			raw_value: string;
 		};
 		UpdateTaskStatusRequest: {
 			message?: null | components["schemas"]["CreateMessageRequest"];
 			status: components["schemas"]["TaskStatus"];
+		};
+		UpdateUserRequest: {
+			/** @description User's email address */
+			email?: string | null;
+			/** @description User's role */
+			role?: string | null;
+		};
+		/** @description Request to update an existing variable */
+		UpdateVariableRequest: {
+			value: string;
+		};
+		User: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			description?: string | null;
+			email?: string | null;
+			id: string;
+			role: components["schemas"]["Role"];
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+			user_type: components["schemas"]["UserType"];
 		};
 		/** @description The four supported IdP configuration types */
 		UserAuthFlowConfig:
@@ -2206,6 +2665,28 @@ export interface components {
 			type_id: string;
 			updated_at: components["schemas"]["WrappedChronoDateTime"];
 			value: components["schemas"]["WrappedJsonValue"];
+		};
+		UserGroupWithGroup: {
+			group: components["schemas"]["Group"];
+			membership: components["schemas"]["GroupMembership"];
+		};
+		UserGroupWithGroupPaginatedResponse: {
+			items: components["schemas"]["UserGroupWithGroup"][];
+			next_page_token?: string;
+		};
+		UserPaginatedResponse: {
+			items: components["schemas"]["User"][];
+			next_page_token?: string;
+		};
+		/** @enum {string} */
+		UserType: "machine" | "human";
+		/** @description Domain model for Variable - a plain-text key-value pair */
+		Variable: {
+			created_at: components["schemas"]["WrappedChronoDateTime"];
+			id: components["schemas"]["WrappedUuidV4"];
+			key: string;
+			updated_at: components["schemas"]["WrappedChronoDateTime"];
+			value: string;
 		};
 		/** Format: date-time */
 		WrappedChronoDateTime: string;
@@ -2419,6 +2900,3815 @@ export interface operations {
 				};
 				content: {
 					"application/json": components["schemas"]["AgentCard"];
+				};
+			};
+		};
+	};
+	"create-dek-alias": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateDekAliasRequest"];
+			};
+		};
+		responses: {
+			/** @description Create DEK alias */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DataEncryptionKeyAlias"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Bad Gateway */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-dek-by-alias-or-id": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description DEK alias or ID */
+				alias: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get DEK by alias or ID */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DataEncryptionKey"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Bad Gateway */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-dek-alias": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description DEK alias */
+				alias: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateAliasParams"];
+			};
+		};
+		responses: {
+			/** @description Update DEK alias */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DataEncryptionKeyAlias"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Bad Gateway */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"delete-dek-alias": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description DEK alias */
+				alias: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Delete DEK alias */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Bad Gateway */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-envelope-encryption-keys": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List envelope encryption keys */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["EnvelopeEncryptionKeyPaginatedResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Bad Gateway */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-envelope-encryption-key": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["EnvelopeEncryptionKey"];
+			};
+		};
+		responses: {
+			/** @description Create envelope encryption key */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["EnvelopeEncryptionKey"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Bad Gateway */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-data-encryption-keys-by-envelope": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path: {
+				/** @description Envelope encryption key ID */
+				envelope_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List data encryption keys */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DataEncryptionKeyListItemPaginatedResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Bad Gateway */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-data-encryption-key": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Envelope encryption key ID */
+				envelope_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateDataEncryptionKeyParamsRoute"];
+			};
+		};
+		responses: {
+			/** @description Create data encryption key */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DataEncryptionKey"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Bad Gateway */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"import-data-encryption-key": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Envelope encryption key ID */
+				envelope_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ImportDataEncryptionKeyParamsRoute"];
+			};
+		};
+		responses: {
+			/** @description Import data encryption key */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DataEncryptionKey"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Bad Gateway */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"migrate-data-encryption-key": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Envelope encryption key ID */
+				envelope_id: string;
+				/** @description Data encryption key ID */
+				dek_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["MigrateDataEncryptionKeyParamsRoute"];
+			};
+		};
+		responses: {
+			/** @description Migrate data encryption key */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Bad Gateway */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"migrate-all-data-encryption-keys": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Envelope encryption key ID */
+				envelope_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["MigrateAllDataEncryptionKeysParamsRoute"];
+			};
+		};
+		responses: {
+			/** @description Migrate all data encryption keys */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Bad Gateway */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-secrets": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List secrets */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ListSecretsResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-secret": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateSecretRequest"];
+			};
+		};
+		responses: {
+			/** @description Create a secret */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Secret"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"import-secret": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ImportSecretRequest"];
+			};
+		};
+		responses: {
+			/** @description Import a pre-encrypted secret */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Secret"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-secret-by-key": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Secret key */
+				key: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get secret by key */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Secret"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-decrypted-secrets": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List secrets with decrypted values */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ListDecryptedSecretsResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-secret-by-id": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Secret ID */
+				secret_id: components["schemas"]["WrappedUuidV4"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get secret by id */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Secret"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-secret": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Secret ID */
+				secret_id: components["schemas"]["WrappedUuidV4"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateSecretRequest"];
+			};
+		};
+		responses: {
+			/** @description Update secret */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Secret"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"delete-secret": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Secret ID */
+				secret_id: components["schemas"]["WrappedUuidV4"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Delete secret */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DeleteSecretResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-variables": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List variables */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ListVariablesResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateVariableRequest"];
+			};
+		};
+		responses: {
+			/** @description Create a variable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Variable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"import-variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ImportVariableRequest"];
+			};
+		};
+		responses: {
+			/** @description Import a variable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Variable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-variable-by-key": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Variable key */
+				key: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get variable by key */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Variable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-variable-by-id": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Variable ID */
+				variable_id: components["schemas"]["WrappedUuidV4"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Get variable by id */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Variable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Variable ID */
+				variable_id: components["schemas"]["WrappedUuidV4"];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateVariableRequest"];
+			};
+		};
+		responses: {
+			/** @description Update variable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Variable"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"delete-variable": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Variable ID */
+				variable_id: components["schemas"]["WrappedUuidV4"];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Delete variable */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["DeleteVariableResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Unauthorized */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Forbidden */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Not Found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-list-groups": {
+		parameters: {
+			query?: {
+				/** @description Filter expression (e.g., userName eq "john") */
+				filter?: string;
+				/** @description Attribute(s) to sort by */
+				sortBy?: string;
+				/** @description Sort order (ascending or descending) */
+				sortOrder?: string;
+				/** @description 1-based index of the first result */
+				startIndex?: number;
+				/** @description Number of results per page */
+				count?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of groups */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimListResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-create-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ScimGroup"];
+			};
+		};
+		responses: {
+			/** @description Group created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimGroup"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Conflict - Group already exists */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-get-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Group found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimGroup"];
+				};
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-replace-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ScimGroup"];
+			};
+		};
+		responses: {
+			/** @description Group replaced */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimGroup"];
+				};
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-delete-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Group deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-patch-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ScimPatchRequest"];
+			};
+		};
+		responses: {
+			/** @description Group patched */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimGroup"];
+				};
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-list-users": {
+		parameters: {
+			query?: {
+				/** @description Filter expression (e.g., userName eq "john") */
+				filter?: string;
+				/** @description Attribute(s) to sort by */
+				sortBy?: string;
+				/** @description Sort order (ascending or descending) */
+				sortOrder?: string;
+				/** @description 1-based index of the first result */
+				startIndex?: number;
+				/** @description Number of results per page */
+				count?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of users */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimListResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-create-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ScimUser"];
+			};
+		};
+		responses: {
+			/** @description User created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimUser"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Conflict - User already exists */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-get-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description User found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimUser"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-replace-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ScimUser"];
+			};
+		};
+		responses: {
+			/** @description User replaced */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimUser"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-delete-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description User deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"scim-patch-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ScimPatchRequest"];
+			};
+		};
+		responses: {
+			/** @description User patched */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ScimUser"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_get_jwks: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description JWKS (JSON Web Key Set) */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["JwksResponse"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_list_api_keys: {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of API keys */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ListApiKeysResponse"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_create_api_key: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateApiKeyParams"];
+			};
+		};
+		responses: {
+			/** @description API key created successfully */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateApiKeyResponse"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_import_api_key: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["EncryptedApiKeyConfig"];
+			};
+		};
+		responses: {
+			/** @description API key imported successfully */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TupleUnit"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_delete_api_key: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description ID of the API key to delete */
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description API key deleted successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TupleUnit"];
+				};
+			};
+			/** @description API key not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_start_authorization: {
+		parameters: {
+			query?: {
+				/**
+				 * @description Optional override for where to redirect after successful login
+				 * @example /
+				 */
+				redirect_after_login?: string | null;
+			};
+			header?: never;
+			path: {
+				/** @description ID of the user auth flow configuration to use */
+				config_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Redirect to IdP authorization endpoint */
+			302: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Configuration not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_auth_callback: {
+		parameters: {
+			query?: {
+				/**
+				 * @description Authorization code from the IdP
+				 * @example abc123
+				 */
+				code?: string | null;
+				/**
+				 * @description State parameter for CSRF validation
+				 * @example xyz789
+				 */
+				state?: string | null;
+				/**
+				 * @description Error from the IdP (if any)
+				 * @example access_denied
+				 */
+				error?: string | null;
+				/**
+				 * @description Error description from the IdP
+				 * @example User denied access
+				 */
+				error_description?: string | null;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Redirect to post-login URL with tokens set */
+			302: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Invalid request or OAuth error */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_refresh_token: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Optional refresh token in body. If not provided, will be read from cookie. */
+		requestBody?: {
+			content: {
+				"application/json": null | components["schemas"]["RefreshTokenRequest"];
+			};
+		};
+		responses: {
+			/** @description Token refresh successful */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TokenResponse"];
+				};
+			};
+			/** @description Authentication failed */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_whoami: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Current authenticated identity */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Identity"];
+				};
+			};
+			/** @description Authentication failed */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-groups": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of groups */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["GroupPaginatedResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateGroupRequest"];
+			};
+		};
+		responses: {
+			/** @description Group created */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Group"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Group found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Group"];
+				};
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"delete-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Group deleted */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-group": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateGroupRequest"];
+			};
+		};
+		responses: {
+			/** @description Group updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Group"];
+				};
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-group-members": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of group members */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["GroupMemberWithUserPaginatedResponse"];
+				};
+			};
+			/** @description Group not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"add-group-member": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["AddGroupMemberRequest"];
+			};
+		};
+		responses: {
+			/** @description Member added */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Group or user not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"remove-group-member": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Group ID */
+				group_id: string;
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Member removed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Group, user, or membership not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_list_jwks: {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of JWKs */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["JwkResponsePaginatedResponse"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_invalidate_jwk: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Key ID */
+				kid: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description JWK invalidated successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description JWK not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_list_sts_configs: {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of STS configurations */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["StsTokenConfigPaginatedResponse"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_create_sts_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["StsTokenConfig"];
+			};
+		};
+		responses: {
+			/** @description STS configuration created successfully */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["StsTokenConfig"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_get_sts_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description ID of the STS configuration to retrieve */
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description STS configuration found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["StsTokenConfig"];
+				};
+			};
+			/** @description STS configuration not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_delete_sts_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description ID of the STS configuration to delete */
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description STS configuration deleted successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TupleUnit"];
+				};
+			};
+			/** @description STS configuration not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_exchange_sts_token: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description STS configuration ID */
+				sts_config_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Token exchange successful */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["NormalizedTokenIssuanceResult"];
+				};
+			};
+			/** @description Authentication failed */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description STS config not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_list_user_auth_flow_configs: {
+		parameters: {
+			query?: {
+				/** @example 10 */
+				page_size?: number | null;
+				/** @example  */
+				next_page_token?: string | null;
+				/**
+				 * @description Filter by configuration type (oidc_authorization_code_flow, oauth_authorization_code_flow, etc.)
+				 * @example oidc_authorization_code_flow
+				 */
+				type?: string | null;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of user auth flow configurations */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["ListUserAuthFlowConfigResponse"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_create_user_auth_flow_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateUserAuthFlowConfigParams"];
+			};
+		};
+		responses: {
+			/** @description User auth flow configuration created successfully */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["CreateUserAuthFlowConfigResponse"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_import_user_auth_flow_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["ImportUserAuthFlowConfigParams"];
+			};
+		};
+		responses: {
+			/** @description User auth flow configuration imported successfully */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TupleUnit"];
+				};
+			};
+			/** @description Invalid request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_get_user_auth_flow_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description ID of the user auth flow configuration to retrieve */
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description User auth flow configuration found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["GetUserAuthFlowConfigResponse"];
+				};
+			};
+			/** @description User auth flow configuration not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	route_delete_user_auth_flow_config: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description ID of the user auth flow configuration to delete */
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description User auth flow configuration deleted successfully */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["TupleUnit"];
+				};
+			};
+			/** @description User auth flow configuration not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-users": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+				user_type?: string;
+				role?: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of users */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["UserPaginatedResponse"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"create-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["CreateUserRequest"];
+			};
+		};
+		responses: {
+			/** @description User created */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["User"];
+				};
+			};
+			/** @description Bad Request */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"get-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description User found */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["User"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"delete-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description User deleted */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"update-user": {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				"application/json": components["schemas"]["UpdateUserRequest"];
+			};
+		};
+		responses: {
+			/** @description User updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["User"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+		};
+	};
+	"list-user-groups": {
+		parameters: {
+			query: {
+				page_size: number;
+				next_page_token?: string;
+			};
+			header?: never;
+			path: {
+				/** @description User ID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description List of user's groups */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["UserGroupWithGroupPaginatedResponse"];
+				};
+			};
+			/** @description User not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
+				};
+			};
+			/** @description Internal Server Error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					"application/json": components["schemas"]["Error"];
 				};
 			};
 		};
@@ -3563,2685 +7853,6 @@ export interface operations {
 			};
 			/** @description Bad Request */
 			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"create-dek-alias": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["CreateDekAliasRequest"];
-			};
-		};
-		responses: {
-			/** @description Create DEK alias */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["DataEncryptionKeyAlias"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Bad Gateway */
-			502: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"get-dek-by-alias-or-id": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description DEK alias or ID */
-				alias: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Get DEK by alias or ID */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["DataEncryptionKey"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Bad Gateway */
-			502: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"update-dek-alias": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description DEK alias */
-				alias: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["UpdateAliasParams"];
-			};
-		};
-		responses: {
-			/** @description Update DEK alias */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["DataEncryptionKeyAlias"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Bad Gateway */
-			502: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"delete-dek-alias": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description DEK alias */
-				alias: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Delete DEK alias */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Bad Gateway */
-			502: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"list-envelope-encryption-keys": {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List envelope encryption keys */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["EnvelopeEncryptionKeyPaginatedResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Bad Gateway */
-			502: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"create-envelope-encryption-key": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["EnvelopeEncryptionKey"];
-			};
-		};
-		responses: {
-			/** @description Create envelope encryption key */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["EnvelopeEncryptionKey"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Bad Gateway */
-			502: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"list-data-encryption-keys-by-envelope": {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-			};
-			header?: never;
-			path: {
-				/** @description Envelope encryption key ID */
-				envelope_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List data encryption keys */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["DataEncryptionKeyListItemPaginatedResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Bad Gateway */
-			502: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"create-data-encryption-key": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Envelope encryption key ID */
-				envelope_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["CreateDataEncryptionKeyParamsRoute"];
-			};
-		};
-		responses: {
-			/** @description Create data encryption key */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["DataEncryptionKey"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Bad Gateway */
-			502: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"import-data-encryption-key": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Envelope encryption key ID */
-				envelope_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["ImportDataEncryptionKeyParamsRoute"];
-			};
-		};
-		responses: {
-			/** @description Import data encryption key */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["DataEncryptionKey"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Bad Gateway */
-			502: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"migrate-data-encryption-key": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Envelope encryption key ID */
-				envelope_id: string;
-				/** @description Data encryption key ID */
-				dek_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["MigrateDataEncryptionKeyParamsRoute"];
-			};
-		};
-		responses: {
-			/** @description Migrate data encryption key */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Bad Gateway */
-			502: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"migrate-all-data-encryption-keys": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Envelope encryption key ID */
-				envelope_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["MigrateAllDataEncryptionKeysParamsRoute"];
-			};
-		};
-		responses: {
-			/** @description Migrate all data encryption keys */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Bad Gateway */
-			502: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"list-environment-variables": {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List environment variables */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ListEnvironmentVariablesResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"create-environment-variable": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["CreateEnvironmentVariableRequest"];
-			};
-		};
-		responses: {
-			/** @description Create an environment variable */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["EnvironmentVariable"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"import-environment-variable": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["ImportEnvironmentVariableRequest"];
-			};
-		};
-		responses: {
-			/** @description Import an environment variable */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["EnvironmentVariable"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"get-environment-variable-by-key": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Environment variable key */
-				key: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Get environment variable by key */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["EnvironmentVariable"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"get-environment-variable-by-id": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Environment variable ID */
-				env_var_id: components["schemas"]["WrappedUuidV4"];
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Get environment variable by id */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["EnvironmentVariable"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"update-environment-variable": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Environment variable ID */
-				env_var_id: components["schemas"]["WrappedUuidV4"];
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["UpdateEnvironmentVariableRequest"];
-			};
-		};
-		responses: {
-			/** @description Update environment variable */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["EnvironmentVariable"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"delete-environment-variable": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Environment variable ID */
-				env_var_id: components["schemas"]["WrappedUuidV4"];
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Delete environment variable */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["DeleteEnvironmentVariableResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_get_jwks: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description JWKS (JSON Web Key Set) */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["JwksResponse"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_list_api_keys: {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List of API keys */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ListApiKeysResponse"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_create_api_key: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["CreateApiKeyParams"];
-			};
-		};
-		responses: {
-			/** @description API key created successfully */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["CreateApiKeyResponse"];
-				};
-			};
-			/** @description Invalid request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_import_api_key: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["EncryptedApiKeyConfig"];
-			};
-		};
-		responses: {
-			/** @description API key imported successfully */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["TupleUnit"];
-				};
-			};
-			/** @description Invalid request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_delete_api_key: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description ID of the API key to delete */
-				id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description API key deleted successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["TupleUnit"];
-				};
-			};
-			/** @description API key not found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_start_authorization: {
-		parameters: {
-			query?: {
-				/**
-				 * @description Optional override for where to redirect after successful login
-				 * @example /
-				 */
-				redirect_after_login?: string | null;
-			};
-			header?: never;
-			path: {
-				/** @description ID of the user auth flow configuration to use */
-				config_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Redirect to IdP authorization endpoint */
-			302: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Configuration not found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_auth_callback: {
-		parameters: {
-			query?: {
-				/**
-				 * @description Authorization code from the IdP
-				 * @example abc123
-				 */
-				code?: string | null;
-				/**
-				 * @description State parameter for CSRF validation
-				 * @example xyz789
-				 */
-				state?: string | null;
-				/**
-				 * @description Error from the IdP (if any)
-				 * @example access_denied
-				 */
-				error?: string | null;
-				/**
-				 * @description Error description from the IdP
-				 * @example User denied access
-				 */
-				error_description?: string | null;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Redirect to post-login URL with tokens set */
-			302: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Invalid request or OAuth error */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_refresh_token: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/** @description Optional refresh token in body. If not provided, will be read from cookie. */
-		requestBody?: {
-			content: {
-				"application/json": null | components["schemas"]["RefreshTokenRequest"];
-			};
-		};
-		responses: {
-			/** @description Token refresh successful */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["TokenResponse"];
-				};
-			};
-			/** @description Authentication failed */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description User not found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_whoami: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Current authenticated identity */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Identity"];
-				};
-			};
-			/** @description Authentication failed */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_list_jwks: {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List of JWKs */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["JwkResponsePaginatedResponse"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_invalidate_jwk: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Key ID */
-				kid: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description JWK invalidated successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description JWK not found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_list_sts_configs: {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List of STS configurations */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["StsTokenConfigPaginatedResponse"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_create_sts_config: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["StsTokenConfig"];
-			};
-		};
-		responses: {
-			/** @description STS configuration created successfully */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["StsTokenConfig"];
-				};
-			};
-			/** @description Invalid request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_get_sts_config: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description ID of the STS configuration to retrieve */
-				id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description STS configuration found */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["StsTokenConfig"];
-				};
-			};
-			/** @description STS configuration not found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_delete_sts_config: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description ID of the STS configuration to delete */
-				id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description STS configuration deleted successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["TupleUnit"];
-				};
-			};
-			/** @description STS configuration not found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_exchange_sts_token: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description STS configuration ID */
-				sts_config_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Token exchange successful */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["NormalizedTokenIssuanceResult"];
-				};
-			};
-			/** @description Authentication failed */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description STS config not found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_list_user_auth_flow_configs: {
-		parameters: {
-			query?: {
-				/** @example 10 */
-				page_size?: number | null;
-				/** @example  */
-				next_page_token?: string | null;
-				/**
-				 * @description Filter by configuration type (oidc_authorization_code_flow, oauth_authorization_code_flow, etc.)
-				 * @example oidc_authorization_code_flow
-				 */
-				type?: string | null;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List of user auth flow configurations */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ListUserAuthFlowConfigResponse"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_create_user_auth_flow_config: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["CreateUserAuthFlowConfigParams"];
-			};
-		};
-		responses: {
-			/** @description User auth flow configuration created successfully */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["CreateUserAuthFlowConfigResponse"];
-				};
-			};
-			/** @description Invalid request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_import_user_auth_flow_config: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["ImportUserAuthFlowConfigParams"];
-			};
-		};
-		responses: {
-			/** @description User auth flow configuration imported successfully */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["TupleUnit"];
-				};
-			};
-			/** @description Invalid request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_get_user_auth_flow_config: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description ID of the user auth flow configuration to retrieve */
-				id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description User auth flow configuration found */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["GetUserAuthFlowConfigResponse"];
-				};
-			};
-			/** @description User auth flow configuration not found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	route_delete_user_auth_flow_config: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description ID of the user auth flow configuration to delete */
-				id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description User auth flow configuration deleted successfully */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["TupleUnit"];
-				};
-			};
-			/** @description User auth flow configuration not found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal server error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"list-secrets": {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List secrets */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ListSecretsResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"create-secret": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["CreateSecretRequest"];
-			};
-		};
-		responses: {
-			/** @description Create a secret */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Secret"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"import-secret": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["ImportSecretRequest"];
-			};
-		};
-		responses: {
-			/** @description Import a pre-encrypted secret */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Secret"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"get-secret-by-key": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Secret key */
-				key: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Get secret by key */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Secret"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"list-decrypted-secrets": {
-		parameters: {
-			query: {
-				page_size: number;
-				next_page_token?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description List secrets with decrypted values */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["ListDecryptedSecretsResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"get-secret-by-id": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Secret ID */
-				secret_id: components["schemas"]["WrappedUuidV4"];
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Get secret by id */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Secret"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"update-secret": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Secret ID */
-				secret_id: components["schemas"]["WrappedUuidV4"];
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				"application/json": components["schemas"]["UpdateSecretRequest"];
-			};
-		};
-		responses: {
-			/** @description Update secret */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Secret"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Internal Server Error */
-			500: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-		};
-	};
-	"delete-secret": {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Secret ID */
-				secret_id: components["schemas"]["WrappedUuidV4"];
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Delete secret */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["DeleteSecretResponse"];
-				};
-			};
-			/** @description Bad Request */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Unauthorized */
-			401: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Forbidden */
-			403: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					"application/json": components["schemas"]["Error"];
-				};
-			};
-			/** @description Not Found */
-			404: {
 				headers: {
 					[name: string]: unknown;
 				};

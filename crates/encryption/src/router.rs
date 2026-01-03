@@ -72,6 +72,11 @@ pub fn create_router() -> OpenApiRouter<EncryptionService> {
     summary = "Create envelope key",
     description = "Create a new envelope encryption key (master key) for encrypting data encryption keys",
     operation_id = "create-envelope-encryption-key",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_create_envelope_encryption_key(
     State(ctx): State<EncryptionService>,
@@ -111,6 +116,11 @@ async fn route_create_envelope_encryption_key(
     summary = "List envelope keys",
     description = "List all envelope encryption keys (master keys) with pagination",
     operation_id = "list-envelope-encryption-keys",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_envelope_encryption_keys(
     State(ctx): State<EncryptionService>,
@@ -158,6 +168,11 @@ pub struct CreateDataEncryptionKeyParamsRoute {
     summary = "Create data key",
     description = "Create a new data encryption key (DEK) encrypted with the specified envelope encryption key",
     operation_id = "create-data-encryption-key",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_create_data_encryption_key(
     State(ctx): State<EncryptionService>,
@@ -213,6 +228,11 @@ pub struct ImportDataEncryptionKeyParamsRoute {
     summary = "Import data key",
     description = "Import an existing pre-encrypted data encryption key into the system",
     operation_id = "import-data-encryption-key",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_import_data_encryption_key(
     State(ctx): State<EncryptionService>,
@@ -264,6 +284,11 @@ async fn route_import_data_encryption_key(
     summary = "List data keys",
     description = "List all data encryption keys encrypted with the specified envelope encryption key",
     operation_id = "list-data-encryption-keys-by-envelope",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_data_encryption_keys(
     State(ctx): State<EncryptionService>,
@@ -309,6 +334,11 @@ pub struct MigrateDataEncryptionKeyParamsRoute {
     summary = "Migrate data key",
     description = "Migrate a data encryption key to be encrypted with a different envelope encryption key",
     operation_id = "migrate-data-encryption-key",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_migrate_data_encryption_key(
     State(ctx): State<EncryptionService>,
@@ -364,6 +394,11 @@ pub struct MigrateAllDataEncryptionKeysParamsRoute {
     summary = "Migrate all data keys",
     description = "Migrate all data encryption keys encrypted with the specified envelope key to a new envelope key",
     operation_id = "migrate-all-data-encryption-keys",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_migrate_all_data_encryption_keys(
     State(ctx): State<EncryptionService>,
@@ -419,6 +454,11 @@ pub struct CreateDekAliasRequest {
     summary = "Create DEK alias",
     description = "Create an alias for a data encryption key to enable lookup by friendly name",
     operation_id = "create-dek-alias",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_create_dek_alias(
     State(ctx): State<EncryptionService>,
@@ -453,6 +493,11 @@ async fn route_create_dek_alias(
     summary = "Get DEK by alias",
     description = "Retrieve a data encryption key by its alias or ID",
     operation_id = "get-dek-by-alias-or-id",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_get_dek_by_alias_or_id(
     State(ctx): State<EncryptionService>,
@@ -487,6 +532,11 @@ async fn route_get_dek_by_alias_or_id(
     summary = "Update DEK alias",
     description = "Update the alias for a data encryption key",
     operation_id = "update-dek-alias",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_update_dek_alias(
     State(ctx): State<EncryptionService>,
@@ -525,6 +575,11 @@ async fn route_update_dek_alias(
     summary = "Delete DEK alias",
     description = "Delete an alias for a data encryption key",
     operation_id = "delete-dek-alias",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_delete_dek_alias(
     State(ctx): State<EncryptionService>,

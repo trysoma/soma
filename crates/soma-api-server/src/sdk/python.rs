@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use super::interface::{ClientCtx, SdkClient};
-use futures::future;
 
 pub struct Python {}
 
@@ -63,9 +62,6 @@ impl SdkClient for Python {
                 },
             )
             .await?;
-
-        // Wait indefinitely - the process manager will handle shutdown by aborting this thread
-        future::pending::<()>().await;
 
         Ok(())
     }

@@ -380,182 +380,185 @@ pub async fn handle_authorization_handshake_callback<R: UserRepositoryLike>(
     })
 }
 
-#[cfg(all(test, feature = "integration_test"))]
-mod integration_test {
-    use super::*;
-    use crate::logic::token_mapping::TokenMapping;
-    use crate::logic::token_mapping::template::{JwtTokenMappingConfig, MappingSource};
-    use crate::test::dex::{
-        DEX_AUTH_ENDPOINT, DEX_CLIENT_ID, DEX_CLIENT_SECRET, DEX_JWKS_ENDPOINT, DEX_OAUTH_SCOPES,
-        DEX_REDIRECT_URI, DEX_TOKEN_ENDPOINT,
-    };
+#[cfg(test)]
+mod tests {
+    mod integration {
+        use super::super::*;
+        use crate::logic::token_mapping::TokenMapping;
+        use crate::logic::token_mapping::template::{JwtTokenMappingConfig, MappingSource};
+        use crate::test::dex::{
+            DEX_AUTH_ENDPOINT, DEX_CLIENT_ID, DEX_CLIENT_SECRET, DEX_JWKS_ENDPOINT,
+            DEX_OAUTH_SCOPES, DEX_REDIRECT_URI, DEX_TOKEN_ENDPOINT,
+        };
+        use shared_macros::integration_test;
 
-    /// Create a test OAuth config using Dex endpoints (no OIDC/userinfo).
-    fn create_test_oauth_config() -> OauthConfig {
-        OauthConfig {
-            id: "test-oauth".to_string(),
-            authorization_endpoint: DEX_AUTH_ENDPOINT.to_string(),
-            token_endpoint: DEX_TOKEN_ENDPOINT.to_string(),
-            client_id: DEX_CLIENT_ID.to_string(),
-            client_secret: DEX_CLIENT_SECRET.to_string(),
-            scopes: DEX_OAUTH_SCOPES.iter().map(|s| s.to_string()).collect(),
-            jwks_endpoint: DEX_JWKS_ENDPOINT.to_string(),
-            introspect_url: None,
-            mapping: create_test_mapping(),
+        /// Create a test OAuth config using Dex endpoints (no OIDC/userinfo).
+        fn create_test_oauth_config() -> OauthConfig {
+            OauthConfig {
+                id: "test-oauth".to_string(),
+                authorization_endpoint: DEX_AUTH_ENDPOINT.to_string(),
+                token_endpoint: DEX_TOKEN_ENDPOINT.to_string(),
+                client_id: DEX_CLIENT_ID.to_string(),
+                client_secret: DEX_CLIENT_SECRET.to_string(),
+                scopes: DEX_OAUTH_SCOPES.iter().map(|s| s.to_string()).collect(),
+                jwks_endpoint: DEX_JWKS_ENDPOINT.to_string(),
+                introspect_url: None,
+                mapping: create_test_mapping(),
+            }
         }
-    }
 
-    /// Create a minimal token mapping config for OAuth tests.
-    /// For OAuth (no OIDC), claims come from the access token.
-    fn create_test_mapping() -> TokenMapping {
-        TokenMapping::JwtTemplate(JwtTokenMappingConfig {
-            issuer_field: MappingSource::AccessToken("iss".to_string()),
-            audience_field: MappingSource::AccessToken("aud".to_string()),
-            scopes_field: None,
-            sub_field: MappingSource::AccessToken("sub".to_string()),
-            email_field: Some(MappingSource::AccessToken("email".to_string())),
-            groups_field: None,
-            group_to_role_mappings: vec![],
-            scope_to_role_mappings: vec![],
-            scope_to_group_mappings: vec![],
-        })
-    }
+        /// Create a minimal token mapping config for OAuth tests.
+        /// For OAuth (no OIDC), claims come from the access token.
+        fn create_test_mapping() -> TokenMapping {
+            TokenMapping::JwtTemplate(JwtTokenMappingConfig {
+                issuer_field: MappingSource::AccessToken("iss".to_string()),
+                audience_field: MappingSource::AccessToken("aud".to_string()),
+                scopes_field: None,
+                sub_field: MappingSource::AccessToken("sub".to_string()),
+                email_field: Some(MappingSource::AccessToken("email".to_string())),
+                groups_field: None,
+                group_to_role_mappings: vec![],
+                scope_to_role_mappings: vec![],
+                scope_to_group_mappings: vec![],
+            })
+        }
 
-    #[tokio::test]
-    async fn test_build_authorization_url() {
-        let csrf_state = CsrfToken::new_random();
+        #[integration_test]
+        async fn test_build_authorization_url() {
+            let csrf_state = CsrfToken::new_random();
 
-        let params = BaseAuthorizationParams {
-            authorization_endpoint: DEX_AUTH_ENDPOINT,
-            token_endpoint: DEX_TOKEN_ENDPOINT,
-            redirect_uri: DEX_REDIRECT_URI,
-            client_id: DEX_CLIENT_ID,
-            scopes: &DEX_OAUTH_SCOPES
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<_>>(),
-            pkce_challenge: None,
-            csrf_state: &csrf_state,
-            extra_params: vec![],
-        };
+            let params = BaseAuthorizationParams {
+                authorization_endpoint: DEX_AUTH_ENDPOINT,
+                token_endpoint: DEX_TOKEN_ENDPOINT,
+                redirect_uri: DEX_REDIRECT_URI,
+                client_id: DEX_CLIENT_ID,
+                scopes: &DEX_OAUTH_SCOPES
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>(),
+                pkce_challenge: None,
+                csrf_state: &csrf_state,
+                extra_params: vec![],
+            };
 
-        let url = build_authorization_url(params).expect("Failed to build authorization URL");
+            let url = build_authorization_url(params).expect("Failed to build authorization URL");
 
-        // Verify URL structure
-        assert!(url.starts_with(DEX_AUTH_ENDPOINT));
-        assert!(url.contains(&format!("client_id={DEX_CLIENT_ID}")));
-        assert!(url.contains(&format!(
-            "redirect_uri={}",
-            urlencoding::encode(DEX_REDIRECT_URI)
-        )));
-        assert!(url.contains("response_type=code"));
-        assert!(url.contains(&format!("state={}", csrf_state.secret())));
-    }
+            // Verify URL structure
+            assert!(url.starts_with(DEX_AUTH_ENDPOINT));
+            assert!(url.contains(&format!("client_id={DEX_CLIENT_ID}")));
+            assert!(url.contains(&format!(
+                "redirect_uri={}",
+                urlencoding::encode(DEX_REDIRECT_URI)
+            )));
+            assert!(url.contains("response_type=code"));
+            assert!(url.contains(&format!("state={}", csrf_state.secret())));
+        }
 
-    #[tokio::test]
-    async fn test_build_authorization_url_with_pkce() {
-        let csrf_state = CsrfToken::new_random();
-        let (pkce_challenge, _verifier) = oauth2::PkceCodeChallenge::new_random_sha256();
+        #[integration_test]
+        async fn test_build_authorization_url_with_pkce() {
+            let csrf_state = CsrfToken::new_random();
+            let (pkce_challenge, _verifier) = oauth2::PkceCodeChallenge::new_random_sha256();
 
-        let params = BaseAuthorizationParams {
-            authorization_endpoint: DEX_AUTH_ENDPOINT,
-            token_endpoint: DEX_TOKEN_ENDPOINT,
-            redirect_uri: DEX_REDIRECT_URI,
-            client_id: DEX_CLIENT_ID,
-            scopes: &DEX_OAUTH_SCOPES
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<_>>(),
-            pkce_challenge: Some(&pkce_challenge),
-            csrf_state: &csrf_state,
-            extra_params: vec![],
-        };
+            let params = BaseAuthorizationParams {
+                authorization_endpoint: DEX_AUTH_ENDPOINT,
+                token_endpoint: DEX_TOKEN_ENDPOINT,
+                redirect_uri: DEX_REDIRECT_URI,
+                client_id: DEX_CLIENT_ID,
+                scopes: &DEX_OAUTH_SCOPES
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>(),
+                pkce_challenge: Some(&pkce_challenge),
+                csrf_state: &csrf_state,
+                extra_params: vec![],
+            };
 
-        let url = build_authorization_url(params).expect("Failed to build authorization URL");
+            let url = build_authorization_url(params).expect("Failed to build authorization URL");
 
-        // Verify PKCE parameters are included
-        assert!(url.contains("code_challenge="));
-        assert!(url.contains("code_challenge_method=S256"));
-    }
+            // Verify PKCE parameters are included
+            assert!(url.contains("code_challenge="));
+            assert!(url.contains("code_challenge_method=S256"));
+        }
 
-    #[tokio::test]
-    async fn test_build_authorization_url_with_extra_params() {
-        let csrf_state = CsrfToken::new_random();
+        #[integration_test]
+        async fn test_build_authorization_url_with_extra_params() {
+            let csrf_state = CsrfToken::new_random();
 
-        let params = BaseAuthorizationParams {
-            authorization_endpoint: DEX_AUTH_ENDPOINT,
-            token_endpoint: DEX_TOKEN_ENDPOINT,
-            redirect_uri: DEX_REDIRECT_URI,
-            client_id: DEX_CLIENT_ID,
-            scopes: &DEX_OAUTH_SCOPES
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<_>>(),
-            pkce_challenge: None,
-            csrf_state: &csrf_state,
-            extra_params: vec![("nonce", "test-nonce-123".to_string())],
-        };
+            let params = BaseAuthorizationParams {
+                authorization_endpoint: DEX_AUTH_ENDPOINT,
+                token_endpoint: DEX_TOKEN_ENDPOINT,
+                redirect_uri: DEX_REDIRECT_URI,
+                client_id: DEX_CLIENT_ID,
+                scopes: &DEX_OAUTH_SCOPES
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>(),
+                pkce_challenge: None,
+                csrf_state: &csrf_state,
+                extra_params: vec![("nonce", "test-nonce-123".to_string())],
+            };
 
-        let url = build_authorization_url(params).expect("Failed to build authorization URL");
+            let url = build_authorization_url(params).expect("Failed to build authorization URL");
 
-        // Verify extra parameters are included
-        assert!(url.contains("nonce=test-nonce-123"));
-    }
+            // Verify extra parameters are included
+            assert!(url.contains("nonce=test-nonce-123"));
+        }
 
-    #[tokio::test]
-    async fn test_oauth_token_exchange_invalid_code() {
-        let params = BaseTokenExchangeParams {
-            token_endpoint: DEX_TOKEN_ENDPOINT,
-            client_id: DEX_CLIENT_ID,
-            client_secret: DEX_CLIENT_SECRET,
-            redirect_uri: DEX_REDIRECT_URI,
-            code: "invalid_oauth_code",
-            code_verifier: None,
-        };
+        #[integration_test]
+        async fn test_oauth_token_exchange_invalid_code() {
+            let params = BaseTokenExchangeParams {
+                token_endpoint: DEX_TOKEN_ENDPOINT,
+                client_id: DEX_CLIENT_ID,
+                client_secret: DEX_CLIENT_SECRET,
+                redirect_uri: DEX_REDIRECT_URI,
+                code: "invalid_oauth_code",
+                code_verifier: None,
+            };
 
-        let result = exchange_code_for_tokens(params).await;
+            let result = exchange_code_for_tokens(params).await;
 
-        assert!(
-            result.is_err(),
-            "Should fail with invalid authorization code"
-        );
-    }
+            assert!(
+                result.is_err(),
+                "Should fail with invalid authorization code"
+            );
+        }
 
-    #[tokio::test]
-    async fn test_oauth_token_exchange_wrong_redirect_uri() {
-        let params = BaseTokenExchangeParams {
-            token_endpoint: DEX_TOKEN_ENDPOINT,
-            client_id: DEX_CLIENT_ID,
-            client_secret: DEX_CLIENT_SECRET,
-            redirect_uri: "http://wrong.example.com/callback",
-            code: "some_code",
-            code_verifier: None,
-        };
+        #[integration_test]
+        async fn test_oauth_token_exchange_wrong_redirect_uri() {
+            let params = BaseTokenExchangeParams {
+                token_endpoint: DEX_TOKEN_ENDPOINT,
+                client_id: DEX_CLIENT_ID,
+                client_secret: DEX_CLIENT_SECRET,
+                redirect_uri: "http://wrong.example.com/callback",
+                code: "some_code",
+                code_verifier: None,
+            };
 
-        let result = exchange_code_for_tokens(params).await;
+            let result = exchange_code_for_tokens(params).await;
 
-        assert!(result.is_err(), "Should fail with mismatched redirect URI");
-    }
+            assert!(result.is_err(), "Should fail with mismatched redirect URI");
+        }
 
-    #[tokio::test]
-    async fn test_oauth_config_validation() {
-        let config = create_test_oauth_config();
+        #[integration_test]
+        async fn test_oauth_config_validation() {
+            let config = create_test_oauth_config();
 
-        // Verify OAuth config (no OIDC)
-        assert_eq!(config.client_id, DEX_CLIENT_ID);
-        assert_eq!(config.token_endpoint, DEX_TOKEN_ENDPOINT);
-        assert_eq!(config.jwks_endpoint, DEX_JWKS_ENDPOINT);
+            // Verify OAuth config (no OIDC)
+            assert_eq!(config.client_id, DEX_CLIENT_ID);
+            assert_eq!(config.token_endpoint, DEX_TOKEN_ENDPOINT);
+            assert_eq!(config.jwks_endpoint, DEX_JWKS_ENDPOINT);
 
-        // OAuth config should NOT have openid scope
-        assert!(
-            !config.scopes.contains(&"openid".to_string()),
-            "OAuth config should not include openid scope"
-        );
-    }
+            // OAuth config should NOT have openid scope
+            assert!(
+                !config.scopes.contains(&"openid".to_string()),
+                "OAuth config should not include openid scope"
+            );
+        }
 
-    #[tokio::test]
-    async fn test_create_http_client() {
-        let client = create_http_client();
-        assert!(client.is_ok(), "Should create HTTP client successfully");
+        #[integration_test]
+        async fn test_create_http_client() {
+            let client = create_http_client();
+            assert!(client.is_ok(), "Should create HTTP client successfully");
+        }
     }
 }

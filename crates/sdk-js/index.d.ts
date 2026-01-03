@@ -74,20 +74,20 @@ export interface FunctionMetadata {
 	output: string;
 }
 
-export interface GenerateBridgeClientError {
+export interface GenerateMcpClientError {
 	message: string;
 }
 
-export interface GenerateBridgeClientRequest {
+export interface GenerateMcpClientRequest {
 	functionInstances: Array<FunctionInstanceData>;
 }
 
-export interface GenerateBridgeClientResponse {
-	success?: GenerateBridgeClientSuccess;
-	error?: GenerateBridgeClientError;
+export interface GenerateMcpClientResponse {
+	success?: GenerateMcpClientSuccess;
+	error?: GenerateMcpClientError;
 }
 
-export interface GenerateBridgeClientSuccess {
+export interface GenerateMcpClientSuccess {
 	message: string;
 }
 
@@ -176,7 +176,7 @@ export declare function removeProvider(typeId: string): boolean;
  * Calls the internal resync endpoint on the Soma API server.
  * This triggers the API server to:
  * - Fetch metadata from the SDK (providers, agents)
- * - Sync providers to the bridge registry
+ * - Sync providers to the mcp registry
  * - Register Restate deployments for agents
  * - Sync secrets to the SDK
  * - Sync environment variables to the SDK

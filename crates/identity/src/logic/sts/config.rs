@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
 use shared::primitives::{PaginatedResponse, PaginationRequest, WrappedChronoDateTime};
+use shared_macros::{authn, authz_role};
 use utoipa::ToSchema;
 
 use crate::logic::token_mapping::template::{
@@ -44,6 +45,8 @@ pub enum StsTokenConfigType {
 /// 2. Generates an ID if not provided
 /// 3. Stores the configuration in the repository
 /// 4. Optionally broadcasts a config change event
+#[authz_role(Admin, permission = "sts_config:write")]
+#[authn]
 pub async fn create_sts_config<R: UserRepositoryLike>(
     repository: &R,
     on_config_change_tx: &OnConfigChangeTx,
@@ -100,6 +103,8 @@ pub type DeleteStsConfigResponse = ();
 /// 1. Verifies the configuration exists
 /// 2. Deletes the configuration from the repository
 /// 3. Optionally broadcasts a config change event
+#[authz_role(Admin, permission = "sts_config:delete")]
+#[authn]
 pub async fn delete_sts_config<R: UserRepositoryLike>(
     repository: &R,
     on_config_change_tx: &OnConfigChangeTx,
@@ -139,6 +144,8 @@ pub struct GetStsConfigParams {
 }
 
 /// Get an STS configuration by ID
+#[authz_role(Admin, Maintainer, permission = "sts_config:read")]
+#[authn]
 pub async fn get_sts_config<R: UserRepositoryLike>(
     repository: &R,
     params: GetStsConfigParams,
@@ -160,6 +167,8 @@ pub type ListStsConfigResponse = PaginatedResponse<StsTokenConfig>;
 /// List STS configurations
 ///
 /// This function lists all STS configurations with optional filtering by config_type.
+#[authz_role(Admin, Maintainer, permission = "sts_config:list")]
+#[authn]
 pub async fn list_sts_configs<R: UserRepositoryLike>(
     repository: &R,
     pagination: &PaginationRequest,

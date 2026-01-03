@@ -7,7 +7,7 @@ export const invalidateDataByControllerTypeId = (
 	queryClient.invalidateQueries({
 		queryKey: [
 			"get",
-			"/api/bridge/v1/provider/grouped-by-function",
+			"/api/mcp/v1/provider/grouped-by-function",
 			{ provider_controller_type_id: providerControllerTypeId },
 		],
 		exact: false,
@@ -15,7 +15,7 @@ export const invalidateDataByControllerTypeId = (
 	queryClient.invalidateQueries({
 		queryKey: [
 			"get",
-			"/api/bridge/v1/function-instances",
+			"/api/mcp/v1/function-instances",
 			{ provider_controller_type_id: providerControllerTypeId },
 		],
 		exact: false,
@@ -23,7 +23,7 @@ export const invalidateDataByControllerTypeId = (
 	queryClient.invalidateQueries({
 		queryKey: [
 			"get",
-			"/api/bridge/v1/provider",
+			"/api/mcp/v1/provider",
 			{ provider_controller_type_id: providerControllerTypeId },
 		],
 		exact: false,
@@ -37,24 +37,24 @@ export const invalidateDataByProviderInstanceId = (
 	queryClient.invalidateQueries({
 		queryKey: [
 			"get",
-			"/api/bridge/v1/function-instances",
+			"/api/mcp/v1/function-instances",
 			{ provider_instance_id: providerInstanceId },
 		],
 		exact: false,
 	});
 	queryClient.invalidateQueries({
-		queryKey: ["get", "/api/bridge/v1/provider"],
+		queryKey: ["get", "/api/mcp/v1/provider"],
 		exact: false,
 	});
 };
 
 export const invalidateFunctionInstancesData = (queryClient: QueryClient) => {
 	queryClient.invalidateQueries({
-		queryKey: ["get", "/api/bridge/v1/function-instances"],
+		queryKey: ["get", "/api/mcp/v1/function-instances"],
 		exact: false,
 	});
 	queryClient.invalidateQueries({
-		queryKey: ["get", "/api/bridge/v1/provider/grouped-by-function"],
+		queryKey: ["get", "/api/mcp/v1/provider/grouped-by-function"],
 		exact: false,
 	});
 };
@@ -68,8 +68,7 @@ export const invalidateMcpInstancesData = (queryClient: QueryClient) => {
 				Array.isArray(queryKey) &&
 				queryKey.some(
 					(key) =>
-						typeof key === "string" &&
-						key.includes("/api/bridge/v1/mcp-instance"),
+						typeof key === "string" && key.includes("/api/mcp/v1/mcp-server"),
 				)
 			);
 		},

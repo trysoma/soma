@@ -3,12 +3,9 @@ name = "soma-api-server"
 version.workspace = true
 edition.workspace = true
 
-[features]
-unit_test = []
-
 [dependencies]
 a2a-rs.workspace = true
-bridge.workspace = true
+mcp.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 axum-server.workspace = true
@@ -60,6 +57,7 @@ uds_windows.workspace = true
 zip.workspace = true
 tera.workspace = true
 encryption.workspace = true
+environment.workspace = true
 identity.workspace = true
 
 

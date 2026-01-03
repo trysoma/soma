@@ -148,141 +148,143 @@ pub async fn init_sts_config_cache(cache: &StsConfigCache) -> Result<(), CommonE
     cache.refresh_all().await
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
-    use crate::logic::sts::config::DevModeConfig;
-    use crate::repository::Repository;
-    use shared::primitives::SqlMigrationLoader;
-    use shared::test_utils::repository::setup_in_memory_database;
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
+        use crate::logic::sts::config::DevModeConfig;
+        use crate::repository::Repository;
+        use shared::primitives::SqlMigrationLoader;
+        use shared::test_utils::repository::setup_in_memory_database;
 
-    async fn setup_test_cache() -> StsConfigCache {
-        shared::setup_test!();
+        async fn setup_test_cache() -> StsConfigCache {
+            shared::setup_test!();
 
-        let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
-            .await
-            .unwrap();
-        let repo = Repository::new(conn);
-        StsConfigCache::new(Arc::new(repo))
-    }
+            let (_db, conn) = setup_in_memory_database(vec![Repository::load_sql_migrations()])
+                .await
+                .unwrap();
+            let repo = Repository::new(conn);
+            StsConfigCache::new(Arc::new(repo))
+        }
 
-    fn create_test_config(id: &str) -> StsTokenConfig {
-        StsTokenConfig::DevMode(DevModeConfig { id: id.to_string() })
-    }
+        fn create_test_config(id: &str) -> StsTokenConfig {
+            StsTokenConfig::DevMode(DevModeConfig { id: id.to_string() })
+        }
 
-    #[tokio::test]
-    async fn test_sts_config_cache_new() {
-        let cache = setup_test_cache().await;
-        // Cache should be empty initially
-        assert!(cache.is_empty());
-    }
+        #[tokio::test]
+        async fn test_sts_config_cache_new() {
+            let cache = setup_test_cache().await;
+            // Cache should be empty initially
+            assert!(cache.is_empty());
+        }
 
-    #[tokio::test]
-    async fn test_sts_config_cache_add() {
-        let cache = setup_test_cache().await;
+        #[tokio::test]
+        async fn test_sts_config_cache_add() {
+            let cache = setup_test_cache().await;
 
-        let config = create_test_config("test-config-1");
-        cache.add(config);
+            let config = create_test_config("test-config-1");
+            cache.add(config);
 
-        assert_eq!(cache.len(), 1);
-    }
+            assert_eq!(cache.len(), 1);
+        }
 
-    #[tokio::test]
-    async fn test_sts_config_cache_add_multiple() {
-        let cache = setup_test_cache().await;
+        #[tokio::test]
+        async fn test_sts_config_cache_add_multiple() {
+            let cache = setup_test_cache().await;
 
-        cache.add(create_test_config("config-1"));
-        cache.add(create_test_config("config-2"));
-        cache.add(create_test_config("config-3"));
+            cache.add(create_test_config("config-1"));
+            cache.add(create_test_config("config-2"));
+            cache.add(create_test_config("config-3"));
 
-        assert_eq!(cache.len(), 3);
-    }
+            assert_eq!(cache.len(), 3);
+        }
 
-    #[tokio::test]
-    async fn test_sts_config_cache_remove_by_id() {
-        let cache = setup_test_cache().await;
+        #[tokio::test]
+        async fn test_sts_config_cache_remove_by_id() {
+            let cache = setup_test_cache().await;
 
-        cache.add(create_test_config("config-1"));
-        cache.add(create_test_config("config-2"));
-        assert_eq!(cache.len(), 2);
+            cache.add(create_test_config("config-1"));
+            cache.add(create_test_config("config-2"));
+            assert_eq!(cache.len(), 2);
 
-        cache.remove_by_id("config-1");
+            cache.remove_by_id("config-1");
 
-        assert_eq!(cache.len(), 1);
-    }
+            assert_eq!(cache.len(), 1);
+        }
 
-    #[tokio::test]
-    async fn test_sts_config_cache_remove_nonexistent() {
-        let cache = setup_test_cache().await;
+        #[tokio::test]
+        async fn test_sts_config_cache_remove_nonexistent() {
+            let cache = setup_test_cache().await;
 
-        cache.add(create_test_config("config-1"));
-        assert_eq!(cache.len(), 1);
+            cache.add(create_test_config("config-1"));
+            assert_eq!(cache.len(), 1);
 
-        // Removing a non-existent key should not fail
-        cache.remove_by_id("nonexistent-config");
+            // Removing a non-existent key should not fail
+            cache.remove_by_id("nonexistent-config");
 
-        assert_eq!(cache.len(), 1);
-    }
+            assert_eq!(cache.len(), 1);
+        }
 
-    #[tokio::test]
-    async fn test_sts_config_cache_clear() {
-        let cache = setup_test_cache().await;
+        #[tokio::test]
+        async fn test_sts_config_cache_clear() {
+            let cache = setup_test_cache().await;
 
-        cache.add(create_test_config("config-1"));
-        cache.add(create_test_config("config-2"));
-        cache.add(create_test_config("config-3"));
-        assert_eq!(cache.len(), 3);
+            cache.add(create_test_config("config-1"));
+            cache.add(create_test_config("config-2"));
+            cache.add(create_test_config("config-3"));
+            assert_eq!(cache.len(), 3);
 
-        cache.clear();
+            cache.clear();
 
-        assert!(cache.is_empty());
-    }
+            assert!(cache.is_empty());
+        }
 
-    #[tokio::test]
-    async fn test_sts_config_cache_get_all_cached() {
-        let cache = setup_test_cache().await;
+        #[tokio::test]
+        async fn test_sts_config_cache_get_all_cached() {
+            let cache = setup_test_cache().await;
 
-        cache.add(create_test_config("config-1"));
-        cache.add(create_test_config("config-2"));
+            cache.add(create_test_config("config-1"));
+            cache.add(create_test_config("config-2"));
 
-        let configs = cache.get_all_cached();
-        assert_eq!(configs.len(), 2);
-    }
+            let configs = cache.get_all_cached();
+            assert_eq!(configs.len(), 2);
+        }
 
-    #[tokio::test]
-    async fn test_sts_config_cache_get_by_id_not_in_cache() {
-        let cache = setup_test_cache().await;
+        #[tokio::test]
+        async fn test_sts_config_cache_get_by_id_not_in_cache() {
+            let cache = setup_test_cache().await;
 
-        // Should return None when not in cache or repo
-        let result = cache.get_by_id("nonexistent").await.unwrap();
-        assert!(result.is_none());
-    }
+            // Should return None when not in cache or repo
+            let result = cache.get_by_id("nonexistent").await.unwrap();
+            assert!(result.is_none());
+        }
 
-    #[tokio::test]
-    async fn test_sts_config_cache_refresh_all_empty_repo() {
-        let cache = setup_test_cache().await;
+        #[tokio::test]
+        async fn test_sts_config_cache_refresh_all_empty_repo() {
+            let cache = setup_test_cache().await;
 
-        // Add a config to cache
-        cache.add(create_test_config("stale-config"));
-        assert_eq!(cache.len(), 1);
+            // Add a config to cache
+            cache.add(create_test_config("stale-config"));
+            assert_eq!(cache.len(), 1);
 
-        // Refresh from empty repo should clear cache
-        cache.refresh_all().await.unwrap();
+            // Refresh from empty repo should clear cache
+            cache.refresh_all().await.unwrap();
 
-        assert!(cache.is_empty());
-    }
+            assert!(cache.is_empty());
+        }
 
-    #[tokio::test]
-    async fn test_init_sts_config_cache() {
-        let cache = setup_test_cache().await;
+        #[tokio::test]
+        async fn test_init_sts_config_cache() {
+            let cache = setup_test_cache().await;
 
-        // Add a config to cache (simulating stale data)
-        cache.add(create_test_config("stale-config"));
-        assert_eq!(cache.len(), 1);
+            // Add a config to cache (simulating stale data)
+            cache.add(create_test_config("stale-config"));
+            assert_eq!(cache.len(), 1);
 
-        // Initialize should refresh from repo (which is empty)
-        init_sts_config_cache(&cache).await.unwrap();
+            // Initialize should refresh from repo (which is empty)
+            init_sts_config_cache(&cache).await.unwrap();
 
-        assert!(cache.is_empty());
+            assert!(cache.is_empty());
+        }
     }
 }

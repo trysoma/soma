@@ -8,8 +8,8 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::logic::jwk::cache::JwksCache;
-use crate::logic::user::{Role, UserType};
 use crate::repository::{UpdateUser, User, UserRepositoryLike};
+use shared::identity::{Role, UserType};
 
 pub mod idp_to_soma_sync;
 pub use idp_to_soma_sync::*;

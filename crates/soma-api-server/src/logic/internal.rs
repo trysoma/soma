@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use bridge::repository::ProviderRepositoryLike;
 use encryption::logic::crypto_services::CryptoCache;
+use mcp::repository::ProviderRepositoryLike;
 use sdk_proto::soma_sdk_service_client::SomaSdkServiceClient;
 use serde::{Deserialize, Serialize};
 use shared::error::CommonError;
@@ -11,10 +11,8 @@ use tonic::{Request, transport::Channel};
 use tracing::{debug, error, trace, warn};
 use utoipa::ToSchema;
 
-use crate::logic::environment_variable_sync::{
-    fetch_all_environment_variables, sync_environment_variables_to_sdk,
-};
 use crate::logic::secret_sync::{fetch_and_decrypt_all_secrets, sync_secrets_to_sdk};
+use crate::logic::variable_sync::{fetch_all_variables, sync_variables_to_sdk};
 use crate::sdk::{sdk_agent_sync, sdk_provider_sync};
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
@@ -52,10 +50,10 @@ pub async fn check_sdk_health(
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct TriggerCodegenResponse {}
 
-/// Triggers bridge client generation via gRPC call to SDK server
+/// Triggers mcp client generation via gRPC call to SDK server
 pub async fn trigger_codegen(
     sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
-    bridge_repo: &impl ProviderRepositoryLike,
+    mcp_repo: &impl ProviderRepositoryLike,
     agent_cache: &sdk_agent_sync::AgentCache,
 ) -> Result<TriggerCodegenResponse, CommonError> {
     let mut sdk_client_guard = sdk_client.lock().await;
@@ -69,12 +67,8 @@ pub async fn trigger_codegen(
         }
     };
 
-    crate::logic::bridge::codegen::trigger_bridge_client_generation(
-        client,
-        bridge_repo,
-        agent_cache,
-    )
-    .await?;
+    crate::logic::mcp::codegen::trigger_mcp_client_generation(client, mcp_repo, agent_cache)
+        .await?;
 
     Ok(TriggerCodegenResponse {})
 }
@@ -90,15 +84,15 @@ pub struct ResyncResult {
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct ResyncSdkResponse {}
 
-/// Resync SDK: fetches metadata from SDK, syncs providers/agents to bridge registry,
+/// Resync SDK: fetches metadata from SDK, syncs providers/agents to mcp registry,
 /// registers Restate deployments, syncs secrets/env vars to SDK, and triggers codegen
 pub async fn resync_sdk(
-    repository: &std::sync::Arc<crate::repository::Repository>,
+    environment_repo: &std::sync::Arc<environment::repository::Repository>,
     crypto_cache: &CryptoCache,
     restate_params: &crate::restate::RestateServerParams,
     sdk_client: &Arc<Mutex<Option<SomaSdkServiceClient<Channel>>>>,
     agent_cache: &sdk_agent_sync::AgentCache,
-    bridge_repo: &impl bridge::repository::ProviderRepositoryLike,
+    mcp_repo: &impl mcp::repository::ProviderRepositoryLike,
 ) -> Result<ResyncSdkResponse, CommonError> {
     let mut sdk_client_guard = sdk_client.lock().await;
 
@@ -132,12 +126,12 @@ pub async fn resync_sdk(
     let metadata = response.into_inner();
 
     debug!(
-        providers = metadata.bridge_providers.len(),
+        providers = metadata.mcp_providers.len(),
         agents = metadata.agents.len(),
         "Fetched SDK metadata"
     );
 
-    // Sync providers to bridge registry
+    // Sync providers to mcp registry
     sdk_provider_sync::sync_providers_from_metadata(&metadata)?;
 
     // Capture existing agent IDs before syncing to detect removed agents
@@ -146,7 +140,7 @@ pub async fn resync_sdk(
     // Sync agents to cache (this clears and repopulates)
     sdk_agent_sync::sync_agents_from_metadata(agent_cache, &metadata);
 
-    let providers_synced = metadata.bridge_providers.len();
+    let providers_synced = metadata.mcp_providers.len();
     let agents_synced = metadata.agents.len();
 
     // Find and unregister removed agents
@@ -171,42 +165,36 @@ pub async fn resync_sdk(
     }
 
     // Sync secrets to SDK
-    let secrets = fetch_and_decrypt_all_secrets(repository, crypto_cache).await?;
+    let secrets = fetch_and_decrypt_all_secrets(environment_repo, crypto_cache).await?;
     let secrets_count = secrets.len();
     if !secrets.is_empty() {
         trace!(count = secrets_count, "Syncing secrets to SDK");
         sync_secrets_to_sdk(client, secrets).await?;
     }
 
-    // Sync environment variables to SDK
-    let env_vars = fetch_all_environment_variables(repository).await?;
-    let env_vars_count = env_vars.len();
-    if !env_vars.is_empty() {
-        trace!(
-            count = env_vars_count,
-            "Syncing environment variables to SDK"
-        );
-        sync_environment_variables_to_sdk(client, env_vars).await?;
+    // Sync variables to SDK
+    let vars = fetch_all_variables(environment_repo).await?;
+    let vars_count = vars.len();
+    if !vars.is_empty() {
+        trace!(count = vars_count, "Syncing variables to SDK");
+        sync_variables_to_sdk(client, vars).await?;
     }
 
     debug!(
         providers = providers_synced,
         agents = agents_synced,
         secrets = secrets_count,
-        env_vars = env_vars_count,
+        vars = vars_count,
         "SDK resync complete"
     );
 
-    // Trigger bridge client generation (includes agents now that they're synced)
-    trace!("Triggering bridge client generation");
-    if let Err(e) = crate::logic::bridge::codegen::trigger_bridge_client_generation(
-        client,
-        bridge_repo,
-        agent_cache,
-    )
-    .await
+    // Trigger mcp client generation (includes agents now that they're synced)
+    trace!("Triggering mcp client generation");
+    if let Err(e) =
+        crate::logic::mcp::codegen::trigger_mcp_client_generation(client, mcp_repo, agent_cache)
+            .await
     {
-        warn!(error = ?e, "Failed to trigger bridge client generation");
+        warn!(error = ?e, "Failed to trigger mcp client generation");
     }
 
     Ok(ResyncSdkResponse {})

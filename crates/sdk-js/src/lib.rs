@@ -658,7 +658,7 @@ pub struct ResyncSdkResponse {}
 /// Calls the internal resync endpoint on the Soma API server.
 /// This triggers the API server to:
 /// - Fetch metadata from the SDK (providers, agents)
-/// - Sync providers to the bridge registry
+/// - Sync providers to the mcp registry
 /// - Register Restate deployments for agents
 /// - Sync secrets to the SDK
 /// - Sync environment variables to the SDK

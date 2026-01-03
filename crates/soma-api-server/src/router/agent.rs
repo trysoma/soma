@@ -88,6 +88,11 @@ pub fn create_router() -> OpenApiRouter<Arc<AgentService>> {
     summary = "List available agents",
     description = "List all available agents from the agent cache",
     operation_id = "list-agents",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_agents(
     State(ctx): State<Arc<AgentService>>,
@@ -113,6 +118,11 @@ async fn route_list_agents(
     summary = "Get agent card for specific agent",
     description = "Get the agent card describing agent capabilities and metadata for a specific agent",
     operation_id = "get-agent-card",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_agent_card(
     State(ctx): State<Arc<AgentService>>,
@@ -148,6 +158,11 @@ async fn route_agent_card(
     summary = "Handle A2A JSON-RPC for specific agent",
     description = "Handle JSON-RPC requests for agent-to-agent communication for a specific agent",
     operation_id = "handle-a2a-jsonrpc-request",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_a2a_jsonrpc(
     State(ctx): State<Arc<AgentService>>,

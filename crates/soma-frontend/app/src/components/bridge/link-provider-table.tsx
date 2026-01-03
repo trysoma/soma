@@ -25,7 +25,7 @@ export const LinkProviderOrCreate = ({
 
 	// Query existing provider instances for this provider type (status=active)
 	const { data: providerInstancesData, isLoading: isLoadingInstances } =
-		$api.useQuery("get", "/api/bridge/v1/provider", {
+		$api.useQuery("get", "/api/mcp/v1/provider", {
 			params: {
 				query: {
 					page_size: 1000,

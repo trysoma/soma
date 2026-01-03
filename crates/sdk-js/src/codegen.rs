@@ -3,8 +3,8 @@ use shared::error::CommonError;
 use std::collections::HashMap;
 use tera::{Context, Tera};
 
-/// TypeScript bridge template loaded at compile time
-const BRIDGE_TEMPLATE: &str = include_str!("bridge.ts.tera");
+/// TypeScript mcp template loaded at compile time
+const MCP_TEMPLATE: &str = include_str!("mcp.ts.tera");
 
 /// TypeScript agents template loaded at compile time
 const AGENTS_TEMPLATE: &str = include_str!("agents.ts.tera");
@@ -188,14 +188,14 @@ pub fn generate_typescript_code_from_api_data(
 
     // Create Tera instance and render template
     let mut tera = Tera::default();
-    tera.add_raw_template("bridge", BRIDGE_TEMPLATE)
+    tera.add_raw_template("mcp", MCP_TEMPLATE)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to add template: {e}")))?;
 
     let mut context = Context::new();
     context.insert("providers", &providers);
 
     let rendered = tera
-        .render("bridge", &context)
+        .render("mcp", &context)
         .map_err(|e| CommonError::Unknown(anyhow::anyhow!("Failed to render template: {e}")))?;
 
     Ok(rendered)
@@ -517,58 +517,60 @@ fn strip_provider_prefix_and_camel_case(function_name: &str, provider_name: &str
     }
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
 
-    #[test]
-    fn test_sanitize_identifier() {
-        assert_eq!(sanitize_identifier("my-function"), "my_function");
-        assert_eq!(sanitize_identifier("my.function"), "my_function");
-        assert_eq!(sanitize_identifier("my@function"), "my_function");
-        assert_eq!(sanitize_identifier("myFunction"), "myFunction");
-    }
+        #[test]
+        fn test_sanitize_identifier() {
+            assert_eq!(sanitize_identifier("my-function"), "my_function");
+            assert_eq!(sanitize_identifier("my.function"), "my_function");
+            assert_eq!(sanitize_identifier("my@function"), "my_function");
+            assert_eq!(sanitize_identifier("myFunction"), "myFunction");
+        }
 
-    #[test]
-    fn test_to_pascal_case() {
-        assert_eq!(to_pascal_case("my_function"), "MyFunction");
-        assert_eq!(to_pascal_case("my-function"), "MyFunction");
-        assert_eq!(to_pascal_case("myFunction"), "MyFunction");
-        assert_eq!(to_pascal_case("claimResearchAgent"), "ClaimResearchAgent");
-        assert_eq!(to_pascal_case("ClaimResearchAgent"), "ClaimResearchAgent");
-        assert_eq!(to_pascal_case("acme"), "Acme");
-        assert_eq!(
-            to_pascal_case("my_long_function_name"),
-            "MyLongFunctionName"
-        );
-    }
+        #[test]
+        fn test_to_pascal_case() {
+            assert_eq!(to_pascal_case("my_function"), "MyFunction");
+            assert_eq!(to_pascal_case("my-function"), "MyFunction");
+            assert_eq!(to_pascal_case("myFunction"), "MyFunction");
+            assert_eq!(to_pascal_case("claimResearchAgent"), "ClaimResearchAgent");
+            assert_eq!(to_pascal_case("ClaimResearchAgent"), "ClaimResearchAgent");
+            assert_eq!(to_pascal_case("acme"), "Acme");
+            assert_eq!(
+                to_pascal_case("my_long_function_name"),
+                "MyLongFunctionName"
+            );
+        }
 
-    #[test]
-    fn test_to_camel_case() {
-        assert_eq!(to_camel_case("my_function"), "myFunction");
-        assert_eq!(to_camel_case("my-function"), "myFunction");
-        assert_eq!(to_camel_case("myFunction"), "myFunction");
-        assert_eq!(to_camel_case("MyFunction"), "myFunction");
-        assert_eq!(to_camel_case("claimResearchAgent"), "claimResearchAgent");
-        assert_eq!(to_camel_case("ClaimResearchAgent"), "claimResearchAgent");
-        assert_eq!(to_camel_case("my_long_function_name"), "myLongFunctionName");
-        assert_eq!(to_camel_case("google_mail"), "googleMail");
-        assert_eq!(to_camel_case("approve_claim"), "approveClaim");
-    }
+        #[test]
+        fn test_to_camel_case() {
+            assert_eq!(to_camel_case("my_function"), "myFunction");
+            assert_eq!(to_camel_case("my-function"), "myFunction");
+            assert_eq!(to_camel_case("myFunction"), "myFunction");
+            assert_eq!(to_camel_case("MyFunction"), "myFunction");
+            assert_eq!(to_camel_case("claimResearchAgent"), "claimResearchAgent");
+            assert_eq!(to_camel_case("ClaimResearchAgent"), "claimResearchAgent");
+            assert_eq!(to_camel_case("my_long_function_name"), "myLongFunctionName");
+            assert_eq!(to_camel_case("google_mail"), "googleMail");
+            assert_eq!(to_camel_case("approve_claim"), "approveClaim");
+        }
 
-    #[test]
-    fn test_strip_provider_prefix_and_camel_case() {
-        assert_eq!(
-            strip_provider_prefix_and_camel_case("google_mail_send_email", "google_mail"),
-            "sendEmail"
-        );
-        assert_eq!(
-            strip_provider_prefix_and_camel_case("approve_claim", "approve_claim"),
-            "approveClaim"
-        );
-        assert_eq!(
-            strip_provider_prefix_and_camel_case("some_other_function", "some"),
-            "otherFunction"
-        );
+        #[test]
+        fn test_strip_provider_prefix_and_camel_case() {
+            assert_eq!(
+                strip_provider_prefix_and_camel_case("google_mail_send_email", "google_mail"),
+                "sendEmail"
+            );
+            assert_eq!(
+                strip_provider_prefix_and_camel_case("approve_claim", "approve_claim"),
+                "approveClaim"
+            );
+            assert_eq!(
+                strip_provider_prefix_and_camel_case("some_other_function", "some"),
+                "otherFunction"
+            );
+        }
     }
 }

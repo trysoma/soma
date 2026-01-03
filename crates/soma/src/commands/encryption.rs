@@ -146,7 +146,7 @@ pub async fn cmd_enc_key_add(
     timeout_secs: u64,
 ) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     // Check if default alias already exists
     let has_default_alias = default_alias_exists(&api_config).await?;
@@ -252,7 +252,7 @@ pub async fn cmd_enc_key_rm(
     timeout_secs: u64,
 ) -> Result<(), CommonError> {
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     let envelope_id = match key_type {
         RmKeyType::Aws { arn } => {
@@ -322,7 +322,7 @@ pub async fn cmd_enc_key_migrate(
     debug!("Migrating all DEKs from '{}' to '{}'", from, to);
 
     // Create API client and wait for server to be ready
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     debug!("Source envelope key: {}", from);
     debug!("Target envelope key: {}", to);

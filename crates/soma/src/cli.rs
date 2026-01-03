@@ -26,7 +26,7 @@ pub struct Cli {
 pub enum Commands {
     /// Start Soma development server
     Dev(DevParams),
-    /// Generate bridge client for current project
+    /// Generate mcp client for current project
     Codegen(CodegenParams),
     /// Generate shell completions for soma
     Completions {

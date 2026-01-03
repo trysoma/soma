@@ -42,7 +42,7 @@ function RouteComponent() {
 
 	// Query available providers
 	const { data: availableProviders, isLoading: isLoadingProviders } =
-		$api.useQuery("get", "/api/bridge/v1/available-providers", {
+		$api.useQuery("get", "/api/mcp/v1/available-providers", {
 			params: {
 				query: {
 					page_size: 1000,
@@ -87,7 +87,7 @@ function RouteComponent() {
 	// Query enabled provider instances for this function
 	const { data: enabledInstancesData } = $api.useQuery(
 		"get",
-		"/api/bridge/v1/provider/grouped-by-function",
+		"/api/mcp/v1/provider/grouped-by-function",
 		{
 			params: {
 				query: {

@@ -8,11 +8,13 @@ use utoipa::ToSchema;
 
 pub use sqlite::Repository;
 
-// Re-export types from logic modules that are used in repository trait
+// Re-export types used by the repository trait
 pub use crate::logic::api_key::{HashedApiKey, HashedApiKeyWithUser};
-pub use crate::logic::user::{
-    Group, GroupMemberWithUser, GroupMembership, Role, User, UserGroupWithGroup, UserType,
-};
+pub use crate::logic::user::{GroupMemberWithUser, GroupMembership, UserGroupWithGroup};
+
+// Re-export identity types from shared for convenience
+pub use shared::identity::{Group, Role, User, UserType};
+
 use crate::logic::user_auth_flow::config::EncryptedUserAuthFlowConfig;
 use crate::logic::{
     internal_token_issuance::JwtSigningKey,

@@ -3,8 +3,9 @@
 	lint lint-js lint-rs lint-py lint-db lint-fix lint-fix-js lint-fix-rs lint-fix-py \
 	py-build py-build-sdk-core py-build-sdk-core-wheel py-test py-test-coverage py-install py-clean-cache \
 	db-generate-rs-models \
-	db-bridge-generate-migration db-bridge-generate-hash \
+	db-mcp-generate-migration db-mcp-generate-hash \
 	db-encryption-generate-migration db-encryption-generate-hash \
+	db-environment-generate-migration db-environment-generate-hash \
 	db-identity-generate-migration db-identity-generate-hash \
 	db-soma-generate-migration db-soma-generate-hash \
 	_db-generate-migration _db-generate-hash _install-sqlc-gen-from-template
@@ -50,7 +51,7 @@ _install-sqlc-gen-from-template: ## Install sqlc-gen-from-template if not alread
 		echo "  Make sure $$INSTALL_DIR is in your PATH"; \
 	fi
 
-install: _install-sqlc-gen-from-template py-build-sdk-core ## Install all dependencies (Rust, Node.js, and Python)
+install: _install-sqlc-gen-from-template ## Install all dependencies (Rust, Node.js, and Python)
 	git submodule update --init --recursive
 	@echo "Installing JS monorepo dependencies..."
 	pnpm install
@@ -59,9 +60,16 @@ install: _install-sqlc-gen-from-template py-build-sdk-core ## Install all depend
 	@echo "✓ All dependencies installed"
 
 build: ## Build all projects (Rust + JS + Python)
+	cargo build --bin soma
+	$(MAKE) js-generate-client
 	$(MAKE) rs-build
 	$(MAKE) js-build
 	$(MAKE) py-build
+
+js-generate-client: ## Generate JS client
+	@echo "Generating JS client..."
+	npx --yes openapi-typescript@latest openapi.json -o ./crates/soma-frontend/app/src/@types/openapi.d.ts
+	@echo "✓ JS client generated"
 
 js-build: ## Build all JS projects
 	@echo "Building JS projects..."
@@ -71,6 +79,8 @@ js-build: ## Build all JS projects
 rs-build: ## Build all Rust projects
 	@echo "Building Rust projects..."
 	cargo build
+	@echo "Building Rust tests..."
+	cargo test --no-run
 	@echo "✓ Rust projects built"
 
 py-clean-cache: ## Clean Python bytecode cache files
@@ -165,28 +175,10 @@ clean: ## Clean build artifacts and cache files
 	find . -type d -name "coverage" -not -path "./node_modules/*" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✓ Clean completed"
 
-test: test-unit ## Run unit tests only (Rust + JS + Python) - alias for test-unit
-
-test-unit: ## Run unit tests only (Rust + JS + Python) - excludes AWS integration tests
-	@echo "Running Rust unit tests..."
-	cargo nextest run --features unit_test
-	@echo "Running JS tests..."
-	pnpm -r --workspace-concurrency=1 --filter '!@trysoma/api-client' run test
-	@echo "Running Python tests..."
-	uv run pytest py/packages/sdk/tests --tb=short -q || echo "⚠ No Python tests or tests skipped"
-	@echo "✓ Unit tests passed"
-
-test-integration: ## Run integration tests only (requires AWS credentials)
-	@echo "Running Rust integration tests (requires AWS credentials)..."
-	cd test && docker compose up -d && cd ../
-	cargo nextest run --features integration_test
-	cd test && docker compose down && cd ../
-	@echo "✓ Integration tests passed"
-
-test-all: ## Run all tests including integration tests (Rust + JS)
+test: 
 	@echo "Running all Rust tests (unit + integration)..."
 	cd test && docker compose up -d && cd ../
-	cargo nextest run --features unit_test,integration_test
+	cargo nextest run
 	@echo "Running JS tests..."
 	pnpm -r --workspace-concurrency=1 --filter '!@trysoma/api-client' run test
 	@echo "Running Python tests..."
@@ -210,7 +202,7 @@ test-coverage: ## Run tests with coverage and generate merged report
 	@mkdir -p .coverage-tmp coverage
 	@echo "Running Rust tests with coverage..."
 	cd test && docker compose up -d && cd ../
-	cargo llvm-cov nextest --features unit_test,integration_test --workspace --lcov --output-path .coverage-tmp/rust.lcov
+	cargo llvm-cov nextest --workspace --lcov --output-path .coverage-tmp/rust.lcov
 	@echo "✓ Rust coverage generated"
 	@echo "Running JS tests with coverage..."
 	pnpm -r --workspace-concurrency=1 --filter './js/packages/*' --filter './crates/sdk-js' run test:coverage
@@ -273,11 +265,11 @@ lint-db: ## Run database linters
 	else \
 		echo "$$soma_output"; \
 	fi
-	@bridge_output=$$(atlas migrate lint --env bridge --git-base main 2>&1); \
-	if [ -z "$$bridge_output" ]; then \
-		echo "Bridge DB: SUCCESS: checksums match, no breaking changes"; \
+	@mcp_output=$$(atlas migrate lint --env mcp --git-base main 2>&1); \
+	if [ -z "$$mcp_output" ]; then \
+		echo "MCP DB: SUCCESS: checksums match, no breaking changes"; \
 	else \
-		echo "$$bridge_output"; \
+		echo "$$mcp_output"; \
 	fi
 	@encryption_output=$$(atlas migrate lint --env encryption --git-base main 2>&1); \
 	if [ -z "$$encryption_output" ]; then \
@@ -290,6 +282,12 @@ lint-db: ## Run database linters
 		echo "Identity DB: SUCCESS: checksums match, no breaking changes"; \
 	else \
 		echo "$$identity_output"; \
+	fi
+	@environment_output=$$(atlas migrate lint --env environment --git-base main 2>&1); \
+	if [ -z "$$environment_output" ]; then \
+		echo "Environment DB: SUCCESS: checksums match, no breaking changes"; \
+	else \
+		echo "$$environment_output"; \
 	fi
 	@echo "✓ Database linters passed"
 
@@ -355,21 +353,24 @@ db-generate-rs-models: ## Generate Rust models from SQL queries using sqlc
 	@echo "Generating Rust models for soma..."
 	cd crates/soma-api-server && sqlc generate
 	@echo "✓ Soma models generated"
-	@echo "Generating Rust models for bridge..."
-	cd crates/bridge && sqlc generate
-	@echo "✓ Bridge models generated"
+	@echo "Generating Rust models for mcp..."
+	cd crates/mcp && sqlc generate
+	@echo "✓ MCP models generated"
 	@echo "Generating Rust models for encryption..."
 	cd crates/encryption && sqlc generate
 	@echo "✓ Encryption models generated"
 	@echo "Generating Rust models for identity..."
 	cd crates/identity && sqlc generate
 	@echo "✓ Identity models generated"
+	@echo "Generating Rust models for environment..."
+	cd crates/environment && sqlc generate
+	@echo "✓ Environment models generated"
 
-db-bridge-generate-migration: ## Create a new bridge database migration using Atlas (usage: make db-bridge-generate-migration NAME=migration_name)
-	$(MAKE) _db-generate-migration ENV=bridge FILE_PATH=crates/bridge/dbs/bridge/schema.sql NAME=$(NAME)
+db-mcp-generate-migration: ## Create a new mcp database migration using Atlas (usage: make db-mcp-generate-migration NAME=migration_name)
+	$(MAKE) _db-generate-migration ENV=mcp FILE_PATH=crates/mcp/dbs/mcp/schema.sql NAME=$(NAME)
 
-db-bridge-generate-hash: ## Update bridge database migration hash
-	$(MAKE) _db-generate-hash ENV=bridge
+db-mcp-generate-hash: ## Update mcp database migration hash
+	$(MAKE) _db-generate-hash ENV=mcp
 
 db-encryption-generate-migration: ## Create a new encryption database migration using Atlas (usage: make db-encryption-generate-migration NAME=migration_name)
 	$(MAKE) _db-generate-migration ENV=encryption FILE_PATH=crates/encryption/dbs/encryption/schema.sql NAME=$(NAME)
@@ -388,6 +389,12 @@ db-soma-generate-migration: ## Create a new soma database migration using Atlas 
 
 db-soma-generate-hash: ## Update soma database migration hash
 	$(MAKE) _db-generate-hash ENV=soma
+
+db-environment-generate-migration: ## Create a new environment database migration using Atlas (usage: make db-environment-generate-migration NAME=migration_name)
+	$(MAKE) _db-generate-migration ENV=environment FILE_PATH=crates/environment/dbs/environment/schema.sql NAME=$(NAME)
+
+db-environment-generate-hash: ## Update environment database migration hash
+	$(MAKE) _db-generate-hash ENV=environment
 
 generate-licenses: ## Generate third-party license files for Rust, JS, and Python dependencies
 	@echo "Generating Rust licenses..."

@@ -1,6 +1,6 @@
-mod bridge;
 mod cli;
 mod commands;
+mod mcp;
 mod restate_server;
 mod server;
 mod utils;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use bridge::logic::{
+use mcp::logic::{
     PROVIDER_REGISTRY, add_provider_controller_to_registry,
     remove_provider_controller_from_registry,
 };
@@ -8,7 +8,7 @@ use shared::error::CommonError;
 use shared::primitives::WrappedSchema;
 use tracing::{debug, error, trace, warn};
 
-use crate::logic::bridge::providers::dynamic::{
+use crate::logic::mcp::providers::dynamic::{
     DynamicFunctionControllerParams, DynamicProviderController, DynamicProviderControllerParams,
 };
 
@@ -18,7 +18,7 @@ pub fn sync_providers_from_metadata(
     metadata: &sdk_proto::MetadataResponse,
 ) -> Result<(), CommonError> {
     debug!(
-        count = metadata.bridge_providers.len(),
+        count = metadata.mcp_providers.len(),
         "Syncing providers from SDK"
     );
 
@@ -56,7 +56,7 @@ pub fn sync_providers_from_metadata(
     }
 
     // Step 3: Add all new providers from SDK metadata
-    for proto_provider in &metadata.bridge_providers {
+    for proto_provider in &metadata.mcp_providers {
         trace!(
             type_id = %proto_provider.type_id,
             name = %proto_provider.name,
@@ -79,10 +79,7 @@ pub fn sync_providers_from_metadata(
         }
     }
 
-    debug!(
-        count = metadata.bridge_providers.len(),
-        "Synced SDK providers"
-    );
+    debug!(count = metadata.mcp_providers.len(), "Synced SDK providers");
 
     Ok(())
 }

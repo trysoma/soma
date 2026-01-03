@@ -39,13 +39,13 @@ jobs:
           comment-tag: soma-db-quality
           display-name: Soma Database
 
-      - name: Validate Bridge database migrations
+      - name: Validate Mcp database migrations
         uses: ./.github/actions/atlas-migrate-lint
         with:
-          env: bridge
+          env: mcp 
           git-base: main
-          comment-tag: bridge-db-quality
-          display-name: Bridge Database
+          comment-tag: mcp-db-quality
+          display-name: Mcp Database
       
       - name: Validate Encryption database migrations
         uses: ./.github/actions/atlas-migrate-lint
@@ -62,6 +62,14 @@ jobs:
           git-base: main
           comment-tag: identity-db-quality
           display-name: Identity Database
+
+      - name: Validate Environment database migrations
+        uses: ./.github/actions/atlas-migrate-lint
+        with:
+          env: environment
+          git-base: main
+          comment-tag: environment-db-quality
+          display-name: Environment Database
 
   api-quality:
     name: API quality
@@ -134,7 +142,33 @@ jobs:
       CARGO_PROFILE_TEST_DEBUG: 0
       CARGO_PROFILE_RELEASE_LTO: true
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+      # Reduce disk usage by limiting target directory size
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_DEV_OPT_LEVEL: 0
+      # Use sparse registry to reduce disk usage
+      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+      # Limit number of build jobs to reduce memory/disk usage
+      CARGO_BUILD_JOBS: 2
+      # SQLite optimizations to reduce temp file creation during tests
+      SQLITE_TMPDIR: /tmp
+      TMPDIR: /tmp
     steps:
+      - name: Free disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          # Remove large unused tools to free disk space (can free 20-30GB)
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/share/az*
+          echo "Disk space after cleanup:"
+          df -h
+
       - name: Checkout
         uses: actions/checkout@v5
         with:
@@ -165,8 +199,20 @@ jobs:
         with:
           tool: cargo-llvm-cov,cargo-nextest
 
+      - name: Check disk space after setup
+        run: |
+          echo "Disk space after Rust setup:"
+          df -h
+          echo "Checking for existing temp files:"
+          find /tmp -name "*.db*" -o -name "*sqlite*" 2>/dev/null | wc -l || echo "No temp files found"
+
       - name: Run cargo clippy
-        run: cargo clippy --all-targets --features unit_test,integration_test --locked -- -D warnings
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Check disk space after clippy
+        run: |
+          echo "Disk space after clippy:"
+          df -h
 
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
@@ -174,10 +220,18 @@ jobs:
       - name: Run cargo nextest with coverage (all tests including integration)
         run: |
           mkdir -p .coverage-tmp
-          # Run with unit_test and integration_test features to include all tests
           # This requires AWS credentials to be configured (done above)
           # Dex is started above for OAuth/OIDC integration tests
-          cargo llvm-cov nextest --features unit_test,integration_test --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov
+          echo "Disk space before coverage tests:"
+          df -h
+          # Run tests with coverage
+          # --no-fail-fast: continue running even if tests fail
+          # --status-level all: show all test results
+          # --final-status-level slow: show slow tests at the end
+          RUN_INTEGRATION_TESTS=1 cargo llvm-cov nextest --workspace --locked --lcov --output-path .coverage-tmp/rust.lcov --no-fail-fast --status-level all --final-status-level slow
+          echo "Disk space after coverage tests:"
+          df -h
+        timeout-minutes: 30
 
       - name: Upload Rust coverage LCOV
         uses: actions/upload-artifact@v4
@@ -186,7 +240,6 @@ jobs:
           path: .coverage-tmp/rust.lcov
           retention-days: 7
           if-no-files-found: error
-
 
   napi-quality:
     name: NAPI build verification

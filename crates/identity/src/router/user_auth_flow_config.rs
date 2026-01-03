@@ -1,5 +1,6 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
+use http::HeaderMap;
 use serde::Deserialize;
 use shared::{
     adapters::openapi::{API_VERSION_TAG, JsonResponse},
@@ -50,17 +51,26 @@ pub struct ListUserAuthFlowConfigsQuery {
     responses(
         (status = 201, description = "User auth flow configuration created successfully", body = CreateUserAuthFlowConfigResponse),
         (status = 400, description = "Invalid request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "Create user auth flow configuration",
     description = "Create a new user auth flow configuration for OAuth/OIDC authorization flows. The configuration will be encrypted before storage.",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_create_user_auth_flow_config(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Json(params): Json<CreateUserAuthFlowConfigParams>,
 ) -> JsonResponse<CreateUserAuthFlowConfigResponse, CommonError> {
     trace!(config_id = %params.config.id(), "Creating user auth flow configuration");
     let result = create_user_auth_flow_config(
+        service.auth_client.clone(),
+        headers,
         service.repository.as_ref(),
         &service.crypto_cache,
         &service.on_config_change_tx,
@@ -84,19 +94,32 @@ async fn route_create_user_auth_flow_config(
     ),
     responses(
         (status = 200, description = "User auth flow configuration found", body = GetUserAuthFlowConfigResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "User auth flow configuration not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "Get user auth flow configuration",
     description = "Get a user auth flow configuration by ID. Returns the encrypted configuration.",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_get_user_auth_flow_config(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Path(id): Path<String>,
 ) -> JsonResponse<GetUserAuthFlowConfigResponse, CommonError> {
     trace!(config_id = %id, "Getting user auth flow configuration");
     let params = GetUserAuthFlowConfigParams { id };
-    let result = get_user_auth_flow_config(service.repository.as_ref(), params).await;
+    let result = get_user_auth_flow_config(
+        service.auth_client.clone(),
+        headers,
+        service.repository.as_ref(),
+        params,
+    )
+    .await;
     trace!(
         success = result.is_ok(),
         "Getting user auth flow configuration completed"
@@ -113,19 +136,28 @@ async fn route_get_user_auth_flow_config(
     ),
     responses(
         (status = 200, description = "User auth flow configuration deleted successfully", body = DeleteUserAuthFlowConfigResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "User auth flow configuration not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "Delete user auth flow configuration",
     description = "Delete a user auth flow configuration by ID",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_delete_user_auth_flow_config(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Path(id): Path<String>,
 ) -> JsonResponse<DeleteUserAuthFlowConfigResponse, CommonError> {
     trace!(config_id = %id, "Deleting user auth flow configuration");
     let params = DeleteUserAuthFlowConfigParams { id };
     let result = delete_user_auth_flow_config(
+        service.auth_client.clone(),
+        headers,
         service.repository.as_ref(),
         &service.on_config_change_tx,
         params,
@@ -148,13 +180,20 @@ async fn route_delete_user_auth_flow_config(
     ),
     responses(
         (status = 200, description = "List of user auth flow configurations", body = ListUserAuthFlowConfigResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "List user auth flow configurations",
     description = "List all user auth flow configurations with optional filtering by type",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_user_auth_flow_configs(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Query(query): Query<ListUserAuthFlowConfigsQuery>,
 ) -> JsonResponse<ListUserAuthFlowConfigResponse, CommonError> {
     trace!(page_size = ?query.page_size, config_type = ?query.config_type, "Listing user auth flow configurations");
@@ -166,7 +205,13 @@ async fn route_list_user_auth_flow_configs(
         },
         config_type: query.config_type,
     };
-    let result = list_user_auth_flow_configs(service.repository.as_ref(), params).await;
+    let result = list_user_auth_flow_configs(
+        service.auth_client.clone(),
+        headers,
+        service.repository.as_ref(),
+        params,
+    )
+    .await;
     trace!(
         success = result.is_ok(),
         "Listing user auth flow configurations completed"
@@ -182,17 +227,30 @@ async fn route_list_user_auth_flow_configs(
     responses(
         (status = 201, description = "User auth flow configuration imported successfully", body = ImportUserAuthFlowConfigResponse),
         (status = 400, description = "Invalid request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "Import user auth flow configuration",
     description = "Import an already encrypted user auth flow configuration (idempotent, used for syncing from soma.yaml)",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_import_user_auth_flow_config(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Json(params): Json<ImportUserAuthFlowConfigParams>,
 ) -> JsonResponse<ImportUserAuthFlowConfigResponse, CommonError> {
     trace!(config_id = %params.config.id(), "Importing user auth flow configuration");
-    let result = import_user_auth_flow_config(service.repository.as_ref(), params).await;
+    let result = import_user_auth_flow_config(
+        service.auth_client.clone(),
+        headers,
+        service.repository.as_ref(),
+        params,
+    )
+    .await;
     trace!(
         success = result.is_ok(),
         "Importing user auth flow configuration completed"

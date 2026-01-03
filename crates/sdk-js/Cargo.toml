@@ -1,11 +1,7 @@
-
 [package]
 name = "sdk-js"
 version.workspace = true
 edition.workspace = true
-
-[features]
-unit_test = []
 
 [lib]
 crate-type = ["cdylib"]

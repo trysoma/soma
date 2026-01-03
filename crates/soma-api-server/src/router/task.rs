@@ -53,6 +53,11 @@ pub fn create_router() -> OpenApiRouter<Arc<TaskService>> {
     summary = "List tasks",
     description = "List all tasks with pagination",
     operation_id = "list-tasks",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_tasks(
     State(ctx): State<Arc<TaskService>>,
@@ -82,6 +87,11 @@ async fn route_list_tasks(
     summary = "List contexts",
     description = "List all unique task contexts with pagination",
     operation_id = "list-contexts",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_contexts(
     State(ctx): State<Arc<TaskService>>,
@@ -112,6 +122,11 @@ async fn route_list_contexts(
     summary = "List tasks by context",
     description = "List all tasks for a specific context ID with pagination",
     operation_id = "list-tasks-by-context-id",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_tasks_by_context_id(
     State(ctx): State<Arc<TaskService>>,
@@ -152,6 +167,11 @@ async fn route_list_tasks_by_context_id(
     summary = "Get task",
     description = "Retrieve a task by its unique identifier",
     operation_id = "get-task-by-id",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_get_task(
     State(ctx): State<Arc<TaskService>>,
@@ -182,6 +202,11 @@ async fn route_get_task(
     summary = "Update task status",
     description = "Update the status of a task",
     operation_id = "update-task-status",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_update_task_status(
     State(ctx): State<Arc<TaskService>>,
@@ -222,6 +247,11 @@ async fn route_update_task_status(
     summary = "Send message",
     description = "Send a message to a task",
     operation_id = "send-message",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_create_message(
     State(ctx): State<Arc<TaskService>>,
@@ -262,6 +292,11 @@ async fn route_create_message(
     summary = "Get task timeline",
     description = "Get the timeline history of a task with pagination",
     operation_id = "task-history",
+    security(
+        (),
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_get_task_timeline_items(
     State(ctx): State<Arc<TaskService>>,

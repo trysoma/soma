@@ -395,129 +395,131 @@ async fn try_register_deployment(
     }
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use super::*;
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
 
-    #[test]
-    fn test_lambda_deployment_config_creation() {
-        let config = DeploymentRegistrationConfig {
-            admin_url: "http://localhost:8080".to_string(),
-            service_path: "my-service".to_string(),
-            deployment_type: DeploymentType::Lambda {
-                arn: "arn:aws:lambda:us-east-1:123456789012:function:my-function:$LATEST"
-                    .to_string(),
-                assume_role_arn: Some("arn:aws:iam::123456789012:role/my-role".to_string()),
-            },
-            bearer_token: Some("my-token".to_string()),
-            private: false,
-            insecure: false,
-            force: true,
-        };
+        #[test]
+        fn test_lambda_deployment_config_creation() {
+            let config = DeploymentRegistrationConfig {
+                admin_url: "http://localhost:8080".to_string(),
+                service_path: "my-service".to_string(),
+                deployment_type: DeploymentType::Lambda {
+                    arn: "arn:aws:lambda:us-east-1:123456789012:function:my-function:$LATEST"
+                        .to_string(),
+                    assume_role_arn: Some("arn:aws:iam::123456789012:role/my-role".to_string()),
+                },
+                bearer_token: Some("my-token".to_string()),
+                private: false,
+                insecure: false,
+                force: true,
+            };
 
-        assert_eq!(config.admin_url, "http://localhost:8080");
-        assert_eq!(config.service_path, "my-service");
-        assert!(!config.private);
-        assert!(config.force);
-    }
+            assert_eq!(config.admin_url, "http://localhost:8080");
+            assert_eq!(config.service_path, "my-service");
+            assert!(!config.private);
+            assert!(config.force);
+        }
 
-    #[test]
-    fn test_http_deployment_config_creation() {
-        let mut headers = HashMap::new();
-        headers.insert("x-custom-header".to_string(), "value".to_string());
+        #[test]
+        fn test_http_deployment_config_creation() {
+            let mut headers = HashMap::new();
+            headers.insert("x-custom-header".to_string(), "value".to_string());
 
-        let config = DeploymentRegistrationConfig {
-            admin_url: "http://localhost:8080".to_string(),
-            service_path: "my-http-service".to_string(),
-            deployment_type: DeploymentType::Http {
-                uri: "http://localhost:9080".to_string(),
-                additional_headers: headers.clone(),
-            },
-            bearer_token: None,
-            private: true,
-            insecure: false,
-            force: false,
-        };
+            let config = DeploymentRegistrationConfig {
+                admin_url: "http://localhost:8080".to_string(),
+                service_path: "my-http-service".to_string(),
+                deployment_type: DeploymentType::Http {
+                    uri: "http://localhost:9080".to_string(),
+                    additional_headers: headers.clone(),
+                },
+                bearer_token: None,
+                private: true,
+                insecure: false,
+                force: false,
+            };
 
-        assert_eq!(config.admin_url, "http://localhost:8080");
-        assert_eq!(config.service_path, "my-http-service");
-        assert!(config.private);
-        assert!(!config.force);
+            assert_eq!(config.admin_url, "http://localhost:8080");
+            assert_eq!(config.service_path, "my-http-service");
+            assert!(config.private);
+            assert!(!config.force);
 
-        if let DeploymentType::Http {
-            uri,
-            additional_headers,
-        } = &config.deployment_type
-        {
-            assert_eq!(uri, "http://localhost:9080");
-            assert_eq!(additional_headers.len(), 1);
-            assert_eq!(
-                additional_headers.get("x-custom-header"),
-                Some(&"value".to_string())
+            if let DeploymentType::Http {
+                uri,
+                additional_headers,
+            } = &config.deployment_type
+            {
+                assert_eq!(uri, "http://localhost:9080");
+                assert_eq!(additional_headers.len(), 1);
+                assert_eq!(
+                    additional_headers.get("x-custom-header"),
+                    Some(&"value".to_string())
+                );
+            } else {
+                panic!("Expected HTTP deployment type");
+            }
+        }
+
+        #[test]
+        fn test_lambda_arn_parsing() {
+            // LambdaARN requires a version or alias suffix
+            // Testing with a versioned ARN
+            let valid_arn = "arn:aws:lambda:us-east-1:123456789012:function:my-function:$LATEST";
+            let result = LambdaARN::from_str(valid_arn);
+            assert!(
+                result.is_ok(),
+                "Lambda ARN parsing failed: {:?}",
+                result.err()
             );
-        } else {
-            panic!("Expected HTTP deployment type");
-        }
-    }
-
-    #[test]
-    fn test_lambda_arn_parsing() {
-        // LambdaARN requires a version or alias suffix
-        // Testing with a versioned ARN
-        let valid_arn = "arn:aws:lambda:us-east-1:123456789012:function:my-function:$LATEST";
-        let result = LambdaARN::from_str(valid_arn);
-        assert!(
-            result.is_ok(),
-            "Lambda ARN parsing failed: {:?}",
-            result.err()
-        );
-    }
-
-    #[test]
-    fn test_http_uri_parsing() {
-        let valid_uri = "http://localhost:9080";
-        let result = Url::parse(valid_uri);
-        assert!(
-            result.is_ok(),
-            "HTTP URI parsing failed: {:?}",
-            result.err()
-        );
-
-        let valid_https_uri = "https://my-service.example.com:8080/path";
-        let result = Url::parse(valid_https_uri);
-        assert!(
-            result.is_ok(),
-            "HTTPS URI parsing failed: {:?}",
-            result.err()
-        );
-    }
-
-    #[test]
-    fn test_deployment_type_variants() {
-        // Test Lambda variant
-        let lambda = DeploymentType::Lambda {
-            arn: "arn:aws:lambda:us-east-1:123456789012:function:test:$LATEST".to_string(),
-            assume_role_arn: None,
-        };
-
-        match lambda {
-            DeploymentType::Lambda { arn, .. } => {
-                assert!(arn.contains("test"));
-            }
-            _ => panic!("Expected Lambda variant"),
         }
 
-        // Test HTTP variant
-        let http = DeploymentType::Http {
-            uri: "http://localhost:8080".to_string(),
-            additional_headers: HashMap::new(),
-        };
+        #[test]
+        fn test_http_uri_parsing() {
+            let valid_uri = "http://localhost:9080";
+            let result = Url::parse(valid_uri);
+            assert!(
+                result.is_ok(),
+                "HTTP URI parsing failed: {:?}",
+                result.err()
+            );
 
-        match http {
-            DeploymentType::Http { uri, .. } => {
-                assert_eq!(uri, "http://localhost:8080");
+            let valid_https_uri = "https://my-service.example.com:8080/path";
+            let result = Url::parse(valid_https_uri);
+            assert!(
+                result.is_ok(),
+                "HTTPS URI parsing failed: {:?}",
+                result.err()
+            );
+        }
+
+        #[test]
+        fn test_deployment_type_variants() {
+            // Test Lambda variant
+            let lambda = DeploymentType::Lambda {
+                arn: "arn:aws:lambda:us-east-1:123456789012:function:test:$LATEST".to_string(),
+                assume_role_arn: None,
+            };
+
+            match lambda {
+                DeploymentType::Lambda { arn, .. } => {
+                    assert!(arn.contains("test"));
+                }
+                _ => panic!("Expected Lambda variant"),
             }
-            _ => panic!("Expected HTTP variant"),
+
+            // Test HTTP variant
+            let http = DeploymentType::Http {
+                uri: "http://localhost:8080".to_string(),
+                additional_headers: HashMap::new(),
+            };
+
+            match http {
+                DeploymentType::Http { uri, .. } => {
+                    assert_eq!(uri, "http://localhost:8080");
+                }
+                _ => panic!("Expected HTTP variant"),
+            }
         }
     }
 }

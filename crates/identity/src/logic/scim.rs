@@ -3,13 +3,16 @@
 //! This module provides logic functions for syncing external IDP users and groups
 //! into our repository based on the SCIM 2.0 specification.
 
-use crate::logic::user::{Group, GroupMembership, Role, User, UserType};
+use crate::logic::user::GroupMembership;
 use crate::repository::{GroupMemberWithUser, UpdateUser, UserRepositoryLike};
 use serde::{Deserialize, Serialize};
+use shared::identity::{Group, Role, User, UserType};
 use shared::{
     error::CommonError,
     primitives::{PaginationRequest, WrappedChronoDateTime},
 };
+use shared_macros::{authn, authz_role};
+use tracing::{debug, info, trace, warn};
 use utoipa::{IntoParams, ToSchema};
 
 // ============================================================================
@@ -397,6 +400,8 @@ pub fn group_to_scim(group: &Group, members: &[GroupMemberWithUser], base_url: &
 // ============================================================================
 
 /// Create a user from a SCIM User payload
+#[authz_role(Admin, permission = "scim_user:write")]
+#[authn]
 pub async fn create_user_from_scim(
     repo: &impl UserRepositoryLike,
     scim_user: ScimUser,
@@ -410,6 +415,8 @@ pub async fn create_user_from_scim(
         .or_else(|| scim_user.id.clone())
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
+    debug!(user_id = %user_id, user_name = %scim_user.user_name, "Resolved user ID for SCIM user creation");
+
     // Extract primary email
     let email = scim_user
         .emails
@@ -420,6 +427,7 @@ pub async fn create_user_from_scim(
         .or_else(|| {
             // If no emails, use userName if it looks like an email
             if scim_user.user_name.contains('@') {
+                debug!(user_name = %scim_user.user_name, "Using userName as email");
                 Some(scim_user.user_name.clone())
             } else {
                 None
@@ -428,6 +436,7 @@ pub async fn create_user_from_scim(
 
     // Check if user already exists
     if let Some(existing) = repo.get_user_by_id(&user_id).await? {
+        debug!(user_id = %existing.id, "User already exists");
         return Err(CommonError::InvalidRequest {
             msg: format!("User with id '{}' already exists", existing.id),
             source: None,
@@ -444,6 +453,7 @@ pub async fn create_user_from_scim(
         updated_at: now,
     };
 
+    trace!(user_id = %user_id, "Inserting SCIM user into repository");
     repo.create_user(&user).await?;
 
     // Fetch the created user and return as SCIM
@@ -452,11 +462,24 @@ pub async fn create_user_from_scim(
         .await?
         .ok_or_else(|| CommonError::Unknown(anyhow::anyhow!("Failed to retrieve created user")))?;
 
+    info!(user_id = %user_id, "SCIM user created");
     Ok(user_to_scim(&user, ""))
 }
 
 /// Get a user by ID and return as SCIM User
+#[authz_role(Admin, permission = "scim_user:read")]
+#[authn]
 pub async fn get_user_scim(
+    repo: &impl UserRepositoryLike,
+    user_id: &str,
+    base_url: &str,
+) -> Result<ScimUser, CommonError> {
+    get_user_scim_internal(repo, user_id, base_url).await
+}
+
+/// Internal function to get a user as SCIM without auth check.
+/// Used by other SCIM functions that have already authenticated.
+async fn get_user_scim_internal(
     repo: &impl UserRepositoryLike,
     user_id: &str,
     base_url: &str,
@@ -502,6 +525,8 @@ pub async fn get_user_scim(
 /// Per SCIM 2.0 spec, `totalResults` should reflect the total matching resources.
 /// Since we don't have this information, we return the current page count when
 /// there's no more data, or indicate unknown (-1) when pagination continues.
+#[authz_role(Admin, permission = "scim_user:list")]
+#[authn]
 pub async fn list_users_scim(
     repo: &impl UserRepositoryLike,
     params: ScimListParams,
@@ -537,6 +562,8 @@ pub async fn list_users_scim(
 }
 
 /// Replace a user (PUT operation)
+#[authz_role(Admin, permission = "scim_user:write")]
+#[authn]
 pub async fn replace_user_scim(
     repo: &impl UserRepositoryLike,
     user_id: &str,
@@ -574,13 +601,17 @@ pub async fn replace_user_scim(
         description: None,
     };
 
+    trace!(user_id = %user_id, "Updating user attributes");
     repo.update_user(user_id, &update_user).await?;
 
+    debug!(user_id = %user_id, "SCIM user replaced");
     // Return updated user
-    get_user_scim(repo, user_id, base_url).await
+    get_user_scim_internal(repo, user_id, base_url).await
 }
 
 /// Patch a user (PATCH operation)
+#[authz_role(Admin, permission = "scim_user:write")]
+#[authn]
 pub async fn patch_user_scim(
     repo: &impl UserRepositoryLike,
     user_id: &str,
@@ -652,12 +683,16 @@ pub async fn patch_user_scim(
         role,
         description: None,
     };
+    trace!(user_id = %user_id, "Updating user attributes");
     repo.update_user(user_id, &update_user).await?;
 
-    get_user_scim(repo, user_id, base_url).await
+    debug!(user_id = %user_id, "SCIM user patched");
+    get_user_scim_internal(repo, user_id, base_url).await
 }
 
 /// Delete a user
+#[authz_role(Admin, permission = "scim_user:delete")]
+#[authn]
 pub async fn delete_user_scim(
     repo: &impl UserRepositoryLike,
     user_id: &str,
@@ -673,12 +708,16 @@ pub async fn delete_user_scim(
         })?;
 
     // Delete user's group memberships first
+    trace!(user_id = %user_id, "Deleting user group memberships");
     repo.delete_group_memberships_by_user_id(user_id).await?;
     // Delete user's API keys
+    trace!(user_id = %user_id, "Deleting user API keys");
     repo.delete_api_keys_by_user_id(user_id).await?;
     // Delete the user
+    trace!(user_id = %user_id, "Deleting user record");
     repo.delete_user(user_id).await?;
 
+    info!(user_id = %user_id, "SCIM user deleted");
     Ok(())
 }
 
@@ -687,6 +726,8 @@ pub async fn delete_user_scim(
 // ============================================================================
 
 /// Create a group from a SCIM Group payload
+#[authz_role(Admin, permission = "scim_group:write")]
+#[authn]
 pub async fn create_group_from_scim(
     repo: &impl UserRepositoryLike,
     scim_group: ScimGroup,
@@ -701,8 +742,11 @@ pub async fn create_group_from_scim(
         .or_else(|| scim_group.id.clone())
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
+    debug!(group_id = %group_id, display_name = %scim_group.display_name, "Resolved group ID for SCIM group creation");
+
     // Check if group already exists
     if let Some(existing) = repo.get_group_by_id(&group_id).await? {
+        debug!(group_id = %existing.id, "Group already exists");
         return Err(CommonError::InvalidRequest {
             msg: format!("Group with id '{}' already exists", existing.id),
             source: None,
@@ -716,9 +760,12 @@ pub async fn create_group_from_scim(
         updated_at: now,
     };
 
+    trace!(group_id = %group_id, "Inserting SCIM group into repository");
     repo.create_group(&group).await?;
 
     // Add members if provided
+    let member_count = scim_group.members.len();
+    let mut added_count = 0;
     for member in &scim_group.members {
         // Verify the user exists
         if repo.get_user_by_id(&member.value).await?.is_some() {
@@ -729,16 +776,37 @@ pub async fn create_group_from_scim(
                 updated_at: now,
             };
             // Ignore errors for member creation (user might not exist)
-            let _ = repo.create_group_membership(&membership).await;
+            if repo.create_group_membership(&membership).await.is_ok() {
+                added_count += 1;
+            }
+        } else {
+            warn!(group_id = %group_id, user_id = %member.value, "Skipping member: user not found");
         }
     }
 
+    if member_count > 0 {
+        debug!(group_id = %group_id, requested = member_count, added = added_count, "Added group members");
+    }
+
+    info!(group_id = %group_id, display_name = %scim_group.display_name, "SCIM group created");
     // Return the created group
-    get_group_scim(repo, &group_id, base_url).await
+    get_group_scim_internal(repo, &group_id, base_url).await
 }
 
 /// Get a group by ID and return as SCIM Group
+#[authz_role(Admin, permission = "scim_group:read")]
+#[authn]
 pub async fn get_group_scim(
+    repo: &impl UserRepositoryLike,
+    group_id: &str,
+    base_url: &str,
+) -> Result<ScimGroup, CommonError> {
+    get_group_scim_internal(repo, group_id, base_url).await
+}
+
+/// Internal function to get a group as SCIM without auth check.
+/// Used by other SCIM functions that have already authenticated.
+async fn get_group_scim_internal(
     repo: &impl UserRepositoryLike,
     group_id: &str,
     base_url: &str,
@@ -769,6 +837,8 @@ pub async fn get_group_scim(
 /// List groups with SCIM pagination
 ///
 /// Note: See `list_users_scim` for comments on totalResults limitations.
+#[authz_role(Admin, permission = "scim_group:list")]
+#[authn]
 pub async fn list_groups_scim(
     repo: &impl UserRepositoryLike,
     params: ScimListParams,
@@ -811,6 +881,8 @@ pub async fn list_groups_scim(
 }
 
 /// Replace a group (PUT operation)
+#[authz_role(Admin, permission = "scim_group:write")]
+#[authn]
 pub async fn replace_group_scim(
     repo: &impl UserRepositoryLike,
     group_id: &str,
@@ -830,12 +902,15 @@ pub async fn replace_group_scim(
         })?;
 
     // Update group name
+    trace!(group_id = %group_id, display_name = %scim_group.display_name, "Updating group name");
     repo.update_group(group_id, &scim_group.display_name)
         .await?;
 
     // Replace members: delete all existing and add new ones
+    trace!(group_id = %group_id, "Removing existing group memberships");
     repo.delete_group_memberships_by_group_id(group_id).await?;
 
+    let mut added_count = 0;
     for member in &scim_group.members {
         if repo.get_user_by_id(&member.value).await?.is_some() {
             let membership = GroupMembership {
@@ -844,14 +919,21 @@ pub async fn replace_group_scim(
                 created_at: now,
                 updated_at: now,
             };
-            let _ = repo.create_group_membership(&membership).await;
+            if repo.create_group_membership(&membership).await.is_ok() {
+                added_count += 1;
+            }
+        } else {
+            warn!(group_id = %group_id, user_id = %member.value, "Skipping member: user not found");
         }
     }
 
-    get_group_scim(repo, group_id, base_url).await
+    debug!(group_id = %group_id, member_count = added_count, "SCIM group replaced");
+    get_group_scim_internal(repo, group_id, base_url).await
 }
 
 /// Patch a group (PATCH operation)
+#[authz_role(Admin, permission = "scim_group:write")]
+#[authn]
 pub async fn patch_group_scim(
     repo: &impl UserRepositoryLike,
     group_id: &str,
@@ -969,13 +1051,17 @@ pub async fn patch_group_scim(
 
     // Update display name if changed
     if display_name != existing.name {
+        trace!(group_id = %group_id, new_name = %display_name, "Updating group display name");
         repo.update_group(group_id, &display_name).await?;
     }
 
-    get_group_scim(repo, group_id, base_url).await
+    debug!(group_id = %group_id, "SCIM group patched");
+    get_group_scim_internal(repo, group_id, base_url).await
 }
 
 /// Delete a group
+#[authz_role(Admin, permission = "scim_group:delete")]
+#[authn]
 pub async fn delete_group_scim(
     repo: &impl UserRepositoryLike,
     group_id: &str,
@@ -991,10 +1077,13 @@ pub async fn delete_group_scim(
         })?;
 
     // Delete group memberships first
+    trace!(group_id = %group_id, "Deleting group memberships");
     repo.delete_group_memberships_by_group_id(group_id).await?;
     // Delete the group
+    trace!(group_id = %group_id, "Deleting group record");
     repo.delete_group(group_id).await?;
 
+    info!(group_id = %group_id, "SCIM group deleted");
     Ok(())
 }
 
@@ -1002,152 +1091,82 @@ pub async fn delete_group_scim(
 // Tests
 // ============================================================================
 
-#[cfg(all(test, feature = "unit_test"))]
+#[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::repository::Repository;
-    use shared::primitives::SqlMigrationLoader;
+    mod unit {
+        use super::super::*;
+        use crate::repository::Repository;
+        use shared::identity::Role;
+        use shared::primitives::SqlMigrationLoader;
+        use shared::test_utils::helpers::MockAuthClient;
 
-    async fn setup_test_repo() -> Repository {
-        shared::setup_test!();
+        async fn setup_test_repo() -> Repository {
+            shared::setup_test!();
 
-        let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
-            Repository::load_sql_migrations(),
-        ])
-        .await
-        .unwrap();
+            let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                Repository::load_sql_migrations(),
+            ])
+            .await
+            .unwrap();
 
-        Repository::new(conn)
-    }
+            Repository::new(conn)
+        }
 
-    #[tokio::test]
-    async fn test_create_user_from_scim() {
-        let repo = setup_test_repo().await;
+        /// Create a mock auth client that returns an authenticated admin identity
+        fn mock_admin_auth_client() -> MockAuthClient {
+            MockAuthClient::new(shared::test_utils::helpers::test_admin_machine())
+        }
 
-        let scim_user = ScimUser {
-            schemas: default_user_schemas(),
-            id: None,
-            external_id: Some("ext-123".to_string()),
-            user_name: "john.doe@example.com".to_string(),
-            name: Some(ScimName {
-                given_name: Some("John".to_string()),
-                family_name: Some("Doe".to_string()),
-                ..Default::default()
-            }),
-            display_name: Some("John Doe".to_string()),
-            emails: vec![ScimEmail {
-                value: "john.doe@example.com".to_string(),
-                email_type: Some("work".to_string()),
-                primary: true,
-            }],
-            active: true,
-            groups: vec![],
-            meta: None,
-        };
+        #[tokio::test]
+        async fn test_create_user_from_scim() {
+            let repo = setup_test_repo().await;
 
-        let result = create_user_from_scim(&repo, scim_user).await;
-        assert!(result.is_ok());
-
-        let created = result.unwrap();
-        assert_eq!(created.id, Some("ext-123".to_string()));
-        assert_eq!(created.user_name, "john.doe@example.com");
-        assert!(!created.emails.is_empty());
-        assert_eq!(created.emails[0].value, "john.doe@example.com");
-    }
-
-    #[tokio::test]
-    async fn test_create_user_from_scim_duplicate() {
-        let repo = setup_test_repo().await;
-
-        let scim_user = ScimUser {
-            schemas: default_user_schemas(),
-            id: None,
-            external_id: Some("ext-456".to_string()),
-            user_name: "jane.doe@example.com".to_string(),
-            name: None,
-            display_name: None,
-            emails: vec![ScimEmail {
-                value: "jane.doe@example.com".to_string(),
-                email_type: None,
-                primary: true,
-            }],
-            active: true,
-            groups: vec![],
-            meta: None,
-        };
-
-        // Create first user
-        let result1 = create_user_from_scim(&repo, scim_user.clone()).await;
-        assert!(result1.is_ok());
-
-        // Try to create duplicate
-        let result2 = create_user_from_scim(&repo, scim_user).await;
-        assert!(result2.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_get_user_scim() {
-        let repo = setup_test_repo().await;
-
-        // Create a user first
-        let scim_user = ScimUser {
-            schemas: default_user_schemas(),
-            id: None,
-            external_id: Some("get-test-user".to_string()),
-            user_name: "get.test@example.com".to_string(),
-            name: None,
-            display_name: None,
-            emails: vec![ScimEmail {
-                value: "get.test@example.com".to_string(),
-                email_type: None,
-                primary: true,
-            }],
-            active: true,
-            groups: vec![],
-            meta: None,
-        };
-
-        create_user_from_scim(&repo, scim_user).await.unwrap();
-
-        // Get the user
-        let result = get_user_scim(&repo, "get-test-user", "https://example.com/scim/v2").await;
-        assert!(result.is_ok());
-
-        let user = result.unwrap();
-        assert_eq!(user.id, Some("get-test-user".to_string()));
-        assert!(user.meta.is_some());
-        assert!(
-            user.meta
-                .unwrap()
-                .location
-                .unwrap()
-                .contains("get-test-user")
-        );
-    }
-
-    #[tokio::test]
-    async fn test_get_user_scim_not_found() {
-        let repo = setup_test_repo().await;
-
-        let result = get_user_scim(&repo, "nonexistent", "https://example.com/scim/v2").await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_list_users_scim() {
-        let repo = setup_test_repo().await;
-
-        // Create some users
-        for i in 0..3 {
             let scim_user = ScimUser {
                 schemas: default_user_schemas(),
                 id: None,
-                external_id: Some(format!("list-user-{i}")),
-                user_name: format!("user{i}@example.com"),
+                external_id: Some("ext-123".to_string()),
+                user_name: "john.doe@example.com".to_string(),
+                name: Some(ScimName {
+                    given_name: Some("John".to_string()),
+                    family_name: Some("Doe".to_string()),
+                    ..Default::default()
+                }),
+                display_name: Some("John Doe".to_string()),
+                emails: vec![ScimEmail {
+                    value: "john.doe@example.com".to_string(),
+                    email_type: Some("work".to_string()),
+                    primary: true,
+                }],
+                active: true,
+                groups: vec![],
+                meta: None,
+            };
+
+            let auth_client = mock_admin_auth_client();
+            let result =
+                create_user_from_scim(auth_client, http::HeaderMap::new(), &repo, scim_user).await;
+            assert!(result.is_ok());
+
+            let created = result.unwrap();
+            assert_eq!(created.id, Some("ext-123".to_string()));
+            assert_eq!(created.user_name, "john.doe@example.com");
+            assert!(!created.emails.is_empty());
+            assert_eq!(created.emails[0].value, "john.doe@example.com");
+        }
+
+        #[tokio::test]
+        async fn test_create_user_from_scim_duplicate() {
+            let repo = setup_test_repo().await;
+
+            let scim_user = ScimUser {
+                schemas: default_user_schemas(),
+                id: None,
+                external_id: Some("ext-456".to_string()),
+                user_name: "jane.doe@example.com".to_string(),
                 name: None,
                 display_name: None,
                 emails: vec![ScimEmail {
-                    value: format!("user{i}@example.com"),
+                    value: "jane.doe@example.com".to_string(),
                     email_type: None,
                     primary: true,
                 }],
@@ -1155,496 +1174,780 @@ mod tests {
                 groups: vec![],
                 meta: None,
             };
-            create_user_from_scim(&repo, scim_user).await.unwrap();
+
+            // Create first user
+            let auth_client = mock_admin_auth_client();
+            let result1 = create_user_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_user.clone(),
+            )
+            .await;
+            assert!(result1.is_ok());
+
+            // Try to create duplicate
+            let result2 =
+                create_user_from_scim(auth_client, http::HeaderMap::new(), &repo, scim_user).await;
+            assert!(result2.is_err());
         }
 
-        let result = list_users_scim(
-            &repo,
-            ScimListParams::default(),
-            "https://example.com/scim/v2",
-        )
-        .await;
-        assert!(result.is_ok());
+        #[tokio::test]
+        async fn test_get_user_scim() {
+            let repo = setup_test_repo().await;
 
-        let list = result.unwrap();
-        assert_eq!(list.total_results, 3);
-        assert_eq!(list.resources.len(), 3);
-    }
+            // Create a user first
+            let scim_user = ScimUser {
+                schemas: default_user_schemas(),
+                id: None,
+                external_id: Some("get-test-user".to_string()),
+                user_name: "get.test@example.com".to_string(),
+                name: None,
+                display_name: None,
+                emails: vec![ScimEmail {
+                    value: "get.test@example.com".to_string(),
+                    email_type: None,
+                    primary: true,
+                }],
+                active: true,
+                groups: vec![],
+                meta: None,
+            };
 
-    #[tokio::test]
-    async fn test_replace_user_scim() {
-        let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
+            create_user_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_user,
+            )
+            .await
+            .unwrap();
 
-        // Create a user
-        let scim_user = ScimUser {
-            schemas: default_user_schemas(),
-            id: None,
-            external_id: Some("replace-user".to_string()),
-            user_name: "replace@example.com".to_string(),
-            name: None,
-            display_name: None,
-            emails: vec![ScimEmail {
-                value: "replace@example.com".to_string(),
-                email_type: None,
-                primary: true,
-            }],
-            active: true,
-            groups: vec![],
-            meta: None,
-        };
+            // Get the user
+            let result = get_user_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                "get-test-user",
+                "https://example.com/scim/v2",
+            )
+            .await;
+            assert!(result.is_ok());
 
-        create_user_from_scim(&repo, scim_user).await.unwrap();
+            let user = result.unwrap();
+            assert_eq!(user.id, Some("get-test-user".to_string()));
+            assert!(user.meta.is_some());
+            assert!(
+                user.meta
+                    .unwrap()
+                    .location
+                    .unwrap()
+                    .contains("get-test-user")
+            );
+        }
 
-        // Replace the user
-        let updated_user = ScimUser {
-            schemas: default_user_schemas(),
-            id: Some("replace-user".to_string()),
-            external_id: Some("replace-user".to_string()),
-            user_name: "updated@example.com".to_string(),
-            name: None,
-            display_name: None,
-            emails: vec![ScimEmail {
-                value: "updated@example.com".to_string(),
-                email_type: None,
-                primary: true,
-            }],
-            active: true,
-            groups: vec![],
-            meta: None,
-        };
+        #[tokio::test]
+        async fn test_get_user_scim_not_found() {
+            let repo = setup_test_repo().await;
 
-        let result = replace_user_scim(
-            &repo,
-            "replace-user",
-            updated_user,
-            "https://example.com/scim/v2",
-        )
-        .await;
-        assert!(result.is_ok());
+            let auth_client = mock_admin_auth_client();
+            let result = get_user_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                "nonexistent",
+                "https://example.com/scim/v2",
+            )
+            .await;
+            assert!(result.is_err());
+        }
 
-        let user = result.unwrap();
-        assert!(!user.emails.is_empty());
-        assert_eq!(user.emails[0].value, "updated@example.com");
-    }
+        #[tokio::test]
+        async fn test_list_users_scim() {
+            let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
 
-    #[tokio::test]
-    async fn test_patch_user_scim() {
-        let repo = setup_test_repo().await;
+            // Create some users
+            for i in 0..3 {
+                let scim_user = ScimUser {
+                    schemas: default_user_schemas(),
+                    id: None,
+                    external_id: Some(format!("list-user-{i}")),
+                    user_name: format!("user{i}@example.com"),
+                    name: None,
+                    display_name: None,
+                    emails: vec![ScimEmail {
+                        value: format!("user{i}@example.com"),
+                        email_type: None,
+                        primary: true,
+                    }],
+                    active: true,
+                    groups: vec![],
+                    meta: None,
+                };
+                create_user_from_scim(
+                    auth_client.clone(),
+                    http::HeaderMap::new(),
+                    &repo,
+                    scim_user,
+                )
+                .await
+                .unwrap();
+            }
 
-        // Create a user
-        let scim_user = ScimUser {
-            schemas: default_user_schemas(),
-            id: None,
-            external_id: Some("patch-user".to_string()),
-            user_name: "patch@example.com".to_string(),
-            name: None,
-            display_name: None,
-            emails: vec![ScimEmail {
-                value: "patch@example.com".to_string(),
-                email_type: None,
-                primary: true,
-            }],
-            active: true,
-            groups: vec![],
-            meta: None,
-        };
+            let result = list_users_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                ScimListParams::default(),
+                "https://example.com/scim/v2",
+            )
+            .await;
+            assert!(result.is_ok());
 
-        create_user_from_scim(&repo, scim_user).await.unwrap();
+            let list = result.unwrap();
+            assert_eq!(list.total_results, 3);
+            assert_eq!(list.resources.len(), 3);
+        }
 
-        // Patch the user
-        let patch_request = ScimPatchRequest {
-            schemas: vec!["urn:ietf:params:scim:api:messages:2.0:PatchOp".to_string()],
-            operations: vec![ScimPatchOperation {
-                op: ScimPatchOp::Replace,
-                path: Some("emails".to_string()),
-                value: Some(serde_json::json!([{"value": "patched@example.com", "primary": true}])),
-            }],
-        };
+        #[tokio::test]
+        async fn test_replace_user_scim() {
+            let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
 
-        let result = patch_user_scim(
-            &repo,
-            "patch-user",
-            patch_request,
-            "https://example.com/scim/v2",
-        )
-        .await;
-        assert!(result.is_ok());
+            // Create a user
+            let scim_user = ScimUser {
+                schemas: default_user_schemas(),
+                id: None,
+                external_id: Some("replace-user".to_string()),
+                user_name: "replace@example.com".to_string(),
+                name: None,
+                display_name: None,
+                emails: vec![ScimEmail {
+                    value: "replace@example.com".to_string(),
+                    email_type: None,
+                    primary: true,
+                }],
+                active: true,
+                groups: vec![],
+                meta: None,
+            };
 
-        let user = result.unwrap();
-        assert!(!user.emails.is_empty());
-        assert_eq!(user.emails[0].value, "patched@example.com");
-    }
+            create_user_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_user,
+            )
+            .await
+            .unwrap();
 
-    #[tokio::test]
-    async fn test_delete_user_scim() {
-        let repo = setup_test_repo().await;
+            // Replace the user
+            let updated_user = ScimUser {
+                schemas: default_user_schemas(),
+                id: Some("replace-user".to_string()),
+                external_id: Some("replace-user".to_string()),
+                user_name: "updated@example.com".to_string(),
+                name: None,
+                display_name: None,
+                emails: vec![ScimEmail {
+                    value: "updated@example.com".to_string(),
+                    email_type: None,
+                    primary: true,
+                }],
+                active: true,
+                groups: vec![],
+                meta: None,
+            };
 
-        // Create a user
-        let scim_user = ScimUser {
-            schemas: default_user_schemas(),
-            id: None,
-            external_id: Some("delete-user".to_string()),
-            user_name: "delete@example.com".to_string(),
-            name: None,
-            display_name: None,
-            emails: vec![],
-            active: true,
-            groups: vec![],
-            meta: None,
-        };
+            let result = replace_user_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                "replace-user",
+                updated_user,
+                "https://example.com/scim/v2",
+            )
+            .await;
+            assert!(result.is_ok());
 
-        create_user_from_scim(&repo, scim_user).await.unwrap();
+            let user = result.unwrap();
+            assert!(!user.emails.is_empty());
+            assert_eq!(user.emails[0].value, "updated@example.com");
+        }
 
-        // Delete the user
-        let result = delete_user_scim(&repo, "delete-user").await;
-        assert!(result.is_ok());
+        #[tokio::test]
+        async fn test_patch_user_scim() {
+            let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
 
-        // Verify deletion
-        let get_result = get_user_scim(&repo, "delete-user", "").await;
-        assert!(get_result.is_err());
-    }
+            // Create a user
+            let scim_user = ScimUser {
+                schemas: default_user_schemas(),
+                id: None,
+                external_id: Some("patch-user".to_string()),
+                user_name: "patch@example.com".to_string(),
+                name: None,
+                display_name: None,
+                emails: vec![ScimEmail {
+                    value: "patch@example.com".to_string(),
+                    email_type: None,
+                    primary: true,
+                }],
+                active: true,
+                groups: vec![],
+                meta: None,
+            };
 
-    #[tokio::test]
-    async fn test_create_group_from_scim() {
-        let repo = setup_test_repo().await;
+            create_user_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_user,
+            )
+            .await
+            .unwrap();
 
-        let scim_group = ScimGroup {
-            schemas: default_group_schemas(),
-            id: None,
-            external_id: Some("group-123".to_string()),
-            display_name: "Engineering".to_string(),
-            members: vec![],
-            meta: None,
-        };
+            // Patch the user
+            let patch_request = ScimPatchRequest {
+                schemas: vec!["urn:ietf:params:scim:api:messages:2.0:PatchOp".to_string()],
+                operations: vec![ScimPatchOperation {
+                    op: ScimPatchOp::Replace,
+                    path: Some("emails".to_string()),
+                    value: Some(
+                        serde_json::json!([{"value": "patched@example.com", "primary": true}]),
+                    ),
+                }],
+            };
 
-        let result = create_group_from_scim(&repo, scim_group, "https://example.com/scim/v2").await;
-        assert!(result.is_ok());
+            let result = patch_user_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                "patch-user",
+                patch_request,
+                "https://example.com/scim/v2",
+            )
+            .await;
+            assert!(result.is_ok());
 
-        let created = result.unwrap();
-        assert_eq!(created.id, Some("group-123".to_string()));
-        assert_eq!(created.display_name, "Engineering");
-    }
+            let user = result.unwrap();
+            assert!(!user.emails.is_empty());
+            assert_eq!(user.emails[0].value, "patched@example.com");
+        }
 
-    #[tokio::test]
-    async fn test_create_group_with_members() {
-        let repo = setup_test_repo().await;
+        #[tokio::test]
+        async fn test_delete_user_scim() {
+            let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
 
-        // Create a user first
-        let scim_user = ScimUser {
-            schemas: default_user_schemas(),
-            id: None,
-            external_id: Some("member-user".to_string()),
-            user_name: "member@example.com".to_string(),
-            name: None,
-            display_name: None,
-            emails: vec![],
-            active: true,
-            groups: vec![],
-            meta: None,
-        };
-        create_user_from_scim(&repo, scim_user).await.unwrap();
+            // Create a user
+            let scim_user = ScimUser {
+                schemas: default_user_schemas(),
+                id: None,
+                external_id: Some("delete-user".to_string()),
+                user_name: "delete@example.com".to_string(),
+                name: None,
+                display_name: None,
+                emails: vec![],
+                active: true,
+                groups: vec![],
+                meta: None,
+            };
 
-        // Create group with member
-        let scim_group = ScimGroup {
-            schemas: default_group_schemas(),
-            id: None,
-            external_id: Some("group-with-members".to_string()),
-            display_name: "Team".to_string(),
-            members: vec![ScimGroupMember {
-                value: "member-user".to_string(),
-                ref_uri: None,
-                display: None,
-                member_type: Some("User".to_string()),
-            }],
-            meta: None,
-        };
+            create_user_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_user,
+            )
+            .await
+            .unwrap();
 
-        let result = create_group_from_scim(&repo, scim_group, "https://example.com/scim/v2").await;
-        assert!(result.is_ok());
+            // Delete the user
+            let result = delete_user_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                "delete-user",
+            )
+            .await;
+            assert!(result.is_ok());
 
-        let created = result.unwrap();
-        assert_eq!(created.members.len(), 1);
-        assert_eq!(created.members[0].value, "member-user");
-    }
+            // Verify deletion
+            let get_result = get_user_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                "delete-user",
+                "",
+            )
+            .await;
+            assert!(get_result.is_err());
+        }
 
-    #[tokio::test]
-    async fn test_get_group_scim() {
-        let repo = setup_test_repo().await;
+        #[tokio::test]
+        async fn test_create_group_from_scim() {
+            let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
 
-        // Create a group
-        let scim_group = ScimGroup {
-            schemas: default_group_schemas(),
-            id: None,
-            external_id: Some("get-group".to_string()),
-            display_name: "Test Group".to_string(),
-            members: vec![],
-            meta: None,
-        };
-        create_group_from_scim(&repo, scim_group, "").await.unwrap();
-
-        // Get the group
-        let result = get_group_scim(&repo, "get-group", "https://example.com/scim/v2").await;
-        assert!(result.is_ok());
-
-        let group = result.unwrap();
-        assert_eq!(group.id, Some("get-group".to_string()));
-        assert_eq!(group.display_name, "Test Group");
-    }
-
-    #[tokio::test]
-    async fn test_list_groups_scim() {
-        let repo = setup_test_repo().await;
-
-        // Create some groups
-        for i in 0..3 {
             let scim_group = ScimGroup {
                 schemas: default_group_schemas(),
                 id: None,
-                external_id: Some(format!("list-group-{i}")),
-                display_name: format!("Group {i}"),
+                external_id: Some("group-123".to_string()),
+                display_name: "Engineering".to_string(),
                 members: vec![],
                 meta: None,
             };
-            create_group_from_scim(&repo, scim_group, "").await.unwrap();
+
+            let result = create_group_from_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                scim_group,
+                "https://example.com/scim/v2",
+            )
+            .await;
+            assert!(result.is_ok());
+
+            let created = result.unwrap();
+            assert_eq!(created.id, Some("group-123".to_string()));
+            assert_eq!(created.display_name, "Engineering");
         }
 
-        let result = list_groups_scim(
-            &repo,
-            ScimListParams::default(),
-            "https://example.com/scim/v2",
-        )
-        .await;
-        assert!(result.is_ok());
+        #[tokio::test]
+        async fn test_create_group_with_members() {
+            let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
 
-        let list = result.unwrap();
-        assert_eq!(list.total_results, 3);
-        assert_eq!(list.resources.len(), 3);
-    }
+            // Create a user first
+            let scim_user = ScimUser {
+                schemas: default_user_schemas(),
+                id: None,
+                external_id: Some("member-user".to_string()),
+                user_name: "member@example.com".to_string(),
+                name: None,
+                display_name: None,
+                emails: vec![],
+                active: true,
+                groups: vec![],
+                meta: None,
+            };
+            create_user_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_user,
+            )
+            .await
+            .unwrap();
 
-    #[tokio::test]
-    async fn test_replace_group_scim() {
-        let repo = setup_test_repo().await;
+            // Create group with member
+            let scim_group = ScimGroup {
+                schemas: default_group_schemas(),
+                id: None,
+                external_id: Some("group-with-members".to_string()),
+                display_name: "Team".to_string(),
+                members: vec![ScimGroupMember {
+                    value: "member-user".to_string(),
+                    ref_uri: None,
+                    display: None,
+                    member_type: Some("User".to_string()),
+                }],
+                meta: None,
+            };
 
-        // Create a group
-        let scim_group = ScimGroup {
-            schemas: default_group_schemas(),
-            id: None,
-            external_id: Some("replace-group".to_string()),
-            display_name: "Original Name".to_string(),
-            members: vec![],
-            meta: None,
-        };
-        create_group_from_scim(&repo, scim_group, "").await.unwrap();
+            let result = create_group_from_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                scim_group,
+                "https://example.com/scim/v2",
+            )
+            .await;
+            assert!(result.is_ok());
 
-        // Replace the group
-        let updated_group = ScimGroup {
-            schemas: default_group_schemas(),
-            id: Some("replace-group".to_string()),
-            external_id: Some("replace-group".to_string()),
-            display_name: "Updated Name".to_string(),
-            members: vec![],
-            meta: None,
-        };
+            let created = result.unwrap();
+            assert_eq!(created.members.len(), 1);
+            assert_eq!(created.members[0].value, "member-user");
+        }
 
-        let result = replace_group_scim(
-            &repo,
-            "replace-group",
-            updated_group,
-            "https://example.com/scim/v2",
-        )
-        .await;
-        assert!(result.is_ok());
+        #[tokio::test]
+        async fn test_get_group_scim() {
+            let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
 
-        let group = result.unwrap();
-        assert_eq!(group.display_name, "Updated Name");
-    }
+            // Create a group
+            let scim_group = ScimGroup {
+                schemas: default_group_schemas(),
+                id: None,
+                external_id: Some("get-group".to_string()),
+                display_name: "Test Group".to_string(),
+                members: vec![],
+                meta: None,
+            };
+            create_group_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_group,
+                "",
+            )
+            .await
+            .unwrap();
 
-    #[tokio::test]
-    async fn test_patch_group_scim_add_member() {
-        let repo = setup_test_repo().await;
+            // Get the group
+            let result = get_group_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                "get-group",
+                "https://example.com/scim/v2",
+            )
+            .await;
+            assert!(result.is_ok());
 
-        // Create a user
-        let scim_user = ScimUser {
-            schemas: default_user_schemas(),
-            id: None,
-            external_id: Some("patch-member".to_string()),
-            user_name: "patch-member@example.com".to_string(),
-            name: None,
-            display_name: None,
-            emails: vec![],
-            active: true,
-            groups: vec![],
-            meta: None,
-        };
-        create_user_from_scim(&repo, scim_user).await.unwrap();
+            let group = result.unwrap();
+            assert_eq!(group.id, Some("get-group".to_string()));
+            assert_eq!(group.display_name, "Test Group");
+        }
 
-        // Create a group
-        let scim_group = ScimGroup {
-            schemas: default_group_schemas(),
-            id: None,
-            external_id: Some("patch-group".to_string()),
-            display_name: "Patch Group".to_string(),
-            members: vec![],
-            meta: None,
-        };
-        create_group_from_scim(&repo, scim_group, "").await.unwrap();
+        #[tokio::test]
+        async fn test_list_groups_scim() {
+            let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
 
-        // Patch to add member
-        let patch_request = ScimPatchRequest {
-            schemas: vec!["urn:ietf:params:scim:api:messages:2.0:PatchOp".to_string()],
-            operations: vec![ScimPatchOperation {
-                op: ScimPatchOp::Add,
-                path: Some("members".to_string()),
-                value: Some(serde_json::json!([{"value": "patch-member"}])),
-            }],
-        };
+            // Create some groups
+            for i in 0..3 {
+                let scim_group = ScimGroup {
+                    schemas: default_group_schemas(),
+                    id: None,
+                    external_id: Some(format!("list-group-{i}")),
+                    display_name: format!("Group {i}"),
+                    members: vec![],
+                    meta: None,
+                };
+                create_group_from_scim(
+                    auth_client.clone(),
+                    http::HeaderMap::new(),
+                    &repo,
+                    scim_group,
+                    "",
+                )
+                .await
+                .unwrap();
+            }
 
-        let result = patch_group_scim(
-            &repo,
-            "patch-group",
-            patch_request,
-            "https://example.com/scim/v2",
-        )
-        .await;
-        assert!(result.is_ok());
+            let result = list_groups_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                ScimListParams::default(),
+                "https://example.com/scim/v2",
+            )
+            .await;
+            assert!(result.is_ok());
 
-        let group = result.unwrap();
-        assert_eq!(group.members.len(), 1);
-        assert_eq!(group.members[0].value, "patch-member");
-    }
+            let list = result.unwrap();
+            assert_eq!(list.total_results, 3);
+            assert_eq!(list.resources.len(), 3);
+        }
 
-    #[tokio::test]
-    async fn test_patch_group_scim_remove_member() {
-        let repo = setup_test_repo().await;
+        #[tokio::test]
+        async fn test_replace_group_scim() {
+            let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
 
-        // Create a user
-        let scim_user = ScimUser {
-            schemas: default_user_schemas(),
-            id: None,
-            external_id: Some("remove-member".to_string()),
-            user_name: "remove@example.com".to_string(),
-            name: None,
-            display_name: None,
-            emails: vec![],
-            active: true,
-            groups: vec![],
-            meta: None,
-        };
-        create_user_from_scim(&repo, scim_user).await.unwrap();
+            // Create a group
+            let scim_group = ScimGroup {
+                schemas: default_group_schemas(),
+                id: None,
+                external_id: Some("replace-group".to_string()),
+                display_name: "Original Name".to_string(),
+                members: vec![],
+                meta: None,
+            };
+            create_group_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_group,
+                "",
+            )
+            .await
+            .unwrap();
 
-        // Create a group with the member
-        let scim_group = ScimGroup {
-            schemas: default_group_schemas(),
-            id: None,
-            external_id: Some("remove-member-group".to_string()),
-            display_name: "Remove Member Group".to_string(),
-            members: vec![ScimGroupMember {
-                value: "remove-member".to_string(),
-                ref_uri: None,
-                display: None,
-                member_type: None,
-            }],
-            meta: None,
-        };
-        create_group_from_scim(&repo, scim_group, "").await.unwrap();
+            // Replace the group
+            let updated_group = ScimGroup {
+                schemas: default_group_schemas(),
+                id: Some("replace-group".to_string()),
+                external_id: Some("replace-group".to_string()),
+                display_name: "Updated Name".to_string(),
+                members: vec![],
+                meta: None,
+            };
 
-        // Patch to remove member
-        let patch_request = ScimPatchRequest {
-            schemas: vec!["urn:ietf:params:scim:api:messages:2.0:PatchOp".to_string()],
-            operations: vec![ScimPatchOperation {
-                op: ScimPatchOp::Remove,
-                path: Some("members[value eq \"remove-member\"]".to_string()),
-                value: None,
-            }],
-        };
+            let result = replace_group_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                "replace-group",
+                updated_group,
+                "https://example.com/scim/v2",
+            )
+            .await;
+            assert!(result.is_ok());
 
-        let result = patch_group_scim(
-            &repo,
-            "remove-member-group",
-            patch_request,
-            "https://example.com/scim/v2",
-        )
-        .await;
-        assert!(result.is_ok());
+            let group = result.unwrap();
+            assert_eq!(group.display_name, "Updated Name");
+        }
 
-        let group = result.unwrap();
-        assert!(group.members.is_empty());
-    }
+        #[tokio::test]
+        async fn test_patch_group_scim_add_member() {
+            let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
 
-    #[tokio::test]
-    async fn test_delete_group_scim() {
-        let repo = setup_test_repo().await;
+            // Create a user
+            let scim_user = ScimUser {
+                schemas: default_user_schemas(),
+                id: None,
+                external_id: Some("patch-member".to_string()),
+                user_name: "patch-member@example.com".to_string(),
+                name: None,
+                display_name: None,
+                emails: vec![],
+                active: true,
+                groups: vec![],
+                meta: None,
+            };
+            create_user_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_user,
+            )
+            .await
+            .unwrap();
 
-        // Create a group
-        let scim_group = ScimGroup {
-            schemas: default_group_schemas(),
-            id: None,
-            external_id: Some("delete-group".to_string()),
-            display_name: "Delete Group".to_string(),
-            members: vec![],
-            meta: None,
-        };
-        create_group_from_scim(&repo, scim_group, "").await.unwrap();
+            // Create a group
+            let scim_group = ScimGroup {
+                schemas: default_group_schemas(),
+                id: None,
+                external_id: Some("patch-group".to_string()),
+                display_name: "Patch Group".to_string(),
+                members: vec![],
+                meta: None,
+            };
+            create_group_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_group,
+                "",
+            )
+            .await
+            .unwrap();
 
-        // Delete the group
-        let result = delete_group_scim(&repo, "delete-group").await;
-        assert!(result.is_ok());
+            // Patch to add member
+            let patch_request = ScimPatchRequest {
+                schemas: vec!["urn:ietf:params:scim:api:messages:2.0:PatchOp".to_string()],
+                operations: vec![ScimPatchOperation {
+                    op: ScimPatchOp::Add,
+                    path: Some("members".to_string()),
+                    value: Some(serde_json::json!([{"value": "patch-member"}])),
+                }],
+            };
 
-        // Verify deletion
-        let get_result = get_group_scim(&repo, "delete-group", "").await;
-        assert!(get_result.is_err());
-    }
+            let result = patch_group_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                "patch-group",
+                patch_request,
+                "https://example.com/scim/v2",
+            )
+            .await;
+            assert!(result.is_ok());
 
-    #[tokio::test]
-    async fn test_user_to_scim_conversion() {
-        let user = User {
-            id: "user-123".to_string(),
-            user_type: UserType::Human,
-            email: Some("test@example.com".to_string()),
-            role: Role::User,
-            description: None,
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-        };
+            let group = result.unwrap();
+            assert_eq!(group.members.len(), 1);
+            assert_eq!(group.members[0].value, "patch-member");
+        }
 
-        let scim = user_to_scim(&user, "https://example.com/scim/v2");
+        #[tokio::test]
+        async fn test_patch_group_scim_remove_member() {
+            let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
 
-        assert_eq!(scim.id, Some("user-123".to_string()));
-        assert_eq!(scim.user_name, "test@example.com");
-        assert!(!scim.emails.is_empty());
-        assert_eq!(scim.emails[0].value, "test@example.com");
-        assert!(scim.meta.is_some());
-    }
+            // Create a user
+            let scim_user = ScimUser {
+                schemas: default_user_schemas(),
+                id: None,
+                external_id: Some("remove-member".to_string()),
+                user_name: "remove@example.com".to_string(),
+                name: None,
+                display_name: None,
+                emails: vec![],
+                active: true,
+                groups: vec![],
+                meta: None,
+            };
+            create_user_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_user,
+            )
+            .await
+            .unwrap();
 
-    #[tokio::test]
-    async fn test_group_to_scim_conversion() {
-        let group = Group {
-            id: "group-123".to_string(),
-            name: "Test Group".to_string(),
-            created_at: WrappedChronoDateTime::now(),
-            updated_at: WrappedChronoDateTime::now(),
-        };
+            // Create a group with the member
+            let scim_group = ScimGroup {
+                schemas: default_group_schemas(),
+                id: None,
+                external_id: Some("remove-member-group".to_string()),
+                display_name: "Remove Member Group".to_string(),
+                members: vec![ScimGroupMember {
+                    value: "remove-member".to_string(),
+                    ref_uri: None,
+                    display: None,
+                    member_type: None,
+                }],
+                meta: None,
+            };
+            create_group_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_group,
+                "",
+            )
+            .await
+            .unwrap();
 
-        let scim = group_to_scim(&group, &[], "https://example.com/scim/v2");
+            // Patch to remove member
+            let patch_request = ScimPatchRequest {
+                schemas: vec!["urn:ietf:params:scim:api:messages:2.0:PatchOp".to_string()],
+                operations: vec![ScimPatchOperation {
+                    op: ScimPatchOp::Remove,
+                    path: Some("members[value eq \"remove-member\"]".to_string()),
+                    value: None,
+                }],
+            };
 
-        assert_eq!(scim.id, Some("group-123".to_string()));
-        assert_eq!(scim.display_name, "Test Group");
-        assert!(scim.members.is_empty());
-        assert!(scim.meta.is_some());
-    }
+            let result = patch_group_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                "remove-member-group",
+                patch_request,
+                "https://example.com/scim/v2",
+            )
+            .await;
+            assert!(result.is_ok());
 
-    #[tokio::test]
-    async fn test_scim_error_creation() {
-        let not_found = ScimError::not_found("User not found");
-        assert_eq!(not_found.status, "404");
-        assert_eq!(not_found.detail, "User not found");
+            let group = result.unwrap();
+            assert!(group.members.is_empty());
+        }
 
-        let bad_request = ScimError::bad_request("Invalid email");
-        assert_eq!(bad_request.status, "400");
-        assert_eq!(bad_request.scim_type, Some("invalidValue".to_string()));
+        #[tokio::test]
+        async fn test_delete_group_scim() {
+            let repo = setup_test_repo().await;
+            let auth_client = mock_admin_auth_client();
 
-        let conflict = ScimError::conflict("User already exists");
-        assert_eq!(conflict.status, "409");
-        assert_eq!(conflict.scim_type, Some("uniqueness".to_string()));
+            // Create a group
+            let scim_group = ScimGroup {
+                schemas: default_group_schemas(),
+                id: None,
+                external_id: Some("delete-group".to_string()),
+                display_name: "Delete Group".to_string(),
+                members: vec![],
+                meta: None,
+            };
+            create_group_from_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                scim_group,
+                "",
+            )
+            .await
+            .unwrap();
+
+            // Delete the group
+            let result = delete_group_scim(
+                auth_client.clone(),
+                http::HeaderMap::new(),
+                &repo,
+                "delete-group",
+            )
+            .await;
+            assert!(result.is_ok());
+
+            // Verify deletion
+            let get_result = get_group_scim(
+                auth_client,
+                http::HeaderMap::new(),
+                &repo,
+                "delete-group",
+                "",
+            )
+            .await;
+            assert!(get_result.is_err());
+        }
+
+        #[tokio::test]
+        async fn test_user_to_scim_conversion() {
+            let user = User {
+                id: "user-123".to_string(),
+                user_type: UserType::Human,
+                email: Some("test@example.com".to_string()),
+                role: Role::User,
+                description: None,
+                created_at: WrappedChronoDateTime::now(),
+                updated_at: WrappedChronoDateTime::now(),
+            };
+
+            let scim = user_to_scim(&user, "https://example.com/scim/v2");
+
+            assert_eq!(scim.id, Some("user-123".to_string()));
+            assert_eq!(scim.user_name, "test@example.com");
+            assert!(!scim.emails.is_empty());
+            assert_eq!(scim.emails[0].value, "test@example.com");
+            assert!(scim.meta.is_some());
+        }
+
+        #[tokio::test]
+        async fn test_group_to_scim_conversion() {
+            let group = Group {
+                id: "group-123".to_string(),
+                name: "Test Group".to_string(),
+                created_at: WrappedChronoDateTime::now(),
+                updated_at: WrappedChronoDateTime::now(),
+            };
+
+            let scim = group_to_scim(&group, &[], "https://example.com/scim/v2");
+
+            assert_eq!(scim.id, Some("group-123".to_string()));
+            assert_eq!(scim.display_name, "Test Group");
+            assert!(scim.members.is_empty());
+            assert!(scim.meta.is_some());
+        }
+
+        #[tokio::test]
+        async fn test_scim_error_creation() {
+            let not_found = ScimError::not_found("User not found");
+            assert_eq!(not_found.status, "404");
+            assert_eq!(not_found.detail, "User not found");
+
+            let bad_request = ScimError::bad_request("Invalid email");
+            assert_eq!(bad_request.status, "400");
+            assert_eq!(bad_request.scim_type, Some("invalidValue".to_string()));
+
+            let conflict = ScimError::conflict("User already exists");
+            assert_eq!(conflict.status, "409");
+            assert_eq!(conflict.scim_type, Some("uniqueness".to_string()));
+        }
     }
 }

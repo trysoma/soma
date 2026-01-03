@@ -1,5 +1,6 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
+use http::HeaderMap;
 use shared::primitives::PaginationRequest;
 use shared::{
     adapters::openapi::{API_VERSION_TAG, JsonResponse},
@@ -32,17 +33,26 @@ pub fn create_sts_config_routes() -> OpenApiRouter<IdentityService> {
     responses(
         (status = 201, description = "STS configuration created successfully", body = StsTokenConfig),
         (status = 400, description = "Invalid request", body = CommonError),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "Create STS configuration",
     description = "Create a new STS configuration (e.g., JWT template or dev settings)",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_create_sts_config(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Json(params): Json<StsTokenConfig>,
 ) -> JsonResponse<StsTokenConfig, CommonError> {
     trace!("Creating STS configuration");
     let result = create_sts_config(
+        service.auth_client.clone(),
+        headers,
         service.repository.as_ref(),
         &service.on_config_change_tx,
         params,
@@ -65,19 +75,32 @@ async fn route_create_sts_config(
     ),
     responses(
         (status = 200, description = "STS configuration found", body = StsTokenConfig),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "STS configuration not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "Get STS configuration",
     description = "Get an STS configuration by ID",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_get_sts_config(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Path(id): Path<String>,
 ) -> JsonResponse<StsTokenConfig, CommonError> {
     trace!(config_id = %id, "Getting STS configuration");
     let params = GetStsConfigParams { id };
-    let result = get_sts_config(service.repository.as_ref(), params).await;
+    let result = get_sts_config(
+        service.auth_client.clone(),
+        headers,
+        service.repository.as_ref(),
+        params,
+    )
+    .await;
     trace!(
         success = result.is_ok(),
         "Getting STS configuration completed"
@@ -94,19 +117,28 @@ async fn route_get_sts_config(
     ),
     responses(
         (status = 200, description = "STS configuration deleted successfully", body = DeleteStsConfigResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 404, description = "STS configuration not found", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "Delete STS configuration",
     description = "Delete an STS configuration by ID",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_delete_sts_config(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Path(id): Path<String>,
 ) -> JsonResponse<DeleteStsConfigResponse, CommonError> {
     trace!(config_id = %id, "Deleting STS configuration");
     let params = DeleteStsConfigParams { id };
     let result = delete_sts_config(
+        service.auth_client.clone(),
+        headers,
         service.repository.as_ref(),
         &service.on_config_change_tx,
         params,
@@ -129,17 +161,30 @@ async fn route_delete_sts_config(
     ),
     responses(
         (status = 200, description = "List of STS configurations", body = ListStsConfigResponse),
+        (status = 401, description = "Unauthorized", body = CommonError),
+        (status = 403, description = "Forbidden", body = CommonError),
         (status = 500, description = "Internal server error", body = CommonError),
     ),
     summary = "List STS configurations",
     description = "List all STS configurations with optional filtering by type",
+    security(
+        ("api_key" = []),
+        ("bearer_token" = [])
+    )
 )]
 async fn route_list_sts_configs(
     State(service): State<IdentityService>,
+    headers: HeaderMap,
     Query(query): Query<PaginationRequest>,
 ) -> JsonResponse<ListStsConfigResponse, CommonError> {
     trace!(page_size = query.page_size, "Listing STS configurations");
-    let result = list_sts_configs(service.repository.as_ref(), &query).await;
+    let result = list_sts_configs(
+        service.auth_client.clone(),
+        headers,
+        service.repository.as_ref(),
+        &query,
+    )
+    .await;
     trace!(
         success = result.is_ok(),
         "Listing STS configurations completed"

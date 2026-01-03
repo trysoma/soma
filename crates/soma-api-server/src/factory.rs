@@ -2,9 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bridge::logic::mcp::BridgeMcpService;
-use bridge::logic::{OnConfigChangeTx, register_all_bridge_providers};
 use encryption::logic::crypto_services::CryptoCache;
+use mcp::logic::mcp::McpServerService;
+use mcp::logic::{OnConfigChangeTx, register_all_mcp_providers};
 use rmcp::transport::streamable_http_server::{
     StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
@@ -23,7 +23,9 @@ use crate::logic::on_change_pubsub::{SomaChangeTx, create_soma_change_channel, r
 use crate::logic::task::ConnectionManager;
 use crate::repository::setup_repository;
 use crate::restate::RestateServerParams;
-use crate::sdk::{SdkRuntime, determine_sdk_runtime, sdk_agent_sync, sdk_provider_sync};
+use crate::sdk::{
+    StartDevSdkParams, determine_sdk_runtime, sdk_agent_sync, sdk_provider_sync, start_dev_sdk,
+};
 use crate::{ApiService, InitApiServiceParams};
 
 pub struct CreateApiServiceParams {
@@ -41,8 +43,10 @@ pub struct CreateApiServiceParams {
 
 pub struct ApiServiceBundle {
     pub api_service: ApiService,
-    /// Unified change channel for external listeners to subscribe to bridge and encryption events
+    /// Unified change channel for external listeners to subscribe to mcp and encryption events
     pub soma_change_tx: SomaChangeTx,
+    /// Bootstrap API key for initial sync and other basic config tasks.
+    pub bootstrap_api_key: String,
 }
 
 /// Creates the API service and starts all subsystems
@@ -79,14 +83,14 @@ pub async fn create_api_service(
     trace!("Setting up database and repositories...");
     let connection_manager = ConnectionManager::new();
     let db_url = url::Url::parse(&db_conn_string)?;
-    let (_db, conn, repository, bridge_repo, encryption_repo) =
+    let (_db, conn, repository, mcp_repo, encryption_repo, environment_repo) =
         setup_repository(&db_url, &db_auth_token).await?;
     trace!("Database and repositories setup");
     // Create identity repository (uses same connection)
     let identity_repo = identity::repository::Repository::new(conn.clone());
 
-    // Create the bridge config change channel
-    let (on_bridge_config_change_tx, _on_bridge_config_change_rx): (OnConfigChangeTx, _) =
+    // Create the mcp config change channel
+    let (on_mcp_config_change_tx, _on_mcp_config_change_rx): (OnConfigChangeTx, _) =
         tokio::sync::broadcast::channel(100);
 
     // Create encryption event channel
@@ -99,9 +103,9 @@ pub async fn create_api_service(
     let (secret_change_tx, _secret_change_rx) =
         crate::logic::on_change_pubsub::create_secret_change_channel(100);
 
-    // Create environment variable event channel
-    let (environment_variable_change_tx, _environment_variable_change_rx) =
-        crate::logic::on_change_pubsub::create_environment_variable_change_channel(100);
+    // Create variable event channel
+    let (variable_change_tx, _variable_change_rx) =
+        crate::logic::on_change_pubsub::create_variable_change_channel(100);
 
     // Create the unified soma change channel
     let (soma_change_tx, _soma_change_rx) = create_soma_change_channel(100);
@@ -146,14 +150,15 @@ pub async fn create_api_service(
 
     // Start SDK server subsystem
     debug!("Starting SDK server");
-    start_sdk_server_subsystem(
-        project_dir.clone(),
-        sdk_runtime,
-        soma_restate_service_port,
-        repository.clone(),
-        crypto_cache.clone(),
-        process_manager.clone(),
-    )
+
+    start_dev_sdk(StartDevSdkParams {
+        project_dir: project_dir.clone(),
+        sdk_runtime: sdk_runtime.clone(),
+        restate_service_port: soma_restate_service_port,
+        environment_repo: std::sync::Arc::new(environment_repo.clone()),
+        crypto_cache: crypto_cache.clone(),
+        process_manager: process_manager.clone(),
+    })
     .await?;
 
     // Wait for SDK server and sync providers
@@ -176,14 +181,15 @@ pub async fn create_api_service(
             sdk_provider_sync::sync_providers_from_metadata(&metadata)?;
             trace!("SDK providers synced");
 
-            // Wait for SDK server healthcheck to pass before triggering bridge client generation
+            // Wait for SDK server healthcheck to pass before triggering mcp client generation
             wait_for_sdk_healthcheck(&mut client).await?;
 
             // Perform initial secret sync to SDK (after SDK is fully ready)
             trace!("Performing initial secret sync to SDK");
-            let repository_arc_for_initial_sync = std::sync::Arc::new(repository.clone());
+            let environment_repo_arc_for_initial_sync =
+                std::sync::Arc::new(environment_repo.clone());
             match crate::logic::secret_sync::fetch_and_decrypt_all_secrets(
-                &repository_arc_for_initial_sync,
+                &environment_repo_arc_for_initial_sync,
                 &crypto_cache,
             )
             .await
@@ -212,55 +218,52 @@ pub async fn create_api_service(
                 }
             }
 
-            // Perform initial environment variable sync to SDK (after SDK is fully ready)
-            trace!("Performing initial environment variable sync to SDK");
-            match crate::logic::environment_variable_sync::fetch_all_environment_variables(
-                &repository_arc_for_initial_sync,
+            // Perform initial variable sync to SDK (after SDK is fully ready)
+            trace!("Performing initial variable sync to SDK");
+            match crate::logic::variable_sync::fetch_all_variables(
+                &environment_repo_arc_for_initial_sync,
             )
             .await
             {
-                Ok(env_vars) => {
-                    if !env_vars.is_empty() {
-                        trace!(count = env_vars.len(), "Syncing env vars to SDK");
-                        match crate::logic::environment_variable_sync::sync_environment_variables_to_sdk(
-                            &mut client,
-                            env_vars,
-                        )
-                        .await
+                Ok(vars) => {
+                    if !vars.is_empty() {
+                        trace!(count = vars.len(), "Syncing vars to SDK");
+                        match crate::logic::variable_sync::sync_variables_to_sdk(&mut client, vars)
+                            .await
                         {
                             Ok(()) => {
-                                trace!("Initial env var sync complete");
+                                trace!("Initial var sync complete");
                             }
                             Err(e) => {
-                                debug!(error = ?e, "Failed initial env var sync");
-                                // Don't fail startup - env vars will be synced on next change
+                                debug!(error = ?e, "Failed initial var sync");
+                                // Don't fail startup - vars will be synced on next change
                             }
                         }
                     } else {
-                        trace!("No environment variables to sync on startup");
+                        trace!("No variables to sync on startup");
                     }
                 }
                 Err(e) => {
-                    debug!(error = ?e, "Failed to fetch env vars for initial sync");
-                    // Don't fail startup - env vars will be synced on next change
+                    debug!(error = ?e, "Failed to fetch vars for initial sync");
+                    // Don't fail startup - vars will be synced on next change
                 }
             }
 
-            // Trigger initial bridge client generation on start
-            trace!("Triggering initial bridge client generation");
-            match crate::logic::bridge::codegen::trigger_bridge_client_generation(
+            // Trigger initial mcp client generation on start
+            trace!("Triggering initial mcp client generation");
+            match crate::logic::mcp::codegen::trigger_mcp_client_generation(
                 &mut client,
-                &bridge_repo,
+                &mcp_repo,
                 &agent_cache,
             )
             .await
             {
                 Ok(()) => {
-                    trace!("Initial bridge client generation complete");
+                    trace!("Initial mcp client generation complete");
                 }
                 Err(e) => {
-                    debug!(error = ?e, "Failed initial bridge client generation");
-                    // Don't fail startup if codegen fails - it will be retried on bridge changes
+                    debug!(error = ?e, "Failed initial mcp client generation");
+                    // Don't fail startup if codegen fails - it will be retried on mcp changes
                 }
             }
 
@@ -273,23 +276,23 @@ pub async fn create_api_service(
         }
     };
 
-    // Subscribe to bridge config change events for bridge client generation listener
+    // Subscribe to mcp config change events for mcp client generation listener
     // Do this AFTER SDK server is ready to avoid processing events before server is ready
     // Broadcast channels support multiple subscribers natively - no wrapper needed!
-    let bridge_client_gen_rx = on_bridge_config_change_tx.subscribe();
+    let mcp_client_gen_rx = on_mcp_config_change_tx.subscribe();
 
     // Create MCP cancellation token for graceful shutdown
     let mcp_ct = CancellationToken::new();
 
     // Create the StreamableHttpService for MCP
-    // Note: BridgeMcpService is created fresh for each request by the service factory
+    // Note: McpServerService is created fresh for each request by the service factory
     // Clone values for use in the service factory closure
-    let bridge_repo_for_mcp = bridge_repo.clone();
+    let mcp_repo_for_mcp = mcp_repo.clone();
     let crypto_cache_for_mcp = crypto_cache.clone();
     let mcp_service = StreamableHttpService::new(
         move || {
-            Ok(BridgeMcpService {
-                repository: bridge_repo_for_mcp.clone(),
+            Ok(McpServerService {
+                repository: mcp_repo_for_mcp.clone(),
                 encryption_service: crypto_cache_for_mcp.clone(),
             })
         },
@@ -305,9 +308,9 @@ pub async fn create_api_service(
         },
     );
 
-    // Register built-in bridge providers (google_mail, stripe, etc.) BEFORE creating API service
-    trace!("Registering built-in bridge providers");
-    register_all_bridge_providers().await?;
+    // Register built-in mcp providers (google_mail, stripe, etc.) BEFORE creating API service
+    trace!("Registering built-in mcp providers");
+    register_all_mcp_providers().await?;
     trace!("Built-in providers registered");
 
     // Initialize API service
@@ -321,19 +324,20 @@ pub async fn create_api_service(
         soma_restate_service_port,
         connection_manager: connection_manager.clone(),
         repository: repository.clone(),
+        environment_repository: environment_repo.clone(),
         mcp_service,
         soma_definition: soma_definition.clone(),
         restate_ingress_client: restate_params.get_ingress_client()?,
         restate_admin_client: restate_admin_client.clone(),
         restate_params: restate_params.clone(),
-        on_bridge_config_change_tx: on_bridge_config_change_tx.clone(),
+        on_mcp_config_change_tx: on_mcp_config_change_tx.clone(),
         crypto_cache: crypto_cache.clone(),
-        bridge_repository: bridge_repo.clone(),
+        mcp_repository: mcp_repo.clone(),
         identity_repository: identity_repo.clone(),
         sdk_client: sdk_client.clone(),
         on_encryption_change_tx: encryption_change_tx.clone(),
         on_secret_change_tx: secret_change_tx.clone(),
-        on_environment_variable_change_tx: environment_variable_change_tx.clone(),
+        on_variable_change_tx: variable_change_tx.clone(),
         encryption_repository: encryption_repo.clone(),
         local_envelope_encryption_key_path,
         agent_cache: agent_cache.clone(),
@@ -345,10 +349,10 @@ pub async fn create_api_service(
     trace!("Starting unified change pubsub");
     let soma_change_tx_for_pubsub = soma_change_tx.clone();
     let identity_change_tx_for_pubsub = api_service.identity_service.on_config_change_tx.clone();
-    let on_bridge_config_change_tx_for_pubsub = on_bridge_config_change_tx.clone();
+    let on_mcp_config_change_tx_for_pubsub = on_mcp_config_change_tx.clone();
     let encryption_change_tx_for_pubsub = encryption_change_tx.clone();
     let secret_change_tx_for_pubsub = secret_change_tx.clone();
-    let environment_variable_change_tx_for_pubsub = environment_variable_change_tx.clone();
+    let variable_change_tx_for_pubsub = variable_change_tx.clone();
     process_manager
         .start_thread(
             "change_pubsub",
@@ -356,25 +360,24 @@ pub async fn create_api_service(
                 spawn_fn: {
                     let soma_change_tx = soma_change_tx_for_pubsub.clone();
                     let identity_change_tx = identity_change_tx_for_pubsub.clone();
-                    let on_bridge_config_change_tx = on_bridge_config_change_tx_for_pubsub.clone();
+                    let on_mcp_config_change_tx = on_mcp_config_change_tx_for_pubsub.clone();
                     let encryption_change_tx = encryption_change_tx_for_pubsub.clone();
                     let secret_change_tx = secret_change_tx_for_pubsub.clone();
-                    let environment_variable_change_tx =
-                        environment_variable_change_tx_for_pubsub.clone();
+                    let variable_change_tx = variable_change_tx_for_pubsub.clone();
                     move || {
                         let soma_change_tx = soma_change_tx.clone();
                         let identity_change_tx = identity_change_tx.clone();
-                        let on_bridge_config_change_tx = on_bridge_config_change_tx.clone();
+                        let on_mcp_config_change_tx = on_mcp_config_change_tx.clone();
                         let encryption_change_tx = encryption_change_tx.clone();
                         let secret_change_tx = secret_change_tx.clone();
-                        let environment_variable_change_tx = environment_variable_change_tx.clone();
+                        let variable_change_tx = variable_change_tx.clone();
                         tokio::spawn(async move {
                             run_change_pubsub(
                                 soma_change_tx,
-                                on_bridge_config_change_tx.subscribe(),
+                                on_mcp_config_change_tx.subscribe(),
                                 encryption_change_tx.subscribe(),
                                 secret_change_tx.subscribe(),
-                                environment_variable_change_tx.subscribe(),
+                                variable_change_tx.subscribe(),
                                 identity_change_tx.subscribe(),
                             )
                             .await;
@@ -397,45 +400,68 @@ pub async fn create_api_service(
         .await
         .inspect_err(|e| error!(error = %e, "Failed to start change pubsub thread"))?;
 
-    // Note: MCP service is now nested directly in the router as a Tower service.
-    // No separate subsystem is needed.
-
-    // Note: SDK sync is now SDK-initiated. When the SDK server starts (or restarts due to HMR),
-    // it calls the /_internal/v1/resync_sdk endpoint to trigger sync of providers, agents,
-    // secrets, and environment variables. This replaces the old connection-monitoring approach.
-
     // Start credential rotation
     trace!("Starting credential rotation");
-    start_credential_rotation_subsystem(
-        bridge_repo.clone(),
-        crypto_cache.clone(),
-        on_bridge_config_change_tx.clone(),
-        process_manager.clone(),
-    )
-    .await?;
+    process_manager
+        .start_thread(
+            "credential_rotation",
+            ThreadConfig {
+                spawn_fn: {
+                    let mcp_repo = mcp_repo.clone();
+                    let crypto_cache = crypto_cache.clone();
+                    let on_mcp_config_change_tx = on_mcp_config_change_tx.clone();
+                    move || {
+                        let mcp_repo = mcp_repo.clone();
+                        let crypto_cache = crypto_cache.clone();
+                        let on_mcp_config_change_tx = on_mcp_config_change_tx.clone();
+                        tokio::spawn(async move {
+                            mcp::logic::credential_rotation_task(
+                                mcp_repo,
+                                crypto_cache,
+                                on_mcp_config_change_tx,
+                            )
+                            .await;
+                            Ok(())
+                        })
+                    }
+                },
+                health_check: None,
+                on_terminal_stop: OnTerminalStop::Ignore,
+                on_stop: OnStop::Restart(RestartConfig {
+                    max_restarts: 5,
+                    restart_delay: 1000,
+                }),
+                shutdown_priority: 3,
+                follow_logs: false,
+                on_shutdown_triggered: None,
+                on_shutdown_complete: None,
+            },
+        )
+        .await
+        .inspect_err(|e| error!(error = %e, "Failed to start credential rotation thread"))?;
 
-    // Start bridge client generation listener
-    trace!("Starting bridge client generation listener");
+    // Start mcp client generation listener
+    trace!("Starting mcp client generation listener");
     {
-        let bridge_repo_clone = bridge_repo.clone();
+        let mcp_repo_clone = mcp_repo.clone();
         let sdk_client_clone = sdk_client.clone();
         let agent_cache_clone = agent_cache.clone();
-        let bridge_client_gen_rx_clone = bridge_client_gen_rx.resubscribe();
+        let mcp_client_gen_rx_clone = mcp_client_gen_rx.resubscribe();
         process_manager
             .start_thread(
-                "bridge_client_generation",
+                "mcp_client_generation",
                 ThreadConfig {
                     spawn_fn: move || {
-                        let bridge_repo = bridge_repo_clone.clone();
+                        let mcp_repo = mcp_repo_clone.clone();
                         let sdk_client = sdk_client_clone.clone();
                         let agent_cache = agent_cache_clone.clone();
-                        let on_bridge_config_change_rx = bridge_client_gen_rx_clone.resubscribe();
+                        let on_mcp_config_change_rx = mcp_client_gen_rx_clone.resubscribe();
                         tokio::spawn(async move {
-                            crate::logic::bridge::run_bridge_client_generation_loop(
-                                bridge_repo,
+                            crate::logic::mcp::run_mcp_client_generation_loop(
+                                mcp_repo,
                                 sdk_client,
                                 agent_cache,
-                                on_bridge_config_change_rx,
+                                on_mcp_config_change_rx,
                             )
                             .await;
                             Ok(())
@@ -451,9 +477,7 @@ pub async fn create_api_service(
                 },
             )
             .await
-            .inspect_err(
-                |e| error!(error = %e, "Failed to start bridge client generation thread"),
-            )?;
+            .inspect_err(|e| error!(error = %e, "Failed to start mcp client generation thread"))?;
     }
 
     // Start secret sync subsystem
@@ -461,7 +485,7 @@ pub async fn create_api_service(
     let secret_sync_rx = secret_change_tx.subscribe();
     let socket_path_clone = socket_path.clone();
     {
-        let repository_clone = repository.clone();
+        let environment_repo_clone = environment_repo.clone();
         let crypto_cache_clone = crypto_cache.clone();
         let socket_path_clone = socket_path_clone.clone();
         let secret_sync_rx_clone = secret_sync_rx.resubscribe();
@@ -470,14 +494,14 @@ pub async fn create_api_service(
                 "secret_sync",
                 ThreadConfig {
                     spawn_fn: move || {
-                        let repository = repository_clone.clone();
+                        let environment_repo = environment_repo_clone.clone();
                         let crypto_cache = crypto_cache_clone.clone();
                         let socket_path = socket_path_clone.clone();
                         let secret_change_rx = secret_sync_rx_clone.resubscribe();
                         tokio::spawn(async move {
                             crate::logic::secret_sync::run_secret_sync_loop(
                                 crate::logic::secret_sync::SecretSyncParams {
-                                    repository: Arc::new(repository),
+                                    repository: Arc::new(environment_repo),
                                     crypto_cache,
                                     socket_path,
                                     secret_change_rx,
@@ -500,37 +524,45 @@ pub async fn create_api_service(
             .inspect_err(|e| error!(error = %e, "Failed to start secret sync thread"))?;
     }
 
-    // Start environment variable sync subsystem
-    trace!("Starting environment variable sync subsystem");
-    let env_var_sync_rx = environment_variable_change_tx.subscribe();
-    let socket_path_for_env_sync = socket_path.clone();
+    // Start variable sync subsystem
+    trace!("Starting variable sync subsystem");
+    let variable_sync_rx = variable_change_tx.subscribe();
+    let socket_path_for_var_sync = socket_path.clone();
     {
-        let repository_clone = repository.clone();
-        let socket_path_clone = socket_path_for_env_sync.clone();
-        let env_var_sync_rx_clone = env_var_sync_rx.resubscribe();
-        process_manager.start_thread("environment_variable_sync", ThreadConfig {
-            spawn_fn: move || {
-                let repository = repository_clone.clone();
-                let socket_path = socket_path_clone.clone();
-                let env_var_change_rx = env_var_sync_rx_clone.resubscribe();
-                tokio::spawn(async move {
-                    crate::logic::environment_variable_sync::run_environment_variable_sync_loop(crate::logic::environment_variable_sync::EnvironmentVariableSyncParams {
-                        repository: Arc::new(repository),
-                        socket_path,
-                        environment_variable_change_rx: env_var_change_rx,
-                    }).await?;
-                    Ok(())
-                })
-            },
-            health_check: None,
-            on_terminal_stop: OnTerminalStop::Ignore,
-            on_stop: OnStop::Nothing,
-            shutdown_priority: 5,
-            follow_logs: false,
-            on_shutdown_triggered: None,
-            on_shutdown_complete: None,
-        }).await
-        .inspect_err(|e| error!(error = %e, "Failed to start environment variable sync thread"))?;
+        let environment_repo_clone = environment_repo.clone();
+        let socket_path_clone = socket_path_for_var_sync.clone();
+        let variable_sync_rx_clone = variable_sync_rx.resubscribe();
+        process_manager
+            .start_thread(
+                "variable_sync",
+                ThreadConfig {
+                    spawn_fn: move || {
+                        let environment_repo = environment_repo_clone.clone();
+                        let socket_path = socket_path_clone.clone();
+                        let variable_change_rx = variable_sync_rx_clone.resubscribe();
+                        tokio::spawn(async move {
+                            crate::logic::variable_sync::run_variable_sync_loop(
+                                crate::logic::variable_sync::VariableSyncParams {
+                                    repository: Arc::new(environment_repo),
+                                    socket_path,
+                                    variable_change_rx,
+                                },
+                            )
+                            .await?;
+                            Ok(())
+                        })
+                    },
+                    health_check: None,
+                    on_terminal_stop: OnTerminalStop::Ignore,
+                    on_stop: OnStop::Nothing,
+                    shutdown_priority: 5,
+                    follow_logs: false,
+                    on_shutdown_triggered: None,
+                    on_shutdown_complete: None,
+                },
+            )
+            .await
+            .inspect_err(|e| error!(error = %e, "Failed to start variable sync thread"))?;
     }
 
     // Start JWK init listener (will start JWK rotation when default DEK is available)
@@ -577,71 +609,19 @@ pub async fn create_api_service(
             .inspect_err(|e| error!(error = %e, "Failed to start JWK init listener thread"))?;
     }
 
-    // Note: Initial sync of secrets and environment variables now happens AFTER SDK server
-    // healthcheck passes (see above, around line 171). This ensures the SDK server's gRPC
-    // handlers are fully registered before we try to sync.
+    trace!("Creating bootstrap API key");
+
+    let bootstrap_api_key = identity::logic::api_key::bootstrap::create_bootstrap_api_key(Some(
+        &api_service.identity_service.api_key_cache,
+    ))
+    .await?;
+    trace!("Bootstrap API key created");
 
     Ok(ApiServiceBundle {
         api_service,
         soma_change_tx,
+        bootstrap_api_key: bootstrap_api_key.api_key,
     })
-}
-
-async fn start_sdk_server_subsystem(
-    project_dir: PathBuf,
-    sdk_runtime: SdkRuntime,
-    restate_service_port: u16,
-    repository: crate::repository::Repository,
-    crypto_cache: CryptoCache,
-    process_manager: Arc<CustomProcessManager>,
-) -> Result<(), CommonError> {
-    use crate::sdk::{StartDevSdkParams, start_dev_sdk};
-
-    process_manager
-        .start_thread(
-            "sdk_server",
-            ThreadConfig {
-                spawn_fn: {
-                    let project_dir = project_dir.clone();
-                    let sdk_runtime = sdk_runtime.clone();
-                    let repository = repository.clone();
-                    let crypto_cache = crypto_cache.clone();
-                    let process_manager_for_thread = process_manager.clone();
-                    move || {
-                        let project_dir = project_dir.clone();
-                        let sdk_runtime = sdk_runtime.clone();
-                        let repository = repository.clone();
-                        let crypto_cache = crypto_cache.clone();
-                        let process_manager = process_manager_for_thread.clone();
-                        tokio::spawn(async move {
-                            start_dev_sdk(StartDevSdkParams {
-                                project_dir,
-                                sdk_runtime,
-                                restate_service_port,
-                                repository: std::sync::Arc::new(repository),
-                                crypto_cache,
-                                process_manager,
-                            })
-                            .await
-                        })
-                    }
-                },
-                health_check: None,
-                on_terminal_stop: OnTerminalStop::TriggerShutdown,
-                on_stop: OnStop::Restart(RestartConfig {
-                    max_restarts: 10,
-                    restart_delay: 2000,
-                }),
-                shutdown_priority: 8,
-                follow_logs: false,
-                on_shutdown_triggered: None,
-                on_shutdown_complete: None,
-            },
-        )
-        .await
-        .inspect_err(|e| error!(error = %e, "Failed to start SDK server thread"))?;
-
-    Ok(())
 }
 
 /// Waits for SDK server healthcheck to pass, retrying up to max_iterations times
@@ -689,51 +669,4 @@ async fn wait_for_sdk_healthcheck(
     Err(CommonError::Unknown(anyhow::anyhow!(
         "SDK server healthcheck failed after {MAX_ITERATIONS} attempts"
     )))
-}
-
-async fn start_credential_rotation_subsystem(
-    bridge_repo: bridge::repository::Repository,
-    crypto_cache: CryptoCache,
-    on_bridge_change_tx: OnConfigChangeTx,
-    process_manager: Arc<CustomProcessManager>,
-) -> Result<(), CommonError> {
-    process_manager
-        .start_thread(
-            "credential_rotation",
-            ThreadConfig {
-                spawn_fn: {
-                    let bridge_repo = bridge_repo.clone();
-                    let crypto_cache = crypto_cache.clone();
-                    let on_bridge_change_tx = on_bridge_change_tx.clone();
-                    move || {
-                        let bridge_repo = bridge_repo.clone();
-                        let crypto_cache = crypto_cache.clone();
-                        let on_bridge_change_tx = on_bridge_change_tx.clone();
-                        tokio::spawn(async move {
-                            bridge::logic::credential_rotation_task(
-                                bridge_repo,
-                                crypto_cache,
-                                on_bridge_change_tx,
-                            )
-                            .await;
-                            Ok(())
-                        })
-                    }
-                },
-                health_check: None,
-                on_terminal_stop: OnTerminalStop::Ignore,
-                on_stop: OnStop::Restart(RestartConfig {
-                    max_restarts: 5,
-                    restart_delay: 1000,
-                }),
-                shutdown_priority: 3,
-                follow_logs: false,
-                on_shutdown_triggered: None,
-                on_shutdown_complete: None,
-            },
-        )
-        .await
-        .inspect_err(|e| error!(error = %e, "Failed to start credential rotation thread"))?;
-
-    Ok(())
 }

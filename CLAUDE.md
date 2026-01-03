@@ -50,18 +50,36 @@ For pagination, JSON serialization and deserialization and other coding opinions
 * prefer simplicity and re-usability over complex functions
 * never write tests for the sake of tests. Tests must be useful, impactful
 * always make sure the tests you've added / modified pass before finishing
-* put unit tests in the file the code is in:
-```rust
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {}
-```
-See `crates/bridge/src/router.rs` as a starting point for code styles and opinions
-* put integration tests (that test specific functions with externalities) in the file the code is in:
+* put tests in the file the code is in, using `mod tests` with nested `mod unit` and `mod integration`:
 
 ```rust
-#[cfg(all(test, feature = "integration_test"))]
-mod integration_test { }
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
+
+        #[test]
+        fn test_something() {
+            // Unit tests run always
+        }
+    }
+
+    mod integration {
+        use super::super::*;
+        use shared_macros::integration_test;
+
+        #[integration_test]
+        async fn test_with_external_service() {
+            // Integration tests are skipped when CI env var is set
+        }
+    }
+}
 ```
+
+* **Unit tests** (`mod unit`): Use `#[test]` or `#[tokio::test]`. These run in all environments.
+* **Integration tests** (`mod integration`): Use `#[integration_test]` from `shared_macros`. These are automatically skipped when the `CI` environment variable is set, allowing CI pipelines to run without external services.
+
+See `crates/identity/src/logic/sts/exchange.rs` as a starting point for the test structure.
 
 ### Test utilities and shared fixtures
 
@@ -77,22 +95,22 @@ For tests that require common setup (encryption, repositories, external service 
 #### Using test fixtures
 
 ```rust
-// For identity crate integration tests
-use crate::test::fixtures::TestContext;
-use crate::test::dex::{DEX_CLIENT_ID, DEX_TOKEN_ENDPOINT, is_dex_available};
+#[cfg(test)]
+mod tests {
+    mod integration {
+        use super::super::*;
+        use crate::test::fixtures::TestContext;
+        use crate::test::dex::{DEX_CLIENT_ID, DEX_TOKEN_ENDPOINT};
+        use shared_macros::integration_test;
 
-#[tokio::test]
-async fn test_something() {
-    // Skip if external service unavailable
-    if !is_dex_available().await {
-        eprintln!("Skipping test: Dex is not available");
-        return;
+        #[integration_test]
+        async fn test_something() {
+            // Create test context with encryption and repositories
+            let ctx = TestContext::new_with_jwk().await;
+
+            // Use ctx.identity_repo, ctx.crypto_cache, ctx.jwks_cache, etc.
+        }
     }
-
-    // Create test context with encryption and repositories
-    let ctx = TestContext::new_with_jwk().await;
-
-    // Use ctx.identity_repo, ctx.crypto_cache, ctx.jwks_cache, etc.
 }
 ```
 

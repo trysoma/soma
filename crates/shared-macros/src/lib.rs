@@ -1,10 +1,100 @@
 extern crate proc_macro;
 
+mod auth;
+mod integration_test;
+
 use std::{fs, path::Path};
 
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{LitStr, parse_macro_input};
+
+/// Authentication macro that ensures the caller is authenticated.
+///
+/// This macro transforms a function to:
+/// 1. Add `auth_client: impl AuthClientLike` as the first parameter
+/// 2. Add `headers: HeaderMap` as the second parameter
+/// 3. Call `auth_client.authenticate_from_headers(&headers).await?` at the start
+/// 4. Make the resulting `Identity` available as `identity` in the function body
+///
+/// # Example
+///
+/// ```rust,ignore
+/// #[authn]
+/// pub async fn create_user(
+///     repo: &impl UserRepositoryLike,
+///     params: CreateUserParams,
+/// ) -> Result<User, CommonError> {
+///     // `identity` is available here as the authenticated identity
+///     // Function will return early with CommonError::Authentication if not authenticated
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn authn(attr: TokenStream, item: TokenStream) -> TokenStream {
+    auth::authn_impl(attr, item)
+}
+
+/// Role-based authorization macro (stackable).
+///
+/// This macro checks if the authenticated identity has one of the specified roles.
+/// Multiple `#[authz_role(...)]` attributes can be stacked - at least one must pass.
+///
+/// **Important**: This macro must be used after `#[authn]` as it expects `identity` to be available.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// #[authn]
+/// #[authz_role(Admin)]
+/// pub async fn admin_only_action(
+///     repo: &impl Repository,
+/// ) -> Result<(), CommonError> {
+///     // Only Admin can access
+/// }
+///
+/// #[authn]
+/// #[authz_role(Admin, Maintainer)]
+/// pub async fn admin_or_maintainer(
+///     repo: &impl Repository,
+/// ) -> Result<(), CommonError> {
+///     // Admin or Maintainer can access
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn authz_role(attr: TokenStream, item: TokenStream) -> TokenStream {
+    auth::authz_role_impl(attr, item)
+}
+
+/// Marks a test as an integration test that requires external services.
+///
+/// When the `CI` environment variable is NOT set, the test runs normally.
+/// When `CI` is set, the test is skipped with a message indicating it requires
+/// external services.
+///
+/// This allows integration tests to be written alongside unit tests without
+/// feature flags, while still being skippable in CI environments that don't
+/// have external services configured.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// #[cfg(test)]
+/// mod tests {
+///     mod integration {
+///         use super::*;
+///         use shared_macros::integration_test;
+///
+///         #[integration_test]
+///         async fn test_with_external_service() {
+///             // This test will be skipped when CI env var is set
+///         }
+///     }
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn integration_test(attr: TokenStream, item: TokenStream) -> TokenStream {
+    integration_test::integration_test_impl(attr, item)
+}
 
 #[proc_macro]
 pub fn load_sql_migrations(input: TokenStream) -> TokenStream {

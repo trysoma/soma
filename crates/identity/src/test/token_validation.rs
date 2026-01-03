@@ -11,7 +11,7 @@ use crate::logic::internal_token_issuance::{
     AUDIENCE, AccessTokenClaims, ISSUER, RefreshTokenClaims,
 };
 use crate::logic::jwk::cache::JwksCache;
-use crate::logic::user::Role;
+use shared::identity::Role;
 
 /// Result of validating an internal access token.
 #[derive(Debug)]

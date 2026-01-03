@@ -1,34 +1,22 @@
-use std::future::Future;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use http::header::HeaderName;
 use shared::error::CommonError;
 use shared::port::find_free_port;
-use shared::process_manager::ShutdownCallback;
+use shared::process_manager::{CustomProcessManager, ShutdownCallback};
 use soma_api_server::ApiService;
-use std::pin::Pin;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer, ExposeHeaders};
 
 pub struct StartAxumServerParams {
     pub host: String,
     pub port: u16,
     pub api_service: ApiService,
+    pub process_manager: Arc<CustomProcessManager>,
 }
 
-pub struct StartAxumServerResult {
-    pub server_fut: Pin<Box<dyn Future<Output = Result<(), std::io::Error>> + Send>>,
-    #[allow(dead_code)]
-    pub handle: axum_server::Handle,
-    #[allow(dead_code)]
-    pub addr: SocketAddr,
-    pub on_shutdown_triggered: ShutdownCallback,
-    pub on_shutdown_complete: ShutdownCallback,
-}
-
-/// Starts the Axum server
-pub async fn start_axum_server(
-    params: StartAxumServerParams,
-) -> Result<StartAxumServerResult, CommonError> {
+/// Starts the Axum server using the process manager
+pub async fn start_axum_server(params: StartAxumServerParams) -> Result<(), CommonError> {
     let port = find_free_port(params.port, params.port + 100)?;
     let addr: SocketAddr = format!("{}:{}", params.host, port)
         .parse()
@@ -69,12 +57,6 @@ pub async fn start_axum_server(
 
     tracing::trace!("Router initiated");
 
-    let server_fut = Box::pin(
-        axum_server::bind(addr)
-            .handle(handle.clone())
-            .serve(router.into_make_service()),
-    );
-
     let handle_for_shutdown = handle.clone();
 
     // Create on_shutdown_triggered callback
@@ -90,7 +72,7 @@ pub async fn start_axum_server(
     // Create on_shutdown_complete callback
     #[cfg(debug_assertions)]
     let on_shutdown_complete: ShutdownCallback = {
-        use std::sync::{Arc, Mutex};
+        use std::sync::Mutex;
         let vite_guard = Arc::new(Mutex::new(Some(vite_scope_guard)));
         let vite_guard_clone = vite_guard.clone();
         Box::new(move || {
@@ -122,83 +104,127 @@ pub async fn start_axum_server(
         })
     });
 
-    tracing::trace!("Server bound");
-    Ok(StartAxumServerResult {
-        server_fut,
-        handle,
-        addr,
-        on_shutdown_triggered,
-        on_shutdown_complete,
-    })
+    // Register the server with the process manager
+    let handle_for_spawn = handle.clone();
+    let router_for_spawn = router;
+    let addr_for_spawn = addr;
+
+    params
+        .process_manager
+        .start_thread(
+            "axum_server",
+            shared::process_manager::ThreadConfig {
+                spawn_fn: move || {
+                    let handle = handle_for_spawn.clone();
+                    let router = router_for_spawn.clone();
+                    let addr = addr_for_spawn;
+                    tokio::spawn(async move {
+                        tracing::trace!(address = %addr, "Starting axum server");
+                        let server_fut = axum_server::bind(addr)
+                            .handle(handle)
+                            .serve(router.into_make_service());
+
+                        match server_fut.await {
+                            Ok(()) => {
+                                tracing::trace!("Axum server stopped");
+                                Ok(())
+                            }
+                            Err(e) => {
+                                tracing::error!(error = ?e, "Axum server stopped with error");
+                                Err(CommonError::Unknown(anyhow::anyhow!(
+                                    "Axum server error: {e}"
+                                )))
+                            }
+                        }
+                    })
+                },
+                health_check: None,
+                on_terminal_stop: shared::process_manager::OnTerminalStop::TriggerShutdown,
+                on_stop: shared::process_manager::OnStop::Nothing,
+                shutdown_priority: 9,
+                follow_logs: false,
+                on_shutdown_triggered: Some(on_shutdown_triggered),
+                on_shutdown_complete: Some(on_shutdown_complete),
+            },
+        )
+        .await
+        .inspect_err(|e| {
+            tracing::error!(error = %e, "Failed to register axum server with process manager");
+        })?;
+
+    tracing::trace!("Server bound and registered with process manager");
+    Ok(())
 }
 
-#[cfg(all(test, feature = "unit_test"))]
-mod unit_test {
-    use shared::port::find_free_port_with_bind;
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use shared::port::find_free_port_with_bind;
 
-    use super::*;
-    use std::{
-        io::{Error, ErrorKind},
-        net::TcpListener,
-    };
-
-    #[test]
-    fn test_find_free_port_success() {
-        // Mock bind function that succeeds on port 3002
-        let bind_fn = |addr: SocketAddr| {
-            if addr.port() == 3002 {
-                Ok(TcpListener::bind("127.0.0.1:0").unwrap())
-            } else {
-                Err(Error::new(ErrorKind::AddrInUse, "Port in use"))
-            }
+        use super::super::*;
+        use std::{
+            io::{Error, ErrorKind},
+            net::TcpListener,
         };
 
-        let port = find_free_port_with_bind(3000, 3010, bind_fn).unwrap();
-        assert_eq!(port, 3002);
-    }
+        #[test]
+        fn test_find_free_port_success() {
+            // Mock bind function that succeeds on port 3002
+            let bind_fn = |addr: SocketAddr| {
+                if addr.port() == 3002 {
+                    Ok(TcpListener::bind("127.0.0.1:0").unwrap())
+                } else {
+                    Err(Error::new(ErrorKind::AddrInUse, "Port in use"))
+                }
+            };
 
-    #[test]
-    fn test_find_free_port_no_ports_available() {
-        // Mock bind function that always fails
-        let bind_fn = |_: SocketAddr| Err(Error::new(ErrorKind::AddrInUse, "Port in use"));
+            let port = find_free_port_with_bind(3000, 3010, bind_fn).unwrap();
+            assert_eq!(port, 3002);
+        }
 
-        let result = find_free_port_with_bind(3000, 3010, bind_fn);
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().kind(), ErrorKind::AddrNotAvailable);
-    }
+        #[test]
+        fn test_find_free_port_no_ports_available() {
+            // Mock bind function that always fails
+            let bind_fn = |_: SocketAddr| Err(Error::new(ErrorKind::AddrInUse, "Port in use"));
 
-    #[test]
-    fn test_find_free_port_first_port_available() {
-        // Mock bind function that always succeeds
-        let bind_fn = |_: SocketAddr| Ok(TcpListener::bind("127.0.0.1:0").unwrap());
+            let result = find_free_port_with_bind(3000, 3010, bind_fn);
+            assert!(result.is_err());
+            assert_eq!(result.unwrap_err().kind(), ErrorKind::AddrNotAvailable);
+        }
 
-        let port = find_free_port_with_bind(5000, 5100, bind_fn).unwrap();
-        assert_eq!(port, 5000);
-    }
+        #[test]
+        fn test_find_free_port_first_port_available() {
+            // Mock bind function that always succeeds
+            let bind_fn = |_: SocketAddr| Ok(TcpListener::bind("127.0.0.1:0").unwrap());
 
-    #[test]
-    fn test_find_free_port_last_port_available() {
-        // Mock bind function that only succeeds on the last port
-        let bind_fn = |addr: SocketAddr| {
-            if addr.port() == 6010 {
-                Ok(TcpListener::bind("127.0.0.1:0").unwrap())
-            } else {
-                Err(Error::new(ErrorKind::AddrInUse, "Port in use"))
-            }
-        };
+            let port = find_free_port_with_bind(5000, 5100, bind_fn).unwrap();
+            assert_eq!(port, 5000);
+        }
 
-        let port = find_free_port_with_bind(6000, 6010, bind_fn).unwrap();
-        assert_eq!(port, 6010);
-    }
+        #[test]
+        fn test_find_free_port_last_port_available() {
+            // Mock bind function that only succeeds on the last port
+            let bind_fn = |addr: SocketAddr| {
+                if addr.port() == 6010 {
+                    Ok(TcpListener::bind("127.0.0.1:0").unwrap())
+                } else {
+                    Err(Error::new(ErrorKind::AddrInUse, "Port in use"))
+                }
+            };
 
-    #[test]
-    fn test_find_free_port_integration() {
-        // This is an integration test that actually binds to a port
-        let port = find_free_port(50000, 50100).unwrap();
-        assert!((50000..=50100).contains(&port));
+            let port = find_free_port_with_bind(6000, 6010, bind_fn).unwrap();
+            assert_eq!(port, 6010);
+        }
 
-        // Verify we can actually bind to the port
-        let listener = TcpListener::bind(format!("127.0.0.1:{port}"));
-        assert!(listener.is_ok());
+        #[test]
+        fn test_find_free_port_integration() {
+            // This is an integration test that actually binds to a port
+            let port = find_free_port(50000, 50100).unwrap();
+            assert!((50000..=50100).contains(&port));
+
+            // Verify we can actually bind to the port
+            let listener = TcpListener::bind(format!("127.0.0.1:{port}"));
+            assert!(listener.is_ok());
+        }
     }
 }

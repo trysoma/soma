@@ -113,7 +113,7 @@ export const LinkProviderInstancesTable = ({
 
 	// Query function instances to check which provider instances already have this function enabled
 	const { data: functionInstancesData, isLoading: isLoadingFunctionInstances } =
-		$api.useQuery("get", "/api/bridge/v1/function-instances", {
+		$api.useQuery("get", "/api/mcp/v1/function-instances", {
 			params: {
 				query: {
 					page_size: 1000,
@@ -134,13 +134,13 @@ export const LinkProviderInstancesTable = ({
 	// Enable function mutation
 	const enableFunctionMutation = $api.useMutation(
 		"post",
-		"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable",
+		"/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable",
 	);
 
 	// Disable function mutation
 	const disableFunctionMutation = $api.useMutation(
 		"post",
-		"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable",
+		"/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable",
 	);
 
 	const handleLinkInstance = async (providerInstanceId: string) => {
@@ -484,31 +484,31 @@ const ResourceServerConfigurationForm = ({
 	// Mutations
 	const encryptConfigMutation = $api.useMutation(
 		"post",
-		"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt",
+		"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt",
 	);
 	const createCredentialMutation = $api.useMutation(
 		"post",
-		"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server",
+		"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server",
 	);
 	const createProviderInstanceMutation = $api.useMutation(
 		"post",
-		"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}",
+		"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}",
 	);
 	const startBrokeringMutation = $api.useMutation(
 		"post",
-		"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker",
+		"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker",
 	);
 	const encryptUserCredentialMutation = $api.useMutation(
 		"post",
-		"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt",
+		"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt",
 	);
 	const createUserCredentialMutation = $api.useMutation(
 		"post",
-		"/api/bridge/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential",
+		"/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential",
 	);
 	const createFunctionInstanceMutation = $api.useMutation(
 		"post",
-		"/api/bridge/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable",
+		"/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable",
 	);
 
 	// Parse the JSON schemas for resource server and user credential configuration

@@ -418,7 +418,7 @@ async fn cmd_sts_add_from_template(api_url: &str, timeout_secs: u64) -> Result<(
     };
 
     // Wait for API server and create config
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     // Convert JwtTemplateConfigYaml to the API model
     let mapping_template = serde_json::to_value(&jwt_template_config)
@@ -469,7 +469,7 @@ async fn cmd_sts_add_from_template(api_url: &str, timeout_secs: u64) -> Result<(
 }
 
 async fn cmd_sts_remove(id: String, api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     identity_api::route_delete_sts_config(&api_config, &id)
         .await
@@ -493,7 +493,7 @@ async fn cmd_sts_remove(id: String, api_url: &str, timeout_secs: u64) -> Result<
 }
 
 async fn cmd_sts_list(api_url: &str, timeout_secs: u64) -> Result<(), CommonError> {
-    let api_config = create_and_wait_for_api_client(api_url, timeout_secs).await?;
+    let api_config = create_and_wait_for_api_client(api_url, timeout_secs, None).await?;
 
     let result = identity_api::route_list_sts_configs(&api_config, 100, None)
         .await
