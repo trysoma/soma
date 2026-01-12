@@ -36,7 +36,7 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
 
     // Agent list route (separate from inbox-a2a)
     let agent_service = Arc::new(agent::AgentService::new(
-        api_service.a2a_service.agent_cache().clone(),
+        api_service.agent_cache.clone(),
     ));
     let (agent_router, _) = agent::create_router().split_for_parts();
     let agent_router = agent_router.with_state(agent_service);

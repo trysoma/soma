@@ -8,7 +8,7 @@ name = "soma"
 path = "src/main.rs"
 
 [dependencies]
-a2a-core.workspace = true
+inbox.workspace = true
 mcp.workspace = true
 encryption.workspace = true
 anyhow.workspace = true

@@ -8306,211 +8306,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskWithDetails"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Bad Gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
-      },
-      "put": {
-        "tags": [
-          "task",
-          "v1"
-        ],
-        "summary": "Update task status",
-        "description": "Update the status of a task",
-        "operationId": "update-task-status",
-        "parameters": [
-          {
-            "name": "task_id",
-            "in": "path",
-            "description": "Task ID",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateTaskStatusRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Update task status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TupleUnit"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Bad Gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
-      }
-    },
-    "/api/task/v1/{task_id}/message": {
-      "post": {
-        "tags": [
-          "task",
-          "v1"
-        ],
-        "summary": "Send message",
-        "description": "Send a message to a task",
-        "operationId": "send-message",
-        "parameters": [
-          {
-            "name": "task_id",
-            "in": "path",
-            "description": "Task ID",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateMessageRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Create message",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateMessageResponse"
+                  "$ref": "#/components/schemas/Task"
                 }
               }
             }
@@ -8982,52 +8778,6 @@
           },
           "name": {
             "type": "string"
-          }
-        }
-      },
-      "CreateMessageRequest": {
-        "type": "object",
-        "description": "Request to create a message",
-        "required": [
-          "reference_task_ids",
-          "role",
-          "metadata",
-          "parts"
-        ],
-        "properties": {
-          "metadata": {
-            "$ref": "#/components/schemas/Metadata"
-          },
-          "parts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MessagePart"
-            }
-          },
-          "reference_task_ids": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
-            }
-          },
-          "role": {
-            "$ref": "#/components/schemas/MessageRole"
-          }
-        }
-      },
-      "CreateMessageResponse": {
-        "type": "object",
-        "description": "Response from creating a message",
-        "required": [
-          "message",
-          "timeline_item"
-        ],
-        "properties": {
-          "message": {
-            "$ref": "#/components/schemas/Message"
-          },
-          "timeline_item": {
-            "$ref": "#/components/schemas/TaskTimelineItem"
           }
         }
       },
@@ -10793,7 +10543,7 @@
       },
       "Message": {
         "type": "object",
-        "description": "Message domain model",
+        "description": "Message domain model (used in timeline payloads)",
         "required": [
           "id",
           "task_id",
@@ -10869,7 +10619,7 @@
       },
       "MessageTaskTimelineItem": {
         "type": "object",
-        "description": "Message timeline item payload",
+        "description": "Message timeline item payload (messages are stored as timeline events)",
         "required": [
           "message"
         ],
@@ -11909,16 +11659,6 @@
           "status": {
             "$ref": "#/components/schemas/TaskStatus"
           },
-          "status_message_id": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/WrappedUuidV4"
-              }
-            ]
-          },
           "status_timestamp": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
           },
@@ -11968,16 +11708,6 @@
         "properties": {
           "status": {
             "$ref": "#/components/schemas/TaskStatus"
-          },
-          "status_message_id": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/WrappedUuidV4"
-              }
-            ]
           }
         }
       },
@@ -12068,41 +11798,6 @@
           }
         ],
         "description": "Task timeline item payload discriminated union"
-      },
-      "TaskWithDetails": {
-        "type": "object",
-        "description": "Task with additional details like messages",
-        "required": [
-          "task",
-          "messages"
-        ],
-        "properties": {
-          "messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Message"
-            }
-          },
-          "messages_next_page_token": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "status_message": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Message"
-              }
-            ]
-          },
-          "task": {
-            "$ref": "#/components/schemas/Task"
-          }
-        }
       },
       "TextPart": {
         "type": "object",
@@ -12276,28 +11971,6 @@
         "properties": {
           "raw_value": {
             "type": "string"
-          }
-        }
-      },
-      "UpdateTaskStatusRequest": {
-        "type": "object",
-        "description": "Request to update task status",
-        "required": [
-          "status"
-        ],
-        "properties": {
-          "message": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/CreateMessageRequest"
-              }
-            ]
-          },
-          "status": {
-            "$ref": "#/components/schemas/TaskStatus"
           }
         }
       },

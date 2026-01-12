@@ -9,11 +9,13 @@ tokio = { workspace = true, features = ["test-util", "macros"] }
 
 [dependencies]
 anyhow.workspace = true
+async-stream.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 axum-extra.workspace = true
 chrono.workspace = true
 dashmap.workspace = true
+futures.workspace = true
 libsql.workspace = true
 once_cell.workspace = true
 schemars.workspace = true

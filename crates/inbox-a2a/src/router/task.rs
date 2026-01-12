@@ -4,23 +4,20 @@
 //! - Listing tasks and contexts
 //! - Getting task details
 //! - Updating task status
-//! - Creating messages
 //! - Getting task timeline
 
-use axum::extract::{Json, Path, Query, State};
+use axum::extract::{Path, Query, State};
 use shared::adapters::openapi::API_VERSION_TAG;
 use std::sync::Arc;
 use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use a2a::logic::task::{
-    CreateMessageRequest, CreateMessageResponse, GetTaskResponse, GetTaskTimelineItemsResponse,
-    ListTasksResponse, ListUniqueContextsResponse, UpdateTaskStatusRequest,
-    UpdateTaskStatusResponse, WithContextId, WithTaskId, create_message, get_task,
-    get_task_timeline_items, list_tasks, list_tasks_by_context_id, list_unique_contexts,
-    update_task_status,
+use crate::logic::task::{
+    get_task, get_task_timeline_items, list_tasks, list_tasks_by_context_id, list_unique_contexts,
+    GetTaskResponse, GetTaskTimelineItemsResponse, ListTasksResponse, ListUniqueContextsResponse,
+    WithContextId, WithTaskId,
 };
-use a2a::A2aService;
+use crate::A2aService;
 use shared::{
     adapters::openapi::JsonResponse,
     error::CommonError,
@@ -32,14 +29,15 @@ pub const API_VERSION_1: &str = "v1";
 pub const SERVICE_ROUTE_KEY: &str = "task";
 
 /// Creates the task router with all task-related endpoints
+///
+/// Note: create_message route has been removed - messages are now handled
+/// by the inbox crate as its own primitive type.
 pub fn create_task_router() -> OpenApiRouter<Arc<A2aService>> {
     OpenApiRouter::new()
         .routes(routes!(route_list_tasks))
         .routes(routes!(route_list_contexts))
         .routes(routes!(route_list_tasks_by_context_id))
         .routes(routes!(route_get_task))
-        .routes(routes!(route_update_task_status))
-        .routes(routes!(route_create_message))
         .routes(routes!(route_get_task_timeline_items))
 }
 
@@ -188,96 +186,6 @@ async fn route_get_task(
     trace!(task_id = %task_id, "Getting task");
     let res = get_task(ctx.repository(), task_id).await;
     trace!(success = res.is_ok(), "Getting task completed");
-    JsonResponse::from(res)
-}
-
-#[utoipa::path(
-    put,
-    path = format!("{}/{}/{}/{{task_id}}", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
-    params(
-        ("task_id" = WrappedUuidV4, Path, description = "Task ID"),
-    ),
-    request_body = UpdateTaskStatusRequest,
-    responses(
-        (status = 200, description = "Update task status", body = UpdateTaskStatusResponse),
-        (status = 400, description = "Bad Request", body = CommonError),
-        (status = 401, description = "Unauthorized", body = CommonError),
-        (status = 403, description = "Forbidden", body = CommonError),
-        (status = 500, description = "Internal Server Error", body = CommonError),
-        (status = 502, description = "Bad Gateway", body = CommonError),
-    ),
-    summary = "Update task status",
-    description = "Update the status of a task",
-    operation_id = "update-task-status",
-    security(
-        (),
-        ("api_key" = []),
-        ("bearer_token" = [])
-    )
-)]
-async fn route_update_task_status(
-    State(ctx): State<Arc<A2aService>>,
-    Path(task_id): Path<WrappedUuidV4>,
-    Json(request): Json<UpdateTaskStatusRequest>,
-) -> JsonResponse<UpdateTaskStatusResponse, CommonError> {
-    trace!(task_id = %task_id, status = ?request.status, "Updating task status");
-    let res = update_task_status(
-        ctx.repository(),
-        ctx.connection_manager(),
-        None,
-        WithTaskId {
-            task_id,
-            inner: request,
-        },
-    )
-    .await;
-    trace!(success = res.is_ok(), "Updating task status completed");
-    JsonResponse::from(res)
-}
-
-#[utoipa::path(
-    post,
-    path = format!("{}/{}/{}/{{task_id}}/message", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
-    params(
-        ("task_id" = WrappedUuidV4, Path, description = "Task ID"),
-    ),
-    request_body = CreateMessageRequest,
-    responses(
-        (status = 200, description = "Create message", body = CreateMessageResponse),
-        (status = 400, description = "Bad Request", body = CommonError),
-        (status = 401, description = "Unauthorized", body = CommonError),
-        (status = 403, description = "Forbidden", body = CommonError),
-        (status = 500, description = "Internal Server Error", body = CommonError),
-        (status = 502, description = "Bad Gateway", body = CommonError),
-    ),
-    summary = "Send message",
-    description = "Send a message to a task",
-    operation_id = "send-message",
-    security(
-        (),
-        ("api_key" = []),
-        ("bearer_token" = [])
-    )
-)]
-async fn route_create_message(
-    State(ctx): State<Arc<A2aService>>,
-    Path(task_id): Path<WrappedUuidV4>,
-    Json(request): Json<CreateMessageRequest>,
-) -> JsonResponse<CreateMessageResponse, CommonError> {
-    trace!(task_id = %task_id, role = ?request.role, "Creating message");
-    let res = create_message(
-        ctx.repository(),
-        ctx.connection_manager(),
-        WithTaskId {
-            task_id,
-            inner: request,
-        },
-        false,
-    )
-    .await;
-    trace!(success = res.is_ok(), "Creating message completed");
     JsonResponse::from(res)
 }
 

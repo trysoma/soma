@@ -3,10 +3,10 @@ members = ["crates/*"]
 # sdk-py must be built with maturin, not cargo build directly
 # sdk-js is built with napi, not cargo build directly
 default-members = [
-    "crates/a2a",
-    "crates/a2a-core",
     "crates/inbox",
     "crates/inbox-a2a",
+    "crates/inbox-vercel-ai-sdk",
+    "crates/inbox-slack",
     "crates/mcp",
     "crates/encryption",
     "crates/sdk-core",
@@ -194,10 +194,10 @@ human-panic = "2.0.4"
 indicatif = "0.18.3"
 
 ## internal crates
-a2a = { path = "./crates/a2a" }
-a2a-core = { path = "./crates/a2a-core" }
 inbox = { path = "./crates/inbox" }
 inbox-a2a = { path = "./crates/inbox-a2a" }
+inbox-vercel-ai-sdk = { path = "./crates/inbox-vercel-ai-sdk" }
+inbox-slack = { path = "./crates/inbox-slack" }
 shared = { path = "./crates/shared" }
 shared-macros = { path = "./crates/shared-macros" }
 soma-api-server = { path = "./crates/soma-api-server" }

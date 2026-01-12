@@ -15,14 +15,16 @@ CREATE INDEX `idx_thread_created_at` ON `thread` (`created_at`);
 CREATE TABLE `message` (
   `id` text NULL,
   `thread_id` text NOT NULL,
+  `kind` text NOT NULL,
   `role` text NOT NULL,
-  `parts` json NOT NULL,
+  `body` json NOT NULL,
   `metadata` json NULL,
   `inbox_settings` json NOT NULL DEFAULT '{}',
   `created_at` datetime NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` datetime NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   PRIMARY KEY (`id`),
   CONSTRAINT `0` FOREIGN KEY (`thread_id`) REFERENCES `thread` (`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+  CONSTRAINT `kind_check` CHECK (kind IN ('text', 'ui')),
   CONSTRAINT `role_check` CHECK (role IN ('system', 'user', 'assistant'))
 );
 -- create index "idx_message_thread_id" to table: "message"
@@ -51,22 +53,23 @@ CREATE INDEX `idx_event_kind` ON `event` (`kind`);
 CREATE TABLE `inbox` (
   `id` text NULL,
   `provider_id` text NOT NULL,
-  `status` text NOT NULL DEFAULT 'enabled',
+  `destination_type` text NOT NULL,
+  `destination_id` text NOT NULL,
   `configuration` json NOT NULL,
   `settings` json NOT NULL DEFAULT '{}',
   `created_at` datetime NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` datetime NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   PRIMARY KEY (`id`),
-  CONSTRAINT `status_check` CHECK (status IN ('enabled', 'disabled'))
+  CONSTRAINT `destination_type_check` CHECK (destination_type IN ('agent', 'workflow'))
 );
 -- create index "idx_inbox_provider_id" to table: "inbox"
 CREATE INDEX `idx_inbox_provider_id` ON `inbox` (`provider_id`);
--- create index "idx_inbox_status" to table: "inbox"
-CREATE INDEX `idx_inbox_status` ON `inbox` (`status`);
+-- create index "idx_inbox_destination" to table: "inbox"
+CREATE INDEX `idx_inbox_destination` ON `inbox` (`destination_type`, `destination_id`);
 
 -- +goose Down
--- reverse: create index "idx_inbox_status" to table: "inbox"
-DROP INDEX `idx_inbox_status`;
+-- reverse: create index "idx_inbox_destination" to table: "inbox"
+DROP INDEX `idx_inbox_destination`;
 -- reverse: create index "idx_inbox_provider_id" to table: "inbox"
 DROP INDEX `idx_inbox_provider_id`;
 -- reverse: create "inbox" table

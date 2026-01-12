@@ -7,13 +7,13 @@ use std::sync::Arc;
 use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use a2a::{AgentListItem, ListAgentsResponse, get_all_agents};
+use inbox_a2a::{AgentListItem, ListAgentsResponse};
 use shared::{
     adapters::openapi::{API_VERSION_TAG, JsonResponse},
     error::CommonError,
 };
 
-use crate::sdk::sdk_agent_sync::AgentCache;
+use crate::sdk::sdk_agent_sync::{AgentCache, get_all_agents};
 
 pub const PATH_PREFIX: &str = "/api";
 pub const SERVICE_ROUTE_KEY: &str = "agent";

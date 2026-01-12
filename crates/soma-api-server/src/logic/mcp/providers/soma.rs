@@ -20,10 +20,10 @@ use shared::primitives::WrappedSchema;
 
 use shared::error::CommonError;
 
-use a2a::logic::task::{
+use inbox_a2a::logic::task::{
     GetTaskTimelineItemsRequest, GetTaskTimelineItemsResponse, get_task_timeline_items,
 };
-use a2a::Repository;
+use inbox_a2a::Repository;
 
 /// Soma provider controller that provides soma-specific functions
 pub struct SomaProviderController {

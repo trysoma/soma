@@ -3,76 +3,6 @@
 version = 4
 
 [[package]]
-name = "a2a"
-version = "0.0.6"
-dependencies = [
- "a2a-core",
- "anyhow",
- "async-trait",
- "axum 0.8.7",
- "base64 0.22.1",
- "chrono",
- "dashmap",
- "futures",
- "http 1.4.0",
- "libsql",
- "libsql_migration",
- "reqwest",
- "schemars 1.1.0",
- "serde",
- "serde_json",
- "shared",
- "shared-macros",
- "tempfile",
- "thiserror 2.0.17",
- "tokio",
- "tokio-stream",
- "tracing",
- "url",
- "utoipa",
- "utoipa-axum",
- "uuid",
- "workspace-hack",
-]
-
-[[package]]
-name = "a2a-core"
-version = "0.0.6"
-dependencies = [
- "async-stream",
- "async-trait",
- "axum 0.8.7",
- "base64 0.22.1",
- "chrono",
- "derive_builder",
- "futures",
- "http 1.4.0",
- "hyper 1.6.0",
- "prettyplease",
- "prost 0.13.5",
- "prost-build 0.13.5",
- "prost-types 0.13.5",
- "reqwest",
- "schemars 1.1.0",
- "serde",
- "serde_json",
- "syn 2.0.111",
- "thiserror 2.0.17",
- "tokio",
- "tokio-stream",
- "tonic 0.13.1",
- "tonic-build",
- "tower 0.5.2",
- "tracing",
- "tracing-subscriber",
- "typify",
- "utoipa",
- "utoipa-axum",
- "uuid",
- "workspace-hack",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3304,11 +3234,13 @@ name = "inbox"
 version = "0.0.6"
 dependencies = [
  "anyhow",
+ "async-stream",
  "async-trait",
  "axum 0.8.7",
  "axum-extra 0.10.3",
  "chrono",
  "dashmap",
+ "futures",
  "libsql",
  "once_cell",
  "schemars 1.1.0",
@@ -3332,8 +3264,42 @@ dependencies = [
 name = "inbox-a2a"
 version = "0.0.6"
 dependencies = [
- "a2a",
- "a2a-core",
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "axum 0.8.7",
+ "chrono",
+ "dashmap",
+ "futures",
+ "http 1.4.0",
+ "inbox",
+ "libsql",
+ "libsql_migration",
+ "prettyplease",
+ "reqwest",
+ "schemars 1.1.0",
+ "serde",
+ "serde_json",
+ "shared",
+ "shared-macros",
+ "syn 2.0.111",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "typify",
+ "url",
+ "utoipa",
+ "utoipa-axum",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
+name = "inbox-slack"
+version = "0.0.6"
+dependencies = [
  "anyhow",
  "async-trait",
  "axum 0.8.7",
@@ -3347,10 +3313,40 @@ dependencies = [
  "serde",
  "serde_json",
  "shared",
+ "shared-macros",
+ "tempfile",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
  "tracing",
- "url",
+ "utoipa",
+ "utoipa-axum",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
+name = "inbox-vercel-ai-sdk"
+version = "0.0.6"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "axum 0.8.7",
+ "chrono",
+ "futures",
+ "http 1.4.0",
+ "inbox",
+ "schemars 1.1.0",
+ "serde",
+ "serde_json",
+ "shared",
+ "shared-macros",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-stream",
+ "tracing",
  "utoipa",
  "utoipa-axum",
  "uuid",
@@ -6757,7 +6753,6 @@ dependencies = [
 name = "shared"
 version = "0.0.6"
 dependencies = [
- "a2a-core",
  "anyhow",
  "async-trait",
  "axum 0.8.7",
@@ -6948,7 +6943,6 @@ dependencies = [
 name = "soma"
 version = "0.0.6"
 dependencies = [
- "a2a-core",
  "anyhow",
  "async-trait",
  "axum 0.8.7",
@@ -6969,6 +6963,7 @@ dependencies = [
  "hyper 1.6.0",
  "hyper-util",
  "identity",
+ "inbox",
  "indicatif",
  "inquire",
  "libsql",
@@ -7026,8 +7021,6 @@ dependencies = [
 name = "soma-api-server"
 version = "0.0.6"
 dependencies = [
- "a2a",
- "a2a-core",
  "anyhow",
  "async-trait",
  "axum 0.8.7",

@@ -1,13 +1,14 @@
 use crate::error::CommonError;
 use http::HeaderMap;
 use libsql::FromValue;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::primitives::WrappedChronoDateTime;
 
 /// User role in the system
-#[derive(Debug, Clone, PartialEq, Eq, ToSchema, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, ToSchema, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Role {
     Admin,
@@ -149,14 +150,14 @@ impl From<Identity> for RawCredentials {
 }
 
 /// Authenticated machine identity
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 pub struct Machine {
     pub sub: String,
     pub role: Role,
 }
 
 /// Authenticated human identity
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 pub struct Human {
     pub sub: String,
     pub email: Option<String>,
@@ -165,7 +166,7 @@ pub struct Human {
 }
 
 /// Authenticated identity
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum Identity {
     /// Machine identity (API key authentication)

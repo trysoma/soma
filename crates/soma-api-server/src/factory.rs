@@ -19,7 +19,7 @@ use shared::uds::{
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, trace};
 
-use a2a::ConnectionManager;
+use inbox_a2a::ConnectionManager;
 use crate::logic::on_change_pubsub::{SomaChangeTx, create_soma_change_channel, run_change_pubsub};
 use crate::repository::setup_repository;
 use crate::restate::RestateServerParams;

@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
-use a2a::{A2aService, A2aServiceParams};
+use inbox_a2a::{A2aService, A2aServiceParams};
 use ::mcp::logic::mcp::McpServerService;
 use ::mcp::router::McpService;
 use encryption::logic::{EncryptionKeyEventSender, crypto_services::CryptoCache};
@@ -20,7 +20,8 @@ use shared::{
 
 use url::Url;
 
-use a2a::{AgentCache, ConnectionManager, Repository};
+use inbox_a2a::{ConnectionManager, Repository};
+use crate::sdk::sdk_agent_sync::AgentCache;
 use crate::{
     logic::on_change_pubsub::{SecretChangeTx, VariableChangeTx},
     router::internal,
@@ -51,6 +52,8 @@ pub struct ApiService {
             >,
         >,
     >,
+    /// Agent cache for storing agent metadata from SDK
+    pub agent_cache: AgentCache,
 }
 
 pub struct InitApiServiceParams {
@@ -115,9 +118,7 @@ impl ApiService {
             host: Url::parse(format!("http://{}:{}", init_params.host, init_params.port).as_str())?,
             connection_manager: init_params.connection_manager.clone(),
             repository: init_params.repository.clone(),
-            restate_ingress_client: init_params.restate_ingress_client.clone(),
-            restate_admin_client: init_params.restate_admin_client.clone(),
-            agent_cache: agent_cache.clone(),
+            event_bus: None, // Not using inbox event bus currently
         }));
 
         let mcp_service = McpService::new(
@@ -169,6 +170,7 @@ impl ApiService {
             environment_service,
             identity_service,
             sdk_client: init_params.sdk_client,
+            agent_cache,
         })
     }
 }

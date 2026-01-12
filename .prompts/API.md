@@ -12,7 +12,7 @@ When making changes, adding or removing an api endpoint, first:
 
 Note:
 
-Alwats define an operation ID, summary, description
+Always define an operation ID, summary, description
 
 For example:
 

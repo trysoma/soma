@@ -1,7 +1,7 @@
 //! Inbox HTTP endpoints
 //!
 //! Endpoints for managing inbox provider instances including creating, updating,
-//! enabling/disabling, and listing inboxes. Also includes nested routes for
+//! deleting, and listing inboxes. Also includes nested routes for
 //! provider-specific functionality.
 
 use axum::{
@@ -12,26 +12,25 @@ use axum::{
     routing::any,
     Json, Router,
 };
-use tower::ServiceExt;
 use shared::adapters::openapi::API_VERSION_TAG;
 use std::sync::Arc;
+use tower::ServiceExt;
 use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use super::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY};
-use crate::{
-    logic::inbox::{
-        CreateInboxRequest, CreateInboxResponse, DeleteInboxResponse, GetInboxResponse, Inbox,
-        InboxProviderState, InboxStatus, ListInboxesResponse, ListProvidersResponse, ProviderInfo,
-        SetInboxStatusRequest, UpdateInboxRequest, UpdateInboxResponse, get_provider_registry,
-    },
-    repository::{CreateInbox, InboxRepositoryLike, UpdateInbox, UpdateInboxStatus},
-    service::InboxService,
+use crate::logic::inbox::{
+    create_inbox, delete_inbox, get_inbox, get_provider_registry, list_inboxes, update_inbox,
+    CreateInboxRequest, CreateInboxResponse, DeleteInboxResponse, GetInboxResponse,
+    InboxProviderState, ListInboxesResponse, ListProvidersResponse, ProviderInfo,
+    UpdateInboxRequest, UpdateInboxResponse,
 };
+use crate::repository::InboxRepositoryLike;
+use crate::service::InboxService;
 use shared::{
     adapters::openapi::JsonResponse,
     error::CommonError,
-    primitives::{PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4},
+    primitives::PaginationRequest,
 };
 
 /// Create the inbox router
@@ -43,7 +42,6 @@ pub fn create_router() -> OpenApiRouter<Arc<InboxService>> {
         .routes(routes!(route_get_inbox))
         .routes(routes!(route_update_inbox))
         .routes(routes!(route_delete_inbox))
-        .routes(routes!(route_set_inbox_status))
 }
 
 /// Create the nested router for provider-specific routes
@@ -145,7 +143,7 @@ async fn route_create_inbox(
     Json(request): Json<CreateInboxRequest>,
 ) -> JsonResponse<CreateInboxResponse, CommonError> {
     trace!(provider_id = %request.provider_id, "Creating inbox");
-    let res = create_inbox(&ctx.repository, request).await;
+    let res = create_inbox(&ctx.repository, ctx.config_change_tx.as_ref(), request).await;
     trace!(success = res.is_ok(), "Creating inbox completed");
     JsonResponse::from(res)
 }
@@ -211,7 +209,7 @@ async fn route_update_inbox(
     Json(request): Json<UpdateInboxRequest>,
 ) -> JsonResponse<UpdateInboxResponse, CommonError> {
     trace!(inbox_id = %inbox_id, "Updating inbox");
-    let res = update_inbox(&ctx.repository, &inbox_id, request).await;
+    let res = update_inbox(&ctx.repository, ctx.config_change_tx.as_ref(), &inbox_id, request).await;
     trace!(success = res.is_ok(), "Updating inbox completed");
     JsonResponse::from(res)
 }
@@ -243,42 +241,8 @@ async fn route_delete_inbox(
     Path(inbox_id): Path<String>,
 ) -> JsonResponse<DeleteInboxResponse, CommonError> {
     trace!(inbox_id = %inbox_id, "Deleting inbox");
-    let res = delete_inbox(&ctx.repository, &inbox_id).await;
+    let res = delete_inbox(&ctx.repository, ctx.config_change_tx.as_ref(), &inbox_id).await;
     trace!(success = res.is_ok(), "Deleting inbox completed");
-    JsonResponse::from(res)
-}
-
-#[utoipa::path(
-    post,
-    path = format!("{}/{}/{}/inbox/{{inbox_id}}/status", PATH_PREFIX, SERVICE_ROUTE_KEY, API_VERSION_1),
-    tags = [SERVICE_ROUTE_KEY, API_VERSION_TAG],
-    params(
-        ("inbox_id" = String, Path, description = "Inbox ID"),
-    ),
-    request_body = SetInboxStatusRequest,
-    responses(
-        (status = 200, description = "Update inbox status", body = Inbox),
-        (status = 400, description = "Bad Request", body = CommonError),
-        (status = 404, description = "Not Found", body = CommonError),
-        (status = 500, description = "Internal Server Error", body = CommonError),
-    ),
-    summary = "Set inbox status",
-    description = "Enable or disable an inbox",
-    operation_id = "set-inbox-status",
-    security(
-        (),
-        ("api_key" = []),
-        ("bearer_token" = [])
-    )
-)]
-async fn route_set_inbox_status(
-    State(ctx): State<Arc<InboxService>>,
-    Path(inbox_id): Path<String>,
-    Json(request): Json<SetInboxStatusRequest>,
-) -> JsonResponse<Inbox, CommonError> {
-    trace!(inbox_id = %inbox_id, status = %request.status, "Setting inbox status");
-    let res = set_inbox_status(&ctx.repository, &inbox_id, request.status).await;
-    trace!(success = res.is_ok(), "Setting inbox status completed");
     JsonResponse::from(res)
 }
 
@@ -304,15 +268,6 @@ async fn handle_nested_inbox_route(
         Err(e) => return e.into_response(),
     };
 
-    // Check if inbox is enabled
-    if !inbox.is_enabled() {
-        return CommonError::InvalidRequest {
-            msg: format!("Inbox {inbox_id} is disabled"),
-            source: None,
-        }
-        .into_response();
-    }
-
     // Get the provider
     let registry = get_provider_registry();
     let provider = match registry.get(&inbox.provider_id) {
@@ -326,10 +281,13 @@ async fn handle_nested_inbox_route(
         }
     };
 
-    // Create the provider state
+    // Create the inbox handle and provider state
+    let handle = ctx.create_inbox_handle(inbox.clone());
     let provider_state = InboxProviderState {
         inbox,
-        event_bus: ctx.event_bus.clone(),
+        handle,
+        repository: Some(Arc::new(ctx.repository.clone())),
+        event_bus: Some(ctx.event_bus.clone()),
     };
 
     // Get the provider's router and handle the request
@@ -345,199 +303,4 @@ async fn handle_nested_inbox_route(
             match err {}
         }
     }
-}
-
-// --- Logic Functions ---
-
-/// List inboxes with pagination
-async fn list_inboxes<R: InboxRepositoryLike>(
-    repository: &R,
-    pagination: PaginationRequest,
-) -> Result<ListInboxesResponse, CommonError> {
-    let paginated = repository.get_inboxes(&pagination).await?;
-    Ok(ListInboxesResponse {
-        inboxes: paginated.items,
-        next_page_token: paginated.next_page_token,
-    })
-}
-
-/// Create a new inbox
-async fn create_inbox<R: InboxRepositoryLike>(
-    repository: &R,
-    request: CreateInboxRequest,
-) -> Result<CreateInboxResponse, CommonError> {
-    // Verify provider exists
-    let registry = get_provider_registry();
-    let provider = registry.get(&request.provider_id).ok_or_else(|| {
-        CommonError::InvalidRequest {
-            msg: format!("Provider {} not found", request.provider_id),
-            source: None,
-        }
-    })?;
-
-    // Validate configuration against provider's schema
-    provider.validate_configuration(request.configuration.get_inner())?;
-
-    let now = WrappedChronoDateTime::now();
-    let id = request
-        .id
-        .unwrap_or_else(|| format!("inbox-{}", WrappedUuidV4::new()));
-
-    // Check if inbox with this ID already exists
-    if repository.get_inbox_by_id(&id).await?.is_some() {
-        return Err(CommonError::InvalidRequest {
-            msg: format!("Inbox with id {id} already exists"),
-            source: None,
-        });
-    }
-
-    let settings_json = WrappedJsonValue::new(
-        serde_json::to_value(&request.settings).map_err(|e| CommonError::InvalidRequest {
-            msg: format!("Failed to serialize settings: {e}"),
-            source: Some(e.into()),
-        })?,
-    );
-
-    let inbox = Inbox {
-        id: id.clone(),
-        provider_id: request.provider_id.clone(),
-        status: InboxStatus::Enabled,
-        configuration: request.configuration.clone(),
-        settings: request.settings.clone(),
-        created_at: now,
-        updated_at: now,
-    };
-
-    let create_params = CreateInbox {
-        id,
-        provider_id: request.provider_id,
-        status: InboxStatus::Enabled,
-        configuration: request.configuration,
-        settings: settings_json,
-        created_at: now,
-        updated_at: now,
-    };
-
-    repository.create_inbox(&create_params).await?;
-
-    Ok(inbox)
-}
-
-/// Get an inbox by ID
-async fn get_inbox<R: InboxRepositoryLike>(
-    repository: &R,
-    inbox_id: &str,
-) -> Result<GetInboxResponse, CommonError> {
-    let inbox = repository.get_inbox_by_id(inbox_id).await?;
-    inbox.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Inbox with id {inbox_id} not found"),
-        lookup_id: inbox_id.to_string(),
-        source: None,
-    })
-}
-
-/// Update an existing inbox
-async fn update_inbox<R: InboxRepositoryLike>(
-    repository: &R,
-    inbox_id: &str,
-    request: UpdateInboxRequest,
-) -> Result<UpdateInboxResponse, CommonError> {
-    let existing = repository.get_inbox_by_id(inbox_id).await?;
-    let existing = existing.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Inbox with id {inbox_id} not found"),
-        lookup_id: inbox_id.to_string(),
-        source: None,
-    })?;
-
-    // If configuration is being updated, validate it
-    let new_configuration = if let Some(config) = request.configuration {
-        let registry = get_provider_registry();
-        if let Some(provider) = registry.get(&existing.provider_id) {
-            provider.validate_configuration(config.get_inner())?;
-        }
-        config
-    } else {
-        existing.configuration.clone()
-    };
-
-    let new_settings = request.settings.unwrap_or(existing.settings.clone());
-    let now = WrappedChronoDateTime::now();
-
-    let settings_json = WrappedJsonValue::new(
-        serde_json::to_value(&new_settings).map_err(|e| CommonError::InvalidRequest {
-            msg: format!("Failed to serialize settings: {e}"),
-            source: Some(e.into()),
-        })?,
-    );
-
-    let update_params = UpdateInbox {
-        id: inbox_id.to_string(),
-        configuration: new_configuration.clone(),
-        settings: settings_json,
-        updated_at: now,
-    };
-
-    repository.update_inbox(&update_params).await?;
-
-    Ok(Inbox {
-        id: inbox_id.to_string(),
-        provider_id: existing.provider_id,
-        status: existing.status,
-        configuration: new_configuration,
-        settings: new_settings,
-        created_at: existing.created_at,
-        updated_at: now,
-    })
-}
-
-/// Delete an inbox
-async fn delete_inbox<R: InboxRepositoryLike>(
-    repository: &R,
-    inbox_id: &str,
-) -> Result<DeleteInboxResponse, CommonError> {
-    // Verify inbox exists
-    let existing = repository.get_inbox_by_id(inbox_id).await?;
-    let _ = existing.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Inbox with id {inbox_id} not found"),
-        lookup_id: inbox_id.to_string(),
-        source: None,
-    })?;
-
-    repository.delete_inbox(inbox_id).await?;
-
-    Ok(DeleteInboxResponse { success: true })
-}
-
-/// Set inbox status (enable/disable)
-async fn set_inbox_status<R: InboxRepositoryLike>(
-    repository: &R,
-    inbox_id: &str,
-    status: InboxStatus,
-) -> Result<Inbox, CommonError> {
-    let existing = repository.get_inbox_by_id(inbox_id).await?;
-    let existing = existing.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Inbox with id {inbox_id} not found"),
-        lookup_id: inbox_id.to_string(),
-        source: None,
-    })?;
-
-    let now = WrappedChronoDateTime::now();
-
-    let update_params = UpdateInboxStatus {
-        id: inbox_id.to_string(),
-        status: status.clone(),
-        updated_at: now,
-    };
-
-    repository.update_inbox_status(&update_params).await?;
-
-    Ok(Inbox {
-        id: inbox_id.to_string(),
-        provider_id: existing.provider_id,
-        status,
-        configuration: existing.configuration,
-        settings: existing.settings,
-        created_at: existing.created_at,
-        updated_at: now,
-    })
 }

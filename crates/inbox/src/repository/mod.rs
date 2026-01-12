@@ -16,8 +16,8 @@ use shared::{
 pub use sqlite::Repository;
 
 use crate::logic::{
-    inbox::{Inbox, InboxStatus},
-    message::{MessageRole, UIMessage},
+    inbox::{DestinationType, Inbox},
+    message::{Message, MessageRole, MessageType},
     thread::Thread,
 };
 
@@ -51,8 +51,9 @@ pub struct UpdateThread {
 pub struct CreateMessage {
     pub id: WrappedUuidV4,
     pub thread_id: WrappedUuidV4,
+    pub message_type: MessageType,
     pub role: MessageRole,
-    pub parts: WrappedJsonValue,
+    pub body: WrappedJsonValue,
     pub metadata: Option<WrappedJsonValue>,
     pub inbox_settings: WrappedJsonValue,
     pub created_at: WrappedChronoDateTime,
@@ -63,7 +64,7 @@ pub struct CreateMessage {
 #[derive(Debug, Clone)]
 pub struct UpdateMessage {
     pub id: WrappedUuidV4,
-    pub parts: WrappedJsonValue,
+    pub body: WrappedJsonValue,
     pub metadata: Option<WrappedJsonValue>,
     pub inbox_settings: WrappedJsonValue,
     pub updated_at: WrappedChronoDateTime,
@@ -101,7 +102,8 @@ pub struct StoredEvent {
 pub struct CreateInbox {
     pub id: String,
     pub provider_id: String,
-    pub status: InboxStatus,
+    pub destination_type: DestinationType,
+    pub destination_id: String,
     pub configuration: WrappedJsonValue,
     pub settings: WrappedJsonValue,
     pub created_at: WrappedChronoDateTime,
@@ -114,14 +116,6 @@ pub struct UpdateInbox {
     pub id: String,
     pub configuration: WrappedJsonValue,
     pub settings: WrappedJsonValue,
-    pub updated_at: WrappedChronoDateTime,
-}
-
-/// Parameters for updating inbox status
-#[derive(Debug, Clone)]
-pub struct UpdateInboxStatus {
-    pub id: String,
-    pub status: InboxStatus,
     pub updated_at: WrappedChronoDateTime,
 }
 
@@ -163,20 +157,20 @@ pub trait MessageRepositoryLike: Send + Sync {
 
     /// Get a message by ID
     async fn get_message_by_id(&self, id: &WrappedUuidV4)
-        -> Result<Option<UIMessage>, CommonError>;
+        -> Result<Option<Message>, CommonError>;
 
     /// List messages with pagination
     async fn get_messages(
         &self,
         pagination: &PaginationRequest,
-    ) -> Result<PaginatedResponse<UIMessage>, CommonError>;
+    ) -> Result<PaginatedResponse<Message>, CommonError>;
 
     /// List messages by thread with pagination
     async fn get_messages_by_thread(
         &self,
         thread_id: &WrappedUuidV4,
         pagination: &PaginationRequest,
-    ) -> Result<PaginatedResponse<UIMessage>, CommonError>;
+    ) -> Result<PaginatedResponse<Message>, CommonError>;
 
     /// Delete all messages in a thread
     async fn delete_messages_by_thread(&self, thread_id: &WrappedUuidV4)
@@ -231,9 +225,6 @@ pub trait InboxRepositoryLike: Send + Sync {
     /// Update an existing inbox
     async fn update_inbox(&self, params: &UpdateInbox) -> Result<(), CommonError>;
 
-    /// Update inbox status
-    async fn update_inbox_status(&self, params: &UpdateInboxStatus) -> Result<(), CommonError>;
-
     /// Delete an inbox by ID
     async fn delete_inbox(&self, id: &str) -> Result<(), CommonError>;
 
@@ -253,9 +244,11 @@ pub trait InboxRepositoryLike: Send + Sync {
         pagination: &PaginationRequest,
     ) -> Result<PaginatedResponse<Inbox>, CommonError>;
 
-    /// List enabled inboxes with pagination
-    async fn get_enabled_inboxes(
+    /// List inboxes by destination with pagination
+    async fn get_inboxes_by_destination(
         &self,
+        destination_type: &DestinationType,
+        destination_id: &str,
         pagination: &PaginationRequest,
     ) -> Result<PaginatedResponse<Inbox>, CommonError>;
 }

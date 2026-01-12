@@ -7,22 +7,16 @@ use tracing::trace;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use super::{API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY};
-use crate::{
-    logic::{
-        event::InboxEvent,
-        thread::{
-            CreateThreadRequest, CreateThreadResponse, DeleteThreadResponse,
-            GetThreadWithMessagesResponse, ListThreadsResponse, Thread, UpdateThreadRequest,
-            UpdateThreadResponse,
-        },
-    },
-    repository::{CreateThread, MessageRepositoryLike, ThreadRepositoryLike, UpdateThread},
-    service::InboxService,
+use crate::logic::thread::{
+    create_thread, delete_thread, get_thread_with_messages, list_threads, update_thread,
+    CreateThreadRequest, CreateThreadResponse, DeleteThreadResponse, GetThreadWithMessagesResponse,
+    ListThreadsResponse, UpdateThreadRequest, UpdateThreadResponse,
 };
+use crate::service::InboxService;
 use shared::{
     adapters::openapi::JsonResponse,
     error::CommonError,
-    primitives::{PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedUuidV4},
+    primitives::{PaginationRequest, WrappedUuidV4},
 };
 
 /// Create the thread router
@@ -191,159 +185,4 @@ async fn route_delete_thread(
     let res = delete_thread(&ctx.repository, &ctx.event_bus, thread_id).await;
     trace!(success = res.is_ok(), "Deleting thread completed");
     JsonResponse::from(res)
-}
-
-// --- Logic Functions ---
-
-/// List threads with pagination
-async fn list_threads<R: ThreadRepositoryLike>(
-    repository: &R,
-    pagination: PaginationRequest,
-) -> Result<ListThreadsResponse, CommonError> {
-    let paginated = repository.get_threads(&pagination).await?;
-    Ok(ListThreadsResponse {
-        threads: paginated.items,
-        next_page_token: paginated.next_page_token,
-    })
-}
-
-/// Create a new thread
-async fn create_thread<R: ThreadRepositoryLike>(
-    repository: &R,
-    event_bus: &crate::logic::event::EventBus,
-    request: CreateThreadRequest,
-) -> Result<CreateThreadResponse, CommonError> {
-    let now = WrappedChronoDateTime::now();
-    let id = request.id.unwrap_or_default();
-
-    let inbox_settings_json = WrappedJsonValue::new(serde_json::to_value(&request.inbox_settings)
-        .map_err(|e| CommonError::InvalidRequest {
-            msg: format!("Failed to serialize inbox_settings: {e}"),
-            source: Some(e.into()),
-        })?);
-
-    let thread = Thread {
-        id: id.clone(),
-        title: request.title.clone(),
-        metadata: request.metadata.clone(),
-        inbox_settings: request.inbox_settings.clone(),
-        created_at: now,
-        updated_at: now,
-    };
-
-    let create_params = CreateThread {
-        id,
-        title: request.title,
-        metadata: request.metadata,
-        inbox_settings: inbox_settings_json,
-        created_at: now,
-        updated_at: now,
-    };
-
-    repository.create_thread(&create_params).await?;
-
-    // Publish event
-    let _ = event_bus.publish(InboxEvent::thread_created(thread.clone()));
-
-    Ok(thread)
-}
-
-/// Get a thread with its messages
-async fn get_thread_with_messages<R: ThreadRepositoryLike + MessageRepositoryLike>(
-    repository: &R,
-    thread_id: WrappedUuidV4,
-    pagination: PaginationRequest,
-) -> Result<GetThreadWithMessagesResponse, CommonError> {
-    let thread = repository.get_thread_by_id(&thread_id).await?;
-    let thread = thread.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Thread with id {thread_id} not found"),
-        lookup_id: thread_id.to_string(),
-        source: None,
-    })?;
-
-    let messages = repository
-        .get_messages_by_thread(&thread_id, &pagination)
-        .await?;
-
-    Ok(GetThreadWithMessagesResponse {
-        thread,
-        messages: messages.items,
-        next_page_token: messages.next_page_token,
-    })
-}
-
-/// Update an existing thread
-async fn update_thread<R: ThreadRepositoryLike>(
-    repository: &R,
-    event_bus: &crate::logic::event::EventBus,
-    thread_id: WrappedUuidV4,
-    request: UpdateThreadRequest,
-) -> Result<UpdateThreadResponse, CommonError> {
-    let existing = repository.get_thread_by_id(&thread_id).await?;
-    let existing = existing.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Thread with id {thread_id} not found"),
-        lookup_id: thread_id.to_string(),
-        source: None,
-    })?;
-
-    let now = WrappedChronoDateTime::now();
-    let new_title = request.title.or(existing.title.clone());
-    let new_metadata = request.metadata.or(existing.metadata.clone());
-    let new_inbox_settings = request.inbox_settings.unwrap_or(existing.inbox_settings.clone());
-
-    let inbox_settings_json = WrappedJsonValue::new(serde_json::to_value(&new_inbox_settings)
-        .map_err(|e| CommonError::InvalidRequest {
-            msg: format!("Failed to serialize inbox_settings: {e}"),
-            source: Some(e.into()),
-        })?);
-
-    let update_params = UpdateThread {
-        id: thread_id.clone(),
-        title: new_title.clone(),
-        metadata: new_metadata.clone(),
-        inbox_settings: inbox_settings_json,
-        updated_at: now,
-    };
-
-    repository.update_thread(&update_params).await?;
-
-    let updated_thread = Thread {
-        id: thread_id,
-        title: new_title,
-        metadata: new_metadata,
-        inbox_settings: new_inbox_settings,
-        created_at: existing.created_at,
-        updated_at: now,
-    };
-
-    // Publish event
-    let _ = event_bus.publish(InboxEvent::thread_updated(updated_thread.clone()));
-
-    Ok(updated_thread)
-}
-
-/// Delete a thread
-async fn delete_thread<R: ThreadRepositoryLike + MessageRepositoryLike>(
-    repository: &R,
-    event_bus: &crate::logic::event::EventBus,
-    thread_id: WrappedUuidV4,
-) -> Result<DeleteThreadResponse, CommonError> {
-    // Verify thread exists
-    let existing = repository.get_thread_by_id(&thread_id).await?;
-    let _ = existing.ok_or_else(|| CommonError::NotFound {
-        msg: format!("Thread with id {thread_id} not found"),
-        lookup_id: thread_id.to_string(),
-        source: None,
-    })?;
-
-    // Delete all messages in the thread first (cascade should handle this, but be explicit)
-    repository.delete_messages_by_thread(&thread_id).await?;
-
-    // Delete the thread
-    repository.delete_thread(&thread_id).await?;
-
-    // Publish event
-    let _ = event_bus.publish(InboxEvent::thread_deleted(thread_id));
-
-    Ok(DeleteThreadResponse { success: true })
 }

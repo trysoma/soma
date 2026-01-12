@@ -20,6 +20,8 @@ pub struct SomaAgentDefinition {
     pub environment: Option<EnvironmentYamlConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub identity: Option<IdentityConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inbox: Option<InboxYamlConfig>,
 }
 
 /// Environment configuration for secrets and variables stored in soma.yaml
@@ -435,6 +437,32 @@ pub struct McpServerFunctionConfig {
     pub function_description: Option<String>,
 }
 
+/// Inbox configuration stored in soma.yaml
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema, Default)]
+#[serde(rename_all = "snake_case")]
+pub struct InboxYamlConfig {
+    /// Inbox instances (key is the inbox ID)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inboxes: Option<HashMap<String, InboxInstanceConfig>>,
+}
+
+/// Configuration for an inbox instance stored in soma.yaml
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct InboxInstanceConfig {
+    /// The inbox provider ID (e.g., "a2a", "vercel-ai-sdk", "slack")
+    pub provider_id: String,
+    /// The destination type for messages from this inbox
+    pub destination_type: String,
+    /// The destination ID (agent or workflow ID)
+    pub destination_id: String,
+    /// Provider-specific configuration (stored as JSON)
+    pub configuration: serde_json::Value,
+    /// Optional settings for this inbox instance
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settings: Option<HashMap<String, serde_json::Value>>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ProviderConfig {
@@ -573,6 +601,16 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
     ) -> Result<(), CommonError>;
     async fn remove_user_auth_flow(&self, id: String) -> Result<(), CommonError>;
 
+    // Inbox operations
+    async fn add_inbox(&self, inbox_id: String, config: InboxInstanceConfig)
+        -> Result<(), CommonError>;
+    async fn update_inbox(
+        &self,
+        inbox_id: String,
+        config: InboxInstanceConfig,
+    ) -> Result<(), CommonError>;
+    async fn remove_inbox(&self, inbox_id: String) -> Result<(), CommonError>;
+
     async fn reload(&self) -> Result<(), CommonError>;
 }
 
@@ -697,6 +735,12 @@ impl YamlSomaAgentDefinition {
     fn ensure_environment_config(definition: &mut SomaAgentDefinition) {
         if definition.environment.is_none() {
             definition.environment = Some(EnvironmentYamlConfig::default());
+        }
+    }
+
+    fn ensure_inbox_config(definition: &mut SomaAgentDefinition) {
+        if definition.inbox.is_none() {
+            definition.inbox = Some(InboxYamlConfig::default());
         }
     }
 }
@@ -1432,6 +1476,68 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
                 user_auth_flows.remove(&id);
                 self.save(definition).await?;
                 trace!(id = %id, "User auth flow configuration removed");
+            }
+        }
+        Ok(())
+    }
+
+    async fn add_inbox(
+        &self,
+        inbox_id: String,
+        config: InboxInstanceConfig,
+    ) -> Result<(), CommonError> {
+        trace!(inbox_id = %inbox_id, "Adding inbox");
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_inbox_config(&mut definition);
+
+        let inbox_config = definition.inbox.as_mut().unwrap();
+        if inbox_config.inboxes.is_none() {
+            inbox_config.inboxes = Some(HashMap::new());
+        }
+
+        inbox_config
+            .inboxes
+            .as_mut()
+            .unwrap()
+            .insert(inbox_id.clone(), config);
+        self.save(definition).await?;
+        trace!(inbox_id = %inbox_id, "Inbox added");
+        Ok(())
+    }
+
+    async fn update_inbox(
+        &self,
+        inbox_id: String,
+        config: InboxInstanceConfig,
+    ) -> Result<(), CommonError> {
+        trace!(inbox_id = %inbox_id, "Updating inbox");
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_inbox_config(&mut definition);
+
+        let inbox_config = definition.inbox.as_mut().unwrap();
+        if inbox_config.inboxes.is_none() {
+            inbox_config.inboxes = Some(HashMap::new());
+        }
+
+        inbox_config
+            .inboxes
+            .as_mut()
+            .unwrap()
+            .insert(inbox_id.clone(), config);
+        self.save(definition).await?;
+        trace!(inbox_id = %inbox_id, "Inbox updated");
+        Ok(())
+    }
+
+    async fn remove_inbox(&self, inbox_id: String) -> Result<(), CommonError> {
+        trace!(inbox_id = %inbox_id, "Removing inbox");
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(inbox_config) = &mut definition.inbox {
+            if let Some(inboxes) = &mut inbox_config.inboxes {
+                inboxes.remove(&inbox_id);
+                self.save(definition).await?;
+                trace!(inbox_id = %inbox_id, "Inbox removed");
             }
         }
         Ok(())

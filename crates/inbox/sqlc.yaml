@@ -75,10 +75,13 @@ sql:
               column: message.thread_id
               rust_type: "shared::primitives::WrappedUuidV4"
             - db_type: text
+              column: message.kind
+              rust_type: "crate::logic::message::MessageType"
+            - db_type: text
               column: message.role
               rust_type: "crate::logic::message::MessageRole"
             - db_type: json
-              column: message.parts
+              column: message.body
               rust_type: "shared::primitives::WrappedJsonValue"
             - db_type: json
               column: message.metadata
@@ -101,10 +104,13 @@ sql:
               column: get_message_by_id.thread_id
               rust_type: "shared::primitives::WrappedUuidV4"
             - db_type: text
+              column: get_message_by_id.kind
+              rust_type: "crate::logic::message::MessageType"
+            - db_type: text
               column: get_message_by_id.role
               rust_type: "crate::logic::message::MessageRole"
             - db_type: json
-              column: get_message_by_id.parts
+              column: get_message_by_id.body
               rust_type: "shared::primitives::WrappedJsonValue"
             - db_type: json
               column: get_message_by_id.metadata
@@ -127,10 +133,13 @@ sql:
               column: get_messages.thread_id
               rust_type: "shared::primitives::WrappedUuidV4"
             - db_type: text
+              column: get_messages.kind
+              rust_type: "crate::logic::message::MessageType"
+            - db_type: text
               column: get_messages.role
               rust_type: "crate::logic::message::MessageRole"
             - db_type: json
-              column: get_messages.parts
+              column: get_messages.body
               rust_type: "shared::primitives::WrappedJsonValue"
             - db_type: json
               column: get_messages.metadata
@@ -153,10 +162,13 @@ sql:
               column: get_messages_by_thread.thread_id
               rust_type: "shared::primitives::WrappedUuidV4"
             - db_type: text
+              column: get_messages_by_thread.kind
+              rust_type: "crate::logic::message::MessageType"
+            - db_type: text
               column: get_messages_by_thread.role
               rust_type: "crate::logic::message::MessageRole"
             - db_type: json
-              column: get_messages_by_thread.parts
+              column: get_messages_by_thread.body
               rust_type: "shared::primitives::WrappedJsonValue"
             - db_type: json
               column: get_messages_by_thread.metadata
@@ -243,8 +255,8 @@ sql:
 
             # inbox table
             - db_type: text
-              column: inbox.status
-              rust_type: "crate::logic::inbox::InboxStatus"
+              column: inbox.destination_type
+              rust_type: "crate::logic::inbox::DestinationType"
             - db_type: json
               column: inbox.configuration
               rust_type: "shared::primitives::WrappedJsonValue"
@@ -260,8 +272,8 @@ sql:
 
             # get_inbox_by_id query columns
             - db_type: text
-              column: get_inbox_by_id.status
-              rust_type: "crate::logic::inbox::InboxStatus"
+              column: get_inbox_by_id.destination_type
+              rust_type: "crate::logic::inbox::DestinationType"
             - db_type: json
               column: get_inbox_by_id.configuration
               rust_type: "shared::primitives::WrappedJsonValue"
@@ -277,8 +289,8 @@ sql:
 
             # get_inboxes query columns
             - db_type: text
-              column: get_inboxes.status
-              rust_type: "crate::logic::inbox::InboxStatus"
+              column: get_inboxes.destination_type
+              rust_type: "crate::logic::inbox::DestinationType"
             - db_type: json
               column: get_inboxes.configuration
               rust_type: "shared::primitives::WrappedJsonValue"
@@ -294,8 +306,8 @@ sql:
 
             # get_inboxes_by_provider query columns
             - db_type: text
-              column: get_inboxes_by_provider.status
-              rust_type: "crate::logic::inbox::InboxStatus"
+              column: get_inboxes_by_provider.destination_type
+              rust_type: "crate::logic::inbox::DestinationType"
             - db_type: json
               column: get_inboxes_by_provider.configuration
               rust_type: "shared::primitives::WrappedJsonValue"
@@ -309,19 +321,19 @@ sql:
               column: get_inboxes_by_provider.updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
 
-            # get_enabled_inboxes query columns
+            # get_inboxes_by_destination query columns
             - db_type: text
-              column: get_enabled_inboxes.status
-              rust_type: "crate::logic::inbox::InboxStatus"
+              column: get_inboxes_by_destination.destination_type
+              rust_type: "crate::logic::inbox::DestinationType"
             - db_type: json
-              column: get_enabled_inboxes.configuration
+              column: get_inboxes_by_destination.configuration
               rust_type: "shared::primitives::WrappedJsonValue"
             - db_type: json
-              column: get_enabled_inboxes.settings
+              column: get_inboxes_by_destination.settings
               rust_type: "shared::primitives::WrappedJsonValue"
             - db_type: datetime
-              column: get_enabled_inboxes.created_at
+              column: get_inboxes_by_destination.created_at
               rust_type: "shared::primitives::WrappedChronoDateTime"
             - db_type: datetime
-              column: get_enabled_inboxes.updated_at
+              column: get_inboxes_by_destination.updated_at
               rust_type: "shared::primitives::WrappedChronoDateTime"

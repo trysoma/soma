@@ -42,21 +42,3 @@ pub mod logic;
 pub mod repository;
 pub mod router;
 pub mod service;
-
-#[cfg(test)]
-pub mod test;
-
-// Re-export commonly used types
-pub use logic::event::{EventBus, EventRx, EventTx, InboxEvent, InboxEventKind, create_event_channel};
-pub use logic::inbox::{
-    Inbox, InboxProvider, InboxProviderRegistry, InboxProviderState, InboxStatus,
-    get_provider_registry,
-};
-pub use logic::message::{MessageRole, UIMessage, UIMessagePart};
-pub use logic::thread::Thread;
-pub use repository::{
-    InboxFullRepositoryLike, InboxRepositoryLike, MessageRepositoryLike, Repository,
-    ThreadRepositoryLike,
-};
-pub use router::create_router;
-pub use service::{InboxService, InboxServiceParams};

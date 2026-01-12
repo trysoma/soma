@@ -156,45 +156,62 @@ pub struct ArtifactUpdatedData {
 // --- Helper Functions ---
 
 /// Create an inbox event for task created
+///
+/// The event is automatically tagged with `Topic::task(task.id)` for filtering.
 pub fn task_created_event(task: A2aTask) -> InboxEvent {
+    let task_id = task.id.clone();
     let data = TaskCreatedData { task };
     InboxEvent::custom(
         EVENT_TYPE_TASK_CREATED,
         WrappedJsonValue::new(serde_json::to_value(data).unwrap()),
     )
+    .with_task(&task_id)
 }
 
 /// Create an inbox event for task status updated
+///
+/// The event is automatically tagged with `Topic::task(task.id)` for filtering.
 pub fn task_status_updated_event(task: A2aTask, is_final: bool) -> InboxEvent {
+    let task_id = task.id.clone();
     let data = TaskStatusUpdatedData { task, is_final };
     InboxEvent::custom(
         EVENT_TYPE_TASK_STATUS_UPDATED,
         WrappedJsonValue::new(serde_json::to_value(data).unwrap()),
     )
+    .with_task(&task_id)
 }
 
 /// Create an inbox event for artifact created
+///
+/// The event is automatically tagged with `Topic::task(artifact.task_id)` for filtering.
 pub fn artifact_created_event(artifact: A2aArtifact) -> InboxEvent {
+    let task_id = artifact.task_id.clone();
     let data = ArtifactCreatedData { artifact };
     InboxEvent::custom(
         EVENT_TYPE_ARTIFACT_CREATED,
         WrappedJsonValue::new(serde_json::to_value(data).unwrap()),
     )
+    .with_task(&task_id)
 }
 
 /// Create an inbox event for artifact updated
+///
+/// The event is automatically tagged with `Topic::task(artifact.task_id)` for filtering.
 pub fn artifact_updated_event(artifact: A2aArtifact, is_last: bool) -> InboxEvent {
+    let task_id = artifact.task_id.clone();
     let data = ArtifactUpdatedData { artifact, is_last };
     InboxEvent::custom(
         EVENT_TYPE_ARTIFACT_UPDATED,
         WrappedJsonValue::new(serde_json::to_value(data).unwrap()),
     )
+    .with_task(&task_id)
 }
 
 #[cfg(test)]
 mod tests {
     mod unit {
         use super::super::*;
+        use inbox::logic::event::Topic;
 
         #[test]
         fn test_task_state_is_final() {
@@ -224,6 +241,10 @@ mod tests {
 
             let event = task_created_event(task);
 
+            // Verify task topic is included
+            let topics = event.all_topics();
+            assert!(topics.contains(&Topic::task("task-123")));
+
             match event.kind {
                 inbox::logic::event::InboxEventKind::Custom { event_type, data } => {
                     assert_eq!(event_type, EVENT_TYPE_TASK_CREATED);
@@ -250,6 +271,10 @@ mod tests {
 
             let event = task_status_updated_event(task, true);
 
+            // Verify task topic is included
+            let topics = event.all_topics();
+            assert!(topics.contains(&Topic::task("task-123")));
+
             match event.kind {
                 inbox::logic::event::InboxEventKind::Custom { event_type, data } => {
                     assert_eq!(event_type, EVENT_TYPE_TASK_STATUS_UPDATED);
@@ -260,6 +285,25 @@ mod tests {
                 }
                 _ => panic!("Expected Custom event"),
             }
+        }
+
+        #[test]
+        fn test_artifact_created_event_has_task_topic() {
+            let artifact = A2aArtifact {
+                id: "art-123".to_string(),
+                task_id: "task-456".to_string(),
+                name: Some("result.txt".to_string()),
+                description: None,
+                mime_type: Some("text/plain".to_string()),
+                parts: vec![],
+                metadata: Map::new(),
+            };
+
+            let event = artifact_created_event(artifact);
+
+            // Verify task topic is included
+            let topics = event.all_topics();
+            assert!(topics.contains(&Topic::task("task-456")));
         }
 
         #[test]

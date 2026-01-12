@@ -1,5 +1,4 @@
 use crate::adapters::mcp::McpErrorMsg;
-use a2a_core::errors::A2aServerError;
 use axum::{
     Json,
     response::{IntoResponse, Response},
@@ -154,16 +153,8 @@ pub enum CommonError {
         #[source]
         source: pmdaemon::Error,
     },
-}
-
-impl From<CommonError> for A2aServerError {
-    fn from(e: CommonError) -> Self {
-        A2aServerError::InternalError(a2a_core::errors::Error {
-            message: e.to_string(),
-            data: None,
-            source: Some(Box::new(e)),
-        })
-    }
+    #[error("task queue error: {msg}")]
+    TaskQueueError { msg: String },
 }
 
 impl<T: Send + Sync + 'static> From<tokio::sync::mpsc::error::SendError<T>> for CommonError {
@@ -325,7 +316,8 @@ impl IntoResponse for CommonError {
             | CommonError::NotifyError { .. }
             | CommonError::ReqwestError { .. }
             | CommonError::PmdaemonError { .. }
-            | CommonError::AddrParseError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            | CommonError::AddrParseError { .. }
+            | CommonError::TaskQueueError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         // Get a more detailed message for Unknown errors
@@ -356,6 +348,7 @@ impl IntoResponse for CommonError {
                 CommonError::NotifyError { .. } => "InternalServerError",
                 CommonError::ReqwestError { .. } => "InternalServerError",
                 CommonError::PmdaemonError { .. } => "InternalServerError",
+                CommonError::TaskQueueError { .. } => "InternalServerError",
             }
             .to_string(),
             message,
@@ -397,7 +390,8 @@ impl From<CommonError> for ErrorData {
             | CommonError::GlobSetError { .. }
             | CommonError::NotifyError { .. }
             | CommonError::ReqwestError { .. }
-            | CommonError::PmdaemonError { .. } => {
+            | CommonError::PmdaemonError { .. }
+            | CommonError::TaskQueueError { .. } => {
                 ErrorData::internal_error(error.to_string(), None)
             }
         }

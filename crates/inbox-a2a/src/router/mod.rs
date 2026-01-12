@@ -5,25 +5,26 @@
 //! - Agent routes (agent card, JSON-RPC)
 //! - InboxProvider-based routes for inbox integration
 
-mod agent;
+mod a2a;
 mod task;
 
-pub use agent::{
-    route_agent_card, route_a2a_jsonrpc, create_agent_router,
-    AgentPathParams, A2aServiceParams, ProxiedAgent,
+pub use a2a::{
+    create_agent_router, route_a2a_jsonrpc, route_agent_card, A2aRouterServiceParams,
+    AgentPathParams,
 };
-pub use task::{create_task_router, PATH_PREFIX, API_VERSION_1, SERVICE_ROUTE_KEY};
+pub use task::{create_task_router, API_VERSION_1, PATH_PREFIX, SERVICE_ROUTE_KEY};
 
 use std::sync::Arc;
 use utoipa_axum::router::OpenApiRouter;
 
 /// Re-export A2aService and related types for convenience
-pub use a2a::{A2aService, AgentCache, ConnectionManager, Repository, TaskRepositoryLike};
+pub use crate::{
+    A2aService, A2aServiceParams, ConnectionManager, Repository, TaskRepositoryLike,
+};
 
 /// Creates the complete A2A router with all task and agent endpoints
-/// Uses A2aService state from the a2a crate
 pub fn create_router() -> OpenApiRouter<Arc<A2aService>> {
     OpenApiRouter::new()
         .merge(task::create_task_router())
-        .merge(agent::create_agent_router())
+        .merge(a2a::create_agent_router())
 }

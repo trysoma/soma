@@ -269,8 +269,11 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
       pub provider_id: &'a 
           String
       ,
-      pub status: &'a 
-          crate::logic::inbox::InboxStatus
+      pub destination_type: &'a 
+          crate::logic::inbox::DestinationType
+      ,
+      pub destination_id: &'a 
+          String
       ,
       pub configuration: &'a 
           shared::primitives::WrappedJsonValue
@@ -293,7 +296,8 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
     conn.execute(r#"INSERT INTO inbox (
     id,
     provider_id,
-    status,
+    destination_type,
+    destination_id,
     configuration,
     settings,
     created_at,
@@ -305,7 +309,8 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
     ?4,
     ?5,
     ?6,
-    ?7
+    ?7,
+    ?8
 )"#, libsql::params![
               <String as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
@@ -313,7 +318,10 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
               <String as TryInto<libsql::Value>>::try_into(params.provider_id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <crate::logic::inbox::InboxStatus as TryInto<libsql::Value>>::try_into(params.status.clone())
+              <crate::logic::inbox::DestinationType as TryInto<libsql::Value>>::try_into(params.destination_type.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
+              <String as TryInto<libsql::Value>>::try_into(params.destination_id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.configuration.clone())
@@ -368,37 +376,6 @@ WHERE id = ?4"#, libsql::params![
             ,
     ]).await
 }
-  pub struct update_inbox_status_params<'a> {
-      pub status: &'a 
-          crate::logic::inbox::InboxStatus
-      ,
-      pub updated_at: &'a 
-          shared::primitives::WrappedChronoDateTime
-      ,
-      pub id: &'a 
-          String
-      ,
-  }
-
-  pub async fn update_inbox_status(
-    conn: &shared::libsql::Connection
-    ,params: update_inbox_status_params<'_>
-) -> Result<u64, libsql::Error> {
-    conn.execute(r#"UPDATE inbox SET
-    status = ?1,
-    updated_at = ?2
-WHERE id = ?3"#, libsql::params![
-              <crate::logic::inbox::InboxStatus as TryInto<libsql::Value>>::try_into(params.status.clone())
-                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
-            ,
-              <shared::primitives::WrappedChronoDateTime as TryInto<libsql::Value>>::try_into(params.updated_at.clone())
-                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
-            ,
-              <String as TryInto<libsql::Value>>::try_into(params.id.clone())
-                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
-            ,
-    ]).await
-}
   pub struct delete_inbox_params<'a> {
       pub id: &'a 
           String
@@ -426,7 +403,8 @@ WHERE id = ?3"#, libsql::params![
   pub struct Row_get_inbox_by_id {
       pub id:String,
       pub provider_id:String,
-      pub status:crate::logic::inbox::InboxStatus,
+      pub destination_type:crate::logic::inbox::DestinationType,
+      pub destination_id:String,
       pub configuration:shared::primitives::WrappedJsonValue,
       pub settings:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,
@@ -436,7 +414,7 @@ WHERE id = ?3"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_inbox_by_id_params<'_>
   ) -> Result<Option<Row_get_inbox_by_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, provider_id, status, configuration, settings, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, provider_id, destination_type, destination_id, configuration, settings, created_at, updated_at
 FROM inbox WHERE id = ?1"#).await?;
       let res = stmt.query_row(
           libsql::params![params.id.clone(),],
@@ -446,11 +424,12 @@ FROM inbox WHERE id = ?1"#).await?;
           Ok(row) => Ok(Some(Row_get_inbox_by_id {
                   id: row.get(0)?,
                   provider_id: row.get(1)?,
-                  status: row.get(2)?,
-                  configuration: row.get(3)?,
-                  settings: row.get(4)?,
-                  created_at: row.get(5)?,
-                  updated_at: row.get(6)?,
+                  destination_type: row.get(2)?,
+                  destination_id: row.get(3)?,
+                  configuration: row.get(4)?,
+                  settings: row.get(5)?,
+                  created_at: row.get(6)?,
+                  updated_at: row.get(7)?,
               })),
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),
@@ -470,7 +449,8 @@ FROM inbox WHERE id = ?1"#).await?;
   pub struct Row_get_inboxes {
       pub id:String,
       pub provider_id:String,
-      pub status:crate::logic::inbox::InboxStatus,
+      pub destination_type:crate::logic::inbox::DestinationType,
+      pub destination_id:String,
       pub configuration:shared::primitives::WrappedJsonValue,
       pub settings:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,
@@ -480,7 +460,7 @@ FROM inbox WHERE id = ?1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_inboxes_params<'_>
   ) -> Result<Vec<Row_get_inboxes>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, provider_id, status, configuration, settings, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, provider_id, destination_type, destination_id, configuration, settings, created_at, updated_at
 FROM inbox
 WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
@@ -492,11 +472,12 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
           mapped.push(Row_get_inboxes {
               id: row.get(0)?,
               provider_id: row.get(1)?,
-              status: row.get(2)?,
-              configuration: row.get(3)?,
-              settings: row.get(4)?,
-              created_at: row.get(5)?,
-              updated_at: row.get(6)?,
+              destination_type: row.get(2)?,
+              destination_id: row.get(3)?,
+              configuration: row.get(4)?,
+              settings: row.get(5)?,
+              created_at: row.get(6)?,
+              updated_at: row.get(7)?,
           });
       }
 
@@ -519,7 +500,8 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
   pub struct Row_get_inboxes_by_provider {
       pub id:String,
       pub provider_id:String,
-      pub status:crate::logic::inbox::InboxStatus,
+      pub destination_type:crate::logic::inbox::DestinationType,
+      pub destination_id:String,
       pub configuration:shared::primitives::WrappedJsonValue,
       pub settings:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,
@@ -529,7 +511,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_inboxes_by_provider_params<'_>
   ) -> Result<Vec<Row_get_inboxes_by_provider>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, provider_id, status, configuration, settings, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, provider_id, destination_type, destination_id, configuration, settings, created_at, updated_at
 FROM inbox
 WHERE provider_id = ?1
   AND (created_at < ?2 OR ?2 IS NULL)
@@ -542,17 +524,24 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
           mapped.push(Row_get_inboxes_by_provider {
               id: row.get(0)?,
               provider_id: row.get(1)?,
-              status: row.get(2)?,
-              configuration: row.get(3)?,
-              settings: row.get(4)?,
-              created_at: row.get(5)?,
-              updated_at: row.get(6)?,
+              destination_type: row.get(2)?,
+              destination_id: row.get(3)?,
+              configuration: row.get(4)?,
+              settings: row.get(5)?,
+              created_at: row.get(6)?,
+              updated_at: row.get(7)?,
           });
       }
 
       Ok(mapped)
   }
-  pub struct get_enabled_inboxes_params<'a> {
+  pub struct get_inboxes_by_destination_params<'a> {
+      pub destination_type: &'a 
+          crate::logic::inbox::DestinationType
+      ,
+      pub destination_id: &'a 
+          String
+      ,
       pub cursor: &'a Option<
           shared::primitives::WrappedChronoDateTime
       >,
@@ -563,37 +552,40 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
     #[derive(Serialize, Deserialize, Debug)]
 
   #[allow(non_camel_case_types)]
-  pub struct Row_get_enabled_inboxes {
+  pub struct Row_get_inboxes_by_destination {
       pub id:String,
       pub provider_id:String,
-      pub status:crate::logic::inbox::InboxStatus,
+      pub destination_type:crate::logic::inbox::DestinationType,
+      pub destination_id:String,
       pub configuration:shared::primitives::WrappedJsonValue,
       pub settings:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,
       pub updated_at:shared::primitives::WrappedChronoDateTime,
   }
-  pub async fn get_enabled_inboxes(
+  pub async fn get_inboxes_by_destination(
       conn: &shared::libsql::Connection
-      ,params: get_enabled_inboxes_params<'_>
-  ) -> Result<Vec<Row_get_enabled_inboxes>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, provider_id, status, configuration, settings, created_at, updated_at
+      ,params: get_inboxes_by_destination_params<'_>
+  ) -> Result<Vec<Row_get_inboxes_by_destination>, libsql::Error> {
+      let mut stmt = conn.prepare(r#"SELECT id, provider_id, destination_type, destination_id, configuration, settings, created_at, updated_at
 FROM inbox
-WHERE status = 'enabled'
-  AND (created_at < ?1 OR ?1 IS NULL)
+WHERE destination_type = ?1
+  AND destination_id = ?2
+  AND (created_at < ?3 OR ?3 IS NULL)
 ORDER BY created_at DESC
-LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
-      let mut rows = stmt.query(libsql::params![params.cursor.clone(),params.page_size.clone(),]).await?;
+LIMIT CAST(?4 AS INTEGER) + 1"#).await?;
+      let mut rows = stmt.query(libsql::params![params.destination_type.clone(),params.destination_id.clone(),params.cursor.clone(),params.page_size.clone(),]).await?;
       let mut mapped = vec![];
 
       while let Some(row) = rows.next().await? {
-          mapped.push(Row_get_enabled_inboxes {
+          mapped.push(Row_get_inboxes_by_destination {
               id: row.get(0)?,
               provider_id: row.get(1)?,
-              status: row.get(2)?,
-              configuration: row.get(3)?,
-              settings: row.get(4)?,
-              created_at: row.get(5)?,
-              updated_at: row.get(6)?,
+              destination_type: row.get(2)?,
+              destination_id: row.get(3)?,
+              configuration: row.get(4)?,
+              settings: row.get(5)?,
+              created_at: row.get(6)?,
+              updated_at: row.get(7)?,
           });
       }
 
@@ -606,10 +598,13 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       pub thread_id: &'a 
           shared::primitives::WrappedUuidV4
       ,
+      pub kind: &'a 
+          crate::logic::message::MessageType
+      ,
       pub role: &'a 
           crate::logic::message::MessageRole
       ,
-      pub parts: &'a 
+      pub body: &'a 
           shared::primitives::WrappedJsonValue
       ,
       pub metadata: &'a Option<
@@ -633,8 +628,9 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
     conn.execute(r#"INSERT INTO message (
     id,
     thread_id,
+    kind,
     role,
-    parts,
+    body,
     metadata,
     inbox_settings,
     created_at,
@@ -647,7 +643,8 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
     ?5,
     ?6,
     ?7,
-    ?8
+    ?8,
+    ?9
 )"#, libsql::params![
               <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
@@ -655,10 +652,13 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
               <shared::primitives::WrappedUuidV4 as TryInto<libsql::Value>>::try_into(params.thread_id.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
+              <crate::logic::message::MessageType as TryInto<libsql::Value>>::try_into(params.kind.clone())
+                  .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
+            ,
               <crate::logic::message::MessageRole as TryInto<libsql::Value>>::try_into(params.role.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
-              <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.parts.clone())
+              <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.body.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               match params.metadata.clone() {
@@ -681,7 +681,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
     ]).await
 }
   pub struct update_message_params<'a> {
-      pub parts: &'a 
+      pub body: &'a 
           shared::primitives::WrappedJsonValue
       ,
       pub metadata: &'a Option<
@@ -703,12 +703,12 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
     ,params: update_message_params<'_>
 ) -> Result<u64, libsql::Error> {
     conn.execute(r#"UPDATE message SET
-    parts = ?1,
+    body = ?1,
     metadata = ?2,
     inbox_settings = ?3,
     updated_at = ?4
 WHERE id = ?5"#, libsql::params![
-              <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.parts.clone())
+              <shared::primitives::WrappedJsonValue as TryInto<libsql::Value>>::try_into(params.body.clone())
                   .map_err(|e| libsql::Error::ToSqlConversionFailure(e.into()))?
             ,
               match params.metadata.clone() {
@@ -757,8 +757,9 @@ WHERE id = ?5"#, libsql::params![
   pub struct Row_get_message_by_id {
       pub id:shared::primitives::WrappedUuidV4,
       pub thread_id:shared::primitives::WrappedUuidV4,
+      pub kind:crate::logic::message::MessageType,
       pub role:crate::logic::message::MessageRole,
-      pub parts:shared::primitives::WrappedJsonValue,
+      pub body:shared::primitives::WrappedJsonValue,
       pub metadata:Option<shared::primitives::WrappedJsonValue> ,
       pub inbox_settings:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,
@@ -768,7 +769,7 @@ WHERE id = ?5"#, libsql::params![
       conn: &shared::libsql::Connection
       ,params: get_message_by_id_params<'_>
   ) -> Result<Option<Row_get_message_by_id>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, thread_id, role, parts, metadata, inbox_settings, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, thread_id, kind, role, body, metadata, inbox_settings, created_at, updated_at
 FROM message WHERE id = ?1"#).await?;
       let res = stmt.query_row(
           libsql::params![params.id.clone(),],
@@ -778,12 +779,13 @@ FROM message WHERE id = ?1"#).await?;
           Ok(row) => Ok(Some(Row_get_message_by_id {
                   id: row.get(0)?,
                   thread_id: row.get(1)?,
-                  role: row.get(2)?,
-                  parts: row.get(3)?,
-                  metadata: row.get(4)?,
-                  inbox_settings: row.get(5)?,
-                  created_at: row.get(6)?,
-                  updated_at: row.get(7)?,
+                  kind: row.get(2)?,
+                  role: row.get(3)?,
+                  body: row.get(4)?,
+                  metadata: row.get(5)?,
+                  inbox_settings: row.get(6)?,
+                  created_at: row.get(7)?,
+                  updated_at: row.get(8)?,
               })),
           Err(libsql::Error::QueryReturnedNoRows) => Ok(None),
           Err(e) => Err(e),
@@ -803,8 +805,9 @@ FROM message WHERE id = ?1"#).await?;
   pub struct Row_get_messages {
       pub id:shared::primitives::WrappedUuidV4,
       pub thread_id:shared::primitives::WrappedUuidV4,
+      pub kind:crate::logic::message::MessageType,
       pub role:crate::logic::message::MessageRole,
-      pub parts:shared::primitives::WrappedJsonValue,
+      pub body:shared::primitives::WrappedJsonValue,
       pub metadata:Option<shared::primitives::WrappedJsonValue> ,
       pub inbox_settings:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,
@@ -814,7 +817,7 @@ FROM message WHERE id = ?1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_messages_params<'_>
   ) -> Result<Vec<Row_get_messages>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, thread_id, role, parts, metadata, inbox_settings, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, thread_id, kind, role, body, metadata, inbox_settings, created_at, updated_at
 FROM message
 WHERE (created_at < ?1 OR ?1 IS NULL)
 ORDER BY created_at DESC
@@ -826,12 +829,13 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
           mapped.push(Row_get_messages {
               id: row.get(0)?,
               thread_id: row.get(1)?,
-              role: row.get(2)?,
-              parts: row.get(3)?,
-              metadata: row.get(4)?,
-              inbox_settings: row.get(5)?,
-              created_at: row.get(6)?,
-              updated_at: row.get(7)?,
+              kind: row.get(2)?,
+              role: row.get(3)?,
+              body: row.get(4)?,
+              metadata: row.get(5)?,
+              inbox_settings: row.get(6)?,
+              created_at: row.get(7)?,
+              updated_at: row.get(8)?,
           });
       }
 
@@ -854,8 +858,9 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
   pub struct Row_get_messages_by_thread {
       pub id:shared::primitives::WrappedUuidV4,
       pub thread_id:shared::primitives::WrappedUuidV4,
+      pub kind:crate::logic::message::MessageType,
       pub role:crate::logic::message::MessageRole,
-      pub parts:shared::primitives::WrappedJsonValue,
+      pub body:shared::primitives::WrappedJsonValue,
       pub metadata:Option<shared::primitives::WrappedJsonValue> ,
       pub inbox_settings:shared::primitives::WrappedJsonValue,
       pub created_at:shared::primitives::WrappedChronoDateTime,
@@ -865,7 +870,7 @@ LIMIT CAST(?2 AS INTEGER) + 1"#).await?;
       conn: &shared::libsql::Connection
       ,params: get_messages_by_thread_params<'_>
   ) -> Result<Vec<Row_get_messages_by_thread>, libsql::Error> {
-      let mut stmt = conn.prepare(r#"SELECT id, thread_id, role, parts, metadata, inbox_settings, created_at, updated_at
+      let mut stmt = conn.prepare(r#"SELECT id, thread_id, kind, role, body, metadata, inbox_settings, created_at, updated_at
 FROM message
 WHERE thread_id = ?1
   AND (created_at < ?2 OR ?2 IS NULL)
@@ -878,12 +883,13 @@ LIMIT CAST(?3 AS INTEGER) + 1"#).await?;
           mapped.push(Row_get_messages_by_thread {
               id: row.get(0)?,
               thread_id: row.get(1)?,
-              role: row.get(2)?,
-              parts: row.get(3)?,
-              metadata: row.get(4)?,
-              inbox_settings: row.get(5)?,
-              created_at: row.get(6)?,
-              updated_at: row.get(7)?,
+              kind: row.get(2)?,
+              role: row.get(3)?,
+              body: row.get(4)?,
+              metadata: row.get(5)?,
+              inbox_settings: row.get(6)?,
+              created_at: row.get(7)?,
+              updated_at: row.get(8)?,
           });
       }
 

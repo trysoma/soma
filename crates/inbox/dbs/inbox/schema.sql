@@ -13,16 +13,19 @@ CREATE TABLE IF NOT EXISTS thread (
 
 CREATE INDEX IF NOT EXISTS idx_thread_created_at ON thread(created_at);
 
--- Messages table - UI messages following Vercel AI SDK spec
+-- Messages table - supports multiple message types (text, ui)
 CREATE TABLE IF NOT EXISTS message (
     id TEXT PRIMARY KEY,
     thread_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
     role TEXT NOT NULL,
-    parts JSON NOT NULL,
+    body JSON NOT NULL,
     metadata JSON,
+    provider_metadata JSON,
     inbox_settings JSON NOT NULL DEFAULT '{}',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT kind_check CHECK (kind IN ('text', 'ui')),
     CONSTRAINT role_check CHECK (role IN ('system', 'user', 'assistant')),
     FOREIGN KEY (thread_id) REFERENCES thread(id) ON DELETE CASCADE
 );
@@ -46,16 +49,18 @@ CREATE INDEX IF NOT EXISTS idx_event_inbox_id ON event(inbox_id);
 CREATE INDEX IF NOT EXISTS idx_event_kind ON event(kind);
 
 -- Inbox instances table - configured inbox provider instances
+-- Each inbox maps to a destination (agent or workflow)
 CREATE TABLE IF NOT EXISTS inbox (
     id TEXT PRIMARY KEY,
     provider_id TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'enabled',
+    destination_type TEXT NOT NULL,
+    destination_id TEXT NOT NULL,
     configuration JSON NOT NULL,
     settings JSON NOT NULL DEFAULT '{}',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT status_check CHECK (status IN ('enabled', 'disabled'))
+    CONSTRAINT destination_type_check CHECK (destination_type IN ('agent', 'workflow'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_inbox_provider_id ON inbox(provider_id);
-CREATE INDEX IF NOT EXISTS idx_inbox_status ON inbox(status);
+CREATE INDEX IF NOT EXISTS idx_inbox_destination ON inbox(destination_type, destination_id);
