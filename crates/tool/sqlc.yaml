@@ -1,0 +1,193 @@
+version: "2"
+plugins:
+  - name: sqlc-gen-from-template
+    process:
+      cmd: "sqlc-gen-from-template"
+sql:
+  - engine: "sqlite"
+    schema: "./dbs/tool/schema.sql"
+    queries: "./dbs/tool/queries"
+    codegen:
+      - out: "src/repository/sqlite"
+        plugin: "sqlc-gen-from-template"
+        options:
+          template: "./../../rust_rusqlite.go.tmpl"
+          filename: "raw.generated.rs"
+          cache_statements: true
+          # optional formatter command to format generated code
+          # the command needs to read from stdin and write to stdout
+          # so rustfmt is not suitable
+          #formatter_cmd: ""
+          use_serde: true
+          overrides:
+            # resource_server_credential table
+            - db_type: text
+              column: resource_server_credential.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: resource_server_credential.metadata
+              rust_type: "crate::logic::Metadata"
+            - db_type: json
+              column: resource_server_credential.value
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: resource_server_credential.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: resource_server_credential.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: resource_server_credential.next_rotation_time
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # user_credential table
+            - db_type: text
+              column: user_credential.id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: user_credential.metadata
+              rust_type: "crate::logic::Metadata"
+            - db_type: json
+              column: user_credential.value
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: user_credential.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: user_credential.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: user_credential.next_rotation_time
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # tool_group_deployment table (type definitions)
+            - db_type: json
+              column: tool_group_deployment.categories
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: text
+              column: tool_group_deployment.endpoint_type
+              rust_type: "crate::logic::EndpointType"
+            - db_type: json
+              column: tool_group_deployment.endpoint_configuration
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: tool_group_deployment.credential_deployments
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: tool_group_deployment.metadata
+              rust_type: "crate::logic::Metadata"
+            - db_type: datetime
+              column: tool_group_deployment.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: tool_group_deployment.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # tool_deployment table (tool type definitions)
+            - db_type: json
+              column: tool_deployment.categories
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: json
+              column: tool_deployment.metadata
+              rust_type: "crate::logic::Metadata"
+            - db_type: datetime
+              column: tool_deployment.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: tool_deployment.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # tool_group_deployment_alias table
+            - db_type: datetime
+              column: tool_group_deployment_alias.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: tool_group_deployment_alias.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # tool_group table (user instances)
+            - db_type: text
+              column: tool_group.resource_server_credential_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: text
+              column: tool_group.user_credential_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: datetime
+              column: tool_group.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: tool_group.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # tool table (enabled tools within a tool group)
+            - db_type: datetime
+              column: tool.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: tool.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # broker_state table
+            - db_type: text
+              column: broker_state.resource_server_cred_id
+              rust_type: "shared::primitives::WrappedUuidV4"
+            - db_type: json
+              column: broker_state.metadata
+              rust_type: "crate::logic::Metadata"
+            - db_type: json
+              column: broker_state.action
+              rust_type: "shared::primitives::WrappedJsonValue"
+            - db_type: datetime
+              column: broker_state.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: broker_state.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # envelope_encryption_key table
+            - db_type: text
+              column: envelope_encryption_key.id
+              rust_type: "String"
+            - db_type: text
+              column: envelope_encryption_key.key_type
+              rust_type: "String"
+            - db_type: datetime
+              column: envelope_encryption_key.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: envelope_encryption_key.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # data_encryption_key table
+            - db_type: text
+              column: data_encryption_key.envelope_encryption_key_id
+              rust_type: "String"
+            - db_type: text
+              column: data_encryption_key.encryption_key
+              rust_type: "crate::logic::encryption::EncryptedDataEncryptionKey"
+            - db_type: datetime
+              column: data_encryption_key.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: data_encryption_key.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # query parameters for rotation
+            - column: get_tool_group_instances_with_credentials.rotation_window_end
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # mcp_server_instance table
+            - db_type: datetime
+              column: mcp_server_instance.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: mcp_server_instance.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+
+            # mcp_server_instance_tool table (renamed from mcp_server_instance_function)
+            - db_type: datetime
+              column: mcp_server_instance_tool.created_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"
+            - db_type: datetime
+              column: mcp_server_instance_tool.updated_at
+              rust_type: "shared::primitives::WrappedChronoDateTime"

@@ -13,13 +13,13 @@ env "soma" {
   dev = "sqlite://file?mode=memory"
 }
 
-env "mcp" {
-  src = "file://crates/mcp/dbs/mcp/schema.sql"
+env "tool" {
+  src = "file://crates/tool/dbs/tool/schema.sql"
 
   migration {
-    dir = "file://crates/mcp/dbs/mcp/migrations?format=goose"
+    dir = "file://crates/tool/dbs/tool/migrations?format=goose"
   }
-  
+
   //we don't actually use atlas to deploy to an env
   url = "sqlite://file?mode=memory"
   dev = "sqlite://file?mode=memory"

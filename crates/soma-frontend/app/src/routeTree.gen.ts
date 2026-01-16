@@ -10,10 +10,6 @@
 
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as AgentRouteImport } from "./routes/agent";
-import { Route as AgentProjectIdAgentIdRouteImport } from "./routes/agent/$projectId/$agentId";
-import { Route as AgentProjectIdAgentIdA2aChatDebuggerRouteImport } from "./routes/agent/$projectId/$agentId/a2a/chat-debugger";
-import { Route as AgentProjectIdAgentIdA2aOverviewRouteImport } from "./routes/agent/$projectId/$agentId/a2a/overview";
-import { Route as AgentIndexRouteImport } from "./routes/agent/index";
 import { Route as BridgeRouteImport } from "./routes/bridge";
 import { Route as BridgeEnableFunctionsRouteImport } from "./routes/bridge/enable-functions";
 import { Route as BridgeEnableFunctionsAvailableFunctionControllerIdRouteImport } from "./routes/bridge/enable-functions/available/$functionControllerId";
@@ -63,11 +59,6 @@ const BridgeIndexRoute = BridgeIndexRouteImport.update({
 	path: "/",
 	getParentRoute: () => BridgeRoute,
 } as any);
-const AgentIndexRoute = AgentIndexRouteImport.update({
-	id: "/",
-	path: "/",
-	getParentRoute: () => AgentRoute,
-} as any);
 const BridgeMcpServersRoute = BridgeMcpServersRouteImport.update({
 	id: "/mcp-servers",
 	path: "/mcp-servers",
@@ -95,11 +86,6 @@ const BridgeManageCredentialsProviderInstanceIdRoute =
 		path: "/$providerInstanceId",
 		getParentRoute: () => BridgeManageCredentialsRoute,
 	} as any);
-const AgentProjectIdAgentIdRoute = AgentProjectIdAgentIdRouteImport.update({
-	id: "/$projectId/$agentId",
-	path: "/$projectId/$agentId",
-	getParentRoute: () => AgentRoute,
-} as any);
 const BridgeMcpServersMcpServerInstanceIdInspectorRoute =
 	BridgeMcpServersMcpServerInstanceIdInspectorRouteImport.update({
 		id: "/inspector",
@@ -176,18 +162,6 @@ const BridgeEnableFunctionsAvailableFunctionControllerIdConfigureRoute =
 				BridgeEnableFunctionsAvailableFunctionControllerIdRoute,
 		} as any,
 	);
-const AgentProjectIdAgentIdA2aOverviewRoute =
-	AgentProjectIdAgentIdA2aOverviewRouteImport.update({
-		id: "/a2a/overview",
-		path: "/a2a/overview",
-		getParentRoute: () => AgentProjectIdAgentIdRoute,
-	} as any);
-const AgentProjectIdAgentIdA2aChatDebuggerRoute =
-	AgentProjectIdAgentIdA2aChatDebuggerRouteImport.update({
-		id: "/a2a/chat-debugger",
-		path: "/a2a/chat-debugger",
-		getParentRoute: () => AgentProjectIdAgentIdRoute,
-	} as any);
 const BridgeEnableFunctionsAvailableFunctionControllerIdConfigureIndexRoute =
 	BridgeEnableFunctionsAvailableFunctionControllerIdConfigureIndexRouteImport.update(
 		{
@@ -218,15 +192,13 @@ const BridgeEnableFunctionsAvailableFunctionControllerIdConfigureExistingRoute =
 
 export interface FileRoutesByFullPath {
 	"/": typeof IndexRoute;
-	"/agent": typeof AgentRouteWithChildren;
+	"/agent": typeof AgentRoute;
 	"/bridge": typeof BridgeRouteWithChildren;
 	"/bridge/enable-functions": typeof BridgeEnableFunctionsRouteWithChildren;
 	"/bridge/manage-credentials": typeof BridgeManageCredentialsRouteWithChildren;
 	"/bridge/mcp-servers": typeof BridgeMcpServersRouteWithChildren;
-	"/agent/": typeof AgentIndexRoute;
 	"/bridge/": typeof BridgeIndexRoute;
 	"/chat": typeof ChatIndexRoute;
-	"/agent/$projectId/$agentId": typeof AgentProjectIdAgentIdRouteWithChildren;
 	"/bridge/manage-credentials/$providerInstanceId": typeof BridgeManageCredentialsProviderInstanceIdRouteWithChildren;
 	"/bridge/mcp-servers/$mcpServerInstanceId": typeof BridgeMcpServersMcpServerInstanceIdRouteWithChildren;
 	"/bridge/enable-functions/available/$functionControllerId": typeof BridgeEnableFunctionsAvailableFunctionControllerIdRouteWithChildren;
@@ -236,8 +208,6 @@ export interface FileRoutesByFullPath {
 	"/bridge/manage-credentials/$providerInstanceId/functions": typeof BridgeManageCredentialsProviderInstanceIdFunctionsRoute;
 	"/bridge/mcp-servers/$mcpServerInstanceId/configure": typeof BridgeMcpServersMcpServerInstanceIdConfigureRoute;
 	"/bridge/mcp-servers/$mcpServerInstanceId/inspector": typeof BridgeMcpServersMcpServerInstanceIdInspectorRoute;
-	"/agent/$projectId/$agentId/a2a/chat-debugger": typeof AgentProjectIdAgentIdA2aChatDebuggerRoute;
-	"/agent/$projectId/$agentId/a2a/overview": typeof AgentProjectIdAgentIdA2aOverviewRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureRouteWithChildren;
 	"/bridge/enable-functions/available/$functionControllerId/function_documentation": typeof BridgeEnableFunctionsAvailableFunctionControllerIdFunction_documentationRoute;
 	"/bridge/enable-functions/available/$functionControllerId/provider_documentation": typeof BridgeEnableFunctionsAvailableFunctionControllerIdProvider_documentationRoute;
@@ -248,13 +218,12 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
 	"/": typeof IndexRoute;
+	"/agent": typeof AgentRoute;
 	"/bridge/enable-functions": typeof BridgeEnableFunctionsRouteWithChildren;
 	"/bridge/manage-credentials": typeof BridgeManageCredentialsRouteWithChildren;
 	"/bridge/mcp-servers": typeof BridgeMcpServersRouteWithChildren;
-	"/agent": typeof AgentIndexRoute;
 	"/bridge": typeof BridgeIndexRoute;
 	"/chat": typeof ChatIndexRoute;
-	"/agent/$projectId/$agentId": typeof AgentProjectIdAgentIdRouteWithChildren;
 	"/bridge/manage-credentials/$providerInstanceId": typeof BridgeManageCredentialsProviderInstanceIdRouteWithChildren;
 	"/bridge/mcp-servers/$mcpServerInstanceId": typeof BridgeMcpServersMcpServerInstanceIdRouteWithChildren;
 	"/bridge/enable-functions/available/$functionControllerId": typeof BridgeEnableFunctionsAvailableFunctionControllerIdRouteWithChildren;
@@ -264,8 +233,6 @@ export interface FileRoutesByTo {
 	"/bridge/manage-credentials/$providerInstanceId/functions": typeof BridgeManageCredentialsProviderInstanceIdFunctionsRoute;
 	"/bridge/mcp-servers/$mcpServerInstanceId/configure": typeof BridgeMcpServersMcpServerInstanceIdConfigureRoute;
 	"/bridge/mcp-servers/$mcpServerInstanceId/inspector": typeof BridgeMcpServersMcpServerInstanceIdInspectorRoute;
-	"/agent/$projectId/$agentId/a2a/chat-debugger": typeof AgentProjectIdAgentIdA2aChatDebuggerRoute;
-	"/agent/$projectId/$agentId/a2a/overview": typeof AgentProjectIdAgentIdA2aOverviewRoute;
 	"/bridge/enable-functions/available/$functionControllerId/function_documentation": typeof BridgeEnableFunctionsAvailableFunctionControllerIdFunction_documentationRoute;
 	"/bridge/enable-functions/available/$functionControllerId/provider_documentation": typeof BridgeEnableFunctionsAvailableFunctionControllerIdProvider_documentationRoute;
 	"/bridge/enable-functions/available/$functionControllerId/test": typeof BridgeEnableFunctionsAvailableFunctionControllerIdTestRoute;
@@ -276,15 +243,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
 	__root__: typeof rootRouteImport;
 	"/": typeof IndexRoute;
-	"/agent": typeof AgentRouteWithChildren;
+	"/agent": typeof AgentRoute;
 	"/bridge": typeof BridgeRouteWithChildren;
 	"/bridge/enable-functions": typeof BridgeEnableFunctionsRouteWithChildren;
 	"/bridge/manage-credentials": typeof BridgeManageCredentialsRouteWithChildren;
 	"/bridge/mcp-servers": typeof BridgeMcpServersRouteWithChildren;
-	"/agent/": typeof AgentIndexRoute;
 	"/bridge/": typeof BridgeIndexRoute;
 	"/chat/": typeof ChatIndexRoute;
-	"/agent/$projectId/$agentId": typeof AgentProjectIdAgentIdRouteWithChildren;
 	"/bridge/manage-credentials/$providerInstanceId": typeof BridgeManageCredentialsProviderInstanceIdRouteWithChildren;
 	"/bridge/mcp-servers/$mcpServerInstanceId": typeof BridgeMcpServersMcpServerInstanceIdRouteWithChildren;
 	"/bridge/enable-functions/available/$functionControllerId": typeof BridgeEnableFunctionsAvailableFunctionControllerIdRouteWithChildren;
@@ -294,8 +259,6 @@ export interface FileRoutesById {
 	"/bridge/manage-credentials/$providerInstanceId/functions": typeof BridgeManageCredentialsProviderInstanceIdFunctionsRoute;
 	"/bridge/mcp-servers/$mcpServerInstanceId/configure": typeof BridgeMcpServersMcpServerInstanceIdConfigureRoute;
 	"/bridge/mcp-servers/$mcpServerInstanceId/inspector": typeof BridgeMcpServersMcpServerInstanceIdInspectorRoute;
-	"/agent/$projectId/$agentId/a2a/chat-debugger": typeof AgentProjectIdAgentIdA2aChatDebuggerRoute;
-	"/agent/$projectId/$agentId/a2a/overview": typeof AgentProjectIdAgentIdA2aOverviewRoute;
 	"/bridge/enable-functions/available/$functionControllerId/configure": typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureRouteWithChildren;
 	"/bridge/enable-functions/available/$functionControllerId/function_documentation": typeof BridgeEnableFunctionsAvailableFunctionControllerIdFunction_documentationRoute;
 	"/bridge/enable-functions/available/$functionControllerId/provider_documentation": typeof BridgeEnableFunctionsAvailableFunctionControllerIdProvider_documentationRoute;
@@ -313,10 +276,8 @@ export interface FileRouteTypes {
 		| "/bridge/enable-functions"
 		| "/bridge/manage-credentials"
 		| "/bridge/mcp-servers"
-		| "/agent/"
 		| "/bridge/"
 		| "/chat"
-		| "/agent/$projectId/$agentId"
 		| "/bridge/manage-credentials/$providerInstanceId"
 		| "/bridge/mcp-servers/$mcpServerInstanceId"
 		| "/bridge/enable-functions/available/$functionControllerId"
@@ -326,8 +287,6 @@ export interface FileRouteTypes {
 		| "/bridge/manage-credentials/$providerInstanceId/functions"
 		| "/bridge/mcp-servers/$mcpServerInstanceId/configure"
 		| "/bridge/mcp-servers/$mcpServerInstanceId/inspector"
-		| "/agent/$projectId/$agentId/a2a/chat-debugger"
-		| "/agent/$projectId/$agentId/a2a/overview"
 		| "/bridge/enable-functions/available/$functionControllerId/configure"
 		| "/bridge/enable-functions/available/$functionControllerId/function_documentation"
 		| "/bridge/enable-functions/available/$functionControllerId/provider_documentation"
@@ -338,13 +297,12 @@ export interface FileRouteTypes {
 	fileRoutesByTo: FileRoutesByTo;
 	to:
 		| "/"
+		| "/agent"
 		| "/bridge/enable-functions"
 		| "/bridge/manage-credentials"
 		| "/bridge/mcp-servers"
-		| "/agent"
 		| "/bridge"
 		| "/chat"
-		| "/agent/$projectId/$agentId"
 		| "/bridge/manage-credentials/$providerInstanceId"
 		| "/bridge/mcp-servers/$mcpServerInstanceId"
 		| "/bridge/enable-functions/available/$functionControllerId"
@@ -354,8 +312,6 @@ export interface FileRouteTypes {
 		| "/bridge/manage-credentials/$providerInstanceId/functions"
 		| "/bridge/mcp-servers/$mcpServerInstanceId/configure"
 		| "/bridge/mcp-servers/$mcpServerInstanceId/inspector"
-		| "/agent/$projectId/$agentId/a2a/chat-debugger"
-		| "/agent/$projectId/$agentId/a2a/overview"
 		| "/bridge/enable-functions/available/$functionControllerId/function_documentation"
 		| "/bridge/enable-functions/available/$functionControllerId/provider_documentation"
 		| "/bridge/enable-functions/available/$functionControllerId/test"
@@ -370,10 +326,8 @@ export interface FileRouteTypes {
 		| "/bridge/enable-functions"
 		| "/bridge/manage-credentials"
 		| "/bridge/mcp-servers"
-		| "/agent/"
 		| "/bridge/"
 		| "/chat/"
-		| "/agent/$projectId/$agentId"
 		| "/bridge/manage-credentials/$providerInstanceId"
 		| "/bridge/mcp-servers/$mcpServerInstanceId"
 		| "/bridge/enable-functions/available/$functionControllerId"
@@ -383,8 +337,6 @@ export interface FileRouteTypes {
 		| "/bridge/manage-credentials/$providerInstanceId/functions"
 		| "/bridge/mcp-servers/$mcpServerInstanceId/configure"
 		| "/bridge/mcp-servers/$mcpServerInstanceId/inspector"
-		| "/agent/$projectId/$agentId/a2a/chat-debugger"
-		| "/agent/$projectId/$agentId/a2a/overview"
 		| "/bridge/enable-functions/available/$functionControllerId/configure"
 		| "/bridge/enable-functions/available/$functionControllerId/function_documentation"
 		| "/bridge/enable-functions/available/$functionControllerId/provider_documentation"
@@ -396,7 +348,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
 	IndexRoute: typeof IndexRoute;
-	AgentRoute: typeof AgentRouteWithChildren;
+	AgentRoute: typeof AgentRoute;
 	BridgeRoute: typeof BridgeRouteWithChildren;
 	ChatIndexRoute: typeof ChatIndexRoute;
 }
@@ -438,13 +390,6 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof BridgeIndexRouteImport;
 			parentRoute: typeof BridgeRoute;
 		};
-		"/agent/": {
-			id: "/agent/";
-			path: "/";
-			fullPath: "/agent/";
-			preLoaderRoute: typeof AgentIndexRouteImport;
-			parentRoute: typeof AgentRoute;
-		};
 		"/bridge/mcp-servers": {
 			id: "/bridge/mcp-servers";
 			path: "/mcp-servers";
@@ -479,13 +424,6 @@ declare module "@tanstack/react-router" {
 			fullPath: "/bridge/manage-credentials/$providerInstanceId";
 			preLoaderRoute: typeof BridgeManageCredentialsProviderInstanceIdRouteImport;
 			parentRoute: typeof BridgeManageCredentialsRoute;
-		};
-		"/agent/$projectId/$agentId": {
-			id: "/agent/$projectId/$agentId";
-			path: "/$projectId/$agentId";
-			fullPath: "/agent/$projectId/$agentId";
-			preLoaderRoute: typeof AgentProjectIdAgentIdRouteImport;
-			parentRoute: typeof AgentRoute;
 		};
 		"/bridge/mcp-servers/$mcpServerInstanceId/inspector": {
 			id: "/bridge/mcp-servers/$mcpServerInstanceId/inspector";
@@ -564,20 +502,6 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureRouteImport;
 			parentRoute: typeof BridgeEnableFunctionsAvailableFunctionControllerIdRoute;
 		};
-		"/agent/$projectId/$agentId/a2a/overview": {
-			id: "/agent/$projectId/$agentId/a2a/overview";
-			path: "/a2a/overview";
-			fullPath: "/agent/$projectId/$agentId/a2a/overview";
-			preLoaderRoute: typeof AgentProjectIdAgentIdA2aOverviewRouteImport;
-			parentRoute: typeof AgentProjectIdAgentIdRoute;
-		};
-		"/agent/$projectId/$agentId/a2a/chat-debugger": {
-			id: "/agent/$projectId/$agentId/a2a/chat-debugger";
-			path: "/a2a/chat-debugger";
-			fullPath: "/agent/$projectId/$agentId/a2a/chat-debugger";
-			preLoaderRoute: typeof AgentProjectIdAgentIdA2aChatDebuggerRouteImport;
-			parentRoute: typeof AgentProjectIdAgentIdRoute;
-		};
 		"/bridge/enable-functions/available/$functionControllerId/configure/": {
 			id: "/bridge/enable-functions/available/$functionControllerId/configure/";
 			path: "/";
@@ -601,34 +525,6 @@ declare module "@tanstack/react-router" {
 		};
 	}
 }
-
-interface AgentProjectIdAgentIdRouteChildren {
-	AgentProjectIdAgentIdA2aChatDebuggerRoute: typeof AgentProjectIdAgentIdA2aChatDebuggerRoute;
-	AgentProjectIdAgentIdA2aOverviewRoute: typeof AgentProjectIdAgentIdA2aOverviewRoute;
-}
-
-const AgentProjectIdAgentIdRouteChildren: AgentProjectIdAgentIdRouteChildren = {
-	AgentProjectIdAgentIdA2aChatDebuggerRoute:
-		AgentProjectIdAgentIdA2aChatDebuggerRoute,
-	AgentProjectIdAgentIdA2aOverviewRoute: AgentProjectIdAgentIdA2aOverviewRoute,
-};
-
-const AgentProjectIdAgentIdRouteWithChildren =
-	AgentProjectIdAgentIdRoute._addFileChildren(
-		AgentProjectIdAgentIdRouteChildren,
-	);
-
-interface AgentRouteChildren {
-	AgentIndexRoute: typeof AgentIndexRoute;
-	AgentProjectIdAgentIdRoute: typeof AgentProjectIdAgentIdRouteWithChildren;
-}
-
-const AgentRouteChildren: AgentRouteChildren = {
-	AgentIndexRoute: AgentIndexRoute,
-	AgentProjectIdAgentIdRoute: AgentProjectIdAgentIdRouteWithChildren,
-};
-
-const AgentRouteWithChildren = AgentRoute._addFileChildren(AgentRouteChildren);
 
 interface BridgeEnableFunctionsAvailableFunctionControllerIdConfigureRouteChildren {
 	BridgeEnableFunctionsAvailableFunctionControllerIdConfigureExistingRoute: typeof BridgeEnableFunctionsAvailableFunctionControllerIdConfigureExistingRoute;
@@ -777,7 +673,7 @@ const BridgeRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
 	IndexRoute: IndexRoute,
-	AgentRoute: AgentRouteWithChildren,
+	AgentRoute: AgentRoute,
 	BridgeRoute: BridgeRouteWithChildren,
 	ChatIndexRoute: ChatIndexRoute,
 };

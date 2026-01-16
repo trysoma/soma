@@ -15,7 +15,7 @@ pub struct SomaAgentDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub encryption: Option<EncryptionConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mcp: Option<McpConfig>,
+    pub tool_configuration: Option<ToolConfiguration>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub environment: Option<EnvironmentYamlConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -398,6 +398,53 @@ impl From<EnvelopeKeyConfig> for EnvelopeEncryptionKey {
     }
 }
 
+/// Configuration for tool group sources (type definitions stored in database, synced to YAML)
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ToolGroupDeploymentConfig {
+    pub name: String,
+    pub documentation: String,
+    pub categories: Vec<String>,
+    pub credential_sources: Vec<ToolGroupCredentialDeploymentConfig>,
+    pub tool_deployments: Vec<ToolDeploymentConfig>,
+}
+
+/// Configuration for a credential source within a tool group source
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ToolGroupCredentialDeploymentConfig {
+    pub type_id: String,
+    pub name: String,
+    pub documentation: String,
+    pub requires_brokering: bool,
+}
+
+/// Configuration for a tool source within a tool group source
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ToolDeploymentConfig {
+    pub type_id: String,
+    pub name: String,
+    pub documentation: String,
+    pub categories: Vec<String>,
+}
+
+/// Tool configuration containing source definitions and instance configurations
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ToolConfiguration {
+    /// Tool group source definitions (read-only, synced from database)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_group_deployments: Option<HashMap<String, ToolGroupDeploymentConfig>>,
+    /// Tool group instance configurations (user-configured tool groups)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_groups: Option<HashMap<String, ToolGroupConfig>>,
+    /// MCP server instance configurations
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp_servers: Option<HashMap<String, McpServerConfig>>,
+}
+
+// Legacy config names - kept for reference but will be removed
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct McpConfig {
@@ -418,16 +465,30 @@ pub struct McpServerConfig {
     pub functions: Option<Vec<McpServerFunctionConfig>>,
 }
 
+/// Configuration for a tool group instance (user-configured tool group)
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ToolGroupConfig {
+    pub tool_group_deployment_type_id: String,
+    pub credential_deployment_type_id: String,
+    pub display_name: String,
+    pub resource_server_credential: CredentialConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_credential: Option<CredentialConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<String>>,
+}
+
 /// Configuration for a function mapping within an MCP server
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct McpServerFunctionConfig {
-    /// The function controller type ID
-    pub function_controller_type_id: String,
-    /// The provider controller type ID
-    pub provider_controller_type_id: String,
-    /// The provider instance ID
-    pub provider_instance_id: String,
+    /// The tool source type ID
+    pub tool_deployment_type_id: String,
+    /// The tool group source type ID
+    pub tool_group_deployment_type_id: String,
+    /// The tool group ID
+    pub tool_group_id: String,
     /// The MCP function name exposed to clients
     pub function_name: String,
     /// Optional description for the function
@@ -435,6 +496,7 @@ pub struct McpServerFunctionConfig {
     pub function_description: Option<String>,
 }
 
+// Legacy configs - kept for backward compatibility during migration
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ProviderConfig {
@@ -448,10 +510,10 @@ pub struct ProviderConfig {
     pub functions: Option<Vec<String>>,
 }
 
+/// Credential configuration stored in soma.yaml (without database ID)
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct CredentialConfig {
-    pub id: String,
     pub type_id: String,
     pub metadata: serde_json::Value,
     pub value: serde_json::Value,
@@ -488,31 +550,62 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
         new_key: String,
     ) -> Result<(), CommonError>;
 
-    // Provider operations
-    async fn add_provider(
+    // Tool group source operations (type definitions synced from database to YAML)
+    async fn add_tool_group_deployment(
         &self,
-        provider_id: String,
-        config: ProviderConfig,
+        type_id: String,
+        config: ToolGroupDeploymentConfig,
     ) -> Result<(), CommonError>;
-    async fn remove_provider(&self, provider_id: String) -> Result<(), CommonError>;
-    async fn update_provider(
+    async fn update_tool_group_deployment(
         &self,
-        provider_id: String,
-        config: ProviderConfig,
+        type_id: String,
+        config: ToolGroupDeploymentConfig,
+    ) -> Result<(), CommonError>;
+    async fn remove_tool_group_deployment(&self, type_id: String) -> Result<(), CommonError>;
+
+    // Tool source operations (nested under tool group sources)
+    async fn add_tool_deployment(
+        &self,
+        tool_group_deployment_type_id: String,
+        tool_source_config: ToolDeploymentConfig,
+    ) -> Result<(), CommonError>;
+    async fn update_tool_deployment(
+        &self,
+        tool_group_deployment_type_id: String,
+        tool_deployment_type_id: String,
+        tool_source_config: ToolDeploymentConfig,
+    ) -> Result<(), CommonError>;
+    async fn remove_tool_deployment(
+        &self,
+        tool_group_deployment_type_id: String,
+        tool_deployment_type_id: String,
     ) -> Result<(), CommonError>;
 
-    // Function instance operations
-    async fn add_function_instance(
+    // Tool group operations (user-configured tool group instances)
+    async fn add_tool_group(
         &self,
-        provider_controller_type_id: String,
-        function_controller_type_id: String,
-        provider_instance_id: String,
+        tool_group_id: String,
+        config: ToolGroupConfig,
     ) -> Result<(), CommonError>;
-    async fn remove_function_instance(
+    async fn remove_tool_group(&self, tool_group_id: String) -> Result<(), CommonError>;
+    async fn update_tool_group(
         &self,
-        provider_controller_type_id: String,
-        function_controller_type_id: String,
-        provider_instance_id: String,
+        tool_group_id: String,
+        config: ToolGroupConfig,
+    ) -> Result<(), CommonError>;
+
+    // Tool instance operations (enabling/disabling tools on tool groups)
+    async fn add_tool_instance(
+        &self,
+        tool_group_deployment_type_id: String,
+        tool_deployment_type_id: String,
+        tool_group_id: String,
+    ) -> Result<(), CommonError>;
+    async fn remove_tool_instance(
+        &self,
+        tool_group_deployment_type_id: String,
+        tool_deployment_type_id: String,
+        tool_group_id: String,
     ) -> Result<(), CommonError>;
 
     // MCP server instance operations
@@ -542,9 +635,9 @@ pub trait SomaAgentDefinitionLike: Send + Sync {
     async fn remove_mcp_server_function(
         &self,
         mcp_server_id: String,
-        function_controller_type_id: String,
-        provider_controller_type_id: String,
-        provider_instance_id: String,
+        tool_deployment_type_id: String,
+        tool_group_deployment_type_id: String,
+        tool_group_id: String,
     ) -> Result<(), CommonError>;
 
     // Secret operations
@@ -614,8 +707,8 @@ impl YamlSomaAgentDefinition {
         if guard.encryption.is_none() && file_definition.encryption.is_some() {
             guard.encryption = file_definition.encryption.clone();
         }
-        if guard.mcp.is_none() && file_definition.mcp.is_some() {
-            guard.mcp = file_definition.mcp.clone();
+        if guard.tool_configuration.is_none() && file_definition.tool_configuration.is_some() {
+            guard.tool_configuration = file_definition.tool_configuration.clone();
         }
 
         // For environment config, merge secrets and variables separately
@@ -679,10 +772,11 @@ impl YamlSomaAgentDefinition {
         }
     }
 
-    fn ensure_mcp_config(definition: &mut SomaAgentDefinition) {
-        if definition.mcp.is_none() {
-            definition.mcp = Some(McpConfig {
-                providers: None,
+    fn ensure_tool_configuration_config(definition: &mut SomaAgentDefinition) {
+        if definition.tool_configuration.is_none() {
+            definition.tool_configuration = Some(ToolConfiguration {
+                tool_group_deployments: None,
+                tool_groups: None,
                 mcp_servers: None,
             });
         }
@@ -829,164 +923,356 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         Ok(())
     }
 
-    async fn add_provider(
+    async fn add_tool_group_deployment(
         &self,
-        provider_id: String,
-        config: ProviderConfig,
+        type_id: String,
+        config: ToolGroupDeploymentConfig,
     ) -> Result<(), CommonError> {
-        trace!(provider_id = %provider_id, "Adding provider");
+        trace!(type_id = %type_id, "Adding tool group source");
         let mut definition = self.cached_definition.lock().await;
-        Self::ensure_mcp_config(&mut definition);
+        Self::ensure_tool_configuration_config(&mut definition);
 
-        let mcp_cfg = definition.mcp.as_mut().unwrap();
-        if mcp_cfg.providers.is_none() {
-            mcp_cfg.providers = Some(HashMap::new());
+        let tool_cfg = definition.tool_configuration.as_mut().unwrap();
+        if tool_cfg.tool_group_deployments.is_none() {
+            tool_cfg.tool_group_deployments = Some(HashMap::new());
         }
 
-        mcp_cfg
-            .providers
+        tool_cfg
+            .tool_group_deployments
             .as_mut()
             .unwrap()
-            .insert(provider_id.clone(), config);
+            .insert(type_id.clone(), config);
         self.save(definition).await?;
-        trace!(provider_id = %provider_id, "Provider added");
+        trace!(type_id = %type_id, "Tool group source added");
         Ok(())
     }
 
-    async fn remove_provider(&self, provider_id: String) -> Result<(), CommonError> {
-        trace!(provider_id = %provider_id, "Removing provider");
+    async fn update_tool_group_deployment(
+        &self,
+        type_id: String,
+        config: ToolGroupDeploymentConfig,
+    ) -> Result<(), CommonError> {
+        trace!(type_id = %type_id, "Updating tool group source");
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_tool_configuration_config(&mut definition);
+
+        let tool_cfg = definition.tool_configuration.as_mut().unwrap();
+        if tool_cfg.tool_group_deployments.is_none() {
+            tool_cfg.tool_group_deployments = Some(HashMap::new());
+        }
+
+        tool_cfg
+            .tool_group_deployments
+            .as_mut()
+            .unwrap()
+            .insert(type_id.clone(), config);
+        self.save(definition).await?;
+        trace!(type_id = %type_id, "Tool group source updated");
+        Ok(())
+    }
+
+    async fn remove_tool_group_deployment(&self, type_id: String) -> Result<(), CommonError> {
+        trace!(type_id = %type_id, "Removing tool group deployment");
         let mut definition = self.cached_definition.lock().await;
 
-        if let Some(mcp_cfg) = &mut definition.mcp {
-            if let Some(providers) = &mut mcp_cfg.providers {
-                providers.remove(&provider_id);
+        if let Some(tool_cfg) = &mut definition.tool_configuration {
+            if let Some(tool_group_deployments) = &mut tool_cfg.tool_group_deployments {
+                tool_group_deployments.remove(&type_id);
                 self.save(definition).await?;
-                trace!(provider_id = %provider_id, "Provider removed");
+                trace!(type_id = %type_id, "Tool group deployment removed");
             }
         }
         Ok(())
     }
 
-    async fn update_provider(
+    async fn add_tool_deployment(
         &self,
-        provider_id: String,
-        config: ProviderConfig,
+        tool_group_deployment_type_id: String,
+        tool_source_config: ToolDeploymentConfig,
     ) -> Result<(), CommonError> {
-        trace!(provider_id = %provider_id, "Updating provider");
+        trace!(
+            tool_group_deployment_type_id = %tool_group_deployment_type_id,
+            tool_deployment_type_id = %tool_source_config.type_id,
+            "Adding tool source"
+        );
         let mut definition = self.cached_definition.lock().await;
-        Self::ensure_mcp_config(&mut definition);
+        Self::ensure_tool_configuration_config(&mut definition);
 
-        let mcp_cfg = definition.mcp.as_mut().unwrap();
-        if mcp_cfg.providers.is_none() {
-            mcp_cfg.providers = Some(HashMap::new());
+        let tool_cfg = definition.tool_configuration.as_mut().unwrap();
+        if tool_cfg.tool_group_deployments.is_none() {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Tool group source {} not found",
+                tool_group_deployment_type_id
+            )));
         }
 
-        let providers = mcp_cfg.providers.as_mut().unwrap();
+        let tool_group_deployment = tool_cfg
+            .tool_group_deployments
+            .as_mut()
+            .unwrap()
+            .get_mut(&tool_group_deployment_type_id)
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "Tool group source {} not found",
+                    tool_group_deployment_type_id
+                ))
+            })?;
 
-        match providers.get_mut(&provider_id) {
+        tool_group_deployment.tool_deployments.push(tool_source_config.clone());
+        self.save(definition).await?;
+        trace!(
+            tool_group_deployment_type_id = %tool_group_deployment_type_id,
+            tool_deployment_type_id = %tool_source_config.type_id,
+            "Tool source added"
+        );
+        Ok(())
+    }
+
+    async fn update_tool_deployment(
+        &self,
+        tool_group_deployment_type_id: String,
+        tool_deployment_type_id: String,
+        tool_source_config: ToolDeploymentConfig,
+    ) -> Result<(), CommonError> {
+        trace!(
+            tool_group_deployment_type_id = %tool_group_deployment_type_id,
+            tool_deployment_type_id = %tool_deployment_type_id,
+            "Updating tool source"
+        );
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_tool_configuration_config(&mut definition);
+
+        let tool_cfg = definition.tool_configuration.as_mut().unwrap();
+        if tool_cfg.tool_group_deployments.is_none() {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Tool group source {} not found",
+                tool_group_deployment_type_id
+            )));
+        }
+
+        let tool_group_deployment = tool_cfg
+            .tool_group_deployments
+            .as_mut()
+            .unwrap()
+            .get_mut(&tool_group_deployment_type_id)
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!(
+                    "Tool group deployment {} not found",
+                    tool_group_deployment_type_id
+                ))
+            })?;
+
+        if let Some(tool_deployment) = tool_group_deployment
+            .tool_deployments
+            .iter_mut()
+            .find(|ts| ts.type_id == tool_deployment_type_id)
+        {
+            *tool_deployment = tool_source_config;
+        } else {
+            return Err(CommonError::Unknown(anyhow::anyhow!(
+                "Tool deployment {} not found in tool group deployment {}",
+                tool_deployment_type_id,
+                tool_group_deployment_type_id
+            )));
+        }
+
+        self.save(definition).await?;
+        trace!(
+            tool_group_deployment_type_id = %tool_group_deployment_type_id,
+            tool_deployment_type_id = %tool_deployment_type_id,
+            "Tool deployment updated"
+        );
+        Ok(())
+    }
+
+    async fn remove_tool_deployment(
+        &self,
+        tool_group_deployment_type_id: String,
+        tool_deployment_type_id: String,
+    ) -> Result<(), CommonError> {
+        trace!(
+            tool_group_deployment_type_id = %tool_group_deployment_type_id,
+            tool_deployment_type_id = %tool_deployment_type_id,
+            "Removing tool deployment"
+        );
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(tool_cfg) = &mut definition.tool_configuration {
+            if let Some(tool_group_deployments) = &mut tool_cfg.tool_group_deployments {
+                if let Some(tool_group_deployment) = tool_group_deployments.get_mut(&tool_group_deployment_type_id) {
+                    tool_group_deployment
+                        .tool_deployments
+                        .retain(|ts| ts.type_id != tool_deployment_type_id);
+                    self.save(definition).await?;
+                    trace!(
+                        tool_group_deployment_type_id = %tool_group_deployment_type_id,
+                        tool_deployment_type_id = %tool_deployment_type_id,
+                        "Tool deployment removed"
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn add_tool_group(
+        &self,
+        tool_group_id: String,
+        config: ToolGroupConfig,
+    ) -> Result<(), CommonError> {
+        trace!(tool_group_id = %tool_group_id, "Adding tool group");
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_tool_configuration_config(&mut definition);
+
+        let tool_cfg = definition.tool_configuration.as_mut().unwrap();
+        if tool_cfg.tool_groups.is_none() {
+            tool_cfg.tool_groups = Some(HashMap::new());
+        }
+
+        tool_cfg
+            .tool_groups
+            .as_mut()
+            .unwrap()
+            .insert(tool_group_id.clone(), config);
+        self.save(definition).await?;
+        trace!(tool_group_id = %tool_group_id, "Tool group added");
+        Ok(())
+    }
+
+    async fn remove_tool_group(&self, tool_group_id: String) -> Result<(), CommonError> {
+        trace!(tool_group_id = %tool_group_id, "Removing tool group");
+        let mut definition = self.cached_definition.lock().await;
+
+        if let Some(tool_cfg) = &mut definition.tool_configuration {
+            if let Some(tool_groups) = &mut tool_cfg.tool_groups {
+                tool_groups.remove(&tool_group_id);
+                self.save(definition).await?;
+                trace!(tool_group_id = %tool_group_id, "Tool group removed");
+            }
+        }
+        Ok(())
+    }
+
+    async fn update_tool_group(
+        &self,
+        tool_group_id: String,
+        config: ToolGroupConfig,
+    ) -> Result<(), CommonError> {
+        trace!(tool_group_id = %tool_group_id, "Updating tool group");
+        let mut definition = self.cached_definition.lock().await;
+        Self::ensure_tool_configuration_config(&mut definition);
+
+        let tool_cfg = definition.tool_configuration.as_mut().unwrap();
+        if tool_cfg.tool_groups.is_none() {
+            tool_cfg.tool_groups = Some(HashMap::new());
+        }
+
+        let tool_groups = tool_cfg.tool_groups.as_mut().unwrap();
+
+        match tool_groups.get_mut(&tool_group_id) {
             Some(existing_config) => {
-                // Update the provider config, preserving functions if not provided in the update
-                if config.functions.is_some() {
+                // Update the tool group config, preserving tools if not provided in the update
+                if config.tools.is_some() {
                     *existing_config = config;
                 } else {
-                    let functions = existing_config.functions.clone();
+                    let tools = existing_config.tools.clone();
                     *existing_config = config;
-                    existing_config.functions = functions;
+                    existing_config.tools = tools;
                 }
             }
             None => {
-                // Provider doesn't exist, add it
-                providers.insert(provider_id.clone(), config);
+                // Tool group doesn't exist, add it
+                tool_groups.insert(tool_group_id.clone(), config);
             }
         };
 
         self.save(definition).await?;
-        trace!(provider_id = %provider_id, "Provider updated");
+        trace!(tool_group_id = %tool_group_id, "Tool group updated");
         Ok(())
     }
 
-    async fn add_function_instance(
+    async fn add_tool_instance(
         &self,
-        provider_controller_type_id: String,
-        function_controller_type_id: String,
-        provider_instance_id: String,
+        tool_group_deployment_type_id: String,
+        tool_deployment_type_id: String,
+        tool_group_id: String,
     ) -> Result<(), CommonError> {
         trace!(
-            provider_controller_type_id = %provider_controller_type_id,
-            function_controller_type_id = %function_controller_type_id,
-            provider_instance_id = %provider_instance_id,
-            "Adding function instance"
+            tool_group_deployment_type_id = %tool_group_deployment_type_id,
+            tool_deployment_type_id = %tool_deployment_type_id,
+            tool_group_id = %tool_group_id,
+            "Adding tool instance"
         );
         let mut definition = self.cached_definition.lock().await;
-        let mcp_cfg = match &mut definition.mcp {
-            Some(mcp_cfg) => mcp_cfg,
+        let tool_cfg = match &mut definition.tool_configuration {
+            Some(tool_cfg) => tool_cfg,
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "MCP configuration not found"
+                    "Tool configuration not found"
                 )));
             }
         };
-        let providers = match &mut mcp_cfg.providers {
-            Some(providers) => providers,
-            None => return Err(CommonError::Unknown(anyhow::anyhow!("Providers not found"))),
+        let tool_groups = match &mut tool_cfg.tool_groups {
+            Some(tool_groups) => tool_groups,
+            None => return Err(CommonError::Unknown(anyhow::anyhow!("Tool groups not found"))),
         };
-        let provider = match providers.get_mut(&provider_instance_id) {
-            Some(provider) => provider,
-            None => return Err(CommonError::Unknown(anyhow::anyhow!("Provider not found"))),
+        let tool_group = match tool_groups.get_mut(&tool_group_id) {
+            Some(tool_group) => tool_group,
+            None => return Err(CommonError::Unknown(anyhow::anyhow!("Tool group not found"))),
         };
-        if provider.functions.is_none() {
-            provider.functions = Some(Vec::new());
+        if tool_group.tools.is_none() {
+            tool_group.tools = Some(Vec::new());
         }
-        let functions = provider.functions.as_mut().unwrap();
-        functions.push(function_controller_type_id.clone());
+        let tools = tool_group.tools.as_mut().unwrap();
+        tools.push(tool_deployment_type_id.clone());
         self.save(definition).await?;
         trace!(
-            provider_controller_type_id = %provider_controller_type_id,
-            function_controller_type_id = %function_controller_type_id,
-            provider_instance_id = %provider_instance_id,
-            "Function instance added"
+            tool_group_deployment_type_id = %tool_group_deployment_type_id,
+            tool_deployment_type_id = %tool_deployment_type_id,
+            tool_group_id = %tool_group_id,
+            "Tool instance added"
         );
         Ok(())
     }
 
-    async fn remove_function_instance(
+    async fn remove_tool_instance(
         &self,
-        provider_controller_type_id: String,
-        function_controller_type_id: String,
-        provider_instance_id: String,
+        tool_group_deployment_type_id: String,
+        tool_deployment_type_id: String,
+        tool_group_id: String,
     ) -> Result<(), CommonError> {
         trace!(
-            provider_controller_type_id = %provider_controller_type_id,
-            function_controller_type_id = %function_controller_type_id,
-            provider_instance_id = %provider_instance_id,
-            "Removing function instance"
+            tool_group_deployment_type_id = %tool_group_deployment_type_id,
+            tool_deployment_type_id = %tool_deployment_type_id,
+            tool_group_id = %tool_group_id,
+            "Removing tool instance"
         );
         let mut definition = self.cached_definition.lock().await;
-        let mcp_cfg = match &mut definition.mcp {
-            Some(mcp_cfg) => mcp_cfg,
+        let tool_cfg = match &mut definition.tool_configuration {
+            Some(tool_cfg) => tool_cfg,
             None => return Ok(()),
         };
-        let providers = match &mut mcp_cfg.providers {
-            Some(providers) => providers,
+        let tool_groups = match &mut tool_cfg.tool_groups {
+            Some(tool_groups) => tool_groups,
             None => return Ok(()),
         };
-        let provider = match providers.get_mut(&provider_instance_id) {
-            Some(provider) => provider,
+        let tool_group = match tool_groups.get_mut(&tool_group_id) {
+            Some(tool_group) => tool_group,
             None => return Ok(()),
         };
-        let functions = match &mut provider.functions {
-            Some(functions) => functions,
+        let tools = match &mut tool_group.tools {
+            Some(tools) => tools,
             None => return Ok(()),
         };
 
-        functions.retain(|f| *f != function_controller_type_id);
+        tools.retain(|t| *t != tool_deployment_type_id);
 
         self.save(definition).await?;
         trace!(
-            provider_controller_type_id = %provider_controller_type_id,
-            function_controller_type_id = %function_controller_type_id,
-            provider_instance_id = %provider_instance_id,
-            "Function instance removed"
+            tool_group_deployment_type_id = %tool_group_deployment_type_id,
+            tool_deployment_type_id = %tool_deployment_type_id,
+            tool_group_id = %tool_group_id,
+            "Tool instance removed"
         );
         Ok(())
     }
@@ -998,14 +1284,14 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
     ) -> Result<(), CommonError> {
         trace!(mcp_server_id = %mcp_server_id, "Adding MCP server");
         let mut definition = self.cached_definition.lock().await;
-        Self::ensure_mcp_config(&mut definition);
+        Self::ensure_tool_configuration_config(&mut definition);
 
-        let mcp_cfg = definition.mcp.as_mut().unwrap();
-        if mcp_cfg.mcp_servers.is_none() {
-            mcp_cfg.mcp_servers = Some(HashMap::new());
+        let tool_cfg = definition.tool_configuration.as_mut().unwrap();
+        if tool_cfg.mcp_servers.is_none() {
+            tool_cfg.mcp_servers = Some(HashMap::new());
         }
 
-        mcp_cfg
+        tool_cfg
             .mcp_servers
             .as_mut()
             .unwrap()
@@ -1022,14 +1308,14 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
     ) -> Result<(), CommonError> {
         trace!(mcp_server_id = %mcp_server_id, "Updating MCP server");
         let mut definition = self.cached_definition.lock().await;
-        Self::ensure_mcp_config(&mut definition);
+        Self::ensure_tool_configuration_config(&mut definition);
 
-        let mcp_cfg = definition.mcp.as_mut().unwrap();
-        if mcp_cfg.mcp_servers.is_none() {
-            mcp_cfg.mcp_servers = Some(HashMap::new());
+        let tool_cfg = definition.tool_configuration.as_mut().unwrap();
+        if tool_cfg.mcp_servers.is_none() {
+            tool_cfg.mcp_servers = Some(HashMap::new());
         }
 
-        let mcp_servers = mcp_cfg.mcp_servers.as_mut().unwrap();
+        let mcp_servers = tool_cfg.mcp_servers.as_mut().unwrap();
         match mcp_servers.get_mut(&mcp_server_id) {
             Some(existing_config) => {
                 // Update name but preserve functions if not provided
@@ -1052,8 +1338,8 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         trace!(mcp_server_id = %mcp_server_id, "Removing MCP server");
         let mut definition = self.cached_definition.lock().await;
 
-        if let Some(mcp_cfg) = &mut definition.mcp {
-            if let Some(mcp_servers) = &mut mcp_cfg.mcp_servers {
+        if let Some(tool_cfg) = &mut definition.tool_configuration {
+            if let Some(mcp_servers) = &mut tool_cfg.mcp_servers {
                 mcp_servers.remove(&mcp_server_id);
                 self.save(definition).await?;
                 trace!(mcp_server_id = %mcp_server_id, "MCP server removed");
@@ -1073,15 +1359,15 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             "Adding MCP server function"
         );
         let mut definition = self.cached_definition.lock().await;
-        let mcp_cfg = match &mut definition.mcp {
-            Some(mcp_cfg) => mcp_cfg,
+        let tool_cfg = match &mut definition.tool_configuration {
+            Some(tool_cfg) => tool_cfg,
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "MCP configuration not found"
+                    "Tool configuration not found"
                 )));
             }
         };
-        let mcp_servers = match &mut mcp_cfg.mcp_servers {
+        let mcp_servers = match &mut tool_cfg.mcp_servers {
             Some(mcp_servers) => mcp_servers,
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
@@ -1122,15 +1408,15 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
             "Updating MCP server function"
         );
         let mut definition = self.cached_definition.lock().await;
-        let mcp_cfg = match &mut definition.mcp {
-            Some(mcp_cfg) => mcp_cfg,
+        let tool_cfg = match &mut definition.tool_configuration {
+            Some(tool_cfg) => tool_cfg,
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
-                    "MCP configuration not found"
+                    "Tool configuration not found"
                 )));
             }
         };
-        let mcp_servers = match &mut mcp_cfg.mcp_servers {
+        let mcp_servers = match &mut tool_cfg.mcp_servers {
             Some(mcp_servers) => mcp_servers,
             None => {
                 return Err(CommonError::Unknown(anyhow::anyhow!(
@@ -1157,9 +1443,9 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
 
         // Find and update the function
         if let Some(func) = functions.iter_mut().find(|f| {
-            f.function_controller_type_id == function_config.function_controller_type_id
-                && f.provider_controller_type_id == function_config.provider_controller_type_id
-                && f.provider_instance_id == function_config.provider_instance_id
+            f.tool_deployment_type_id == function_config.tool_deployment_type_id
+                && f.tool_group_deployment_type_id == function_config.tool_group_deployment_type_id
+                && f.tool_group_id == function_config.tool_group_id
         }) {
             func.function_name = function_config.function_name.clone();
             func.function_description = function_config.function_description.clone();
@@ -1177,23 +1463,23 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
     async fn remove_mcp_server_function(
         &self,
         mcp_server_id: String,
-        function_controller_type_id: String,
-        provider_controller_type_id: String,
-        provider_instance_id: String,
+        tool_deployment_type_id: String,
+        tool_group_deployment_type_id: String,
+        tool_group_id: String,
     ) -> Result<(), CommonError> {
         trace!(
             mcp_server_id = %mcp_server_id,
-            function_controller_type_id = %function_controller_type_id,
-            provider_controller_type_id = %provider_controller_type_id,
-            provider_instance_id = %provider_instance_id,
+            tool_deployment_type_id = %tool_deployment_type_id,
+            tool_group_deployment_type_id = %tool_group_deployment_type_id,
+            tool_group_id = %tool_group_id,
             "Removing MCP server function"
         );
         let mut definition = self.cached_definition.lock().await;
-        let mcp_cfg = match &mut definition.mcp {
-            Some(mcp_cfg) => mcp_cfg,
+        let tool_cfg = match &mut definition.tool_configuration {
+            Some(tool_cfg) => tool_cfg,
             None => return Ok(()),
         };
-        let mcp_servers = match &mut mcp_cfg.mcp_servers {
+        let mcp_servers = match &mut tool_cfg.mcp_servers {
             Some(mcp_servers) => mcp_servers,
             None => return Ok(()),
         };
@@ -1207,17 +1493,17 @@ impl SomaAgentDefinitionLike for YamlSomaAgentDefinition {
         };
 
         functions.retain(|f| {
-            !(f.function_controller_type_id == function_controller_type_id
-                && f.provider_controller_type_id == provider_controller_type_id
-                && f.provider_instance_id == provider_instance_id)
+            !(f.tool_deployment_type_id == tool_deployment_type_id
+                && f.tool_group_deployment_type_id == tool_group_deployment_type_id
+                && f.tool_group_id == tool_group_id)
         });
 
         self.save(definition).await?;
         trace!(
             mcp_server_id = %mcp_server_id,
-            function_controller_type_id = %function_controller_type_id,
-            provider_controller_type_id = %provider_controller_type_id,
-            provider_instance_id = %provider_instance_id,
+            tool_deployment_type_id = %tool_deployment_type_id,
+            tool_group_deployment_type_id = %tool_group_deployment_type_id,
+            tool_group_id = %tool_group_id,
             "MCP server function removed"
         );
         Ok(())

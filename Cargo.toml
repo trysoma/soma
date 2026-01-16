@@ -1,13 +1,8 @@
 [workspace]
 members = ["crates/*"]
-# sdk-py must be built with maturin, not cargo build directly
-# sdk-js is built with napi, not cargo build directly
 default-members = [
-    "crates/a2a-rs",
-    "crates/mcp",
+    "crates/tool",
     "crates/encryption",
-    "crates/sdk-core",
-    "crates/sdk-proto",
     "crates/shared",
     "crates/shared-macros",
     "crates/soma",
@@ -133,10 +128,6 @@ typify = "0.4.2"
 tera = "1.20.0"
 
 ## External services
-# Pinned to commit compatible with rustc 1.88.0 (CI version)
-restate-admin-rest-model = { git = "https://github.com/restatedev/restate", rev = "51d96ca2bb121a08192d541ccff5da839c0e590b", package = "restate-admin-rest-model", features = ["schema"] }
-restate-types = { git = "https://github.com/restatedev/restate", rev = "51d96ca2bb121a08192d541ccff5da839c0e590b", package = "restate-types", features = ["schemars"] }
-restate-serde-util = { git = "https://github.com/restatedev/restate", rev = "51d96ca2bb121a08192d541ccff5da839c0e590b", package = "restate-serde-util", features = ["schema"] }
 clerk-rs = { git = "https://github.com/trysoma/clerk-rs", rev = "5b45669779e5178b870df2a7d24d780213f180bb" }
 
 ## File system / utilities
@@ -191,19 +182,16 @@ human-panic = "2.0.4"
 indicatif = "0.18.3"
 
 ## internal crates
-a2a-rs = { path = "./crates/a2a-rs" }
 shared = { path = "./crates/shared" }
 shared-macros = { path = "./crates/shared-macros" }
 soma-api-server = { path = "./crates/soma-api-server" }
 soma-api-client = { path = "./crates/soma-api-client" }
 soma-frontend = { path = "./crates/soma-frontend" }
 soma = { path = "./crates/soma" }
-mcp = { path = "./crates/mcp" }
+tool = { path = "./crates/tool" }
 encryption = { path = "./crates/encryption" }
 environment = { path = "./crates/environment" }
 identity = { path = "./crates/identity" }
-sdk-core = { path = "./crates/sdk-core" }
-sdk-proto = { path = "./crates/sdk-proto" }
 
 [profile.release]
 opt-level = 3

@@ -162,55 +162,6 @@ jobs:
           echo "Created schema change files:"
           ls -la "$OPENAPI_FILE" "$DB_FILE" 2>/dev/null || echo "Some files may not exist if there were no changes"
 
-      - name: Convert Python versions to PEP 440 format
-        run: |
-          # PEP 440 doesn't support semver-style prereleases like "0.0.5-snapshot-0"
-          # Convert to PEP 440 compliant format:
-          #   - snapshot-N -> .devN (development release)
-          #   - rc-N -> rcN (release candidate)
-
-          LABEL="${{ inputs.prerelease-label }}"
-          INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
-          BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
-          # Remove 'v' prefix if present
-          BASE_VERSION_NO_V="${BASE_VERSION#v}"
-
-          # Determine PEP 440 suffix based on prerelease label
-          if [ "$LABEL" = "snapshot" ]; then
-            PEP440_SUFFIX=".dev${INCREMENT}"
-          elif [ "$LABEL" = "rc" ]; then
-            PEP440_SUFFIX="rc${INCREMENT}"
-          else
-            echo "Unknown prerelease label: $LABEL"
-            exit 1
-          fi
-
-          PEP440_VERSION="${BASE_VERSION_NO_V}${PEP440_SUFFIX}"
-          echo "Converting Python versions to PEP 440 format: $PEP440_VERSION"
-
-          # List of Python pyproject.toml files to update
-          PYPROJECT_FILES=(
-            "crates/sdk-py/pyproject.toml"
-            "py/packages/sdk/pyproject.toml"
-            "py/packages/api_client/pyproject.toml"
-            "pyproject.toml"
-          )
-
-          for file in "${PYPROJECT_FILES[@]}"; do
-            if [ -f "$file" ]; then
-              echo "Updating $file..."
-              # Replace semver prerelease format with PEP 440 format
-              # e.g., version = "0.0.5-snapshot-0" -> version = "0.0.5.dev0"
-              # e.g., version = "0.0.5-rc-0" -> version = "0.0.5rc0"
-              sed -i.bak -E "s/^(version = \"[0-9]+\.[0-9]+\.[0-9]+)-${LABEL}-[0-9]+\"/\1${PEP440_SUFFIX}\"/" "$file"
-              rm -f "${file}.bak"
-              echo "  Updated version in $file:"
-              grep '^version = ' "$file" || true
-            else
-              echo "Warning: $file not found, skipping"
-            fi
-          done
-
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
         with:
@@ -221,31 +172,6 @@ jobs:
         run: |
           echo "Updating Cargo.lock for version ${{ needs.prepare-release.outputs.version }}"
           cargo update --workspace
-
-      - name: Update sdk-py Cargo.toml for maturin compatibility
-        run: |
-          # Maturin validates Cargo.toml version even when pyproject.toml has explicit version.
-          # Set sdk-py Cargo.toml to base semver (without prerelease suffix) so Cargo is happy,
-          # while pyproject.toml has the PEP 440 .devN version that maturin will use for the package.
-
-          LABEL="${{ inputs.prerelease-label }}"
-          INCREMENT="${{ steps.calculate-increment.outputs.increment }}"
-          BASE_VERSION="${{ steps.base-version.outputs.base_version }}"
-          BASE_VERSION_NO_V="${BASE_VERSION#v}"
-
-          SDK_PY_CARGO="crates/sdk-py/Cargo.toml"
-          if [ -f "$SDK_PY_CARGO" ]; then
-            echo "Updating $SDK_PY_CARGO with base semver version: $BASE_VERSION_NO_V"
-            # Replace version.workspace = true with explicit base version (no prerelease suffix)
-            sed -i.bak -E "s/^version\.workspace = true$/version = \"${BASE_VERSION_NO_V}\"/" "$SDK_PY_CARGO"
-            rm -f "${SDK_PY_CARGO}.bak"
-            echo "  Updated version in $SDK_PY_CARGO:"
-            grep '^version' "$SDK_PY_CARGO" | head -1
-
-            # Regenerate Cargo.lock after modifying Cargo.toml
-            echo "Regenerating Cargo.lock..."
-            cargo update -p sdk-py
-          fi
 
       - name: Create release artifact
         run: |
@@ -278,26 +204,6 @@ jobs:
           path: release-changes.tar.gz
           retention-days: 1
 
-  build-core-js-sdk:
-    needs: [prepare-release, create-changelog-and-artifacts]
-    uses: ./.github/workflows/common-build-core-js-sdk.yml
-    with:
-      revision: ${{ inputs.revision }}
-
-  build-core-py-sdk:
-    needs: [prepare-release, create-changelog-and-artifacts]
-    uses: ./.github/workflows/common-build-core-py-sdk.yml
-    with:
-      revision: ${{ inputs.revision }}
-
-  test-sdk-js-macOS-windows-binding:
-    needs: build-core-js-sdk
-    uses: ./.github/workflows/common-test-sdk-js-macOS-windows-binding.yml
-
-  test-linux-js-sdk-binding:
-    needs: build-core-js-sdk
-    uses: ./.github/workflows/common-test-linux-js-sdk-binding.yml
-
   build-soma:
     needs: [prepare-release, create-changelog-and-artifacts]
     uses: ./.github/workflows/common-build-soma.yml
@@ -322,41 +228,8 @@ jobs:
     secrets:
       AWS_INTEGRATION_TESTS_ROLE_ARN: ${{ secrets.AWS_INTEGRATION_TESTS_ROLE_ARN }}
 
-  publish-npm:
-    needs:
-      - prepare-release
-      - build-core-js-sdk
-      - build-core-py-sdk
-      - build-soma
-      - test-sdk-js-macOS-windows-binding
-      - test-linux-js-sdk-binding
-      - test-soma-macOS-windows
-      - test-soma-linux
-    uses: ./.github/workflows/common-publish-npm.yml
-    with:
-      version: ${{ needs.prepare-release.outputs.version }}
-      npm-tag: ${{ inputs.prerelease-label }}
-    secrets:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  publish-pypi:
-    needs:
-      - prepare-release
-      - build-core-js-sdk
-      - build-core-py-sdk
-      - build-soma
-      - test-sdk-js-macOS-windows-binding
-      - test-linux-js-sdk-binding
-      - test-soma-macOS-windows
-      - test-soma-linux
-    uses: ./.github/workflows/common-publish-pypi.yml
-    with:
-      version: ${{ needs.prepare-release.outputs.version }}
-    secrets:
-      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-
   create-github-release:
-    needs: [prepare-release, build-soma, build-core-js-sdk, build-core-py-sdk, publish-npm, publish-pypi]
+    needs: [prepare-release, build-soma, test-soma-macOS-windows, test-soma-linux]
     permissions:
       contents: write
     uses: ./.github/workflows/common-create-github-release.yml
@@ -371,15 +244,9 @@ jobs:
     needs:
       - prepare-release
       - create-changelog-and-artifacts
-      - build-core-js-sdk
-      - build-core-py-sdk
-      - test-sdk-js-macOS-windows-binding
-      - test-linux-js-sdk-binding
       - build-soma
       - test-soma-macOS-windows
       - test-soma-linux
-      - publish-npm
-      - publish-pypi
       - create-github-release
     if: failure()
     permissions:
@@ -388,4 +255,4 @@ jobs:
     with:
       version: ${{ needs.prepare-release.outputs.version }}
       workflow-type: snapshot-release
-      failed-jobs: ${{ needs.prepare-release.result == 'failure' && 'prepare-release' || '' }}${{ needs.create-changelog-and-artifacts.result == 'failure' && format(',create-changelog-and-artifacts') || '' }}${{ needs.build-core-js-sdk.result == 'failure' && format(',build-core-js-sdk') || '' }}${{ needs.build-core-py-sdk.result == 'failure' && format(',build-core-py-sdk') || '' }}${{ needs.test-sdk-js-macOS-windows-binding.result == 'failure' && format(',test-sdk-js-macOS-windows-binding') || '' }}${{ needs.test-linux-js-sdk-binding.result == 'failure' && format(',test-linux-js-sdk-binding') || '' }}${{ needs.build-soma.result == 'failure' && format(',build-soma') || '' }}${{ needs.test-soma-macOS-windows.result == 'failure' && format(',test-soma-macOS-windows') || '' }}${{ needs.test-soma-linux.result == 'failure' && format(',test-soma-linux') || '' }}${{ needs.publish-npm.result == 'failure' && format(',publish-npm') || '' }}${{ needs.publish-pypi.result == 'failure' && format(',publish-pypi') || '' }}${{ needs.create-github-release.result == 'failure' && format(',create-github-release') || '' }}
+      failed-jobs: ${{ needs.prepare-release.result == 'failure' && 'prepare-release' || '' }}${{ needs.create-changelog-and-artifacts.result == 'failure' && format(',create-changelog-and-artifacts') || '' }}${{ needs.build-soma.result == 'failure' && format(',build-soma') || '' }}${{ needs.test-soma-macOS-windows.result == 'failure' && format(',test-soma-macOS-windows') || '' }}${{ needs.test-soma-linux.result == 'failure' && format(',test-soma-linux') || '' }}${{ needs.create-github-release.result == 'failure' && format(',create-github-release') || '' }}

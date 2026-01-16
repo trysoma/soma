@@ -8,8 +8,7 @@ name = "soma"
 path = "src/main.rs"
 
 [dependencies]
-a2a-rs.workspace = true
-mcp.workspace = true
+tool.workspace = true
 encryption.workspace = true
 anyhow.workspace = true
 axum.workspace = true
@@ -34,7 +33,6 @@ tracing.workspace = true
 tonic.workspace = true
 hyper.workspace = true
 hyper-util.workspace = true
-sdk-proto.workspace = true
 url.workspace = true
 utoipa.workspace = true
 utoipa-axum.workspace = true

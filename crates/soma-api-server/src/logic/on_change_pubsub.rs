@@ -1,6 +1,6 @@
 use encryption::logic::EncryptionKeyEvent;
 use identity::logic::OnConfigChangeEvt as IdentityOnConfigChangeEvt;
-use mcp::logic::OnConfigChangeEvt as McpOnConfigChangeEvt;
+use tool::logic::OnConfigChangeEvt as McpOnConfigChangeEvt;
 use tokio::sync::broadcast;
 use tracing::{debug, warn};
 
@@ -45,7 +45,7 @@ pub fn create_soma_change_channel(capacity: usize) -> (SomaChangeTx, SomaChangeR
 /// This function runs indefinitely until aborted by the process manager.
 pub async fn run_change_pubsub(
     soma_change_tx: SomaChangeTx,
-    mut mcp_change_rx: mcp::logic::OnConfigChangeRx,
+    mut mcp_change_rx: tool::logic::OnConfigChangeRx,
     mut encryption_change_rx: encryption::logic::EncryptionKeyEventReceiver,
     mut secret_change_rx: SecretChangeRx,
     mut variable_change_rx: VariableChangeRx,

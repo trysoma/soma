@@ -156,7 +156,7 @@ pub async fn create_and_wait_for_api_client(
     timeout_secs: u64,
     bootstrap_api_key: Option<String>,
 ) -> Result<ApiClientConfiguration, CommonError> {
-    use soma_api_client::apis::{identity_api, internal_api};
+    use soma_api_client::apis::identity_api;
     use std::time::Duration;
 
     // Create HTTP client
@@ -183,16 +183,20 @@ pub async fn create_and_wait_for_api_client(
     let mut connected = false;
 
     for attempt in 1..=max_retries {
-        match internal_api::health_check(&api_config).await {
-            Ok(_) => {
+        // Try to connect to the API server with a simple GET request
+        match client.get(api_url).send().await {
+            Ok(response)
+                if response.status().is_success() || response.status().is_client_error() =>
+            {
+                // Server is up (we don't care about the response code, just that it's responding)
                 tracing::debug!("Connected to Soma API server");
                 connected = true;
                 break;
             }
-            Err(e) => {
+            Ok(_) | Err(_) => {
                 if attempt == max_retries {
                     return Err(CommonError::Unknown(anyhow::anyhow!(
-                        "Failed to connect to Soma API server after {max_retries} attempts: {e:?}. Please ensure 'soma dev' is running."
+                        "Failed to connect to Soma API server after {max_retries} attempts. Please ensure 'soma dev' is running."
                     )));
                 }
                 if attempt == 1 {

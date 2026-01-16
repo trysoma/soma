@@ -1,6 +1,5 @@
 pub mod api_key;
 pub mod auth;
-pub mod codegen;
 pub mod completions;
 pub mod dev;
 pub mod encryption;

@@ -3,9 +3,15 @@ encryption:
     local.bin:
       type: local
       file_name: local.bin
-      deks:
-        default:
-          encrypted_key: FI0PVbrw/x3+zhrwWY77RI8FFwYttLkVdhL3Ck2jIEhbsBjeZs7/6fm37C6Zahw5IpaGAILI/A2ecaC0
+
+
+tool_configuration:
+  tool_group_sources:
+    test:
+      name: test
+      documentation: test
+      categories:
+        - test
 mcp:
   providers:
     1b8c7dd2-45a9-4c82-8a9f-69cdb732883e:

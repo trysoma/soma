@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use clap::Args;
 use clap::Parser;
 use futures::future;
 use indicatif::ProgressBar;
@@ -14,7 +13,6 @@ use tracing::trace;
 use url::Url;
 
 use shared::error::CommonError;
-use shared::port::find_free_port;
 use shared::soma_agent_definition::{SomaAgentDefinitionLike, YamlSomaAgentDefinition};
 
 use crate::mcp::run_mcp_sync_to_yaml_loop;
@@ -22,43 +20,6 @@ use crate::server::start_axum_server;
 use crate::utils::{CliConfig, construct_cwd_absolute, create_and_wait_for_api_client};
 use shared::process_manager::CustomProcessManager;
 use soma_api_server::factory::{CreateApiServiceParams, create_api_service};
-use soma_api_server::restate::{
-    RestateServerLocalParams, RestateServerParams, RestateServerRemoteParams,
-};
-
-#[derive(Args, Debug, Clone)]
-#[group(multiple = false, required = false)]
-pub struct RemoteRestateParams {
-    #[arg(long = "restate-admin-url", requires = "ingress_url")]
-    pub admin_url: Option<Url>,
-    #[arg(long = "restate-ingress-url", requires = "admin_url")]
-    pub ingress_url: Option<Url>,
-    #[arg(
-        long = "restate-admin-token",
-        requires = "admin_url",
-        requires = "ingress_url"
-    )]
-    pub admin_token: Option<String>,
-}
-
-impl TryFrom<RemoteRestateParams> for RestateServerParams {
-    type Error = CommonError;
-    fn try_from(params: RemoteRestateParams) -> Result<Self, Self::Error> {
-        if params.admin_url.is_none() || params.ingress_url.is_none() {
-            return Err(CommonError::Unknown(anyhow::anyhow!(
-                "Admin URL and ingress URL are required"
-            )));
-        }
-        Ok(RestateServerParams::Remote(RestateServerRemoteParams {
-            admin_address: params.admin_url.clone().unwrap(),
-            ingress_address: params.ingress_url.clone().unwrap(),
-            admin_token: params.admin_token,
-            // Default to using the ingress address for the soma restate service
-            soma_restate_service_address: params.ingress_url.unwrap(),
-            soma_restate_service_additional_headers: std::collections::HashMap::new(),
-        }))
-    }
-}
 
 #[derive(Debug, Clone, Parser)]
 pub struct DevParams {
@@ -72,12 +33,10 @@ pub struct DevParams {
     pub db_conn_string: Url,
     #[arg(long)]
     pub db_auth_token: Option<String>,
-    #[command(flatten)]
-    pub remote_restate: Option<RemoteRestateParams>,
 
     #[arg(
         long,
-        help = "Delete the Restate data directory, local sqlite DB before starting (only applies to local Restate instances and local sqlite DB)"
+        help = "Delete the local sqlite DB before starting (only applies to local sqlite DB)"
     )]
     pub clean: bool,
 }
@@ -234,75 +193,16 @@ async fn cmd_dev_inner(
     );
     trace!("Soma definition loaded");
 
-    trace!("Configuring restate server");
-    // Find free port for SDK server
-    let soma_restate_service_port = find_free_port(9080, 10080)?;
-
-    // Setup Restate parameters
-    let restate_params = match params.remote_restate {
-        Some(remote_restate) => {
-            debug!("Configuring remote restate server parameters");
-            debug!("restate admin url: {:?}", remote_restate.admin_url);
-            debug!("restate ingress url: {:?}", remote_restate.ingress_url);
-            debug!("restate admin token: **********");
-            remote_restate.try_into()?
-        }
-        None => {
-            let restate_server_data_dir = project_dir.join(".soma/restate-data");
-            let ingress_port = 8080;
-            let admin_port = 9070;
-            debug!("Configuring local restate server parameters");
-            debug!(
-                "restate server data directory: {:?}",
-                restate_server_data_dir
-            );
-            debug!(
-                "restate ingress port (this is where requests to trigger a restate workflow are sent): {:?}",
-                ingress_port
-            );
-            debug!(
-                "restate admin port (this is where the restate admin API is exposed): {:?}",
-                admin_port
-            );
-            debug!(
-                "restate soma restate service port (this is where the Soma SDK restate service is exposed): {:?}",
-                soma_restate_service_port
-            );
-            debug!("restate clean: {:?}", params.clean);
-            RestateServerParams::Local(RestateServerLocalParams {
-                restate_server_data_dir,
-                ingress_port,
-                admin_port,
-                soma_restate_service_port,
-                soma_restate_service_additional_headers: std::collections::HashMap::new(),
-                clean: params.clean,
-            })
-        }
-    };
-
-    // Start Restate server subsystem
-    let mut bar = ProgressBar::new_spinner();
-    bar.enable_steady_tick(Duration::from_millis(100));
-    bar.set_message("Waiting for Restate to start...");
-    crate::restate_server::start_restate(&process_manager, restate_params.clone()).await?;
-    bar.finish_and_clear();
-    trace!("Restate server configured");
-
     // Create API service and start all subsystems
     trace!("Starting API server");
-    bar = ProgressBar::new_spinner();
+    let mut bar = ProgressBar::new_spinner();
     bar.enable_steady_tick(Duration::from_millis(100));
     bar.set_message("Waiting for API server to start...");
     let api_service_bundle = create_api_service(CreateApiServiceParams {
-        project_dir: project_dir.clone(),
-        host: params.host.clone(),
-        port: params.port,
         base_url: format!("http://{}:{}", params.host, params.port),
-        soma_restate_service_port,
+        project_dir: project_dir.clone(),
         db_conn_string: db_conn_string.to_string(),
         db_auth_token: params.db_auth_token.clone(),
-        soma_definition: soma_definition.clone(),
-        restate_params: restate_params.clone(),
         process_manager: process_manager.clone(),
     })
     .await?;
@@ -366,6 +266,7 @@ async fn cmd_dev_inner(
     )
     .await?;
     trace!("API service ready");
+
     // Enable dev mode STS config for development
     trace!("Enabling dev mode STS configuration");
     let dev_sts_result = enable_dev_mode_sts(&api_config).await;
@@ -373,6 +274,7 @@ async fn cmd_dev_inner(
         Ok(()) => trace!("Dev mode STS configuration enabled"),
         Err(e) => debug!(error = ?e, "Failed to enable dev mode STS configuration, continuing"),
     }
+
     // Sync MCP from soma definition (now all providers should be available)
     trace!("Syncing MCP from soma.yaml");
     crate::mcp::sync_yaml_to_api_on_start::sync_mcp_db_from_soma_definition_on_start(
@@ -381,11 +283,6 @@ async fn cmd_dev_inner(
     )
     .await?;
     trace!("MCP sync completed");
-
-    // Give SDK server time to fully initialize its gRPC handlers after mcp sync
-    // This ensures that secrets/env vars created during mcp sync can be synced properly
-    trace!("Waiting for SDK server after mcp sync");
-    tokio::time::sleep(Duration::from_millis(1000)).await;
 
     // Reload soma definition (with error handling to avoid crashes on race conditions)
     if let Err(e) = soma_definition.reload().await {

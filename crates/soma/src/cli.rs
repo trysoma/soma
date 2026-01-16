@@ -6,9 +6,9 @@ use tracing::error;
 
 use crate::{
     commands::{
-        self, api_key::ApiKeyParams, auth::AuthParams, codegen::CodegenParams,
-        completions::CompletionShell, dev::DevParams, encryption::EncKeyParams,
-        environment::EnvironmentParams, init::InitParams, secret::SecretParams, sts::StsParams,
+        self, api_key::ApiKeyParams, auth::AuthParams, completions::CompletionShell,
+        dev::DevParams, encryption::EncKeyParams, environment::EnvironmentParams, init::InitParams,
+        secret::SecretParams, sts::StsParams,
     },
     utils::get_or_init_cli_config,
 };
@@ -26,8 +26,6 @@ pub struct Cli {
 pub enum Commands {
     /// Start Soma development server
     Dev(DevParams),
-    /// Generate mcp client for current project
-    Codegen(CodegenParams),
     /// Generate shell completions for soma
     Completions {
         /// Shell to generate completions for
@@ -76,7 +74,6 @@ pub async fn run_cli(cli: Cli) -> Result<(), anyhow::Error> {
 
     let cmd_res = match cli.command {
         Commands::Dev(params) => commands::dev::cmd_dev(params, &mut config).await,
-        Commands::Codegen(params) => commands::codegen::cmd_codegen(params, &mut config).await,
         Commands::Completions { shell } => commands::completions::cmd_completions(shell),
         Commands::EncKey(params) => commands::encryption::cmd_enc_key(params, &mut config).await,
         Commands::Init(params) => commands::init::cmd_init(params).await,

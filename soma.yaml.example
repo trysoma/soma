@@ -1,0 +1,148 @@
+# Example soma.yaml configuration file
+# This demonstrates the new tool configuration structure after refactoring
+
+version: 1.0
+
+# Encryption configuration for securing credentials and secrets
+encryption:
+  # Envelope encryption keys protect data encryption keys (DEKs)
+  envelope_keys:
+    local:
+      type: local
+      path: .soma/envelope-encryption-keys/local.bin
+      deks:
+        # Data encryption keys (DEKs) are used to encrypt actual data
+        default:
+          encrypted_key: "base64-encoded-encrypted-key-data-here"
+          created_at: "2024-01-15T10:00:00Z"
+
+# Tool configuration - replaces the old "mcp" section
+tool_configuration:
+
+  # Tool groups are instances of tool group sources (formerly "providers")
+  # Each tool group represents a configured integration (e.g., a specific Gmail account)
+  tool_groups:
+
+    my_gmail_account:
+      # References which tool group source this instance uses
+      tool_group_deployment_type_id: google_mail
+
+      # References which credential type this instance uses
+      credential_deployment_type_id: oauth
+
+      # Human-readable name for this tool group
+      display_name: "My Gmail Account"
+
+      # Resource server credential (encrypted OAuth tokens, API keys, etc.)
+      resource_server_credential:
+        type_id: oauth
+        dek_alias: default
+        metadata:
+          client_id: "your-google-client-id"
+          scopes: ["https://www.googleapis.com/auth/gmail.send"]
+        value:
+          access_token: "encrypted-access-token"
+          refresh_token: "encrypted-refresh-token"
+          expires_at: "2024-01-15T12:00:00Z"
+
+      # Optional user credential for user-specific operations
+      user_credential:
+        type_id: oauth
+        dek_alias: default
+        metadata:
+          user_id: "user@example.com"
+        value:
+          access_token: "encrypted-user-access-token"
+          refresh_token: "encrypted-user-refresh-token"
+          expires_at: "2024-01-15T12:00:00Z"
+
+      # List of tools (formerly "functions") enabled for this tool group
+      tools:
+        - send_email
+        - read_email
+        - search_email
+
+    my_stripe_account:
+      tool_group_deployment_type_id: stripe
+      credential_deployment_type_id: api_key
+      display_name: "My Stripe Account"
+
+      resource_server_credential:
+        type_id: api_key
+        dek_alias: default
+        metadata:
+          api_version: "2023-10-16"
+        value:
+          api_key: "encrypted-stripe-api-key"
+
+      tools:
+        - create_payment_intent
+        - retrieve_customer
+        - list_charges
+
+  # MCP (Model Context Protocol) server instances
+  # These expose tools to AI models via the MCP protocol
+  mcp_servers:
+
+    my_mcp_server:
+      name: "My MCP Server"
+
+      # Functions map tools from tool groups to MCP protocol endpoints
+      functions:
+
+        # Map Gmail send_email tool to MCP function
+        - tool_deployment_type_id: send_email
+          tool_group_deployment_type_id: google_mail
+          tool_group_id: my_gmail_account
+          function_name: sendEmail
+          function_description: "Send an email via Gmail"
+
+        # Map Gmail read_email tool to MCP function
+        - tool_deployment_type_id: read_email
+          tool_group_deployment_type_id: google_mail
+          tool_group_id: my_gmail_account
+          function_name: readEmail
+          function_description: "Read emails from Gmail inbox"
+
+        # Map Stripe create_payment_intent tool to MCP function
+        - tool_deployment_type_id: create_payment_intent
+          tool_group_deployment_type_id: stripe
+          tool_group_id: my_stripe_account
+          function_name: createPayment
+          function_description: "Create a Stripe payment intent"
+
+# Environment-specific variables (plaintext, not encrypted)
+variables:
+  APP_ENV: development
+  LOG_LEVEL: debug
+  API_BASE_URL: http://localhost:3000
+
+# Encrypted secrets
+secrets:
+  DATABASE_PASSWORD:
+    dek_alias: default
+    value: "encrypted-database-password"
+
+  WEBHOOK_SECRET:
+    dek_alias: default
+    value: "encrypted-webhook-secret"
+
+# Identity and authentication configuration
+identity:
+  # User authentication flows (OAuth, OIDC, etc.)
+  user_auth_flows:
+    google_oauth:
+      type: oauth
+      dek_alias: default
+      client_id: "your-google-client-id"
+      client_secret: "encrypted-client-secret"
+      authorization_endpoint: https://accounts.google.com/o/oauth2/v2/auth
+      token_endpoint: https://oauth2.googleapis.com/token
+      scopes:
+        - openid
+        - email
+        - profile
+
+  # JWT token configuration for API authentication
+  jwks:
+    default_key_id: key-1

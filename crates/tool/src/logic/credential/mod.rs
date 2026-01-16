@@ -1,0 +1,1066 @@
+pub mod api_key;
+pub mod no_auth;
+pub mod oauth;
+
+use std::sync::Arc;
+
+use async_trait::async_trait;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use shared::{
+    error::CommonError,
+    primitives::{
+        PaginationRequest, WrappedChronoDateTime, WrappedJsonValue, WrappedSchema, WrappedUuidV4,
+    },
+};
+use shared_macros::{authn, authz_role};
+use tracing::trace;
+use utoipa::ToSchema;
+
+use ::encryption::logic::crypto_services::{DecryptionService, EncryptionService};
+
+use crate::{
+    logic::{
+        Metadata, OnConfigChangeEvt, OnConfigChangeTx, ToolGroupLike,
+        CredentialSourceLike,
+        deployment::{
+            WithCredentialDeploymentTypeId, WithToolGroupDeploymentTypeId,
+        },
+        instance::{
+            ToolGroupInstanceSerialized, ToolGroupInstanceSerializedWithCredentials, ReturnAddress,
+        },
+    },
+    repository::ProviderRepositoryLike,
+};
+
+pub fn schemars_make_password(schema: &mut schemars::Schema) {
+    schema.insert(
+        String::from("format"),
+        Value::String("password".to_string()),
+    );
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Credential<T> {
+    pub inner: T,
+    pub metadata: Metadata,
+    pub id: WrappedUuidV4,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+}
+
+pub trait RotateableCredentialLike: Send + Sync {
+    fn next_rotation_time(&self) -> WrappedChronoDateTime;
+}
+
+// Static credential configurations
+
+pub trait StaticCredentialConfigurationLike: Send + Sync {
+    fn type_id(&self) -> &'static str;
+    fn value(&self) -> WrappedJsonValue;
+    fn as_rotateable_credential(&self) -> Option<&dyn RotateableCredentialLike> {
+        None
+    }
+}
+
+// pub type StaticCredential = Credential<Arc<dyn StaticCredentialConfigurationLike>>;
+
+// Resource server credentials
+
+pub trait ResourceServerCredentialLike: Send + Sync {
+    fn type_id(&self) -> &'static str;
+    fn value(&self) -> WrappedJsonValue;
+    fn as_rotateable_credential(&self) -> Option<&dyn RotateableCredentialLike> {
+        None
+    }
+}
+
+pub type ResourceServerCredential = Credential<Arc<dyn ResourceServerCredentialLike>>;
+
+// user credentials
+
+pub trait UserCredentialLike: Send + Sync {
+    fn type_id(&self) -> &'static str;
+    fn value(&self) -> WrappedJsonValue;
+    fn as_rotateable_credential(&self) -> Option<&dyn RotateableCredentialLike> {
+        None
+    }
+}
+
+pub type UserCredential = Credential<Arc<dyn UserCredentialLike>>;
+
+// User credentials
+
+// Brokering user credentials
+
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+pub struct BrokerState {
+    pub id: String,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+    pub tool_group_instance_id: String,
+    pub tool_group_deployment_type_id: String,
+    pub credential_deployment_type_id: String,
+    pub metadata: Metadata,
+    pub action: BrokerAction,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+pub struct BrokerActionRedirect {
+    pub url: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+pub enum BrokerAction {
+    Redirect(BrokerActionRedirect),
+    None,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum BrokerInput {
+    Oauth2AuthorizationCodeFlow { code: String },
+    Oauth2AuthorizationCodeFlowWithPkce { code: String, code_verifier: String },
+}
+
+pub enum BrokerOutcome {
+    Success {
+        user_credential: Box<dyn UserCredentialLike>,
+        metadata: Metadata,
+    },
+    Continue {
+        state_id: String,
+        state_metadata: Metadata,
+    },
+}
+
+#[async_trait]
+pub trait UserCredentialBrokerLike: Send + Sync {
+    /// Called when the user (or system) initiates credential brokering.
+    async fn start(
+        &self,
+        resource_server_cred: &Credential<Box<dyn ResourceServerCredentialLike>>,
+    ) -> Result<(BrokerAction, BrokerOutcome), CommonError>;
+
+    /// Called after an external event (callback, redirect, etc.) returns data to the platform.
+    async fn resume(
+        &self,
+        decryption_service: &DecryptionService,
+        encryption_service: &EncryptionService,
+        state: &BrokerState,
+        input: BrokerInput,
+        resource_server_cred: &ResourceServerCredentialSerialized,
+    ) -> Result<(BrokerAction, BrokerOutcome), CommonError>;
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema, JsonSchema)]
+pub struct ConfigurationSchema {
+    pub resource_server: WrappedSchema,
+    pub user_credential: WrappedSchema,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
+pub struct StaticCredentialSerialized {
+    // not UUID as some ID's will be deterministic
+    pub type_id: String,
+    pub metadata: Metadata,
+
+    // this is the serialized version of the actual configuration fields
+    pub value: WrappedJsonValue,
+}
+
+impl From<Credential<Arc<dyn StaticCredentialConfigurationLike>>> for StaticCredentialSerialized {
+    fn from(static_cred: Credential<Arc<dyn StaticCredentialConfigurationLike>>) -> Self {
+        StaticCredentialSerialized {
+            type_id: static_cred.inner.type_id().to_string(),
+            metadata: static_cred.metadata.clone(),
+            value: static_cred.inner.value(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct ResourceServerCredentialSerialized {
+    pub id: WrappedUuidV4,
+    pub type_id: String,
+    pub metadata: Metadata,
+    pub value: WrappedJsonValue,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+    pub next_rotation_time: Option<WrappedChronoDateTime>,
+    pub dek_alias: String,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct UserCredentialSerialized {
+    pub id: WrappedUuidV4,
+    pub type_id: String,
+    pub metadata: Metadata,
+    pub value: WrappedJsonValue,
+    pub created_at: WrappedChronoDateTime,
+    pub updated_at: WrappedChronoDateTime,
+    pub next_rotation_time: Option<WrappedChronoDateTime>,
+    pub dek_alias: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct CreateResourceServerCredentialParamsInner {
+    // NOTE: serialized values are always already encrypted, only encrypt_provider_configuration accepts raw values
+    pub resource_server_configuration: WrappedJsonValue,
+    pub metadata: Option<Metadata>,
+    pub dek_alias: String,
+}
+pub type CreateResourceServerCredentialParams = WithToolGroupDeploymentTypeId<
+    WithCredentialDeploymentTypeId<CreateResourceServerCredentialParamsInner>,
+>;
+pub type CreateResourceServerCredentialResponse = ResourceServerCredentialSerialized;
+
+/// Creates a new resource server credential for a provider.
+///
+/// Resource server credentials are used for server-to-server authentication
+/// (e.g., client credentials flow) where no user interaction is required.
+///
+/// # Parameters
+/// - `identity`: The authenticated caller (must have Admin or Maintainer role)
+/// - `repo`: Repository for persisting the credential
+/// - `params`: Configuration including provider type, credential type, and encrypted configuration
+///
+/// # Returns
+/// The created credential with its generated ID and metadata.
+///
+/// # Errors
+/// - Returns error if provider or credential source is not found
+/// - Returns error if configuration deserialization fails
+/// - Returns error if database save fails
+#[authz_role(Admin, permission = "credential:write")]
+#[authn]
+/// Creates a new resource server credential.
+///
+/// Resource server credentials are used for server-to-server authentication
+/// (e.g., client credentials flow) where no user interaction is required.
+///
+/// The configuration value should be pre-encrypted using the encrypt_resource_server_configuration endpoint.
+///
+/// # Parameters
+/// - `repo`: Repository for persisting the credential
+/// - `params`: Configuration including credential type and encrypted configuration
+///
+/// # Returns
+/// The created credential with its generated ID and metadata.
+///
+/// # Errors
+/// - Returns error if database save fails
+pub async fn create_resource_server_credential(
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: CreateResourceServerCredentialParams,
+) -> Result<CreateResourceServerCredentialResponse, CommonError> {
+    trace!(
+        tool_group_type = %params.tool_group_deployment_type_id,
+        credential_type = %params.inner.credential_deployment_type_id,
+        "Creating resource server credential"
+    );
+
+    let now = WrappedChronoDateTime::now();
+    let id = WrappedUuidV4::new();
+
+    // Build the credential
+    let credential = ResourceServerCredentialSerialized {
+        id: id.clone(),
+        type_id: params.inner.credential_deployment_type_id.clone(),
+        metadata: params.inner.inner.metadata.unwrap_or_else(Metadata::new),
+        value: params.inner.inner.resource_server_configuration,
+        created_at: now.clone(),
+        updated_at: now.clone(),
+        next_rotation_time: None,
+        dek_alias: params.inner.inner.dek_alias.clone(),
+    };
+
+    // Create repository params
+    let create_params = crate::repository::CreateResourceServerCredential {
+        id,
+        type_id: params.inner.credential_deployment_type_id,
+        metadata: credential.metadata.clone(),
+        value: credential.value.clone(),
+        created_at: now.clone(),
+        updated_at: now,
+        next_rotation_time: None,
+        dek_alias: params.inner.inner.dek_alias,
+    };
+
+    // Store in repository
+    repo.create_resource_server_credential(&create_params).await?;
+
+    trace!(id = %credential.id, "Resource server credential created successfully");
+
+    Ok(credential)
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct CreateUserCredentialParamsInner {
+    pub user_credential_configuration: WrappedJsonValue,
+    pub metadata: Option<Metadata>,
+    pub dek_alias: String,
+}
+pub type CreateUserCredentialParams =
+    WithToolGroupDeploymentTypeId<WithCredentialDeploymentTypeId<CreateUserCredentialParamsInner>>;
+pub type CreateUserCredentialResponse = UserCredentialSerialized;
+
+/// Create a new user credential
+#[authz_role(Admin, permission = "credential:write")]
+#[authn]
+pub async fn create_user_credential(
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: CreateUserCredentialParams,
+) -> Result<CreateUserCredentialResponse, CommonError> {
+    create_user_credential_internal(repo, params).await
+}
+
+/// Internal helper to create a user credential without authentication checks.
+///
+/// This function bypasses authentication and authorization checks and should
+/// only be called from authenticated wrapper functions (e.g., `create_user_credential`)
+/// or trusted internal flows (e.g., `process_broker_outcome` during OAuth callback).
+///
+/// The configuration value should be pre-encrypted using the encrypt_user_credential_configuration endpoint.
+///
+/// # Parameters
+/// - `repo`: Repository for persisting the credential
+/// - `params`: Configuration including credential type and encrypted user credential data
+///
+/// # Returns
+/// The created user credential with its generated ID and metadata.
+///
+/// # Errors
+/// - Returns error if database save fails
+///
+/// # Safety
+/// Callers must ensure proper authentication has already been performed.
+async fn create_user_credential_internal(
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    params: CreateUserCredentialParams,
+) -> Result<CreateUserCredentialResponse, CommonError> {
+    trace!(
+        tool_group_type = %params.tool_group_deployment_type_id,
+        credential_type = %params.inner.credential_deployment_type_id,
+        "Creating user credential"
+    );
+
+    let now = WrappedChronoDateTime::now();
+    let id = WrappedUuidV4::new();
+
+    // Build the credential
+    let credential = UserCredentialSerialized {
+        id: id.clone(),
+        type_id: params.inner.credential_deployment_type_id.clone(),
+        metadata: params.inner.inner.metadata.unwrap_or_else(Metadata::new),
+        value: params.inner.inner.user_credential_configuration,
+        created_at: now.clone(),
+        updated_at: now.clone(),
+        next_rotation_time: None,
+        dek_alias: params.inner.inner.dek_alias.clone(),
+    };
+
+    // Create repository params
+    let create_params = crate::repository::CreateUserCredential {
+        id,
+        type_id: params.inner.credential_deployment_type_id,
+        metadata: credential.metadata.clone(),
+        value: credential.value.clone(),
+        created_at: now.clone(),
+        updated_at: now,
+        next_rotation_time: None,
+        dek_alias: params.inner.inner.dek_alias,
+    };
+
+    // Store in repository
+    repo.create_user_credential(&create_params).await?;
+
+    trace!(id = %credential.id, "User credential created successfully");
+
+    Ok(credential)
+}
+
+async fn process_broker_outcome(
+    on_config_change_tx: &OnConfigChangeTx,
+    repo: &impl crate::repository::ProviderRepositoryLike,
+    tool_group: &Arc<dyn ToolGroupLike>,
+    credential_source: &Arc<dyn CredentialSourceLike>,
+    broker_action: &BrokerAction,
+    outcome: BrokerOutcome,
+    tool_group_instance: &ToolGroupInstanceSerialized,
+    // return_on_success: Option<ReturnAddress>,
+) -> Result<UserCredentialBrokeringResponse, CommonError> {
+    let response = match outcome {
+        BrokerOutcome::Success {
+            user_credential,
+            metadata,
+        } => {
+            // let tool_group_instance = repo
+            //     .get_tool_group_instance_by_id(&tool_group_instance_id)
+            //     .await?
+            //     .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            //         "Provider instance not found"
+            //     )))?;
+
+            let resource_server_cred = repo
+                .get_resource_server_credential_by_id(
+                    &tool_group_instance.resource_server_credential_id,
+                )
+                .await?;
+
+            let resource_server_cred = match resource_server_cred {
+                Some(resource_server_cred) => resource_server_cred,
+                None => {
+                    return Err(CommonError::Unknown(anyhow::anyhow!(
+                        "Resource server credential not found"
+                    )));
+                }
+            };
+            let dek_alias = resource_server_cred.dek_alias;
+            let user_credential = create_user_credential_internal(
+                repo,
+                CreateUserCredentialParams {
+                    tool_group_deployment_type_id: tool_group.type_id().to_string(),
+                    inner: WithCredentialDeploymentTypeId {
+                        credential_deployment_type_id: credential_source.type_id().to_string(),
+                        inner: CreateUserCredentialParamsInner {
+                            dek_alias,
+                            user_credential_configuration: user_credential.value(),
+                            metadata: Some(metadata.clone()),
+                        },
+                    },
+                },
+            )
+            .await?;
+
+            // Update the provider instance to link the user credential and set status to active
+            repo.update_tool_group_instance_after_brokering(
+                &tool_group_instance.id,
+                &user_credential.id,
+            )
+            .await?;
+
+            // Fetch the updated provider instance with credentials to send config change event
+            let updated_tool_group_instance = repo
+                .get_tool_group_instance_by_id(&tool_group_instance.id)
+                .await?
+                .ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!(
+                        "Provider instance not found after update"
+                    ))
+                })?;
+
+            let resource_server_cred = repo
+                .get_resource_server_credential_by_id(
+                    &updated_tool_group_instance
+                        .tool_group_instance
+                        .resource_server_credential_id,
+                )
+                .await?
+                .ok_or_else(|| {
+                    CommonError::Unknown(anyhow::anyhow!("Resource server credential not found"))
+                })?;
+
+            let tool_group_instance_with_creds = ToolGroupInstanceSerializedWithCredentials {
+                tool_group_instance: updated_tool_group_instance.tool_group_instance,
+                resource_server_credential: resource_server_cred,
+                user_credential: Some(user_credential.clone()),
+            };
+
+            // Send config change event
+            on_config_change_tx
+                .send(OnConfigChangeEvt::ToolGroupInstanceAdded(
+                    tool_group_instance_with_creds,
+                ))
+                .map_err(|e| {
+                    CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+                })?;
+
+            if let Some(return_on_success) = &tool_group_instance.return_on_successful_brokering {
+                match return_on_success {
+                    ReturnAddress::Url(url) => {
+                        return Ok(UserCredentialBrokeringResponse::Redirect(url.url.clone()));
+                    }
+                }
+            }
+
+            UserCredentialBrokeringResponse::UserCredential(user_credential)
+        }
+        BrokerOutcome::Continue {
+            state_metadata,
+            state_id,
+        } => {
+            let broker_state = BrokerState {
+                id: state_id,
+                created_at: WrappedChronoDateTime::now(),
+                updated_at: WrappedChronoDateTime::now(),
+                tool_group_instance_id: tool_group_instance.id.clone(),
+                tool_group_deployment_type_id: tool_group.type_id().to_string(),
+                metadata: state_metadata,
+                action: broker_action.clone(),
+                credential_deployment_type_id: credential_source.type_id().to_string(),
+            };
+
+            trace!(broker_state_id = %broker_state.id, "Saving broker state");
+            // Save broker state to database
+            repo.create_broker_state(&crate::repository::CreateBrokerState::from(
+                broker_state.clone(),
+            ))
+            .await?;
+
+            UserCredentialBrokeringResponse::BrokerState(broker_state)
+        }
+    };
+
+    Ok(response)
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct StartUserCredentialBrokeringParamsInner {
+    pub tool_group_instance_id: String,
+    // pub return_on_success: ReturnAddress
+}
+pub type StartUserCredentialBrokeringParams = WithToolGroupDeploymentTypeId<
+    WithCredentialDeploymentTypeId<StartUserCredentialBrokeringParamsInner>,
+>;
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum UserCredentialBrokeringResponse {
+    BrokerState(BrokerState),
+    UserCredential(UserCredentialSerialized),
+    Redirect(String),
+}
+
+/// Start user credential brokering process
+#[authz_role(Admin, permission = "credential:write")]
+#[authn]
+pub async fn start_user_credential_brokering(
+    _on_config_change_tx: &OnConfigChangeTx,
+    _repo: &impl crate::repository::ProviderRepositoryLike,
+    _params: StartUserCredentialBrokeringParams,
+) -> Result<UserCredentialBrokeringResponse, CommonError> {
+    // TODO: Refactor to fetch tool group and credential sources from repository
+    Err(CommonError::Unknown(anyhow::anyhow!(
+        "User credential brokering is temporarily unavailable. \
+        Tool group sources need to be registered via API before credential brokering can be started."
+    )))
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct ResumeUserCredentialBrokeringParams {
+    pub broker_state_id: String,
+    pub input: BrokerInput,
+}
+
+pub async fn resume_user_credential_brokering<R>(
+    _on_config_change_tx: &OnConfigChangeTx,
+    repo: &R,
+    _crypto_cache: &encryption::logic::crypto_services::CryptoCache,
+    params: ResumeUserCredentialBrokeringParams,
+) -> Result<UserCredentialBrokeringResponse, CommonError>
+where
+    R: crate::repository::ProviderRepositoryLike,
+{
+    // Fetch broker state from database
+    let _broker_state = repo
+        .get_broker_state_by_id(&params.broker_state_id)
+        .await?
+        .ok_or(CommonError::Unknown(anyhow::anyhow!(
+            "Broker state not found"
+        )))?;
+
+    // TODO: Refactor to fetch tool group and credential sources from repository
+    Err(CommonError::Unknown(anyhow::anyhow!(
+        "Resuming user credential brokering is temporarily unavailable. \
+        Tool group sources need to be registered via API before credential brokering can be resumed."
+    )))
+}
+
+// ============================================================================
+// Credential Rotation Background Task
+// ============================================================================
+
+/// Background task that periodically rotates credentials.
+/// This function runs indefinitely until aborted by the process manager.
+pub async fn credential_rotation_task<R>(
+    repo: R,
+    crypto_cache: encryption::logic::crypto_services::CryptoCache,
+    on_config_change_tx: OnConfigChangeTx,
+) where
+    R: ProviderRepositoryLike,
+{
+    use tokio::time::{Duration, interval};
+
+    let mut timer = interval(Duration::from_secs(10 * 60)); // 10 minutes
+
+    loop {
+        timer.tick().await;
+        trace!("Starting credential rotation check");
+
+        if let Err(e) =
+            process_credential_rotations_with_window(&repo, &on_config_change_tx, &crypto_cache, 20)
+                .await
+        {
+            tracing::error!(error = ?e, "Credential rotation failed");
+        }
+
+        trace!("Credential rotation check complete");
+    }
+}
+
+pub async fn process_credential_rotations_with_window<R>(
+    repo: &R,
+    on_config_change_tx: &OnConfigChangeTx,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
+    window_minutes: i64,
+) -> Result<(), CommonError>
+where
+    R: ProviderRepositoryLike,
+{
+    // Calculate rotation window
+    let now = WrappedChronoDateTime::now();
+    let rotation_window_end: WrappedChronoDateTime = WrappedChronoDateTime::new(
+        now.get_inner()
+            .checked_add_signed(chrono::Duration::minutes(window_minutes))
+            .ok_or_else(|| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to calculate rotation window"))
+            })?,
+    );
+    let mut next_page_token: Option<String> = None;
+
+    loop {
+        let tool_group_instances = repo
+            .list_tool_group_instances_with_credentials(
+                &PaginationRequest {
+                    page_size: 1000,
+                    next_page_token,
+                },
+                None,
+                Some(&rotation_window_end),
+            )
+            .await?;
+        trace!(
+            count = tool_group_instances.items.len(),
+            "Fetched provider instances for rotation check"
+        );
+        next_page_token = tool_group_instances.next_page_token.clone();
+
+        let refresh_fut = tool_group_instances
+            .items
+            .iter()
+            .map(async |pi| {
+                trace!(tool_group_instance_id = %pi.tool_group_instance.id, "Processing credential rotation");
+                process_credential_rotation(
+                    repo,
+                    on_config_change_tx,
+                    crypto_cache,
+                    pi,
+                    &rotation_window_end,
+                    true,
+                )
+                .await
+            })
+            .collect::<Vec<_>>();
+
+        futures::future::try_join_all(refresh_fut).await?;
+
+        if next_page_token.is_none() {
+            break;
+        }
+    }
+    Ok(())
+}
+
+pub async fn process_credential_rotation<R>(
+    repo: &R,
+    on_config_change_tx: &OnConfigChangeTx,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
+    pi: &ToolGroupInstanceSerializedWithCredentials,
+    rotation_window_end: &WrappedChronoDateTime,
+    publish_update: bool,
+) -> Result<(), CommonError>
+where
+    R: ProviderRepositoryLike,
+{
+    let mut resource_server_rotated = false;
+    let mut user_cred_rotated = false;
+
+    // Rotate resource server credential if needed
+    let resource_server_cred_rotation_result =
+        match pi.resource_server_credential.next_rotation_time {
+            Some(next_rotation_time) => {
+                if next_rotation_time.get_inner() <= rotation_window_end.get_inner() {
+                    resource_server_rotated = true;
+                    rotate_resource_server_credential(
+                        repo,
+                        crypto_cache,
+                        &pi.tool_group_instance,
+                        &pi.resource_server_credential,
+                    )
+                    .await?
+                } else {
+                    pi.resource_server_credential.clone()
+                }
+            }
+            None => pi.resource_server_credential.clone(),
+        };
+
+    // Rotate user credential if needed
+    let user_cred_rotation_result = match &pi.user_credential {
+        Some(user_cred) => match user_cred.next_rotation_time {
+            Some(next_rotation_time) => {
+                if next_rotation_time.get_inner() <= rotation_window_end.get_inner() {
+                    user_cred_rotated = true;
+                    Some(
+                        rotate_user_credential(
+                            repo,
+                            crypto_cache,
+                            &pi.tool_group_instance,
+                            &resource_server_cred_rotation_result,
+                            user_cred,
+                        )
+                        .await?,
+                    )
+                } else {
+                    Some(user_cred.clone())
+                }
+            }
+            None => Some(user_cred.clone()),
+        },
+        None => None,
+    };
+
+    // Only send update event if something was actually rotated
+    if publish_update && (resource_server_rotated || user_cred_rotated) {
+        on_config_change_tx
+            .send(OnConfigChangeEvt::ToolGroupInstanceUpdated(
+                ToolGroupInstanceSerializedWithCredentials {
+                    tool_group_instance: pi.tool_group_instance.clone(),
+                    resource_server_credential: resource_server_cred_rotation_result,
+                    user_credential: user_cred_rotation_result,
+                },
+            ))
+            .map_err(|e| {
+                CommonError::Unknown(anyhow::anyhow!("Failed to send config change event: {e}"))
+            })?;
+    }
+
+    Ok::<(), CommonError>(())
+}
+
+async fn rotate_resource_server_credential<R>(
+    _repo: &R,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
+    _tool_group_instance: &ToolGroupInstanceSerialized,
+    resource_server_cred: &ResourceServerCredentialSerialized,
+) -> Result<ResourceServerCredentialSerialized, CommonError>
+where
+    R: ProviderRepositoryLike,
+{
+    // Get encryption/decryption services from the cache using the DEK alias
+    let _encryption_service = crypto_cache
+        .get_encryption_service(&resource_server_cred.dek_alias)
+        .await?;
+    let _decryption_service = crypto_cache
+        .get_decryption_service(&resource_server_cred.dek_alias)
+        .await?;
+
+    // TODO: Refactor to fetch tool group and credential sources from repository
+    Err(CommonError::Unknown(anyhow::anyhow!(
+        "Resource server credential rotation is temporarily unavailable. \
+        Tool group sources need to be registered via API before credential rotation can be performed."
+    )))
+}
+
+async fn rotate_user_credential<R>(
+    repo: &R,
+    crypto_cache: &encryption::logic::crypto_services::CryptoCache,
+    tool_group_instance: &ToolGroupInstanceSerialized,
+    resource_server_cred: &ResourceServerCredentialSerialized,
+    user_cred: &UserCredentialSerialized,
+) -> Result<UserCredentialSerialized, CommonError>
+where
+    R: ProviderRepositoryLike,
+{
+    // Get encryption/decryption services from the cache - user and resource credentials may use different DEKs
+    let encryption_service = crypto_cache
+        .get_encryption_service(&user_cred.dek_alias)
+        .await?;
+    let decryption_service = crypto_cache
+        .get_decryption_service(&user_cred.dek_alias)
+        .await?;
+
+    // TODO: Refactor to fetch tool group and credential sources from repository
+    Err(CommonError::Unknown(anyhow::anyhow!(
+        "User credential rotation is temporarily unavailable. \
+        Tool group sources need to be registered via API before credential rotation can be performed."
+    )))
+}
+
+#[cfg(test)]
+mod tests {
+    mod unit {
+        use super::super::*;
+        use crate::logic::credential::oauth::{
+            Oauth2AuthorizationCodeFlowResourceServerCredential,
+            Oauth2AuthorizationCodeFlowStaticCredentialConfiguration,
+            Oauth2AuthorizationCodeFlowUserCredential, OauthAuthFlowSource,
+        };
+
+        use shared::primitives::SqlMigrationLoader;
+
+        #[tokio::test]
+        async fn test_create_resource_server_credential() {
+            shared::setup_test!();
+
+            let _repo = {
+                let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                    crate::repository::Repository::load_sql_migrations(),
+                ])
+                .await
+                .unwrap();
+                crate::repository::Repository::new(conn)
+            };
+
+            // Use the test helper to set up encryption services
+            let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+            let encryption_service = setup
+                .crypto_cache
+                .get_encryption_service(&setup.dek_alias)
+                .await
+                .unwrap();
+
+            // Create encrypted resource server configuration
+            let source = OauthAuthFlowSource {
+                static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+                    auth_uri: "https://example.com/auth".to_string(),
+                    token_uri: "https://example.com/token".to_string(),
+                    userinfo_uri: "https://example.com/userinfo".to_string(),
+                    jwks_uri: "https://example.com/jwks".to_string(),
+                    issuer: "https://example.com".to_string(),
+                    scopes: vec!["scope1".to_string()],
+                    metadata: Metadata::new(),
+                },
+            };
+
+            let raw_config = WrappedJsonValue::new(serde_json::json!({
+                "client_id": "test-client-id",
+                "client_secret": "plain-text-secret",
+                "redirect_uri": "https://example.com/callback",
+                "metadata": {"key": "value"}
+            }));
+
+            let encrypted_cred = controller
+                .encrypt_resource_server_configuration(&encryption_service, raw_config)
+                .await
+                .unwrap();
+
+            // Note: We cannot test create_resource_server_credential directly without registering
+            // a provider in the provider registry. Instead, test that the encryption works correctly.
+            let config = encrypted_cred.value();
+            let deserialized: Oauth2AuthorizationCodeFlowResourceServerCredential =
+                serde_json::from_value(config.into()).unwrap();
+
+            // Verify the client_id is preserved
+            assert_eq!(deserialized.client_id, "test-client-id");
+
+            // Verify the client_secret is encrypted
+            assert_ne!(deserialized.client_secret.0, "plain-text-secret");
+
+            // Verify it's base64 encoded
+            assert!(
+                base64::Engine::decode(
+                    &base64::engine::general_purpose::STANDARD,
+                    &deserialized.client_secret.0
+                )
+                .is_ok()
+            );
+        }
+
+        #[tokio::test]
+        async fn test_create_user_credential() {
+            shared::setup_test!();
+
+            let _repo = {
+                let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                    crate::repository::Repository::load_sql_migrations(),
+                ])
+                .await
+                .unwrap();
+                crate::repository::Repository::new(conn)
+            };
+
+            // Use the test helper to set up encryption services
+            let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+            let encryption_service = setup
+                .crypto_cache
+                .get_encryption_service(&setup.dek_alias)
+                .await
+                .unwrap();
+
+            let source = OauthAuthFlowSource {
+                static_credentials: Oauth2AuthorizationCodeFlowStaticCredentialConfiguration {
+                    auth_uri: "https://example.com/auth".to_string(),
+                    token_uri: "https://example.com/token".to_string(),
+                    userinfo_uri: "https://example.com/userinfo".to_string(),
+                    jwks_uri: "https://example.com/jwks".to_string(),
+                    issuer: "https://example.com".to_string(),
+                    scopes: vec!["scope1".to_string()],
+                    metadata: Metadata::new(),
+                },
+            };
+
+            let expiry = WrappedChronoDateTime::new(
+                WrappedChronoDateTime::now()
+                    .get_inner()
+                    .checked_add_signed(chrono::Duration::hours(1))
+                    .unwrap(),
+            );
+
+            let raw_config = WrappedJsonValue::new(serde_json::json!({
+                "code": "plain-code",
+                "access_token": "plain-access-token",
+                "refresh_token": "plain-refresh-token",
+                "expiry_time": expiry,
+                "sub": "test-user",
+                "scopes": ["scope1", "scope2"],
+                "metadata": {"key": "value"}
+            }));
+
+            let encrypted_cred = controller
+                .encrypt_user_credential_configuration(&encryption_service, raw_config)
+                .await
+                .unwrap();
+
+            // Note: We cannot test create_user_credential directly without registering
+            // a provider in the provider registry. Instead, test that the encryption and
+            // rotation time calculation work correctly.
+            let config = encrypted_cred.value();
+            let deserialized: Oauth2AuthorizationCodeFlowUserCredential =
+                serde_json::from_value(config.into()).unwrap();
+
+            // Verify non-sensitive fields are preserved
+            assert_eq!(deserialized.sub, "test-user");
+            assert_eq!(deserialized.scopes, vec!["scope1", "scope2"]);
+
+            // Verify all sensitive fields are encrypted
+            assert_ne!(deserialized.code.0, "plain-code");
+            assert_ne!(deserialized.access_token.0, "plain-access-token");
+            assert_ne!(deserialized.refresh_token.0, "plain-refresh-token");
+
+            // Test rotation time calculation
+            let next_rotation = deserialized.next_rotation_time();
+            let expected_rotation = WrappedChronoDateTime::new(
+                expiry
+                    .get_inner()
+                    .checked_sub_signed(chrono::Duration::minutes(5))
+                    .unwrap(),
+            );
+            assert_eq!(next_rotation.get_inner(), expected_rotation.get_inner());
+        }
+
+        #[tokio::test]
+        async fn test_process_credential_rotations_no_credentials() {
+            shared::setup_test!();
+
+            let repo = {
+                let (_db, conn) = shared::test_utils::repository::setup_in_memory_database(vec![
+                    crate::repository::Repository::load_sql_migrations(),
+                ])
+                .await
+                .unwrap();
+                crate::repository::Repository::new(conn)
+            };
+            let (tx, _rx): (crate::logic::OnConfigChangeTx, _) =
+                tokio::sync::broadcast::channel(100);
+
+            // Use the test helper to set up encryption services
+            let setup = crate::test::encryption_service::setup_test_encryption("test-dek").await;
+
+            // Test with no provider instances
+            let result =
+                process_credential_rotations_with_window(&repo, &tx, &setup.crypto_cache, 20).await;
+
+            // Should succeed even with no credentials
+            assert!(result.is_ok());
+        }
+
+        #[tokio::test]
+        async fn test_broker_state_serialization() {
+            shared::setup_test!();
+
+            let broker_state = BrokerState {
+                id: "test-id".to_string(),
+                created_at: WrappedChronoDateTime::now(),
+                updated_at: WrappedChronoDateTime::now(),
+                tool_group_instance_id: "test-instance".to_string(),
+                tool_group_deployment_type_id: "google_mail".to_string(),
+                credential_deployment_type_id: "oauth_auth_flow".to_string(),
+                metadata: Metadata::new(),
+                action: BrokerAction::Redirect(BrokerActionRedirect {
+                    url: "https://example.com/auth".to_string(),
+                }),
+            };
+
+            // Test serialization
+            let json = serde_json::to_string(&broker_state).unwrap();
+            let deserialized: BrokerState = serde_json::from_str(&json).unwrap();
+
+            assert_eq!(broker_state.id, deserialized.id);
+            assert_eq!(
+                broker_state.tool_group_instance_id,
+                deserialized.tool_group_instance_id
+            );
+        }
+
+        #[tokio::test]
+        async fn test_credential_rotation_time_calculation() {
+            shared::setup_test!();
+
+            let now = WrappedChronoDateTime::now();
+
+            // Test rotation window calculation
+            let rotation_window_end = WrappedChronoDateTime::new(
+                now.get_inner()
+                    .checked_add_signed(chrono::Duration::minutes(20))
+                    .unwrap(),
+            );
+
+            // Verify that credentials expiring soon would be caught
+            let expiry_in_10_minutes = WrappedChronoDateTime::new(
+                now.get_inner()
+                    .checked_add_signed(chrono::Duration::minutes(10))
+                    .unwrap(),
+            );
+
+            let rotation_time = WrappedChronoDateTime::new(
+                expiry_in_10_minutes
+                    .get_inner()
+                    .checked_sub_signed(chrono::Duration::minutes(5))
+                    .unwrap(),
+            );
+
+            // This credential should be rotated (rotation time is within window)
+            assert!(rotation_time.get_inner() <= rotation_window_end.get_inner());
+
+            // Test credential that doesn't need rotation yet
+            let expiry_in_2_hours = WrappedChronoDateTime::new(
+                now.get_inner()
+                    .checked_add_signed(chrono::Duration::hours(2))
+                    .unwrap(),
+            );
+
+            let rotation_time_later = WrappedChronoDateTime::new(
+                expiry_in_2_hours
+                    .get_inner()
+                    .checked_sub_signed(chrono::Duration::minutes(5))
+                    .unwrap(),
+            );
+
+            // This credential should NOT be rotated yet
+            assert!(rotation_time_later.get_inner() > rotation_window_end.get_inner());
+        }
+    }
+}

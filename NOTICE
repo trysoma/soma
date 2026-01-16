@@ -19,23 +19,6 @@ their inclusion in this project. All trademarks are the property of their
 respective owners.
 
 -------------------------------------------------------------------------------
-BUNDLED SOFTWARE: RESTATE SERVER
--------------------------------------------------------------------------------
-
-This project bundles the Restate Server binary, developed and maintained by
-Restate, Inc. (https://restate.dev). If the user has Restate installed on
-their system, that system installation will be used. If Restate is not
-available, the bundled Restate Server binary included with this distribution
-will be used instead.
-
-The Restate Server binary is distributed under its own license terms.
-A complete copy of the Restate license is included in the
-`THIRD_PARTY_LICENSES/` directory.
-
-All copyrights to the Restate software remain with their respective owners.
-No affiliation or endorsement by Restate, Inc. is implied.
-
--------------------------------------------------------------------------------
 MODIFICATIONS
 -------------------------------------------------------------------------------
 

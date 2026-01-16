@@ -5,7 +5,7 @@ use shared::{
     soma_agent_definition::{EnvelopeKeyConfig, SomaAgentDefinitionLike},
 };
 use soma_api_client::{
-    apis::{configuration::Configuration, encryption_api, environment_api, identity_api, mcp_api},
+    apis::{configuration::Configuration, encryption_api, environment_api, identity_api, tool_api},
     models,
 };
 use tracing::debug;
@@ -131,19 +131,19 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
     }
 
     // 2. Sync provider instances
-    if let Some(mcp_config) = &soma_definition.mcp {
-        if let Some(providers) = &mcp_config.providers {
+    if let Some(tool_config) = &soma_definition.tool_configuration {
+        if let Some(providers) = &tool_config.tool_groups {
             // Get all existing provider instances with credentials
-            let existing_providers: HashMap<String, models::ProviderInstanceListItem> = {
+            let existing_tool_groups: HashMap<String, models::ToolGroupInstanceListItem> = {
                 let mut instances = HashMap::new();
                 let mut next_page_token: Option<String> = None;
                 loop {
-                    let response = mcp_api::list_provider_instances(
+                    let response = tool_api::list_tool_group_instances(
                         api_config,
                         100,
                         next_page_token.as_deref(),
                         None, // status filter
-                        None, // provider_controller_type_id filter
+                        None, // tool_group_deployment_type_id filter
                     )
                     .await
                     .map_err(|e| {
@@ -163,65 +163,65 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                 instances
             };
 
-            let yaml_provider_ids: HashSet<String> = providers.keys().cloned().collect();
+            let yaml_tool_group_ids: HashSet<String> = providers.keys().cloned().collect();
 
             // Process each provider from yaml
-            for (provider_id, provider_config) in providers {
-                let provider_controller_type_id = &provider_config.provider_controller_type_id;
-                let credential_controller_type_id = &provider_config.credential_controller_type_id;
+            for (tool_group_id, tool_group_config) in providers {
+                let tool_group_deployment_type_id = &tool_group_config.tool_group_deployment_type_id;
+                let credential_deployment_type_id = &tool_group_config.credential_deployment_type_id;
 
                 tracing::debug!(
                     "Syncing provider '{}' with controller type_id: '{}', credential type_id: '{}'",
-                    provider_id,
-                    provider_controller_type_id,
-                    credential_controller_type_id
+                    tool_group_id,
+                    tool_group_deployment_type_id,
+                    credential_deployment_type_id
                 );
 
                 // Check if provider exists and if it needs updating
-                let needs_recreate = if let Some(existing) = existing_providers.get(provider_id) {
-                    existing.provider_controller_type_id != *provider_controller_type_id
-                        || existing.credential_controller_type_id != *credential_controller_type_id
-                        || existing.display_name != provider_config.display_name
+                let needs_recreate = if let Some(existing) = existing_tool_groups.get(tool_group_id) {
+                    existing.tool_group_deployment_type_id != *tool_group_deployment_type_id
+                        || existing.credential_deployment_type_id != *credential_deployment_type_id
+                        || existing.display_name != tool_group_config.display_name
                 } else {
                     true
                 };
 
                 if needs_recreate {
                     // Delete existing provider if it exists
-                    if existing_providers.contains_key(provider_id) {
+                    if existing_tool_groups.contains_key(tool_group_id) {
                         tracing::debug!(
                             "Provider '{}' configuration changed, recreating",
-                            provider_id
+                            tool_group_id
                         );
-                        mcp_api::delete_provider_instance(api_config, provider_id)
+                        tool_api::delete_tool_group_instance(api_config, tool_group_id)
                             .await
                             .map_err(|e| {
                                 CommonError::Unknown(anyhow::anyhow!(
-                                    "Failed to delete provider instance '{provider_id}': {e:?}"
+                                    "Failed to delete provider instance '{tool_group_id}': {e:?}"
                                 ))
                             })?;
                     } else {
-                        tracing::debug!("Creating new provider '{}'", provider_id);
+                        tracing::debug!("Creating new provider '{}'", tool_group_id);
                     }
 
                     // Create resource server credential
                     let resource_server_credential_params =
                         models::CreateResourceServerCredentialParamsInner {
-                            dek_alias: provider_config.resource_server_credential.dek_alias.clone(),
+                            dek_alias: tool_group_config.resource_server_credential.dek_alias.clone(),
                             resource_server_configuration: Some(
-                                provider_config.resource_server_credential.value.clone(),
+                                tool_group_config.resource_server_credential.value.clone(),
                             ),
-                            metadata: provider_config
+                            metadata: tool_group_config
                                 .resource_server_credential
                                 .metadata
                                 .as_object()
                                 .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
                         };
 
-                    let resource_server_credential = mcp_api::create_resource_server_credential(
+                    let resource_server_credential = tool_api::create_resource_server_credential(
                         api_config,
-                        provider_controller_type_id,
-                        credential_controller_type_id,
+                        tool_group_deployment_type_id,
+                        credential_deployment_type_id,
                         resource_server_credential_params,
                     )
                     .await
@@ -233,7 +233,7 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
 
                     // Create user credential if provided
                     let user_credential_id =
-                        if let Some(user_cred_config) = &provider_config.user_credential {
+                        if let Some(user_cred_config) = &tool_group_config.user_credential {
                             let user_credential_params = models::CreateUserCredentialParamsInner {
                                 dek_alias: user_cred_config.dek_alias.clone(),
                                 user_credential_configuration: Some(user_cred_config.value.clone()),
@@ -242,10 +242,10 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                                 }),
                             };
 
-                            let user_credential = mcp_api::create_user_credential(
+                            let user_credential = tool_api::create_user_credential(
                                 api_config,
-                                provider_controller_type_id,
-                                credential_controller_type_id,
+                                tool_group_deployment_type_id,
+                                credential_deployment_type_id,
                                 user_credential_params,
                             )
                             .await
@@ -261,40 +261,40 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                         };
 
                     // Create provider instance
-                    let create_provider_params = models::CreateProviderInstanceParamsInner {
-                        provider_instance_id: Some(Some(provider_id.clone())),
-                        display_name: provider_config.display_name.clone(),
+                    let create_provider_params = models::CreateToolGroupInstanceParamsInner {
+                        tool_group_instance_id: Some(Some(tool_group_id.clone())),
+                        display_name: tool_group_config.display_name.clone(),
                         resource_server_credential_id: resource_server_credential.id,
                         user_credential_id,
                         return_on_successful_brokering: None,
                     };
 
-                    mcp_api::create_provider_instance(
+                    tool_api::create_tool_group_instance(
                         api_config,
-                        provider_controller_type_id,
-                        credential_controller_type_id,
+                        tool_group_deployment_type_id,
+                        credential_deployment_type_id,
                         create_provider_params,
                     )
                     .await
                     .map_err(|e| {
                         CommonError::Unknown(anyhow::anyhow!(
-                            "Failed to create provider instance '{provider_id}': {e:?}"
+                            "Failed to create provider instance '{tool_group_id}': {e:?}"
                         ))
                     })?;
                 } else {
-                    tracing::trace!("Provider '{}' unchanged, preserving", provider_id);
+                    tracing::trace!("Provider '{}' unchanged, preserving", tool_group_id);
                 }
 
                 // Sync function instances for this provider
-                let existing_functions = {
+                let existing_tools = {
                     let mut instances = HashSet::new();
                     let mut next_page_token: Option<String> = None;
                     loop {
-                        let response = mcp_api::list_function_instances(
+                        let response = tool_api::list_tool_instances(
                             api_config,
                             100,
                             next_page_token.as_deref(),
-                            Some(provider_id.as_str()),
+                            Some(tool_group_id.as_str()),
                         )
                         .await
                         .map_err(|e| {
@@ -304,7 +304,7 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                         })?;
 
                         for item in response.items {
-                            instances.insert(item.function_controller_type_id);
+                            instances.insert(item.tool_deployment_type_id);
                         }
                         if response.next_page_token.is_none() {
                             break;
@@ -314,16 +314,16 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                     instances
                 };
 
-                let yaml_functions: HashSet<String> = provider_config
-                    .functions
+                let yaml_tools: HashSet<String> = tool_group_config
+                    .tools
                     .as_ref()
                     .map(|f| f.iter().cloned().collect())
                     .unwrap_or_default();
 
                 // Disable functions not in yaml
-                for function_id in existing_functions.iter() {
-                    if !yaml_functions.contains(function_id) {
-                        mcp_api::disable_function(api_config, provider_id, function_id)
+                for function_id in existing_tools.iter() {
+                    if !yaml_tools.contains(function_id) {
+                        tool_api::disable_tool(api_config, tool_group_id, function_id)
                             .await
                             .map_err(|e| {
                                 CommonError::Unknown(anyhow::anyhow!(
@@ -334,11 +334,11 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                 }
 
                 // Enable functions from yaml
-                for function_id in yaml_functions.iter() {
-                    if !existing_functions.contains(function_id) {
-                        mcp_api::enable_function(
+                for function_id in yaml_tools.iter() {
+                    if !existing_tools.contains(function_id) {
+                        tool_api::enable_tool(
                             api_config,
-                            provider_id,
+                            tool_group_id,
                             function_id,
                             serde_json::json!({}),
                         )
@@ -353,17 +353,17 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
             }
 
             // Delete provider instances not in yaml (only if status is "active")
-            for (provider_id, existing) in existing_providers.iter() {
-                if !yaml_provider_ids.contains(provider_id) && existing.status == "active" {
+            for (tool_group_id, existing) in existing_tool_groups.iter() {
+                if !yaml_tool_group_ids.contains(tool_group_id) && existing.status == "active" {
                     tracing::debug!(
                         "Deleting provider '{}' not in yaml (status: active)",
-                        provider_id
+                        tool_group_id
                     );
-                    mcp_api::delete_provider_instance(api_config, provider_id)
+                    tool_api::delete_tool_group_instance(api_config, tool_group_id)
                         .await
                         .map_err(|e| {
                             CommonError::Unknown(anyhow::anyhow!(
-                                "Failed to delete provider instance '{provider_id}': {e:?}"
+                                "Failed to delete provider instance '{tool_group_id}': {e:?}"
                             ))
                         })?;
                 }
@@ -488,8 +488,8 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
     }
 
     // 5. Sync MCP server instances
-    if let Some(mcp_config) = &soma_definition.mcp {
-        if let Some(mcp_servers) = &mcp_config.mcp_servers {
+    if let Some(tool_config) = &soma_definition.tool_configuration {
+        if let Some(mcp_servers) = &tool_config.mcp_servers {
             use std::collections::HashSet;
 
             // Get existing MCP server instances
@@ -500,7 +500,7 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                 let mut servers = HashMap::new();
                 let mut next_page_token: Option<String> = None;
                 loop {
-                    let response = mcp_api::list_mcp_server_instances(
+                    let response = tool_api::list_mcp_server_instances(
                         api_config,
                         100,
                         next_page_token.as_deref(),
@@ -539,7 +539,7 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                         id: mcp_server_id.clone(),
                         name: mcp_server_config.name.clone(),
                     };
-                    mcp_api::create_mcp_server_instance(api_config, create_req)
+                    tool_api::create_mcp_server_instance(api_config, create_req)
                         .await
                         .map_err(|e| {
                             CommonError::Unknown(anyhow::anyhow!(
@@ -552,7 +552,7 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                     let update_req = models::UpdateMcpServerInstanceRequest {
                         name: mcp_server_config.name.clone(),
                     };
-                    mcp_api::update_mcp_server_instance(api_config, mcp_server_id, update_req)
+                    tool_api::update_mcp_server_instance(api_config, mcp_server_id, update_req)
                         .await
                         .map_err(|e| {
                             CommonError::Unknown(anyhow::anyhow!(
@@ -563,23 +563,23 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                 }
 
                 // Sync functions for this MCP server
-                let existing_functions: HashSet<(String, String, String)> = existing_mcp_servers
+                let existing_tools: HashSet<(String, String, String)> = existing_mcp_servers
                     .get(mcp_server_id)
                     .map(|s| {
-                        s.functions
+                        s.tools
                             .iter()
                             .map(|f| {
                                 (
-                                    f.function_controller_type_id.clone(),
-                                    f.provider_controller_type_id.clone(),
-                                    f.provider_instance_id.clone(),
+                                    f.tool_deployment_type_id.clone(),
+                                    f.tool_group_deployment_type_id.clone(),
+                                    f.tool_group_instance_id.clone(),
                                 )
                             })
                             .collect()
                     })
                     .unwrap_or_default();
 
-                let yaml_functions: HashSet<(String, String, String)> = mcp_server_config
+                let yaml_tools: HashSet<(String, String, String)> = mcp_server_config
                     .functions
                     .as_ref()
                     .map(|funcs| {
@@ -587,9 +587,9 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                             .iter()
                             .map(|f| {
                                 (
-                                    f.function_controller_type_id.clone(),
-                                    f.provider_controller_type_id.clone(),
-                                    f.provider_instance_id.clone(),
+                                    f.tool_deployment_type_id.clone(),
+                                    f.tool_group_deployment_type_id.clone(),
+                                    f.tool_group_id.clone(),
                                 )
                             })
                             .collect()
@@ -597,13 +597,13 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                     .unwrap_or_default();
 
                 // Remove functions not in yaml
-                for (func_ctrl_id, prov_ctrl_id, prov_inst_id) in existing_functions.iter() {
-                    if !yaml_functions.contains(&(
+                for (func_ctrl_id, prov_ctrl_id, prov_inst_id) in existing_tools.iter() {
+                    if !yaml_tools.contains(&(
                         func_ctrl_id.clone(),
                         prov_ctrl_id.clone(),
                         prov_inst_id.clone(),
                     )) {
-                        mcp_api::remove_mcp_server_instance_function(
+                        tool_api::remove_mcp_server_instance_function(
                             api_config,
                             mcp_server_id,
                             func_ctrl_id,
@@ -627,28 +627,28 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                 if let Some(yaml_funcs) = &mcp_server_config.functions {
                     for func_config in yaml_funcs {
                         let func_key = (
-                            func_config.function_controller_type_id.clone(),
-                            func_config.provider_controller_type_id.clone(),
-                            func_config.provider_instance_id.clone(),
+                            func_config.tool_deployment_type_id.clone(),
+                            func_config.tool_group_deployment_type_id.clone(),
+                            func_config.tool_group_id.clone(),
                         );
 
-                        if !existing_functions.contains(&func_key) {
+                        if !existing_tools.contains(&func_key) {
                             // Add new function
                             let add_req = models::AddMcpServerInstanceFunctionRequest {
-                                function_controller_type_id: func_config
-                                    .function_controller_type_id
+                                tool_deployment_type_id: func_config
+                                    .tool_deployment_type_id
                                     .clone(),
-                                provider_controller_type_id: func_config
-                                    .provider_controller_type_id
+                                tool_group_deployment_type_id: func_config
+                                    .tool_group_deployment_type_id
                                     .clone(),
-                                provider_instance_id: func_config.provider_instance_id.clone(),
-                                function_name: func_config.function_name.clone(),
-                                function_description: func_config
+                                tool_group_instance_id: func_config.tool_group_id.clone(),
+                                tool_name: func_config.function_name.clone(),
+                                tool_description: func_config
                                     .function_description
                                     .clone()
                                     .map(Some),
                             };
-                            mcp_api::add_mcp_server_instance_function(
+                            tool_api::add_mcp_server_instance_function(
                                 api_config,
                                 mcp_server_id,
                                 add_req,
@@ -668,36 +668,36 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
                             // Check if function needs update (name or description changed)
                             let existing_func =
                                 existing_mcp_servers.get(mcp_server_id).and_then(|s| {
-                                    s.functions.iter().find(|f| {
-                                        f.function_controller_type_id
-                                            == func_config.function_controller_type_id
-                                            && f.provider_controller_type_id
-                                                == func_config.provider_controller_type_id
-                                            && f.provider_instance_id
-                                                == func_config.provider_instance_id
+                                    s.tools.iter().find(|f| {
+                                        f.tool_deployment_type_id
+                                            == func_config.tool_deployment_type_id
+                                            && f.tool_group_deployment_type_id
+                                                == func_config.tool_group_deployment_type_id
+                                            && f.tool_group_instance_id
+                                                == func_config.tool_group_id
                                     })
                                 });
 
                             if let Some(existing) = existing_func {
                                 // Flatten the doubly-wrapped Option for comparison
-                                let existing_desc = existing.function_description.clone().flatten();
-                                if existing.function_name != func_config.function_name
+                                let existing_desc = existing.tool_description.clone().flatten();
+                                if existing.tool_name != func_config.function_name
                                     || existing_desc != func_config.function_description
                                 {
                                     let update_req =
                                         models::UpdateMcpServerInstanceFunctionRequest {
-                                            function_name: func_config.function_name.clone(),
-                                            function_description: func_config
+                                            tool_name: func_config.function_name.clone(),
+                                            tool_description: func_config
                                                 .function_description
                                                 .clone()
                                                 .map(Some),
                                         };
-                                    mcp_api::update_mcp_server_instance_function(
+                                    tool_api::update_mcp_server_instance_function(
                                         api_config,
                                         mcp_server_id,
-                                        &func_config.function_controller_type_id,
-                                        &func_config.provider_controller_type_id,
-                                        &func_config.provider_instance_id,
+                                        &func_config.tool_deployment_type_id,
+                                        &func_config.tool_group_deployment_type_id,
+                                        &func_config.tool_group_id,
                                         update_req,
                                     )
                                     .await
@@ -721,7 +721,7 @@ pub async fn sync_mcp_db_from_soma_definition_on_start(
             // Delete MCP servers not in yaml
             for mcp_server_id in existing_mcp_servers.keys() {
                 if !yaml_mcp_server_ids.contains(mcp_server_id) {
-                    mcp_api::delete_mcp_server_instance(api_config, mcp_server_id)
+                    tool_api::delete_mcp_server_instance(api_config, mcp_server_id)
                         .await
                         .map_err(|e| {
                             CommonError::Unknown(anyhow::anyhow!(

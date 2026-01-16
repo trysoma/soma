@@ -32,6 +32,7 @@ fn main() {
             "-o",
             output_dir.to_str().unwrap(),
             "--additional-properties=packageName=soma-api-client,packageVersion=0.0.1,avoidBoxedModels=true,bestFitInt=true,topLevelApiClient=true,useSerdePathToError=true",
+            "--type-mappings=UUID=String",
         ])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())

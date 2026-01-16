@@ -4,7 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-a2a-rs.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 axum.workspace = true
@@ -42,12 +41,8 @@ tracing-subscriber.workspace = true
 url.workspace = true
 utoipa.workspace = true
 uuid.workspace = true
-restate-admin-rest-model.workspace = true
-restate-serde-util.workspace = true
-restate-types.workspace = true
 humantime.workspace = true
 urlencoding.workspace = true
-sdk-proto.workspace = true
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 pmdaemon.workspace = true
 

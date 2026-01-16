@@ -8,12 +8,10 @@ use crate::ApiService;
 use encryption::router::create_router as create_encryption_router;
 use environment::router::create_router as create_environment_router;
 use identity::router::create_router as create_identity_router;
-use mcp::router::create_router as create_mcp_router;
+use tool::router::create_router as create_mcp_router;
 use shared::error::CommonError;
 
-pub(crate) mod agent;
 pub(crate) mod internal;
-pub(crate) mod task;
 
 /// Middleware that stores the original URI in request extensions before nest_service strips the path.
 async fn store_original_uri(
@@ -27,16 +25,6 @@ async fn store_original_uri(
 
 pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonError> {
     let mut router = Router::new();
-
-    // agent router
-    let (agent_router, _) = agent::create_router().split_for_parts();
-    let agent_router = agent_router.with_state(api_service.agent_service);
-    router = router.merge(agent_router);
-
-    // task router
-    let (task_router, _) = task::create_router().split_for_parts();
-    let task_router = task_router.with_state(api_service.task_service);
-    router = router.merge(task_router);
 
     // mcp router
     let (mcp_router, _) = create_mcp_router().split_for_parts();
@@ -78,15 +66,11 @@ pub fn initiaite_api_router(api_service: ApiService) -> Result<Router, CommonErr
 
 pub fn generate_openapi_spec() -> OpenApiDoc {
     let mut spec = ApiDoc::openapi().clone();
-    let (_, agent_spec) = agent::create_router().split_for_parts();
-    let (_, task_spec) = task::create_router().split_for_parts();
     let (_, mcp_spec) = create_mcp_router().split_for_parts();
     let (_, internal_spec) = internal::create_router().split_for_parts();
     let (_, encryption_spec) = create_encryption_router().split_for_parts();
     let (_, environment_spec) = create_environment_router().split_for_parts();
     let (_, identity_spec) = create_identity_router().split_for_parts();
-    spec.merge(agent_spec);
-    spec.merge(task_spec);
     spec.merge(mcp_spec);
     spec.merge(internal_spec);
     spec.merge(encryption_spec);
@@ -105,14 +89,15 @@ pub fn generate_openapi_spec() -> OpenApiDoc {
         description = "An open source AI agent runtime",
         license(identifier = "Elastic License 2.0")
     ),
+    components(
+        schemas(shared::primitives::PaginationRequest)
+    ),
     tags(
-        (name = "task", description = "Task management endpoints for creating, listing, and managing tasks and their messages"),
         (name = "secret", description = "Secret management endpoints for storing and retrieving encrypted secrets"),
         (name = "variable", description = "Environment variable management endpoints for storing and retrieving variables"),
         (name = "encryption", description = "Encryption key management endpoints for envelope keys, data encryption keys, and aliases"),
         (name = "mcp", description = "MCP endpoints for managing providers, credentials, functions, and MCP protocol communication"),
-        (name = "_internal", description = "Internal endpoints for health checks, runtime configuration, and SDK code generation"),
-        (name = "agent", description = "Agent management and A2A (agent-to-agent) communication endpoints"),
+        (name = "_internal", description = "Internal endpoints for health checks, runtime configuration"),
         (name = "identity", description = "Identity management endpoints for JWKs (JSON Web Keys) and authentication"),
         (name = API_VERSION_TAG, description = "API version v1 endpoints")
     )

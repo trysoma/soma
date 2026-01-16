@@ -4,7 +4,7 @@ use std::sync::Arc;
 use encryption::logic::EncryptionKeyEvent;
 use encryption::logic::envelope::EnvelopeEncryptionKey;
 use identity::logic::OnConfigChangeEvt as IdentityOnConfigChangeEvt;
-use mcp::logic::OnConfigChangeEvt;
+use tool::logic::OnConfigChangeEvt;
 use serde_json::json;
 use tracing::{debug, trace, warn};
 
@@ -62,15 +62,14 @@ async fn handle_mcp_event(
     soma_definition: &Arc<dyn SomaAgentDefinitionLike>,
 ) -> Result<(), CommonError> {
     match event {
-        OnConfigChangeEvt::ProviderInstanceAdded(provider_instance) => {
+        OnConfigChangeEvt::ToolGroupInstanceAdded(tool_group_instance) => {
             debug!(
-                "Provider instance added: {:?}",
-                provider_instance.provider_instance.id
+                "Tool group instance added: {:?}",
+                tool_group_instance.tool_group_instance.id
             );
 
-            let user_credential = provider_instance.user_credential.as_ref().map(|uc| {
+            let user_credential = tool_group_instance.user_credential.as_ref().map(|uc| {
                 shared::soma_agent_definition::CredentialConfig {
-                    id: uc.id.to_string(),
                     type_id: uc.type_id.clone(),
                     metadata: json!(uc.metadata.0.clone()),
                     value: uc.value.get_inner().clone(),
@@ -80,61 +79,59 @@ async fn handle_mcp_event(
             });
 
             soma_definition
-                .add_provider(
-                    provider_instance.provider_instance.id.clone(),
-                    shared::soma_agent_definition::ProviderConfig {
-                        provider_controller_type_id: provider_instance
-                            .provider_instance
-                            .provider_controller_type_id
+                .add_tool_group(
+                    tool_group_instance.tool_group_instance.id.clone(),
+                    shared::soma_agent_definition::ToolGroupConfig {
+                        tool_group_deployment_type_id: tool_group_instance
+                            .tool_group_instance
+                            .tool_group_deployment_type_id
                             .clone(),
-                        credential_controller_type_id: provider_instance
-                            .provider_instance
-                            .credential_controller_type_id
+                        credential_deployment_type_id: tool_group_instance
+                            .tool_group_instance
+                            .credential_deployment_type_id
                             .clone(),
-                        display_name: provider_instance.provider_instance.display_name.clone(),
+                        display_name: tool_group_instance.tool_group_instance.display_name.clone(),
                         resource_server_credential:
                             shared::soma_agent_definition::CredentialConfig {
-                                id: provider_instance.resource_server_credential.id.to_string(),
-                                type_id: provider_instance
+                                type_id: tool_group_instance
                                     .resource_server_credential
                                     .type_id
                                     .clone(),
                                 metadata: json!(
-                                    provider_instance
+                                    tool_group_instance
                                         .resource_server_credential
                                         .metadata
                                         .0
                                         .clone()
                                 ),
-                                value: provider_instance
+                                value: tool_group_instance
                                     .resource_server_credential
                                     .value
                                     .get_inner()
                                     .clone(),
-                                next_rotation_time: provider_instance
+                                next_rotation_time: tool_group_instance
                                     .resource_server_credential
                                     .next_rotation_time
                                     .map(|t| t.to_string()),
-                                dek_alias: provider_instance
+                                dek_alias: tool_group_instance
                                     .resource_server_credential
                                     .dek_alias
                                     .clone(),
                             },
                         user_credential,
-                        functions: None,
+                        tools: None,
                     },
                 )
                 .await?;
         }
-        OnConfigChangeEvt::ProviderInstanceUpdated(provider_instance) => {
+        OnConfigChangeEvt::ToolGroupInstanceUpdated(tool_group_instance) => {
             debug!(
-                "Provider instance updated: {:?}",
-                provider_instance.provider_instance.id
+                "Tool group instance updated: {:?}",
+                tool_group_instance.tool_group_instance.id
             );
 
-            let user_credential = provider_instance.user_credential.as_ref().map(|uc| {
+            let user_credential = tool_group_instance.user_credential.as_ref().map(|uc| {
                 shared::soma_agent_definition::CredentialConfig {
-                    id: uc.id.to_string(),
                     type_id: uc.type_id.clone(),
                     metadata: json!(uc.metadata.0.clone()),
                     value: uc.value.get_inner().clone(),
@@ -144,88 +141,87 @@ async fn handle_mcp_event(
             });
 
             soma_definition
-                .update_provider(
-                    provider_instance.provider_instance.id.clone(),
-                    shared::soma_agent_definition::ProviderConfig {
-                        provider_controller_type_id: provider_instance
-                            .provider_instance
-                            .provider_controller_type_id
+                .update_tool_group(
+                    tool_group_instance.tool_group_instance.id.clone(),
+                    shared::soma_agent_definition::ToolGroupConfig {
+                        tool_group_deployment_type_id: tool_group_instance
+                            .tool_group_instance
+                            .tool_group_deployment_type_id
                             .clone(),
-                        credential_controller_type_id: provider_instance
-                            .provider_instance
-                            .credential_controller_type_id
+                        credential_deployment_type_id: tool_group_instance
+                            .tool_group_instance
+                            .credential_deployment_type_id
                             .clone(),
-                        display_name: provider_instance.provider_instance.display_name.clone(),
+                        display_name: tool_group_instance.tool_group_instance.display_name.clone(),
                         resource_server_credential:
                             shared::soma_agent_definition::CredentialConfig {
-                                id: provider_instance.resource_server_credential.id.to_string(),
-                                type_id: provider_instance
+                                type_id: tool_group_instance
                                     .resource_server_credential
                                     .type_id
                                     .clone(),
                                 metadata: json!(
-                                    provider_instance
+                                    tool_group_instance
                                         .resource_server_credential
                                         .metadata
                                         .0
                                         .clone()
                                 ),
-                                value: provider_instance
+                                value: tool_group_instance
                                     .resource_server_credential
                                     .value
                                     .get_inner()
                                     .clone(),
-                                next_rotation_time: provider_instance
+                                next_rotation_time: tool_group_instance
                                     .resource_server_credential
                                     .next_rotation_time
                                     .map(|t| t.to_string()),
-                                dek_alias: provider_instance
+                                dek_alias: tool_group_instance
                                     .resource_server_credential
                                     .dek_alias
                                     .clone(),
                             },
                         user_credential,
-                        functions: None,
+                        tools: None,
                     },
                 )
                 .await?;
         }
-        OnConfigChangeEvt::ProviderInstanceRemoved(provider_instance_id) => {
+        OnConfigChangeEvt::ToolGroupInstanceRemoved(tool_group_instance_id) => {
             soma_definition
-                .remove_provider(provider_instance_id)
+                .remove_tool_group(tool_group_instance_id)
                 .await?;
         }
-        OnConfigChangeEvt::FunctionInstanceAdded(function_instance_serialized) => {
+        OnConfigChangeEvt::ToolInstanceAdded(tool_instance_serialized) => {
             debug!(
-                "Function instance added: {:?}",
-                function_instance_serialized.function_controller_type_id
+                "Tool instance added: {:?}",
+                tool_instance_serialized.tool_deployment_type_id
             );
             soma_definition
-                .add_function_instance(
-                    function_instance_serialized
-                        .provider_controller_type_id
+                .add_tool_instance(
+                    tool_instance_serialized
+                        .tool_group_deployment_type_id
                         .clone(),
-                    function_instance_serialized
-                        .function_controller_type_id
+                    tool_instance_serialized
+                        .tool_deployment_type_id
                         .clone(),
-                    function_instance_serialized.provider_instance_id.clone(),
+                    tool_instance_serialized.tool_group_instance_id.clone(),
                 )
                 .await?;
         }
-        OnConfigChangeEvt::FunctionInstanceRemoved(
-            function_controller_type_id,
-            provider_controller_type_id,
-            provider_instance_id,
+        OnConfigChangeEvt::ToolInstanceRemoved(
+            tool_deployment_type_id,
+            tool_group_deployment_type_id,
+            tool_group_instance_id,
         ) => {
             debug!(
-                "Function instance removed: function_controller_type_id={:?}, provider_instance_id={:?}",
-                function_controller_type_id, provider_instance_id
+                "Tool instance removed: tool_deployment_type_id={:?}, tool_group_instance_id={:?}",
+                tool_deployment_type_id, tool_group_instance_id
             );
             soma_definition
-                .remove_function_instance(
-                    provider_controller_type_id,
-                    function_controller_type_id,
-                    provider_instance_id,
+                .remove_tool_instance(
+                    tool_group_deployment_type_id,
+                    tool_deployment_type_id,
+                    tool_group_instance_id,
                 )
                 .await?;
         }
@@ -233,14 +229,14 @@ async fn handle_mcp_event(
             debug!("MCP server instance added: {:?}", mcp_server.id);
 
             let functions = mcp_server
-                .functions
+                .tools
                 .iter()
                 .map(|f| McpServerFunctionConfig {
-                    function_controller_type_id: f.function_controller_type_id.clone(),
-                    provider_controller_type_id: f.provider_controller_type_id.clone(),
-                    provider_instance_id: f.provider_instance_id.clone(),
-                    function_name: f.function_name.clone(),
-                    function_description: f.function_description.clone(),
+                    tool_deployment_type_id: f.tool_deployment_type_id.clone(),
+                    tool_group_deployment_type_id: f.tool_group_deployment_type_id.clone(),
+                    tool_group_id: f.tool_group_instance_id.clone(),
+                    function_name: f.tool_name.clone(),
+                    function_description: f.tool_description.clone(),
                 })
                 .collect();
 
@@ -258,14 +254,14 @@ async fn handle_mcp_event(
             debug!("MCP server instance updated: {:?}", mcp_server.id);
 
             let functions = mcp_server
-                .functions
+                .tools
                 .iter()
                 .map(|f| McpServerFunctionConfig {
-                    function_controller_type_id: f.function_controller_type_id.clone(),
-                    provider_controller_type_id: f.provider_controller_type_id.clone(),
-                    provider_instance_id: f.provider_instance_id.clone(),
-                    function_name: f.function_name.clone(),
-                    function_description: f.function_description.clone(),
+                    tool_deployment_type_id: f.tool_deployment_type_id.clone(),
+                    tool_group_deployment_type_id: f.tool_group_deployment_type_id.clone(),
+                    tool_group_id: f.tool_group_instance_id.clone(),
+                    function_name: f.tool_name.clone(),
+                    function_description: f.tool_description.clone(),
                 })
                 .collect();
 
@@ -283,61 +279,61 @@ async fn handle_mcp_event(
             debug!("MCP server instance removed: {:?}", mcp_server_id);
             soma_definition.remove_mcp_server(mcp_server_id).await?;
         }
-        OnConfigChangeEvt::McpServerInstanceFunctionAdded(function) => {
+        OnConfigChangeEvt::McpServerInstanceToolAdded(tool) => {
             debug!(
-                "MCP server function added: {:?} to {:?}",
-                function.function_name, function.mcp_server_instance_id
+                "MCP server tool added: {:?} to {:?}",
+                tool.tool_name, tool.mcp_server_instance_id
             );
             soma_definition
                 .add_mcp_server_function(
-                    function.mcp_server_instance_id.clone(),
+                    tool.mcp_server_instance_id.clone(),
                     McpServerFunctionConfig {
-                        function_controller_type_id: function.function_controller_type_id.clone(),
-                        provider_controller_type_id: function.provider_controller_type_id.clone(),
-                        provider_instance_id: function.provider_instance_id.clone(),
-                        function_name: function.function_name.clone(),
-                        function_description: function.function_description.clone(),
+                        tool_deployment_type_id: tool.tool_deployment_type_id.clone(),
+                        tool_group_deployment_type_id: tool.tool_group_deployment_type_id.clone(),
+                        tool_group_id: tool.tool_group_instance_id.clone(),
+                        function_name: tool.tool_name.clone(),
+                        function_description: tool.tool_description.clone(),
                     },
                 )
                 .await?;
         }
-        OnConfigChangeEvt::McpServerInstanceFunctionUpdated(function) => {
+        OnConfigChangeEvt::McpServerInstanceToolUpdated(tool) => {
             debug!(
-                "MCP server function updated: {:?} in {:?}",
-                function.function_name, function.mcp_server_instance_id
+                "MCP server tool updated: {:?} in {:?}",
+                tool.tool_name, tool.mcp_server_instance_id
             );
             soma_definition
                 .update_mcp_server_function(
-                    function.mcp_server_instance_id.clone(),
+                    tool.mcp_server_instance_id.clone(),
                     McpServerFunctionConfig {
-                        function_controller_type_id: function.function_controller_type_id.clone(),
-                        provider_controller_type_id: function.provider_controller_type_id.clone(),
-                        provider_instance_id: function.provider_instance_id.clone(),
-                        function_name: function.function_name.clone(),
-                        function_description: function.function_description.clone(),
+                        tool_deployment_type_id: tool.tool_deployment_type_id.clone(),
+                        tool_group_deployment_type_id: tool.tool_group_deployment_type_id.clone(),
+                        tool_group_id: tool.tool_group_instance_id.clone(),
+                        function_name: tool.tool_name.clone(),
+                        function_description: tool.tool_description.clone(),
                     },
                 )
                 .await?;
         }
-        OnConfigChangeEvt::McpServerInstanceFunctionRemoved(
+        OnConfigChangeEvt::McpServerInstanceToolRemoved(
             mcp_server_instance_id,
-            function_controller_type_id,
-            provider_controller_type_id,
-            provider_instance_id,
+            tool_deployment_type_id,
+            tool_group_deployment_type_id,
+            tool_group_id,
         ) => {
             debug!(
-                "MCP server function removed from {:?}: {}/{}/{}",
+                "MCP server tool removed from {:?}: {}/{}/{}",
                 mcp_server_instance_id,
-                function_controller_type_id,
-                provider_controller_type_id,
-                provider_instance_id
+                tool_deployment_type_id,
+                tool_group_deployment_type_id,
+                tool_group_id
             );
             soma_definition
                 .remove_mcp_server_function(
                     mcp_server_instance_id,
-                    function_controller_type_id,
-                    provider_controller_type_id,
-                    provider_instance_id,
+                    tool_deployment_type_id,
+                    tool_group_deployment_type_id,
+                    tool_group_id,
                 )
                 .await?;
         }

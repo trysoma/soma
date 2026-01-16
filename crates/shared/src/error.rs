@@ -1,5 +1,4 @@
 use crate::adapters::mcp::McpErrorMsg;
-use a2a_rs::errors::A2aServerError;
 use axum::{
     Json,
     response::{IntoResponse, Response},
@@ -154,16 +153,6 @@ pub enum CommonError {
         #[source]
         source: pmdaemon::Error,
     },
-}
-
-impl From<CommonError> for A2aServerError {
-    fn from(e: CommonError) -> Self {
-        A2aServerError::InternalError(a2a_rs::errors::Error {
-            message: e.to_string(),
-            data: None,
-            source: Some(Box::new(e)),
-        })
-    }
 }
 
 impl<T: Send + Sync + 'static> From<tokio::sync::mpsc::error::SendError<T>> for CommonError {

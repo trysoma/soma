@@ -21,292 +21,11 @@
         "operationId": "health-check",
         "responses": {
           "200": {
-            "description": "Service is healthy",
+            "description": "Health check",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CheckSdkHealthResponse"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Service unavailable - SDK server not ready"
-          }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
-      }
-    },
-    "/_internal/v1/resync_sdk": {
-      "post": {
-        "tags": [
-          "_internal",
-          "v1"
-        ],
-        "summary": "Resync SDK",
-        "description": "Resync providers, agents, secrets, and environment variables between API server and SDK",
-        "operationId": "resync-sdk",
-        "responses": {
-          "200": {
-            "description": "SDK resynced successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResyncSdkResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
-      }
-    },
-    "/_internal/v1/runtime_config": {
-      "get": {
-        "tags": [
-          "_internal",
-          "v1"
-        ],
-        "summary": "Get runtime config",
-        "description": "Get the current runtime configuration",
-        "operationId": "get-internal-runtime-config",
-        "responses": {
-          "200": {
-            "description": "Runtime config",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RuntimeConfigResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
-      }
-    },
-    "/_internal/v1/trigger_codegen": {
-      "post": {
-        "tags": [
-          "_internal",
-          "v1"
-        ],
-        "summary": "Trigger codegen",
-        "description": "Trigger code generation for the SDK",
-        "operationId": "trigger-codegen",
-        "responses": {
-          "200": {
-            "description": "Codegen triggered successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TriggerCodegenResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
-      }
-    },
-    "/api/agent": {
-      "get": {
-        "tags": [
-          "agent",
-          "v1"
-        ],
-        "summary": "List available agents",
-        "description": "List all available agents from the agent cache",
-        "operationId": "list-agents",
-        "responses": {
-          "200": {
-            "description": "List of agents",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListAgentsResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
-      }
-    },
-    "/api/agent/{project_id}/{agent_id}/a2a": {
-      "post": {
-        "tags": [
-          "agent",
-          "v1"
-        ],
-        "summary": "Handle A2A JSON-RPC for specific agent",
-        "description": "Handle JSON-RPC requests for agent-to-agent communication for a specific agent",
-        "operationId": "handle-a2a-jsonrpc-request",
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "description": "Project ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "agent_id",
-            "in": "path",
-            "description": "Agent ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JsonrpcRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
-      }
-    },
-    "/api/agent/{project_id}/{agent_id}/a2a/.well-known/agent.json": {
-      "get": {
-        "tags": [
-          "agent",
-          "v1"
-        ],
-        "summary": "Get agent card for specific agent",
-        "description": "Get the agent card describing agent capabilities and metadata for a specific agent",
-        "operationId": "get-agent-card",
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "description": "Project ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "agent_id",
-            "in": "path",
-            "description": "Agent ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Agent card",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentCard"
+                  "$ref": "#/components/schemas/HealthCheckResponse"
                 }
               }
             }
@@ -6531,15 +6250,15 @@
         ]
       }
     },
-    "/api/mcp/v1/available-providers": {
+    "/api/tool/v1/available-tool-groups": {
       "get": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
-        "summary": "List providers",
-        "description": "List all available provider types that can be instantiated",
-        "operationId": "list-available-providers",
+        "summary": "List tool groups",
+        "description": "List all available tool group types that can be instantiated",
+        "operationId": "list-available-tool-groups",
         "parameters": [
           {
             "name": "page_size",
@@ -6563,14 +6282,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List available providers",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProviderControllerSerializedPaginatedResponse"
-                }
-              }
-            }
+            "description": "List available tool groups"
           },
           "400": {
             "description": "Bad Request",
@@ -6623,18 +6335,18 @@
         ]
       }
     },
-    "/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}": {
+    "/api/tool/v1/available-tool-groups/{tool_group_deployment_type_id}/available-credentials/{credential_deployment_type_id}": {
       "post": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
-        "summary": "Create provider",
-        "description": "Create a new provider instance with the specified configuration",
-        "operationId": "create-provider-instance",
+        "summary": "Create tool group",
+        "description": "Create a new tool group instance with the specified configuration",
+        "operationId": "create-tool-group-instance",
         "parameters": [
           {
-            "name": "provider_controller_type_id",
+            "name": "tool_group_deployment_type_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -6642,7 +6354,7 @@
             }
           },
           {
-            "name": "credential_controller_type_id",
+            "name": "credential_deployment_type_id",
             "in": "path",
             "required": true,
             "schema": {
@@ -6654,7 +6366,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateProviderInstanceParamsInner"
+                "$ref": "#/components/schemas/CreateToolGroupInstanceParamsInner"
               }
             }
           },
@@ -6662,11 +6374,11 @@
         },
         "responses": {
           "200": {
-            "description": "Create provider instance",
+            "description": "Create tool group instance",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProviderInstanceSerialized"
+                  "$ref": "#/components/schemas/ToolGroupInstanceSerialized"
                 }
               }
             }
@@ -6722,10 +6434,10 @@
         ]
       }
     },
-    "/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server": {
+    "/api/tool/v1/available-tool-groups/{tool_group_deployment_type_id}/available-credentials/{credential_deployment_type_id}/credential/resource-server": {
       "post": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "Create resource server credential",
@@ -6733,18 +6445,18 @@
         "operationId": "create-resource-server-credential",
         "parameters": [
           {
-            "name": "provider_controller_type_id",
+            "name": "tool_group_deployment_type_id",
             "in": "path",
-            "description": "Provider controller type ID",
+            "description": "Tool group source type ID",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "credential_controller_type_id",
+            "name": "credential_deployment_type_id",
             "in": "path",
-            "description": "Credential controller type ID",
+            "description": "Credential source type ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -6823,10 +6535,10 @@
         ]
       }
     },
-    "/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/resource-server/encrypt": {
+    "/api/tool/v1/available-tool-groups/{tool_group_deployment_type_id}/available-credentials/{credential_deployment_type_id}/credential/resource-server/encrypt": {
       "post": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "Encrypt resource server config",
@@ -6834,18 +6546,18 @@
         "operationId": "encrypt-resource-server-configuration",
         "parameters": [
           {
-            "name": "provider_controller_type_id",
+            "name": "tool_group_deployment_type_id",
             "in": "path",
-            "description": "Provider controller type ID",
+            "description": "Tool group source type ID",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "credential_controller_type_id",
+            "name": "credential_deployment_type_id",
             "in": "path",
-            "description": "Credential controller type ID",
+            "description": "Credential source type ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -6924,10 +6636,10 @@
         ]
       }
     },
-    "/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential": {
+    "/api/tool/v1/available-tool-groups/{tool_group_deployment_type_id}/available-credentials/{credential_deployment_type_id}/credential/user-credential": {
       "post": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "Create user credential",
@@ -6935,18 +6647,18 @@
         "operationId": "create-user-credential",
         "parameters": [
           {
-            "name": "provider_controller_type_id",
+            "name": "tool_group_deployment_type_id",
             "in": "path",
-            "description": "Provider controller type ID",
+            "description": "Tool group source type ID",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "credential_controller_type_id",
+            "name": "credential_deployment_type_id",
             "in": "path",
-            "description": "Credential controller type ID",
+            "description": "Credential source type ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -7025,10 +6737,10 @@
         ]
       }
     },
-    "/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/broker": {
+    "/api/tool/v1/available-tool-groups/{tool_group_deployment_type_id}/available-credentials/{credential_deployment_type_id}/credential/user-credential/broker": {
       "post": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "Start credential brokering",
@@ -7036,18 +6748,18 @@
         "operationId": "start-user-credential-brokering",
         "parameters": [
           {
-            "name": "provider_controller_type_id",
+            "name": "tool_group_deployment_type_id",
             "in": "path",
-            "description": "Provider controller type ID",
+            "description": "Tool group source type ID",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "credential_controller_type_id",
+            "name": "credential_deployment_type_id",
             "in": "path",
-            "description": "Credential controller type ID",
+            "description": "Credential source type ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -7126,10 +6838,10 @@
         ]
       }
     },
-    "/api/mcp/v1/available-providers/{provider_controller_type_id}/available-credentials/{credential_controller_type_id}/credential/user-credential/encrypt": {
+    "/api/tool/v1/available-tool-groups/{tool_group_deployment_type_id}/available-credentials/{credential_deployment_type_id}/credential/user-credential/encrypt": {
       "post": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "Encrypt user credential config",
@@ -7137,18 +6849,18 @@
         "operationId": "encrypt-user-credential-configuration",
         "parameters": [
           {
-            "name": "provider_controller_type_id",
+            "name": "tool_group_deployment_type_id",
             "in": "path",
-            "description": "Provider controller type ID",
+            "description": "Tool group source type ID",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "credential_controller_type_id",
+            "name": "credential_deployment_type_id",
             "in": "path",
-            "description": "Credential controller type ID",
+            "description": "Credential source type ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -7227,172 +6939,10 @@
         ]
       }
     },
-    "/api/mcp/v1/function-instances": {
+    "/api/tool/v1/generic-oauth-callback": {
       "get": {
         "tags": [
-          "mcp",
-          "v1"
-        ],
-        "summary": "List function instances",
-        "description": "List all function instances with optional filtering by provider instance",
-        "operationId": "list-function-instances",
-        "parameters": [
-          {
-            "name": "page_size",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            },
-            "style": "form"
-          },
-          {
-            "name": "next_page_token",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "style": "form"
-          },
-          {
-            "name": "provider_instance_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "style": "form"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List function instances",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FunctionInstanceSerializedPaginatedResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
-      }
-    },
-    "/api/mcp/v1/function-instances/openapi.json": {
-      "get": {
-        "tags": [
-          "mcp",
-          "v1"
-        ],
-        "summary": "Get function OpenAPI spec",
-        "description": "Get the OpenAPI specification for all function instances",
-        "operationId": "get-function-instances-openapi-spec",
-        "responses": {
-          "200": {
-            "description": "Get function instances openapi spec",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
-      }
-    },
-    "/api/mcp/v1/generic-oauth-callback": {
-      "get": {
-        "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "OAuth callback",
@@ -7498,10 +7048,10 @@
         ]
       }
     },
-    "/api/mcp/v1/mcp-server": {
+    "/api/tool/v1/mcp-server": {
       "get": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "List MCP server instances",
@@ -7581,7 +7131,7 @@
       },
       "post": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "Create MCP server instance",
@@ -7659,10 +7209,10 @@
         ]
       }
     },
-    "/api/mcp/v1/mcp-server/{mcp_server_instance_id}": {
+    "/api/tool/v1/mcp-server/{mcp_server_instance_id}": {
       "get": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "Get MCP server instance",
@@ -7742,7 +7292,7 @@
       },
       "delete": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "Delete MCP server instance",
@@ -7815,7 +7365,7 @@
       },
       "patch": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "Update MCP server instance",
@@ -7904,10 +7454,10 @@
         ]
       }
     },
-    "/api/mcp/v1/mcp-server/{mcp_server_instance_id}/function": {
+    "/api/tool/v1/mcp-server/{mcp_server_instance_id}/function": {
       "post": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "Add function to MCP server instance",
@@ -8016,10 +7566,10 @@
         ]
       }
     },
-    "/api/mcp/v1/mcp-server/{mcp_server_instance_id}/function/{function_controller_type_id}/{provider_controller_type_id}/{provider_instance_id}": {
+    "/api/tool/v1/mcp-server/{mcp_server_instance_id}/function/{tool_deployment_type_id}/{tool_group_deployment_type_id}/{tool_group_instance_id}": {
       "delete": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "Remove function from MCP server instance",
@@ -8036,25 +7586,25 @@
             }
           },
           {
-            "name": "function_controller_type_id",
+            "name": "tool_deployment_type_id",
             "in": "path",
-            "description": "Function controller type ID",
+            "description": "Tool source type ID",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "provider_controller_type_id",
+            "name": "tool_group_deployment_type_id",
             "in": "path",
-            "description": "Provider controller type ID",
+            "description": "Tool group source type ID",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "provider_instance_id",
+            "name": "tool_group_instance_id",
             "in": "path",
             "description": "Provider instance ID",
             "required": true,
@@ -8126,7 +7676,7 @@
       },
       "patch": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
         "summary": "Update function in MCP server instance",
@@ -8143,25 +7693,25 @@
             }
           },
           {
-            "name": "function_controller_type_id",
+            "name": "tool_deployment_type_id",
             "in": "path",
-            "description": "Function controller type ID",
+            "description": "Tool source type ID",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "provider_controller_type_id",
+            "name": "tool_group_deployment_type_id",
             "in": "path",
-            "description": "Provider controller type ID",
+            "description": "Tool group source type ID",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "provider_instance_id",
+            "name": "tool_group_instance_id",
             "in": "path",
             "description": "Provider instance ID",
             "required": true,
@@ -8252,15 +7802,330 @@
         ]
       }
     },
-    "/api/mcp/v1/provider": {
+    "/api/tool/v1/tool": {
       "get": {
         "tags": [
-          "mcp",
+          "tool"
+        ],
+        "summary": "List tools",
+        "description": "Returns a paginated list of registered tools, optionally filtered by endpoint type and category",
+        "operationId": "list-tools",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "name": "endpoint_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tools"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "tool"
+        ],
+        "summary": "Register tool",
+        "description": "Register a new HTTP-based tool with encrypted invocation key",
+        "operationId": "register-tool",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterToolRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Tool registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterToolResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/tool/v1/tool-alias": {
+      "get": {
+        "tags": [
+          "tool"
+        ],
+        "summary": "List tool aliases",
+        "description": "Returns a paginated list of tool aliases, optionally filtered by tool",
+        "operationId": "list-tool-aliases",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "style": "form"
+          },
+          {
+            "name": "next_page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "name": "tool_type_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "name": "tool_deployment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of aliases"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "tool"
+        ],
+        "summary": "Create tool alias",
+        "description": "Creates an alias that points to a specific tool deployment",
+        "operationId": "create-tool-alias",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateToolAliasRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Alias created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateToolAliasResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "409": {
+            "description": "Alias already exists"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/tool/v1/tool-alias/{alias}": {
+      "get": {
+        "tags": [
+          "tool"
+        ],
+        "summary": "Get tool by alias",
+        "description": "Resolves an alias and returns the tool it points to",
+        "operationId": "get-tool-by-alias",
+        "parameters": [
+          {
+            "name": "alias",
+            "in": "path",
+            "description": "Tool alias (e.g., 'latest', 'stable')",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tool details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSerialized"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Alias not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tool"
+        ],
+        "summary": "Delete tool alias",
+        "description": "Removes an alias (does not delete the tool itself)",
+        "operationId": "delete-tool-alias",
+        "parameters": [
+          {
+            "name": "alias",
+            "in": "path",
+            "description": "Alias to delete",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Alias deleted successfully"
+          },
+          "404": {
+            "description": "Alias not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/tool/v1/tool-alias/{tool_type_id}/{alias}": {
+      "put": {
+        "tags": [
+          "tool"
+        ],
+        "summary": "Update tool alias",
+        "description": "Updates an alias to point to a different deployment",
+        "operationId": "update-tool-alias",
+        "parameters": [
+          {
+            "name": "tool_type_id",
+            "in": "path",
+            "description": "Tool type identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "alias",
+            "in": "path",
+            "description": "Alias to update",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateToolAliasRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Alias updated successfully"
+          },
+          "404": {
+            "description": "Alias not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/tool/v1/tool-group": {
+      "get": {
+        "tags": [
+          "tool",
           "v1"
         ],
-        "summary": "List provider instances",
-        "description": "List all provider instances with optional filtering by status and provider type",
-        "operationId": "list-provider-instances",
+        "summary": "List tool group instances",
+        "description": "List all tool group instances with optional filtering by status and tool group type",
+        "operationId": "list-tool-group-instances",
         "parameters": [
           {
             "name": "page_size",
@@ -8291,7 +8156,7 @@
             "style": "form"
           },
           {
-            "name": "provider_controller_type_id",
+            "name": "tool_group_deployment_type_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -8302,11 +8167,11 @@
         ],
         "responses": {
           "200": {
-            "description": "List provider instances",
+            "description": "List tool group instances",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProviderInstanceListItemPaginatedResponse"
+                  "$ref": "#/components/schemas/ToolGroupInstanceListItemPaginatedResponse"
                 }
               }
             }
@@ -8362,15 +8227,15 @@
         ]
       }
     },
-    "/api/mcp/v1/provider/grouped-by-function": {
+    "/api/tool/v1/tool-group/grouped-by-function": {
       "get": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
-        "summary": "List providers by function",
-        "description": "List provider instances grouped by their associated functions",
-        "operationId": "list-provider-instances-grouped-by-function",
+        "summary": "List tool groups by function",
+        "description": "List tool group instances grouped by their associated functions",
+        "operationId": "list-tool-group-instances-grouped-by-function",
         "parameters": [
           {
             "name": "next_page_token",
@@ -8393,7 +8258,7 @@
             }
           },
           {
-            "name": "provider_controller_type_id",
+            "name": "tool_group_deployment_type_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -8417,11 +8282,11 @@
         ],
         "responses": {
           "200": {
-            "description": "List provider instances grouped by function",
+            "description": "List tool group instances grouped by function",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FunctionInstanceConfigPaginatedResponse"
+                  "$ref": "#/components/schemas/ToolInstanceConfigPaginatedResponse"
                 }
               }
             }
@@ -8477,20 +8342,20 @@
         ]
       }
     },
-    "/api/mcp/v1/provider/{provider_instance_id}": {
+    "/api/tool/v1/tool-group/{tool_group_instance_id}": {
       "get": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
-        "summary": "Get provider",
-        "description": "Retrieve a provider instance by its unique identifier",
-        "operationId": "get-provider-instance",
+        "summary": "Get tool group",
+        "description": "Retrieve a tool group instance by its unique identifier",
+        "operationId": "get-tool-group-instance",
         "parameters": [
           {
-            "name": "provider_instance_id",
+            "name": "tool_group_instance_id",
             "in": "path",
-            "description": "Provider instance ID",
+            "description": "Tool group instance ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -8499,11 +8364,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Get provider instance",
+            "description": "Get tool group instance",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProviderInstanceSerializedWithEverything"
+                  "$ref": "#/components/schemas/ToolGroupInstanceSerializedWithEverything"
                 }
               }
             }
@@ -8560,17 +8425,17 @@
       },
       "delete": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
-        "summary": "Delete provider",
-        "description": "Delete a provider instance by its unique identifier",
-        "operationId": "delete-provider-instance",
+        "summary": "Delete tool group",
+        "description": "Delete a tool group instance by its unique identifier",
+        "operationId": "delete-tool-group-instance",
         "parameters": [
           {
-            "name": "provider_instance_id",
+            "name": "tool_group_instance_id",
             "in": "path",
-            "description": "Provider instance ID",
+            "description": "Tool group instance ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -8579,7 +8444,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Delete provider instance",
+            "description": "Delete tool group instance",
             "content": {
               "application/json": {
                 "schema": {
@@ -8640,17 +8505,17 @@
       },
       "patch": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
-        "summary": "Update provider",
-        "description": "Update an existing provider instance configuration",
-        "operationId": "update-provider-instance",
+        "summary": "Update tool group",
+        "description": "Update an existing tool group instance configuration",
+        "operationId": "update-tool-group-instance",
         "parameters": [
           {
-            "name": "provider_instance_id",
+            "name": "tool_group_instance_id",
             "in": "path",
-            "description": "Provider instance ID",
+            "description": "Tool group instance ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -8661,7 +8526,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateProviderInstanceParamsInner"
+                "$ref": "#/components/schemas/UpdateToolGroupInstanceParamsInner"
               }
             }
           },
@@ -8669,7 +8534,7 @@
         },
         "responses": {
           "200": {
-            "description": "Update provider instance",
+            "description": "Update tool group instance",
             "content": {
               "application/json": {
                 "schema": {
@@ -8729,29 +8594,29 @@
         ]
       }
     },
-    "/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/disable": {
+    "/api/tool/v1/tool-group/{tool_group_instance_id}/tool/{tool_deployment_type_id}/disable": {
       "post": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
-        "summary": "Disable function",
-        "description": "Disable a function for a provider instance",
-        "operationId": "disable-function",
+        "summary": "Disable tool",
+        "description": "Disable a tool for a tool group instance",
+        "operationId": "disable-tool",
         "parameters": [
           {
-            "name": "provider_instance_id",
+            "name": "tool_group_instance_id",
             "in": "path",
-            "description": "Provider instance ID",
+            "description": "Tool group instance ID",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "function_controller_type_id",
+            "name": "tool_deployment_type_id",
             "in": "path",
-            "description": "Function controller type ID",
+            "description": "Tool source type ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -8760,7 +8625,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Disable function",
+            "description": "Disable tool",
             "content": {
               "application/json": {
                 "schema": {
@@ -8820,29 +8685,29 @@
         ]
       }
     },
-    "/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/enable": {
+    "/api/tool/v1/tool-group/{tool_group_instance_id}/tool/{tool_deployment_type_id}/enable": {
       "post": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
-        "summary": "Enable function",
-        "description": "Enable a function for a provider instance",
-        "operationId": "enable-function",
+        "summary": "Enable tool",
+        "description": "Enable a tool for a tool group instance",
+        "operationId": "enable-tool",
         "parameters": [
           {
-            "name": "provider_instance_id",
+            "name": "tool_group_instance_id",
             "in": "path",
-            "description": "Provider instance ID",
+            "description": "Tool group instance ID",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "function_controller_type_id",
+            "name": "tool_deployment_type_id",
             "in": "path",
-            "description": "Function controller type ID",
+            "description": "Tool source type ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -8853,7 +8718,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EnableFunctionParamsInner"
+                "$ref": "#/components/schemas/EnableToolParamsInner"
               }
             }
           },
@@ -8861,11 +8726,11 @@
         },
         "responses": {
           "200": {
-            "description": "Enable function",
+            "description": "Enable tool",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FunctionInstanceSerialized"
+                  "$ref": "#/components/schemas/ToolInstanceSerialized"
                 }
               }
             }
@@ -8921,29 +8786,29 @@
         ]
       }
     },
-    "/api/mcp/v1/provider/{provider_instance_id}/function/{function_controller_type_id}/invoke": {
+    "/api/tool/v1/tool-group/{tool_group_instance_id}/tool/{tool_deployment_type_id}/invoke": {
       "post": {
         "tags": [
-          "mcp",
+          "tool",
           "v1"
         ],
-        "summary": "Invoke function",
-        "description": "Invoke a function on a provider instance",
-        "operationId": "invoke-function",
+        "summary": "Invoke tool",
+        "description": "Invoke a tool on a tool group instance",
+        "operationId": "invoke-tool",
         "parameters": [
           {
-            "name": "provider_instance_id",
+            "name": "tool_group_instance_id",
             "in": "path",
-            "description": "Provider instance ID",
+            "description": "Tool group instance ID",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "function_controller_type_id",
+            "name": "tool_deployment_type_id",
             "in": "path",
-            "description": "Function controller type ID",
+            "description": "Tool source type ID",
             "required": true,
             "schema": {
               "type": "string"
@@ -8954,7 +8819,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/InvokeFunctionParamsInner"
+                "$ref": "#/components/schemas/InvokeToolParamsInner"
               }
             }
           },
@@ -8962,7 +8827,7 @@
         },
         "responses": {
           "200": {
-            "description": "Invoke function",
+            "description": "Invoke tool",
             "content": {
               "application/json": {
                 "schema": {
@@ -9022,15 +8887,15 @@
         ]
       }
     },
-    "/api/task/v1": {
+    "/api/tool/v1/tool-instances": {
       "get": {
         "tags": [
-          "task",
+          "tool",
           "v1"
         ],
-        "summary": "List tasks",
-        "description": "List all tasks with pagination",
-        "operationId": "list-tasks",
+        "summary": "List tool instances",
+        "description": "List all tool instances with optional filtering by tool group instance",
+        "operationId": "list-tool-instances",
         "parameters": [
           {
             "name": "page_size",
@@ -9050,15 +8915,24 @@
               "type": "string"
             },
             "style": "form"
+          },
+          {
+            "name": "tool_group_instance_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
           }
         ],
         "responses": {
           "200": {
-            "description": "List tasks",
+            "description": "List tool instances",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskPaginatedResponse"
+                  "$ref": "#/components/schemas/ToolInstanceSerializedPaginatedResponse"
                 }
               }
             }
@@ -9102,20 +8976,9 @@
                 }
               }
             }
-          },
-          "502": {
-            "description": "Bad Gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
         },
         "security": [
-          {},
           {
             "api_key": []
           },
@@ -9125,53 +8988,22 @@
         ]
       }
     },
-    "/api/task/v1/context": {
+    "/api/tool/v1/tool-instances/openapi.json": {
       "get": {
         "tags": [
-          "task",
+          "tool",
           "v1"
         ],
-        "summary": "List contexts",
-        "description": "List all unique task contexts with pagination",
-        "operationId": "list-contexts",
-        "parameters": [
-          {
-            "name": "page_size",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            },
-            "style": "form"
-          },
-          {
-            "name": "next_page_token",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "style": "form"
-          }
-        ],
+        "summary": "Get tool OpenAPI spec",
+        "description": "Get the OpenAPI specification for all tool instances",
+        "operationId": "get-tool-instances-openapi-spec",
         "responses": {
           "200": {
-            "description": "List contexts",
+            "description": "Get tool instances openapi spec",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ContextInfoPaginatedResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "string"
                 }
               }
             }
@@ -9205,20 +9037,9 @@
                 }
               }
             }
-          },
-          "502": {
-            "description": "Bad Gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
         },
         "security": [
-          {},
           {
             "api_key": []
           },
@@ -9228,525 +9049,91 @@
         ]
       }
     },
-    "/api/task/v1/context/{context_id}/task": {
+    "/api/tool/v1/tool/type/{type_id}/deployment/{deployment_id}": {
       "get": {
         "tags": [
-          "task",
-          "v1"
+          "tool"
         ],
-        "summary": "List tasks by context",
-        "description": "List all tasks for a specific context ID with pagination",
-        "operationId": "list-tasks-by-context-id",
+        "summary": "Get tool",
+        "description": "Returns tool details including encrypted endpoint configuration",
+        "operationId": "get-tool",
         "parameters": [
           {
-            "name": "page_size",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            },
-            "style": "form"
-          },
-          {
-            "name": "next_page_token",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "style": "form"
-          },
-          {
-            "name": "context_id",
+            "name": "type_id",
             "in": "path",
-            "description": "Context ID",
+            "description": "Tool type identifier",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
+              "type": "string"
             }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List tasks",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskPaginatedResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Bad Gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
           },
           {
-            "bearer_token": []
-          }
-        ]
-      }
-    },
-    "/api/task/v1/{task_id}": {
-      "get": {
-        "tags": [
-          "task",
-          "v1"
-        ],
-        "summary": "Get task",
-        "description": "Retrieve a task by its unique identifier",
-        "operationId": "get-task-by-id",
-        "parameters": [
-          {
-            "name": "task_id",
+            "name": "deployment_id",
             "in": "path",
-            "description": "Task ID",
+            "description": "Tool deployment identifier",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
+              "type": "string"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Get task by id",
+            "description": "Tool details",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskWithDetails"
+                  "$ref": "#/components/schemas/ToolSerialized"
                 }
               }
             }
           },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+          "404": {
+            "description": "Tool not found"
           },
           "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Bad Gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+            "description": "Internal server error"
           }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
+        }
       },
-      "put": {
+      "delete": {
         "tags": [
-          "task",
-          "v1"
+          "tool"
         ],
-        "summary": "Update task status",
-        "description": "Update the status of a task",
-        "operationId": "update-task-status",
+        "summary": "Deregister tool",
+        "description": "Removes a tool registration and all its aliases",
+        "operationId": "deregister-tool",
         "parameters": [
           {
-            "name": "task_id",
+            "name": "type_id",
             "in": "path",
-            "description": "Task ID",
+            "description": "Tool type identifier",
             "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateTaskStatusRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Update task status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TupleUnit"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Bad Gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
-      }
-    },
-    "/api/task/v1/{task_id}/message": {
-      "post": {
-        "tags": [
-          "task",
-          "v1"
-        ],
-        "summary": "Send message",
-        "description": "Send a message to a task",
-        "operationId": "send-message",
-        "parameters": [
-          {
-            "name": "task_id",
-            "in": "path",
-            "description": "Task ID",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateMessageRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Create message",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateMessageResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Bad Gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
-      }
-    },
-    "/api/task/v1/{task_id}/timeline": {
-      "get": {
-        "tags": [
-          "task",
-          "v1"
-        ],
-        "summary": "Get task timeline",
-        "description": "Get the timeline history of a task with pagination",
-        "operationId": "task-history",
-        "parameters": [
-          {
-            "name": "page_size",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            },
-            "style": "form"
-          },
-          {
-            "name": "next_page_token",
-            "in": "query",
-            "required": false,
             "schema": {
               "type": "string"
-            },
-            "style": "form"
+            }
           },
           {
-            "name": "task_id",
+            "name": "deployment_id",
             "in": "path",
-            "description": "Task ID",
+            "description": "Tool deployment identifier",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
+              "type": "string"
             }
           }
         ],
         "responses": {
-          "200": {
-            "description": "Get task timeline items",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskTimelineItemPaginatedResponse"
-                }
-              }
-            }
+          "204": {
+            "description": "Tool deregistered successfully"
           },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+          "404": {
+            "description": "Tool not found"
           },
           "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Bad Gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+            "description": "Internal server error"
           }
-        },
-        "security": [
-          {},
-          {
-            "api_key": []
-          },
-          {
-            "bearer_token": []
-          }
-        ]
+        }
       }
     }
   },
@@ -9767,50 +9154,29 @@
       "AddMcpServerInstanceFunctionRequest": {
         "type": "object",
         "required": [
-          "function_controller_type_id",
-          "provider_controller_type_id",
-          "provider_instance_id",
-          "function_name"
+          "tool_deployment_type_id",
+          "tool_group_deployment_type_id",
+          "tool_group_instance_id",
+          "tool_name"
         ],
         "properties": {
-          "function_controller_type_id": {
+          "tool_deployment_type_id": {
             "type": "string"
           },
-          "function_description": {
+          "tool_description": {
             "type": [
               "string",
               "null"
             ]
           },
-          "function_name": {
+          "tool_group_deployment_type_id": {
             "type": "string"
           },
-          "provider_controller_type_id": {
+          "tool_group_instance_id": {
             "type": "string"
           },
-          "provider_instance_id": {
+          "tool_name": {
             "type": "string"
-          }
-        }
-      },
-      "AgentCard": {
-        "type": "object"
-      },
-      "AgentListItem": {
-        "type": "object",
-        "description": "Agent list item for list response",
-        "required": [
-          "project_id",
-          "agent_id"
-        ],
-        "properties": {
-          "agent_id": {
-            "type": "string",
-            "description": "The agent ID"
-          },
-          "project_id": {
-            "type": "string",
-            "description": "The project ID"
           }
         }
       },
@@ -9852,9 +9218,9 @@
           "id",
           "created_at",
           "updated_at",
-          "provider_instance_id",
-          "provider_controller_type_id",
-          "credential_controller_type_id",
+          "tool_group_instance_id",
+          "tool_group_deployment_type_id",
+          "credential_deployment_type_id",
           "metadata",
           "action"
         ],
@@ -9865,7 +9231,7 @@
           "created_at": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
           },
-          "credential_controller_type_id": {
+          "credential_deployment_type_id": {
             "type": "string"
           },
           "id": {
@@ -9874,19 +9240,16 @@
           "metadata": {
             "$ref": "#/components/schemas/Metadata"
           },
-          "provider_controller_type_id": {
+          "tool_group_deployment_type_id": {
             "type": "string"
           },
-          "provider_instance_id": {
+          "tool_group_instance_id": {
             "type": "string"
           },
           "updated_at": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
           }
         }
-      },
-      "CheckSdkHealthResponse": {
-        "type": "object"
       },
       "ConfigurationSchema": {
         "type": "object",
@@ -9900,38 +9263,6 @@
           },
           "user_credential": {
             "$ref": "#/components/schemas/JsonSchema"
-          }
-        }
-      },
-      "ContextInfo": {
-        "type": "object",
-        "required": [
-          "context_id",
-          "created_at"
-        ],
-        "properties": {
-          "context_id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
-          },
-          "created_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          }
-        }
-      },
-      "ContextInfoPaginatedResponse": {
-        "type": "object",
-        "required": [
-          "items"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ContextInfo"
-            }
-          },
-          "next_page_token": {
-            "type": "string"
           }
         }
       },
@@ -10044,91 +9375,6 @@
           }
         }
       },
-      "CreateMessageRequest": {
-        "type": "object",
-        "required": [
-          "reference_task_ids",
-          "role",
-          "metadata",
-          "parts"
-        ],
-        "properties": {
-          "metadata": {
-            "$ref": "#/components/schemas/Metadata"
-          },
-          "parts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MessagePart"
-            }
-          },
-          "reference_task_ids": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
-            }
-          },
-          "role": {
-            "$ref": "#/components/schemas/MessageRole"
-          }
-        }
-      },
-      "CreateMessageResponse": {
-        "type": "object",
-        "required": [
-          "message",
-          "timeline_item"
-        ],
-        "properties": {
-          "message": {
-            "$ref": "#/components/schemas/Message"
-          },
-          "timeline_item": {
-            "$ref": "#/components/schemas/TaskTimelineItem"
-          }
-        }
-      },
-      "CreateProviderInstanceParamsInner": {
-        "type": "object",
-        "required": [
-          "resource_server_credential_id",
-          "display_name"
-        ],
-        "properties": {
-          "display_name": {
-            "type": "string"
-          },
-          "provider_instance_id": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "resource_server_credential_id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
-          },
-          "return_on_successful_brokering": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ReturnAddress"
-              }
-            ]
-          },
-          "user_credential_id": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/WrappedUuidV4"
-              }
-            ]
-          }
-        }
-      },
       "CreateResourceServerCredentialParamsInner": {
         "type": "object",
         "required": [
@@ -10171,6 +9417,77 @@
           },
           "raw_value": {
             "type": "string"
+          }
+        }
+      },
+      "CreateToolAliasRequest": {
+        "type": "object",
+        "required": [
+          "tool_type_id",
+          "tool_deployment_id",
+          "alias"
+        ],
+        "properties": {
+          "alias": {
+            "type": "string"
+          },
+          "tool_deployment_id": {
+            "type": "string"
+          },
+          "tool_type_id": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateToolAliasResponse": {
+        "type": "object",
+        "required": [
+          "tool_alias"
+        ],
+        "properties": {
+          "tool_alias": {
+            "$ref": "#/components/schemas/ToolAliasSerialized"
+          }
+        }
+      },
+      "CreateToolGroupInstanceParamsInner": {
+        "type": "object",
+        "required": [
+          "resource_server_credential_id",
+          "display_name"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string"
+          },
+          "resource_server_credential_id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          },
+          "return_on_successful_brokering": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReturnAddress"
+              }
+            ]
+          },
+          "tool_group_instance_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "user_credential_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WrappedUuidV4"
+              }
+            ]
           }
         }
       },
@@ -10426,7 +9743,7 @@
           }
         }
       },
-      "EnableFunctionParamsInner": {
+      "EnableToolParamsInner": {
         "type": "object"
       },
       "EncryptCredentialConfigurationParamsInner": {
@@ -10634,6 +9951,13 @@
           }
         ]
       },
+      "EndpointType": {
+        "type": "string",
+        "description": "Type of endpoint for tool execution",
+        "enum": [
+          "http"
+        ]
+      },
       "EnvelopeEncryptionKey": {
         "oneOf": [
           {
@@ -10734,141 +10058,6 @@
             "type": "string"
           },
           "name": {
-            "type": "string"
-          }
-        }
-      },
-      "FunctionControllerSerialized": {
-        "type": "object",
-        "required": [
-          "type_id",
-          "name",
-          "documentation",
-          "parameters",
-          "output",
-          "categories"
-        ],
-        "properties": {
-          "categories": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "documentation": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "output": {
-            "$ref": "#/components/schemas/JsonSchema"
-          },
-          "parameters": {
-            "$ref": "#/components/schemas/JsonSchema"
-          },
-          "type_id": {
-            "type": "string"
-          }
-        }
-      },
-      "FunctionInstanceConfig": {
-        "type": "object",
-        "required": [
-          "function_controller",
-          "provider_controller",
-          "provider_instances"
-        ],
-        "properties": {
-          "function_controller": {
-            "$ref": "#/components/schemas/FunctionControllerSerialized"
-          },
-          "provider_controller": {
-            "$ref": "#/components/schemas/ProviderControllerSerialized"
-          },
-          "provider_instances": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProviderInstanceSerializedWithCredentials"
-            }
-          }
-        }
-      },
-      "FunctionInstanceConfigPaginatedResponse": {
-        "type": "object",
-        "required": [
-          "items"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/FunctionInstanceConfig"
-            }
-          },
-          "next_page_token": {
-            "type": "string"
-          }
-        }
-      },
-      "FunctionInstanceListItem": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/FunctionInstanceSerialized"
-          },
-          {
-            "type": "object",
-            "required": [
-              "controller"
-            ],
-            "properties": {
-              "controller": {
-                "$ref": "#/components/schemas/FunctionControllerSerialized"
-              }
-            }
-          }
-        ]
-      },
-      "FunctionInstanceSerialized": {
-        "type": "object",
-        "required": [
-          "function_controller_type_id",
-          "provider_controller_type_id",
-          "provider_instance_id",
-          "created_at",
-          "updated_at"
-        ],
-        "properties": {
-          "created_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "function_controller_type_id": {
-            "type": "string"
-          },
-          "provider_controller_type_id": {
-            "type": "string"
-          },
-          "provider_instance_id": {
-            "type": "string"
-          },
-          "updated_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          }
-        }
-      },
-      "FunctionInstanceSerializedPaginatedResponse": {
-        "type": "object",
-        "required": [
-          "items"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/FunctionInstanceSerialized"
-            }
-          },
-          "next_page_token": {
             "type": "string"
           }
         }
@@ -11041,6 +10230,35 @@
           },
           "user_id": {
             "type": "string"
+          }
+        }
+      },
+      "HealthCheckResponse": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "HttpEndpointConfiguration": {
+        "type": "object",
+        "description": "Configuration for HTTP-based tool endpoints",
+        "required": [
+          "url",
+          "invocation_key"
+        ],
+        "properties": {
+          "invocation_key": {
+            "type": "string",
+            "description": "Encrypted invocation key used for authentication"
+          },
+          "url": {
+            "type": "string",
+            "description": "URL of the HTTP endpoint"
           }
         }
       },
@@ -11243,17 +10461,6 @@
           }
         }
       },
-      "InvokeFunctionParamsInner": {
-        "type": "object",
-        "required": [
-          "params"
-        ],
-        "properties": {
-          "params": {
-            "$ref": "#/components/schemas/WrappedJsonValue"
-          }
-        }
-      },
       "InvokeResult": {
         "oneOf": [
           {
@@ -11300,12 +10507,20 @@
           }
         ]
       },
+      "InvokeToolParamsInner": {
+        "type": "object",
+        "required": [
+          "params"
+        ],
+        "properties": {
+          "params": {
+            "$ref": "#/components/schemas/WrappedJsonValue"
+          }
+        }
+      },
       "JsonSchema": {
         "type": "object",
         "additionalProperties": true
-      },
-      "JsonrpcRequest": {
-        "type": "object"
       },
       "Jwk": {
         "type": "object",
@@ -11566,22 +10781,6 @@
           }
         }
       },
-      "ListAgentsResponse": {
-        "type": "object",
-        "description": "Response for listing agents",
-        "required": [
-          "agents"
-        ],
-        "properties": {
-          "agents": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AgentListItem"
-            },
-            "description": "List of agents"
-          }
-        }
-      },
       "ListApiKeysResponse": {
         "type": "object",
         "description": "Response from listing API keys",
@@ -11769,48 +10968,6 @@
         ],
         "description": "Indicates which token type (ID token for OIDC, access token response for OAuth)\ncontains the field"
       },
-      "McpServerInstanceFunctionSerialized": {
-        "type": "object",
-        "description": "Represents a function mapping within an MCP server instance",
-        "required": [
-          "mcp_server_instance_id",
-          "function_controller_type_id",
-          "provider_controller_type_id",
-          "provider_instance_id",
-          "function_name",
-          "created_at",
-          "updated_at"
-        ],
-        "properties": {
-          "created_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "function_controller_type_id": {
-            "type": "string"
-          },
-          "function_description": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "function_name": {
-            "type": "string"
-          },
-          "mcp_server_instance_id": {
-            "type": "string"
-          },
-          "provider_controller_type_id": {
-            "type": "string"
-          },
-          "provider_instance_id": {
-            "type": "string"
-          },
-          "updated_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          }
-        }
-      },
       "McpServerInstanceSerializedWithFunctions": {
         "type": "object",
         "description": "Represents an MCP server instance with its associated functions",
@@ -11819,23 +10976,23 @@
           "name",
           "created_at",
           "updated_at",
-          "functions"
+          "tools"
         ],
         "properties": {
           "created_at": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "functions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/McpServerInstanceFunctionSerialized"
-            }
           },
           "id": {
             "type": "string"
           },
           "name": {
             "type": "string"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/McpServerInstanceToolSerialized"
+            }
           },
           "updated_at": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
@@ -11859,87 +11016,45 @@
           }
         }
       },
-      "Message": {
+      "McpServerInstanceToolSerialized": {
         "type": "object",
+        "description": "Represents a function mapping within an MCP server instance",
         "required": [
-          "id",
-          "task_id",
-          "reference_task_ids",
-          "role",
-          "metadata",
-          "parts",
-          "created_at"
+          "mcp_server_instance_id",
+          "tool_deployment_type_id",
+          "tool_group_deployment_type_id",
+          "tool_group_instance_id",
+          "tool_name",
+          "created_at",
+          "updated_at"
         ],
         "properties": {
           "created_at": {
             "$ref": "#/components/schemas/WrappedChronoDateTime"
           },
-          "id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
+          "mcp_server_instance_id": {
+            "type": "string"
           },
-          "metadata": {
-            "$ref": "#/components/schemas/Metadata"
+          "tool_deployment_type_id": {
+            "type": "string"
           },
-          "parts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MessagePart"
-            }
-          },
-          "reference_task_ids": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/WrappedUuidV4"
-            }
-          },
-          "role": {
-            "$ref": "#/components/schemas/MessageRole"
-          },
-          "task_id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
-          }
-        }
-      },
-      "MessagePart": {
-        "oneOf": [
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/TextPart"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "text-part"
-                    ]
-                  }
-                }
-              }
+          "tool_description": {
+            "type": [
+              "string",
+              "null"
             ]
-          }
-        ]
-      },
-      "MessageRole": {
-        "type": "string",
-        "enum": [
-          "user",
-          "agent"
-        ]
-      },
-      "MessageTaskTimelineItem": {
-        "type": "object",
-        "required": [
-          "message"
-        ],
-        "properties": {
-          "message": {
-            "$ref": "#/components/schemas/Message"
+          },
+          "tool_group_deployment_type_id": {
+            "type": "string"
+          },
+          "tool_group_instance_id": {
+            "type": "string"
+          },
+          "tool_name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
           }
         }
       },
@@ -12081,256 +11196,23 @@
           }
         }
       },
-      "ProviderControllerSerialized": {
+      "PaginationRequest": {
         "type": "object",
         "required": [
-          "type_id",
-          "name",
-          "categories",
-          "documentation",
-          "functions",
-          "credential_controllers"
+          "page_size"
         ],
         "properties": {
-          "categories": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "credential_controllers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProviderCredentialControllerSerialized"
-            }
-          },
-          "documentation": {
-            "type": "string"
-          },
-          "functions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/FunctionControllerSerialized"
-            }
-          },
-          "name": {
-            "type": "string"
-          },
-          "type_id": {
-            "type": "string"
-          }
-        }
-      },
-      "ProviderControllerSerializedPaginatedResponse": {
-        "type": "object",
-        "required": [
-          "items"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProviderControllerSerialized"
-            }
-          },
           "next_page_token": {
-            "type": "string"
-          }
-        }
-      },
-      "ProviderCredentialControllerSerialized": {
-        "type": "object",
-        "required": [
-          "type_id",
-          "configuration_schema",
-          "name",
-          "documentation",
-          "requires_brokering",
-          "requires_resource_server_credential_refreshing",
-          "requires_user_credential_refreshing"
-        ],
-        "properties": {
-          "configuration_schema": {
-            "$ref": "#/components/schemas/ConfigurationSchema"
-          },
-          "documentation": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "requires_brokering": {
-            "type": "boolean"
-          },
-          "requires_resource_server_credential_refreshing": {
-            "type": "boolean"
-          },
-          "requires_user_credential_refreshing": {
-            "type": "boolean"
-          },
-          "type_id": {
-            "type": "string"
-          }
-        }
-      },
-      "ProviderInstanceListItem": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/ProviderInstanceSerialized"
-          },
-          {
-            "type": "object",
-            "required": [
-              "functions",
-              "controller",
-              "credential_controller"
-            ],
-            "properties": {
-              "controller": {
-                "$ref": "#/components/schemas/ProviderControllerSerialized"
-              },
-              "credential_controller": {
-                "$ref": "#/components/schemas/ProviderCredentialControllerSerialized"
-              },
-              "functions": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/FunctionInstanceListItem"
-                }
-              }
-            }
-          }
-        ]
-      },
-      "ProviderInstanceListItemPaginatedResponse": {
-        "type": "object",
-        "required": [
-          "items"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProviderInstanceListItem"
-            }
-          },
-          "next_page_token": {
-            "type": "string"
-          }
-        }
-      },
-      "ProviderInstanceSerialized": {
-        "type": "object",
-        "required": [
-          "id",
-          "display_name",
-          "resource_server_credential_id",
-          "created_at",
-          "updated_at",
-          "provider_controller_type_id",
-          "credential_controller_type_id",
-          "status"
-        ],
-        "properties": {
-          "created_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "credential_controller_type_id": {
-            "type": "string"
-          },
-          "display_name": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          },
-          "provider_controller_type_id": {
-            "type": "string"
-          },
-          "resource_server_credential_id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
-          },
-          "return_on_successful_brokering": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ReturnAddress"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
-          "status": {
-            "type": "string"
-          },
-          "updated_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "user_credential_id": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/WrappedUuidV4"
-              }
-            ]
+          "page_size": {
+            "type": "integer",
+            "format": "int64"
           }
         }
-      },
-      "ProviderInstanceSerializedWithCredentials": {
-        "type": "object",
-        "required": [
-          "provider_instance",
-          "resource_server_credential"
-        ],
-        "properties": {
-          "provider_instance": {
-            "$ref": "#/components/schemas/ProviderInstanceSerialized"
-          },
-          "resource_server_credential": {
-            "$ref": "#/components/schemas/ResourceServerCredentialSerialized"
-          },
-          "user_credential": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/UserCredentialSerialized"
-              }
-            ]
-          }
-        }
-      },
-      "ProviderInstanceSerializedWithEverything": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/ProviderInstanceSerializedWithCredentials"
-          },
-          {
-            "type": "object",
-            "required": [
-              "functions",
-              "controller",
-              "credential_controller"
-            ],
-            "properties": {
-              "controller": {
-                "$ref": "#/components/schemas/ProviderControllerSerialized"
-              },
-              "credential_controller": {
-                "$ref": "#/components/schemas/ProviderCredentialControllerSerialized"
-              },
-              "functions": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/FunctionInstanceListItem"
-                }
-              }
-            }
-          }
-        ]
       },
       "RefreshTokenRequest": {
         "type": "object",
@@ -12342,6 +11224,62 @@
               "null"
             ],
             "description": "The refresh token. If not provided, will be read from cookie."
+          }
+        }
+      },
+      "RegisterToolRequest": {
+        "type": "object",
+        "description": "Request to register a new tool",
+        "required": [
+          "type_id",
+          "deployment_id",
+          "name",
+          "documentation",
+          "endpoint_configuration"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "deployment_id": {
+            "type": "string"
+          },
+          "documentation": {
+            "type": "string"
+          },
+          "endpoint_configuration": {
+            "$ref": "#/components/schemas/HttpEndpointConfiguration"
+          },
+          "metadata": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Metadata"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "type_id": {
+            "type": "string"
+          }
+        }
+      },
+      "RegisterToolResponse": {
+        "type": "object",
+        "description": "Response after registering a tool",
+        "required": [
+          "tool"
+        ],
+        "properties": {
+          "tool": {
+            "$ref": "#/components/schemas/ToolSerialized"
           }
         }
       },
@@ -12390,9 +11328,6 @@
           }
         }
       },
-      "ResyncSdkResponse": {
-        "type": "object"
-      },
       "ReturnAddress": {
         "oneOf": [
           {
@@ -12438,9 +11373,6 @@
           "agent",
           "user"
         ]
-      },
-      "RuntimeConfigResponse": {
-        "type": "object"
       },
       "ScimEmail": {
         "type": "object",
@@ -12891,10 +11823,10 @@
       "StartUserCredentialBrokeringParamsInner": {
         "type": "object",
         "required": [
-          "provider_instance_id"
+          "tool_group_instance_id"
         ],
         "properties": {
-          "provider_instance_id": {
+          "tool_group_instance_id": {
             "type": "string"
           }
         }
@@ -12941,238 +11873,6 @@
             }
           },
           "next_page_token": {
-            "type": "string"
-          }
-        }
-      },
-      "Task": {
-        "type": "object",
-        "required": [
-          "id",
-          "context_id",
-          "status",
-          "status_timestamp",
-          "metadata",
-          "created_at",
-          "updated_at"
-        ],
-        "properties": {
-          "context_id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
-          },
-          "created_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
-          },
-          "metadata": {
-            "$ref": "#/components/schemas/Metadata"
-          },
-          "status": {
-            "$ref": "#/components/schemas/TaskStatus"
-          },
-          "status_message_id": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/WrappedUuidV4"
-              }
-            ]
-          },
-          "status_timestamp": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "updated_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          }
-        }
-      },
-      "TaskPaginatedResponse": {
-        "type": "object",
-        "required": [
-          "items"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Task"
-            }
-          },
-          "next_page_token": {
-            "type": "string"
-          }
-        }
-      },
-      "TaskStatus": {
-        "type": "string",
-        "enum": [
-          "submitted",
-          "working",
-          "input-required",
-          "completed",
-          "canceled",
-          "failed",
-          "rejected",
-          "auth-required",
-          "unknown"
-        ]
-      },
-      "TaskStatusUpdateTaskTimelineItem": {
-        "type": "object",
-        "required": [
-          "status"
-        ],
-        "properties": {
-          "status": {
-            "$ref": "#/components/schemas/TaskStatus"
-          },
-          "status_message_id": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/WrappedUuidV4"
-              }
-            ]
-          }
-        }
-      },
-      "TaskTimelineItem": {
-        "type": "object",
-        "required": [
-          "id",
-          "task_id",
-          "event_payload",
-          "created_at"
-        ],
-        "properties": {
-          "created_at": {
-            "$ref": "#/components/schemas/WrappedChronoDateTime"
-          },
-          "event_payload": {
-            "$ref": "#/components/schemas/TaskTimelineItemPayload"
-          },
-          "id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
-          },
-          "task_id": {
-            "$ref": "#/components/schemas/WrappedUuidV4"
-          }
-        }
-      },
-      "TaskTimelineItemPaginatedResponse": {
-        "type": "object",
-        "required": [
-          "items"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TaskTimelineItem"
-            }
-          },
-          "next_page_token": {
-            "type": "string"
-          }
-        }
-      },
-      "TaskTimelineItemPayload": {
-        "oneOf": [
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/TaskStatusUpdateTaskTimelineItem"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "task-status-update"
-                    ]
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MessageTaskTimelineItem"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "message"
-                    ]
-                  }
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "TaskWithDetails": {
-        "type": "object",
-        "required": [
-          "task",
-          "messages"
-        ],
-        "properties": {
-          "messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Message"
-            }
-          },
-          "messages_next_page_token": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "status_message": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Message"
-              }
-            ]
-          },
-          "task": {
-            "$ref": "#/components/schemas/Task"
-          }
-        }
-      },
-      "TextPart": {
-        "type": "object",
-        "required": [
-          "text",
-          "metadata"
-        ],
-        "properties": {
-          "metadata": {
-            "$ref": "#/components/schemas/Metadata"
-          },
-          "text": {
             "type": "string"
           }
         }
@@ -13256,8 +11956,468 @@
           }
         }
       },
-      "TriggerCodegenResponse": {
-        "type": "object"
+      "ToolAliasSerialized": {
+        "type": "object",
+        "description": "Tool alias for version management",
+        "required": [
+          "tool_type_id",
+          "tool_deployment_id",
+          "alias",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "alias": {
+            "type": "string",
+            "description": "Alias name (e.g., \"latest\", \"stable\", \"beta\")"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime",
+            "description": "When this alias was created"
+          },
+          "tool_deployment_id": {
+            "type": "string",
+            "description": "Deployment ID of the tool this alias points to"
+          },
+          "tool_type_id": {
+            "type": "string",
+            "description": "Type ID of the tool this alias points to"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime",
+            "description": "When this alias was last updated"
+          }
+        }
+      },
+      "ToolDeploymentSerialized": {
+        "type": "object",
+        "required": [
+          "type_id",
+          "name",
+          "documentation",
+          "parameters",
+          "output",
+          "categories"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "documentation": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "output": {
+            "$ref": "#/components/schemas/JsonSchema"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/JsonSchema"
+          },
+          "type_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ToolGroupCredentialDeploymentSerialized": {
+        "type": "object",
+        "required": [
+          "type_id",
+          "configuration_schema",
+          "name",
+          "documentation",
+          "requires_brokering",
+          "requires_resource_server_credential_refreshing",
+          "requires_user_credential_refreshing"
+        ],
+        "properties": {
+          "configuration_schema": {
+            "$ref": "#/components/schemas/ConfigurationSchema"
+          },
+          "documentation": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "requires_brokering": {
+            "type": "boolean"
+          },
+          "requires_resource_server_credential_refreshing": {
+            "type": "boolean"
+          },
+          "requires_user_credential_refreshing": {
+            "type": "boolean"
+          },
+          "type_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ToolGroupDeploymentSerialized": {
+        "type": "object",
+        "required": [
+          "type_id",
+          "name",
+          "categories",
+          "documentation",
+          "tools",
+          "credential_deployments"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "credential_deployments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolGroupCredentialDeploymentSerialized"
+            }
+          },
+          "documentation": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolDeploymentSerialized"
+            }
+          },
+          "type_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ToolGroupInstanceListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ToolGroupInstanceSerialized"
+          },
+          {
+            "type": "object",
+            "required": [
+              "tools",
+              "source",
+              "credential_source"
+            ],
+            "properties": {
+              "credential_source": {
+                "$ref": "#/components/schemas/ToolGroupCredentialDeploymentSerialized"
+              },
+              "source": {
+                "$ref": "#/components/schemas/ToolGroupDeploymentSerialized"
+              },
+              "tools": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ToolInstanceListItem"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ToolGroupInstanceListItemPaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolGroupInstanceListItem"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
+      "ToolGroupInstanceSerialized": {
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "resource_server_credential_id",
+          "created_at",
+          "updated_at",
+          "tool_group_deployment_type_id",
+          "credential_deployment_type_id",
+          "status"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "credential_deployment_type_id": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "resource_server_credential_id": {
+            "$ref": "#/components/schemas/WrappedUuidV4"
+          },
+          "return_on_successful_brokering": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReturnAddress"
+              }
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "tool_group_deployment_type_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "user_credential_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WrappedUuidV4"
+              }
+            ]
+          }
+        }
+      },
+      "ToolGroupInstanceSerializedWithCredentials": {
+        "type": "object",
+        "required": [
+          "tool_group_instance",
+          "resource_server_credential"
+        ],
+        "properties": {
+          "resource_server_credential": {
+            "$ref": "#/components/schemas/ResourceServerCredentialSerialized"
+          },
+          "tool_group_instance": {
+            "$ref": "#/components/schemas/ToolGroupInstanceSerialized"
+          },
+          "user_credential": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UserCredentialSerialized"
+              }
+            ]
+          }
+        }
+      },
+      "ToolGroupInstanceSerializedWithEverything": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ToolGroupInstanceSerializedWithCredentials"
+          },
+          {
+            "type": "object",
+            "required": [
+              "tools",
+              "source",
+              "credential_source"
+            ],
+            "properties": {
+              "credential_source": {
+                "$ref": "#/components/schemas/ToolGroupCredentialDeploymentSerialized"
+              },
+              "source": {
+                "$ref": "#/components/schemas/ToolGroupDeploymentSerialized"
+              },
+              "tools": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ToolInstanceListItem"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ToolInstanceConfig": {
+        "type": "object",
+        "required": [
+          "tool_source",
+          "tool_group",
+          "tool_group_instances"
+        ],
+        "properties": {
+          "tool_group": {
+            "$ref": "#/components/schemas/ToolGroupDeploymentSerialized"
+          },
+          "tool_group_instances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolGroupInstanceSerializedWithCredentials"
+            }
+          },
+          "tool_source": {
+            "$ref": "#/components/schemas/ToolDeploymentSerialized"
+          }
+        }
+      },
+      "ToolInstanceConfigPaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolInstanceConfig"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
+      "ToolInstanceListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ToolInstanceSerialized"
+          },
+          {
+            "type": "object",
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "$ref": "#/components/schemas/ToolDeploymentSerialized"
+              }
+            }
+          }
+        ]
+      },
+      "ToolInstanceSerialized": {
+        "type": "object",
+        "required": [
+          "tool_deployment_type_id",
+          "tool_group_deployment_type_id",
+          "tool_group_instance_id",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          },
+          "tool_deployment_type_id": {
+            "type": "string"
+          },
+          "tool_group_deployment_type_id": {
+            "type": "string"
+          },
+          "tool_group_instance_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime"
+          }
+        }
+      },
+      "ToolInstanceSerializedPaginatedResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolInstanceSerialized"
+            }
+          },
+          "next_page_token": {
+            "type": "string"
+          }
+        }
+      },
+      "ToolSerialized": {
+        "type": "object",
+        "description": "Tool definition with type and deployment identifiers",
+        "required": [
+          "type_id",
+          "deployment_id",
+          "name",
+          "documentation",
+          "categories",
+          "endpoint_type",
+          "endpoint_configuration",
+          "metadata",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Categories this tool belongs to (for filtering and discovery)"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime",
+            "description": "When this tool was registered"
+          },
+          "deployment_id": {
+            "type": "string",
+            "description": "Deployment identifier (e.g., \"v1.0.0\", \"production\")"
+          },
+          "documentation": {
+            "type": "string",
+            "description": "Documentation describing the tool's purpose and usage"
+          },
+          "endpoint_configuration": {
+            "type": "object",
+            "description": "Encrypted endpoint configuration"
+          },
+          "endpoint_type": {
+            "$ref": "#/components/schemas/EndpointType",
+            "description": "Type of endpoint (http)"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata",
+            "description": "Additional metadata"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name of the tool"
+          },
+          "type_id": {
+            "type": "string",
+            "description": "Unique type identifier for this tool (e.g., \"weather-api\")"
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/WrappedChronoDateTime",
+            "description": "When this tool was last updated"
+          }
+        }
       },
       "TupleUnit": {
         "default": null
@@ -13288,16 +12448,16 @@
       "UpdateMcpServerInstanceFunctionRequest": {
         "type": "object",
         "required": [
-          "function_name"
+          "tool_name"
         ],
         "properties": {
-          "function_description": {
+          "tool_description": {
             "type": [
               "string",
               "null"
             ]
           },
-          "function_name": {
+          "tool_name": {
             "type": "string"
           }
         }
@@ -13309,17 +12469,6 @@
         ],
         "properties": {
           "name": {
-            "type": "string"
-          }
-        }
-      },
-      "UpdateProviderInstanceParamsInner": {
-        "type": "object",
-        "required": [
-          "display_name"
-        ],
-        "properties": {
-          "display_name": {
             "type": "string"
           }
         }
@@ -13336,24 +12485,25 @@
           }
         }
       },
-      "UpdateTaskStatusRequest": {
+      "UpdateToolAliasRequest": {
         "type": "object",
         "required": [
-          "status"
+          "tool_deployment_id"
         ],
         "properties": {
-          "message": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/CreateMessageRequest"
-              }
-            ]
-          },
-          "status": {
-            "$ref": "#/components/schemas/TaskStatus"
+          "tool_deployment_id": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateToolGroupInstanceParamsInner": {
+        "type": "object",
+        "required": [
+          "display_name"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string"
           }
         }
       },
@@ -13726,10 +12876,6 @@
   },
   "tags": [
     {
-      "name": "task",
-      "description": "Task management endpoints for creating, listing, and managing tasks and their messages"
-    },
-    {
       "name": "secret",
       "description": "Secret management endpoints for storing and retrieving encrypted secrets"
     },
@@ -13747,11 +12893,7 @@
     },
     {
       "name": "_internal",
-      "description": "Internal endpoints for health checks, runtime configuration, and SDK code generation"
-    },
-    {
-      "name": "agent",
-      "description": "Agent management and A2A (agent-to-agent) communication endpoints"
+      "description": "Internal endpoints for health checks, runtime configuration"
     },
     {
       "name": "identity",
